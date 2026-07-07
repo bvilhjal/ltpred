@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ltpred"
+dynamic = ["version"]                # single-sourced from ltpred.__version__
+description = "LT-FH++ in Python: liability-threshold, family-history & age-of-onset (ADuLT) posterior genetic-liability estimation via a truncated-MVN Gibbs sampler"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "Bjarni Vilhjálmsson" }]
+# Faithful Python port of the R package LTFHPlus (Pedersen et al. 2022, AJHG;
+# Pedersen et al. 2023, Nat Commun). numpy is the only required runtime dep;
+# scipy supplies the vectorised normal CDF/PPF used by the threshold helpers.
+dependencies = ["numpy>=1.20", "scipy>=1.6"]
+
+[project.urls]
+Homepage = "https://github.com/bvilhjal/ltpred"
+Repository = "https://github.com/bvilhjal/ltpred"
+Issues = "https://github.com/bvilhjal/ltpred/issues"
+
+[project.optional-dependencies]
+fast = ["numba>=0.59"]          # JIT-compiled truncated-MVN Gibbs sweep (recommended)
+test = ["pytest>=7"]
+lint = ["ruff>=0.5"]            # pyflakes-style lint gate (see [tool.ruff])
+
+[tool.setuptools]
+packages = ["ltpred"]
+
+[tool.setuptools.dynamic]
+version = { attr = "ltpred.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+# Lint for real defects, not style: like ldpred3/bipred, the codebase uses compact
+# multi-statement lines (E702) and long lines, so enforce only pyflakes (F).
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["F"]
