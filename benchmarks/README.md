@@ -1,0 +1,52 @@
+# ltpred benchmarks
+
+Benchmarks for the two ltpred fitting methods — the **Gibbs sampler** (LT-FH++)
+and the deterministic **Pearson–Aitken** estimator (PA-FGRS) — inspired by the
+comparisons made in the LT-FH++, ADuLT and PA-FGRS papers. Everything simulates
+its own data, so the true genetic liability is known and the benchmarks run
+locally with no downloads (the one exception, real-LD genotypes, is an opt-in
+[HAPNEST](hapnest/README.md) step).
+
+Run single-core-ish for reproducible timings, or let Numba use all cores for
+speed:
+
+```bash
+python benchmarks/bench_accuracy.py
+OMP_NUM_THREADS=10 python benchmarks/bench_gwas_power.py
+```
+
+Each script writes a `.csv` and (if matplotlib is present) a `.png`.
+
+## Scripts
+
+| Script | What it measures |
+|--------|------------------|
+| `bench_accuracy.py` | corr(estimated genetic liability, true g) across heritability × prevalence × family structure — Gibbs vs PA-FGRS accuracy, calibration slope, RMSE and the effective-N gain over case/control (→ `bench_accuracy.{csv,png}`) |
+| `bench_scaling.py` | wall-clock scaling of both methods with #families and family size; families/second and speed-up (→ `bench_scaling.{csv,png}`) |
+| `bench_age_onset.py` | value of the liability→age-of-onset map (ADuLT/LT-FH++): plain case/control vs onset-pinned cases, fit with PA (and Gibbs, to confirm agreement); accuracy and eff-N gain vs prevalence (→ `bench_age_onset.{csv,png}`) |
+| `bench_gwas_power.py` | genotype-based GWAS power: case/control vs LT-FH++ vs PA-FGRS vs an oracle — mean χ² at causal SNPs (effective N), detection power, and λ_GC calibration at nulls (→ `bench_gwas_power.{csv,png}`). Pass `--plink PREFIX` for **real-LD** HAPNEST genotypes (opt-in; see [`hapnest/README.md`](hapnest/README.md)) |
+
+`_common.py` holds the shared simulation, estimation, GWAS and plotting helpers,
+plus a minimal PLINK `.bed` reader for the HAPNEST path.
+
+## How the data are simulated
+
+* **Family-only benchmarks** (accuracy, scaling, age-of-onset) draw whole
+  families straight from the LT-FH++ covariance — genetic `g`, full `o` and
+  relatives jointly multivariate normal — and threshold them. `g` is the ground
+  truth, so accuracy is just corr(estimate, `g`).
+* **The GWAS benchmark** builds each proband's genetic liability from simulated
+  causal-SNP genotypes, then draws the relatives' liabilities *conditional on that
+  value* from the same covariance. This gives a genotype matrix to associate
+  against and a correctly correlated family history to estimate from. LD is not
+  needed for the power comparison (which turns on each phenotype's correlation to
+  the true genetic value); pass `--plink` for real-LD HAPNEST genotypes if you
+  want realistic multiple-testing structure.
+
+## Caveats
+
+- These are **stochastic** benchmarks: every number is one Monte-Carlo draw, so
+  re-running shifts values by sampling noise. The qualitative conclusions in
+  [`RESULTS.md`](RESULTS.md) are stable.
+- The Gibbs timings use the structure-grouped, Numba-parallel path; set
+  `OMP_NUM_THREADS` to fix the core count for comparable numbers.

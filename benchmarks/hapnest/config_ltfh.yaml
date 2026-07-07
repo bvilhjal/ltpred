@@ -1,0 +1,37 @@
+# HAPNEST config for a single-trait real-LD genotype set.
+#
+# TEMPLATE -- reconcile section names against the example config that
+#   `singularity exec ... intervene-synthetic-data_latest.sif init`
+# drops into your data/ directory. HAPNEST's field *names* below are taken from
+# its docs; the exact YAML nesting can differ between versions, so diff this
+# against the generated example before running `generate_geno`.
+#
+# Only the GENOTYPES are used by bench_gwas_power.py --plink. The phenotype is
+# simulated by the benchmark under the liability-threshold model (family history
+# on top of each proband's real-LD genotype), so `generate_pheno` is not needed
+# and the phenotype_data block below is a minimal placeholder.
+
+global_parameters:
+  chromosome: 22          # one or two chromosomes keeps the benchmark tractable
+  superpopulation: EUR    # single ancestry keeps the LD reference simple
+  random_seed: 42
+  memory: 8000
+
+filepaths:
+  output_dir: data/output
+  output_prefix: synthetic
+
+genotype_data:
+  samples:
+    # HAPNEST resamples the reference haplotypes into this many synthetic samples;
+    # bench_gwas_power.py uses the first --n-fam of them as probands.
+    default: 12000
+
+# Minimal single-trait block: only present so `generate_geno` has a valid config.
+# The liability-threshold phenotype is simulated in Python, not by HAPNEST.
+phenotype_data:
+  nPopulation: 1
+  nTrait: 1
+  ProportionGeno: 0.5     # unused by the benchmark; h2 is set with --h2
+  Polygenicity: 0.01
+  UseCausalList: false
