@@ -144,6 +144,24 @@ but better aligned with a downstream molecular GWAS. Neither is uniquely "correc
 so run a **sensitivity analysis** over plausible `h²` values (and prevalence/CIP)
 and check how much the score and downstream results move.
 
+### Fitting `h²` from the family data
+
+If you don't have an external `h²`, you can **estimate it from the families
+themselves** — `fit_heritability` fits the liability-scale heritability from the
+relatives' case/control (and age-of-onset) statuses with a data-augmentation Gibbs
+sampler (see [algorithm.md](algorithm.md#fitting-the-covariance-heritability)):
+
+```python
+from ltpred import fit_heritability
+fit = fit_heritability(families)     # families with member bounds (from a threshold builder)
+fit.h2, fit.h2_se                    # fitted liability-scale heritability (+ Monte-Carlo SE)
+```
+
+It needs relatives (lone probands carry no information and raise). `fit.h2_se` is
+the *within-dataset* Monte-Carlo error — the spread across datasets is larger, so
+bootstrap over families if you need a proper confidence interval. Feed the result
+back in as `h2=fit.h2` (or, better, run the sensitivity analysis around it).
+
 ## Building families
 
 From flat columns (the common path):
@@ -224,9 +242,10 @@ family-history analogue of a BLUP / selection-index breeding value (see
   from relatives' phenotypes and the assumed relationship matrix.
 - **Not an absolute disease risk.** It lives on the liability scale; turning it
   into a risk needs the threshold/CIP model on top.
-- **A conditional estimate.** ltpred *conditions* on an assumed `h2`, prevalence/
-  CIP model and family covariance — it does not estimate variance components or
-  CIPs internally.
+- **A conditional estimate.** the liability estimators *condition* on an assumed
+  `h2`, prevalence/CIP model and family covariance; they do not estimate the CIPs
+  internally. (`h2` itself can optionally be fit from the family data with
+  `fit_heritability` — see above.)
 - **A GWAS phenotype.** Used in a GWAS, a SNP association tests whether the SNP
   predicts *inferred additive genetic liability*, not merely the observed 0/1
   diagnosis — that is where the power gain comes from.
@@ -276,6 +295,17 @@ in practice ~100× faster than the object path at large `N` (and
 Control the thread count with `ltpred.set_num_threads(n)`, and warm up once (the
 first call JIT-compiles) before timing. Different family structures still need
 separate array calls (one covariance each); the object API groups them for you.
+
+**Memory: `dtype=np.float32`.** The memory that scales at biobank size is the
+per-family `(n_families, len(roles))` bounds (`lower`/`upper`, and `K_i`/`K_pop`),
+not the tiny per-structure covariance. Store them in single precision to halve
+that footprint — pass `dtype=np.float32` to `estimate_liability` (and the
+`_single`/`_multi`/`_pa` variants), or simply hand the array API `float32` bound
+arrays; it keeps them float32. The covariance, conditional-regression factors and
+Monte-Carlo accumulators stay float64, so the estimates match the float64 result
+to ~1e-5 (float32 rounding of the thresholds only). Quantising the *covariance*
+itself (à la ldpred3's int8 LD) would not help here — it is a small `d×d` matrix
+shared per structure, kilobytes total, and it is used in a matrix inverse.
 
 ## Multiple correlated traits
 

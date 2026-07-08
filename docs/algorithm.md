@@ -139,9 +139,11 @@ liabilities are observed continuously (or pinned to points). The Gibbs backend
 estimates the truncated-normal expectation directly; Pearson–Aitken approximates
 the same moment updates deterministically. Viewed this way, `ltpred` is a
 fixed-variance **probit / threshold liability model with a pedigree random
-effect**, used for *prediction* (of `g`) rather than variance-component
-estimation — it conditions on an assumed `h2`, CIP/prevalence model and
-relationship matrix and does not fit them.
+effect**, used primarily for *prediction* (of `g`) — the liability estimators
+condition on an assumed `h2`, CIP/prevalence model and relationship matrix. The
+heritability itself can optionally be **fit** from the same family data by
+data augmentation (see [Fitting the covariance](#fitting-the-covariance-heritability)
+below); the CIP/prevalence model is always supplied.
 
 ## Connection to Sham's liability-threshold risk models
 
@@ -271,6 +273,45 @@ mean* = mix * mean(below upper) + (1 - mix) * mean(above upper)
 (with the matching two-component variance), following PA-FGRS supp. eqs. S3–S5.
 Enabled via `use_mixture=True`; off, PA reduces to the plain truncated-moment
 sweep.
+
+## Fitting the covariance (heritability)
+
+Both estimators above *condition* on a known `h2`. `fit_heritability` instead
+**fits** it — estimating the liability-scale heritability from the case/control
+(and age-of-onset) statuses of relatives — with a Gibbs sampler modelled on
+bipred's joint effect/parameter loop (sample the latents, then re-estimate the
+covariance parameters each sweep). It treats the latent liabilities as missing
+data and alternates:
+
+1. **Augment** — one persistent truncated-MVN sweep per family under the current
+   covariance `Sigma(h2) = (1-h2) I + h2 A` (`A` the additive relationship matrix
+   over the observed relatives), holding pinned cases (`gibbs_advance`).
+2. **Update** — a damped moment step for `h2`: a Haseman–Elston regression of the
+   sampled liability cross-products on relatedness, pooled over all related pairs
+   in all families,
+
+   ```text
+   h2_hat = sum_pairs A_ij * l_i l_j / sum_pairs A_ij^2 ,
+   h2     <- (1 - damp) * h2 + damp * h2_hat .
+   ```
+
+Because the liabilities are drawn conditional on each family's observed intervals,
+pooling their cross-products reconstructs the model covariance, so the chain
+settles at the `h2` consistent with the observed familial resemblance — a
+threshold-model variance-component estimate from pedigree affection data (in the
+Sorensen–Gianola / Bayesian animal-model tradition; the moment-with-damping update
+is the bipred-style analogue of a full conjugate step). In simulation it recovers
+`h2` to within Monte-Carlo error across 0.3–0.8. The reported `h2_se` is the
+*within-dataset* Monte-Carlo error; sampling variability across datasets is larger
+and depends on the number and informativeness of the families (bootstrap over
+families for that). Identifiability comes entirely from the *between-relative*
+covariance, so relatives are required (lone probands carry no information).
+
+The same augment-then-regress machinery would fit a shared-environment (`c2`) or
+maternal component by adding its relationship matrix `C` as a second predictor
+(the [environmental-covariance extension](#adding-environmental-covariance-to-improve-prediction)),
+but separating `c2` from `h2` needs contrasting relative types (e.g. MZ vs DZ, or
+parent-offspring vs sib), so only `h2` is fit here.
 
 ## Multiple traits
 

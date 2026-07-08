@@ -48,6 +48,7 @@ _EXPORTS = {
                  "estimate_liability_pa_arrays", "estimate_liability_gibbs_arrays",
                  "batch_means", "LiabilityResult"],
     "simulate": ["simulate_under_LTM_single", "simulate_under_LTM", "Simulation"],
+    "fit": ["fit_heritability", "FitResult"],
     "_numba": ["set_num_threads"],
 }
 
