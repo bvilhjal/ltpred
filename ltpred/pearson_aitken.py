@@ -32,6 +32,7 @@ import numpy as np
 
 from ._numba import _jit, _jit_parallel, prange
 from ._mathfun import _norm_cdf, _norm_ppf
+from .gibbs import as_bounds
 
 __all__ = ["pa_algorithm", "pa_estimate_batched", "tnorm_moments",
            "tnorm_mixture_conditional"]
@@ -235,8 +236,8 @@ def pa_estimate_batched(covmat, lowers, uppers, target=0, K_is=None, K_pops=None
     allocates the ``(F, d)`` mixture arrays. Returns ``(est, var)`` of length ``F``."""
     cov = np.array(covmat, dtype=np.float64, copy=True)
     d = cov.shape[0]
-    lowers = np.ascontiguousarray(lowers, dtype=np.float64)
-    uppers = np.ascontiguousarray(uppers, dtype=np.float64)
+    lowers = as_bounds(lowers)             # keeps float32 to halve memory
+    uppers = as_bounds(uppers)
     F = lowers.shape[0]
     order = np.concatenate(([target], np.delete(np.arange(d), target)))
     cov = np.ascontiguousarray(cov[np.ix_(order, order)])
@@ -246,8 +247,8 @@ def pa_estimate_batched(covmat, lowers, uppers, target=0, K_is=None, K_pops=None
     if K_is is None and K_pops is None:        # no-mixture fast path (no K arrays)
         _pa_batched_nomix(cov, lo, hi, est, var)
         return est, var
-    K_is = np.full((F, d), np.nan) if K_is is None else np.ascontiguousarray(K_is, dtype=np.float64)
-    K_pops = np.full((F, d), np.nan) if K_pops is None else np.ascontiguousarray(K_pops, dtype=np.float64)
+    K_is = np.full((F, d), np.nan) if K_is is None else as_bounds(K_is)
+    K_pops = np.full((F, d), np.nan) if K_pops is None else as_bounds(K_pops)
     _pa_batched(cov, lo, hi, np.ascontiguousarray(K_is[:, order]),
                 np.ascontiguousarray(K_pops[:, order]), est, var)
     return est, var

@@ -27,7 +27,8 @@ import numpy as np
 from ._numba import _jit, _jit_parallel, prange
 from ._mathfun import _norm_cdf, _norm_ppf
 
-__all__ = ["rtmvnorm_gibbs", "gibbs_params", "gibbs_estimate_batched"]
+__all__ = ["rtmvnorm_gibbs", "gibbs_params", "gibbs_estimate_batched",
+           "gibbs_advance"]
 
 # U(Fa, Fb) draws are clamped this far off {0, 1} before the inverse-CDF step so
 # a boundary draw (np.random.random() can return exactly 0.0) cannot map to an
@@ -170,6 +171,16 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
             bm_sumsq[f, c] = s2[c]
 
 
+def as_bounds(a):
+    """Contiguous float array for a kernel: **keep float32** (to halve the memory
+    of large per-family bound arrays), otherwise coerce to float64. The kernels'
+    internal state and accumulators stay float64 regardless, so only the big
+    ``(F, d)`` inputs shrink; the covariance / conditional-regression factors are
+    unaffected."""
+    a = np.ascontiguousarray(a)
+    return a if a.dtype == np.float32 else np.ascontiguousarray(a, dtype=np.float64)
+
+
 def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                            batch_size, n_batch, seeds):
     """Thin wrapper over the parallel kernel; returns ``(total_sum, bm_sum, bm_sumsq)``.
@@ -178,7 +189,7 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
     ``n_sim`` for the posterior mean); ``bm_sum`` / ``bm_sumsq`` are the sum and
     sum-of-squares of the ``n_batch`` batch means, from which the batch-means SE is
     formed: with ``M`` batches of size ``b``, ``se = sqrt(b * (bm_sumsq - bm_sum^2/M)
-    / (M-1) / N)``."""
+    / (M-1) / N)``. ``lowers``/``uppers`` may be float32 to halve their memory."""
     F = lowers.shape[0]
     ncols = out_idx.shape[0]
     total_sum = np.zeros((F, ncols), dtype=np.float64)
@@ -186,13 +197,42 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
     bm_sumsq = np.zeros((F, ncols), dtype=np.float64)
     _gibbs_estimate_batched(np.ascontiguousarray(P), np.ascontiguousarray(sd),
                             np.ascontiguousarray(sd0),
-                            np.ascontiguousarray(lowers, dtype=np.float64),
-                            np.ascontiguousarray(uppers, dtype=np.float64),
+                            as_bounds(lowers), as_bounds(uppers),
                             np.asarray(out_idx, dtype=np.int64),
                             int(n_sim), int(burn_in), int(batch_size),
                             int(n_batch), np.asarray(seeds, dtype=np.int64),
                             total_sum, bm_sum, bm_sumsq)
     return total_sum, bm_sum, bm_sumsq
+
+
+@_jit_parallel
+def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
+    """Advance many families' truncated-MVN chains in place by ``n_sweeps`` sweeps.
+
+    Unlike :func:`gibbs_estimate_batched` (which runs independent short chains and
+    returns their means), this keeps a **persistent** state ``x`` (``F x d``) that
+    the caller carries across outer iterations — the data-augmentation step of a
+    variance-component fit (:mod:`ltpred.fit`), where the covariance (hence ``P`` /
+    ``sd``) changes between calls. ``fixed[f, j]`` coordinates (pinned cases) are
+    held. Parallel over families; seed once beforehand with :func:`_seed_rng`."""
+    F = x.shape[0]
+    d = x.shape[1]
+    for f in prange(F):
+        for _ in range(n_sweeps):
+            for j in range(d):
+                if not fixed[f, j]:
+                    mu_j = 0.0
+                    for i in range(d):
+                        mu_j += P[i, j] * x[f, i]
+                    sd_j = sd[j]
+                    fa = _norm_cdf((lowers[f, j] - mu_j) / sd_j)
+                    fb = _norm_cdf((uppers[f, j] - mu_j) / sd_j)
+                    u = fa + np.random.random() * (fb - fa)
+                    if u < _U_EPS:
+                        u = _U_EPS
+                    elif u > 1.0 - _U_EPS:
+                        u = 1.0 - _U_EPS
+                    x[f, j] = mu_j + sd_j * _norm_ppf(u)
 
 
 @_jit

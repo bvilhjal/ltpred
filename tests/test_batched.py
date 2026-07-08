@@ -91,6 +91,42 @@ def test_canonical_grouping_permuted_members():
     assert res.est["genetic"][0] == pytest.approx(res.est["genetic"][1])
 
 
+def test_float32_bounds_match_float64():
+    # float32 per-family bounds halve memory and match float64 to f32 precision
+    from ltpred.estimate import estimate_liability_pa_arrays
+    from ltpred.simulate import simulate_under_LTM_single
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5, n_sim=400,
+                                    pop_prev=0.05, seed=1)
+    g64 = estimate_liability(sim.families, h2=0.5, out=("genetic",), n_sim=20_000,
+                             burn_in=400, seed=0)
+    g32 = estimate_liability(sim.families, h2=0.5, out=("genetic",), n_sim=20_000,
+                             burn_in=400, seed=0, dtype=np.float32)
+    assert np.allclose(g64.est["genetic"], g32.est["genetic"], atol=1e-5)
+    p64 = estimate_liability(sim.families, h2=0.5, method="pa")
+    p32 = estimate_liability(sim.families, h2=0.5, method="pa", dtype=np.float32)
+    assert np.allclose(p64.est["genetic"], p32.est["genetic"], atol=1e-5)
+
+
+def test_array_api_preserves_float32():
+    from ltpred.estimate import estimate_liability_pa_arrays
+    t = float(stats.norm.isf(0.05))
+    roles = ["o", "m", "f"]
+    case = np.random.default_rng(0).random((100, 3)) < 0.2
+    lo = np.where(case, t, -np.inf).astype(np.float32)
+    hi = np.where(case, np.inf, t).astype(np.float32)
+    e32, v32 = estimate_liability_pa_arrays(roles, lo, hi, h2=0.5)
+    e64, v64 = estimate_liability_pa_arrays(roles, lo.astype(np.float64),
+                                            hi.astype(np.float64), h2=0.5)
+    assert np.allclose(e32, e64, atol=1e-5)
+
+
+def test_bad_dtype_rejected():
+    from ltpred.family import Family, Member
+    fam = Family("f", [Member("o", 1.6, np.inf)])
+    with pytest.raises(ValueError, match="float32 or float64"):
+        estimate_liability([fam], h2=0.5, method="pa", dtype=np.int32)
+
+
 def test_grouping_gives_same_answer_regardless_of_order():
     # mix of two structures; shuffling families must not change per-family results
     t = float(stats.norm.isf(0.05))

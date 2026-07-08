@@ -25,7 +25,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .covariance import construct_covmat_single, construct_covmat_multi, correct_positive_definite
-from .gibbs import gibbs_params, gibbs_estimate_batched
+from .gibbs import gibbs_params, gibbs_estimate_batched, as_bounds
 from .pearson_aitken import pa_estimate_batched
 
 __all__ = ["LiabilityResult", "batch_means", "estimate_liability",
@@ -37,6 +37,14 @@ _PA_METHODS = {"pa", "pearson-aitken", "pearson_aitken", "aitken", "pa-fgrs"}
 
 _OUT_ALIASES = {"genetic": 0, "g": 0, 0: 0, "full": 1, "o": 1, 1: 1}
 _OUT_NAMES = {0: "genetic", 1: "full"}
+
+
+def _bounds_dtype(dtype):
+    """Validate the per-family bounds dtype: float32 (half memory) or float64."""
+    dt = np.dtype(dtype)
+    if dt not in (np.dtype(np.float32), np.dtype(np.float64)):
+        raise ValueError("dtype must be float32 or float64")
+    return dt
 
 
 @dataclass
@@ -231,15 +239,17 @@ def _base_seeds(seed, n, max_rounds):
 
 def estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01,
                               n_sim=100_000, burn_in=1000, seed=None,
-                              max_rounds=100):
+                              max_rounds=100, dtype=np.float64):
     """Estimate genetic/full liabilities for one trait, family by family.
 
     ``families`` is a list of :class:`~ltpred.family.Family` (build one from flat
     columns with :func:`~ltpred.family.families_from_columns`). Families sharing a
     structure are sampled together in the parallel kernel. ``out`` selects
-    ``"genetic"`` and/or ``"full"``. Returns a :class:`LiabilityResult` whose arrays
-    line up with ``families``."""
+    ``"genetic"`` and/or ``"full"``. ``dtype=np.float32`` stores the per-family
+    liability bounds in single precision (half the memory) at negligible accuracy
+    cost. Returns a :class:`LiabilityResult` whose arrays line up with ``families``."""
     _check_unique_roles(families)
+    dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
     names = [_OUT_NAMES[c] for c in out_coords]
     n = len(families)
@@ -264,8 +274,8 @@ def estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01,
             uppers.append(hi[:, 0])
             group_pids.append(mpids[o_pos] if o_pos is not None and mpids[o_pos] is not None
                               else families[f].fam_id)
-        lowers = np.array(lowers)
-        uppers = np.array(uppers)
+        lowers = np.array(lowers, dtype=dtype)
+        uppers = np.array(uppers, dtype=dtype)
 
         g_est, g_se = _estimate_group(cov, out_coords, lowers, uppers,
                                       seeds[idx], tol, n_sim, burn_in, max_rounds)
@@ -302,7 +312,8 @@ def _ordered_bounds_pa(family, cov_roles):
             np.array(K_i), np.array(K_pop))
 
 
-def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False):
+def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
+                          dtype=np.float64):
     """Deterministic Pearson-Aitken (PA-FGRS) liability estimation, one trait.
 
     A closed-form alternative to :func:`estimate_liability_single`: no sampling, no
@@ -311,9 +322,11 @@ def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False)
     ``"full"`` targets ``o`` and predicts the proband's full liability from the
     *relatives* (its own status is the target and so is not conditioned on).
     ``use_mixture=True`` turns on the age-censored-control mixture, using each
-    member's ``K_i``/``K_pop`` (see :func:`ltpred.thresholds.pa_thresholds`). Returns
-    a :class:`LiabilityResult` with ``se = 0`` and posterior variances in ``var``."""
+    member's ``K_i``/``K_pop`` (see :func:`ltpred.thresholds.pa_thresholds`).
+    ``dtype=np.float32`` halves the per-family bound memory. Returns a
+    :class:`LiabilityResult` with ``se = 0`` and posterior variances in ``var``."""
     _check_unique_roles(families)
+    dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
     names = [_OUT_NAMES[c] for c in out_coords]
     n = len(families)
@@ -331,9 +344,9 @@ def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False)
         o_pos = cov_roles.index("o") if "o" in cov_roles else None
 
         F, d = len(idx), len(cov_roles)
-        lowers = np.empty((F, d)); uppers = np.empty((F, d))
-        K_is = np.empty((F, d)) if use_mixture else None
-        K_pops = np.empty((F, d)) if use_mixture else None
+        lowers = np.empty((F, d), dtype=dtype); uppers = np.empty((F, d), dtype=dtype)
+        K_is = np.empty((F, d), dtype=dtype) if use_mixture else None
+        K_pops = np.empty((F, d), dtype=dtype) if use_mixture else None
         group_pids = []
         for slot, f in enumerate(idx):
             lo, hi, mpids, ki, kp = _ordered_bounds_pa(families[f], cov_roles)
@@ -361,19 +374,21 @@ def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False)
 def estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
                              phen_names=None, out=("genetic",), tol=0.01,
                              n_sim=100_000, burn_in=1000, seed=None,
-                             max_rounds=100):
+                             max_rounds=100, dtype=np.float64):
     """Estimate genetic/full liabilities jointly across several correlated traits.
 
     Each member's ``lower``/``upper`` must be length-``n_pheno`` sequences (one
     interval per phenotype, in ``phen_names`` order). Builds the phenotype-major
     multi-trait covariance, samples same-structure families together, and returns a
     :class:`LiabilityResult` with one column per (output, phenotype), e.g.
-    ``"genetic_<phen>"``. Port of LTFHPlus::estimate_liability_multi."""
+    ``"genetic_<phen>"``. ``dtype=np.float32`` halves the per-family bound memory.
+    Port of LTFHPlus::estimate_liability_multi."""
     h2_vec = np.asarray(h2_vec, dtype=float)
     n_pheno = len(h2_vec)
     if phen_names is None:
         phen_names = [f"phenotype{p + 1}" for p in range(n_pheno)]
     _check_unique_roles(families)
+    dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
     col_names = [f"{_OUT_NAMES[c]}_{phen_names[p]}"
                  for p in range(n_pheno) for c in out_coords]
@@ -404,8 +419,8 @@ def estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
             uppers.append(hi.T.reshape(-1))
             group_pids.append(mpids[o_pos] if o_pos is not None and mpids[o_pos] is not None
                               else families[f].fam_id)
-        lowers = np.array(lowers)
-        uppers = np.array(uppers)
+        lowers = np.array(lowers, dtype=dtype)
+        uppers = np.array(uppers, dtype=dtype)
 
         g_est, g_se = _estimate_group(cov, gibbs_out, lowers, uppers,
                                       seeds[idx], tol, n_sim, burn_in, max_rounds)
@@ -429,7 +444,7 @@ def _align_to_cov(roles, cov_roles, columns, defaults):
     role_to_col = {r: i for i, r in enumerate(roles)}
     F = columns[0].shape[0]
     d = len(cov_roles)
-    out = [np.full((F, d), dv, dtype=float) for dv in defaults]
+    out = [np.full((F, d), dv, dtype=columns[0].dtype) for dv in defaults]  # keep input dtype
     for p, cr in enumerate(cov_roles):
         j = role_to_col.get(cr)
         if j is not None:
@@ -451,8 +466,8 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
     censored-control mixture. Returns ``(est, var)`` arrays of length
     ``n_families``."""
     roles = list(roles)
-    lower = np.ascontiguousarray(lower, dtype=float)
-    upper = np.ascontiguousarray(upper, dtype=float)
+    lower = as_bounds(lower)                # keeps float32 if given, else float64
+    upper = as_bounds(upper)
     cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
     cov, _ = correct_positive_definite(cov_obj.matrix)
     cov_roles = cov_obj.roles
@@ -460,8 +475,8 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
 
     lo, hi = _align_to_cov(roles, cov_roles, (lower, upper), (-np.inf, np.inf))
     if use_mixture:
-        K_i = np.ascontiguousarray(K_i, dtype=float)
-        K_pop = np.ascontiguousarray(K_pop, dtype=float)
+        K_i = as_bounds(K_i)
+        K_pop = as_bounds(K_pop)
         ki, kp = _align_to_cov(roles, cov_roles, (K_i, K_pop), (np.nan, np.nan))
         return pa_estimate_batched(cov, lo, hi, target=target, K_is=ki, K_pops=kp)
     return pa_estimate_batched(cov, lo, hi, target=target)
@@ -472,12 +487,13 @@ def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic",
                                     seed=None, max_rounds=100):
     """Array-level Gibbs (LT-FH++) estimator — skips ``Family``/``Member`` objects.
 
-    Same array inputs as :func:`estimate_liability_pa_arrays`. Returns ``(est, se)``
-    (posterior mean and batch-means Monte-Carlo SE) of length ``n_families`` for the
-    single target selected by ``out``."""
+    Same array inputs as :func:`estimate_liability_pa_arrays` (float32 ``lower``/
+    ``upper`` halve their memory). Returns ``(est, se)`` (posterior mean and
+    batch-means Monte-Carlo SE) of length ``n_families`` for the single target
+    selected by ``out``."""
     roles = list(roles)
-    lower = np.ascontiguousarray(lower, dtype=float)
-    upper = np.ascontiguousarray(upper, dtype=float)
+    lower = as_bounds(lower)
+    upper = as_bounds(upper)
     cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
     cov, _ = correct_positive_definite(cov_obj.matrix)
     cov_roles = cov_obj.roles
@@ -493,14 +509,16 @@ def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic",
 def estimate_liability(families, h2=0.5, *, method="gibbs", out=("genetic",),
                        tol=0.01, use_mixture=False, genetic_corrmat=None,
                        full_corrmat=None, phen_names=None, n_sim=100_000,
-                       burn_in=1000, seed=None, max_rounds=100):
+                       burn_in=1000, seed=None, max_rounds=100, dtype=np.float64):
     """Estimate posterior liabilities, dispatching on method and trait count.
 
     ``method="gibbs"`` (default) runs the truncated-MVN Gibbs sampler;
     ``method="pearson-aitken"`` (aliases ``"pa"``, ``"pa-fgrs"``) runs the
     deterministic PA-FGRS estimator (single trait only; ``use_mixture`` enables the
     age-censored-control correction). Scalar ``h2`` -> single trait; a vector ``h2``
-    with ``genetic_corrmat`` and ``full_corrmat`` -> multi-trait (Gibbs only)."""
+    with ``genetic_corrmat`` and ``full_corrmat`` -> multi-trait (Gibbs only).
+    ``dtype=np.float32`` stores the per-family liability bounds in single precision
+    (half the memory) — useful at biobank scale."""
     is_multi = np.ndim(h2) > 0 or genetic_corrmat is not None or full_corrmat is not None
 
     if str(method).lower() in _PA_METHODS:
@@ -508,7 +526,8 @@ def estimate_liability(families, h2=0.5, *, method="gibbs", out=("genetic",),
             raise NotImplementedError(
                 "Pearson-Aitken estimation is single-trait; use method='gibbs' "
                 "for the multi-trait model.")
-        return estimate_liability_pa(families, h2=h2, out=out, use_mixture=use_mixture)
+        return estimate_liability_pa(families, h2=h2, out=out,
+                                     use_mixture=use_mixture, dtype=dtype)
 
     if str(method).lower() != "gibbs":
         raise ValueError(f"unknown method {method!r}; use 'gibbs' or 'pearson-aitken'")
@@ -516,11 +535,11 @@ def estimate_liability(families, h2=0.5, *, method="gibbs", out=("genetic",),
     if not is_multi:
         return estimate_liability_single(families, h2=h2, out=out, tol=tol,
                                          n_sim=n_sim, burn_in=burn_in, seed=seed,
-                                         max_rounds=max_rounds)
+                                         max_rounds=max_rounds, dtype=dtype)
     if genetic_corrmat is None or full_corrmat is None:
         raise ValueError("multi-trait estimation needs genetic_corrmat and full_corrmat")
     return estimate_liability_multi(families, h2_vec=h2,
                                     genetic_corrmat=genetic_corrmat,
                                     full_corrmat=full_corrmat, phen_names=phen_names,
                                     out=out, tol=tol, n_sim=n_sim, burn_in=burn_in,
-                                    seed=seed, max_rounds=max_rounds)
+                                    seed=seed, max_rounds=max_rounds, dtype=dtype)
