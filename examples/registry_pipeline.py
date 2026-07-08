@@ -1,0 +1,83 @@
+"""End-to-end template: a registry-style status/age table -> a GWAS phenotype.
+
+Mirrors the "bring your own data" flow in docs/guide.md on a small synthetic
+table, so you have a copy-paste starting point for real data. The steps are:
+
+  1. start from one row per (proband, relative): fam_id, role, status, age;
+  2. turn status (+age) into liability bounds with a threshold builder;
+  3. group the rows into families;
+  4. estimate each proband's genetic liability (Gibbs and PA-FGRS);
+  5. hand the estimate to a linear-regression GWAS as a quantitative phenotype.
+
+Replace `make_toy_table()` with your own table (e.g. read a CSV into the same
+columns) and set `H2` / `POP_PREV` for your disease.
+
+Run: python examples/registry_pipeline.py
+"""
+
+import numpy as np
+
+from ltpred import age_thresholds, families_from_columns, estimate_liability
+
+H2 = 0.5            # liability-scale heritability (convert observed-scale first)
+POP_PREV = 0.05     # population lifetime prevalence
+
+
+def make_toy_table(n_fam=1500, seed=0):
+    """Synthesise a registry-like long table: fam_id, role, status, age.
+
+    Each family is a proband (`o`) plus mother, father and a sibling, with
+    correlated case/control status and plausible ages. Stands in for a real
+    per-person table; the pipeline below does not care how it was produced."""
+    from ltpred import simulate_under_LTM_single
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=H2, n_sim=n_fam,
+                                    pop_prev=POP_PREV, seed=seed)
+    rng = np.random.default_rng(seed)
+    fam_id, role, status, age = [], [], [], []
+    age_range = {"o": (20, 60), "m": (45, 80), "f": (45, 80), "s1": (20, 60)}
+    for i, fam in enumerate(sim.families):
+        for m in fam.members:
+            is_case = sim.status[m.role][i]
+            fam_id.append(f"fam{i}")
+            role.append(m.role)
+            status.append(int(is_case))
+            lo, hi = age_range[m.role]
+            age.append(int(rng.integers(lo, hi)))
+    return (np.array(fam_id), np.array(role), np.array(status), np.array(age),
+            sim.genetic)
+
+
+def main():
+    fam_id, role, status, age, true_g = make_toy_table()
+
+    # 2) status (+age) -> liability bounds (LT-FH++/ADuLT age thresholds)
+    lower, upper = age_thresholds(status, age, pop_prev=POP_PREV)
+
+    # 3) group rows into families
+    families = families_from_columns(fam_id=fam_id, role=role,
+                                     lower=lower, upper=upper)
+
+    # 4) estimate the proband genetic liability, two ways
+    gibbs = estimate_liability(families, h2=H2, method="gibbs",
+                               out=("genetic",), seed=0)
+    pa = estimate_liability(families, h2=H2, method="pearson-aitken",
+                            out=("genetic",))
+
+    score = pa.est["genetic"]          # <- the phenotype you would use in a GWAS
+
+    print(f"families                 : {len(families)}")
+    print(f"Gibbs vs PA agreement    : "
+          f"{np.corrcoef(gibbs.est['genetic'], score)[0, 1]:.4f}")
+    print(f"corr(score, case/control): "
+          f"{np.corrcoef(score, status[role == 'o'].astype(float))[0, 1]:.3f}")
+    print(f"corr(score, true g)      : {np.corrcoef(score, true_g)[0, 1]:.3f}  "
+          f"(vs case/control {np.corrcoef(status[role == 'o'].astype(float), true_g)[0, 1]:.3f})")
+
+    # 5) example GWAS on standardized genotypes aligned to `families` order:
+    #    y = (score - score.mean()) / score.std()
+    #    chi2_j = n * corr(genotype_j, y) ** 2
+    print("\nUse `pa.est['genetic']` (aligned with res.fam_ids) as the GWAS phenotype.")
+
+
+if __name__ == "__main__":
+    main()
