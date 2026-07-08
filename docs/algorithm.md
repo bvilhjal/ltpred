@@ -355,11 +355,14 @@ same individual, diff trait: rp[p,q] = mean_i l_ip l_iq              (phenotypic
 so the genetic correlation is `rg[p,q] = G[p,q] / sqrt(h2_p h2_q)`. The
 cross-relative, cross-trait resemblance carries the genetic covariance because only
 the genetic part transmits by relatedness, so `E[l_ip l_jq] = A_ij G[p,q]` for
-`i != j` — the within-individual environmental covariance drops out. Validated
-approximately unbiased near the null (no spurious `rg` when traits are genetically
-independent but phenotypically correlated), with mild attenuation at large `|rg|`
-(the bounded ratio estimator); bootstrap families for a CI. This is the
-pedigree-scale analogue of bivariate GREML / cross-trait LD-score regression.
+`i != j` — the within-individual environmental covariance drops out. The phenotypic
+correlation then splits into genetic and environmental covariances, `rp = G + E`,
+so the **environmental correlation** `re[p,q] = (rp[p,q] - G[p,q]) / sqrt(e2_p e2_q)`
+(`e2 = 1 - h2`) is returned alongside `rg`. Validated approximately unbiased near
+the null (no spurious `rg` when traits are genetically independent but
+phenotypically correlated), with mild attenuation at large `|rg|` (the bounded
+ratio estimator); bootstrap families for a CI. This is the pedigree-scale analogue
+of bivariate GREML / cross-trait LD-score regression.
 
 ## Background and references
 

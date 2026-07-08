@@ -187,12 +187,15 @@ interval per trait (length-`n_pheno` `lower`/`upper`, as for
 from ltpred import fit_genetic_correlation
 gc = fit_genetic_correlation(families, phen_names=["adhd", "depression"])
 gc.rg          # (P, P) genetic-correlation matrix (the headline)
+gc.re          # (P, P) environmental correlation (phenotypic corr not from shared genes)
 gc.h2, gc.rp   # per-trait heritabilities; phenotypic (full-liability) correlations
 ```
 
-It needs related pairs (the genetic correlation is carried by the cross-relative,
-cross-trait resemblance). It is ~unbiased near the null and mildly attenuated at
-large `|r_g|`; bootstrap families for a CI.
+The phenotypic correlation splits into genetic and environmental parts —
+`gc.rp` corresponds to `gc.genetic_cov + gc.env_cov` — so you get both `r_g` and
+`r_e`. It needs related pairs (the genetic correlation is carried by the
+cross-relative, cross-trait resemblance). It is ~unbiased near the null and mildly
+attenuated at large `|r_g|`; bootstrap families for a CI.
 
 ## Building families
 

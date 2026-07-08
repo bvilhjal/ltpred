@@ -140,6 +140,10 @@ def test_genetic_correlation_recovers_rg():
     assert r.h2[0] == pytest.approx(0.5, abs=0.12)
     assert r.h2[1] == pytest.approx(0.4, abs=0.12)
     assert np.allclose(np.diag(r.genetic_cov), r.h2)
+    # phenotypic covariance decomposes into genetic + environmental (rp = G + E)
+    assert np.allclose(r.rp, r.genetic_cov + r.env_cov)
+    assert np.allclose(np.diag(r.env_cov), 1.0 - r.h2)
+    assert r.re.shape == (2, 2) and np.allclose(np.diag(r.re), 1.0)
 
 
 def test_genetic_correlation_null_no_false_positive():
@@ -151,6 +155,9 @@ def test_genetic_correlation_null_no_false_positive():
     r = fit_genetic_correlation(fams, n_iter=800, burn_in=250, seed=1)
     assert abs(r.rg[0, 1]) < 0.30                            # no spurious genetic corr
     assert r.rp[0, 1] > 0.10                                 # phenotypic corr still seen
+    # the phenotypic correlation shows up as an *environmental* one instead
+    # (true r_e = 0.3 / (1-0.5) = 0.6)
+    assert r.re[0, 1] > 0.30
 
 
 def test_genetic_correlation_validates_input():

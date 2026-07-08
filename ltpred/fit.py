@@ -359,16 +359,21 @@ class GenCorrResult:
 
     ``h2`` is the ``(P,)`` vector of per-trait liability-scale heritabilities;
     ``rg`` the ``(P, P)`` **genetic correlation** matrix (diagonal 1), the headline
-    output; ``rp`` the ``(P, P)`` phenotypic correlation of the full liabilities
-    (same individual, across traits); ``genetic_cov`` the ``(P, P)`` genetic
-    covariance ``G`` (its diagonal is ``h2``). ``se`` holds the within-dataset
-    Monte-Carlo errors (``"h2"``, ``"rg"``, ``"rp"``) — same caveat as
+    output; ``re`` the ``(P, P)`` **environmental correlation** (the phenotypic
+    correlation not explained by shared genetics); ``rp`` the ``(P, P)`` phenotypic
+    correlation of the full liabilities (same individual, across traits).
+    ``genetic_cov`` and ``env_cov`` are the ``(P, P)`` genetic ``G`` and
+    environmental ``E`` covariances, so ``rp = G + E`` (``G`` has diagonal ``h2``,
+    ``E`` diagonal ``e2 = 1 - h2``). ``se`` holds the within-dataset Monte-Carlo
+    errors (``"h2"``, ``"rg"``, ``"re"``, ``"rp"``) — same caveat as
     :class:`FitResult`: bootstrap families for a real CI. ``phen_names`` labels the
-    traits; ``traces`` are the post-burn-in traces (``"h2"``/``"rg"``/``"rp"``)."""
+    traits; ``traces`` are the post-burn-in traces (``"h2"``/``"rg"``/``"re"``/``"rp"``)."""
     h2: np.ndarray
     rg: np.ndarray
+    re: np.ndarray
     rp: np.ndarray
     genetic_cov: np.ndarray
+    env_cov: np.ndarray
     se: dict
     phen_names: list
     traces: dict
@@ -436,12 +441,16 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
       ``G[p,q] = sum A_ij (l_ip l_jq + l_iq l_jp) / (2 sum A_ij^2)``;
     - **same individual, different trait** → the phenotypic correlation ``rp[p,q]``.
 
-    The genetic correlation is ``rg[p,q] = G[p,q] / sqrt(h2_p h2_q)``. Damped across
-    sweeps; needs related pairs (raises otherwise). Validated ~unbiased near the
-    null (no spurious correlation) with mild attenuation at large ``|rg|``.
+    The genetic correlation is ``rg[p,q] = G[p,q] / sqrt(h2_p h2_q)``. The phenotypic
+    correlation splits into genetic and environmental parts, ``rp = G + E``, so the
+    **environmental correlation** ``re[p,q] = (rp[p,q] - G[p,q]) / sqrt(e2_p e2_q)``
+    (``e2 = 1 - h2``) is returned too. Damped across sweeps; needs related pairs
+    (raises otherwise). Validated ~unbiased near the null (no spurious correlation)
+    with mild attenuation at large ``|rg|``.
 
-    Returns a :class:`GenCorrResult`. As with :func:`fit_heritability`, the reported
-    ``se`` is a within-dataset Monte-Carlo error — bootstrap families for a CI."""
+    Returns a :class:`GenCorrResult` (``rg``, ``re``, ``rp``, per-trait ``h2``, the
+    ``genetic_cov``/``env_cov`` matrices). As with :func:`fit_heritability`, the
+    reported ``se`` is a within-dataset Monte-Carlo error — bootstrap families for a CI."""
     if not families:
         raise ValueError("no families provided")
     P = int(np.size(families[0].members[0].lower))
@@ -471,6 +480,7 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
     rp = np.eye(P)
     tr_h2 = np.empty((int(n_iter), P))
     tr_rg = np.empty((int(n_iter), P, P))
+    tr_re = np.empty((int(n_iter), P, P))
     tr_rp = np.empty((int(n_iter), P, P))
     for it in range(int(n_iter)):
         numG = np.zeros((P, P))
@@ -505,21 +515,35 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
 
         rg = np.clip(G / np.sqrt(np.outer(h2, h2)), -0.999, 0.999)
         np.fill_diagonal(rg, 1.0)
+        # environmental correlation: phenotypic covariance not from shared genes,
+        # standardised by the residual (environmental) SDs sqrt(1 - h2)
+        e2 = np.clip(1.0 - h2, eps, None)
+        re = np.clip((rp - G) / np.sqrt(np.outer(e2, e2)), -0.999, 0.999)
+        np.fill_diagonal(re, 1.0)
         tr_h2[it] = h2
         tr_rg[it] = rg
+        tr_re[it] = re
         tr_rp[it] = rp
 
     sl = slice(int(burn_in), int(n_iter))
     h2_est, h2_se = batch_means(tr_h2[sl])
     rg_est, rg_se = batch_means(tr_rg[sl].reshape(-1, P * P))
+    re_est, re_se = batch_means(tr_re[sl].reshape(-1, P * P))
     rp_est, rp_se = batch_means(tr_rp[sl].reshape(-1, P * P))
     rg_est = rg_est.reshape(P, P)
+    re_est = re_est.reshape(P, P)
     rp_est = rp_est.reshape(P, P)
     G_est = rg_est * np.sqrt(np.outer(h2_est, h2_est))
     np.fill_diagonal(G_est, h2_est)
+    e2_est = 1.0 - h2_est
+    E_est = rp_est - G_est                          # environmental covariance = rp - G
+    np.fill_diagonal(E_est, e2_est)
     return GenCorrResult(
-        h2=h2_est, rg=rg_est, rp=rp_est, genetic_cov=G_est,
-        se=dict(h2=h2_se, rg=rg_se.reshape(P, P), rp=rp_se.reshape(P, P)),
+        h2=h2_est, rg=rg_est, re=re_est, rp=rp_est,
+        genetic_cov=G_est, env_cov=E_est,
+        se=dict(h2=h2_se, rg=rg_se.reshape(P, P), re=re_se.reshape(P, P),
+                rp=rp_se.reshape(P, P)),
         phen_names=list(phen_names),
-        traces=dict(h2=tr_h2[sl].copy(), rg=tr_rg[sl].copy(), rp=tr_rp[sl].copy()),
+        traces=dict(h2=tr_h2[sl].copy(), rg=tr_rg[sl].copy(),
+                    re=tr_re[sl].copy(), rp=tr_rp[sl].copy()),
         n_iter=int(n_iter), burn_in=int(burn_in))
