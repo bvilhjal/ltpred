@@ -162,6 +162,22 @@ the *within-dataset* Monte-Carlo error — the spread across datasets is larger,
 bootstrap over families if you need a proper confidence interval. Feed the result
 back in as `h2=fit.h2` (or, better, run the sensitivity analysis around it).
 
+To separate additive heritability from a shared **common-environment** component
+`C` (e.g. a full-sib effect that inflates familial resemblance beyond genetics),
+`fit_variance_components` fits both at once by a multiple Haseman–Elston
+regression:
+
+```python
+from ltpred import fit_variance_components
+vc = fit_variance_components(families, ("A", "C"))
+vc.components["A"], vc.components["C"], vc.residual   # proportions of liability variance
+```
+
+`C` is identified only from **full-sib pairs**, so the families must contain them
+(otherwise the fit raises). The same `h2_se` caveat applies — bootstrap for a CI.
+Dominance is intentionally not offered (it needs MZ/DZ twin contrasts). With
+`("A",)` alone the result matches `fit_heritability`.
+
 ## Building families
 
 From flat columns (the common path):
