@@ -50,6 +50,37 @@ and indirect genetic effects are not represented. Where those contribute, the
 estimated "genetic liability" is best read as the additive-model projection of the
 family history rather than a pure causal genetic value.
 
+### Adding environmental covariance to improve prediction
+
+The covariance is **modular**, and adding non-genetic components to the
+between-relative covariance can improve prediction. Following the classic
+variance-components (ACE-type) decomposition, extend the full-liability covariance
+with shared-environment, maternal or assortative-mating terms:
+
+```text
+Cov(l_i, l_j) = h2 * A_ij  +  c2 * C_ij  +  m2 * M_ij  +  ...
+Var(l_i)      = h2 + c2 + m2 + ... + e2 = 1
+```
+
+where `C_ij` marks relatives who share a rearing/household environment (e.g. sibs
+or co-resident parent–offspring) with variance fraction `c2`, `M_ij` a maternal
+effect, and a couple term can encode assortative mating between mates. Two payoffs:
+
+- **A sharper genetic estimate.** Modelling shared-environment resemblance lets
+  the estimator attribute it to environment rather than genetics, so the genetic
+  liability `g` is not *inflated* by families that cluster for environmental
+  reasons — better calibration of the score used for GWAS.
+- **Better full-liability / risk prediction.** The extra covariance captures real
+  familial resemblance the additive model misses, tightening `E[l_o | family]`.
+
+The genetic target `g` still couples to relatives only through `h2 * A`, so it
+remains a *genetic* liability; the environmental terms only change how the
+relatives' liabilities are conditioned. In practice, the role-based
+`construct_covmat` currently builds only the additive-genetic `h2 * A` table, but
+the covariance-level entry points — `rtmvnorm_gibbs`, `pa_algorithm`,
+`pa_estimate_batched` — accept an **arbitrary covariance**, so you can assemble one
+with environmental components and pass it directly.
+
 ## Connection to selection index and BLUP
 
 `ltpred` is a liability-threshold generalisation of the classical **selection
@@ -111,6 +142,39 @@ fixed-variance **probit / threshold liability model with a pedigree random
 effect**, used for *prediction* (of `g`) rather than variance-component
 estimation — it conditions on an assumed `h2`, CIP/prevalence model and
 relationship matrix and does not fit them.
+
+## Connection to Sham's liability-threshold risk models
+
+The multivariate liability-threshold model on which `ltpred` rests — relatives'
+liabilities jointly multivariate normal with covariance set by the relationship
+matrix, and affection status *truncating* those liabilities — is the framework
+Pak Sham and the genetic-epidemiology tradition formalised (Sham, *Statistical
+Methods in Genetic Epidemiology*, 1998). Evaluating the joint distribution of a
+family's liabilities under an observed affection pattern is exactly the
+truncated-multivariate-normal problem the two backends address: the Gibbs sampler
+draws it, Pearson–Aitken approximates its moments.
+
+The tightest link is **So, Kwan, Cherny & Sham (2011)**, a risk-prediction
+framework that combines an individual's **family history** — through the
+liability-threshold multivariate normal over relatives — with **known
+susceptibility loci**, and already handled the ingredients `ltpred` centres on:
+each relative's **current age and follow-up period**, and even **competing risks
+of mortality**. That is the same pairing the LT-FH family exploits — (a) a
+family-history liability under the threshold model, and (b) age / censoring
+(age-dependent thresholds in LT-FH++, time-to-event in ADuLT, age-censored
+genealogies in PA-FGRS) — and the same downstream idea of fusing the
+family-history liability with molecular predictors (a polygenic score). On the
+parameter side, So & Sham's liability-scale heritability work is the tradition
+`convert_observed_to_liability_scale` (Lee et al. 2011) belongs to.
+
+The difference is the **estimand and the scale of computation**. So & Sham (2011)
+target an individual's **absolute disease risk** for screening; `ltpred` targets
+the **posterior mean additive genetic liability of the proband** — a
+breeding-value-style score and a GWAS phenotype (the [BLUP framing](#connection-to-selection-index-and-blup)
+above). Both run on the same multivariate liability-threshold engine; what LT-FH++
+/ ADuLT / PA-FGRS add over the classical construction is scalable inference —
+Gibbs for arbitrary pedigrees, and the deterministic Pearson–Aitken sweep for
+biobank-scale, age-censored genealogies — together with the age-of-onset encodings.
 
 ## Thresholds: status, age and onset
 
@@ -251,6 +315,13 @@ Selection index / BLUP background:
 - Hazel 1943, *Genetics* — the genetic basis for constructing selection indexes.
 - Henderson 1975, *Biometrics* — best linear unbiased estimation/prediction (BLUP).
 - VanRaden 2008, *J. Dairy Sci.* — genomic relationship matrices for prediction.
+
+Liability-threshold risk models (Sham and colleagues):
+
+- Sham 1998, *Statistical Methods in Genetic Epidemiology* (Oxford) — the
+  multivariate liability-threshold model in genetic epidemiology.
+- So, Kwan, Cherny & Sham 2011, *AJHG* — risk prediction from family history and
+  known susceptibility loci, with age, follow-up and competing mortality risks.
 
 Numerics:
 

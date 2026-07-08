@@ -99,6 +99,29 @@ references:
     journal: "Journal of Dairy Science"
     year: 2008
     doi: 10.3168/jds.2007-0980
+  # Liability-threshold risk models (Sham and colleagues)
+  - type: article
+    title: "Risk prediction of complex diseases from family history and known susceptibility loci, with applications for cancer screening"
+    authors:
+      - family-names: So
+        given-names: "Hon-Cheong"
+      - family-names: Kwan
+        given-names: "Johnny S. H."
+      - family-names: Cherny
+        given-names: "Stacey S."
+      - family-names: Sham
+        given-names: "Pak C."
+    journal: "The American Journal of Human Genetics"
+    year: 2011
+    doi: 10.1016/j.ajhg.2011.04.001
+  - type: book
+    title: "Statistical Methods in Genetic Epidemiology"
+    authors:
+      - family-names: Sham
+        given-names: "Pak C."
+    publisher:
+      name: "Oxford University Press"
+    year: 1998
   # Numerics
   - type: article
     title: "The moment generating function of the truncated multi-normal distribution"

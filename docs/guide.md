@@ -350,6 +350,14 @@ some over- or under-statement of "genetic" liability. The estimate is also
 conditional on the assumed `h²`, prevalence and CIPs; treat those as inputs whose
 uncertainty propagates (see the checklist).
 
+The covariance is modular, though: you can **add environmental covariance**
+(shared environment `c²`, maternal effects, assortative mating) to the
+between-relative covariance to separate genetic from shared-environmental
+resemblance and improve prediction. `construct_covmat` ships only the
+additive-genetic table, but the covariance-level entry points (`rtmvnorm_gibbs`,
+`pa_algorithm`, `pa_estimate_batched`) accept an arbitrary covariance — see
+[algorithm.md](algorithm.md#adding-environmental-covariance-to-improve-prediction).
+
 ## Real-data checklist
 
 Before running a production analysis:
