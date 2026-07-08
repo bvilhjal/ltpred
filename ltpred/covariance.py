@@ -79,7 +79,7 @@ def get_relatedness(s1, s2, h2=0.5):
             return 1.0
         if _match(r"g$", s2):
             return 1.0 * h2
-        if _match(r"m$", s2) or _match(r"f$", s2) or _match(r"c[0-9]*.[0-9]*", s2) or _match(r"s[0-9]*", s2):
+        if _match(r"m$", s2) or _match(r"f$", s2) or _match(r"c[0-9]*\.[0-9]*", s2) or _match(r"s[0-9]*", s2):
             return 0.5 * h2
         if _match(r"[mp]hs[0-9]*", s2) or _match(r"[mp]g[mf]", s2) or _match(r"[mp]au[0-9]*", s2):
             return 0.25 * h2
@@ -87,7 +87,7 @@ def get_relatedness(s1, s2, h2=0.5):
     elif _match(r"g$", s1):  # target individual's genetic liability
         if _match(r"[go]$", s2):
             return 1.0 * h2
-        if _match(r"m$", s2) or _match(r"f$", s2) or _match(r"c[0-9]*.[0-9]*", s2) or _match(r"s[0-9]*", s2):
+        if _match(r"m$", s2) or _match(r"f$", s2) or _match(r"c[0-9]*\.[0-9]*", s2) or _match(r"s[0-9]*", s2):
             return 0.5 * h2
         if _match(r"[mp]hs[0-9]*", s2) or _match(r"[mp]g[mf]", s2) or _match(r"[mp]au[0-9]*", s2):
             return 0.25 * h2
@@ -97,7 +97,7 @@ def get_relatedness(s1, s2, h2=0.5):
             return 1.0
         if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"mhs[0-9]*", s2) or _match(r"mg[mf]$", s2) or _match(r"mau[0-9]*", s2):
             return 0.5 * h2
-        if _match(r"c[0-9]*.[0-9]*", s2):
+        if _match(r"c[0-9]*\.[0-9]*", s2):
             return 0.25 * h2
         if _match(r"f$", s2) or _match(r"pg[mf]$", s2) or _match(r"phs[0-9]*", s2) or _match(r"pau[0-9]*", s2):
             return 0.0
@@ -107,12 +107,12 @@ def get_relatedness(s1, s2, h2=0.5):
             return 1.0
         if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"phs[0-9]*", s2) or _match(r"pg[mf]$", s2) or _match(r"pau[0-9]*", s2):
             return 0.5 * h2
-        if _match(r"c[0-9]*.[0-9]*", s2):
+        if _match(r"c[0-9]*\.[0-9]*", s2):
             return 0.25 * h2
         if _match(r"m$", s2) or _match(r"mg[mf]$", s2) or _match(r"mhs[0-9]*", s2) or _match(r"mau[0-9]*", s2):
             return 0.0
 
-    elif _match(r"c[0-9]*.[0-9]*", s1):  # children
+    elif _match(r"c[0-9]*\.[0-9]*", s1):  # children
         if s1 == s2:
             return 1.0
         if _match(r"[go]$", s2):
@@ -131,7 +131,7 @@ def get_relatedness(s1, s2, h2=0.5):
             return 1.0
         if _match(r"[go]$", s2) or _match(r"m$", s2) or _match(r"f$", s2) or _match(r"s[0-9]*", s2):
             return 0.5 * h2
-        if _match(r"c[0-9]*.[0-9]*", s2) or _match(r"[mp]hs[0-9]*", s2) or _match(r"[mp]g[mf]", s2) or _match(r"[mp]au[0-9]*", s2):
+        if _match(r"c[0-9]*\.[0-9]*", s2) or _match(r"[mp]hs[0-9]*", s2) or _match(r"[mp]g[mf]", s2) or _match(r"[mp]au[0-9]*", s2):
             return 0.25 * h2
 
     elif _match(r"mg[mf]$", s1):  # maternal grandparent
@@ -139,7 +139,7 @@ def get_relatedness(s1, s2, h2=0.5):
             return 1.0
         if _match(r"mg[mf]$", s2):
             return 0.0
-        if _match(r"c[0-9]*.[0-9]*", s2):
+        if _match(r"c[0-9]*\.[0-9]*", s2):
             return 0.125 * h2
         if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"mhs[0-9]*", s2):
             return 0.25 * h2
@@ -153,7 +153,7 @@ def get_relatedness(s1, s2, h2=0.5):
             return 1.0
         if _match(r"pg[mf]$", s2):
             return 0.0
-        if _match(r"c[0-9]*.[0-9]*", s2):
+        if _match(r"c[0-9]*\.[0-9]*", s2):
             return 0.125 * h2
         if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"phs[0-9]*", s2):
             return 0.25 * h2
@@ -165,7 +165,7 @@ def get_relatedness(s1, s2, h2=0.5):
     elif _match(r"mhs[0-9]*", s1):  # maternal half-siblings
         if s1 == s2:
             return 1.0
-        if _match(r"c[0-9]*.[0-9]*", s2):
+        if _match(r"c[0-9]*\.[0-9]*", s2):
             return 0.125 * h2
         if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"mg[mf]$", s2) or _match(r"mau[0-9]*", s2):
             return 0.25 * h2
@@ -177,7 +177,7 @@ def get_relatedness(s1, s2, h2=0.5):
     elif _match(r"phs[0-9]*", s1):  # paternal half-siblings
         if s1 == s2:
             return 1.0
-        if _match(r"c[0-9]*.[0-9]*", s2):
+        if _match(r"c[0-9]*\.[0-9]*", s2):
             return 0.125 * h2
         if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"pg[mf]$", s2) or _match(r"pau[0-9]*", s2):
             return 0.25 * h2
@@ -189,7 +189,7 @@ def get_relatedness(s1, s2, h2=0.5):
     elif _match(r"mau[0-9]*", s1):  # maternal aunts/uncles
         if s1 == s2:
             return 1.0
-        if _match(r"c[0-9]*.[0-9]*", s2):
+        if _match(r"c[0-9]*\.[0-9]*", s2):
             return 0.125 * h2
         if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"mhs[0-9]*", s2):
             return 0.25 * h2
@@ -201,7 +201,7 @@ def get_relatedness(s1, s2, h2=0.5):
     elif _match(r"pau[0-9]*", s1):  # paternal aunts/uncles
         if s1 == s2:
             return 1.0
-        if _match(r"c[0-9]*.[0-9]*", s2):
+        if _match(r"c[0-9]*\.[0-9]*", s2):
             return 0.125 * h2
         if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"phs[0-9]*", s2):
             return 0.25 * h2

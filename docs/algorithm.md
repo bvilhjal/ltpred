@@ -23,28 +23,94 @@ is the case/control status (and age) of the proband and their relatives.
 
 ## Family covariance
 
-Relatives' genetic liabilities are correlated by the fraction of DNA they share.
-For a vector of family members `[g, o, relative_1, ...]` the covariance entries
-are
+Relatives' additive genetic liabilities are correlated by the **additive genetic
+relationship** `A_ij = 2 * phi_ij` (twice the kinship coefficient): `A = 1` for
+self, `0.5` for parent/offspring and full sibs, `0.25` for grandparents /
+half-sibs / aunts-uncles, etc. Writing `a` for additive genetic liability and `l`
+for full liability, the model is the animal-model form
 
 ```text
-Cov(a, b) = shared_DNA(a, b) * h2        (off-diagonal genetic sharing)
-Var(l_g)  = h2 ,   Var(l_o) = Var(relative) = 1
+Cov(a_i, a_j) = h2 * A_ij
+Cov(l_i, l_j) = h2 * A_ij   (i != j)
+Var(l_i)      = 1 ,   Var(a_i) = h2
 ```
 
-`shared_DNA` is 1 for self, 1 for `g`↔`o`, 0.5 for parent/offspring and full
-sibs, 0.25 for grandparents / half-sibs / aunts-uncles, etc.
-`get_relatedness(a, b, h2)` returns `shared_DNA * h2`, and
-`construct_covmat(...)` assembles the matrix, ordering `g`, `o` first followed by
-the relatives. A near-singular matrix (from relatedness rounding) is nudged back
-to positive-definite by `correct_positive_definite`.
+For the target proband, `a_0` is written `g` (variance `h2`) and its own full
+liability `l_0` is written `o` (variance 1); `Cov(g, o) = h2`.
+`get_relatedness(a, b, h2)` returns `A_ab * h2`, and `construct_covmat(...)`
+assembles this small fixed-pedigree relationship matrix, ordering `g`, `o` first
+followed by the relatives (`correct_positive_definite` nudges a rounding-singular
+matrix back to strict PD). The role grammar is just a compact way to build `A`
+without a full pedigree; a pedigree/kinship-matrix API would generalise it.
 
 This is an **additive-genetic** model: familial resemblance is entirely genetic
 sharing. Shared environment, household/cultural transmission, assortative mating
-(parents are taken to be genetically unrelated), dominance/epistasis and indirect
-genetic effects are not represented. Where those contribute, the estimated
-"genetic liability" is best read as the additive-model projection of the family
-history rather than a pure causal genetic value.
+(parents are taken to be genetically unrelated, `A_mf = 0`), dominance/epistasis
+and indirect genetic effects are not represented. Where those contribute, the
+estimated "genetic liability" is best read as the additive-model projection of the
+family history rather than a pure causal genetic value.
+
+## Connection to selection index and BLUP
+
+`ltpred` is a liability-threshold generalisation of the classical **selection
+index / BLUP** problem from quantitative genetics and animal breeding (Hazel 1943;
+Henderson 1975): predict an individual's additive genetic value from relatives'
+phenotypes and a relationship matrix.
+
+If the relatives' **continuous** liabilities `l_F` were observed, the optimal
+(Gaussian) predictor of the proband's additive genetic liability would be the
+selection-index / BLUP conditional mean,
+
+```text
+E[g | l_F] = Cov(g, l_F) Var(l_F)^-1 l_F ,
+```
+
+which weights each relative by its relationship to the proband and its information
+content, discounting shared covariance among the relatives so they are not
+double-counted. The one-relative case makes the weighting transparent: for a
+single relative with relationship `r` and observed liability `l_r`,
+
+```text
+Cov(g, l_r) = r * h2 ,   Var(l_r) = 1   =>   E[g | l_r] = r * h2 * l_r ,
+```
+
+so a parent or full sib (`r = 0.5`) contributes `0.5 h2 l_r` and a grandparent or
+half-sib (`r = 0.25`) contributes `0.25 h2 l_r`.
+
+In disease data the liabilities are **not** observed — we only know each lies in
+an interval `C_F` (a case above a threshold, a control below one, an age-of-onset
+case pinned at an age-specific threshold, a censored relative right-truncated).
+The target is therefore
+
+```text
+E[g | l_F in C_F] = Cov(g, l_F) Var(l_F)^-1 E[l_F | l_F in C_F] ,
+```
+
+by Gaussian conditioning: **first** infer the latent liabilities implied by
+status/age/censoring (`E[l_F | intervals]`), **then** project them onto the
+proband's additive genetic liability with the same BLUP weights. The pipeline:
+
+```text
+family statuses + ages
+     |  thresholds / CIPs
+latent liability intervals  C_F
+     |  truncated MVN
+E[l_F | l_F in C_F]
+     |  BLUP / selection-index projection
+E[g | family data]
+```
+
+So the method is **BLUP-like only after conditioning on latent liabilities**.
+Classical BLUP is linear in observed continuous phenotypes; here the binary /
+censored observations define truncation intervals, so the exact posterior mean is
+**nonlinear** in the data. It reduces exactly to selection-index / BLUP when the
+liabilities are observed continuously (or pinned to points). The Gibbs backend
+estimates the truncated-normal expectation directly; Pearson–Aitken approximates
+the same moment updates deterministically. Viewed this way, `ltpred` is a
+fixed-variance **probit / threshold liability model with a pedigree random
+effect**, used for *prediction* (of `g`) rather than variance-component
+estimation — it conditions on an assumed `h2`, CIP/prevalence model and
+relationship matrix and does not fit them.
 
 ## Thresholds: status, age and onset
 
@@ -117,10 +183,14 @@ truncated-normal moments on its interval (`tnorm_moments`: `_tnorm_mean` /
 the target's updated mean gives `E[l_g | data]` and its variance the posterior
 variance — **deterministically, with no Monte-Carlo error**.
 
-This is **exact for a single truncation**; with several it is the standard
-sequential-selection approximation, which matches the Gibbs posterior to
-corr ≥ 0.997 on realistic families while running 100–360× faster. Same grouping /
-`prange` structure as the Gibbs path.
+After one truncation the selected distribution is no longer, in general,
+multivariate normal. Pearson–Aitken keeps only the updated first two moments and
+proceeds as if the remaining variables were Gaussian with those moments. Hence it
+is **exact for a single truncation** (and for exact Gaussian conditioning on
+point-pinned variables), but an approximation for multiple interval observations —
+the standard sequential-selection approximation, which matches the Gibbs posterior
+to corr ≥ 0.997 on realistic families while running 100–360× faster. Same grouping
+/ `prange` structure as the Gibbs path.
 
 ### Censored-control mixture (optional)
 
@@ -141,18 +211,50 @@ sweep.
 ## Multiple traits
 
 For `n` genetically/environmentally correlated traits the covariance is
-phenotype-major: same-trait blocks use `shared_DNA * h2_p`; cross-trait blocks
-scale relatedness by the genetic covariance `rho_g[p,q] * sqrt(h2_p h2_q)`, and
+phenotype-major: same-trait blocks use `A_ij * h2_p`; cross-trait blocks scale the
+relationship `A_ij` by the genetic covariance `rho_g[p,q] * sqrt(h2_p h2_q)`, and
 the same individual's full liabilities across traits correlate by
 `full_corrmat[p,q]`. The Gibbs sampler then returns the genetic/full liability of
 each trait (`estimate_liability_multi`). This lets a well-powered trait sharpen
 the estimate for a correlated, under-powered one.
 
-## References
+## Background and references
+
+The method sits in a long quantitative-genetics lineage. **Threshold models** for
+binary/categorical traits — mapping a continuous latent liability through a
+threshold — go back to Wright, Dempster & Lerner (1950), Falconer (1965) and
+Gianola (1982). Their continuous-trait analogue is **selection-index / BLUP**
+prediction of additive genetic value from relatives' phenotypes and a relationship
+matrix (Hazel 1943; Henderson 1975; the animal model, and its genomic-relationship
+extensions, VanRaden 2008). **LT-FH** (Hujoel 2020) adapts the threshold model to
+case-control GWAS by using the posterior mean genetic liability as the phenotype;
+**LT-FH++** (Pedersen 2022) adds age of onset, sex and flexible pedigrees;
+**ADuLT** (Pedersen 2023) turns the age-dependent threshold into an alternative to
+time-to-event GWAS; and **PA-FGRS** (Krebs 2024) gives a deterministic
+Pearson–Aitken approximation for large, age-censored genealogies.
+
+Core methods:
 
 - Hujoel et al. 2020, *Nat Genet* — LT-FH.
 - Pedersen et al. 2022, *AJHG* — LT-FH++ (flexible pedigrees, age, sex).
 - Pedersen et al. 2023, *Nat Commun* — ADuLT (age-dependent liability threshold).
 - Krebs et al. 2024, *AJHG* — PA-FGRS (Pearson–Aitken family genetic risk scores).
+
+Threshold-model background:
+
+- Dempster & Lerner 1950, *Genetics* — heritability of threshold characters.
+- Falconer 1965, *Ann. Hum. Genet.* — liability to disease from incidence in relatives.
+- Gianola 1982, *J. Anim. Sci.* — threshold characters in animal breeding.
+
+Selection index / BLUP background:
+
+- Hazel 1943, *Genetics* — the genetic basis for constructing selection indexes.
+- Henderson 1975, *Biometrics* — best linear unbiased estimation/prediction (BLUP).
+- VanRaden 2008, *J. Dairy Sci.* — genomic relationship matrices for prediction.
+
+Numerics:
+
+- Pearson 1903 / Aitken 1934 — the selection formula for conditioning a Gaussian.
+- Tallis 1961, *JRSS B* — moments of the truncated multivariate normal.
 - Kotecha & Djurić 1999 — Gibbs sampling for truncated multivariate normals.
 - Lee et al. 2011, *AJHG* — observed-to-liability-scale heritability.

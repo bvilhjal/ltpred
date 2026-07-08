@@ -94,6 +94,7 @@ def test_thresholds_from_cip_matches_manual():
 
 
 def test_thresholds_from_cip_pin_mode_and_validation():
+    import warnings
     lo, up, _, _ = thresholds_from_cip([1], [50], [0, 100], [0.0, 0.2],
                                        case_mode="pin")
     assert lo[0] == up[0]                              # pinned case
@@ -101,6 +102,12 @@ def test_thresholds_from_cip_pin_mode_and_validation():
         thresholds_from_cip([1], [50], [100, 0], [0.2, 0.0])   # unsorted ages
     with pytest.raises(ValueError):
         thresholds_from_cip([1], [50], [0, 100], [0.0, 0.2], case_mode="bogus")
+    with pytest.raises(ValueError):                    # decreasing CIP
+        thresholds_from_cip([1], [50], [0, 100], [0.2, 0.1])
+    with warnings.catch_warnings(record=True) as w:    # k_pop below max(CIP)
+        warnings.simplefilter("always")
+        thresholds_from_cip([0], [50], [0, 100], [0.0, 0.2], k_pop=0.1)
+    assert any("below max(cip_values)" in str(x.message) for x in w)
 
 
 def test_age_thresholds_case_pinned_control_open():
