@@ -11,7 +11,8 @@ the same pattern ldpred3 uses.
 
 from __future__ import annotations
 
-__all__ = ["HAVE_NUMBA", "_jit", "_jit_parallel", "_set_threads", "prange"]
+__all__ = ["HAVE_NUMBA", "_jit", "_jit_parallel", "_set_threads", "prange",
+           "set_num_threads"]
 
 try:
     from numba import njit as _njit, prange
@@ -40,3 +41,11 @@ except ImportError:  # pragma: no cover - exercised only without numba
 
     def _set_threads(ncores):
         pass
+
+
+def set_num_threads(ncores):
+    """Set how many threads the Numba-parallel kernels use (no-op without Numba).
+
+    Call before large runs to control CPU use, e.g. ``ltpred.set_num_threads(4)``.
+    Equivalent to setting ``NUMBA_NUM_THREADS`` before import."""
+    _set_threads(ncores)

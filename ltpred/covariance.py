@@ -25,8 +25,11 @@ __all__ = ["Covmat", "get_relatedness", "construct_covmat_single",
            "construct_covmat_multi", "construct_covmat",
            "correct_positive_definite"]
 
-# valid relative abbreviations (same grammar as LTFHPlus::validate_relatives)
-_VALID = re.compile(r"^[gomf]$|^c[0-9]*.[0-9]*|^[mp]g[mf]$|^s[0-9]*|^[mp]hs[0-9]*|^[mp]au[0-9]*")
+# valid relative abbreviations (the LTFHPlus grammar), matched with re.fullmatch
+# so trailing junk like "s1abc" or "c1x2" is rejected rather than silently treated
+# as a sibling/child. Children must use the full ``c<group>.<idx>`` form (e.g.
+# c1.1) so the partner-group logic in get_relatedness applies.
+_VALID = re.compile(r"[gomf]|c\d+\.\d+|[mp]g[mf]|s\d*|[mp]hs\d*|[mp]au\d*")
 # roles that may appear at most once (everything else can be numbered s1, s2, ...)
 _SINGLE = re.compile(r"^[gomf]$|^[mp]g[mf]$")
 
@@ -50,11 +53,11 @@ def _match(pattern, s):
 
 
 def _validate_relative(s):
-    if not _VALID.match(s):
+    if not _VALID.fullmatch(s):
         raise ValueError(
             f"{s!r} is not a valid relative abbreviation. Use g, o, m, f, "
-            "c[0-9]*.[0-9]*, mgm, mgf, pgm, pgf, s[0-9]*, mhs[0-9]*, phs[0-9]*, "
-            "mau[0-9]*, or pau[0-9]*.")
+            "c<group>.<idx> (e.g. c1.1), mgm, mgf, pgm, pgf, s[0-9]*, mhs[0-9]*, "
+            "phs[0-9]*, mau[0-9]*, or pau[0-9]*.")
 
 
 def get_relatedness(s1, s2, h2=0.5):
@@ -114,10 +117,10 @@ def get_relatedness(s1, s2, h2=0.5):
             return 1.0
         if _match(r"[go]$", s2):
             return 0.5 * h2
-        if _match(r"c[0-9]*.[0-9]*", s2) and _strip_child(s1) == _strip_child(s2):
-            return 0.5 * h2
-        if _match(r"c[0-9]*.[0-9]*", s2) and _strip_child(s1) != _strip_child(s2):
-            return 0.25 * h2
+        if _match(r"c[0-9]*\.[0-9]*", s2) and _child_group(s1) == _child_group(s2):
+            return 0.5 * h2   # same partner group -> full siblings
+        if _match(r"c[0-9]*\.[0-9]*", s2) and _child_group(s1) != _child_group(s2):
+            return 0.25 * h2  # different partner group -> half siblings
         if _match(r"[mf]$", s2) or _match(r"s[0-9]*", s2):
             return 0.25 * h2
         if _match(r"[mp]g[mf]$", s2) or _match(r"[mp]au[0-9]*", s2) or _match(r"[mp]hs[0-9]*", s2):
@@ -210,9 +213,15 @@ def get_relatedness(s1, s2, h2=0.5):
     return np.nan
 
 
-def _strip_child(s):
-    """Collapse a child label to its parent-pair group (LTFHPlus ``gsub`` port)."""
-    return re.sub(r".[0-9]*", "", s)
+def _child_group(s):
+    """Partner-group id of a child label ``c<group>.<idx>`` (``c1.2`` -> ``"1"``).
+
+    Children sharing a partner group are full siblings (0.5 h2); different groups
+    are half siblings (0.25 h2). This fixes an unescaped-dot bug in the R original
+    (``gsub(".[0-9]*", "", s)``), which collapsed every child to the empty string
+    and so wrongly treated cross-group children as full siblings."""
+    m = re.match(r"c(\d+)", s)
+    return m.group(1) if m else s
 
 
 def _expand_family(fam_vec, n_fam, add_ind):
@@ -265,9 +274,11 @@ def construct_covmat_single(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf")
         return Covmat(np.empty((0, 0)), [], h2=h2)
     d = len(roles)
     cov = np.empty((d, d), dtype=np.float64)
-    for i, ri in enumerate(roles):
-        for j, rj in enumerate(roles):
-            cov[i, j] = get_relatedness(ri, rj, h2=h2)
+    for i, ri in enumerate(roles):           # symmetric: fill upper, mirror to lower
+        for j in range(i, d):
+            val = get_relatedness(ri, roles[j], h2=h2)
+            cov[i, j] = val
+            cov[j, i] = val
     return Covmat(cov, roles, h2=h2)
 
 
@@ -345,24 +356,26 @@ def construct_covmat(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
                                   phen_names=phen_names)
 
 
-def correct_positive_definite(covmat, correction_val=0.99, correction_limit=100):
+def correct_positive_definite(covmat, correction_val=0.99, correction_limit=100,
+                              eps=1e-8):
     """Nudge a not-quite-positive-definite covariance matrix back to PD.
 
-    Relatedness rounding can leave the assembled matrix with a tiny negative
-    eigenvalue, which breaks the Gibbs conditional variances. Following LTFHPlus,
-    this repeatedly shrinks the off-diagonal (multiply the whole matrix by
-    ``correction_val``, then restore the diagonal) until the smallest eigenvalue
-    is non-negative or ``correction_limit`` is hit. Returns ``(corrected, n_iter)``
-    and leaves already-PD matrices untouched."""
+    Relatedness rounding can leave the assembled matrix with a tiny (or negative)
+    eigenvalue, which breaks the Gibbs conditional variances and the ``solve`` in
+    :func:`ltpred.gibbs.gibbs_params`. Following LTFHPlus, this repeatedly shrinks
+    the off-diagonal (multiply the whole matrix by ``correction_val``, then restore
+    the diagonal) until the smallest eigenvalue exceeds ``eps`` (strictly PD, not
+    merely PSD) or ``correction_limit`` is hit. Returns ``(corrected, n_iter)`` and
+    leaves already-PD matrices untouched; raises if it cannot reach strict PD."""
     cov = np.array(covmat, dtype=np.float64, copy=True)
-    if np.min(np.linalg.eigvalsh(cov)) >= 0:
+    if np.min(np.linalg.eigvalsh(cov)) > eps:
         return cov, 0
     diag = np.diag(cov).copy()
     n = 0
-    while np.min(np.linalg.eigvalsh(cov)) < 0 and n <= correction_limit:
+    while np.min(np.linalg.eigvalsh(cov)) <= eps and n <= correction_limit:
         cov *= correction_val
         np.fill_diagonal(cov, diag)
         n += 1
-    if np.min(np.linalg.eigvalsh(cov)) < 0:
+    if np.min(np.linalg.eigvalsh(cov)) <= eps:
         raise ValueError("unable to enforce a positive-definite covariance matrix")
     return cov, n

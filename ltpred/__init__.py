@@ -37,15 +37,18 @@ _EXPORTS = {
     "thresholds": ["convert_age_to_cir", "convert_cir_to_age", "convert_age_to_thresh",
                    "convert_liability_to_aoo", "truncated_normal_cdf",
                    "convert_observed_to_liability_scale", "prevalence_thresholds",
-                   "age_thresholds", "liability_threshold", "pa_thresholds"],
+                   "age_thresholds", "liability_threshold", "pa_thresholds",
+                   "thresholds_from_cip"],
     "gibbs": ["rtmvnorm_gibbs", "gibbs_params"],
     "pearson_aitken": ["pa_algorithm", "pa_estimate_batched", "tnorm_moments",
                        "tnorm_mixture_conditional"],
     "family": ["Member", "Family", "families_from_columns"],
     "estimate": ["estimate_liability", "estimate_liability_single",
                  "estimate_liability_multi", "estimate_liability_pa",
+                 "estimate_liability_pa_arrays", "estimate_liability_gibbs_arrays",
                  "batch_means", "LiabilityResult"],
     "simulate": ["simulate_under_LTM_single", "simulate_under_LTM", "Simulation"],
+    "_numba": ["set_num_threads"],
 }
 
 _NAME_TO_MODULE = {name: mod for mod, names in _EXPORTS.items() for name in names}

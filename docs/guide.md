@@ -89,18 +89,37 @@ lower, upper = age_thresholds(status, age, pop_prev=0.05)
 lower, upper, K_i, K_pop = pa_thresholds(status, age, pop_prev=0.05)
 ```
 
-- `prevalence_thresholds` — a case is `(T, ∞)`, a control `(-∞, T)` with
-  `T = Φ⁻¹(1 − K)`. Use when you have no age information.
-- `age_thresholds` — a case is **pinned** at `thresh(age_of_onset)` (younger
-  onset ⇒ more extreme liability); a control is `(-∞, thresh(current_age))`
-  (older healthy ⇒ lower liability). Use when you have ages.
-- `pa_thresholds` — the same bounds plus the per-person cumulative incidence
-  `K_i` and lifetime prevalence `K_pop`, needed only if you turn on the PA
-  censored-control mixture (`use_mixture=True`).
+The three builders differ mainly in **how they encode a case** — this is the
+distinction between the LT-FH, ADuLT and PA-FGRS variants, so pick deliberately:
+
+| builder | case encoding | control encoding | extra outputs | model |
+|---|---|---|---|---|
+| `prevalence_thresholds` | `(T, ∞)` | `(-∞, T)` | — | classic **LT-FH** (no age) |
+| `age_thresholds` | **pinned** `[thresh(onset), thresh(onset)]` | `(-∞, thresh(age))` | — | **ADuLT / LT-FH++** point-mass onset |
+| `pa_thresholds` | interval `(thresh(onset), ∞)` — **not** pinned | `(-∞, thresh(age))` | `K_i`, `K_pop` | **PA-FGRS** (optionally with the mixture) |
+
+`T = Φ⁻¹(1 − K)`. Note the two age-aware builders are **not** interchangeable:
+`age_thresholds` *pins* a case's liability at its onset threshold (a point mass —
+the deterministic age-of-onset map), whereas `pa_thresholds` bounds it *above*
+that threshold (an interval) and adds the per-person cumulative incidence `K_i`
+and lifetime prevalence `K_pop` used by the optional censored-control mixture
+(`use_mixture=True`). Pinning is the sharper assumption; use it only when you
+trust the onset ↔ liability mapping (well-calibrated CIPs, low diagnosis noise).
 
 You can also build the bounds yourself: any `(lower, upper)` interval per person
 is valid (`lower == upper` pins a liability exactly; `(-inf, inf)` is
 uninformative).
+
+> **CIPs and sex/cohort.** ltpred has no explicit `sex` argument — sex, birth
+> year and cohort enter only through the thresholds/CIPs you supply. The built-in
+> `convert_age_to_cir` is a **logistic placeholder for simulation and demos**; for
+> real analyses use externally estimated, **population-representative** cumulative
+> incidence curves stratified by sex, birth year/cohort, ancestry and calendar
+> period. `thresholds_from_cip(status, age, cip_ages, cip_values, ...)` takes such
+> a curve directly (call it once per stratum) and returns `lower, upper, K_i,
+> K_pop` — use it instead of the logistic builders for real data. CIPs from an
+> ascertained biobank sample, or that ignore competing risks (death, emigration),
+> can bias the estimate.
 
 ### Getting `h²` on the liability scale
 
@@ -154,7 +173,7 @@ res = estimate_liability(families, h2=0.05, out=("genetic",))
 | `res.fam_ids` | family id per row (aligned with the input order) |
 | `res.pids` | proband id (the `o` member's `pid`, else the `fam_id`) |
 | `res.est["genetic"]` | posterior mean genetic liability per proband — **the score** |
-| `res.est["full"]` | posterior mean full liability (if requested) |
+| `res.est["full"]` | posterior mean full liability (if requested; see caveat below) |
 | `res.se["genetic"]` | Gibbs: Monte-Carlo standard error of the mean; PA: `0` |
 | `res.var["genetic"]` | PA only: posterior variance of the estimate (`None` for Gibbs) |
 
@@ -165,13 +184,27 @@ Multi-trait columns are suffixed with the phenotype name, e.g.
 score = res.est["genetic"]      # use this as your GWAS phenotype / risk score
 ```
 
+> **`out="full"` differs between the methods.** For **Gibbs**, `full` is
+> `E[l_o | own status, relatives]` — the proband's full liability conditioned on
+> everything, including their own interval. For **Pearson–Aitken**, the full
+> liability is the *target* of the sweep and so is **not** conditioned on its own
+> observed interval; `full` there means "the proband's full liability predicted
+> from the relatives". They are not the same quantity (e.g. a case with no
+> relatives gives a positive Gibbs `full` but a `0` PA `full`). The canonical GWAS
+> phenotype is `out="genetic"`, where the two agree; if you specifically want the
+> own-status-conditioned full liability, use Gibbs.
+
 ## Choosing Gibbs vs Pearson–Aitken
 
-Both estimate the same quantity and agree to corr ≥ 0.997 on realistic families.
+Both target the same posterior-liability idea, but Pearson–Aitken is a
+deterministic *approximation*: it is exact for a single observed truncation and,
+in the benchmarked family structures, matches the Gibbs `genetic` estimate to
+corr ≥ 0.997. For unusual pedigrees — very large, densely affected, or heavily
+truncated — treat Gibbs as the reference and cross-check.
 
 | | Gibbs (`"gibbs"`) | Pearson–Aitken (`"pearson-aitken"`) |
 |---|---|---|
-| kind | Monte-Carlo (truncated-MVN sampler) | deterministic closed-form sweep |
+| kind | Monte-Carlo (truncated-MVN sampler) | deterministic sequential-selection approximation |
 | error | batch-means MC SE (`res.se`) | none; gives posterior variance (`res.var`) |
 | exactness | exact in the limit of infinite draws | exact for 1 truncation, close approx for families |
 | speed | ~570 families/s (10 cores) | ~150 000 families/s — **100–360× faster** |
@@ -180,7 +213,32 @@ Both estimate the same quantity and agree to corr ≥ 0.997 on realistic familie
 **Rule of thumb:** use **Pearson–Aitken** for biobank-scale runs (millions of
 probands) and for the age-censoring mixture; use **Gibbs** when you want
 posterior draws, a sampling-based cross-check, or the exact LT-FH++ reference
-behaviour. They are interchangeable in downstream GWAS power.
+behaviour. For the `genetic` score they agree closely and give the same
+downstream GWAS power on the benchmarked structures.
+
+## Scaling to large cohorts
+
+For millions of probands, the `Family`/`Member` objects and their per-call bounds
+assembly become the bottleneck (the PA math is already sub-second for millions).
+Skip the objects with the **array API**, which takes already-aligned bounds:
+
+```python
+from ltpred import estimate_liability_pa_arrays
+
+# roles shared by the cohort (o + relatives; g is added). lower/upper are
+# (n_families, len(roles)) aligned to `roles` — build them straight from columns.
+est, var = estimate_liability_pa_arrays(
+    roles=["o", "m", "f", "s1"], lower=lower, upper=upper, h2=0.05,
+    out="genetic",                       # or use_mixture=True with K_i=, K_pop=
+)
+```
+
+This runs the covariance construction once and the parallel PA kernel directly —
+in practice ~100× faster than the object path at large `N` (and
+`estimate_liability_gibbs_arrays` does the same for Gibbs, returning `(est, se)`).
+Control the thread count with `ltpred.set_num_threads(n)`, and warm up once (the
+first call JIT-compiles) before timing. Different family structures still need
+separate array calls (one covariance each); the object API groups them for you.
 
 ## Multiple correlated traits
 
@@ -205,19 +263,25 @@ currently Gibbs-only (Pearson–Aitken here raises `NotImplementedError`).
 
 ## Using the estimate in a GWAS
 
-The genetic-liability estimate is a quantitative phenotype — run an ordinary
-linear-regression GWAS of it on standardized genotypes:
+The genetic-liability estimate is a quantitative phenotype — feed it to any
+continuous-outcome GWAS. As with any quantitative GWAS, **residualize the
+phenotype (and adjust) for covariates** — sex, birth year, genotyping batch,
+ancestry principal components, and any ascertainment/design covariates — or use a
+linear mixed model; probands who are themselves relatives should be handled by a
+mixed model or by pruning. The estimate is centered on the population mean, but in
+an ascertained sample it may not be mean-zero until you center/residualize.
 
 ```python
 # Xs: (n_indiv, m_snp) column-standardized genotypes, aligned to res.fam_ids
+# In practice regress out covariates first (or fit an LMM); simple sketch:
 y = res.est["genetic"]
-y = (y - y.mean()) / y.std()
-chi2 = len(y) * ((Xs.T @ y) / len(y)) ** 2      # 1-df association statistic per SNP
+y = (y - y.mean()) / y.std()                     # center + scale (after covariate residualization)
+chi2 = len(y) * ((Xs.T @ y) / len(y)) ** 2       # 1-df association statistic per SNP
 ```
 
-Because the phenotype is continuous and mean-zero, it stays well calibrated
-(λ_GC ≈ 1) while lifting the association signal at causal variants — a ~1.5×
-effective-sample-size gain over the case/control label in the benchmarks.
+After centering/residualization the phenotype is continuous and stays well
+calibrated (λ_GC ≈ 1 in the benchmarks) while lifting the association signal at
+causal variants — a ~1.5× effective-sample-size gain over the case/control label.
 
 ## Options reference
 
@@ -235,6 +299,41 @@ effective-sample-size gain over the case/control label in the benchmarks.
 
 `n_sim`/`tol` trade speed for Monte-Carlo precision; the defaults converge for
 typical families. PA ignores all Gibbs options.
+
+## Modelling assumptions
+
+The family covariance models **additive genetic sharing only**: every off-diagonal
+entry is `shared_DNA × h²`. Not modelled are shared environment, household/cultural
+transmission, assortative mating (parents are assumed genetically unrelated —
+`m`–`f` covariance is 0), dominance/epistasis, and indirect genetic effects. When
+these contribute to familial aggregation — common for psychiatric, reproductive,
+metabolic and social traits — read the output as the **additive-genetic-model
+projection of the family history**, not a pure causal genetic value, and expect
+some over- or under-statement of "genetic" liability. The estimate is also
+conditional on the assumed `h²`, prevalence and CIPs; treat those as inputs whose
+uncertainty propagates (see the checklist).
+
+## Real-data checklist
+
+Before running a production analysis:
+
+1. Obtain **population-representative CIPs** (cumulative incidence by age),
+   ideally from a register or other representative source — not the logistic
+   default and not an ascertained biobank sample.
+2. **Stratify** CIPs by sex, birth year/cohort, ancestry and calendar period
+   where incidence differs; use a censoring-aware / competing-risk estimator
+   (Kaplan–Meier, Aalen–Johansen) if death/emigration/competing diagnoses matter.
+3. Convert `h²` to the **liability scale** (`convert_observed_to_liability_scale`).
+4. Check **sensitivity** of the score to `h²` and to prevalence/CIP choices,
+   especially for rare traits and dense pedigrees.
+5. **Validate roles**: valid abbreviations, no duplicate roles within a family
+   (the estimator now raises on duplicates).
+6. Decide **case encoding** — pinned (`age_thresholds`) vs interval
+   (`pa_thresholds`) — and record it.
+7. Choose **Gibbs vs Pearson–Aitken**; for unusual pedigrees cross-check PA
+   against Gibbs.
+8. **Residualize** the phenotype for covariates (sex, cohort, PCs, batch) and
+   handle related probands (LMM / pruning) before the GWAS.
 
 ## Pitfalls
 

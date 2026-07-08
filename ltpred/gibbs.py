@@ -39,25 +39,24 @@ _U_EPS = 1e-15
 def gibbs_params(covmat):
     """Precompute the sweep's conditional-regression matrix ``P`` and SDs ``sd``.
 
-    ``P[:, j] = Sigma[-j,-j]^-1 Sigma[-j, j]`` (0 in slot ``j``) and
-    ``sd[j] = sqrt(Sigma[j,j] - P[:,j] . Sigma[:,j])``. Returned separately so a
-    caller sampling the same family repeatedly (the convergence loop in
-    :mod:`ltpred.estimate`) pays this ``O(d^4)`` cost only once."""
+    The Gibbs conditionals come from the **precision** matrix ``Q = Sigma^-1``:
+    ``sd[j] = sqrt(1 / Q[j,j])`` (conditional SD) and ``P[i,j] = -Q[i,j] / Q[j,j]``
+    (0 on the diagonal), so ``mu_j = sum_i P[i,j] x_i`` is the conditional mean.
+    This is one ``O(d^3)`` inverse instead of ``d`` size-``(d-1)`` solves
+    (``O(d^4)``) -- a few-fold speed-up that matters for multi-trait / large
+    pedigrees. Computed once and reused across the convergence loop in
+    :mod:`ltpred.estimate`. Mathematically identical to the conditional-regression
+    form; ``Sigma`` is strictly PD (see :func:`correct_positive_definite`)."""
     cov = np.ascontiguousarray(covmat, dtype=np.float64)
     d = cov.shape[0]
     if cov.shape != (d, d):
         raise ValueError("covmat must be square")
-    P = np.zeros((d, d), dtype=np.float64)
-    sd = np.empty(d, dtype=np.float64)
-    idx = np.arange(d)
-    for j in range(d):
-        rest = idx[idx != j]
-        # conditional regression of coord j on all the others
-        pj = np.linalg.solve(cov[np.ix_(rest, rest)], cov[rest, j])
-        P[rest, j] = pj
-        var_j = cov[j, j] - pj @ cov[rest, j]
-        sd[j] = np.sqrt(max(var_j, 0.0))
-    return P, sd
+    Q = np.linalg.inv(cov)
+    qdiag = np.diag(Q).copy()
+    P = -Q / qdiag[np.newaxis, :]              # P[i,j] = -Q[i,j] / Q[j,j]
+    np.fill_diagonal(P, 0.0)
+    sd = np.sqrt(1.0 / qdiag)
+    return np.ascontiguousarray(P), np.ascontiguousarray(sd)
 
 
 @_jit
@@ -93,18 +92,20 @@ def _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, n_sim, burn_in, res):
 
 @_jit_parallel
 def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
-                            batch_size, n_batch, seeds, total_sum, batch_mean):
+                            batch_size, n_batch, seeds, total_sum, bm_sum, bm_sumsq):
     """Sample many families in parallel, accumulating means online (no sample store).
 
     All families share the conditional-regression factorisation ``(P, sd)`` (they
     have the same covariance structure); only their truncation bounds differ. Each
-    ``prange`` iteration runs one family's ``burn_in + n_sim`` sweeps and writes its
-    running sum ``total_sum[f]`` and its ``n_batch`` batch means ``batch_mean[f]``
-    (for the batch-means Monte-Carlo SE) for the coordinates in ``out_idx``. Because
-    each family seeds its own RNG (``seeds[f]``) at the top of the iteration, results
-    are deterministic regardless of how ``prange`` maps families to threads. Not
-    keeping the full ``(n_sim, ncols)`` sample array is what lets thousands of
-    families run in compiled, parallel code with flat memory."""
+    ``prange`` iteration runs one family's ``burn_in + n_sim`` sweeps and writes,
+    per output coordinate, the running sum ``total_sum[f]`` (for the mean) and two
+    **batch-mean summaries** -- ``bm_sum[f]`` (sum of the ``n_batch`` batch means)
+    and ``bm_sumsq[f]`` (sum of their squares) -- from which the batch-means
+    Monte-Carlo SE is reconstructed without storing the batch means themselves.
+    Because each family seeds its own RNG (``seeds[f]``) at the top of the
+    iteration, results are deterministic regardless of how ``prange`` maps families
+    to threads. Streaming these summaries (instead of the ``(ncols, n_batch)`` array)
+    keeps the SE memory at ``O(ncols)`` per family."""
     F = lowers.shape[0]
     d = sd.shape[0]
     ncols = out_idx.shape[0]
@@ -126,6 +127,8 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
 
         tot = np.zeros(ncols)
         batch_sum = np.zeros(ncols)
+        s1 = np.zeros(ncols)          # sum of batch means Y_k
+        s2 = np.zeros(ncols)          # sum of Y_k^2
         bidx = 0
         in_batch = 0
 
@@ -154,26 +157,33 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                     in_batch += 1
                     if in_batch == batch_size:
                         for c in range(ncols):
-                            batch_mean[f, c, bidx] = batch_sum[c] / batch_size
+                            y = batch_sum[c] / batch_size
+                            s1[c] += y
+                            s2[c] += y * y
                             batch_sum[c] = 0.0
                         bidx += 1
                         in_batch = 0
 
         for c in range(ncols):
             total_sum[f, c] = tot[c]
+            bm_sum[f, c] = s1[c]
+            bm_sumsq[f, c] = s2[c]
 
 
 def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                            batch_size, n_batch, seeds):
-    """Thin wrapper over the parallel kernel; returns ``(total_sum, batch_mean)``.
+    """Thin wrapper over the parallel kernel; returns ``(total_sum, bm_sum, bm_sumsq)``.
 
     ``total_sum[f, c]`` is the sum of ``n_sim`` post-burn-in draws (divide by
-    ``n_sim`` for the posterior mean) and ``batch_mean[f, c, :]`` holds the
-    ``n_batch`` batch means used to form the Monte-Carlo standard error."""
+    ``n_sim`` for the posterior mean); ``bm_sum`` / ``bm_sumsq`` are the sum and
+    sum-of-squares of the ``n_batch`` batch means, from which the batch-means SE is
+    formed: with ``M`` batches of size ``b``, ``se = sqrt(b * (bm_sumsq - bm_sum^2/M)
+    / (M-1) / N)``."""
     F = lowers.shape[0]
     ncols = out_idx.shape[0]
     total_sum = np.zeros((F, ncols), dtype=np.float64)
-    batch_mean = np.zeros((F, ncols, n_batch), dtype=np.float64)
+    bm_sum = np.zeros((F, ncols), dtype=np.float64)
+    bm_sumsq = np.zeros((F, ncols), dtype=np.float64)
     _gibbs_estimate_batched(np.ascontiguousarray(P), np.ascontiguousarray(sd),
                             np.ascontiguousarray(sd0),
                             np.ascontiguousarray(lowers, dtype=np.float64),
@@ -181,8 +191,8 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                             np.asarray(out_idx, dtype=np.int64),
                             int(n_sim), int(burn_in), int(batch_size),
                             int(n_batch), np.asarray(seeds, dtype=np.int64),
-                            total_sum, batch_mean)
-    return total_sum, batch_mean
+                            total_sum, bm_sum, bm_sumsq)
+    return total_sum, bm_sum, bm_sumsq
 
 
 @_jit

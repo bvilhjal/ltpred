@@ -9,7 +9,7 @@ from ltpred.thresholds import (convert_age_to_cir, convert_cir_to_age,
                                truncated_normal_cdf,
                                convert_observed_to_liability_scale,
                                prevalence_thresholds, age_thresholds,
-                               liability_threshold)
+                               liability_threshold, thresholds_from_cip)
 
 
 def test_cir_monotone_and_bounded():
@@ -74,6 +74,33 @@ def test_prevalence_thresholds():
     t = float(liability_threshold(0.05))
     assert np.array_equal(lower, np.where(status, t, -np.inf))
     assert np.array_equal(upper, np.where(status, np.inf, t))
+
+
+def test_thresholds_from_cip_matches_manual():
+    # an empirical CIP curve; interpolate and threshold
+    cip_ages = np.array([0, 40, 80])
+    cip_values = np.array([0.0, 0.05, 0.10])          # k_pop = 0.10
+    status = np.array([1, 0])
+    age = np.array([40, 40])
+    lo, up, ki, kp = thresholds_from_cip(status, age, cip_ages, cip_values,
+                                         case_mode="interval")
+    # CIP at age 40 is 0.05 -> threshold Phi^-1(1 - 0.05)
+    t40 = stats.norm.isf(0.05)
+    assert up[1] == pytest.approx(t40)                # control upper
+    assert lo[0] == pytest.approx(t40)                # case lower (interval)
+    assert up[0] == np.inf
+    assert np.isnan(ki[0]) and ki[1] == pytest.approx(0.05)
+    assert kp[1] == pytest.approx(0.10)
+
+
+def test_thresholds_from_cip_pin_mode_and_validation():
+    lo, up, _, _ = thresholds_from_cip([1], [50], [0, 100], [0.0, 0.2],
+                                       case_mode="pin")
+    assert lo[0] == up[0]                              # pinned case
+    with pytest.raises(ValueError):
+        thresholds_from_cip([1], [50], [100, 0], [0.2, 0.0])   # unsorted ages
+    with pytest.raises(ValueError):
+        thresholds_from_cip([1], [50], [0, 100], [0.0, 0.2], case_mode="bogus")
 
 
 def test_age_thresholds_case_pinned_control_open():

@@ -113,3 +113,32 @@ def test_correct_positive_definite_fixes_non_pd():
 def test_invalid_role_raises():
     with pytest.raises(ValueError):
         get_relatedness("o", "zzz")
+
+
+@pytest.mark.parametrize("bad", ["s1abc", "c1x2", "zzz", "go", "m1", "s1.2"])
+def test_malformed_roles_rejected(bad):
+    # fullmatch validation rejects trailing junk instead of silently accepting it
+    with pytest.raises(ValueError):
+        get_relatedness("o", bad)
+
+
+@pytest.mark.parametrize("ok", ["g", "o", "m", "f", "s", "s1", "mgm", "c1.1", "mhs2", "pau3"])
+def test_wellformed_roles_accepted(ok):
+    assert not np.isnan(get_relatedness("g", ok, h2=1.0))
+
+
+def test_children_same_vs_different_partner_group():
+    # same partner group -> full sibs (0.5); different group -> half sibs (0.25)
+    assert get_relatedness("c1.1", "c1.2", h2=1.0) == pytest.approx(0.5)
+    assert get_relatedness("c1.1", "c2.1", h2=1.0) == pytest.approx(0.25)
+    assert get_relatedness("c1.1", "c1.1", h2=1.0) == pytest.approx(1.0)  # self
+    # a child is a half-relative (0.25*h2) of the proband's siblings
+    assert get_relatedness("c1.1", "s1", h2=1.0) == pytest.approx(0.25)
+
+
+def test_correct_positive_definite_is_strict():
+    # a positive-*semi*definite matrix (min eig 0) is pushed strictly PD
+    psd = np.array([[1.0, 1.0], [1.0, 1.0]])       # eigenvalues 2, 0
+    fixed, n = correct_positive_definite(psd)
+    assert n > 0
+    assert np.min(np.linalg.eigvalsh(fixed)) > 0

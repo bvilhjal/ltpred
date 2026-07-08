@@ -12,6 +12,22 @@ def _imr(t):
     return stats.norm.pdf(t) / stats.norm.sf(t)
 
 
+def test_gibbs_params_precision_matches_regression():
+    # precision-matrix P/sd must equal the conditional-regression form
+    rng = np.random.default_rng(0)
+    for d in (2, 4, 6):
+        A = rng.normal(size=(d, d))
+        cov = A @ A.T + d * np.eye(d)          # random PD
+        P, sd = gibbs_params(cov)
+        idx = np.arange(d)
+        for j in range(d):
+            rest = idx[idx != j]
+            pj = np.linalg.solve(cov[np.ix_(rest, rest)], cov[rest, j])
+            assert np.allclose(P[rest, j], pj)
+            assert P[j, j] == 0.0
+            assert sd[j] == pytest.approx(np.sqrt(cov[j, j] - pj @ cov[rest, j]))
+
+
 def test_univariate_truncated_mean_and_var():
     # N(0,1) truncated to (0.5, 2.0): compare to scipy.truncnorm
     lo, hi = 0.5, 2.0
