@@ -21,7 +21,8 @@ from ._mathfun import norm_cdf, norm_ppf
 __all__ = ["convert_age_to_cir", "convert_cir_to_age", "convert_age_to_thresh",
            "convert_liability_to_aoo", "truncated_normal_cdf",
            "convert_observed_to_liability_scale", "prevalence_thresholds",
-           "age_thresholds", "liability_threshold", "pa_thresholds"]
+           "age_thresholds", "liability_threshold", "pa_thresholds",
+           "thresholds_from_cip"]
 
 
 def liability_threshold(pop_prev):
@@ -178,4 +179,46 @@ def pa_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     upper = np.where(status, np.inf, thr)
     K_i = np.where(status, np.nan, cir)
     K_pop = np.where(status, np.nan, float(pop_prev))
+    return lower, upper, K_i, K_pop
+
+
+def thresholds_from_cip(status, age, cip_ages, cip_values, k_pop=None,
+                        case_mode="interval", min_cip=1e-5):
+    """Liability bounds (+ ``K_i``, ``K_pop``) from an *empirical* CIP curve.
+
+    The production alternative to the logistic ``age_thresholds`` /
+    ``pa_thresholds``: instead of the built-in logistic incidence, pass a
+    population-representative cumulative-incidence curve as ``cip_ages`` (ascending)
+    and ``cip_values`` (CIP at each age). Call once **per stratum** (sex, birth
+    year, ancestry, ...) with that stratum's curve. Each person's CIP is
+    interpolated at their ``age`` (clipped to ``[min_cip, k_pop]``) and turned into a
+    threshold ``Phi^-1(1 - CIP)``.
+
+    ``k_pop`` is the lifetime prevalence for the stratum (defaults to
+    ``max(cip_values)``). ``case_mode`` sets the case encoding: ``"pin"`` pins a
+    case at ``thresh(age_of_onset)`` (ADuLT / LT-FH++), ``"interval"`` (default)
+    uses ``(thresh(age_of_onset), inf)`` (PA-FGRS). Controls are always
+    ``(-inf, thresh(current_age))`` and carry ``K_i`` / ``K_pop`` for the PA
+    censored-control mixture. Returns ``(lower, upper, K_i, K_pop)``."""
+    status = np.asarray(status, dtype=bool)
+    age = np.asarray(age, dtype=float)
+    cip_ages = np.asarray(cip_ages, dtype=float)
+    cip_values = np.asarray(cip_values, dtype=float)
+    if np.any(np.diff(cip_ages) < 0):
+        raise ValueError("cip_ages must be sorted ascending")
+    if case_mode not in ("pin", "interval"):
+        raise ValueError("case_mode must be 'pin' or 'interval'")
+    kpop = float(np.max(cip_values)) if k_pop is None else float(k_pop)
+
+    cip = np.interp(age, cip_ages, cip_values)          # CIP at each person's age
+    cip = np.clip(cip, min_cip, kpop)
+    thr = norm_ppf(1.0 - cip)
+
+    lower = np.where(status, thr, -np.inf)
+    if case_mode == "pin":
+        upper = np.where(status, thr, thr)
+    else:
+        upper = np.where(status, np.inf, thr)
+    K_i = np.where(status, np.nan, cip)
+    K_pop = np.where(status, np.nan, kpop)
     return lower, upper, K_i, K_pop

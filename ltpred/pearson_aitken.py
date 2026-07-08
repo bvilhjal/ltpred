@@ -119,42 +119,74 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
 
 
 @_jit
-def _pa_family(cov, lower, upper, K_i, K_pop):
-    """One family's PA sweep; target must be row 0. Mutates ``cov`` in place.
+def _pa_update(cov, mu, i, nm, nv):
+    """Rank-1 Pearson-Aitken update after conditioning coordinate ``i``.
 
-    Folds in observations ``d-1, ..., 1`` (last to first, as in the reference
-    implementation), each time applying the rank-1 Pearson-Aitken update to the
-    running mean and covariance. Returns ``(est, var)`` = the target's posterior
-    mean and variance."""
+    Only the **active leading block** ``0..i-1`` is touched: once ``i`` has been
+    folded in (last-to-first), coordinates ``> i`` are never read again, so the
+    columns/rows above ``i`` need no update. This halves-to-thirds the work of a
+    full-matrix rank-1 update and avoids snapshotting ``cov[:, i]`` (column ``i`` is
+    not written here, so it can be read directly). Exactly equivalent to updating
+    the whole matrix for the target's final ``(mean, var)``."""
+    v_i = cov[i, i]
+    dm = (nm - mu[i]) / v_i
+    fac = (nv - v_i) / (v_i * v_i)
+    for j in range(i):
+        mu[j] += cov[j, i] * dm
+    for j in range(i):
+        cji_fac = cov[j, i] * fac
+        for k in range(i):
+            cov[j, k] += cji_fac * cov[k, i]
+
+
+@_jit
+def _pa_family(cov, lower, upper, K_i, K_pop):
+    """One family's PA sweep **with** the censored-control mixture; target row 0.
+
+    Mutates ``cov`` in place, folding observations ``d-1, ..., 1``. Returns
+    ``(est, var)`` = the target's posterior mean and variance."""
     d = cov.shape[0]
     mu = np.zeros(d)
     for i in range(d - 1, 0, -1):
-        m_i = mu[i]
-        v_i = cov[i, i]
-        nm, nv = _tnorm_mixture(m_i, v_i, lower[i], upper[i], K_i[i], K_pop[i])
-        dm = (nm - m_i) / v_i
-        fac = (nv - v_i) / (v_i * v_i)
-        s = np.empty(d)
-        for j in range(d):
-            s[j] = cov[j, i]
-        for j in range(d):
-            mu[j] += s[j] * dm
-            sj_fac = s[j] * fac
-            for k in range(d):
-                cov[j, k] += sj_fac * s[k]
+        nm, nv = _tnorm_mixture(mu[i], cov[i, i], lower[i], upper[i], K_i[i], K_pop[i])
+        _pa_update(cov, mu, i, nm, nv)
+    return mu[0], cov[0, 0]
+
+
+@_jit
+def _pa_family_nomix(cov, lower, upper):
+    """PA sweep **without** the mixture -- plain truncated-normal moments.
+
+    The default fast path: skips all ``K_i``/``K_pop`` handling (no NaN arrays, no
+    per-coordinate mixture branch). Same active-block update as :func:`_pa_family`."""
+    d = cov.shape[0]
+    mu = np.zeros(d)
+    for i in range(d - 1, 0, -1):
+        sd_i = math.sqrt(cov[i, i])
+        nm = _tnorm_mean(mu[i], sd_i, lower[i], upper[i])
+        nv = _tnorm_var(mu[i], sd_i, lower[i], upper[i])
+        _pa_update(cov, mu, i, nm, nv)
     return mu[0], cov[0, 0]
 
 
 @_jit_parallel
 def _pa_batched(cov, lowers, uppers, K_is, K_pops, est, var):
-    """Run :func:`_pa_family` over many same-structure families in parallel.
-
-    All families share ``cov`` (copied per iteration since PA mutates it); only
-    their bounds and mixture inputs differ. Writes ``est[f]`` / ``var[f]``."""
+    """Mixture PA over many same-structure families in parallel."""
     F = lowers.shape[0]
     for f in prange(F):
         c = cov.copy()
         e, v = _pa_family(c, lowers[f], uppers[f], K_is[f], K_pops[f])
+        est[f] = e
+        var[f] = v
+
+
+@_jit_parallel
+def _pa_batched_nomix(cov, lowers, uppers, est, var):
+    """No-mixture PA over many same-structure families in parallel (no K arrays)."""
+    F = lowers.shape[0]
+    for f in prange(F):
+        c = cov.copy()
+        e, v = _pa_family_nomix(c, lowers[f], uppers[f])
         est[f] = e
         var[f] = v
 
@@ -184,32 +216,38 @@ def pa_algorithm(covmat, lower, upper, target=0, K_i=None, K_pop=None):
     d = cov.shape[0]
     lower = np.asarray(lower, dtype=np.float64)
     upper = np.asarray(upper, dtype=np.float64)
-    K_i = np.full(d, np.nan) if K_i is None else np.asarray(K_i, dtype=np.float64)
-    K_pop = np.full(d, np.nan) if K_pop is None else np.asarray(K_pop, dtype=np.float64)
-
     order = np.concatenate(([target], np.delete(np.arange(d), target)))
     cov = np.ascontiguousarray(cov[np.ix_(order, order)])
-    return _pa_family(cov, lower[order], upper[order], K_i[order], K_pop[order])
+    lo, hi = lower[order], upper[order]
+    if K_i is None and K_pop is None:          # no-mixture fast path
+        return _pa_family_nomix(cov, lo, hi)
+    K_i = np.full(d, np.nan) if K_i is None else np.asarray(K_i, dtype=np.float64)
+    K_pop = np.full(d, np.nan) if K_pop is None else np.asarray(K_pop, dtype=np.float64)
+    return _pa_family(cov, lo, hi, K_i[order], K_pop[order])
 
 
 def pa_estimate_batched(covmat, lowers, uppers, target=0, K_is=None, K_pops=None):
     """Vectorised :func:`pa_algorithm` over families sharing one covariance.
 
     ``lowers``/``uppers`` are ``(F, d)`` per-family bounds; ``covmat`` is shared.
-    Reorders once so the target is row 0, then runs the parallel kernel. Returns
-    ``(est, var)`` arrays of length ``F``."""
+    Reorders once so the target is row 0, then runs the parallel kernel. When no
+    ``K_is``/``K_pops`` are given, dispatches to the no-mixture kernel, which never
+    allocates the ``(F, d)`` mixture arrays. Returns ``(est, var)`` of length ``F``."""
     cov = np.array(covmat, dtype=np.float64, copy=True)
     d = cov.shape[0]
     lowers = np.ascontiguousarray(lowers, dtype=np.float64)
     uppers = np.ascontiguousarray(uppers, dtype=np.float64)
     F = lowers.shape[0]
-    K_is = np.full((F, d), np.nan) if K_is is None else np.ascontiguousarray(K_is, dtype=np.float64)
-    K_pops = np.full((F, d), np.nan) if K_pops is None else np.ascontiguousarray(K_pops, dtype=np.float64)
-
     order = np.concatenate(([target], np.delete(np.arange(d), target)))
     cov = np.ascontiguousarray(cov[np.ix_(order, order)])
+    lo, hi = np.ascontiguousarray(lowers[:, order]), np.ascontiguousarray(uppers[:, order])
     est = np.empty(F)
     var = np.empty(F)
-    _pa_batched(cov, lowers[:, order], uppers[:, order], K_is[:, order],
-                K_pops[:, order], est, var)
+    if K_is is None and K_pops is None:        # no-mixture fast path (no K arrays)
+        _pa_batched_nomix(cov, lo, hi, est, var)
+        return est, var
+    K_is = np.full((F, d), np.nan) if K_is is None else np.ascontiguousarray(K_is, dtype=np.float64)
+    K_pops = np.full((F, d), np.nan) if K_pops is None else np.ascontiguousarray(K_pops, dtype=np.float64)
+    _pa_batched(cov, lo, hi, np.ascontiguousarray(K_is[:, order]),
+                np.ascontiguousarray(K_pops[:, order]), est, var)
     return est, var

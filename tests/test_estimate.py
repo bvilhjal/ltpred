@@ -1,5 +1,7 @@
 """End-to-end liability estimation and the batch-means convergence rule."""
 
+import warnings
+
 import numpy as np
 import pytest
 from scipy import stats
@@ -77,6 +79,29 @@ def test_result_pids_default_to_o_member():
     res = estimate_liability([fam], h2=0.5, out=("genetic",),
                              n_sim=10_000, burn_in=300, tol=0.1, seed=1)
     assert res.pids[0] == "proband1"
+
+
+def test_duplicate_role_raises():
+    t = float(stats.norm.isf(0.05))
+    fam = Family("f1", [Member("o", t, np.inf), Member("s1", t, np.inf),
+                        Member("s1", -np.inf, t)])           # two 's1' -> error
+    with pytest.raises(ValueError, match="duplicate role"):
+        estimate_liability([fam], h2=0.5, out=("genetic",))
+    # PA path validates too
+    with pytest.raises(ValueError, match="duplicate role"):
+        estimate_liability([fam], h2=0.5, method="pa", out=("genetic",))
+
+
+def test_warns_when_not_converged():
+    # a punishing tol with max_rounds=1 cannot converge -> warning, but still returns
+    t = float(stats.norm.isf(0.05))
+    fam = Family("f1", [Member("o", t, np.inf), Member("m", t, np.inf)])
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        res = estimate_liability([fam], h2=0.5, out=("genetic",), tol=1e-6,
+                                 n_sim=5000, burn_in=200, max_rounds=1, seed=1)
+    assert any("did not reach tol" in str(x.message) for x in w)
+    assert np.isfinite(res.est["genetic"][0])
 
 
 def test_multi_trait_runs_and_shapes():

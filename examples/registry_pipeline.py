@@ -12,12 +12,17 @@ table, so you have a copy-paste starting point for real data. The steps are:
 Replace `make_toy_table()` with your own table (e.g. read a CSV into the same
 columns) and set `H2` / `POP_PREV` for your disease.
 
-Run: python examples/registry_pipeline.py
+Run (from the repo root): python examples/registry_pipeline.py
+(installs not required — this inserts the repo root on sys.path; or `pip install -e .`.)
 """
+
+import os
+import sys
 
 import numpy as np
 
-from ltpred import age_thresholds, families_from_columns, estimate_liability
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from ltpred import age_thresholds, families_from_columns, estimate_liability  # noqa: E402
 
 H2 = 0.5            # liability-scale heritability (convert observed-scale first)
 POP_PREV = 0.05     # population lifetime prevalence

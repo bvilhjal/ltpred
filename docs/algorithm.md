@@ -39,6 +39,13 @@ sibs, 0.25 for grandparents / half-sibs / aunts-uncles, etc.
 the relatives. A near-singular matrix (from relatedness rounding) is nudged back
 to positive-definite by `correct_positive_definite`.
 
+This is an **additive-genetic** model: familial resemblance is entirely genetic
+sharing. Shared environment, household/cultural transmission, assortative mating
+(parents are taken to be genetically unrelated), dominance/epistasis and indirect
+genetic effects are not represented. Where those contribute, the estimated
+"genetic liability" is best read as the additive-model projection of the family
+history rather than a pure causal genetic value.
+
 ## Thresholds: status, age and onset
 
 Each observed person contributes a truncation of their liability:

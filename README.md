@@ -1,7 +1,9 @@
 # ltpred
 
 **ltpred** is a Python implementation of **LT-FH++**, the liability-threshold
-model conditioned on family history, age of onset and sex. It is a faithful port
+model conditioned on family history and age of onset (sex and cohort effects
+enter through the sex/cohort-specific thresholds or CIPs you supply — the
+built-in age-CIP helper is not itself sex-stratified). It is a faithful port
 of the R package [LTFHPlus](https://github.com/EmilMiP/LTFHPlus)
 ([Pedersen et al. 2022, AJHG](https://doi.org/10.1016/j.ajhg.2022.01.009);
 the family-free age-dependent variant, ADuLT, in
@@ -36,9 +38,10 @@ liability-threshold model:
    (`prevalence_thresholds`); LT-FH++/ADuLT instead pins a case at the threshold
    of its age of onset and bounds a control below the threshold for its current
    age (`age_thresholds`).
-3. **Fitting** — two interchangeable back-ends turn the covariance and intervals
-   into the posterior mean of the proband's `g` (genetic) and/or `o` (full)
-   liability:
+3. **Fitting** — two back-ends turn the covariance and intervals into the
+   posterior mean of the proband's `g` (genetic) and/or `o` (full) liability
+   (they agree closely on the `genetic` score; see the
+   [guide](docs/guide.md#choosing-gibbs-vs-pearsonaitken) for the differences):
    - **Gibbs** (`method="gibbs"`, default) — `rtmvnorm_gibbs` draws from the
      truncated multivariate normal, re-running until every estimate's batch-means
      Monte-Carlo standard error is below `tol`.
@@ -58,9 +61,20 @@ are independent, the estimator groups those that share a family structure
 (identical roles → identical covariance) and samples the whole group in one
 compiled, **thread-parallel** (`prange`) kernel, accumulating the posterior mean
 and the batch-means SE *online* — no per-family Python overhead and no full
-`(n_sim × n_out)` sample array. On a 10-core machine this runs the reference demo
+`(n_sim × n_out)` sample array. Gibbs keeps only streaming batch-mean *summaries*
+(sum and sum-of-squares), so its Monte-Carlo-SE memory is `O(families)` regardless
+of `n_sim`; the conditional-regression factorisation uses the precision matrix
+(one inverse, not `d` solves). On a 10-core machine this runs the reference demo
 (2000 trios, 25 000 draws each) in ~5 s, versus ~27 s single-threaded. Without
-Numba installed the exact same code runs serially in pure Python.
+Numba installed the exact same code runs serially in pure Python. Note the
+**first** call to each method includes one-time JIT compilation (~1–2 s); the
+benchmark and scaling numbers are measured after warm-up, so a single tiny run
+will show a smaller apparent speed-up.
+
+For biobank-scale runs, the **array API** (`estimate_liability_pa_arrays`,
+`estimate_liability_gibbs_arrays`) bypasses the `Family`/`Member` objects and their
+per-call bounds assembly — ~100× faster than the object path at large `N` (see the
+[guide](docs/guide.md#scaling-to-large-cohorts)).
 
 ## Installation
 
@@ -130,12 +144,15 @@ choosing between the two methods, and using the score in a GWAS, see the
 | `estimate_liability` | end-to-end estimator (`method=` gibbs / pearson-aitken; trait dispatch) |
 | `estimate_liability_single` / `_multi` | the per-flavour Gibbs estimators |
 | `estimate_liability_pa` | deterministic PA-FGRS estimator |
+| `estimate_liability_pa_arrays` / `_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
+| `set_num_threads` | set the Numba-parallel thread count |
 | `pa_algorithm` / `pa_estimate_batched` | Pearson–Aitken selection updates |
 | `tnorm_moments` / `tnorm_mixture_conditional` | truncated-normal moments (+ censoring mixture) |
 | `construct_covmat` / `_single` / `_multi` | family covariance from relatedness |
 | `get_relatedness` | shared-DNA × h² for a pair of roles |
 | `rtmvnorm_gibbs` | truncated-MVN Gibbs sampler |
 | `prevalence_thresholds` / `age_thresholds` / `pa_thresholds` | status (+age) → liability bounds |
+| `thresholds_from_cip` | bounds from an empirical (population) CIP curve — for real data |
 | `convert_age_to_cir` / `convert_age_to_thresh` / … | age ↔ incidence ↔ threshold |
 | `convert_observed_to_liability_scale` | observed → liability-scale h² (Lee et al.) |
 | `simulate_under_LTM_single` | simulate families for testing/benchmarking |

@@ -14,8 +14,8 @@ def _imr(t):
 
 
 def test_batched_kernel_matches_batch_means_single_round():
-    # online batch means from the kernel == batch_means() on stored samples,
-    # for the same family / seed (single round, one family).
+    # streamed batch-mean summaries reconstruct est + SE, matching the analytic
+    # case posterior (g = h2*IMR, o = IMR), single round, one family.
     cov = np.array([[0.5, 0.5], [0.5, 1.0]])
     t = float(stats.norm.isf(0.05))
     lowers = np.array([[-np.inf, t]])
@@ -25,17 +25,70 @@ def test_batched_kernel_matches_batch_means_single_round():
     n_sim = 40_000
     b = int(np.floor(np.sqrt(n_sim)))
     nb = n_sim // b
-    tot, bm = gibbs_estimate_batched(P, sd, sd0, lowers, uppers,
-                                     np.array([0, 1]), n_sim, 1000, b, nb,
-                                     np.array([7]))
+    tot, bm_sum, bm_sumsq = gibbs_estimate_batched(
+        P, sd, sd0, lowers, uppers, np.array([0, 1]), n_sim, 1000, b, nb,
+        np.array([7]))
     est = tot[0] / n_sim
-    muhat = bm[0].mean(axis=1)
-    sigma2 = b * ((bm[0] - muhat[:, None]) ** 2).sum(axis=1) / (nb - 1)
-    se = np.sqrt(sigma2 / n_sim)
-    # matches the analytic case posterior (g = h2*IMR, o = IMR)
+    ss = bm_sumsq[0] - bm_sum[0] ** 2 / nb        # sum((Y - Ybar)^2)
+    se = np.sqrt(b * ss / (nb - 1) / n_sim)
     assert est[0] == pytest.approx(0.5 * _imr(t), abs=0.03)
     assert est[1] == pytest.approx(_imr(t), abs=0.03)
     assert np.all(se > 0)
+
+
+def test_pa_arrays_match_object_api():
+    from ltpred.estimate import estimate_liability_pa_arrays, estimate_liability_pa
+    t = float(stats.norm.isf(0.05))
+    roles = ["o", "m", "f", "s1"]
+    rng = np.random.default_rng(1)
+    case = rng.random((50, 4)) < 0.3
+    lower = np.where(case, t, -np.inf)
+    upper = np.where(case, np.inf, t)
+    est_a, var_a = estimate_liability_pa_arrays(roles, lower, upper, h2=0.5)
+    fams = [Family(i, [Member(r, lower[i, k], upper[i, k]) for k, r in enumerate(roles)])
+            for i in range(50)]
+    obj = estimate_liability_pa(fams, h2=0.5, out=("genetic",))
+    assert np.allclose(est_a, obj.est["genetic"])
+    assert np.allclose(var_a, obj.var["genetic"])
+
+
+def test_gibbs_arrays_match_object_api():
+    from ltpred.estimate import estimate_liability_gibbs_arrays, estimate_liability
+    t = float(stats.norm.isf(0.05))
+    roles = ["o", "m"]
+    lower = np.array([[t, -np.inf], [-np.inf, t]])
+    upper = np.array([[np.inf, t], [t, np.inf]])
+    est_a, se_a = estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5,
+                                                  n_sim=20_000, burn_in=400, seed=3)
+    fams = [Family(i, [Member(r, lower[i, k], upper[i, k]) for k, r in enumerate(roles)])
+            for i in range(2)]
+    obj = estimate_liability(fams, h2=0.5, out=("genetic",), n_sim=20_000,
+                             burn_in=400, seed=3)
+    assert np.allclose(est_a, obj.est["genetic"])
+    assert np.allclose(se_a, obj.se["genetic"])
+
+
+def test_pa_nomix_equals_mixture_with_nan_K():
+    # the no-mixture fast path must equal the mixture path fed all-NaN K
+    from ltpred.pearson_aitken import pa_estimate_batched
+    t = float(stats.norm.isf(0.05))
+    cov = np.array([[0.5, 0.5, 0.25], [0.5, 1.0, 0.25], [0.25, 0.25, 1.0]])
+    lowers = np.array([[-np.inf, t, -np.inf], [-np.inf, -np.inf, t]])
+    uppers = np.array([[np.inf, np.inf, t], [np.inf, t, np.inf]])
+    e0, v0 = pa_estimate_batched(cov, lowers, uppers, target=0)      # nomix path
+    nan = np.full_like(lowers, np.nan)
+    e1, v1 = pa_estimate_batched(cov, lowers, uppers, target=0, K_is=nan, K_pops=nan)
+    assert np.allclose(e0, e1) and np.allclose(v0, v1)
+
+
+def test_canonical_grouping_permuted_members():
+    # families with the same relatives in different row order agree per-family
+    t = float(stats.norm.isf(0.05))
+    a = Family("a", [Member("o", t, np.inf), Member("m", -np.inf, t), Member("f", t, np.inf)])
+    b = Family("b", [Member("f", t, np.inf), Member("o", t, np.inf), Member("m", -np.inf, t)])
+    res = estimate_liability([a, b], h2=0.5, method="pa", out=("genetic",))
+    # a and b are the same family with reordered rows -> identical estimate
+    assert res.est["genetic"][0] == pytest.approx(res.est["genetic"][1])
 
 
 def test_grouping_gives_same_answer_regardless_of_order():

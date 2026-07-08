@@ -9,14 +9,18 @@ liability two ways -- the Gibbs sampler and the deterministic Pearson-Aitken
 effective-sample-size gain from using the estimated liability. It also reports
 how closely the two fitting methods agree and their relative speed.
 
-Run: python examples/ltfh_power_demo.py
+Run (from the repo root): python examples/ltfh_power_demo.py
+(installs not required — this inserts the repo root on sys.path; or `pip install -e .`.)
 """
 
+import os
+import sys
 import time
 
 import numpy as np
 
-from ltpred import simulate_under_LTM_single, estimate_liability
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from ltpred import simulate_under_LTM_single, estimate_liability  # noqa: E402
 
 
 def main():

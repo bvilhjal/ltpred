@@ -4,20 +4,32 @@ Summary of the ltpred benchmark suite, comparing the two fitting methods — the
 **Gibbs sampler** (LT-FH++) and the deterministic **Pearson–Aitken** estimator
 (PA-FGRS) — on simulated data where the true genetic liability is known.
 
-- **Generated:** 2026-07-07, numpy 2.2.6 / scipy 1.15 / numba 0.66, 10 cores.
+- **Generated:** 2026-07-07 (regenerated after the efficiency pass — precision-
+  matrix Gibbs params, canonical grouping, streamed batch means, faster PA
+  kernels), numpy 2.2.6 / scipy 1.15 / numba 0.66, 10 cores. Accuracy / GWAS /
+  age-of-onset numbers are unchanged (the optimisations are equivalent); Gibbs
+  timings dropped ~15–20%.
 - **Reproduce:** `OMP_NUM_THREADS=10 python benchmarks/<script>.py` (see
   [`README.md`](README.md) for what each measures).
 - **Caveat:** these are *stochastic* benchmarks — each number is one Monte-Carlo
   draw, so re-running shifts values by sampling noise. The conclusions are stable.
+  They validate PA-FGRS against Gibbs for the **simulated structures included
+  here** (small/realistic pedigrees, additive-genetic model); they do not prove
+  exact equivalence for arbitrary pedigrees, extreme prevalences/heritabilities,
+  densely affected families, or the censoring mixture. The reported metric is a
+  correlation — it can hide scale/tail/calibration shifts; extending the diagnostics
+  (mean error, slope/intercept, tail calibration, PA fold-in ordering, large/rare
+  pedigrees) is future work.
 
 ## Headline findings
 
 - **PA-FGRS reproduces the Gibbs LT-FH++ posterior mean.** Across all 27
   accuracy cells the two estimates correlate **≥ 0.997** (usually ≥ 0.999), and
   in the genotype GWAS they give the **same** effective sample size (1.52×).
-- **PA-FGRS is 100–360× faster** — a deterministic sweep with no MCMC —
-  processing **~150 000 families/second** vs ~570/s for the Gibbs sampler, at
-  identical accuracy.
+- **PA-FGRS is 100–350× faster** — a deterministic sweep with no MCMC —
+  processing **~170 000 families/second** vs ~700/s for the Gibbs sampler, at
+  identical accuracy. (Via the object API; the array API removes the remaining
+  Python overhead — see the efficiency note below.)
 - **Both recover 1.2–2.8× the effective sample size of a raw case/control
   label.** The gain grows with heritability, with *lower* prevalence, and with
   more informative relatives (siblings, extended pedigrees).
@@ -54,14 +66,16 @@ Wall time, h²=0.5, K=0.05, Numba on 10 cores.
 
 | #families (trios) | Gibbs | PA-FGRS | speed-up |
 |---:|---:|---:|---:|
-| 1 000 | 1.9 s | 0.007 s | 270× |
-| 2 000 | 3.5 s | 0.012 s | 280× |
-| 8 000 | 13.9 s | 0.051 s | 273× |
+| 1 000 | 1.5 s | 0.006 s | 244× |
+| 2 000 | 3.0 s | 0.012 s | 252× |
+| 8 000 | 11.4 s | 0.046 s | 247× |
 
-Both scale linearly in the number of families; PA sustains ~150 000 families/s
-against ~570/s for Gibbs. Growing the family from 2 to 10 relatives raises the
-Gibbs cost 2.7 s → 9.3 s (n=2000) while PA stays under 0.04 s — the speed-up
-holds (220–360×) across family sizes.
+Both scale linearly in the number of families; PA sustains ~170 000 families/s
+against ~700/s for Gibbs. Growing the family from 2 to 10 relatives raises the
+Gibbs cost 2.5 s → 8.4 s (n=2000) while PA stays under 0.03 s — the speed-up
+holds (230–350×) across family sizes. These use the object API; the **array API**
+(`estimate_liability_pa_arrays`) removes the per-family Python overhead entirely —
+measured ~10 M families/s (≈100× over the object PA path) on trios after warm-up.
 
 ## 3. Age-of-onset information (`bench_age_onset.py`)
 

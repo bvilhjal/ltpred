@@ -1,0 +1,54 @@
+cff-version: 1.2.0
+message: "If you use ltpred, please cite the software and the methods it implements."
+title: "ltpred: LT-FH++ (and PA-FGRS) genetic-liability estimation in Python"
+abstract: >-
+  A Python implementation of the liability-threshold model conditioned on family
+  history and age of onset (LT-FH++ / ADuLT), with both a truncated-multivariate-
+  normal Gibbs sampler and the deterministic Pearson-Aitken (PA-FGRS) estimator.
+type: software
+authors:
+  - family-names: "Vilhjálmsson"
+    given-names: "Bjarni Jóhann"
+repository-code: "https://github.com/bvilhjal/ltpred"
+license: GPL-3.0-or-later
+keywords:
+  - liability-threshold model
+  - LT-FH++
+  - ADuLT
+  - PA-FGRS
+  - genetic liability
+  - family history
+  - GWAS
+references:
+  - type: article
+    title: "The contribution of family-history information to the assessment of disease risk: the liability-threshold model conditional on family history (LT-FH)"
+    authors:
+      - family-names: Hujoel
+        given-names: "Margaux L. A."
+    journal: "Nature Genetics"
+    year: 2020
+    doi: 10.1038/s41588-020-0613-6
+  - type: article
+    title: "Accounting for age of onset and family history improves power in genome-wide association studies (LT-FH++)"
+    authors:
+      - family-names: Pedersen
+        given-names: "Emil Michael"
+    journal: "The American Journal of Human Genetics"
+    year: 2022
+    doi: 10.1016/j.ajhg.2022.01.009
+  - type: article
+    title: "ADuLT: an efficient and robust time-to-event GWAS"
+    authors:
+      - family-names: Pedersen
+        given-names: "Emil Michael"
+    journal: "Nature Communications"
+    year: 2023
+    doi: 10.1038/s41467-023-41210-z
+  - type: article
+    title: "Genetic liability estimated from large-scale family data improves genetic prediction, risk score profiling, and gene mapping for major depression (PA-FGRS)"
+    authors:
+      - family-names: Krebs
+        given-names: "Morten Dybdahl"
+    journal: "The American Journal of Human Genetics"
+    year: 2024
+    doi: 10.1016/j.ajhg.2024.09.009
