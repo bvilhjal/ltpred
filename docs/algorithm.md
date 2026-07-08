@@ -40,8 +40,17 @@ liability `l_0` is written `o` (variance 1); `Cov(g, o) = h2`.
 `get_relatedness(a, b, h2)` returns `A_ab * h2`, and `construct_covmat(...)`
 assembles this small fixed-pedigree relationship matrix, ordering `g`, `o` first
 followed by the relatives (`correct_positive_definite` nudges a rounding-singular
-matrix back to strict PD). The role grammar is just a compact way to build `A`
-without a full pedigree; a pedigree/kinship-matrix API would generalise it.
+matrix back to strict PD).
+
+The role grammar is just a compact way to build `A` for common family shapes. For
+**arbitrary pedigrees**, `kinship_from_pedigree(id, father, mother)` builds `A`
+directly from the pedigree by the recursive tabular method (Henderson 1976) —
+`A_ii = 1 + F_i` (with `F_i` the inbreeding coefficient) and
+`A_ij = 0.5 (A_i,sire_j + A_i,dam_j)` — and `construct_covmat_from_kinship(A, h2,
+target)` assembles the same `h2 A + (1-h2) I` covariance (plus the target's `g`
+row). This reproduces the role-grammar covariance entry-for-entry where they
+overlap, and additionally covers half-sibs of any degree, cousins and inbred
+pedigrees; `estimate_liability_from_kinship` runs the Gibbs sampler on it.
 
 This is an **additive-genetic** model: familial resemblance is entirely genetic
 sharing. Shared environment, household/cultural transmission, assortative mating

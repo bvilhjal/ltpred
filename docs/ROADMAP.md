@@ -49,7 +49,7 @@ BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
 connection, and the environmental-covariance extension), plus `CITATION.cff`
 (15 references).
 
-The test suite is 139 tests passing.
+The test suite is 145 tests passing.
 
 ## Near-term — variance-component thread ✅ complete
 
@@ -85,9 +85,16 @@ The test suite is 139 tests passing.
 
 ## Medium-term — rigor and real data
 
-4. **Pedigree/kinship-matrix input.** `families_from_pedigree(id, mother,
-   father)` and `construct_covmat_from_kinship`, generalising past the fixed
-   role grammar (the R LTFGRS graph feature) and unlocking arbitrary pedigrees.
+4. ~~**Pedigree/kinship-matrix input.**~~ **Done.** `kinship_from_pedigree(id,
+   father, mother)` builds the additive relationship matrix `A` from an arbitrary
+   pedigree (recursive tabular method, handles inbreeding);
+   `construct_covmat_from_kinship` turns `A` into the liability covariance and
+   `estimate_liability_from_kinship` runs the sampler on it. This generalises past
+   the fixed role grammar — it reproduces the role-based covariance and estimates
+   entry-for-entry where they overlap, and additionally handles half-sibs of any
+   degree, cousins and inbred pedigrees. (The role grammar itself is the compact
+   special case; a role-less array interface — `A` + per-member bounds — replaces
+   the originally-envisaged `families_from_pedigree` object builder.)
 
 5. **Expand benchmark diagnostics.** Slope/intercept and tail calibration (not
    just correlation), PA fold-in-ordering sensitivity, large/rare/densely-

@@ -67,6 +67,29 @@ A family is any subset of these plus `o`. Two relatives of the same kind must be
 numbered (`s1`, `s2`). Relatedness (and hence covariance) is derived from the role
 labels — see `get_relatedness`.
 
+### Beyond the role grammar: arbitrary pedigrees
+
+When your relatives don't fit the fixed roles — deeper pedigrees, cousins,
+multiple marriages, inbreeding — describe the pedigree by **who each person's
+parents are** instead. `kinship_from_pedigree` turns `(id, father, mother)` columns
+into the additive relationship matrix `A`, and `estimate_liability_from_kinship`
+estimates the target's liability from `A` and per-individual bounds:
+
+```python
+from ltpred import kinship_from_pedigree, estimate_liability_from_kinship
+ids    = ["o", "m", "f", "s1", "mgm", "mgf"]      # target first
+father = ["f", "mgf", None, "f", None, None]      # None / unlisted = unknown founder
+mother = ["m", "mgm", None, "m", None, None]
+_, A = kinship_from_pedigree(ids, father, mother)
+# lower/upper are (n_families, n_individuals) in `ids` order (from a threshold builder)
+gen, se = estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0)
+```
+
+For a pedigree that *does* fit the role grammar the two paths give identical
+results (same covariance); the pedigree path additionally handles half-sibs of any
+degree, cousins, and inbred pedigrees (where a self-relationship can exceed 1).
+Build the covariance alone with `construct_covmat_from_kinship(A, h2, target)`.
+
 ### Getting `lower`/`upper` from status and age
 
 Three helpers turn status (+age) into the truncation bounds, matching the three

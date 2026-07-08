@@ -24,14 +24,15 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .covariance import construct_covmat_single, construct_covmat_multi, correct_positive_definite
+from .covariance import (construct_covmat_single, construct_covmat_multi,
+                         construct_covmat_from_kinship, correct_positive_definite)
 from .gibbs import gibbs_params, gibbs_estimate_batched, as_bounds
 from .pearson_aitken import pa_estimate_batched
 
 __all__ = ["LiabilityResult", "batch_means", "estimate_liability",
            "estimate_liability_single", "estimate_liability_multi",
            "estimate_liability_pa", "estimate_liability_pa_arrays",
-           "estimate_liability_gibbs_arrays"]
+           "estimate_liability_gibbs_arrays", "estimate_liability_from_kinship"]
 
 _PA_METHODS = {"pa", "pearson-aitken", "pearson_aitken", "aitken", "pa-fgrs"}
 
@@ -502,6 +503,51 @@ def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic",
     lo, hi = _align_to_cov(roles, cov_roles, (lower, upper), (-np.inf, np.inf))
     seeds = _base_seeds(seed, lo.shape[0], max_rounds)
     est, se = _estimate_group(cov, [target], lo, hi, seeds, tol, n_sim, burn_in,
+                              max_rounds)
+    return est[:, 0], se[:, 0]
+
+
+def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="genetic",
+                                    tol=0.01, n_sim=100_000, burn_in=1000, seed=None,
+                                    max_rounds=100):
+    """Estimate a target individual's liability from an **arbitrary pedigree**.
+
+    The kinship-based counterpart of :func:`estimate_liability_gibbs_arrays`: instead
+    of the fixed role grammar you pass the additive relationship matrix ``A``
+    (``n×n``, e.g. from :func:`~ltpred.covariance.kinship_from_pedigree`) shared by a
+    batch of families, and the per-individual truncation bounds. ``lower``/``upper``
+    are ``(n_families, n)`` (one column per pedigree member, in ``A`` order); the
+    genetic-liability row for ``target`` is added internally and left unbounded.
+
+    ``out`` selects ``"genetic"`` (the target's genetic liability — the usual
+    LT-FH++ phenotype) or ``"full"`` (its full liability). Returns ``(est, se)``,
+    each length ``n_families``. The covariance is built by
+    :func:`~ltpred.covariance.construct_covmat_from_kinship`, so results match the
+    role-based estimator whenever the pedigree encodes the same relationships — but
+    this also handles half-sibs of any degree, cousins, and inbred pedigrees."""
+    A = np.ascontiguousarray(A, dtype=np.float64)
+    n = A.shape[0]
+    if A.shape != (n, n):
+        raise ValueError("A must be a square (n, n) relationship matrix")
+    lower = np.atleast_2d(as_bounds(lower))
+    upper = np.atleast_2d(as_bounds(upper))
+    if lower.shape[1] != n or upper.shape[1] != n:
+        raise ValueError(f"lower/upper must have {n} columns (one per pedigree member)")
+    out_coord = _OUT_ALIASES[out] if not isinstance(out, (list, tuple)) \
+        else _OUT_ALIASES[out[0]]
+
+    cov_obj = construct_covmat_from_kinship(A, h2=h2, target=target, add_ind=True)
+    cov, _ = correct_positive_definite(cov_obj.matrix)
+    # prepend the unbounded genetic-liability (g) coordinate
+    F = lower.shape[0]
+    neg = np.full((F, 1), -np.inf, dtype=lower.dtype)
+    pos = np.full((F, 1), np.inf, dtype=upper.dtype)
+    lo = np.ascontiguousarray(np.concatenate([neg, lower], axis=1))
+    hi = np.ascontiguousarray(np.concatenate([pos, upper], axis=1))
+    tgt = 0 if out_coord == 0 else 1 + int(target)     # g row, or the target's o row
+
+    seeds = _base_seeds(seed, F, max_rounds)
+    est, se = _estimate_group(cov, [tgt], lo, hi, seeds, tol, n_sim, burn_in,
                               max_rounds)
     return est[:, 0], se[:, 0]
 

@@ -122,3 +122,38 @@ def test_multi_trait_runs_and_shapes():
     assert res.est["genetic_A"].shape == (1,)
     # proband is a case for A but not B -> higher genetic liability for A
     assert res.est["genetic_A"][0] > res.est["genetic_B"][0]
+
+
+def test_estimate_from_kinship_matches_role_based():
+    # the kinship path reproduces the role-based estimator on the same data
+    from ltpred import (simulate_under_LTM_single, estimate_liability_single,
+                        estimate_liability_from_kinship, kinship_from_pedigree)
+    h2 = 0.5
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=h2,
+                                    n_sim=400, pop_prev=0.1, seed=11)
+    role = estimate_liability_single(sim.families, h2=h2, out=("genetic",),
+                                     n_sim=20000, burn_in=500, seed=1)
+    ids    = ["o", "m", "f", "s1", "s2"]
+    father = ["f", None, None, "f", "f"]
+    mother = ["m", None, None, "m", "m"]
+    _, A = kinship_from_pedigree(ids, father, mother)
+    F = len(sim.families)
+    lower = np.empty((F, len(ids))); upper = np.empty((F, len(ids)))
+    for fi, fam in enumerate(sim.families):
+        byrole = {m.role: m for m in fam.members}
+        for c, r in enumerate(ids):
+            lower[fi, c], upper[fi, c] = byrole[r].lower, byrole[r].upper
+    kin, _ = estimate_liability_from_kinship(A, lower, upper, h2=h2, target=0,
+                                             out="genetic", n_sim=20000, burn_in=500, seed=1)
+    # identical covariance + identical seeds -> identical draws
+    assert np.corrcoef(role.est["genetic"], kin)[0, 1] > 0.999
+    assert np.max(np.abs(role.est["genetic"] - kin)) < 1e-9
+
+
+def test_estimate_from_kinship_validation():
+    from ltpred import estimate_liability_from_kinship, kinship_from_pedigree
+    _, A = kinship_from_pedigree(["o", "m", "f"], ["f", None, None], ["m", None, None])
+    with pytest.raises(ValueError, match="columns"):
+        estimate_liability_from_kinship(A, np.zeros((5, 2)), np.ones((5, 2)))   # wrong n cols
+    with pytest.raises(ValueError, match="square"):
+        estimate_liability_from_kinship(np.zeros((3, 2)), np.zeros((5, 3)), np.ones((5, 3)))

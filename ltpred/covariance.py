@@ -23,7 +23,8 @@ import numpy as np
 
 __all__ = ["Covmat", "get_relatedness", "construct_covmat_single",
            "construct_covmat_multi", "construct_covmat",
-           "correct_positive_definite"]
+           "correct_positive_definite", "kinship_from_pedigree",
+           "construct_covmat_from_kinship"]
 
 # valid relative abbreviations (the LTFHPlus grammar), matched with re.fullmatch
 # so trailing junk like "s1abc" or "c1x2" is rejected rather than silently treated
@@ -354,6 +355,110 @@ def construct_covmat(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
                                   genetic_corrmat=genetic_corrmat,
                                   full_corrmat=full_corrmat, h2_vec=h2,
                                   phen_names=phen_names)
+
+
+def kinship_from_pedigree(ids, father, mother):
+    """Additive relationship matrix ``A`` (= 2×kinship) from a pedigree.
+
+    Generalises the fixed role grammar (:func:`get_relatedness`) to **arbitrary
+    pedigrees**: instead of naming relatives ``m``/``f``/``s1``/``mgm``… you give the
+    parent of each individual and the relatedness is computed from the pedigree.
+
+    ``ids`` is a sequence of unique individual ids; ``father`` and ``mother`` are the
+    same-length sequences giving each individual's parents. A parent that is not
+    itself one of ``ids`` (``None``, ``0``, ``""``, ``nan``, or any unlisted value)
+    is treated as an unknown **founder**. Returns ``(ids, A)`` with ``A`` an
+    ``(n, n)`` matrix in the given ``ids`` order: ``A[i,i] = 1 + F_i`` (``F_i`` the
+    inbreeding coefficient) and ``A[i,j] = 2 × kinship(i, j)`` — e.g. 0.5 for
+    parent–offspring and full sibs, 0.25 for grandparent/half-sib, 0.125 for first
+    cousins. Computed by the recursive tabular method (Henderson 1976), which
+    handles inbreeding and any pedigree depth.
+
+    Feed ``A`` to :func:`construct_covmat_from_kinship` to build the liability
+    covariance for these individuals."""
+    ids = list(ids)
+    father = list(father)
+    mother = list(mother)
+    n = len(ids)
+    if not (len(father) == len(mother) == n):
+        raise ValueError("ids, father and mother must share length")
+    if len(set(ids)) != n:
+        raise ValueError("ids must be unique")
+
+    index = {pid: i for i, pid in enumerate(ids)}
+
+    def _parent_idx(p):
+        # unknown/founder markers, or any value not among the ids
+        if p is None or (isinstance(p, float) and np.isnan(p)):
+            return -1
+        return index.get(p, -1)
+
+    sire = [_parent_idx(p) for p in father]
+    dam = [_parent_idx(p) for p in mother]
+    for i in range(n):
+        if sire[i] == i or dam[i] == i:
+            raise ValueError(f"individual {ids[i]!r} is its own parent")
+
+    # topological order: an individual comes after both its (known) parents
+    done = [False] * n
+    order = []
+    while len(order) < n:
+        progressed = False
+        for i in range(n):
+            if done[i]:
+                continue
+            if (sire[i] == -1 or done[sire[i]]) and (dam[i] == -1 or done[dam[i]]):
+                order.append(i)
+                done[i] = True
+                progressed = True
+        if not progressed:
+            raise ValueError("pedigree has a cycle (an individual is its own ancestor)")
+
+    A = np.zeros((n, n), dtype=np.float64)
+    for i in order:
+        s, d = sire[i], dam[i]
+        A[i, i] = 1.0 + (0.5 * A[s, d] if (s != -1 and d != -1) else 0.0)
+        for j in order:
+            if j == i:
+                break                                    # only already-placed j
+            aij = 0.5 * ((A[s, j] if s != -1 else 0.0) + (A[d, j] if d != -1 else 0.0))
+            A[i, j] = A[j, i] = aij
+    return ids, A
+
+
+def construct_covmat_from_kinship(A, h2=0.5, target=0, add_ind=True):
+    """Liability-scale covariance from an additive relationship matrix ``A``.
+
+    The kinship-based counterpart of :func:`construct_covmat_single`: given ``A``
+    (``n×n``, e.g. from :func:`kinship_from_pedigree`) it builds the covariance of
+    the ``n`` individuals' **full liabilities** ``o`` under the liability-threshold
+    model — ``h2 * A + (1 - h2) * I`` (so each diagonal is 1) — and, when
+    ``add_ind``, prepends the **genetic liability** ``g`` of the ``target``
+    individual (variance ``h2``, ``Cov(g, o_i) = h2 * A[target, i]``). Row order is
+    ``[g, o_0, …, o_{n-1}]``; the ``target``'s own full-liability row is labelled
+    ``o`` and the rest ``rel<i>``. Returns a :class:`Covmat`.
+
+    This is exactly the matrix the Gibbs / PA samplers consume, so a kinship-derived
+    covariance is a drop-in for the role-based one; for a standard pedigree the two
+    agree entry for entry."""
+    A = np.ascontiguousarray(A, dtype=np.float64)
+    n = A.shape[0]
+    if A.shape != (n, n):
+        raise ValueError("A must be square")
+    if not (0.0 <= h2 <= 1.0):
+        raise ValueError("h2 must be in [0, 1]")
+    if not (0 <= target < n):
+        raise ValueError(f"target {target} out of range for {n} individuals")
+    o_block = h2 * A + (1.0 - h2) * np.eye(n)
+    o_roles = ["o" if i == target else f"rel{i}" for i in range(n)]
+    if not add_ind:
+        return Covmat(o_block, o_roles, h2=h2)
+    d = n + 1
+    cov = np.empty((d, d), dtype=np.float64)
+    cov[0, 0] = h2
+    cov[0, 1:] = cov[1:, 0] = h2 * A[target]
+    cov[1:, 1:] = o_block
+    return Covmat(cov, ["g"] + o_roles, h2=h2)
 
 
 def correct_positive_definite(covmat, correction_val=0.99, correction_limit=100,

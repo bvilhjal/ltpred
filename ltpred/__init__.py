@@ -33,7 +33,8 @@ __version__ = "0.1.0.dev0"
 # public name -> submodule it lives in
 _EXPORTS = {
     "covariance": ["get_relatedness", "construct_covmat", "construct_covmat_single",
-                   "construct_covmat_multi", "correct_positive_definite", "Covmat"],
+                   "construct_covmat_multi", "correct_positive_definite", "Covmat",
+                   "kinship_from_pedigree", "construct_covmat_from_kinship"],
     "thresholds": ["convert_age_to_cir", "convert_cir_to_age", "convert_age_to_thresh",
                    "convert_liability_to_aoo", "truncated_normal_cdf",
                    "convert_observed_to_liability_scale", "prevalence_thresholds",
@@ -46,7 +47,7 @@ _EXPORTS = {
     "estimate": ["estimate_liability", "estimate_liability_single",
                  "estimate_liability_multi", "estimate_liability_pa",
                  "estimate_liability_pa_arrays", "estimate_liability_gibbs_arrays",
-                 "batch_means", "LiabilityResult"],
+                 "estimate_liability_from_kinship", "batch_means", "LiabilityResult"],
     "simulate": ["simulate_under_LTM_single", "simulate_under_LTM", "Simulation"],
     "fit": ["fit_heritability", "FitResult", "fit_variance_components",
             "VarCompResult", "fit_genetic_correlation", "GenCorrResult",

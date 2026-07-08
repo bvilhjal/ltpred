@@ -162,6 +162,9 @@ choosing between the two methods, and using the score in a GWAS, see the
 | `tnorm_moments` / `tnorm_mixture_conditional` | truncated-normal moments (+ censoring mixture) |
 | `construct_covmat` / `_single` / `_multi` | family covariance from relatedness |
 | `get_relatedness` | shared-DNA × h² for a pair of roles |
+| `kinship_from_pedigree` | additive relationship matrix `A` from a pedigree (`id`, `father`, `mother`) — arbitrary pedigrees |
+| `construct_covmat_from_kinship` | liability covariance from a kinship/`A` matrix (generalises the role grammar) |
+| `estimate_liability_from_kinship` | estimate a target's liability from a pedigree `A` + per-member bounds |
 | `rtmvnorm_gibbs` | truncated-MVN Gibbs sampler |
 | `prevalence_thresholds` / `age_thresholds` / `pa_thresholds` | status (+age) → liability bounds |
 | `thresholds_from_cip` | bounds from an empirical (population) CIP curve — for real data |

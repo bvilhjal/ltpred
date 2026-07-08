@@ -142,3 +142,72 @@ def test_correct_positive_definite_is_strict():
     fixed, n = correct_positive_definite(psd)
     assert n > 0
     assert np.min(np.linalg.eigvalsh(fixed)) > 0
+
+
+# --- pedigree / kinship input -------------------------------------------------
+from ltpred.covariance import kinship_from_pedigree, construct_covmat_from_kinship
+
+
+def test_kinship_standard_relationships():
+    # proband o, parents m/f, sibs s1/s2, maternal grandparents (founders)
+    ids    = ["o", "m", "f", "s1", "s2", "mgm", "mgf"]
+    father = ["f", "mgf", None, "f", "f", None, None]
+    mother = ["m", "mgm", None, "m", "m", None, None]
+    _, A = kinship_from_pedigree(ids, father, mother)
+    idx = {p: i for i, p in enumerate(ids)}
+    assert A[idx["o"], idx["o"]] == pytest.approx(1.0)          # non-inbred self
+    assert A[idx["o"], idx["m"]] == pytest.approx(0.5)          # parent-offspring
+    assert A[idx["o"], idx["f"]] == pytest.approx(0.5)
+    assert A[idx["s1"], idx["s2"]] == pytest.approx(0.5)        # full sibs
+    assert A[idx["o"], idx["mgm"]] == pytest.approx(0.25)       # grandparent
+    assert A[idx["m"], idx["f"]] == pytest.approx(0.0)          # unrelated spouses
+    assert np.allclose(A, A.T)
+
+
+def test_kinship_halfsibs_cousins_inbreeding():
+    # paternal half-sibs share only the father
+    _, A = kinship_from_pedigree(["fa", "m1", "m2", "c1", "c2"],
+                                 [None, None, None, "fa", "fa"],
+                                 [None, None, None, "m1", "m2"])
+    assert A[3, 4] == pytest.approx(0.25)
+    # first cousins: children of two full sibs
+    ids = ["gm", "gf", "sA", "sB", "pA", "pB", "c1", "c2"]
+    fa = [None, None, "gf", "gf", None, None, "pA", "pB"]
+    mo = [None, None, "gm", "gm", None, None, "sA", "sB"]
+    _, A = kinship_from_pedigree(ids, fa, mo)
+    assert A[6, 7] == pytest.approx(0.125)                      # first cousins
+    # inbreeding: child of two full sibs has A_ii = 1 + 0.5*0.5 = 1.25
+    _, A = kinship_from_pedigree(["gm", "gf", "sA", "sB", "x"],
+                                 [None, None, "gf", "gf", "sA"],
+                                 [None, None, "gm", "gm", "sB"])
+    assert A[4, 4] == pytest.approx(1.25)
+
+
+def test_covmat_from_kinship_matches_role_grammar():
+    h2 = 0.6
+    ids    = ["o", "m", "f", "s1", "s2", "mgm", "mgf", "pgm", "pgf"]
+    father = ["f", "mgf", "pgf", "f", "f", None, None, None, None]
+    mother = ["m", "mgm", "pgm", "m", "m", None, None, None, None]
+    _, A = kinship_from_pedigree(ids, father, mother)
+    ckin = construct_covmat_from_kinship(A, h2=h2, target=0)
+    crole = construct_covmat_single(fam_vec=["m", "f", "s1", "s2", "mgm", "mgf",
+                                             "pgm", "pgf"], h2=h2)
+    assert np.allclose(ckin.matrix, crole.matrix)              # exact reproduction
+    assert ckin.roles[:2] == ["g", "o"]
+    assert construct_covmat_from_kinship(A, h2=h2, add_ind=False).matrix.shape == (9, 9)
+
+
+def test_kinship_input_validation():
+    with pytest.raises(ValueError, match="unique"):
+        kinship_from_pedigree(["a", "a"], [None, None], [None, None])
+    with pytest.raises(ValueError, match="share length"):
+        kinship_from_pedigree(["a", "b"], [None], [None, None])
+    with pytest.raises(ValueError, match="own parent"):
+        kinship_from_pedigree(["a"], ["a"], [None])
+    with pytest.raises(ValueError, match="cycle"):
+        kinship_from_pedigree(["a", "b"], ["b", "a"], [None, None])
+    _, A = kinship_from_pedigree(["a"], [None], [None])
+    with pytest.raises(ValueError, match="h2"):
+        construct_covmat_from_kinship(A, h2=1.5)
+    with pytest.raises(ValueError, match="target"):
+        construct_covmat_from_kinship(A, target=5)
