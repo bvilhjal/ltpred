@@ -12,6 +12,15 @@ ltpred estimates the **posterior mean genetic liability** — a continuous
 phenotype that, used in a linear GWAS, recovers association power that a plain
 case/control label throws away.
 
+## Documentation
+
+- **[User guide](docs/guide.md)** — inputs, role grammar, threshold builders,
+  choosing a method, reading results, GWAS use, options and pitfalls.
+- **[Algorithm & model](docs/algorithm.md)** — the liability-threshold model, the
+  Gibbs sampler, the Pearson–Aitken selection formula and the censoring mixture.
+- **[Benchmarks](benchmarks/RESULTS.md)** — accuracy, speed and GWAS-power
+  comparison of the two methods.
+
 ## How it works
 
 For each proband, ltpred conditions on the whole family under the
@@ -86,17 +95,6 @@ pa.est["genetic"]      # posterior means (agree with Gibbs to ~1e-2)
 pa.var["genetic"]      # posterior variances; pa.se is 0 (deterministic)
 ```
 
-### Age-censored controls (PA-FGRS mixture)
-
-```python
-from ltpred import pa_thresholds, families_from_columns, estimate_liability
-
-# cases pinned at onset; controls get their cumulative incidence K_i + prevalence K_pop
-lower, upper, K_i, K_pop = pa_thresholds(status, age, pop_prev=0.05)
-families = families_from_columns(fam_id, role, lower, upper, K_i=K_i, K_pop=K_pop)
-res = estimate_liability(families, h2=0.05, method="pearson-aitken", use_mixture=True)
-```
-
 ### Bring your own data
 
 Build families from flat, tibble-style columns:
@@ -121,20 +119,9 @@ Roles follow the LTFHPlus grammar: `o` (proband full liability), `m`/`f`
 `mhs*`/`phs*` (maternal/paternal half-sibs), `mau*`/`pau*` (aunts/uncles), `c*`
 (children). The genetic row `g` is added automatically.
 
-### Multiple correlated traits
-
-```python
-import numpy as np
-res = estimate_liability(
-    families,                     # each member's lower/upper is length n_pheno
-    h2=[0.5, 0.3],
-    genetic_corrmat=np.array([[1, 0.4], [0.4, 1]]),
-    full_corrmat=np.array([[1, 0.5], [0.5, 1]]),
-    phen_names=["A", "B"],
-    out=("genetic",),
-)
-res.est["genetic_A"], res.est["genetic_B"]
-```
+For **age-censored controls** (PA-FGRS mixture), **multiple correlated traits**,
+choosing between the two methods, and using the score in a GWAS, see the
+**[user guide](docs/guide.md)**.
 
 ## Public API
 
