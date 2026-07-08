@@ -14,6 +14,8 @@ the estimator consumes.
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 from ._mathfun import norm_cdf, norm_ppf
@@ -206,9 +208,17 @@ def thresholds_from_cip(status, age, cip_ages, cip_values, k_pop=None,
     cip_values = np.asarray(cip_values, dtype=float)
     if np.any(np.diff(cip_ages) < 0):
         raise ValueError("cip_ages must be sorted ascending")
+    if np.any(np.diff(cip_values) < 0):
+        raise ValueError("cip_values must be non-decreasing (a cumulative incidence)")
     if case_mode not in ("pin", "interval"):
         raise ValueError("case_mode must be 'pin' or 'interval'")
-    kpop = float(np.max(cip_values)) if k_pop is None else float(k_pop)
+    cip_max = float(np.max(cip_values))
+    kpop = cip_max if k_pop is None else float(k_pop)
+    if kpop < cip_max:
+        warnings.warn(
+            f"k_pop ({kpop}) is below max(cip_values) ({cip_max}); age-specific "
+            "CIPs above k_pop will be clipped down. The lifetime prevalence should "
+            "be at least the largest age-specific cumulative incidence.", stacklevel=2)
 
     cip = np.interp(age, cip_ages, cip_values)          # CIP at each person's age
     cip = np.clip(cip, min_cip, kpop)

@@ -14,6 +14,13 @@ ltpred estimates the **posterior mean genetic liability** — a continuous
 phenotype that, used in a linear GWAS, recovers association power that a plain
 case/control label throws away.
 
+Conceptually it is a **liability-threshold, age-aware, family-history analogue of
+BLUP / selection-index prediction**: binary and censored disease observations are
+treated as intervals on latent liabilities, which are then projected onto the
+proband's additive genetic value the same way a breeding value is predicted from
+relatives' phenotypes (see
+[algorithm.md](docs/algorithm.md#connection-to-selection-index-and-blup)).
+
 ## Documentation
 
 - **[User guide](docs/guide.md)** — inputs, role grammar, threshold builders,
@@ -73,8 +80,9 @@ will show a smaller apparent speed-up.
 
 For biobank-scale runs, the **array API** (`estimate_liability_pa_arrays`,
 `estimate_liability_gibbs_arrays`) bypasses the `Family`/`Member` objects and their
-per-call bounds assembly — ~100× faster than the object path at large `N` (see the
-[guide](docs/guide.md#scaling-to-large-cohorts)).
+per-call bounds assembly — measured ~100× faster than the object PA path at large
+`N` (200k trios; see [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md#2-runtime-scaling-bench_scalingpy)
+and the [guide](docs/guide.md#scaling-to-large-cohorts)).
 
 ## Installation
 

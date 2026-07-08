@@ -52,3 +52,75 @@ references:
     journal: "The American Journal of Human Genetics"
     year: 2024
     doi: 10.1016/j.ajhg.2024.09.009
+  # Threshold-model background
+  - type: article
+    title: "Heritability of threshold characters"
+    authors:
+      - family-names: Dempster
+        given-names: "Everett R."
+      - family-names: Lerner
+        given-names: "I. Michael"
+    journal: "Genetics"
+    year: 1950
+  - type: article
+    title: "The inheritance of liability to certain diseases, estimated from the incidence among relatives"
+    authors:
+      - family-names: Falconer
+        given-names: "Douglas S."
+    journal: "Annals of Human Genetics"
+    year: 1965
+  - type: article
+    title: "Theory and analysis of threshold characters"
+    authors:
+      - family-names: Gianola
+        given-names: "Daniel"
+    journal: "Journal of Animal Science"
+    year: 1982
+  # Selection index / BLUP background
+  - type: article
+    title: "The genetic basis for constructing selection indexes"
+    authors:
+      - family-names: Hazel
+        given-names: "Lanoy N."
+    journal: "Genetics"
+    year: 1943
+  - type: article
+    title: "Best linear unbiased estimation and prediction under a selection model"
+    authors:
+      - family-names: Henderson
+        given-names: "Charles R."
+    journal: "Biometrics"
+    year: 1975
+  - type: article
+    title: "Efficient methods to compute genomic predictions"
+    authors:
+      - family-names: VanRaden
+        given-names: "Paul M."
+    journal: "Journal of Dairy Science"
+    year: 2008
+    doi: 10.3168/jds.2007-0980
+  # Numerics
+  - type: article
+    title: "The moment generating function of the truncated multi-normal distribution"
+    authors:
+      - family-names: Tallis
+        given-names: "George M."
+    journal: "Journal of the Royal Statistical Society: Series B"
+    year: 1961
+  - type: conference-paper
+    title: "Gibbs sampling approach for generation of truncated multivariate Gaussian random variables"
+    authors:
+      - family-names: Kotecha
+        given-names: "Jayesh H."
+      - family-names: Djuric
+        given-names: "Petar M."
+    year: 1999
+    doi: 10.1109/ICASSP.1999.756335
+  - type: article
+    title: "Estimating missing heritability for disease from genome-wide association studies"
+    authors:
+      - family-names: Lee
+        given-names: "Sang Hong"
+    journal: "The American Journal of Human Genetics"
+    year: 2011
+    doi: 10.1016/j.ajhg.2011.02.002

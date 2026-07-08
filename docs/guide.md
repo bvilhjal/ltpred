@@ -103,8 +103,11 @@ distinction between the LT-FH, ADuLT and PA-FGRS variants, so pick deliberately:
 the deterministic age-of-onset map), whereas `pa_thresholds` bounds it *above*
 that threshold (an interval) and adds the per-person cumulative incidence `K_i`
 and lifetime prevalence `K_pop` used by the optional censored-control mixture
-(`use_mixture=True`). Pinning is the sharper assumption; use it only when you
-trust the onset ↔ liability mapping (well-calibrated CIPs, low diagnosis noise).
+(`use_mixture=True`). Pinning a case at `thresh(age_of_onset)` assumes a
+**deterministic monotone mapping** from onset age to liability — it treats onset
+age as strictly stronger information than merely being affected. That is powerful,
+but should be checked when diagnosis age is noisy, delayed, or shaped by
+health-care access; the interval encoding is more conservative there.
 
 You can also build the bounds yourself: any `(lower, upper)` interval per person
 is valid (`lower == upper` pins a liability exactly; `(-inf, inf)` is
@@ -130,6 +133,16 @@ observed/case-control-scale estimate, convert it (Lee et al. 2011):
 from ltpred import convert_observed_to_liability_scale
 h2_liab = convert_observed_to_liability_scale(obs_h2=0.15, pop_prev=0.05, prop_cases=0.5)
 ```
+
+**Which `h²`?** The right value is the additive genetic variance component you want
+the family covariance to represent — the model is additive-genetic only (see
+[algorithm.md](algorithm.md#connection-to-selection-index-and-blup)). A pedigree /
+twin **narrow-sense** estimate captures more of the family-history signal but can
+be inflated by shared environment, assortative mating or indirect genetic effects
+if those are not separately modelled; a **SNP-heritability** estimate is smaller
+but better aligned with a downstream molecular GWAS. Neither is uniquely "correct",
+so run a **sensitivity analysis** over plausible `h²` values (and prevalence/CIP)
+and check how much the score and downstream results move.
 
 ## Building families
 
@@ -193,6 +206,30 @@ score = res.est["genetic"]      # use this as your GWAS phenotype / risk score
 > relatives gives a positive Gibbs `full` but a `0` PA `full`). The canonical GWAS
 > phenotype is `out="genetic"`, where the two agree; if you specifically want the
 > own-status-conditioned full liability, use Gibbs.
+
+### What the score is — and is not
+
+```text
+Estimand:  mu_i = E[ additive genetic liability of proband i
+                     | statuses, ages, family structure, h2, CIP/prevalence model ]
+```
+
+`res.est["genetic"]` is the **posterior mean additive genetic liability** under
+the specified liability-threshold model — a family-history-derived *latent*
+phenotype on the standardized liability scale. It is the threshold-model,
+family-history analogue of a BLUP / selection-index breeding value (see
+[algorithm.md](algorithm.md#connection-to-selection-index-and-blup)). Concretely:
+
+- **Not a SNP polygenic score.** No marker effects are used to build it; it comes
+  from relatives' phenotypes and the assumed relationship matrix.
+- **Not an absolute disease risk.** It lives on the liability scale; turning it
+  into a risk needs the threshold/CIP model on top.
+- **A conditional estimate.** ltpred *conditions* on an assumed `h2`, prevalence/
+  CIP model and family covariance — it does not estimate variance components or
+  CIPs internally.
+- **A GWAS phenotype.** Used in a GWAS, a SNP association tests whether the SNP
+  predicts *inferred additive genetic liability*, not merely the observed 0/1
+  diagnosis — that is where the power gain comes from.
 
 ## Choosing Gibbs vs Pearson–Aitken
 
