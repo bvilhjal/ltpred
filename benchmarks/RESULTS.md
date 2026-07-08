@@ -113,9 +113,40 @@ power; the oracle marks the ceiling if the genetic liability were known exactly.
 For real-LD genotypes, rerun with `--plink` on a HAPNEST fileset
 ([`hapnest/README.md`](hapnest/README.md)).
 
+## 5. Variance-component inference (`bench_fit_heritability.py`)
+
+Quality of `fit_heritability` — the data-augmentation Gibbs that *fits*
+liability-scale h² from family statuses — measured by fitting many independent
+simulated cohorts (25 replicates), so the spread of the fits is the true sampling
+distribution. Prevalence 0.10, `parents+2 sibs` unless noted.
+
+**Bias & precision** at 3000 families:
+
+| true h² | fitted (mean) | bias | SD (across datasets) | reported `h2_se` | SD / se |
+|---:|---:|---:|---:|---:|---:|
+| 0.2 | 0.187 | −0.013 | 0.046 | 0.0022 | 21× |
+| 0.4 | 0.386 | −0.014 | 0.057 | 0.0019 | 31× |
+| 0.6 | 0.596 | −0.004 | 0.061 | 0.0025 | 24× |
+| 0.8 | 0.786 | −0.014 | 0.061 | 0.0025 | 24× |
+
+- **Approximately unbiased** across 0.2–0.8 (|bias| ≤ 0.014, within the
+  replicate-averaging noise).
+- **Precision improves with data**: SD falls ~`1/√N` (0.069 at 1 000 families →
+  0.029 at 4 000–8 000), and with more informative relatives — 0.098 (parents
+  only) → 0.058 (parents + 2 sibs) → 0.046 (extended, 8 relatives) at 3 000
+  families.
+- **The reported `h2_se` under-states the true uncertainty by ~20–30×.** It is the
+  *within-dataset* Monte-Carlo error of one fit, **not** the sampling SD across
+  datasets. Do not use it as a confidence interval — **bootstrap over families**
+  for a real CI. (This is the single most important caveat of the estimator.)
+
 ## Bottom line
 
 PA-FGRS is a drop-in, deterministic replacement for the LT-FH++ Gibbs sampler:
 same accuracy and GWAS power to three decimals, two-to-three orders of magnitude
 faster. Use `method="pearson-aitken"` for large biobank-scale runs and
 `method="gibbs"` when you want posterior draws or a sampling-based check.
+
+`fit_heritability` recovers liability-scale h² approximately without bias, with a
+sampling SD of ~0.05 at a few thousand informative families; report its
+uncertainty by bootstrapping families, not from `h2_se`.

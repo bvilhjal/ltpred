@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from ltpred import simulate_under_LTM_single, fit_heritability
+from ltpred import (simulate_under_LTM_single, fit_heritability,
+                    fit_variance_components)
 from ltpred.family import Family, Member
 
 
@@ -34,3 +35,14 @@ def test_lone_probands_raise():
     fams = [Family(i, [Member("o", -np.inf, t)]) for i in range(20)]
     with pytest.raises(ValueError, match="no related pairs"):
         fit_heritability(fams, n_iter=50, burn_in=10)
+
+
+def test_variance_components_smoke():
+    # experimental animal-model Gibbs: runs, returns sane proportions, validates input
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
+                                    n_sim=800, pop_prev=0.1, seed=1)
+    r = fit_variance_components(sim.families, ("A",), n_iter=300, burn_in=100, seed=1)
+    assert 0.0 <= r.components["A"] <= 1.0
+    assert r.residual == pytest.approx(1.0 - sum(r.components.values()))
+    with pytest.raises(ValueError, match="unknown component"):
+        fit_variance_components(sim.families, ("A", "Z"), n_iter=10)
