@@ -158,9 +158,22 @@ fit.h2, fit.h2_se                    # fitted liability-scale heritability (+ Mo
 ```
 
 It needs relatives (lone probands carry no information and raise). `fit.h2_se` is
-the *within-dataset* Monte-Carlo error — the spread across datasets is larger, so
-bootstrap over families if you need a proper confidence interval. Feed the result
-back in as `h2=fit.h2` (or, better, run the sensitivity analysis around it).
+the *within-dataset* Monte-Carlo error — the spread across datasets is ~20–30×
+larger — so for a real confidence interval use `bootstrap_fit`, which resamples
+the families with replacement and refits:
+
+```python
+from ltpred import bootstrap_fit
+bs = bootstrap_fit(families, lambda f: fit_heritability(f, seed=1).h2, n_boot=100)
+bs.estimate, bs.se, (bs.ci_low, bs.ci_high)   # point, honest SE, 95% percentile CI
+```
+
+The same helper wraps any of the fitters (pass a `lambda` that returns the
+quantity of interest, e.g. `fit_variance_components(f, ("A","C"), seed=1).components["C"]`
+or `fit_genetic_correlation(f, seed=1).rg[0,1]`); fix the estimator's `seed` so the
+spread reflects family sampling, not sampler noise. It costs `n_boot`+1 fits.
+Feed the point estimate back in as `h2=fit.h2` (or, better, run the sensitivity
+analysis around it).
 
 To separate additive heritability from a shared **common-environment** component
 `C` (e.g. a full-sib effect that inflates familial resemblance beyond genetics),
@@ -174,7 +187,7 @@ vc.components["A"], vc.components["C"], vc.residual   # proportions of liability
 ```
 
 `C` is identified only from **full-sib pairs**, so the families must contain them
-(otherwise the fit raises). The same `h2_se` caveat applies — bootstrap for a CI.
+(otherwise the fit raises). The same `h2_se` caveat applies — use `bootstrap_fit` for a CI.
 Dominance is intentionally not offered (it needs MZ/DZ twin contrasts). With
 `("A",)` alone the result matches `fit_heritability`.
 
@@ -195,7 +208,7 @@ The phenotypic correlation splits into genetic and environmental parts —
 `gc.rp` corresponds to `gc.genetic_cov + gc.env_cov` — so you get both `r_g` and
 `r_e`. It needs related pairs (the genetic correlation is carried by the
 cross-relative, cross-trait resemblance). It is ~unbiased near the null and mildly
-attenuated at large `|r_g|`; bootstrap families for a CI.
+attenuated at large `|r_g|`; use `bootstrap_fit` for a CI.
 
 ## Building families
 

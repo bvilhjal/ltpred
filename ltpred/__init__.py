@@ -49,7 +49,8 @@ _EXPORTS = {
                  "batch_means", "LiabilityResult"],
     "simulate": ["simulate_under_LTM_single", "simulate_under_LTM", "Simulation"],
     "fit": ["fit_heritability", "FitResult", "fit_variance_components",
-            "VarCompResult", "fit_genetic_correlation", "GenCorrResult"],
+            "VarCompResult", "fit_genetic_correlation", "GenCorrResult",
+            "bootstrap_fit", "BootstrapResult"],
     "_numba": ["set_num_threads"],
 }
 

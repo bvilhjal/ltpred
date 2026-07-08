@@ -41,17 +41,17 @@ large `|r_g|`.
 **Benchmarks** (`benchmarks/`, `RESULTS.md`) cover accuracy, runtime scaling,
 age-of-onset, and GWAS power (LT-FH++ and PA both ~1.52× effective-N over
 case/control at λ_GC ≈ 1), plus `fit_heritability` quality (unbiased, but
-`h2_se` understates the true SD ~20–30×, so bootstrap), `A+C` recovery, and `r_g`
-recovery. Real-LD runs go through an opt-in HAPNEST path.
+`h2_se` understates the true SD ~20–30×, so use `bootstrap_fit`), `A+C` recovery,
+and `r_g` recovery. Real-LD runs go through an opt-in HAPNEST path.
 
 **Docs.** README, a user guide, and an algorithm/model doc (with the
 BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
 connection, and the environmental-covariance extension), plus `CITATION.cff`
 (15 references).
 
-The test suite is 137 tests passing.
+The test suite is 139 tests passing.
 
-## Near-term — finish the variance-component thread
+## Near-term — variance-component thread ✅ complete
 
 1. ~~**Fix the animal-model Gibbs mixing.**~~ **Done — resolved by replacing the
    sampler.** The Bayesian animal-model Gibbs proved fragile: PX-DA / ASIS /
@@ -77,9 +77,11 @@ The test suite is 137 tests passing.
    inverse-Wishart Gibbs on `G ⊗ A` remains an option only if posterior *draws* of
    `G` are wanted; the moment estimator covers the point estimate.
 
-3. **Bootstrap SE for `fit_heritability`.** Family resampling for honest
-   confidence intervals, since `h2_se` understates uncertainty. Applies equally to
-   `fit_variance_components` and `fit_genetic_correlation` (same `se` caveat).
+3. ~~**Bootstrap SE for `fit_heritability`.**~~ **Done.** `bootstrap_fit` resamples
+   families with replacement and refits any estimator, returning a bootstrap SE and
+   percentile CI. On one 3 000-family dataset it recovers a SE of 0.047 vs the
+   reported `h2_se` of 0.002 (23×), matching the true across-dataset SD. Works for
+   all three fitters (pass a `lambda` returning the quantity of interest).
 
 ## Medium-term — rigor and real data
 

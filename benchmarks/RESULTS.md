@@ -137,8 +137,12 @@ distribution. Prevalence 0.10, `parents+2 sibs` unless noted.
   families.
 - **The reported `h2_se` under-states the true uncertainty by ~20–30×.** It is the
   *within-dataset* Monte-Carlo error of one fit, **not** the sampling SD across
-  datasets. Do not use it as a confidence interval — **bootstrap over families**
-  for a real CI. (This is the single most important caveat of the estimator.)
+  datasets. Do not use it as a confidence interval — use **`bootstrap_fit`**
+  (family resampling) for a real CI. On one 3 000-family dataset it gives a
+  bootstrap SE of 0.047 against a reported `h2_se` of 0.002 (a 23× gap), matching
+  the across-dataset SD above — the same helper works for `fit_variance_components`
+  and `fit_genetic_correlation`. (This is the single most important caveat of these
+  estimators.)
 
 ## 6. Multi-component variance components (`bench_variance_components.py`)
 

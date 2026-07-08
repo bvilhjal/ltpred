@@ -174,3 +174,39 @@ def test_genetic_correlation_validates_input():
         fit_genetic_correlation(
             _simulate_two_trait(["m", "f", "s1"], [0.5, 0.5], np.eye(2), np.eye(2),
                                 50, [0.1, 0.1], seed=1), n_iter=50)
+
+
+def test_bootstrap_fit_scalar_and_calibration():
+    from ltpred import bootstrap_fit
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
+                                    n_sim=1500, pop_prev=0.1, seed=5)
+    full = fit_heritability(sim.families, n_iter=400, burn_in=120, seed=1)
+    bs = bootstrap_fit(sim.families,
+                       lambda f: fit_heritability(f, n_iter=400, burn_in=120, seed=1).h2,
+                       n_boot=25, seed=0)
+    assert bs.estimate.shape == ()                       # scalar estimator -> 0-d
+    assert bs.samples.shape == (25,)
+    assert bs.se > 0
+    assert bs.ci_low < float(bs.estimate) < bs.ci_high
+    assert bs.ci_level == 0.95
+    # the whole point: the bootstrap SE is far larger than the within-dataset se
+    assert bs.se > 5 * full.h2_se
+
+
+def test_bootstrap_fit_vector_and_errors():
+    import numpy as np
+    from ltpred import bootstrap_fit, fit_variance_components
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2", "s3"], h2=0.5,
+                                    n_sim=1200, pop_prev=0.1, seed=6)
+    bs = bootstrap_fit(
+        sim.families,
+        lambda f: np.array(list(fit_variance_components(
+            f, ("A", "C"), n_iter=300, burn_in=100, seed=1).components.values())),
+        n_boot=12, seed=1)
+    assert bs.estimate.shape == (2,)
+    assert bs.se.shape == (2,) and np.all(bs.se > 0)
+    assert bs.ci_low.shape == (2,) and bs.ci_high.shape == (2,)
+    with pytest.raises(ValueError, match="at least 2 families"):
+        bootstrap_fit(sim.families[:1], lambda f: 0.0, n_boot=3)
+    with pytest.raises(ValueError, match="ci_level"):
+        bootstrap_fit(sim.families, lambda f: 0.0, n_boot=3, ci_level=1.5)

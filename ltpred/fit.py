@@ -43,7 +43,8 @@ from .gibbs import gibbs_params, gibbs_advance, _seed_rng
 from .estimate import _group_by_structure, batch_means
 
 __all__ = ["FitResult", "fit_heritability", "VarCompResult",
-           "fit_variance_components", "GenCorrResult", "fit_genetic_correlation"]
+           "fit_variance_components", "GenCorrResult", "fit_genetic_correlation",
+           "BootstrapResult", "bootstrap_fit"]
 
 _SIBSHIP = re.compile(r"o|s\d*")           # proband + full sibs (one sib-ship)
 _PARENT = re.compile(r"[mf]")
@@ -547,3 +548,65 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
         traces=dict(h2=tr_h2[sl].copy(), rg=tr_rg[sl].copy(),
                     re=tr_re[sl].copy(), rp=tr_rp[sl].copy()),
         n_iter=int(n_iter), burn_in=int(burn_in))
+
+
+@dataclass
+class BootstrapResult:
+    """Result of :func:`bootstrap_fit`.
+
+    ``estimate`` is the point estimate from the full data; ``se`` the bootstrap
+    standard error (SD of the resampled estimates); ``ci_low`` / ``ci_high`` the
+    percentile confidence interval at ``ci_level``; ``samples`` the ``(n_boot, …)``
+    array of per-resample estimates. Shapes follow whatever the estimator returns
+    (scalar → 0-d arrays; vector/matrix → that shape)."""
+    estimate: np.ndarray
+    se: np.ndarray
+    ci_low: np.ndarray
+    ci_high: np.ndarray
+    ci_level: float
+    n_boot: int
+    samples: np.ndarray
+
+
+def bootstrap_fit(families, estimator, *, n_boot=100, seed=None, ci_level=0.95):
+    """Honest uncertainty for a family-data fit by **resampling families**.
+
+    The ``se`` reported by :func:`fit_heritability`, :func:`fit_variance_components`
+    and :func:`fit_genetic_correlation` is a *within-dataset* Monte-Carlo error and
+    badly under-states the true sampling variability across datasets (~20–30× in the
+    benchmarks). This resamples the families with replacement ``n_boot`` times,
+    refits, and takes the spread of the refits as the real uncertainty.
+
+    ``estimator`` is a callable ``families -> value`` returning the quantity of
+    interest as a float or array, e.g.::
+
+        bootstrap_fit(fams, lambda f: fit_heritability(f, seed=1).h2)
+        bootstrap_fit(fams, lambda f: fit_variance_components(f, ("A", "C"),
+                                          seed=1).components["C"])
+        bootstrap_fit(fams, lambda f: fit_genetic_correlation(f, seed=1).rg[0, 1])
+
+    Fix the estimator's internal ``seed`` so each refit is deterministic given its
+    resample — then the bootstrap spread reflects family sampling, not the sampler's
+    own Monte-Carlo noise. Returns a :class:`BootstrapResult`. Cost is ``n_boot + 1``
+    fits, so this is deliberately expensive; lower ``n_boot`` for a quick check.
+
+    ``seed`` seeds the resampling; ``ci_level`` sets the percentile interval."""
+    families = list(families)
+    n = len(families)
+    if n < 2:
+        raise ValueError("need at least 2 families to bootstrap")
+    if not 0.0 < ci_level < 1.0:
+        raise ValueError("ci_level must be in (0, 1)")
+    rng = np.random.default_rng(seed)
+    point = np.asarray(estimator(families), dtype=float)
+    samples = np.empty((int(n_boot),) + point.shape, dtype=float)
+    for b in range(int(n_boot)):
+        idx = rng.integers(0, n, size=n)
+        samples[b] = np.asarray(estimator([families[i] for i in idx]), dtype=float)
+    alpha = (1.0 - ci_level) / 2.0
+    return BootstrapResult(
+        estimate=point,
+        se=samples.std(axis=0, ddof=1),
+        ci_low=np.quantile(samples, alpha, axis=0),
+        ci_high=np.quantile(samples, 1.0 - alpha, axis=0),
+        ci_level=float(ci_level), n_boot=int(n_boot), samples=samples)
