@@ -172,6 +172,29 @@ powered.
   MZ-vs-DZ twin contrasts. (This replaced an earlier experimental Bayesian
   animal-model Gibbs that mixed poorly and was structure-dependent-biased.)
 
+## 7. Genetic correlation (`bench_genetic_correlation.py`)
+
+`fit_genetic_correlation` estimates the genetic correlation `r_g` between traits
+by a cross-trait Haseman–Elston regression. Two traits, h² = (0.5, 0.4),
+phenotypic correlation `r_p = 0.2`, prevalence 0.10, `parents+2 sibs`, 20
+replicate cohorts.
+
+**Bias & precision vs true r_g** at 3000 families:
+
+| true r_g | fitted (mean) | bias | SD (across datasets) |
+|---:|---:|---:|---:|
+| 0.0 *(null)* | +0.016 | +0.016 | 0.075 |
+| 0.3 | +0.289 | −0.011 | 0.058 |
+| 0.6 | +0.572 | −0.028 | 0.065 |
+
+- **No false positive at the null**: with genetically independent but
+  *phenotypically* correlated traits (`r_p = 0.2`, `r_g = 0`), the fit returns
+  +0.016 — it does not read the phenotypic correlation as a genetic one.
+- **Approximately unbiased**, with a **mild attenuation at large `|r_g|`**
+  (−0.03 at 0.6) from the bounded ratio estimator `G / √(h²_p h²_q)`.
+- **Precision improves ~`1/√N`**: SD of `r_g` 0.132 → 0.098 → 0.072 → 0.038 from
+  1 000 to 8 000 families. Same `se` caveat — bootstrap families for a CI.
+
 ## Bottom line
 
 PA-FGRS is a drop-in, deterministic replacement for the LT-FH++ Gibbs sampler:
@@ -179,6 +202,9 @@ same accuracy and GWAS power to three decimals, two-to-three orders of magnitude
 faster. Use `method="pearson-aitken"` for large biobank-scale runs and
 `method="gibbs"` when you want posterior draws or a sampling-based check.
 
-`fit_heritability` recovers liability-scale h² approximately without bias, with a
-sampling SD of ~0.05 at a few thousand informative families; report its
-uncertainty by bootstrapping families, not from `h2_se`.
+`fit_heritability` recovers liability-scale h² approximately without bias (SD
+~0.05 at a few thousand informative families); `fit_variance_components` adds a
+common-environment `C` (unbiased, negligible false positives) and
+`fit_genetic_correlation` recovers the genetic correlation `r_g` between traits
+(unbiased near the null). Report their uncertainty by bootstrapping families, not
+from the reported `se`.

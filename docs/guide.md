@@ -178,6 +178,22 @@ vc.components["A"], vc.components["C"], vc.residual   # proportions of liability
 Dominance is intentionally not offered (it needs MZ/DZ twin contrasts). With
 `("A",)` alone the result matches `fit_heritability`.
 
+For **several traits**, `fit_genetic_correlation` estimates the genetic
+correlation `r_g` between them (and each trait's `h²`). Each member must carry one
+interval per trait (length-`n_pheno` `lower`/`upper`, as for
+`estimate_liability_multi`):
+
+```python
+from ltpred import fit_genetic_correlation
+gc = fit_genetic_correlation(families, phen_names=["adhd", "depression"])
+gc.rg          # (P, P) genetic-correlation matrix (the headline)
+gc.h2, gc.rp   # per-trait heritabilities; phenotypic (full-liability) correlations
+```
+
+It needs related pairs (the genetic correlation is carried by the cross-relative,
+cross-trait resemblance). It is ~unbiased near the null and mildly attenuated at
+large `|r_g|`; bootstrap families for a CI.
+
 ## Building families
 
 From flat columns (the common path):

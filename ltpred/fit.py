@@ -43,7 +43,7 @@ from .gibbs import gibbs_params, gibbs_advance, _seed_rng
 from .estimate import _group_by_structure, batch_means
 
 __all__ = ["FitResult", "fit_heritability", "VarCompResult",
-           "fit_variance_components"]
+           "fit_variance_components", "GenCorrResult", "fit_genetic_correlation"]
 
 _SIBSHIP = re.compile(r"o|s\d*")           # proband + full sibs (one sib-ship)
 _PARENT = re.compile(r"[mf]")
@@ -351,3 +351,175 @@ def fit_variance_components(families, components=("A", "C"), *, n_iter=1500,
                          residual=float(1.0 - est.sum()),
                          se={c: float(se[ci]) for ci, c in enumerate(comps)},
                          traces=traces, n_iter=int(n_iter), burn_in=int(burn_in))
+
+
+@dataclass
+class GenCorrResult:
+    """Result of :func:`fit_genetic_correlation`.
+
+    ``h2`` is the ``(P,)`` vector of per-trait liability-scale heritabilities;
+    ``rg`` the ``(P, P)`` **genetic correlation** matrix (diagonal 1), the headline
+    output; ``rp`` the ``(P, P)`` phenotypic correlation of the full liabilities
+    (same individual, across traits); ``genetic_cov`` the ``(P, P)`` genetic
+    covariance ``G`` (its diagonal is ``h2``). ``se`` holds the within-dataset
+    Monte-Carlo errors (``"h2"``, ``"rg"``, ``"rp"``) — same caveat as
+    :class:`FitResult`: bootstrap families for a real CI. ``phen_names`` labels the
+    traits; ``traces`` are the post-burn-in traces (``"h2"``/``"rg"``/``"rp"``)."""
+    h2: np.ndarray
+    rg: np.ndarray
+    rp: np.ndarray
+    genetic_cov: np.ndarray
+    se: dict
+    phen_names: list
+    traces: dict
+    n_iter: int
+    burn_in: int
+
+
+def _multi_cov(A, h2, G, rp):
+    """Assemble the phenotype-major ``(kP, kP)`` covariance of the observed members'
+    liabilities across ``P`` traits, given the additive relationship ``A`` (``k×k``,
+    diagonal 1), per-trait ``h2``, genetic covariance ``G`` and phenotypic
+    correlation ``rp``. Block ``(p, q)`` is ``A * (h2_p if p==q else G[p,q])`` with
+    its diagonal set to 1 (same trait) or ``rp[p,q]`` (cross trait)."""
+    P = len(h2)
+    k = A.shape[0]
+    S = np.empty((k * P, k * P))
+    for p in range(P):
+        for q in range(P):
+            block = A * (h2[p] if p == q else G[p, q])
+            np.fill_diagonal(block, 1.0 if p == q else rp[p, q])
+            S[p * k:(p + 1) * k, q * k:(q + 1) * k] = block
+    return S
+
+
+def _prepare_group_multi(families, idx, n_pheno):
+    """Per-structure precompute for the r_g fit: relationship matrix ``A`` and its
+    upper-triangle weights, phenotype-major bounds ``(F, kP)`` and initial state."""
+    roles = [m.role for m in families[idx[0]].members]
+    k = len(roles)
+    F = len(idx)
+    A = np.array([[get_relatedness(ri, rj, 1.0) for rj in roles] for ri in roles])
+    W = np.triu(A, 1)                                 # a<b relatedness weights
+    sA2 = float(np.sum(W * W)) * F                    # sum_{a<b} A_ab^2, pooled over F
+    lo = np.empty((F, k, n_pheno))
+    hi = np.empty((F, k, n_pheno))
+    for slot, f in enumerate(idx):
+        for c, m in enumerate(families[f].members):
+            lo[slot, c] = np.broadcast_to(np.asarray(m.lower, float), (n_pheno,))
+            hi[slot, c] = np.broadcast_to(np.asarray(m.upper, float), (n_pheno,))
+    # phenotype-major: coordinate p*k + a
+    lo_pm = np.ascontiguousarray(lo.transpose(0, 2, 1).reshape(F, k * n_pheno))
+    hi_pm = np.ascontiguousarray(hi.transpose(0, 2, 1).reshape(F, k * n_pheno))
+    fixed = np.ascontiguousarray((hi_pm - lo_pm) < 1e-8)
+    x = np.empty((F, k * n_pheno))
+    for slot in range(F):
+        x[slot] = _init_x(lo_pm[slot], hi_pm[slot])
+    return dict(k=k, F=F, A=A, W=W, sA2=sA2, lowers=lo_pm, uppers=hi_pm,
+                fixed=fixed, x=np.ascontiguousarray(x))
+
+
+def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=5,
+                            damp=0.2, seed=None, eps=1e-4, phen_names=None):
+    """Estimate the **genetic correlation** between traits from family data.
+
+    The multi-trait generalisation of :func:`fit_heritability`: a **cross-trait**
+    Haseman–Elston regression. Each member must carry one case/control interval per
+    trait (``lower``/``upper`` are length-``P`` sequences, as for
+    :func:`~ltpred.estimate.estimate_liability_multi`). Each sweep draws the
+    members' ``P``-trait liabilities from the full truncated-MVN under the current
+    parameters, then updates by regressing the sampled cross-products on the
+    additive relationship ``A``:
+
+    - **same trait, different relatives** → ``h2_p = sum A_ij l_ip l_jp / sum A_ij^2``;
+    - **different trait, different relatives** → the genetic covariance
+      ``G[p,q] = sum A_ij (l_ip l_jq + l_iq l_jp) / (2 sum A_ij^2)``;
+    - **same individual, different trait** → the phenotypic correlation ``rp[p,q]``.
+
+    The genetic correlation is ``rg[p,q] = G[p,q] / sqrt(h2_p h2_q)``. Damped across
+    sweeps; needs related pairs (raises otherwise). Validated ~unbiased near the
+    null (no spurious correlation) with mild attenuation at large ``|rg|``.
+
+    Returns a :class:`GenCorrResult`. As with :func:`fit_heritability`, the reported
+    ``se`` is a within-dataset Monte-Carlo error — bootstrap families for a CI."""
+    if not families:
+        raise ValueError("no families provided")
+    P = int(np.size(families[0].members[0].lower))
+    if P < 2:
+        raise ValueError("fit_genetic_correlation needs >= 2 traits — each member's "
+                         "lower/upper must be length-n_pheno (see estimate_liability_multi)")
+    if int(burn_in) >= int(n_iter):
+        raise ValueError(f"burn_in ({burn_in}) must be < n_iter ({n_iter})")
+    if phen_names is None:
+        phen_names = [f"phenotype{p + 1}" for p in range(P)]
+    elif len(phen_names) != P:
+        raise ValueError("phen_names length must match number of traits")
+
+    groups = [_prepare_group_multi(families, idx, P)
+              for _key, idx in _group_by_structure(families)]
+    sA2 = sum(g["sA2"] for g in groups)
+    if sA2 <= 0:
+        raise ValueError("no related pairs in the families — cannot fit genetic "
+                         "correlation (need relatives, not lone probands).")
+    n_members = sum(g["F"] * g["k"] for g in groups)
+
+    if seed is not None:
+        _seed_rng(int(seed))
+
+    h2 = np.full(P, 0.4)
+    G = np.diag(h2).astype(float)
+    rp = np.eye(P)
+    tr_h2 = np.empty((int(n_iter), P))
+    tr_rg = np.empty((int(n_iter), P, P))
+    tr_rp = np.empty((int(n_iter), P, P))
+    for it in range(int(n_iter)):
+        numG = np.zeros((P, P))
+        numRp = np.zeros((P, P))
+        for g in groups:
+            k = g["k"]
+            sigma, _ = correct_positive_definite(_multi_cov(g["A"], h2, G, rp))
+            Pm, sd = gibbs_params(sigma)
+            gibbs_advance(Pm, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
+                          int(inner_sweeps))
+            gram = g["x"].T @ g["x"]                   # (kP, kP)
+            for p in range(P):
+                for q in range(P):
+                    block = gram[p * k:(p + 1) * k, q * k:(q + 1) * k]
+                    numG[p, q] += float(np.sum(g["W"] * block))    # a<b relatedness
+                    numRp[p, q] += float(np.trace(block))          # same individual
+        h2_hat = np.clip(np.array([numG[p, p] / sA2 for p in range(P)]), eps, 1 - eps)
+        G_hat = np.diag(h2_hat).astype(float)
+        for p in range(P):
+            for q in range(p + 1, P):
+                G_hat[p, q] = G_hat[q, p] = (numG[p, q] + numG[q, p]) / (2 * sA2)
+        rp_hat = numRp / n_members
+        drp = np.sqrt(np.clip(np.diag(rp_hat), eps, None))
+        rp_hat = rp_hat / np.outer(drp, drp)
+        np.fill_diagonal(rp_hat, 1.0)
+
+        h2 = (1 - damp) * h2 + damp * h2_hat
+        G = (1 - damp) * G + damp * G_hat
+        np.fill_diagonal(G, h2)
+        rp = (1 - damp) * rp + damp * rp_hat
+        np.fill_diagonal(rp, 1.0)
+
+        rg = np.clip(G / np.sqrt(np.outer(h2, h2)), -0.999, 0.999)
+        np.fill_diagonal(rg, 1.0)
+        tr_h2[it] = h2
+        tr_rg[it] = rg
+        tr_rp[it] = rp
+
+    sl = slice(int(burn_in), int(n_iter))
+    h2_est, h2_se = batch_means(tr_h2[sl])
+    rg_est, rg_se = batch_means(tr_rg[sl].reshape(-1, P * P))
+    rp_est, rp_se = batch_means(tr_rp[sl].reshape(-1, P * P))
+    rg_est = rg_est.reshape(P, P)
+    rp_est = rp_est.reshape(P, P)
+    G_est = rg_est * np.sqrt(np.outer(h2_est, h2_est))
+    np.fill_diagonal(G_est, h2_est)
+    return GenCorrResult(
+        h2=h2_est, rg=rg_est, rp=rp_est, genetic_cov=G_est,
+        se=dict(h2=h2_se, rg=rg_se.reshape(P, P), rp=rp_se.reshape(P, P)),
+        phen_names=list(phen_names),
+        traces=dict(h2=tr_h2[sl].copy(), rg=tr_rg[sl].copy(), rp=tr_rp[sl].copy()),
+        n_iter=int(n_iter), burn_in=int(burn_in))

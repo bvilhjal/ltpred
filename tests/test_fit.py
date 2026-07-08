@@ -4,8 +4,38 @@ import numpy as np
 import pytest
 
 from ltpred import (simulate_under_LTM_single, fit_heritability,
-                    fit_variance_components)
+                    fit_variance_components, fit_genetic_correlation)
 from ltpred.family import Family, Member
+
+
+def _simulate_two_trait(fam_vec, h2_vec, rg, rp, n_fam, prev, seed):
+    """Two-trait families: each member gets one case/control interval per trait."""
+    from ltpred.covariance import construct_covmat_multi, correct_positive_definite
+    from ltpred.thresholds import liability_threshold
+    P = len(h2_vec)
+    cov = construct_covmat_multi(fam_vec=fam_vec, add_ind=True,
+                                 genetic_corrmat=rg, full_corrmat=rp,
+                                 h2_vec=np.asarray(h2_vec, float))
+    roles = cov.roles
+    k = len(roles) // P
+    fam_roles = roles[:k]
+    Sig, _ = correct_positive_definite(cov.matrix)
+    rng = np.random.default_rng(seed)
+    liab = rng.multivariate_normal(np.zeros(len(roles)), Sig, size=n_fam)
+    t = [float(liability_threshold(prev[p])) for p in range(P)]
+    obs = [r for r in fam_roles if r != "g"]
+    fams = []
+    for i in range(n_fam):
+        members = []
+        for r in obs:
+            lo, hi = [], []
+            for p in range(P):
+                case = liab[i, p * k + fam_roles.index(r)] > t[p]
+                lo.append(t[p] if case else -np.inf)
+                hi.append(np.inf if case else t[p])
+            members.append(Member(role=r, lower=lo, upper=hi))
+        fams.append(Family(fam_id=i, members=members))
+    return fams
 
 
 @pytest.mark.parametrize("h2_true", [0.3, 0.6])
@@ -92,3 +122,48 @@ def test_variance_components_validates_input():
                                     pop_prev=0.1, seed=1)
     with pytest.raises(ValueError, match="not identified"):
         fit_variance_components(par.families, ("A", "C"), n_iter=100, burn_in=30)
+
+
+def test_genetic_correlation_recovers_rg():
+    # two correlated traits: cross-trait HE recovers r_g and per-trait h2
+    rg = np.array([[1.0, 0.5], [0.5, 1.0]])
+    rp = np.array([[1.0, 0.2], [0.2, 1.0]])
+    fams = _simulate_two_trait(["m", "f", "s1", "s2"], [0.5, 0.4], rg, rp,
+                               n_fam=2500, prev=[0.1, 0.1], seed=101)
+    r = fit_genetic_correlation(fams, n_iter=800, burn_in=250, seed=1,
+                                phen_names=["A", "B"])
+    assert r.rg.shape == (2, 2)
+    assert r.phen_names == ["A", "B"]
+    assert np.allclose(np.diag(r.rg), 1.0)
+    assert r.rg[0, 1] == pytest.approx(r.rg[1, 0])            # symmetric
+    assert 0.25 < r.rg[0, 1] < 0.75                          # true 0.50 (parallel-RNG band)
+    assert r.h2[0] == pytest.approx(0.5, abs=0.12)
+    assert r.h2[1] == pytest.approx(0.4, abs=0.12)
+    assert np.allclose(np.diag(r.genetic_cov), r.h2)
+
+
+def test_genetic_correlation_null_no_false_positive():
+    # genetically uncorrelated traits (r_g=0) but phenotypically correlated (r_p=0.3)
+    rg = np.eye(2)
+    rp = np.array([[1.0, 0.3], [0.3, 1.0]])
+    fams = _simulate_two_trait(["m", "f", "s1", "s2"], [0.5, 0.5], rg, rp,
+                               n_fam=2500, prev=[0.1, 0.1], seed=7)
+    r = fit_genetic_correlation(fams, n_iter=800, burn_in=250, seed=1)
+    assert abs(r.rg[0, 1]) < 0.30                            # no spurious genetic corr
+    assert r.rp[0, 1] > 0.10                                 # phenotypic corr still seen
+
+
+def test_genetic_correlation_validates_input():
+    # single-trait families (scalar bounds) -> needs >= 2 traits
+    single = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
+                                       n_sim=200, pop_prev=0.1, seed=1)
+    with pytest.raises(ValueError, match="2 traits"):
+        fit_genetic_correlation(single.families, n_iter=50, burn_in=10)
+    # lone probands (no related pairs)
+    lone = [Family(i, [Member("o", [-np.inf, -np.inf], [1.0, 1.0])]) for i in range(20)]
+    with pytest.raises(ValueError, match="related pairs"):
+        fit_genetic_correlation(lone, n_iter=50, burn_in=10)
+    with pytest.raises(ValueError, match="burn_in"):
+        fit_genetic_correlation(
+            _simulate_two_trait(["m", "f", "s1"], [0.5, 0.5], np.eye(2), np.eye(2),
+                                50, [0.1, 0.1], seed=1), n_iter=50)

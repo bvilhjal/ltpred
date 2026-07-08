@@ -33,20 +33,23 @@ data-augmentation — validated unbiased for `A` and `A+C` across family
 structures, with negligible false-positive `C`. (This replaced an earlier
 experimental Bayesian animal-model Gibbs, which mixed poorly and showed
 structure-dependent bias. Dominance `D` is intentionally not offered — it needs
-MZ/DZ twin contrasts to estimate honestly.)
+MZ/DZ twin contrasts to estimate honestly.) `fit_genetic_correlation` estimates
+the **genetic correlation `r_g`** between traits by the cross-trait analogue of
+the same regression — validated ~unbiased near the null with mild attenuation at
+large `|r_g|`.
 
 **Benchmarks** (`benchmarks/`, `RESULTS.md`) cover accuracy, runtime scaling,
 age-of-onset, and GWAS power (LT-FH++ and PA both ~1.52× effective-N over
 case/control at λ_GC ≈ 1), plus `fit_heritability` quality (unbiased, but
-`h2_se` understates the true SD ~20–30×, so bootstrap) and `A+C` recovery. Real-LD
-runs go through an opt-in HAPNEST path.
+`h2_se` understates the true SD ~20–30×, so bootstrap), `A+C` recovery, and `r_g`
+recovery. Real-LD runs go through an opt-in HAPNEST path.
 
 **Docs.** README, a user guide, and an algorithm/model doc (with the
 BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
 connection, and the environmental-covariance extension), plus `CITATION.cff`
 (15 references).
 
-The test suite is 134 tests passing.
+The test suite is 137 tests passing.
 
 ## Near-term — finish the variance-component thread
 
@@ -62,15 +65,21 @@ The test suite is 134 tests passing.
    biases it upward (a spurious `D` on additive-only data), so it needs twin
    contrasts. The "experimental" label is lifted.
 
-2. **Multi-trait genetic correlations `r_g`.** Estimate the genetic covariance
-   between traits. The natural fit is the multivariate analogue of the HE
-   regression above (regress cross-trait liability products on the relationship
-   matrix), or a multi-trait Gibbs with `a ~ N(0, G ⊗ A)` and an inverse-Wishart
-   update on `G` (the bipred `iw_df` pattern) if posterior draws of `G` are
-   wanted. Note the single-trait animal-model Gibbs is no longer a dependency.
+2. ~~**Multi-trait genetic correlations `r_g`.**~~ **Done.**
+   `fit_genetic_correlation` estimates `r_g` between traits by a **cross-trait
+   Haseman–Elston regression** — the multivariate analogue of the fit above:
+   regress same-trait cross-relative products on `A` for each `h2_p`, cross-trait
+   cross-relative products on `A` for the genetic covariance `G[p,q]`, and
+   within-individual cross-trait products for the phenotypic correlation;
+   `r_g = G/sqrt(h2_p h2_q)`. Validated ~unbiased near the null (no spurious `r_g`
+   when traits are genetically independent but phenotypically correlated) with
+   mild attenuation at large `|r_g|` (`bench_genetic_correlation.py`). An
+   inverse-Wishart Gibbs on `G ⊗ A` remains an option only if posterior *draws* of
+   `G` are wanted; the moment estimator covers the point estimate.
 
 3. **Bootstrap SE for `fit_heritability`.** Family resampling for honest
-   confidence intervals, since `h2_se` understates uncertainty.
+   confidence intervals, since `h2_se` understates uncertainty. Applies equally to
+   `fit_variance_components` and `fit_genetic_correlation` (same `se` caveat).
 
 ## Medium-term — rigor and real data
 

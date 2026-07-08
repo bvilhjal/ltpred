@@ -337,6 +337,30 @@ the same individual's full liabilities across traits correlate by
 each trait (`estimate_liability_multi`). This lets a well-powered trait sharpen
 the estimate for a correlated, under-powered one.
 
+### Fitting the genetic correlation
+
+`fit_genetic_correlation` estimates `rho_g` between traits from family data — the
+multi-trait analogue of `fit_heritability`, a **cross-trait** Haseman–Elston
+regression. Each member carries one case/control interval per trait. Each sweep
+draws the members' `P`-trait liabilities from the full truncated-MVN under the
+current parameters, then regresses the sampled cross-products on the additive
+relationship `A`:
+
+```text
+same trait, diff relatives:  h2_p    = sum A_ij l_ip l_jp / sum A_ij^2
+diff trait, diff relatives:  G[p,q]  = sum A_ij (l_ip l_jq + l_iq l_jp) / (2 sum A_ij^2)
+same individual, diff trait: rp[p,q] = mean_i l_ip l_iq              (phenotypic corr)
+```
+
+so the genetic correlation is `rg[p,q] = G[p,q] / sqrt(h2_p h2_q)`. The
+cross-relative, cross-trait resemblance carries the genetic covariance because only
+the genetic part transmits by relatedness, so `E[l_ip l_jq] = A_ij G[p,q]` for
+`i != j` — the within-individual environmental covariance drops out. Validated
+approximately unbiased near the null (no spurious `rg` when traits are genetically
+independent but phenotypically correlated), with mild attenuation at large `|rg|`
+(the bounded ratio estimator); bootstrap families for a CI. This is the
+pedigree-scale analogue of bivariate GREML / cross-trait LD-score regression.
+
 ## Background and references
 
 The method sits in a long quantitative-genetics lineage. **Threshold models** for
