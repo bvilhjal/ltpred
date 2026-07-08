@@ -21,10 +21,13 @@ their cross-products reconstructs the model moments, so the chain settles at the
 ``h2`` consistent with the observed familial resemblance — a threshold-model
 variance-component estimate from pedigree affection data.
 
-Scope: additive heritability (one variance component). The same machinery extends
-to a shared-environment / maternal component by regressing on extra relationship
-matrices, but those need contrasting relative types (e.g. MZ vs DZ, or
-parent-offspring vs sib) to be identifiable, so only ``h2`` is fit here.
+:func:`fit_heritability` fits the single additive component. :func:`fit_variance_components`
+generalises the same data-augmentation to several components via a **multiple**
+Haseman-Elston regression (regressing the sampled cross-products on more than one
+relationship matrix at once), fitting additive ``A`` and common-environment ``C``
+together. Both reuse the well-mixing collapsed truncated-MVN draw and are
+validated unbiased; a separate dominance component would need contrasting
+relative types (MZ vs DZ twins) and is not offered.
 """
 
 from __future__ import annotations
@@ -183,11 +186,15 @@ def fit_heritability(families, *, h2_init=0.5, n_iter=1500, burn_in=500,
 _COMPONENT_OFFDIAG = {
     # additive relationship (2*kinship)
     "A": lambda a, b: get_relatedness(a, b, 1.0),
-    # dominance: 1/4 IBD-2 for full sibs, 0 for everything else (no twins here)
-    "D": lambda a, b: 0.25 if _pair_type(a, b) == "full_sib" else 0.0,
     # common (sibship) environment: shared by full sibs
     "C": lambda a, b: 1.0 if _pair_type(a, b) == "full_sib" else 0.0,
 }
+# Dominance ("D") is deliberately not offered: from sib-only pedigrees it is
+# identified only through the small full-sib excess beyond additive, so the
+# non-negativity constraint biases it upward (real D over-estimated, and a
+# spurious D appears on purely-additive data). It needs contrasting relative
+# types (MZ vs DZ twins) to estimate honestly -- out of scope for the fixed
+# role grammar here.
 
 
 @dataclass
@@ -195,11 +202,13 @@ class VarCompResult:
     """Result of :func:`fit_variance_components`.
 
     ``components`` maps each fitted component (``"A"`` additive, ``"C"`` common
-    environment, ``"D"`` dominance) to its posterior-mean **proportion** of the
-    liability variance; ``residual`` is the remaining ``e2``. So ``A`` is the
-    (narrow-sense) heritability. ``se`` is the within-dataset Monte-Carlo error per
-    component (same caveat as :class:`FitResult` — bootstrap families for a real
-    CI); ``traces`` are the full proportion traces."""
+    environment) to its estimated **proportion** of the liability variance;
+    ``residual`` is the remaining ``e2``. So ``A`` is the (narrow-sense)
+    heritability. ``se`` is the within-dataset Monte-Carlo error per component
+    (same caveat as :class:`FitResult` — it is the MC error of this one fit, not
+    the across-dataset sampling SD, so it under-states the real uncertainty;
+    bootstrap families for a genuine CI). ``traces`` are the post-burn-in
+    proportion traces per component."""
     components: dict
     residual: float
     se: dict
@@ -220,132 +229,125 @@ def _component_matrix(roles, comp):
 
 
 def _prepare_group_vc(families, idx, comps):
-    """Per-structure precompute for the animal-model Gibbs: component matrices and
-    their inverses, the standardized bounds / pinned mask, and initial state."""
+    """Per-structure precompute for the multi-component HE regression: each
+    component's relationship matrix ``K_c``, the list of related pairs with their
+    ``(K_c[i,j])_c`` predictor rows, per-family bounds / fixed mask, and the
+    initial chain state ``x``."""
     roles = [m.role for m in families[idx[0]].members]
     k = len(roles)
     F = len(idx)
-    lo = np.empty((F, k))
-    hi = np.empty((F, k))
+    K = {c: correct_positive_definite(_component_matrix(roles, c))[0] for c in comps}
+    pairs = []                                    # (i, j, predictor row of K_c[i,j])
+    for i in range(k):
+        for j in range(i + 1, k):
+            row = np.array([K[c][i, j] for c in comps])
+            if np.any(np.abs(row) > 1e-12):
+                pairs.append((i, j, row))
+    lowers = np.empty((F, k))
+    uppers = np.empty((F, k))
     for slot, f in enumerate(idx):
         for c, m in enumerate(families[f].members):
-            lo[slot, c] = float(m.lower)
-            hi[slot, c] = float(m.upper)
-    pinned = np.ascontiguousarray((hi - lo) < 1e-8)
-    K, Kinv, M = {}, {}, {}
-    for comp in comps:
-        Kc = correct_positive_definite(_component_matrix(roles, comp))[0]
-        K[comp] = Kc
-        Kinv[comp] = np.linalg.inv(Kc)
-        M[comp] = None                          # posterior-map cache, rebuilt per sweep
+            lowers[slot, c] = float(m.lower)
+            uppers[slot, c] = float(m.upper)
+    fixed = np.ascontiguousarray((uppers - lowers) < 1e-8)
     x = np.empty((F, k))
     for slot in range(F):
-        x[slot] = _init_x(lo[slot], hi[slot])
-    return dict(roles=roles, k=k, F=F, lo=np.ascontiguousarray(lo),
-                hi=np.ascontiguousarray(hi), pinned=pinned, K=K, Kinv=Kinv,
-                eye=np.eye(k), l=np.ascontiguousarray(x),
-                u={comp: np.zeros((F, k)) for comp in comps})
+        x[slot] = _init_x(lowers[slot], uppers[slot])
+    return dict(roles=roles, k=k, F=F, K=K, pairs=pairs,
+                lowers=np.ascontiguousarray(lowers),
+                uppers=np.ascontiguousarray(uppers), fixed=fixed,
+                x=np.ascontiguousarray(x))
 
 
-def fit_variance_components(families, components=("A",), *, n_iter=1200,
-                            burn_in=300, inner_sweeps=5, seed=None,
-                            prior_df=1.0, prior_scale=0.1, he_init=True):
-    """Fit liability-scale variance components with a Bayesian animal-model Gibbs.
+def fit_variance_components(families, components=("A", "C"), *, n_iter=1500,
+                            burn_in=500, inner_sweeps=5, damp=0.2, seed=None,
+                            eps=1e-4):
+    """Fit liability-scale variance components by a multiple Haseman-Elston regression.
 
-    **Experimental.** The additive-only proportion agrees with
-    :func:`fit_heritability`, and a real common-environment / dominance component
-    is recovered, but the single-site threshold sampler still mixes slowly (the
-    trace wanders even with the HE start), so estimates from short runs can be off
-    — treat this as a work in progress and validate against
-    :func:`fit_heritability` for the additive case. A parameter-expanded / blocked
-    sampler (Sorensen & Gianola, *Likelihood, Bayesian and MCMC Methods in
-    Quantitative Genetics*) is the intended fix.
+    Generalises :func:`fit_heritability` from one component to several. Each sweep
+    it (1) draws the latent liabilities from the **full family truncated-MVN**
+    ``N(0, sum_c h2_c K_c + e2 I)`` (the well-mixing collapsed data-augmentation
+    step, shared with :func:`fit_heritability`), then (2) updates all proportions
+    at once by regressing the sampled cross-products on the component relationship
+    matrices over every related pair,
 
-    The rigorous alternative to a moment estimator: a data-augmentation Gibbs in
-    the Sorensen–Gianola threshold-model / animal-model tradition. Each sweep it
+        [h2_c] = (X'X)^-1 X'y ,   X[p, c] = K_c[i, j] ,   y[p] = l_i l_j ,
 
-    1. samples the truncated **liabilities from the full family MVN** ``N(0,
-       sum_k sigma2_k K_k + I)`` (integrating the random effects out — a
-       partially-collapsed step that mixes far better than a coordinate-wise one);
-    2. samples each structured random effect ``u_k ~ N(0, sigma2_k K_k)`` given the
-       liabilities — the relationship matrix ``K_k`` enforces the correct joint
-       structure, so, unlike free per-relative-type correlations, it does **not**
-       manufacture a spurious sib excess;
-    3. draws each variance from its conjugate scaled-inverse-χ² posterior, and
-       records the **Rao-Blackwellised** conditional mean ``E[sigma2_k | u_k]``
-       (lower variance than the draw).
-
-    The residual variance is fixed to 1 for identification (thresholds rescaled by
-    ``sqrt(total variance)`` each sweep); components are returned as **proportions**
-    of the liability variance. ``he_init`` seeds ``sigma2_A`` from the fast
-    Haseman-Elston fit (:func:`fit_heritability`) so the chain starts centred.
+    damped across sweeps for stability. Unlike a single-``h2`` fit this separates
+    relative *kinds*: ``A`` is pinned by the parent-offspring / grandparent /
+    avuncular relatednesses while ``C`` is pinned by the full-sib excess, so the
+    two do not trade off. The thresholds stay fixed (total liability variance 1);
+    components are returned as **proportions**, with ``residual = 1 - sum``.
 
     ``components``: ``"A"`` additive (its proportion is the narrow-sense
-    heritability), ``"C"`` common (sibship) environment, ``"D"`` dominance.
-    **Identifiability:** ``C`` and ``D`` share the full-sib structure and are
-    confounded without contrasting relative types (e.g. MZ vs DZ twins); fit at
-    most one of them unless the pedigrees separate them. Returns a
-    :class:`VarCompResult`."""
+    heritability) and ``"C"`` common (sibship) environment. ``C`` is identified
+    only from **full-sib pairs**; without them the design is singular and this
+    raises. (Dominance ``"D"`` is intentionally unsupported — see the note by
+    ``_COMPONENT_OFFDIAG``; it needs twin contrasts to estimate honestly.)
+
+    Runs a data-augmentation sweep of ``inner_sweeps`` truncated-MVN sweeps per
+    outer iteration; ``damp`` controls the moment-update stability. Returns a
+    :class:`VarCompResult`. Validated unbiased for ``A`` and ``A+C`` across family
+    structures; as with :func:`fit_heritability`, ``se`` under-states the true
+    across-dataset SD, so bootstrap families for a confidence interval."""
     comps = list(components)
     for c in comps:
         if c not in _COMPONENT_OFFDIAG:
-            raise ValueError(f"unknown component {c!r}; choose from A, C, D")
+            avail = ", ".join(_COMPONENT_OFFDIAG)
+            raise ValueError(f"unknown component {c!r}; choose from {avail} "
+                             "(dominance 'D' is not supported — needs twin data)")
+    if len(set(comps)) != len(comps):
+        raise ValueError(f"duplicate components in {components!r}")
+    if int(burn_in) >= int(n_iter):
+        raise ValueError(f"burn_in ({burn_in}) must be < n_iter ({n_iter})")
+    C = len(comps)
     groups = [_prepare_group_vc(families, idx, comps)
               for _key, idx in _group_by_structure(families)]
 
-    # start centred: sigma2_A from the fast HE fit (sigma2 = h2/(1-h2), residual=1)
-    sigma2 = {c: 0.1 for c in comps}
-    if he_init and "A" in comps:
-        h2 = min(max(fit_heritability(families, n_iter=400, burn_in=120,
-                                      inner_sweeps=inner_sweeps, seed=seed).h2, 0.02), 0.9)
-        sigma2["A"] = h2 / (1.0 - h2)
+    # X'X is fixed across sweeps (depends only on the K_c and family counts); the
+    # sampled liabilities enter only through X'y. Precompute and factor it once.
+    XtX = np.zeros((C, C))
+    for g in groups:
+        for (_i, _j, row) in g["pairs"]:
+            XtX += g["F"] * np.outer(row, row)
+    if np.linalg.matrix_rank(XtX, tol=1e-8) < C:
+        raise ValueError(
+            "variance components not identified from these families — the "
+            "relationship design is rank-deficient (e.g. fitting 'C' with no "
+            "full-sib pairs, or no related pairs at all).")
+    XtX_reg = XtX + 1e-10 * np.eye(C)
 
     if seed is not None:
         _seed_rng(int(seed))
-    rng = np.random.default_rng(None if seed is None else seed + 777)
-    rb_trace = {c: np.empty(int(n_iter)) for c in comps}   # Rao-Blackwellised
 
+    h2 = np.full(C, 0.5 / C)
+    trace = np.empty((int(n_iter), C))
     for it in range(int(n_iter)):
-        V = 1.0 + sum(sigma2.values())
-        sqrtV = np.sqrt(V)
-        ss = {c: 0.0 for c in comps}
-        ndim = {c: 0 for c in comps}
+        e2 = max(1.0 - h2.sum(), eps)
+        Xty = np.zeros(C)
         for g in groups:
-            k, F, eye = g["k"], g["F"], g["eye"]
-            # 1. sample latent liabilities l | u  (truncated N(s, 1), bounds x sqrtV)
-            s = sum(g["u"][c] for c in comps)
-            lo, hi = g["lo"] * sqrtV, g["hi"] * sqrtV
-            a_ = norm_cdf(lo - s)
-            b_ = norm_cdf(hi - s)
-            uu = np.clip(a_ + rng.random((F, k)) * (b_ - a_), 1e-15, 1 - 1e-15)
-            L = s + norm_ppf(uu)
-            L[g["pinned"]] = lo[g["pinned"]]           # pinned cases fixed at threshold
-            # 2. sample each random effect u_c | L (single-site over components)
-            for _ in range(1 if len(comps) == 1 else 2):
-                for c in comps:
-                    r = L - sum(g["u"][d] for d in comps if d != c)
-                    SigK = sigma2[c] * g["K"][c]
-                    Mc = SigK @ np.linalg.inv(SigK + eye)   # post mean-map = post cov
-                    chol = np.linalg.cholesky(Mc + 1e-10 * eye)
-                    g["u"][c] = r @ Mc.T + rng.standard_normal((F, k)) @ chol.T
-            for c in comps:
-                ss[c] += float(np.einsum("fi,ij,fj->", g["u"][c], g["Kinv"][c], g["u"][c]))
-                ndim[c] += F * k
-        # 3. draw sigma2 (dynamics) + record the Rao-Blackwellised conditional mean
-        rb_sigma = {}
-        for c in comps:
-            num = ss[c] + prior_df * prior_scale
-            sigma2[c] = num / rng.chisquare(ndim[c] + prior_df)      # posterior draw
-            rb_sigma[c] = num / (ndim[c] + prior_df - 2.0)           # E[sigma2 | u]
-        Vrb = 1.0 + sum(rb_sigma.values())
-        for c in comps:
-            rb_trace[c][it] = rb_sigma[c] / Vrb
+            k = g["k"]
+            sigma = e2 * np.eye(k) + sum(h2[ci] * g["K"][c]
+                                         for ci, c in enumerate(comps))
+            sigma, _ = correct_positive_definite(sigma)   # diagonal stays 1
+            P, sd = gibbs_params(sigma)
+            gibbs_advance(P, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
+                          int(inner_sweeps))
+            x = g["x"]
+            for (i, j, row) in g["pairs"]:
+                Xty += row * float(x[:, i] @ x[:, j])
+        h2_hat = np.linalg.solve(XtX_reg, Xty)
+        h2_hat = np.clip(h2_hat, eps, 1.0 - eps)
+        if h2_hat.sum() > 1.0 - eps:                      # keep e2 > 0
+            h2_hat *= (1.0 - eps) / h2_hat.sum()
+        h2 = (1.0 - damp) * h2 + damp * h2_hat
+        trace[it] = h2
 
-    comp_est, se = {}, {}
-    for c in comps:
-        est, s = batch_means(rb_trace[c][int(burn_in):])
-        comp_est[c] = float(est[0])
-        se[c] = float(s[0])
-    residual = 1.0 - sum(comp_est.values())
-    return VarCompResult(components=comp_est, residual=residual, se=se,
-                         traces=rb_trace, n_iter=int(n_iter), burn_in=int(burn_in))
+    samples = trace[int(burn_in):]
+    est, se = batch_means(samples)
+    components_out = {c: float(est[ci]) for ci, c in enumerate(comps)}
+    traces = {c: np.ascontiguousarray(samples[:, ci]) for ci, c in enumerate(comps)}
+    return VarCompResult(components=components_out,
+                         residual=float(1.0 - est.sum()),
+                         se={c: float(se[ci]) for ci, c in enumerate(comps)},
+                         traces=traces, n_iter=int(n_iter), burn_in=int(burn_in))

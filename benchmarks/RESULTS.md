@@ -140,6 +140,38 @@ distribution. Prevalence 0.10, `parents+2 sibs` unless noted.
   datasets. Do not use it as a confidence interval — **bootstrap over families**
   for a real CI. (This is the single most important caveat of the estimator.)
 
+## 6. Multi-component variance components (`bench_variance_components.py`)
+
+`fit_variance_components` generalises `fit_heritability` to a **multiple**
+Haseman–Elston regression, fitting additive `A` and common-environment `C`
+together. Measured over 20 replicate cohorts, prevalence 0.10, a full-sib-rich
+structure (`m, f, s1…s4`) so `C` — identified from the full-sib excess — is
+powered.
+
+**A+C recovery** at 3000 families:
+
+| true (a², c²) | A fitted (bias) | A SD | C fitted (bias) | C SD |
+|:---:|---:|---:|---:|---:|
+| (0.4, 0.2) | 0.408 (+0.008) | 0.052 | 0.193 (−0.007) | 0.031 |
+| (0.5, 0.1) | 0.484 (−0.016) | 0.048 | 0.101 (+0.001) | 0.032 |
+| (0.3, 0.3) | 0.299 (−0.001) | 0.057 | 0.294 (−0.006) | 0.045 |
+| (0.6, 0.0) | 0.579 (−0.021) | 0.047 | 0.011 (+0.011) | 0.007 |
+
+- **Unbiased for both components** across the grid (|bias| ≤ 0.021), and the two
+  do not trade off — `A` is pinned by the parent-offspring / grandparent
+  relatednesses, `C` by the full-sib excess.
+- **Negligible false positive.** Fitting `A, C` on purely additive data
+  (true c² = 0) gives C = 0.013 ± 0.011 — it does not manufacture a
+  common-environment component.
+- **Precision improves ~`1/√N`**: C SD 0.070 → 0.051 → 0.036 → 0.026 from
+  1 000 to 8 000 families. Same `h2_se` caveat as `fit_heritability` — bootstrap
+  families for a CI.
+- **Dominance is not offered.** From sib-only pedigrees `D` is identified only by
+  the small full-sib excess beyond additive, so the non-negativity constraint
+  biases it upward (a spurious `D` on additive-only data); honest estimation needs
+  MZ-vs-DZ twin contrasts. (This replaced an earlier experimental Bayesian
+  animal-model Gibbs that mixed poorly and was structure-dependent-biased.)
+
 ## Bottom line
 
 PA-FGRS is a drop-in, deterministic replacement for the LT-FH++ Gibbs sampler:

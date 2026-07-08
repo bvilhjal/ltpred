@@ -307,11 +307,25 @@ and depends on the number and informativeness of the families (bootstrap over
 families for that). Identifiability comes entirely from the *between-relative*
 covariance, so relatives are required (lone probands carry no information).
 
-The same augment-then-regress machinery would fit a shared-environment (`c2`) or
-maternal component by adding its relationship matrix `C` as a second predictor
-(the [environmental-covariance extension](#adding-environmental-covariance-to-improve-prediction)),
-but separating `c2` from `h2` needs contrasting relative types (e.g. MZ vs DZ, or
-parent-offspring vs sib), so only `h2` is fit here.
+`fit_variance_components` extends the same augment-then-regress machinery to
+several components at once — a **multiple** Haseman–Elston regression. Each sweep
+draws the liabilities from the full family truncated-MVN under
+`Sigma = sum_c h2_c K_c + e2 I` and updates all proportions jointly,
+
+```text
+[h2_c] = (X'X)^-1 X'y ,   X[pair, c] = K_c[i,j] ,   y[pair] = l_i l_j ,
+```
+
+with the same cross-sweep damping. Fitting additive `A` together with a
+common-environment `C` works because they load on *different* relationship
+contrasts — `A` is pinned by the parent-offspring / grandparent / avuncular
+relatednesses, `C` by the full-sib excess — so `C` needs full-sib pairs to be
+identified (the design is otherwise rank-deficient and the fit raises). Validated
+unbiased for `A` and `A+C` across family structures. A **dominance** component is
+deliberately not offered: from sib-only pedigrees it is identified only through
+the small full-sib excess beyond additive, so the non-negativity constraint
+biases it upward (a spurious `D` even on purely additive data); it needs MZ-vs-DZ
+twin contrasts to estimate honestly.
 
 ## Multiple traits
 

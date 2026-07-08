@@ -154,6 +154,7 @@ choosing between the two methods, and using the score in a GWAS, see the
 | `estimate_liability_pa` | deterministic PA-FGRS estimator |
 | `estimate_liability_pa_arrays` / `_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
 | `fit_heritability` | **fit** liability-scale h² from family data (data-augmentation Gibbs) |
+| `fit_variance_components` | **fit** additive `A` + common-environment `C` proportions (multiple HE regression) |
 | `set_num_threads` | set the Numba-parallel thread count |
 | `pa_algorithm` / `pa_estimate_batched` | Pearson–Aitken selection updates |
 | `tnorm_moments` / `tnorm_mixture_conditional` | truncated-normal moments (+ censoring mixture) |

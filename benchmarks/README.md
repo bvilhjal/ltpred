@@ -26,6 +26,7 @@ Each script writes a `.csv` and (if matplotlib is present) a `.png`.
 | `bench_age_onset.py` | value of the liability→age-of-onset map (ADuLT/LT-FH++): plain case/control vs onset-pinned cases, fit with PA (and Gibbs, to confirm agreement); accuracy and eff-N gain vs prevalence (→ `bench_age_onset.{csv,png}`) |
 | `bench_gwas_power.py` | genotype-based GWAS power: case/control vs LT-FH++ vs PA-FGRS vs an oracle — mean χ² at causal SNPs (effective N), detection power, and λ_GC calibration at nulls (→ `bench_gwas_power.{csv,png}`). Pass `--plink PREFIX` for **real-LD** HAPNEST genotypes (opt-in; see [`hapnest/README.md`](hapnest/README.md)) |
 | `bench_fit_heritability.py` | variance-component inference: bias and across-dataset precision of `fit_heritability` vs true h², vs #families and family structure, and the calibration of the reported `h2_se` (→ `bench_fit_heritability.{csv,png}`) |
+| `bench_variance_components.py` | multi-component inference: recovery of additive `A` and common-environment `C` by `fit_variance_components` (bias & across-dataset SD), the false-positive `C` on purely additive data, and precision vs #families (→ `bench_variance_components.{csv,png}`) |
 
 `_common.py` holds the shared simulation, estimation, GWAS and plotting helpers,
 plus a minimal PLINK `.bed` reader for the HAPNEST path.
