@@ -41,10 +41,12 @@ from ._mathfun import norm_cdf, norm_ppf
 from .covariance import get_relatedness, correct_positive_definite
 from .gibbs import gibbs_params, gibbs_advance, _seed_rng
 from .estimate import _group_by_structure, batch_means
+from .family import Family, Member
 
 __all__ = ["FitResult", "fit_heritability", "VarCompResult",
            "fit_variance_components", "GenCorrResult", "fit_genetic_correlation",
-           "BootstrapResult", "bootstrap_fit"]
+           "BootstrapResult", "bootstrap_fit", "SignificanceTest",
+           "test_variance_component", "test_genetic_correlation"]
 
 _SIBSHIP = re.compile(r"o|s\d*")           # proband + full sibs (one sib-ship)
 _PARENT = re.compile(r"[mf]")
@@ -595,3 +597,161 @@ def bootstrap_fit(families, estimator, *, n_boot=100, seed=None, ci_level=0.95):
         ci_low=np.quantile(samples, alpha, axis=0),
         ci_high=np.quantile(samples, 1.0 - alpha, axis=0),
         ci_level=float(ci_level), n_boot=int(n_boot), samples=samples)
+
+
+# --------------------------------------------------------------------------- #
+#  Significance testing (parametric bootstrap = nested-model comparison)       #
+# --------------------------------------------------------------------------- #
+@dataclass
+class SignificanceTest:
+    """Result of a parametric-bootstrap significance test.
+
+    ``estimate`` is the observed statistic (a component's variance proportion, or a
+    genetic correlation); ``p_value`` is the Monte-Carlo p-value from refitting the
+    full model on ``n_boot`` datasets simulated under the null; ``null`` is that
+    null distribution of the statistic. ``label`` names the hypothesis. Because the
+    null is *simulated and refit the same way*, the moment estimator's boundary bias
+    cancels — the observed statistic is compared against a null carrying the same
+    bias — so the test stays calibrated where a Wald/normal test would not."""
+    estimate: float
+    p_value: float
+    null: np.ndarray
+    n_boot: int
+    label: str
+
+
+def _recover_thresholds(lo, hi):
+    """Per-coordinate threshold from **case/control-style** bounds: cases ``(t, inf)``,
+    controls ``(-inf, t)`` (case iff liability > t, so ``t`` is the finite endpoint);
+    fully-unbounded ``(-inf, inf)`` coordinates are uninformative. Raises for pinned
+    or two-sided-finite (age-of-onset) bounds, which the parametric bootstrap would
+    have to re-encode. ``lo``/``hi`` broadcast to any shape; returns ``(T, informative)``."""
+    lo = np.asarray(lo, dtype=float)
+    hi = np.asarray(hi, dtype=float)
+    lo_inf = ~np.isfinite(lo)
+    hi_inf = ~np.isfinite(hi)
+    both_inf = lo_inf & hi_inf
+    control = lo_inf & ~hi_inf
+    case = ~lo_inf & hi_inf
+    if not np.all(both_inf | control | case):
+        raise NotImplementedError(
+            "significance test supports case/control-style bounds only — cases "
+            "(t, inf), controls (-inf, t); pinned or interval age-of-onset bounds "
+            "are not supported.")
+    T = np.where(control, hi, np.where(case, lo, np.nan))
+    return T, ~both_inf
+
+
+def _assert_case_control_bounds(families):
+    """Raise early (before any fitting) if any family's bounds are not the
+    case/control style the parametric bootstrap can re-simulate."""
+    for fam in families:
+        for m in fam.members:
+            _recover_thresholds(np.asarray(m.lower, dtype=float),
+                                np.asarray(m.upper, dtype=float))
+
+
+def _threshold_status(members, L_kP, k, P, fam_id):
+    """Rebuild a family from simulated liabilities ``L_kP`` (phenotype-major length
+    ``k*P``, coord ``p*k + a``) by re-thresholding each observed coordinate."""
+    out = []
+    for a, m in enumerate(members):
+        T, inform = _recover_thresholds(np.broadcast_to(np.asarray(m.lower, float), (P,)),
+                                        np.broadcast_to(np.asarray(m.upper, float), (P,)))
+        los, his = [], []
+        for p in range(P):
+            if not inform[p]:
+                los.append(-np.inf); his.append(np.inf)
+            else:
+                is_case = L_kP[p * k + a] > T[p]
+                los.append(T[p] if is_case else -np.inf)
+                his.append(np.inf if is_case else T[p])
+        if P == 1:
+            out.append(Member(m.role, los[0], his[0]))
+        else:
+            out.append(Member(m.role, los, his))
+    return Family(fam_id, out)
+
+
+def _simulate_null(families, h2_vec, G, rp, rng):
+    """One null dataset on the same pedigrees + thresholds. ``G`` is the genetic
+    covariance (``diag(h2)`` under an independence null), ``rp`` the phenotypic
+    correlation to preserve (environmental resemblance)."""
+    P = len(h2_vec)
+    out = [None] * len(families)
+    for _key, idx in _group_by_structure(families):
+        roles = [mm.role for mm in families[idx[0]].members]
+        k = len(roles)
+        A = correct_positive_definite(_component_matrix(roles, "A"))[0]
+        sig = correct_positive_definite(_multi_cov(A, h2_vec, G, rp))[0]
+        L = rng.multivariate_normal(np.zeros(k * P), sig, size=len(idx))
+        for slot, f in enumerate(idx):
+            out[f] = _threshold_status(families[f].members, L[slot], k, P,
+                                       families[f].fam_id)
+    return out
+
+
+def test_variance_component(families, component="C", *, n_boot=200, seed=None,
+                            **fit_kwargs):
+    """Test whether a variance component is needed (its proportion > 0).
+
+    The frequentist analog of the SEM likelihood-ratio test "is `C` in the model?"
+    — a **parametric bootstrap**. It fits the full ``A + component`` model (observed
+    statistic), fits the null ``A``-only model, then simulates ``n_boot`` datasets
+    under that null *on the same pedigrees and thresholds*, refits the full model on
+    each, and returns the one-sided p-value ``P(estimate >= observed | H0)``.
+
+    Only ``component="C"`` (common environment) is meaningful here (``"D"`` is not
+    fit). Extra keyword args pass through to :func:`fit_variance_components` (use a
+    smaller ``n_iter`` to keep the ``n_boot`` refits affordable). Needs
+    case/control-style bounds. Returns a :class:`SignificanceTest`."""
+    if component == "A" or component not in _COMPONENT_OFFDIAG:
+        raise ValueError("component must be 'C' (the tested non-additive component)")
+    _assert_case_control_bounds(families)
+    comps = ("A", component)
+    obs = fit_variance_components(families, comps, seed=seed, **fit_kwargs).components[component]
+    h2A = float(fit_variance_components(families, ("A",), seed=seed, **fit_kwargs).components["A"])
+    h2_vec = np.array([h2A])
+    G = np.array([[h2A]])
+    rp = np.array([[1.0]])
+    rng = np.random.default_rng(seed)
+    null = np.empty(int(n_boot))
+    for b in range(int(n_boot)):
+        sim = _simulate_null(families, h2_vec, G, rp, rng)
+        s = None if seed is None else int(seed) + b + 1
+        null[b] = fit_variance_components(sim, comps, seed=s, **fit_kwargs).components[component]
+    p = (1 + int(np.sum(null >= obs))) / (1 + int(n_boot))
+    return SignificanceTest(estimate=float(obs), p_value=float(p), null=null,
+                            n_boot=int(n_boot), label=f"{component} proportion > 0")
+
+
+def test_genetic_correlation(families, i=0, j=1, *, n_boot=200, seed=None,
+                             **fit_kwargs):
+    """Test whether the genetic correlation between two traits is non-zero.
+
+    Parametric-bootstrap analog of the SEM test "is the cross-trait genetic path
+    zero?". Fits the full model (observed ``rg[i,j]``), then simulates ``n_boot``
+    datasets under the **genetic-independence null** — ``r_g = 0`` but with each
+    trait's ``h2`` and the *phenotypic/environmental* correlation preserved (so a
+    real environmental correlation does not leak into a spurious genetic one) — on
+    the same pedigrees and thresholds, refits, and returns the two-sided p-value
+    ``P(|rg| >= |observed| | H0)``. In simulation it controls the false-positive
+    rate (slightly conservative) and has good power for moderate ``|r_g|``. Extra
+    keyword args pass to :func:`fit_genetic_correlation`. Needs case/control-style
+    bounds. Returns a :class:`SignificanceTest`."""
+    _assert_case_control_bounds(families)
+    full = fit_genetic_correlation(families, seed=seed, **fit_kwargs)
+    obs = float(full.rg[i, j])
+    h2_vec = np.asarray(full.h2, dtype=float)
+    G0 = np.diag(h2_vec)                         # r_g = 0
+    rp_null = full.rp - full.genetic_cov         # keep environmental covariance only
+    np.fill_diagonal(rp_null, 1.0)
+    rng = np.random.default_rng(seed)
+    null = np.empty(int(n_boot))
+    for b in range(int(n_boot)):
+        sim = _simulate_null(families, h2_vec, G0, rp_null, rng)
+        s = None if seed is None else int(seed) + b + 1
+        null[b] = fit_genetic_correlation(sim, seed=s, **fit_kwargs).rg[i, j]
+    p = (1 + int(np.sum(np.abs(null) >= abs(obs)))) / (1 + int(n_boot))
+    return SignificanceTest(estimate=obs, p_value=float(p), null=null,
+                            n_boot=int(n_boot), label=f"r_g[{i},{j}] != 0")

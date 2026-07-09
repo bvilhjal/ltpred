@@ -49,7 +49,7 @@ BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
 connection, and the environmental-covariance extension), plus `CITATION.cff`
 (15 references).
 
-The test suite is 147 tests passing.
+The test suite is 150 tests passing.
 
 ## Near-term — variance-component thread ✅ complete
 
@@ -82,6 +82,33 @@ The test suite is 147 tests passing.
    percentile CI. On one 3 000-family dataset it recovers a SE of 0.047 vs the
    reported `h2_se` of 0.002 (23×), matching the true across-dataset SD. Works for
    all three fitters (pass a `lambda` returning the quantity of interest).
+
+## SEM-inspired inference
+
+Bringing twin/family structural-equation-modelling strengths (model comparison,
+likelihood-based inference) to the pedigree/registry setting.
+
+- ~~**Significance tests for components / correlations.**~~ **Done.**
+  `test_variance_component` (is `C` needed?) and `test_genetic_correlation` (is
+  `r_g ≠ 0`?) — the frequentist analog of the SEM likelihood-ratio test, done as a
+  **parametric bootstrap**: fit the null, simulate under it on the same pedigrees
+  and thresholds, refit, locate the observed statistic. Because the null is
+  simulated and refit the same way, the moment estimator's boundary bias cancels —
+  validated calibrated under H0 (VC test uniform p, FPR ≈ nominal; `r_g` test
+  controls Type-I error, slightly conservative) with good power. Case/control
+  bounds only.
+
+- **ML / REML backend (Monte-Carlo EM).** Turn the moment fit into a genuine
+  maximum-likelihood one: the E-step is the truncated-MVN liability draw already
+  used; the M-step becomes a GLS/REML variance-component update
+  (`min log|Σ| + tr(Σ⁻¹ S)`) instead of the HE regression. Gives efficiency, a
+  likelihood (AIC / true LRTs), and model-based SEs via Louis' observed
+  information (complete-data info minus the information truncation destroys) — the
+  SEM-grade SE that would retire the bootstrap for the common case.
+
+- **Latent factor model on the multi-trait genetic covariance** (Genomic-SEM-lite):
+  fit `G ≈ ΛΛ' + Ψ` to the estimated genetic covariance — does one genetic factor
+  explain the `r_g` among traits?
 
 ## Medium-term — rigor and real data
 

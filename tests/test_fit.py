@@ -210,3 +210,63 @@ def test_bootstrap_fit_vector_and_errors():
         bootstrap_fit(sim.families[:1], lambda f: 0.0, n_boot=3)
     with pytest.raises(ValueError, match="ci_level"):
         bootstrap_fit(sim.families, lambda f: 0.0, n_boot=3, ci_level=1.5)
+
+
+def _sim_ac(fam, a2, c2, n, seed, prev=0.1):
+    import numpy as np
+    from ltpred.covariance import correct_positive_definite
+    from ltpred.thresholds import liability_threshold
+    from ltpred.fit import _component_matrix
+    Sig = (1 - a2 - c2) * np.eye(len(fam)) + a2 * _component_matrix(fam, "A")
+    if c2 > 0:
+        Sig = Sig + c2 * _component_matrix(fam, "C")
+    Sig, _ = correct_positive_definite(Sig)
+    rng = np.random.default_rng(seed)
+    L = rng.multivariate_normal(np.zeros(len(fam)), Sig, size=n)
+    t = float(liability_threshold(prev))
+    return [Family(i, [Member(r, (t if L[i, c] > t else -np.inf),
+                              (np.inf if L[i, c] > t else t)) for c, r in enumerate(fam)])
+            for i in range(n)]
+
+
+def test_component_test_detects_real_C():
+    from ltpred import test_variance_component
+    fams = _sim_ac(["m", "f", "s1", "s2", "s3", "s4"], 0.4, 0.2, 1500, 1)
+    r = test_variance_component(fams, "C", n_boot=25, seed=1, n_iter=350, burn_in=100)
+    assert r.estimate > 0.10                       # a real C is estimated
+    assert r.null.shape == (25,)
+    assert 0.0 < r.p_value <= 1.0
+    assert r.p_value < 0.2                          # strong signal -> significant
+    assert r.null.mean() < r.estimate              # null centred below the observed
+
+
+def test_component_test_validates_and_rejects_pinned():
+    from ltpred import test_variance_component
+    fams = _sim_ac(["m", "f", "s1", "s2"], 0.5, 0.0, 300, 2)
+    with pytest.raises(ValueError, match="component"):
+        test_variance_component(fams, "A", n_boot=3)
+    with pytest.raises(ValueError, match="component"):
+        test_variance_component(fams, "D", n_boot=3)
+    # pinned (age-of-onset) bounds are not supported by the parametric bootstrap;
+    # reuse the identifiable A+C structure but encode cases as a point mass
+    base = _sim_ac(["m", "f", "s1", "s2", "s3", "s4"], 0.5, 0.0, 50, 4)
+    def _pin_cases(fam):
+        mem = [Member(m.role, m.lower, m.lower)                 # case (t, inf) -> pinned (t, t)
+               if (np.isfinite(m.lower) and not np.isfinite(m.upper)) else m
+               for m in fam.members]
+        return Family(fam.fam_id, mem)
+    pinned = [_pin_cases(fam) for fam in base]
+    with pytest.raises(NotImplementedError, match="case/control"):
+        test_variance_component(pinned, "C", n_boot=3, n_iter=50, burn_in=10)
+
+
+def test_genetic_correlation_test_detects_rg():
+    from ltpred import test_genetic_correlation
+    rg = np.array([[1.0, 0.5], [0.5, 1.0]])
+    rp = np.array([[1.0, 0.2], [0.2, 1.0]])
+    fams = _simulate_two_trait(["m", "f", "s1", "s2"], [0.5, 0.5], rg, rp,
+                               n_fam=1500, prev=[0.1, 0.1], seed=3)
+    r = test_genetic_correlation(fams, n_boot=25, seed=1, n_iter=350, burn_in=100)
+    assert r.null.shape == (25,)
+    assert 0.0 < r.p_value <= 1.0
+    assert r.p_value < 0.2                          # real r_g -> significant

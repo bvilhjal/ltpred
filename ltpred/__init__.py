@@ -51,7 +51,8 @@ _EXPORTS = {
     "simulate": ["simulate_under_LTM_single", "Simulation"],
     "fit": ["fit_heritability", "FitResult", "fit_variance_components",
             "VarCompResult", "fit_genetic_correlation", "GenCorrResult",
-            "bootstrap_fit", "BootstrapResult"],
+            "bootstrap_fit", "BootstrapResult", "test_variance_component",
+            "test_genetic_correlation", "SignificanceTest"],
     "_numba": ["set_num_threads"],
 }
 

@@ -305,6 +305,27 @@ The phenotypic correlation splits into genetic and environmental parts —
 cross-relative, cross-trait resemblance). It is ~unbiased near the null and mildly
 attenuated at large `|r_g|`; use `bootstrap_fit` for a CI.
 
+### Is a component / correlation significant?
+
+The frequentist analog of the twin-SEM likelihood-ratio test ("is `C` in the
+model?", "is the genetic path non-zero?") is a **parametric bootstrap**:
+
+```python
+from ltpred import test_variance_component, test_genetic_correlation
+tc = test_variance_component(families, "C", n_boot=200)   # H0: c² = 0
+tg = test_genetic_correlation(two_trait_families, n_boot=200)  # H0: r_g = 0
+tc.p_value, tc.estimate, tc.null      # p-value, observed statistic, null distribution
+```
+
+Each fits the full model, then simulates `n_boot` datasets under the null — for
+`C`, an `A`-only model; for `r_g`, genetic independence with each trait's `h²`
+**and the phenotypic/environmental correlation preserved** — on the same pedigrees
+and thresholds, refits, and locates the observed statistic in that null. Because
+the null is simulated and refit the same way, the moment estimator's boundary bias
+cancels, so the test is calibrated where a normal-theory test would not be (it is
+uniform under H0 in simulation). It costs ~`n_boot` refits, so lower `n_iter` for
+the refits; needs **case/control-style bounds** (pinned age-of-onset bounds raise).
+
 ## Building families
 
 From flat columns (the common path):
