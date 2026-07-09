@@ -49,7 +49,7 @@ _EXPORTS = {
                  "estimate_liability_pa_arrays", "estimate_liability_gibbs_arrays",
                  "estimate_liability_from_kinship", "liability_sensitivity",
                  "SensitivityResult", "batch_means", "LiabilityResult"],
-    "simulate": ["simulate_under_LTM_single", "simulate_under_LTM", "Simulation"],
+    "simulate": ["simulate_under_LTM_single", "Simulation"],
     "fit": ["fit_heritability", "FitResult", "fit_variance_components",
             "VarCompResult", "fit_genetic_correlation", "GenCorrResult",
             "bootstrap_fit", "BootstrapResult"],

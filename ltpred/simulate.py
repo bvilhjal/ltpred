@@ -28,7 +28,7 @@ from .family import Family, Member
 from .thresholds import (liability_threshold, convert_liability_to_aoo,
                          convert_age_to_thresh)
 
-__all__ = ["Simulation", "simulate_under_LTM_single", "simulate_under_LTM"]
+__all__ = ["Simulation", "simulate_under_LTM_single"]
 
 # plausible current-age ranges per role, used only when use_age=True (the exact
 # model affects realism, not the method); (low, high) inclusive-exclusive.
@@ -126,7 +126,3 @@ def simulate_under_LTM_single(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf
 
     return Simulation(roles=roles, covmat=cov_obj.matrix, liabilities=liab,
                       status=status, families=families, pop_prev=pop_prev)
-
-
-# alias mirroring the R dispatcher name
-simulate_under_LTM = simulate_under_LTM_single

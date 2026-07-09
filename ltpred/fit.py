@@ -48,41 +48,26 @@ __all__ = ["FitResult", "fit_heritability", "VarCompResult",
 
 _SIBSHIP = re.compile(r"o|s\d*")           # proband + full sibs (one sib-ship)
 _PARENT = re.compile(r"[mf]")
-_GRAND = re.compile(r"[mp]g[mf]")
-_HALFSIB = re.compile(r"[mp]hs\d*")
 _AVUNC = re.compile(r"[mp]au\d*")
 
 
-def _pair_type(a, b):
-    """Canonical relationship label for a role pair, or ``None`` if unrelated.
-
-    Distinguishes the relative *kinds* the single-``h2`` model lumps together —
-    notably ``full_sib`` and ``parent_offspring`` (both relatedness 0.5). Falls back
-    to grouping by relatedness (``rel_<A>``) for pairs outside the common set."""
-    A = get_relatedness(a, b, 1.0)
-    if A <= 0:
-        return None
+def _is_full_sib(a, b):
+    """Whether roles ``a`` and ``b`` are **full siblings** — the pairs the common-
+    environment component ``C`` loads on. Two cases: both in one sib-ship (proband
+    ``o`` and its sibs ``s1``, ``s2``, …), or a parent and their own sib (an
+    aunt/uncle). The relatedness guard rejects unrelated look-alikes (e.g. a mother
+    and a *paternal* aunt/uncle), which would otherwise match the parent/avuncular
+    test."""
+    if get_relatedness(a, b, 1.0) <= 0:
+        return False
 
     def full(p, x):
         return p.fullmatch(x) is not None
 
-    def one_each(p, q):
-        return (full(p, a) and full(q, b)) or (full(p, b) and full(q, a))
-
-    if full(_SIBSHIP, a) and full(_SIBSHIP, b):
-        return "full_sib"
-    if one_each(_PARENT, _AVUNC):                 # a parent and their sib
-        return "full_sib"
-    if one_each(_SIBSHIP, _PARENT) or one_each(_PARENT, _GRAND) \
-            or one_each(_GRAND, _AVUNC):
-        return "parent_offspring"
-    if one_each(_SIBSHIP, _GRAND):
-        return "grandparent"
-    if one_each(_SIBSHIP, _HALFSIB):
-        return "half_sib"
-    if one_each(_SIBSHIP, _AVUNC):
-        return "avuncular"
-    return f"rel_{A:g}"
+    both_sibship = full(_SIBSHIP, a) and full(_SIBSHIP, b)
+    parent_and_their_sib = ((full(_PARENT, a) and full(_AVUNC, b))
+                            or (full(_PARENT, b) and full(_AVUNC, a)))
+    return both_sibship or parent_and_their_sib
 
 
 @dataclass
@@ -188,7 +173,7 @@ _COMPONENT_OFFDIAG = {
     # additive relationship (2*kinship)
     "A": lambda a, b: get_relatedness(a, b, 1.0),
     # common (sibship) environment: shared by full sibs
-    "C": lambda a, b: 1.0 if _pair_type(a, b) == "full_sib" else 0.0,
+    "C": lambda a, b: 1.0 if _is_full_sib(a, b) else 0.0,
 }
 # Dominance ("D") is deliberately not offered: from sib-only pedigrees it is
 # identified only through the small full-sib excess beyond additive, so the
