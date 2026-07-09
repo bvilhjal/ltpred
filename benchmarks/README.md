@@ -12,10 +12,18 @@ speed:
 
 ```bash
 python benchmarks/bench_accuracy.py
+python benchmarks/bench_scaling.py
 OMP_NUM_THREADS=10 python benchmarks/bench_gwas_power.py
 ```
 
 Each script writes a `.csv` and (if matplotlib is present) a `.png`.
+
+**Runtime depends on your machine.** These reference numbers were taken on 10
+cores with Numba installed (`pip install -e ".[fast]"`); the first call in each
+script pays a one-off JIT compile. Expect substantially slower runs on fewer
+cores, on a cold JIT cache, or without Numba (the pure-Python fallback is
+numerically identical, just slower). Each script takes CLI flags (`--reps`,
+`--n-fam`, …) to trade runtime for precision.
 
 ## Scripts
 

@@ -84,11 +84,17 @@ effect, and a couple term can encode assortative mating between mates. Two payof
 
 The genetic target `g` still couples to relatives only through `h2 * A`, so it
 remains a *genetic* liability; the environmental terms only change how the
-relatives' liabilities are conditioned. In practice, the role-based
-`construct_covmat` currently builds only the additive-genetic `h2 * A` table, but
-the covariance-level entry points — `rtmvnorm_gibbs`, `pa_algorithm`,
-`pa_estimate_batched` — accept an **arbitrary covariance**, so you can assemble one
-with environmental components and pass it directly.
+relatives' liabilities are conditioned.
+
+This is a **low-level covariance interface, not yet a high-level
+`estimate_liability(..., c2=...)` option**: `construct_covmat` builds only the
+additive-genetic `h2 * A` table, and there is no user-facing shared-environment
+argument. To use environmental components today, assemble the covariance yourself
+(add `c2 * C` etc.) and pass it to a covariance-level entry point —
+`rtmvnorm_gibbs`, `pa_algorithm`, or `pa_estimate_batched` — which accept an
+arbitrary covariance directly. (Note this is separate from `fit_variance_components`,
+which *estimates* an `A + C` decomposition but does not yet feed a fitted `C` back
+into the liability estimator.)
 
 ## Connection to selection index and BLUP
 

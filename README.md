@@ -89,7 +89,10 @@ and the [guide](docs/guide.md#scaling-to-large-cohorts)).
 Not yet on PyPI. From a local checkout:
 
 ```bash
-pip install -e ."[fast,test]"
+git clone https://github.com/bvilhjal/ltpred.git
+cd ltpred
+pip install -e ".[fast,test]"
+pytest -q          # optional: confirm the install
 ```
 
 `numpy` and `scipy` are required. `[fast]` adds an optional **Numba** JIT for the
@@ -106,15 +109,17 @@ sim = simulate_under_LTM_single(
     fam_vec=["m", "f", "s1"], h2=0.5, pop_prev=0.05, n_sim=2000, seed=1,
 )
 
-# posterior mean genetic liability per proband — the LT-FH++ GWAS phenotype
-res = estimate_liability(sim.families, h2=0.5, out=("genetic",))
-res.est["genetic"]     # (n_families,) posterior means
-res.se["genetic"]      # matching Monte-Carlo standard errors
-
-# ...or the deterministic PA-FGRS estimator (no sampling, ~100x faster)
+# posterior mean genetic liability per proband — the LT-FH++ GWAS phenotype.
+# PA-FGRS is deterministic and fast; use it by default.
 pa = estimate_liability(sim.families, h2=0.5, method="pearson-aitken")
-pa.est["genetic"]      # posterior means (agree with Gibbs to ~1e-2)
-pa.var["genetic"]      # posterior variances; pa.se is 0 (deterministic)
+pa.est["genetic"]      # (n_families,) posterior means
+pa.var["genetic"]      # posterior variances (pa.se is 0 — deterministic)
+
+# ...or the Gibbs sampler (the exact LT-FH++ reference) as a cross-check.
+# Sampling is slower, so cross-check on a subset with a looser tolerance:
+gibbs = estimate_liability(sim.families[:200], h2=0.5, method="gibbs",
+                           tol=0.03, n_sim=25_000, burn_in=800, seed=1)
+gibbs.est["genetic"]   # agrees with PA to ~1e-2
 ```
 
 ### Bring your own data
@@ -176,19 +181,28 @@ choosing between the two methods, and using the score in a GWAS, see the
 
 ## Scope
 
-This first port covers the **core statistical engine**: role-based covariance
-construction, the threshold/age conversions, the Gibbs sampler, single- and
-multi-trait `estimate_liability`, and simulation. The peripheral LTFHPlus
-machinery (igraph-based flexible family-graph construction, ggplot plotting,
-xgboost heritability helpers) is not included.
+ltpred covers the **statistical engine end to end**: role-based *and* arbitrary-
+pedigree (`kinship_from_pedigree`) covariance construction, the threshold/age/CIP
+conversions, both estimators (Gibbs and PA-FGRS), single- and multi-trait
+`estimate_liability`, simulation, and **model fitting** — heritability
+(`fit_heritability`), variance components A+C (`fit_variance_components`), genetic
+correlation (`fit_genetic_correlation`), bootstrap CIs (`bootstrap_fit`) and h²
+sensitivity (`liability_sensitivity`).
+
+Not included: an igraph-style pedigree-object interface, plotting utilities, and
+the xgboost heritability helpers from LTFHPlus; and ltpred does not build LD or run
+the GWAS itself (it produces the family-history liability phenotype you feed to
+one).
 
 ## Benchmarks
 
 [`benchmarks/`](benchmarks/) compares the two fitting methods on simulated data
 (accuracy, runtime scaling, age-of-onset information, and genotype-based GWAS
-power), inspired by the LT-FH++, ADuLT and PA-FGRS papers. Headline: PA-FGRS
-reproduces the Gibbs LT-FH++ posterior mean (corr ≥ 0.997, identical 1.52× GWAS
-effective-N gain over case/control) while running **100–360× faster**. See
+power), inspired by the LT-FH++, ADuLT and PA-FGRS papers. Headline: PA-FGRS is a
+deterministic moment approximation (exact for a single truncation) that, on the
+benchmarked family structures, matches the Gibbs LT-FH++ posterior mean to
+corr ≥ 0.997 with the same 1.52× GWAS effective-N gain over case/control — while
+running **100–360× faster**. See
 [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md); real-LD runs use
 [HAPNEST](benchmarks/hapnest/README.md) genotypes (opt-in).
 

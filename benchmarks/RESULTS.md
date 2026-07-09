@@ -23,9 +23,10 @@ Summary of the ltpred benchmark suite, comparing the two fitting methods — the
 
 ## Headline findings
 
-- **PA-FGRS reproduces the Gibbs LT-FH++ posterior mean.** Across all 27
-  accuracy cells the two estimates correlate **≥ 0.997** (usually ≥ 0.999), and
-  in the genotype GWAS they give the **same** effective sample size (1.52×).
+- **PA-FGRS closely matches the Gibbs LT-FH++ posterior mean.** It is a
+  deterministic moment approximation (exact for a single truncation); across all 27
+  accuracy cells the two estimates correlate **≥ 0.997** (usually ≥ 0.999), and in
+  the genotype GWAS they give the **same** effective sample size (1.52×).
 - **PA-FGRS is 100–350× faster** — a deterministic sweep with no MCMC —
   processing **~170 000 families/second** vs ~700/s for the Gibbs sampler, at
   identical accuracy. (Via the object API; the array API removes the remaining

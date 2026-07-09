@@ -29,9 +29,27 @@ The output is the posterior mean genetic liability of each proband. Feeding it t
 a linear-regression GWAS is the canonical use (LT-FH++ / ADuLT); it also stands
 alone as a pedigree-based genetic risk score (PA-FGRS).
 
-Do **not** expect ltpred to build LD, run the GWAS, or estimate `h²` for you —
-those are upstream/downstream steps. It also does not (yet) read pedigree graphs;
-you describe each family by a fixed vocabulary of relationship **roles** (below).
+ltpred does not build LD or run the GWAS itself — those are upstream/downstream
+steps. It **does** estimate `h²` from the family data (`fit_heritability`) when you
+don't have an external value.
+
+Families can be supplied two ways: the compact **role grammar** (`o`, `m`, `f`,
+`s1`, …) for common nuclear/extended structures, or a **kinship / relationship-
+matrix** path (`kinship_from_pedigree`, `estimate_liability_from_kinship`) for
+arbitrary pedigrees — deeper trees, cousins, inbreeding, non-standard structures.
+The role grammar is fastest and simplest; the kinship path is the general case.
+ltpred does not yet include an igraph-style pedigree-object interface or the
+LTFHPlus plotting utilities.
+
+**Which path to run:**
+
+| use case | bounds builder | estimator | notes |
+|---|---|---|---|
+| toy / simulation, no age | `prevalence_thresholds` | PA or Gibbs | classic LT-FH |
+| age-of-onset (LT-FH++ / ADuLT) | `age_thresholds`, or `thresholds_from_cip(…, case_mode="pin")` | Gibbs (PA without mixture as an approximation) | cases pinned at the onset threshold |
+| PA-FGRS with censoring | `pa_thresholds`, or `thresholds_from_cip(…, case_mode="interval")` | `method="pearson-aitken"`, `use_mixture=True` | conservative case intervals; censored-control mixture |
+| real register analysis | `thresholds_from_cip` (empirical, per stratum) | usually PA | **not** the logistic demo CIP |
+| multiple traits | vector `h2` + `genetic_corrmat` + `full_corrmat` | Gibbs only | PA multi-trait not implemented |
 
 ## Inputs
 
@@ -146,6 +164,40 @@ uninformative).
 > K_pop` — use it instead of the logistic builders for real data. CIPs from an
 > ascertained biobank sample, or that ignore competing risks (death, emigration),
 > can bias the estimate.
+
+#### A real register-data recipe
+
+The end-to-end path for register data uses your **own** cumulative-incidence curve
+(not the logistic demo), one call to `thresholds_from_cip` per stratum, and PA:
+
+```python
+from ltpred import thresholds_from_cip, families_from_columns, estimate_liability
+
+# Per sex / birth-cohort / ancestry stratum, with that stratum's CIP curve
+# (cip_ages ascending, cip_values the cumulative incidence at each age):
+lower, upper, K_i, K_pop = thresholds_from_cip(
+    status=status, age=age,               # 1=case; onset age (cases) / follow-up age (controls)
+    cip_ages=cip_ages, cip_values=cip_values,
+    k_pop=lifetime_prevalence,            # stratum lifetime prevalence (defaults to max CIP)
+    case_mode="interval",                 # PA-FGRS case encoding ("pin" = ADuLT/LT-FH++)
+)
+families = families_from_columns(
+    fam_id=fam_id, role=role, lower=lower, upper=upper,
+    K_i=K_i, K_pop=K_pop,                 # carry the mixture inputs
+)
+res = estimate_liability(families, h2=0.05, method="pearson-aitken",
+                         use_mixture=True, out=("genetic",))
+```
+
+Key points:
+
+- `case_mode="pin"` is the ADuLT / LT-FH++ onset-pinned encoding; `case_mode="interval"`
+  (default) is the conservative PA-FGRS interval encoding.
+- `use_mixture=True` only makes sense when `K_i` / `K_pop` are supplied (from
+  `pa_thresholds` or `thresholds_from_cip`); it is the age-censored-control correction.
+- Estimate the **CIP outside ltpred** from population-representative register data,
+  stratified by sex, birth cohort, ancestry and calendar period, and accounting for
+  competing risks — then pass one stratum's curve per call.
 
 ### Getting `h²` on the liability scale
 
@@ -386,6 +438,18 @@ in practice ~100× faster than the object path at large `N` (and
 Control the thread count with `ltpred.set_num_threads(n)`, and warm up once (the
 first call JIT-compiles) before timing. Different family structures still need
 separate array calls (one covariance each); the object API groups them for you.
+
+**Shape contract.** `roles` is a length-`k` list (`"o"` + relatives; `g` is added
+internally); `lower` and `upper` are both `(n_families, k)`, column `j` aligned to
+`roles[j]`. A relative that is **absent or uninformative** for a given family is
+encoded as the full real line — `lower = -np.inf`, `upper = np.inf` — so every row
+carries the same `k` columns even when some relatives are missing:
+
+```python
+roles = ["o", "m", "f", "s1"]
+assert lower.shape == upper.shape == (n_families, len(roles))
+lower[i, 2], upper[i, 2] = -np.inf, np.inf     # family i's father unobserved
+```
 
 **Memory: `dtype=np.float32`.** The memory that scales at biobank size is the
 per-family `(n_families, len(roles))` bounds (`lower`/`upper`, and `K_i`/`K_pop`),
