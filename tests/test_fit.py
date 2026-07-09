@@ -270,3 +270,19 @@ def test_genetic_correlation_test_detects_rg():
     assert r.null.shape == (25,)
     assert 0.0 < r.p_value <= 1.0
     assert r.p_value < 0.2                          # real r_g -> significant
+
+
+def test_variance_components_reml_matches_and_has_modelbased_se():
+    # REML point estimate agrees with HE; its se is a model-based SE (~ the true
+    # across-dataset SD ~0.05), far larger than HE's within-dataset MC error.
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
+                                    n_sim=2000, pop_prev=0.1, seed=7)
+    he = fit_variance_components(sim.families, ("A",), method="he",
+                                 n_iter=400, burn_in=120, seed=1)
+    reml = fit_variance_components(sim.families, ("A",), method="reml",
+                                   n_iter=400, burn_in=120, seed=1)
+    assert reml.components["A"] == pytest.approx(he.components["A"], abs=0.06)
+    assert reml.se["A"] > 5 * he.se["A"]                # model-based >> within-dataset MC
+    assert 0.01 < reml.se["A"] < 0.15                   # in the plausible sampling-SD range
+    with pytest.raises(ValueError, match="method"):
+        fit_variance_components(sim.families, ("A",), method="bogus", n_iter=50, burn_in=10)

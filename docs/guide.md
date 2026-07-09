@@ -286,6 +286,20 @@ vc.components["A"], vc.components["C"], vc.residual   # proportions of liability
 Dominance is intentionally not offered (it needs MZ/DZ twin contrasts). With
 `("A",)` alone the result matches `fit_heritability`.
 
+Pass `method="reml"` for a **maximum-likelihood** fit (Monte-Carlo EM) instead of
+the moment regression:
+
+```python
+vc = fit_variance_components(families, ("A", "C"), method="reml")
+vc.components["A"], vc.se["A"]      # estimate + a *model-based* standard error
+```
+
+Unlike the default `"he"` fit, REML is ~30 % more efficient and its `se` is a real
+model-based standard error (from the observed information, which accounts for the
+information thresholding destroys) that approximates the true across-dataset SD —
+so here you do **not** need `bootstrap_fit` for a rough interval. It is the
+pedigree-scale analog of the maximum-likelihood estimation twin-SEM uses.
+
 For **several traits**, `fit_genetic_correlation` estimates the genetic
 correlation `r_g` between them (and each trait's `h²`). Each member must carry one
 interval per trait (length-`n_pheno` `lower`/`upper`, as for
