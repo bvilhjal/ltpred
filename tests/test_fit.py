@@ -229,6 +229,112 @@ def _sim_ac(fam, a2, c2, n, seed, prev=0.1):
             for i in range(n)]
 
 
+def _sim_vc(fam, props, n, seed, prev=0.1):
+    """Families under liab = sum_c sqrt(props[c]) * N(0, K_c) + e, thresholded at
+    prevalence ``prev``. ``props`` maps a component ('A', 'C', 'M') to its variance
+    proportion; the residual ``e2 = 1 - sum(props)``."""
+    import numpy as np
+    from ltpred.covariance import correct_positive_definite
+    from ltpred.thresholds import liability_threshold
+    from ltpred.fit import _component_matrix
+    tot = sum(props.values())
+    Sig = (1.0 - tot) * np.eye(len(fam))
+    for c, v in props.items():
+        if v > 0:
+            Sig = Sig + v * _component_matrix(fam, c)
+    Sig, _ = correct_positive_definite(Sig)
+    rng = np.random.default_rng(seed)
+    L = rng.multivariate_normal(np.zeros(len(fam)), Sig, size=n)
+    t = float(liability_threshold(prev))
+    return [Family(i, [Member(r, (t if L[i, c] > t else -np.inf),
+                              (np.inf if L[i, c] > t else t)) for c, r in enumerate(fam)])
+            for i in range(n)]
+
+
+def test_is_mates_predicate():
+    from ltpred.fit import _is_mates
+    assert _is_mates("m", "f") and _is_mates("f", "m")
+    assert _is_mates("mgm", "mgf") and _is_mates("pgm", "pgf")
+    # not mates: a parent and a grandparent, two sibs, an unrelated cross-couple
+    assert not _is_mates("m", "mgm")
+    assert not _is_mates("s1", "s2")
+    assert not _is_mates("m", "pgf")
+    assert not _is_mates("o", "m")
+
+
+def test_component_matrix_rejects_non_psd(monkeypatch):
+    # a bogus "vertical" environment shared by parent-offspring pairs chains across
+    # generations (o-m and m-mgm share, but o-mgm do not) -> non-PSD -> rejected.
+    from ltpred.fit import _component_matrix, _COMPONENT_OFFDIAG
+
+    def vertical(a, b):
+        chain = {frozenset({"o", "m"}), frozenset({"m", "mgm"})}
+        return 1.0 if frozenset({a, b}) in chain else 0.0
+
+    monkeypatch.setitem(_COMPONENT_OFFDIAG, "V", vertical)
+    with pytest.raises(ValueError, match="positive-semidefinite"):
+        _component_matrix(["o", "m", "mgm"], "V")
+    # the two supported environment components are valid (PSD) partitions
+    for comp in ("C", "M"):
+        K = _component_matrix(["o", "s1", "m", "f", "mgm", "mgf"], comp)
+        assert np.min(np.linalg.eigvalsh(K)) > -1e-8
+
+
+def test_variance_components_recovers_couple_env():
+    # additive + couple (spousal) environment: M loads on the genetically-unrelated
+    # mate pairs (m,f), (mgm,mgf), (pgm,pgf); A on the related pairs. The HE
+    # regression separates them because mates have A=0.
+    fam = ["o", "m", "f", "mgm", "mgf", "pgm", "pgf"]
+    fams = _sim_vc(fam, {"A": 0.4, "M": 0.2}, 3500, seed=11)
+    r = fit_variance_components(fams, ("A", "M"), n_iter=800, burn_in=250, seed=1)
+    assert 0.28 < r.components["A"] < 0.52          # true 0.40
+    assert 0.10 < r.components["M"] < 0.32          # true 0.20 (not collapsed / absorbed)
+    assert r.residual == pytest.approx(1.0 - 0.4 - 0.2, abs=0.12)
+
+
+def test_variance_components_no_spurious_couple_env():
+    # purely additive data -> M should stay near 0 (no spurious couple environment)
+    fam = ["o", "m", "f", "mgm", "mgf", "pgm", "pgf"]
+    fams = _sim_vc(fam, {"A": 0.5}, 3500, seed=12)
+    r = fit_variance_components(fams, ("A", "M"), n_iter=700, burn_in=200, seed=1)
+    assert r.components["M"] < 0.10                 # true 0.0
+    assert 0.38 < r.components["A"] < 0.62          # true 0.50, unbiased by fitting M
+
+
+def test_variance_components_couple_env_needs_mate_pairs():
+    # M is identified only from mate pairs; a sib-only structure has none -> singular
+    fams = _sim_vc(["o", "s1", "s2"], {"A": 0.5}, 400, seed=13)
+    with pytest.raises(ValueError, match="not identified"):
+        fit_variance_components(fams, ("A", "M"), n_iter=100, burn_in=30)
+
+
+def test_variance_components_joint_A_C_M_identified():
+    # a 3-generation pedigree identifies all three at once: A from the related pairs,
+    # C from the full-sib excess (o,s1,s2), M from the mate pairs (m,f)/(mgm,mgf).
+    fam = ["o", "s1", "s2", "m", "f", "mgm", "mgf"]
+    fams = _sim_vc(fam, {"A": 0.35, "C": 0.2, "M": 0.15}, 4000, seed=14)
+    r = fit_variance_components(fams, ("A", "C", "M"), n_iter=900, burn_in=300, seed=1)
+    for comp in ("A", "C", "M"):
+        assert r.components[comp] > 0.03            # none collapsed to the boundary
+    assert 0.20 < r.components["A"] < 0.55          # true 0.35
+    assert r.components["C"] < 0.40 and r.components["M"] < 0.40
+    assert r.residual == pytest.approx(1.0 - 0.7, abs=0.15)
+
+
+def test_component_test_accepts_M():
+    # the significance test accepts 'M' (couple env) and rejects 'A' / 'D'
+    from ltpred import test_variance_component
+    fam = ["o", "m", "f", "mgm", "mgf"]
+    fams = _sim_vc(fam, {"A": 0.4, "M": 0.2}, 800, seed=15)
+    r = test_variance_component(fams, "M", n_boot=10, seed=1, n_iter=250, burn_in=80)
+    assert r.label == "M proportion > 0"
+    assert r.null.shape == (10,)
+    assert 0.0 < r.p_value <= 1.0
+    for bad in ("A", "D"):
+        with pytest.raises(ValueError, match="non-additive component"):
+            test_variance_component(fams, bad, n_boot=3)
+
+
 def test_component_test_detects_real_C():
     from ltpred import test_variance_component
     fams = _sim_ac(["m", "f", "s1", "s2", "s3", "s4"], 0.4, 0.2, 1500, 1)

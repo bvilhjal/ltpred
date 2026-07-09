@@ -159,10 +159,10 @@ choosing between the two methods, and using the score in a GWAS, see the
 | `estimate_liability_pa` | deterministic PA-FGRS estimator |
 | `estimate_liability_pa_arrays` / `_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
 | `fit_heritability` | **fit** liability-scale h² from family data (data-augmentation Gibbs) |
-| `fit_variance_components` | **fit** additive `A` + common-environment `C` proportions (multiple HE regression) |
+| `fit_variance_components` | **fit** additive `A` + shared-environment components `C` (sibship) / `M` (couple) as proportions (multiple HE regression) |
 | `fit_genetic_correlation` | **fit** the genetic correlation `r_g` between traits (cross-trait HE regression) |
 | `bootstrap_fit` | family-resampling bootstrap SE / CI for any of the fitters (honest uncertainty) |
-| `test_variance_component` / `test_genetic_correlation` | parametric-bootstrap significance test (is `C` / `r_g` non-zero?) |
+| `test_variance_component` / `test_genetic_correlation` | parametric-bootstrap significance test (is `C` / `M` / `r_g` non-zero?) |
 | `set_num_threads` | set the Numba-parallel thread count |
 | `pa_algorithm` / `pa_estimate_batched` | Pearson–Aitken selection updates |
 | `tnorm_moments` / `tnorm_mixture_conditional` | truncated-normal moments (+ censoring mixture) |

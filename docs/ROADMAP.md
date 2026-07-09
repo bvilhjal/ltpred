@@ -27,13 +27,16 @@ why int8-quantising the covariance, ldpred3-style, is the wrong lever here.)
 
 **Variance-component fitting.** `fit_heritability` is a data-augmentation Gibbs
 (Haseman–Elston update), validated unbiased across h² 0.2–0.8.
-`fit_variance_components` fits additive `A` and common-environment `C` together
-by a **multiple Haseman–Elston regression** on the same well-mixing collapsed
-data-augmentation — validated unbiased for `A` and `A+C` across family
-structures, with negligible false-positive `C`. (This replaced an earlier
-experimental Bayesian animal-model Gibbs, which mixed poorly and showed
-structure-dependent bias. Dominance `D` is intentionally not offered — it needs
-MZ/DZ twin contrasts to estimate honestly.) `fit_genetic_correlation` estimates
+`fit_variance_components` fits additive `A` and a **bank of relationship-specific
+shared-environment components** — `C` (sibship, from the full-sib excess) and `M`
+(couple, from the `A = 0` mate pairs) — together by a **multiple Haseman–Elston
+regression** on the same well-mixing collapsed data-augmentation, validated
+unbiased for `A`, `A+C` and `A+M` across family structures, with negligible
+false-positive `C`/`M`. Environment components are validated to be equivalence-class
+(PSD) partitions, so a non-PSD vertical parent-offspring "environment" is rejected.
+(This replaced an earlier experimental Bayesian animal-model Gibbs, which mixed
+poorly and showed structure-dependent bias. Dominance `D` is intentionally not
+offered — it needs MZ/DZ twin contrasts to estimate honestly.) `fit_genetic_correlation` estimates
 the **genetic correlation `r_g`** between traits by the cross-trait analogue of
 the same regression — validated ~unbiased near the null with mild attenuation at
 large `|r_g|`.
@@ -115,16 +118,23 @@ likelihood-based inference) to the pedigree/registry setting.
   fit `G ≈ ΛΛ' + Ψ` to the estimated genetic covariance — does one genetic factor
   explain the `r_g` among traits?
 
-- **Relationship-specific environmental components.** Generalise the single `C` to
-  a bank of environments (full-sib, couple/household, mother–/father–offspring,
-  cousin, …), fitted jointly. The fit and rank-deficiency guard are already
-  N-component; the work is defining the extra pair-indicator matrices in
-  `_COMPONENT_OFFDIAG` and lifting the `{A, C}` restriction. The binding constraint
-  is identifiability — #components ≤ #distinct relationship contrasts — so this
-  pays off on **extended registry pedigrees**, not nuclear families (see
-  algorithm.md, *Relationship-specific environments and identifiability*). Note the
-  caveats there: symmetric shared-environment ≠ directional maternal effect, and an
-  environment `∝ A` is confounded with `h2`.
+- **Relationship-specific environmental components.** *Partly done.* The single `C`
+  is now a **bank**: `_COMPONENT_OFFDIAG` ships `C` (full-sib / sibship) and `M`
+  (couple / spousal, identified from the `A = 0` mate pairs), fitted jointly with
+  `A` by `fit_variance_components(fams, ("A", "C", "M"))` and testable with
+  `test_variance_component(fams, "M")`. Each environment component must be a valid
+  **equivalence-class partition** (PSD `K_c`); the fitter now rejects one that is
+  not — which rules out a naive **vertical** parent-offspring "environment" (its
+  sharing chains across generations, so `K_c` is indefinite; that is the directional
+  maternal-effect case below, not a symmetric variance component). Remaining bank
+  ideas that *are* valid partitions: a maternal-lineage rearing environment
+  (full-sibs + maternal half-sibs) and cousin environments — each needs the
+  matching relative types present. The binding constraint stays identifiability —
+  #components ≤ #distinct relationship contrasts — so extra components pay off on
+  **extended registry pedigrees**, not nuclear families (see algorithm.md,
+  *Relationship-specific environments and identifiability*). Note the caveats there:
+  symmetric shared-environment ≠ directional maternal effect, and an environment
+  `∝ A` is confounded with `h2`.
 
 ## Medium-term — rigor and real data
 

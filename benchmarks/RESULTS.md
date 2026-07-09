@@ -230,6 +230,45 @@ true `g`) — i.e. how well the score predicts the genetic value. h²=0.5, preva
   practical value of fitting `C` is getting **h² and its interpretation right**
   (and hence calibration), not sharpening the per-person score.
 
+## 9. Couple / spousal environment `M` (`bench_couple_env.py`)
+
+`fit_variance_components` fits a **bank** of shared-environment components. Besides
+sibship `C` it ships `M`, a couple/spousal environment that loads on the
+genetically-unrelated mate pairs — the proband's parents `(m, f)` and the
+grandparent couples. Families simulated from `a² A + s² K + e² I` (thresholded, so
+ground truth is known), true `a²=0.4`, prevalence 0.10, structure
+`o+s1+s2+m+f+mgm+mgf+pgm+pgf`, 25 replicate cohorts × 3 000 families.
+
+**(a) `A+M` recovery** (mean fitted, bias in parentheses, across-cohort SD):
+
+| true `m²` | `Â` (bias) | SD | `M̂` (bias) | SD |
+|---:|---:|---:|---:|---:|
+| 0.0 | 0.394 (−0.006) | 0.031 | 0.017 (+0.017) | 0.014 |
+| 0.1 | 0.395 (−0.005) | 0.027 | 0.096 (−0.004) | 0.029 |
+| 0.2 | 0.400 (+0.000) | 0.032 | 0.205 (+0.005) | 0.042 |
+| 0.3 | 0.387 (−0.013) | 0.029 | 0.293 (−0.007) | 0.038 |
+
+**(b) Bias in the additive-only `Â` from ignoring shared environment** — the *same*
+variance `s²` placed once as `C` (sibship) and once as `M` (couple), then fit the
+misspecified `("A",)` model:
+
+| true `s²` | ignore `C` → `Â` (bias) | ignore `M` → `Â` (bias) |
+|---:|---:|---:|
+| 0.1 | 0.447 (**+0.047**) | 0.407 (+0.007) |
+| 0.2 | 0.492 (**+0.092**) | 0.420 (+0.020) |
+| 0.3 | 0.547 (**+0.147**) | 0.430 (+0.030) |
+
+- **`A+M` is recovered unbiased** across the sweep (biases ≤ 0.013, within one
+  across-cohort SD), with **no spurious `M`** at the null (`M̂=0.017`, a small
+  boundary floor, not a manufactured component).
+- **`C` and `M` bias heritability oppositely if omitted.** Ignoring a real sibship
+  `C` inflates `Â` substantially and ~linearly in `s²` (up to +0.15 at `s²=0.3`,
+  a 37 % over-estimate) because sibs share both genes and `C`; ignoring a real
+  couple `M` barely moves `Â` (≤ +0.03, ~5× smaller) because mates are genetically
+  unrelated (`A=0`) and carry ~no weight in the additive regression. So `M` is
+  worth fitting to **quantify / test spousal resemblance** (shared environment or
+  assortative mating, which parent data cannot separate), not to de-bias `h²`.
+
 ## Bottom line
 
 PA-FGRS is a drop-in, deterministic replacement for the LT-FH++ Gibbs sampler:
@@ -239,7 +278,7 @@ faster. Use `method="pearson-aitken"` for large biobank-scale runs and
 
 `fit_heritability` recovers liability-scale h² approximately without bias (SD
 ~0.05 at a few thousand informative families); `fit_variance_components` adds a
-common-environment `C` (unbiased, negligible false positives) and
-`fit_genetic_correlation` recovers the genetic correlation `r_g` between traits
-(unbiased near the null). Report their uncertainty by bootstrapping families, not
-from the reported `se`.
+bank of shared-environment components — sibship `C` and couple `M` (both unbiased,
+negligible false positives) — and `fit_genetic_correlation` recovers the genetic
+correlation `r_g` between traits (unbiased near the null). Report their uncertainty
+by bootstrapping families, not from the reported `se`.

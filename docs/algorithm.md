@@ -107,10 +107,20 @@ shared by mates, mother– or father–offspring environments, a cousin environm
 Cov(l_i, l_j) = h2 A_ij + sum_c c2_c K_c[i,j] ,   K_c[i,j] = 1 if i, j share environment c
 ```
 
-`fit_variance_components` already estimates an arbitrary set of components
-**jointly** (multiple HE regression, or ML with `method="reml"`); a joint fit
-partials out the overlap between components, whereas fitting each alone
-double-counts. Adding a component is adding a column to the design.
+`fit_variance_components` estimates a set of components **jointly** (multiple HE
+regression, or ML with `method="reml"`); a joint fit partials out the overlap
+between components, whereas fitting each alone double-counts. The shipped bank is
+`A` (additive genetic), `C` (full-sib / sibship environment, identified from the
+full-sib excess) and `M` (couple / spousal environment, identified from the `A = 0`
+mate pairs — the parents and the grandparent couples); `M` captures spousal
+resemblance from shared environment *or* assortative mating, which parent data
+alone cannot separate. Each environment component must be a valid
+**equivalence-class partition** (a group of relatives fully sharing one deviation),
+so its `K_c` is positive-semidefinite; the fitter rejects a component whose `K_c`
+is not (e.g. a vertical parent-offspring "environment" — see caution (i)). Adding a
+valid component is adding a column to the design; e.g.
+`fit_variance_components(fams, ("A", "C", "M"))` fits all three at once given a
+3-generation pedigree.
 
 **The binding constraint is identifiability, not the estimator.** Each relative
 *type* yields a single covariance `h2 A_ij + sum_c c2_c K_c[i,j]`, so the data
@@ -379,12 +389,23 @@ draws the liabilities from the full family truncated-MVN under
 [h2_c] = (X'X)^-1 X'y ,   X[pair, c] = K_c[i,j] ,   y[pair] = l_i l_j ,
 ```
 
-with the same cross-sweep damping. Fitting additive `A` together with a
-common-environment `C` works because they load on *different* relationship
+with the same cross-sweep damping. Fitting additive `A` together with the
+environment components works because they load on *different* relationship
 contrasts — `A` is pinned by the parent-offspring / grandparent / avuncular
-relatednesses, `C` by the full-sib excess — so `C` needs full-sib pairs to be
-identified (the design is otherwise rank-deficient and the fit raises). Validated
-unbiased for `A` and `A+C` across family structures. A **dominance** component is
+relatednesses, `C` by the full-sib excess, `M` by the resemblance between the
+genetically-unrelated mates — so each needs its identifying pairs (`C` full-sib
+pairs, `M` mate pairs); the design is otherwise rank-deficient and the fit raises.
+Validated unbiased for `A`, `A+C` and `A+M` across family structures. Note the two
+shared-environment components differ in how they bias `A` if omitted: ignoring a
+real `C` inflates `A` (sibs share both, so sib resemblance is over-credited to
+genes), whereas ignoring `M` leaves `A` **essentially unbiased** — mates have
+`A = 0`, so they carry no weight in the additive regression (a small residual can
+remain from imputing under the misspecified model). In `bench_couple_env` (3000
+families, true `a² = 0.4`) the same shared-environment variance inflates the
+additive-only `Â` by ≈ +0.05, +0.09, +0.15 as `s²` runs 0.1 → 0.2 → 0.3 when it is
+`C`, but only ≈ +0.01, +0.02, +0.03 when it is `M`. So `M` is worth fitting for its
+own sake (quantifying/testing spousal resemblance) rather than to de-bias `h²`. A
+**dominance** component is
 deliberately not offered: from sib-only pedigrees it is identified only through
 the small full-sib excess beyond additive, so the non-negativity constraint
 biases it upward (a spurious `D` even on purely additive data); it needs MZ-vs-DZ

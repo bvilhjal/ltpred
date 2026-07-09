@@ -37,6 +37,7 @@ numerically identical, just slower). Each script takes CLI flags (`--reps`,
 | `bench_variance_components.py` | multi-component inference: recovery of additive `A` and common-environment `C` by `fit_variance_components` (bias & across-dataset SD), the false-positive `C` on purely additive data, and precision vs #families (→ `bench_variance_components.{csv,png}`) |
 | `bench_genetic_correlation.py` | genetic-correlation inference: bias & across-dataset SD of `r_g` from `fit_genetic_correlation` vs the true value — including the null (`r_g=0` with non-zero phenotypic correlation) — and precision vs #families (→ `bench_genetic_correlation.{csv,png}`) |
 | `bench_shared_env.py` | value of modelling shared environment `C`: corr(genetic-liability estimate, true genetic liability) when families are simulated under `A+C+E`, comparing ignore-C (additive) vs fit-`A+C` vs oracle, swept over `c²` and sib-ship size (→ `bench_shared_env.{csv,png}`) |
+| `bench_couple_env.py` | the couple/spousal environment `M`: recovery of `A+M` (bias & across-dataset SD, no spurious `M` at `m²=0`), and the identifiability contrast — ignoring a real `C` inflates additive-only `Â` while ignoring a real `M` leaves it essentially unbiased (mates have `A=0`) (→ `bench_couple_env.{csv,png}`) |
 
 `_common.py` holds the shared simulation, estimation, GWAS and plotting helpers,
 plus a minimal PLINK `.bed` reader for the HAPNEST path.

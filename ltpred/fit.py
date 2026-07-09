@@ -24,10 +24,17 @@ variance-component estimate from pedigree affection data.
 :func:`fit_heritability` fits the single additive component. :func:`fit_variance_components`
 generalises the same data-augmentation to several components via a **multiple**
 Haseman-Elston regression (regressing the sampled cross-products on more than one
-relationship matrix at once), fitting additive ``A`` and common-environment ``C``
-together. Both reuse the well-mixing collapsed truncated-MVN draw and are
-validated unbiased; a separate dominance component would need contrasting
-relative types (MZ vs DZ twins) and is not offered.
+relationship matrix at once), fitting additive ``A`` alongside a **bank of
+relationship-specific shared-environment components** — ``C`` (full-sib / sibship
+environment) and ``M`` (couple / spousal environment) — chosen from
+``_COMPONENT_OFFDIAG``. Each environment component is an equivalence-class
+partition of the pedigree (a group of relatives who fully share one environmental
+deviation), so its relationship matrix is positive-semidefinite by construction;
+different components load on **different relationship contrasts** (``C`` on the
+full-sib excess, ``M`` on the resemblance between genetically-unrelated mates), so
+a multi-generational pedigree can identify several at once. All reuse the
+well-mixing collapsed truncated-MVN draw and are validated unbiased; a dominance
+component would need contrasting relative types (MZ vs DZ twins) and is not offered.
 """
 
 from __future__ import annotations
@@ -70,6 +77,21 @@ def _is_full_sib(a, b):
     parent_and_their_sib = ((full(_PARENT, a) and full(_AVUNC, b))
                             or (full(_PARENT, b) and full(_AVUNC, a)))
     return both_sibship or parent_and_their_sib
+
+
+# genetically-unrelated cohabiting couples in the role grammar; each is a mate
+# pair that may share a couple/spousal environment (the ``M`` component).
+_MATES = frozenset({frozenset({"m", "f"}), frozenset({"mgm", "mgf"}),
+                    frozenset({"pgm", "pgf"})})
+
+
+def _is_mates(a, b):
+    """Whether roles ``a`` and ``b`` are a **mate pair** — the genetically-unrelated
+    couples the couple-environment component ``M`` loads on: the proband's parents
+    (``m``, ``f``) and the maternal/paternal grandparents (``mgm``/``mgf``,
+    ``pgm``/``pgf``). Because mates share no DNA (``A_ab = 0``), their liability
+    resemblance is not attributed to ``A`` — ``M`` captures it instead."""
+    return frozenset({a, b}) in _MATES
 
 
 @dataclass
@@ -176,23 +198,34 @@ _COMPONENT_OFFDIAG = {
     "A": lambda a, b: get_relatedness(a, b, 1.0),
     # common (sibship) environment: shared by full sibs
     "C": lambda a, b: 1.0 if _is_full_sib(a, b) else 0.0,
+    # couple (spousal) environment: shared by genetically-unrelated mates
+    "M": lambda a, b: 1.0 if _is_mates(a, b) else 0.0,
 }
-# Dominance ("D") is deliberately not offered: from sib-only pedigrees it is
-# identified only through the small full-sib excess beyond additive, so the
-# non-negativity constraint biases it upward (real D over-estimated, and a
-# spurious D appears on purely-additive data). It needs contrasting relative
-# types (MZ vs DZ twins) to estimate honestly -- out of scope for the fixed
-# role grammar here.
+# The environment components (``C``, ``M``, and any future addition) are each an
+# **equivalence-class partition**: a set of relatives who fully share one
+# environmental deviation (sib-ship for ``C``, couple for ``M``), so the off-diagonal
+# indicator matrix is positive-semidefinite and corresponds to a proper variance
+# component. A *vertical* / parent-offspring "shared environment" is deliberately
+# not offered because it is not an equivalence relation (parent-offspring
+# cohabitation chains across generations), so its indicator matrix is not PSD and
+# would be a mis-specified component -- :func:`_component_matrix` guards against it.
+#
+# Dominance ("D") is likewise not offered: from sib-only pedigrees it is identified
+# only through the small full-sib excess beyond additive, so the non-negativity
+# constraint biases it upward (real D over-estimated, and a spurious D appears on
+# purely-additive data). It needs contrasting relative types (MZ vs DZ twins) to
+# estimate honestly -- out of scope for the fixed role grammar here.
 
 
 @dataclass
 class VarCompResult:
     """Result of :func:`fit_variance_components`.
 
-    ``components`` maps each fitted component (``"A"`` additive, ``"C"`` common
-    environment) to its estimated **proportion** of the liability variance;
-    ``residual`` is the remaining ``e2``. So ``A`` is the (narrow-sense)
-    heritability. ``se`` is the within-dataset Monte-Carlo error per component
+    ``components`` maps each fitted component (``"A"`` additive, ``"C"`` sibship
+    common environment, ``"M"`` couple/spousal environment) to its estimated
+    **proportion** of the liability variance; ``residual`` is the remaining ``e2``.
+    So ``A`` is the (narrow-sense) heritability. ``se`` is the within-dataset
+    Monte-Carlo error per component
     (same caveat as :class:`FitResult` — it is the MC error of this one fit, not
     the across-dataset sampling SD, so it under-states the real uncertainty;
     bootstrap families for a genuine CI). ``traces`` are the post-burn-in
@@ -217,13 +250,26 @@ class VarCompResult:
 
 
 def _component_matrix(roles, comp):
-    """Relationship matrix ``K`` for one variance component (diagonal 1)."""
+    """Relationship matrix ``K`` for one variance component (diagonal 1).
+
+    A valid variance component has a positive-semidefinite ``K`` (the additive
+    relationship is PSD for any consistent pedigree; a shared-environment component
+    is PSD when it is a proper equivalence-class partition). A non-PSD ``K`` — e.g. a
+    vertical parent-offspring "environment" whose sharing chains across generations —
+    is not a proper component and would be silently distorted downstream by
+    :func:`~ltpred.covariance.correct_positive_definite`, so it is rejected here."""
     off = _COMPONENT_OFFDIAG[comp]
     k = len(roles)
     K = np.eye(k)
     for i in range(k):
         for j in range(i + 1, k):
             K[i, j] = K[j, i] = off(roles[i], roles[j])
+    if np.min(np.linalg.eigvalsh(K)) < -1e-8:
+        raise ValueError(
+            f"component {comp!r} does not yield a positive-semidefinite relationship "
+            "matrix for these roles — it is not a proper variance component (a "
+            "shared-environment component must be an equivalence-class partition; "
+            "vertical parent-offspring environments are not).")
     return K
 
 
@@ -280,16 +326,30 @@ def fit_variance_components(families, components=("A", "C"), *, method="he",
         [h2_c] = (X'X)^-1 X'y ,   X[p, c] = K_c[i, j] ,   y[p] = l_i l_j ,
 
     damped across sweeps for stability. Unlike a single-``h2`` fit this separates
-    relative *kinds*: ``A`` is pinned by the parent-offspring / grandparent /
-    avuncular relatednesses while ``C`` is pinned by the full-sib excess, so the
-    two do not trade off. The thresholds stay fixed (total liability variance 1);
-    components are returned as **proportions**, with ``residual = 1 - sum``.
+    relative *kinds*: each component is pinned by a **different relationship
+    contrast**, so they do not trade off — ``A`` by the parent-offspring /
+    grandparent / avuncular relatednesses, ``C`` by the full-sib excess, ``M`` by
+    the resemblance between genetically-unrelated mates. The thresholds stay fixed
+    (total liability variance 1); components are returned as **proportions**, with
+    ``residual = 1 - sum``.
 
-    ``components``: ``"A"`` additive (its proportion is the narrow-sense
-    heritability) and ``"C"`` common (sibship) environment. ``C`` is identified
-    only from **full-sib pairs**; without them the design is singular and this
-    raises. (Dominance ``"D"`` is intentionally unsupported — see the note by
-    ``_COMPONENT_OFFDIAG``; it needs twin contrasts to estimate honestly.)
+    ``components`` is any subset of the **variance-component bank**:
+
+    - ``"A"`` — additive genetic (its proportion is the narrow-sense heritability);
+    - ``"C"`` — sibship common environment, identified only from **full-sib pairs**;
+    - ``"M"`` — couple/spousal shared environment, identified only from **mate
+      pairs** (the proband's parents, and grandparent couples). Because mates are
+      genetically unrelated, ``M`` captures spousal resemblance from *any* source —
+      shared adult environment or assortative mating, which parent data alone cannot
+      separate. Note that, unlike ``C``, leaving ``M`` unmodelled leaves ``A``
+      **essentially unbiased**: mates have ``A_ab = 0`` so they carry ~no weight in
+      the additive regression; ``M`` matters when the spousal resemblance is itself
+      of interest, or to test/report it.
+
+    A component whose identifying pairs are absent (``C`` with no full-sib pairs,
+    ``M`` with no mate pairs, or no related pairs at all) leaves the design singular
+    and this raises. (Dominance ``"D"`` is intentionally unsupported — see the note
+    by ``_COMPONENT_OFFDIAG``; it needs twin contrasts to estimate honestly.)
 
     Runs a data-augmentation sweep of ``inner_sweeps`` truncated-MVN sweeps per
     outer iteration; ``damp`` controls the moment-update stability. Returns a
@@ -896,12 +956,16 @@ def test_variance_component(families, component="C", *, n_boot=200, seed=None,
     under that null *on the same pedigrees and thresholds*, refits the full model on
     each, and returns the one-sided p-value ``P(estimate >= observed | H0)``.
 
-    Only ``component="C"`` (common environment) is meaningful here (``"D"`` is not
-    fit). Extra keyword args pass through to :func:`fit_variance_components` (use a
-    smaller ``n_iter`` to keep the ``n_boot`` refits affordable). Needs
-    case/control-style bounds. Returns a :class:`SignificanceTest`."""
+    ``component`` is the non-additive component to test — ``"C"`` (sibship common
+    environment) or ``"M"`` (couple/spousal environment); the full model is
+    ``A + component`` and the null is ``A``-only (``"A"`` itself and the unsupported
+    ``"D"`` are rejected). Extra keyword args pass through to
+    :func:`fit_variance_components` (use a smaller ``n_iter`` to keep the ``n_boot``
+    refits affordable). Needs case/control-style bounds. Returns a
+    :class:`SignificanceTest`."""
     if component == "A" or component not in _COMPONENT_OFFDIAG:
-        raise ValueError("component must be 'C' (the tested non-additive component)")
+        avail = ", ".join(c for c in _COMPONENT_OFFDIAG if c != "A")
+        raise ValueError(f"component must be a non-additive component ({avail})")
     _assert_case_control_bounds(families)
     comps = ("A", component)
     obs = fit_variance_components(families, comps, seed=seed, **fit_kwargs).components[component]

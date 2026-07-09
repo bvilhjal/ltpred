@@ -286,6 +286,18 @@ vc.components["A"], vc.components["C"], vc.residual   # proportions of liability
 Dominance is intentionally not offered (it needs MZ/DZ twin contrasts). With
 `("A",)` alone the result matches `fit_heritability`.
 
+A second shared-environment component, `"M"` (couple / spousal environment), loads
+on the genetically-unrelated **mate pairs** — the parents `(m, f)` and the
+grandparent couples — so `fit_variance_components(families, ("A", "C", "M"))` fits
+all three at once given a 3-generation pedigree (each component needs its
+identifying pairs; the fit raises on a rank-deficient design). `M` captures spousal
+resemblance from shared environment *or* assortative mating, which parent data
+alone cannot separate. Because mates have `A = 0`, omitting a real `M` leaves `A`
+**essentially unbiased** (unlike omitting `C`, which inflates it) — so fit `M` to
+quantify, or `test_variance_component(families, "M")` to test, spousal resemblance
+for its own sake rather than to de-bias `h²`. Only equivalence-class (PSD) environments are valid components; a vertical
+parent-offspring "environment" is not, and is rejected.
+
 Pass `method="reml"` for a **maximum-likelihood** fit (Monte-Carlo EM) instead of
 the moment regression:
 
