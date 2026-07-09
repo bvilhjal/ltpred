@@ -200,6 +200,36 @@ replicate cohorts.
 - **Precision improves ~`1/√N`**: SD of `r_g` 0.132 → 0.098 → 0.072 → 0.038 from
   1 000 to 8 000 families. Same `se` caveat — bootstrap families for a CI.
 
+## 8. Does modelling shared environment help? (`bench_shared_env.py`)
+
+Families simulated under the true `A+C+E` model (so the proband's *true genetic
+liability* `g` is known), then the genetic-liability score estimated under models
+that ignore vs. fit the shared-environment component `C`. Metric: corr(estimate,
+true `g`) — i.e. how well the score predicts the genetic value. h²=0.5, prevalence
+0.10, proband + parents + a sib-ship, 4 replicates × 3 000 families.
+
+**Accuracy vs true c²** (3 sibs):
+
+| true c² | ignore C (fitted h²) | fit `A+C` | oracle `A+C` | gain | fitted h² (additive) |
+|---:|---:|---:|---:|---:|---:|
+| 0.0 | 0.5195 | 0.5195 | 0.5196 | +0.000 | 0.48 ✓ |
+| 0.1 | 0.5063 | 0.5064 | 0.5066 | +0.000 | 0.56 |
+| 0.2 | 0.4866 | 0.4886 | 0.4888 | +0.002 | 0.66 |
+| 0.3 | 0.4759 | 0.4813 | 0.4820 | +0.005 | **0.75** |
+
+**Gain vs sib-ship size** (c²=0.3): 2 sibs +0.003, 4 sibs +0.006, 6 sibs +0.007.
+
+- **Modelling `C` barely changes the score's prediction accuracy** — the gain is
+  ≤ ~0.007 corr (≈1 % relative) even with strong shared environment (c²=0.3) and a
+  large sib-ship. It grows with c² and sib-ship size but stays small, and the
+  **fitted `A+C` captures essentially all of it** (it sits right at the oracle).
+  The threshold-model BLUP is forgiving of the h²/c² split for *point prediction*.
+- **The real cost of ignoring `C` is a badly inflated heritability.** Additive
+  `fit_heritability` reports ĥ²=0.75 at c²=0.3 (true 0.5) — `C`'s sib resemblance
+  leaks into ĥ² — whereas `fit_variance_components` recovers ≈(0.46, 0.28). So the
+  practical value of fitting `C` is getting **h² and its interpretation right**
+  (and hence calibration), not sharpening the per-person score.
+
 ## Bottom line
 
 PA-FGRS is a drop-in, deterministic replacement for the LT-FH++ Gibbs sampler:
