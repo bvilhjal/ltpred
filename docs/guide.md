@@ -292,13 +292,18 @@ the moment regression:
 ```python
 vc = fit_variance_components(families, ("A", "C"), method="reml")
 vc.components["A"], vc.se["A"]      # estimate + a *model-based* standard error
+vc.loglik, vc.aic                  # observed-data log-likelihood + AIC (for model comparison)
 ```
 
 Unlike the default `"he"` fit, REML is ~30 % more efficient and its `se` is a real
 model-based standard error (from the observed information, which accounts for the
 information thresholding destroys) that approximates the true across-dataset SD —
-so here you do **not** need `bootstrap_fit` for a rough interval. It is the
-pedigree-scale analog of the maximum-likelihood estimation twin-SEM uses.
+so here you do **not** need `bootstrap_fit` for a rough interval. It also reports a
+Monte-Carlo (GHK) log-likelihood and `aic`, so you can compare nested models (e.g.
+`A` vs `A+C`) by AIC. It is the pedigree-scale analog of the maximum-likelihood
+estimation twin-SEM uses. For a *calibrated* yes/no on a component, prefer
+`test_variance_component` — AIC, like any likelihood-based selection for variance
+components, under-penalises near the boundary.
 
 For **several traits**, `fit_genetic_correlation` estimates the genetic
 correlation `r_g` between them (and each trait's `h²`). Each member must carry one

@@ -286,3 +286,19 @@ def test_variance_components_reml_matches_and_has_modelbased_se():
     assert 0.01 < reml.se["A"] < 0.15                   # in the plausible sampling-SD range
     with pytest.raises(ValueError, match="method"):
         fit_variance_components(sim.families, ("A",), method="bogus", n_iter=50, burn_in=10)
+
+
+def test_variance_components_reml_loglik_aic():
+    # the REML fit reports a Monte-Carlo log-likelihood + AIC for model comparison;
+    # on real A+C data AIC prefers A+C. HE / pinned bounds have no likelihood.
+    fams = _sim_ac(["m", "f", "s1", "s2", "s3", "s4"], 0.4, 0.2, 2000, 5)
+    rA = fit_variance_components(fams, ("A",), method="reml", n_iter=350, burn_in=100, seed=1)
+    rAC = fit_variance_components(fams, ("A", "C"), method="reml", n_iter=350, burn_in=100, seed=1)
+    assert rA.loglik is not None and np.isfinite(rA.loglik)
+    assert rA.aic == pytest.approx(2 * 1 - 2 * rA.loglik)
+    assert rAC.aic == pytest.approx(2 * 2 - 2 * rAC.loglik)
+    assert rAC.loglik > rA.loglik                       # richer model fits better
+    assert rAC.aic < rA.aic                              # AIC prefers A+C (real C=0.2)
+    # the HE fit has no likelihood
+    he = fit_variance_components(fams, ("A", "C"), method="he", n_iter=100, burn_in=30, seed=1)
+    assert he.loglik is None and he.aic is None

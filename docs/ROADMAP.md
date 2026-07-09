@@ -106,8 +106,10 @@ likelihood-based inference) to the pedigree/registry setting.
   ~30 % more efficient** than HE, with a **model-based SE** from the observed
   information (outer product of per-family observed-data scores, via Fisher's
   identity) that approximates the true across-dataset SD (se/SD ≈ 0.9–1.4) — where
-  the HE `se` understates it ~15-20×. Remaining polish: a returned log-likelihood
-  for AIC / true LRTs.
+  the HE `se` understates it ~15-20×. Also returns a Monte-Carlo (GHK) observed-
+  data **log-likelihood** and **AIC** for nested-model comparison (AIC strongly
+  prefers `A+C` on real `A+C` data; near the boundary it under-penalises, so the
+  parametric-bootstrap test above remains the calibrated decision tool).
 
 - **Latent factor model on the multi-trait genetic covariance** (Genomic-SEM-lite):
   fit `G ≈ ΛΛ' + Ψ` to the estimated genetic covariance — does one genetic factor

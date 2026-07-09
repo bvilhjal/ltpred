@@ -196,13 +196,24 @@ class VarCompResult:
     (same caveat as :class:`FitResult` — it is the MC error of this one fit, not
     the across-dataset sampling SD, so it under-states the real uncertainty;
     bootstrap families for a genuine CI). ``traces`` are the post-burn-in
-    proportion traces per component."""
+    proportion traces per component.
+
+    ``loglik`` / ``aic`` are populated only by the ``method="reml"`` fit: the
+    Monte-Carlo (GHK) observed-data log-likelihood and ``AIC = 2·(#components) −
+    2·loglik``, for comparing nested models (e.g. ``A`` vs ``A+C``). They are
+    ``None`` for the moment (``"he"``) fit and for pinned/degenerate bounds. As
+    always for variance components, likelihood-based selection **under-penalises
+    near the boundary** (a small spurious component can nudge AIC down), so for a
+    calibrated yes/no on a component use :func:`test_variance_component`; AIC is a
+    descriptive comparison."""
     components: dict
     residual: float
     se: dict
     traces: dict
     n_iter: int
     burn_in: int
+    loglik: float = None
+    aic: float = None
 
 
 def _component_matrix(roles, comp):
@@ -431,6 +442,39 @@ def _reml_observed_se(groups, comps, h2, eps, rng, n_score=60, sweeps=1):
     return np.sqrt(np.clip(np.diag(cov), 0.0, None))
 
 
+def _reml_loglik(groups, comps, h2, eps, rng, n_draw=200):
+    """GHK Monte-Carlo estimate of the observed-data log-likelihood
+    ``sum_i log P(L_i in truncation rectangle)`` with ``L_i ~ N(0, Sigma(h2))``.
+
+    Each family's rectangle probability is estimated by the GHK simulator:
+    Cholesky-transform, then draw the coordinates sequentially from their truncated
+    conditionals, accumulating the product of interval masses. Returns ``None`` if
+    any coordinate is pinned/degenerate (then the likelihood is a density, not a
+    rectangle probability)."""
+    total = 0.0
+    for g in groups:
+        k, F = g["k"], g["F"]
+        lo, hi = g["lowers"], g["uppers"]
+        if np.any((hi - lo) < 1e-8):
+            return None
+        Kmats = [g["K"][c] for c in comps]
+        L = np.linalg.cholesky(correct_positive_definite(_reml_sigma(h2, Kmats, k, eps))[0])
+        probs = np.empty((int(n_draw), F))
+        for r in range(int(n_draw)):
+            z = np.zeros((F, k))
+            pr = np.ones(F)
+            for j in range(k):
+                partial = z[:, :j] @ L[j, :j] if j else np.zeros(F)
+                a = norm_cdf((lo[:, j] - partial) / L[j, j])
+                b = norm_cdf((hi[:, j] - partial) / L[j, j])
+                pr *= np.clip(b - a, 0.0, None)
+                u = np.clip(a + rng.random(F) * (b - a), 1e-15, 1 - 1e-15)
+                z[:, j] = norm_ppf(u)
+            probs[r] = pr
+        total += float(np.sum(np.log(np.clip(probs.mean(axis=0), 1e-300, None))))
+    return total
+
+
 def _fit_vc_reml(families, comps, *, n_iter, burn_in, inner_sweeps, damp, seed, eps):
     """Monte-Carlo EM maximum-likelihood variance components.
 
@@ -481,12 +525,15 @@ def _fit_vc_reml(families, comps, *, n_iter, burn_in, inner_sweeps, damp, seed, 
     est = samples.mean(axis=0)
     rng = np.random.default_rng(None if seed is None else seed + 999)
     se = _reml_observed_se(groups, comps, est, eps, rng)
+    ll = _reml_loglik(groups, comps, est, eps, rng)
+    aic = None if ll is None else 2.0 * C - 2.0 * ll
     return VarCompResult(
         components={c: float(est[ci]) for ci, c in enumerate(comps)},
         residual=float(1.0 - est.sum()),
         se={c: float(se[ci]) for ci, c in enumerate(comps)},
         traces={c: np.ascontiguousarray(samples[:, ci]) for ci, c in enumerate(comps)},
-        n_iter=int(n_iter), burn_in=int(burn_in))
+        n_iter=int(n_iter), burn_in=int(burn_in),
+        loglik=ll, aic=aic)
 
 
 @dataclass
