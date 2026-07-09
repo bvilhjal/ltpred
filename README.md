@@ -150,6 +150,7 @@ choosing between the two methods, and using the score in a GWAS, see the
 | Function | Purpose |
 |---|---|
 | `estimate_liability` | end-to-end estimator (`method=` gibbs / pearson-aitken; trait dispatch) |
+| `liability_sensitivity` | sweep the assumed h² and report how stable the score is |
 | `estimate_liability_single` / `_multi` | the per-flavour Gibbs estimators |
 | `estimate_liability_pa` | deterministic PA-FGRS estimator |
 | `estimate_liability_pa_arrays` / `_gibbs_arrays` | array API — skip `Family` objects for biobank scale |

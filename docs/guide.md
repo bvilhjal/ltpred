@@ -198,6 +198,26 @@ spread reflects family sampling, not sampler noise. It costs `n_boot`+1 fits.
 Feed the point estimate back in as `h2=fit.h2` (or, better, run the sensitivity
 analysis around it).
 
+### Sensitivity to the assumed `h²`
+
+Because no single `h²` is uniquely correct, check how much the score actually
+depends on it. `liability_sensitivity` sweeps a grid and reports the cross-setting
+correlation of the estimates:
+
+```python
+from ltpred import liability_sensitivity
+sens = liability_sensitivity(families, [0.3, 0.4, 0.5, 0.6, 0.7], method="pa")
+sens.min_corr          # worst-case correlation of the score across the grid
+sens.mean, sens.sd     # how the scale shifts with h²
+```
+
+In practice `min_corr` is very high (≈0.97 across `h² 0.2–0.8` for a typical
+pedigree): the assumed `h²` mostly **rescales** the liability, barely changing the
+*ranking* — so a linear GWAS on it is nearly invariant to the choice. A low
+`min_corr` is the signal to pin `h²` down (with `fit_heritability`). Prevalence/CIP
+sensitivity changes the truncation bounds rather than the covariance, so probe it
+by rebuilding the families under each prevalence and comparing.
+
 To separate additive heritability from a shared **common-environment** component
 `C` (e.g. a full-sib effect that inflates familial resemblance beyond genetics),
 `fit_variance_components` fits both at once by a multiple Haseman–Elston

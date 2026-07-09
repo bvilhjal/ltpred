@@ -32,7 +32,8 @@ from .pearson_aitken import pa_estimate_batched
 __all__ = ["LiabilityResult", "batch_means", "estimate_liability",
            "estimate_liability_single", "estimate_liability_multi",
            "estimate_liability_pa", "estimate_liability_pa_arrays",
-           "estimate_liability_gibbs_arrays", "estimate_liability_from_kinship"]
+           "estimate_liability_gibbs_arrays", "estimate_liability_from_kinship",
+           "SensitivityResult", "liability_sensitivity"]
 
 _PA_METHODS = {"pa", "pearson-aitken", "pearson_aitken", "aitken", "pa-fgrs"}
 
@@ -589,3 +590,66 @@ def estimate_liability(families, h2=0.5, *, method="gibbs", out=("genetic",),
                                     full_corrmat=full_corrmat, phen_names=phen_names,
                                     out=out, tol=tol, n_sim=n_sim, burn_in=burn_in,
                                     seed=seed, max_rounds=max_rounds, dtype=dtype)
+
+
+@dataclass
+class SensitivityResult:
+    """Result of :func:`liability_sensitivity`.
+
+    ``h2_values`` is the grid that was swept; ``estimates`` is the ``(n_settings,
+    n_families)`` matrix of per-setting liability estimates; ``corr`` their
+    ``(n_settings, n_settings)`` cross-setting Pearson correlation. ``mean`` / ``sd``
+    summarise each setting's estimates, and ``min_corr`` is the smallest off-diagonal
+    correlation — the **worst-case rank stability** across the grid (near 1 means the
+    ranking barely moves, so the exact ``h2`` you assume hardly matters). ``out``
+    labels which liability (``"genetic"`` / ``"full"``) was tracked."""
+    h2_values: np.ndarray
+    estimates: np.ndarray
+    corr: np.ndarray
+    mean: np.ndarray
+    sd: np.ndarray
+    min_corr: float
+    out: str
+
+
+def liability_sensitivity(families, h2_values, *, method="gibbs", out="genetic",
+                          seed=None, **est_kwargs):
+    """Sweep the assumed ``h2`` and report how much the liability estimate moves.
+
+    Turns the "run a sensitivity analysis over plausible ``h2``" advice into one
+    call: it re-estimates the target liability for every ``h2`` in ``h2_values`` and
+    reports the **cross-setting correlation** of the scores. Because the estimate is
+    used as a GWAS phenotype — where only its correlation with the true value matters
+    — a high correlation across the grid (``min_corr`` near 1) means the exact ``h2``
+    is low-stakes; a low one means it matters and should be pinned down (e.g. with
+    :func:`~ltpred.fit.fit_heritability`).
+
+    ``families`` is a single family list; ``method`` / ``out`` and any extra keyword
+    arguments (``n_sim``, ``tol``, ``use_mixture``, …) are passed through to
+    :func:`estimate_liability`. Returns a :class:`SensitivityResult`.
+
+    To also probe **prevalence / CIP** sensitivity — which changes the truncation
+    bounds, not the covariance — rebuild the families under each prevalence and call
+    this once per prevalence, comparing the results (the bounds live in the
+    families, so they cannot be varied from ``h2`` alone)."""
+    h2_values = np.asarray(list(h2_values), dtype=float)
+    if h2_values.ndim != 1 or h2_values.size < 2:
+        raise ValueError("h2_values must be a 1-D grid of at least 2 values")
+    if np.any((h2_values < 0) | (h2_values > 1)):
+        raise ValueError("all h2 values must be in [0, 1]")
+    if isinstance(out, (list, tuple)):
+        out = out[0]
+    name = _OUT_NAMES[_OUT_ALIASES[out]]
+
+    rows = []
+    for h2 in h2_values:
+        res = estimate_liability(families, h2=float(h2), method=method,
+                                 out=(name,), seed=seed, **est_kwargs)
+        rows.append(np.asarray(res.est[name], dtype=float))
+    E = np.vstack(rows)                                 # (n_settings, n_families)
+    corr = np.corrcoef(E) if E.shape[0] > 1 else np.ones((1, 1))
+    S = h2_values.size
+    off = corr[~np.eye(S, dtype=bool)]
+    return SensitivityResult(h2_values=h2_values, estimates=E, corr=corr,
+                             mean=E.mean(axis=1), sd=E.std(axis=1),
+                             min_corr=float(off.min()), out=name)

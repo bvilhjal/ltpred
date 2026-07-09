@@ -157,3 +157,30 @@ def test_estimate_from_kinship_validation():
         estimate_liability_from_kinship(A, np.zeros((5, 2)), np.ones((5, 2)))   # wrong n cols
     with pytest.raises(ValueError, match="square"):
         estimate_liability_from_kinship(np.zeros((3, 2)), np.zeros((5, 3)), np.ones((5, 3)))
+
+
+def test_liability_sensitivity_h2_grid():
+    from ltpred import simulate_under_LTM_single, liability_sensitivity
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
+                                    n_sim=800, pop_prev=0.1, seed=9)
+    grid = [0.3, 0.4, 0.5, 0.6, 0.7]
+    r = liability_sensitivity(sim.families, grid, method="pa", out="genetic")
+    assert r.estimates.shape == (len(grid), 800)
+    assert r.corr.shape == (len(grid), len(grid))
+    assert np.allclose(np.diag(r.corr), 1.0)
+    assert r.mean.shape == r.sd.shape == (len(grid),)
+    assert r.out == "genetic"
+    # ranking is highly stable to the assumed h2 (the reassuring result)
+    assert r.min_corr > 0.9
+    # scale grows with h2 even though ranking does not
+    assert r.sd[-1] > r.sd[0]
+
+
+def test_liability_sensitivity_validation():
+    from ltpred import simulate_under_LTM_single, liability_sensitivity
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
+                                    n_sim=100, pop_prev=0.1, seed=1)
+    with pytest.raises(ValueError, match="at least 2"):
+        liability_sensitivity(sim.families, [0.5], method="pa")
+    with pytest.raises(ValueError, match="in \\[0, 1\\]"):
+        liability_sensitivity(sim.families, [0.5, 1.5], method="pa")

@@ -49,7 +49,7 @@ BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
 connection, and the environmental-covariance extension), plus `CITATION.cff`
 (15 references).
 
-The test suite is 145 tests passing.
+The test suite is 147 tests passing.
 
 ## Near-term — variance-component thread ✅ complete
 
@@ -104,8 +104,13 @@ The test suite is 145 tests passing.
    Aalen–Johansen incidence with competing risks (death, emigration), for
    registry data.
 
-7. **Sensitivity utility.** An h²/prevalence/CIP sensitivity analysis in one
-   call, to make the "run a sensitivity analysis" advice concrete.
+7. ~~**Sensitivity utility.**~~ **Done.** `liability_sensitivity(families,
+   h2_values)` re-estimates over an h² grid and reports the cross-setting
+   correlation of the scores (`min_corr` = worst-case rank stability) plus how the
+   scale shifts. In practice `min_corr ≈ 0.97` across h² 0.2–0.8 — the assumed h²
+   mostly rescales the liability without changing the ranking, so a linear GWAS on
+   it is nearly invariant. Prevalence/CIP sensitivity (which moves the bounds, not
+   the covariance) is done by rebuilding families per prevalence and comparing.
 
 ## Longer-term — scale and ecosystem
 
