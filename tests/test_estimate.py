@@ -126,8 +126,9 @@ def test_multi_trait_runs_and_shapes():
 
 def test_estimate_from_kinship_matches_role_based():
     # the kinship path reproduces the role-based estimator on the same data
-    from ltpred import (simulate_under_LTM_single, estimate_liability_single,
+    from ltpred import (simulate_under_LTM_single,
                         estimate_liability_from_kinship, kinship_from_pedigree)
+    from ltpred.estimate import estimate_liability_single
     h2 = 0.5
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=h2,
                                     n_sim=400, pop_prev=0.1, seed=11)
