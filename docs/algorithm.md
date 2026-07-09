@@ -72,8 +72,9 @@ Var(l_i)      = h2 + c2 + m2 + ... + e2 = 1
 ```
 
 where `C_ij` marks relatives who share a rearing/household environment (e.g. sibs
-or co-resident parent–offspring) with variance fraction `c2`, `M_ij` a maternal
-effect, and a couple term can encode assortative mating between mates. Two payoffs:
+or co-resident parent–offspring) with variance fraction `c2`, `M_ij` a shared
+maternal–offspring environment, and a couple term the mates' shared household. Two
+payoffs:
 
 - **A sharper genetic estimate.** Modelling shared-environment resemblance lets
   the estimator attribute it to environment rather than genetics, so the genetic
@@ -95,6 +96,53 @@ argument. To use environmental components today, assemble the covariance yoursel
 arbitrary covariance directly. (Note this is separate from `fit_variance_components`,
 which *estimates* an `A + C` decomposition but does not yet feed a fitted `C` back
 into the liability estimator.)
+
+### Relationship-specific environments and identifiability
+
+The environmental term can be *several* components, one per relationship-specific
+sharing pattern — a full-sib rearing environment, a couple/household environment
+shared by mates, mother– or father–offspring environments, a cousin environment:
+
+```text
+Cov(l_i, l_j) = h2 A_ij + sum_c c2_c K_c[i,j] ,   K_c[i,j] = 1 if i, j share environment c
+```
+
+`fit_variance_components` already estimates an arbitrary set of components
+**jointly** (multiple HE regression, or ML with `method="reml"`); a joint fit
+partials out the overlap between components, whereas fitting each alone
+double-counts. Adding a component is adding a column to the design.
+
+**The binding constraint is identifiability, not the estimator.** Each relative
+*type* yields a single covariance `h2 A_ij + sum_c c2_c K_c[i,j]`, so the data
+constrain the components only through the distinct relationship *contrasts* present:
+
+> the number of jointly-identifiable components = rank of the pair design matrix
+> (columns `A, K_1, …`) ≤ the number of distinct relationship types in the pedigrees.
+
+A component is identified only when its sharing pattern is linearly independent of
+`A` and of the others: `C` (sib) separates from `h2` via the sib-vs-parent-offspring
+contrast — both are `A = 0.5`, but only sibs share `C`, hence the need for full-sib
+pairs; a couple term comes from the `A = 0` mate pair; separating maternal from
+paternal environment needs the `o–m` and `o–f` covariances to actually differ.
+Nuclear families give only ~3 contrasts (sib–sib, parent–offspring, spouse), so at
+most `A` plus one or two environments; a *bank* of relationship-specific
+environments needs the many relative types (grandparents by lineage, half-sibs,
+avuncular, cousins, spouses) that **extended registry pedigrees** provide — the
+pedigree-scale analogue of why extended-family designs out-identify the MZ/DZ twin
+ACE model. `fit_variance_components` raises on a rank-deficient design; near-collinear
+components (e.g. `C` vs dominance) also inflate the SEs even when formally identified.
+
+Two cautions. **(i)** A *symmetric* mother–offspring shared-environment matrix is
+not a **maternal effect** in the causal sense (the mother's phenotype/genotype
+shaping the offspring's environment); that is a directional path which propagates
+through the pedigree and couples to genetic transmission, needing a
+structural/latent-variable parameterisation rather than one symmetric matrix.
+**(ii)** An environment shared *in proportion to relatedness* is a multiple of `A`
+and is absorbed into `h2`; only environments whose pattern **differs** from `A` are
+estimable, and the couple term is further confounded with assortative mating.
+Extending `_COMPONENT_OFFDIAG` past `A`/`C` with such pair-indicator matrices (and
+lifting the `{A, C}` restriction) is the natural next step — the fit and the
+rank-deficiency guard already generalise.
 
 ## Connection to selection index and BLUP
 

@@ -115,6 +115,17 @@ likelihood-based inference) to the pedigree/registry setting.
   fit `G ≈ ΛΛ' + Ψ` to the estimated genetic covariance — does one genetic factor
   explain the `r_g` among traits?
 
+- **Relationship-specific environmental components.** Generalise the single `C` to
+  a bank of environments (full-sib, couple/household, mother–/father–offspring,
+  cousin, …), fitted jointly. The fit and rank-deficiency guard are already
+  N-component; the work is defining the extra pair-indicator matrices in
+  `_COMPONENT_OFFDIAG` and lifting the `{A, C}` restriction. The binding constraint
+  is identifiability — #components ≤ #distinct relationship contrasts — so this
+  pays off on **extended registry pedigrees**, not nuclear families (see
+  algorithm.md, *Relationship-specific environments and identifiability*). Note the
+  caveats there: symmetric shared-environment ≠ directional maternal effect, and an
+  environment `∝ A` is confounded with `h2`.
+
 ## Medium-term — rigor and real data
 
 4. ~~**Pedigree/kinship-matrix input.**~~ **Done.** `kinship_from_pedigree(id,
