@@ -280,6 +280,35 @@ def test_component_matrix_rejects_non_psd(monkeypatch):
         assert np.min(np.linalg.eigvalsh(K)) > -1e-8
 
 
+def test_c_component_groups_same_side_avuncular():
+    # a parent and their full sibs (aunts/uncles) form one sibship for C: the block
+    # {m, mau1, mau2} must be a complete PSD block, not a non-PSD chain.
+    from ltpred.fit import _is_full_sib, _component_matrix
+    assert _is_full_sib("mau1", "mau2") and _is_full_sib("pau1", "pau2")
+    assert _is_full_sib("m", "mau1") and _is_full_sib("f", "pau2")
+    assert not _is_full_sib("mau1", "pau1")          # opposite sides: unrelated
+    K = _component_matrix(["m", "mau1", "mau2"], "C")
+    assert np.allclose(K, np.ones((3, 3)))           # full sibship block, not a chain
+    assert np.min(np.linalg.eigvalsh(K)) > -1e-8
+    # so fitting A+C on such a structure no longer trips the PSD guard
+    fams = _sim_vc(["o", "m", "mau1", "mau2"], {"A": 0.4, "C": 0.2}, 300, seed=21)
+    r = fit_variance_components(fams, ("A", "C"), n_iter=80, burn_in=25, seed=1)
+    assert set(r.components) == {"A", "C"}
+
+
+def test_variance_components_method_aliases():
+    # 'mcem' is canonical; 'ml' and 'reml' are aliases routing to the ML path (which
+    # populates loglik) rather than the HE moment path (loglik None).
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
+                                    n_sim=800, pop_prev=0.1, seed=8)
+    kw = dict(n_iter=200, burn_in=60, seed=1)
+    for m in ("mcem", "ml", "reml"):
+        assert fit_variance_components(sim.families, ("A",), method=m, **kw).loglik is not None
+    assert fit_variance_components(sim.families, ("A",), method="he", **kw).loglik is None
+    with pytest.raises(ValueError, match="unknown method"):
+        fit_variance_components(sim.families, ("A",), method="bogus", n_iter=50, burn_in=10)
+
+
 def test_variance_components_recovers_couple_env():
     # additive + couple (spousal) environment: M loads on the genetically-unrelated
     # mate pairs (m,f), (mgm,mgf), (pgm,pgf); A on the related pairs. The HE

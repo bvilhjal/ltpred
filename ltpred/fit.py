@@ -1,4 +1,4 @@
-"""Fit liability-scale heritability from family data (data-augmentation Gibbs).
+"""Fit liability-scale heritability from family data (data-augmentation fixed point).
 
 Everywhere else in ltpred the family covariance is *given* — you supply ``h2`` and
 the estimator conditions on it. This module instead **fits** it: it estimates the
@@ -58,15 +58,20 @@ __all__ = ["FitResult", "fit_heritability", "VarCompResult",
 _SIBSHIP = re.compile(r"o|s\d*")           # proband + full sibs (one sib-ship)
 _PARENT = re.compile(r"[mf]")
 _AVUNC = re.compile(r"[mp]au\d*")
+_MAT_AVUNC = re.compile(r"mau\d*")         # mother's full sibs
+_PAT_AVUNC = re.compile(r"pau\d*")         # father's full sibs
 
 
 def _is_full_sib(a, b):
     """Whether roles ``a`` and ``b`` are **full siblings** — the pairs the common-
-    environment component ``C`` loads on. Two cases: both in one sib-ship (proband
-    ``o`` and its sibs ``s1``, ``s2``, …), or a parent and their own sib (an
-    aunt/uncle). The relatedness guard rejects unrelated look-alikes (e.g. a mother
-    and a *paternal* aunt/uncle), which would otherwise match the parent/avuncular
-    test."""
+    environment component ``C`` loads on. Three cases: both in one sib-ship (proband
+    ``o`` and its sibs ``s1``, ``s2``, …); a parent and their own sib (an
+    aunt/uncle); or two aunts/uncles on the **same** side (``mau1``/``mau2`` or
+    ``pau1``/``pau2``), who are full sibs of that parent and of each other. Including
+    that last case is what makes ``C`` form a complete sibship block ``{m, mau1,
+    mau2, …}`` (a valid PSD component) rather than a non-PSD chain. The relatedness
+    guard rejects unrelated look-alikes (e.g. a mother and a *paternal* aunt/uncle),
+    which would otherwise match the parent/avuncular test."""
     if get_relatedness(a, b, 1.0) <= 0:
         return False
 
@@ -76,7 +81,9 @@ def _is_full_sib(a, b):
     both_sibship = full(_SIBSHIP, a) and full(_SIBSHIP, b)
     parent_and_their_sib = ((full(_PARENT, a) and full(_AVUNC, b))
                             or (full(_PARENT, b) and full(_AVUNC, a)))
-    return both_sibship or parent_and_their_sib
+    same_side_avunc = ((full(_MAT_AVUNC, a) and full(_MAT_AVUNC, b))
+                       or (full(_PAT_AVUNC, a) and full(_PAT_AVUNC, b)))
+    return both_sibship or parent_and_their_sib or same_side_avunc
 
 
 # genetically-unrelated cohabiting couples in the role grammar; each is a mate
@@ -98,14 +105,17 @@ def _is_mates(a, b):
 class FitResult:
     """Result of :func:`fit_heritability`.
 
-    ``h2`` is the posterior-mean liability-scale heritability (mean of the
-    post-burn-in trace); ``h2_se`` its batch-means Monte-Carlo standard error.
+    ``h2`` is the liability-scale heritability — the post-burn-in average of the
+    fixed-point ``h2`` trace (a stochastic-approximation estimate, **not** a
+    posterior mean). ``h2_se`` is its batch-means Monte-Carlo variability.
 
-    **Caveat:** ``h2_se`` is the *within-dataset* Monte-Carlo error of this one fit,
-    not the sampling variability of ``h2`` across datasets — in the benchmarks it
-    under-states the true SD by ~20-30x. Do **not** use it as a confidence
-    interval; bootstrap over families for that. ``samples`` is the post-burn-in
-    ``h2`` trace and ``trace`` the full one (for convergence diagnostics)."""
+    **Caveat:** ``h2_se`` is a *within-dataset* Monte-Carlo **diagnostic** of the
+    fixed point, not an inferential standard error and not the sampling variability
+    of ``h2`` across datasets — in the benchmarks it under-states the true SD by
+    ~20-30x. Do **not** use it as a confidence interval; bootstrap over families for
+    that. ``samples`` is the post-burn-in ``h2`` trace and ``trace`` the full one
+    (for convergence diagnostics; despite the name they are fixed-point iterates,
+    not posterior draws)."""
     h2: float
     h2_se: float
     samples: np.ndarray
@@ -153,11 +163,12 @@ def fit_heritability(families, *, h2_init=0.5, n_iter=1500, burn_in=500,
     """Estimate liability-scale ``h2`` from family case/control (+age) statuses.
 
     ``families`` is a list of :class:`~ltpred.family.Family` whose members carry
-    liability bounds (from a threshold builder). Runs a data-augmentation Gibbs
-    sampler that fits ``h2`` from the familial resemblance among the latent
-    liabilities (see the module docstring). ``inner_sweeps`` truncated-MVN sweeps
-    are taken per outer iteration; ``damp`` controls the moment-update stability.
-    Returns a :class:`FitResult`.
+    liability bounds (from a threshold builder). Alternates a Gibbs augmentation of
+    the latent liabilities with a damped Haseman–Elston update of ``h2`` — a
+    **stochastic-approximation fixed point** (not posterior sampling of ``h2``) that
+    settles at the value consistent with the familial resemblance (see the module
+    docstring). ``inner_sweeps`` truncated-MVN sweeps are taken per outer iteration;
+    ``damp`` controls the moment-update stability. Returns a :class:`FitResult`.
 
     Needs relatives (at least one related pair); a set of lone probands carries no
     information about ``h2`` and raises."""
@@ -231,9 +242,10 @@ class VarCompResult:
     bootstrap families for a genuine CI). ``traces`` are the post-burn-in
     proportion traces per component.
 
-    ``loglik`` / ``aic`` are populated only by the ``method="reml"`` fit: the
+    ``loglik`` / ``aic`` are populated only by the ``method="mcem"`` fit: the
     Monte-Carlo (GHK) observed-data log-likelihood and ``AIC = 2·(#components) −
-    2·loglik``, for comparing nested models (e.g. ``A`` vs ``A+C``). They are
+    2·loglik`` (both Monte-Carlo estimates), for comparing nested models (e.g.
+    ``A`` vs ``A+C``). They are
     ``None`` for the moment (``"he"``) fit and for pinned/degenerate bounds. As
     always for variance components, likelihood-based selection **under-penalises
     near the boundary** (a small spurious component can nudge AIC down), so for a
@@ -309,12 +321,15 @@ def fit_variance_components(families, components=("A", "C"), *, method="he",
                             seed=None, eps=1e-4):
     """Fit liability-scale variance components by a multiple Haseman-Elston regression.
 
-    ``method="he"`` (default) is the moment fit described below. ``method="reml"``
+    ``method="he"`` (default) is the moment fit described below. ``method="mcem"``
     instead runs a **Monte-Carlo EM maximum-likelihood** fit (see
     :func:`_fit_vc_reml`) — same augmentation, but each sweep's M-step maximises the
     Gaussian likelihood of the imputed liabilities rather than regressing moments;
-    it is more efficient and returns a **model-based** standard error (observed
-    information) instead of a within-dataset Monte-Carlo one.
+    it is more efficient and returns an **approximate model-based** standard error
+    (an OPG/BHHH observed-information estimate, subject to Monte-Carlo error) instead
+    of a within-dataset Monte-Carlo diagnostic. (It is maximum-likelihood on the
+    imputed liabilities, *not* restricted ML; ``method="reml"``/``"ml"`` are accepted
+    as aliases for backward compatibility.)
 
     Generalises :func:`fit_heritability` from one component to several. Each sweep
     it (1) draws the latent liabilities from the **full family truncated-MVN**
@@ -366,9 +381,10 @@ def fit_variance_components(families, components=("A", "C"), *, method="he",
         raise ValueError(f"duplicate components in {components!r}")
     if int(burn_in) >= int(n_iter):
         raise ValueError(f"burn_in ({burn_in}) must be < n_iter ({n_iter})")
-    if method not in ("he", "reml"):
-        raise ValueError(f"unknown method {method!r}; use 'he' or 'reml'")
-    if method == "reml":
+    if method not in ("he", "mcem", "ml", "reml"):
+        raise ValueError(f"unknown method {method!r}; use 'he' or 'mcem' "
+                         "('ml'/'reml' are aliases)")
+    if method in ("mcem", "ml", "reml"):
         return _fit_vc_reml(families, comps, n_iter=n_iter, burn_in=burn_in,
                             inner_sweeps=inner_sweeps, damp=damp, seed=seed, eps=eps)
     C = len(comps)
@@ -543,12 +559,13 @@ def _fit_vc_reml(families, comps, *, n_iter, burn_in, inner_sweeps, damp, seed, 
     Gaussian ML of those liabilities (:func:`_mstep_reml`) rather than the moment
     regression — the GLS-weighted, statistically efficient update. Damped across
     sweeps (stochastic-approximation EM); the post-burn-in average is the estimate.
-    The SE is the **observed-information** SE (:func:`_reml_observed_se`), a
-    model-based standard error that accounts for the information lost to
-    thresholding. Validated: the estimate is unbiased and ~30% more efficient than
-    the HE fit, and the SE approximates the true across-dataset SD (well-calibrated
-    to mildly conservative) — unlike the HE ``se``, which understates it ~15-20x.
-    Use :func:`bootstrap_fit` if you want a fully non-parametric interval instead."""
+    The SE is an **approximate** observed-information SE (:func:`_reml_observed_se`,
+    an OPG/BHHH outer-product estimate that is itself subject to Monte-Carlo error),
+    accounting for the information lost to thresholding. In the benchmarked
+    configurations the estimate was unbiased and ~30% more efficient than the HE fit,
+    and the SE approximated the true across-dataset SD (well-calibrated to mildly
+    conservative) — unlike the HE ``se``, which understated it ~15-20×. Confirm on
+    your own design, and use :func:`bootstrap_fit` for a fully non-parametric interval."""
     C = len(comps)
     groups = [_prepare_group_vc(families, idx, comps)
               for _key, idx in _group_by_structure(families)]

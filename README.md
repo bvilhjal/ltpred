@@ -158,7 +158,7 @@ choosing between the two methods, and using the score in a GWAS, see the
 | `liability_sensitivity` | sweep the assumed h² and report how stable the score is |
 | `estimate_liability_pa` | deterministic PA-FGRS estimator |
 | `estimate_liability_pa_arrays` / `_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
-| `fit_heritability` | **fit** liability-scale h² from family data (data-augmentation Gibbs) |
+| `fit_heritability` | **fit** liability-scale h² from family data (data-augmentation fixed point, Haseman–Elston update) |
 | `fit_variance_components` | **fit** additive `A` + shared-environment components `C` (sibship) / `M` (couple) as proportions (multiple HE regression) |
 | `fit_genetic_correlation` | **fit** the genetic correlation `r_g` between traits (cross-trait HE regression) |
 | `bootstrap_fit` | family-resampling bootstrap SE / CI for any of the fitters (honest uncertainty) |

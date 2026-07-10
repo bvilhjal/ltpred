@@ -108,13 +108,14 @@ Cov(l_i, l_j) = h2 A_ij + sum_c c2_c K_c[i,j] ,   K_c[i,j] = 1 if i, j share env
 ```
 
 `fit_variance_components` estimates a set of components **jointly** (multiple HE
-regression, or ML with `method="reml"`); a joint fit partials out the overlap
+regression, or ML with `method="mcem"`); a joint fit partials out the overlap
 between components, whereas fitting each alone double-counts. The shipped bank is
 `A` (additive genetic), `C` (full-sib / sibship environment, identified from the
 full-sib excess) and `M` (couple / spousal environment, identified from the `A = 0`
 mate pairs — the parents and the grandparent couples); `M` captures spousal
-resemblance from shared environment *or* assortative mating, which parent data
-alone cannot separate. Each environment component must be a valid
+resemblance from shared environment *or* assortative mating (Robinson et al. 2017),
+which parent data alone cannot separate — it is a descriptive spousal-resemblance
+component, not a generative model of assortative mating. Each environment component must be a valid
 **equivalence-class partition** (a group of relatives fully sharing one deviation),
 so its `K_c` is positive-semidefinite; the fitter rejects a component whose `K_c`
 is not (e.g. a vertical parent-offspring "environment" — see caution (i)). Adding a
@@ -491,7 +492,9 @@ Liability-threshold risk models (Sham and colleagues):
 
 Numerics:
 
-- Pearson 1903 / Aitken 1934 — the selection formula for conditioning a Gaussian.
+- Pearson 1903 / Aitken 1935 — the selection formula for conditioning a Gaussian.
 - Tallis 1961, *JRSS B* — moments of the truncated multivariate normal.
 - Kotecha & Djurić 1999 — Gibbs sampling for truncated multivariate normals.
+- Genz & Bretz 2009, *Springer* — computation of multivariate normal probabilities
+  (the GHK simulator behind the MCEM log-likelihood).
 - Lee et al. 2011, *AJHG* — observed-to-liability-scale heritability.

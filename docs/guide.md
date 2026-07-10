@@ -222,20 +222,25 @@ and check how much the score and downstream results move.
 ### Fitting `h²` from the family data
 
 If you don't have an external `h²`, you can **estimate it from the families
-themselves** — `fit_heritability` fits the liability-scale heritability from the
-relatives' case/control (and age-of-onset) statuses with a data-augmentation Gibbs
-sampler (see [algorithm.md](algorithm.md#fitting-the-covariance-heritability)):
+themselves** — `fit_heritability` estimates the liability-scale heritability from
+the relatives' case/control (and age-of-onset) statuses. It alternates a Gibbs
+augmentation of the latent liabilities with a damped Haseman–Elston update of `h²`,
+converging to the value consistent with the observed familial resemblance (see
+[algorithm.md](algorithm.md#fitting-the-covariance-heritability)). This is a
+**stochastic-approximation fixed point**, not posterior sampling of `h²`: the trace
+is not a posterior draw and its mean is not a posterior mean.
 
 ```python
 from ltpred import fit_heritability
 fit = fit_heritability(families)     # families with member bounds (from a threshold builder)
-fit.h2, fit.h2_se                    # fitted liability-scale heritability (+ Monte-Carlo SE)
+fit.h2, fit.h2_se                    # fitted liability-scale heritability (+ MC diagnostic)
 ```
 
-It needs relatives (lone probands carry no information and raise). `fit.h2_se` is
-the *within-dataset* Monte-Carlo error — the spread across datasets is ~20–30×
-larger — so for a real confidence interval use `bootstrap_fit`, which resamples
-the families with replacement and refits:
+It needs relatives (lone probands carry no information and raise). `fit.h2_se` is a
+*within-dataset* Monte-Carlo **diagnostic** of the fixed point, not an inferential
+standard error — the spread across datasets is ~20–30× larger — so for a real
+confidence interval use `bootstrap_fit`, which resamples the families with
+replacement and refits:
 
 ```python
 from ltpred import bootstrap_fit
@@ -290,32 +295,35 @@ A second shared-environment component, `"M"` (couple / spousal environment), loa
 on the genetically-unrelated **mate pairs** — the parents `(m, f)` and the
 grandparent couples — so `fit_variance_components(families, ("A", "C", "M"))` fits
 all three at once given a 3-generation pedigree (each component needs its
-identifying pairs; the fit raises on a rank-deficient design). `M` captures spousal
-resemblance from shared environment *or* assortative mating, which parent data
-alone cannot separate. Because mates have `A = 0`, omitting a real `M` leaves `A`
+identifying pairs; the fit raises on a rank-deficient design). `M` is a
+**descriptive spousal-resemblance component**: it absorbs shared adult environment
+and some manifestations of assortative mating, but it is *not* a generative model
+of assortative mating (which would also alter the genetic covariance among
+offspring and across generations). Because mates have `A = 0`, omitting a real `M` leaves `A`
 **essentially unbiased** (unlike omitting `C`, which inflates it) — so fit `M` to
 quantify, or `test_variance_component(families, "M")` to test, spousal resemblance
 for its own sake rather than to de-bias `h²`. Only equivalence-class (PSD) environments are valid components; a vertical
 parent-offspring "environment" is not, and is rejected.
 
-Pass `method="reml"` for a **maximum-likelihood** fit (Monte-Carlo EM) instead of
-the moment regression:
+Pass `method="mcem"` for a **Monte-Carlo EM maximum-likelihood** fit instead of the
+moment regression (`method="reml"` is a deprecated alias — the procedure is
+maximum-likelihood on the imputed liabilities, not restricted ML):
 
 ```python
-vc = fit_variance_components(families, ("A", "C"), method="reml")
-vc.components["A"], vc.se["A"]      # estimate + a *model-based* standard error
-vc.loglik, vc.aic                  # observed-data log-likelihood + AIC (for model comparison)
+vc = fit_variance_components(families, ("A", "C"), method="mcem")
+vc.components["A"], vc.se["A"]      # estimate + an approximate model-based SE
+vc.loglik, vc.aic                  # Monte-Carlo (GHK) log-likelihood + AIC (model comparison)
 ```
 
-Unlike the default `"he"` fit, REML is ~30 % more efficient and its `se` is a real
-model-based standard error (from the observed information, which accounts for the
-information thresholding destroys) that approximates the true across-dataset SD —
-so here you do **not** need `bootstrap_fit` for a rough interval. It also reports a
-Monte-Carlo (GHK) log-likelihood and `aic`, so you can compare nested models (e.g.
-`A` vs `A+C`) by AIC. It is the pedigree-scale analog of the maximum-likelihood
-estimation twin-SEM uses. For a *calibrated* yes/no on a component, prefer
-`test_variance_component` — AIC, like any likelihood-based selection for variance
-components, under-penalises near the boundary.
+Unlike the default `"he"` fit, the MCEM fit was ~30 % more efficient *in the
+benchmarked configurations*, and its `se` is an **approximate** model-based SE (an
+OPG/BHHH observed-information estimate, itself subject to Monte-Carlo error) that
+approximated the true across-dataset SD there — so it is often usable in place of a
+`bootstrap_fit` interval, but confirm on your own design. It also reports a
+Monte-Carlo (GHK) log-likelihood and `aic` (both Monte-Carlo estimates), so you can
+compare nested models (e.g. `A` vs `A+C`) by AIC. For a *calibrated* yes/no on a
+component, prefer `test_variance_component` — AIC, like any likelihood-based
+selection for variance components, under-penalises near the boundary.
 
 For **several traits**, `fit_genetic_correlation` estimates the genetic
 correlation `r_g` between them (and each trait's `h²`). Each member must carry one
@@ -401,7 +409,7 @@ res = estimate_liability(families, h2=0.05, out=("genetic",))
 | `res.est["genetic"]` | posterior mean genetic liability per proband — **the score** |
 | `res.est["full"]` | posterior mean full liability (if requested; see caveat below) |
 | `res.se["genetic"]` | Gibbs: Monte-Carlo standard error of the mean; PA: `0` |
-| `res.var["genetic"]` | PA only: posterior variance of the estimate (`None` for Gibbs) |
+| `res.var["genetic"]` | PA only: conditional variance of the latent genetic liability, `Var(G_i \| family)` — residual uncertainty about `G_i`, **not** a standard error of the estimate (`None` for Gibbs) |
 
 Multi-trait columns are suffixed with the phenotype name, e.g.
 `res.est["genetic_height"]`.
@@ -456,7 +464,7 @@ truncated — treat Gibbs as the reference and cross-check.
 | | Gibbs (`"gibbs"`) | Pearson–Aitken (`"pearson-aitken"`) |
 |---|---|---|
 | kind | Monte-Carlo (truncated-MVN sampler) | deterministic sequential-selection approximation |
-| error | batch-means MC SE (`res.se`) | none; gives posterior variance (`res.var`) |
+| error | batch-means MC SE (`res.se`) | no Monte-Carlo error, but a non-zero sequential moment-approximation error; gives `Var(G_i \| family)` in `res.var` |
 | exactness | exact in the limit of infinite draws | exact for 1 truncation, close approx for families |
 | speed | ~570 families/s (10 cores) | ~150 000 families/s — **100–360× faster** |
 | censoring mixture | not implemented | `use_mixture=True` |

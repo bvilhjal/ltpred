@@ -15,8 +15,8 @@ estimators of the posterior-mean genetic liability:
   age-censored-control mixture. It agrees with Gibbs to correlation 0.9997 and
   runs 100–360× faster.
 
-Both support single- and multi-trait analyses and the classic LT-FH,
-age-of-onset ADuLT, and PA-FGRS threshold encodings.
+Both support the classic LT-FH, age-of-onset ADuLT, and PA-FGRS threshold
+encodings; multi-trait estimation is Gibbs-only (PA is single-trait).
 
 **Performance and scale.** The core is Numba-JIT'd and `prange`-parallel, with
 families grouped by structure (canonical form). Streaming batch-means keeps
@@ -25,8 +25,9 @@ standard-error memory at `O(F)`; a precision-matrix `gibbs_params` path is
 scale; and a float32 bounds option halves memory. (The exploration also showed
 why int8-quantising the covariance, ldpred3-style, is the wrong lever here.)
 
-**Variance-component fitting.** `fit_heritability` is a data-augmentation Gibbs
-(Haseman–Elston update), validated unbiased across h² 0.2–0.8.
+**Variance-component fitting.** `fit_heritability` is a data-augmentation
+fixed point (Gibbs augmentation + damped Haseman–Elston update, not posterior
+sampling of h²), validated unbiased across h² 0.2–0.8.
 `fit_variance_components` fits additive `A` and a **bank of relationship-specific
 shared-environment components** — `C` (sibship, from the full-sib excess) and `M`
 (couple, from the `A = 0` mate pairs) — together by a **multiple Haseman–Elston
@@ -101,18 +102,20 @@ likelihood-based inference) to the pedigree/registry setting.
   controls Type-I error, slightly conservative) with good power. Case/control
   bounds only.
 
-- ~~**ML / REML backend (Monte-Carlo EM).**~~ **Done.**
-  `fit_variance_components(..., method="reml")` runs a Monte-Carlo EM
-  maximum-likelihood fit: the E-step is the truncated-MVN liability draw already
-  used; the M-step maximises the Gaussian likelihood of the imputed liabilities
-  (`min log|Σ| + tr(Σ⁻¹ S)`) instead of the HE regression. Validated **unbiased and
-  ~30 % more efficient** than HE, with a **model-based SE** from the observed
-  information (outer product of per-family observed-data scores, via Fisher's
-  identity) that approximates the true across-dataset SD (se/SD ≈ 0.9–1.4) — where
-  the HE `se` understates it ~15-20×. Also returns a Monte-Carlo (GHK) observed-
-  data **log-likelihood** and **AIC** for nested-model comparison (AIC strongly
-  prefers `A+C` on real `A+C` data; near the boundary it under-penalises, so the
-  parametric-bootstrap test above remains the calibrated decision tool).
+- ~~**ML backend (Monte-Carlo EM).**~~ **Done.**
+  `fit_variance_components(..., method="mcem")` (aliases `"ml"`/`"reml"`) runs a
+  Monte-Carlo EM **maximum-likelihood** fit — ML on the imputed liabilities, *not*
+  restricted ML: the E-step is the truncated-MVN liability draw already used; the
+  M-step maximises the Gaussian likelihood of the imputed liabilities
+  (`min log|Σ| + tr(Σ⁻¹ S)`) instead of the HE regression. In the benchmarked
+  configurations it was **unbiased and ~30 % more efficient** than HE, with an
+  **approximate model-based SE** (an OPG/BHHH observed-information estimate, subject
+  to Monte-Carlo error) that approximated the true across-dataset SD (se/SD ≈
+  0.9–1.4) — where the HE `se` understates it ~15-20×. Also returns a Monte-Carlo
+  (GHK) observed-data **log-likelihood** and **AIC** (both Monte-Carlo estimates)
+  for nested-model comparison (AIC strongly prefers `A+C` on real `A+C` data; near
+  the boundary it under-penalises, so the parametric-bootstrap test above remains
+  the calibrated decision tool).
 
 - **Latent factor model on the multi-trait genetic covariance** (Genomic-SEM-lite):
   fit `G ≈ ΛΛ' + Ψ` to the estimated genetic covariance — does one genetic factor
