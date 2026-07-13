@@ -269,6 +269,100 @@ misspecified `("A",)` model:
   worth fitting to **quantify / test spousal resemblance** (shared environment or
   assortative mating, which parent data cannot separate), not to de-bias `h²`.
 
+## 10. LT-FH / LT-FH++ vs case/control — ascertainment, heritability, birth cohort (`bench_fh_prediction.py`)
+
+The GWAS *phenotype* is `E[g | own status + family history (+ age of onset + birth
+cohort)]`, scored against the plain **case/control** label, using **population** CIP
+thresholds so it stays valid under case ascertainment (Pedersen 2022/2023).
+
+**Age-, cohort-, and mortality-consistent generative model.** A liability `ℓ` is
+fixed; the threshold `T(age; birth_year) = Φ⁻¹(1 − CIP(age; by))` falls with age and
+shifts with birth cohort — `CIP(age; by) = K(by)/(1+exp((60−age)/8))`, cohort
+prevalence `K(by) = K·R^((by−1965)/30)`. `ℓ` has an onset age under its *own*
+cohort's CIP. **Death is a competing risk**: each relative has an age at death
+(other-cause) and is observed only up to `c = min(death, age now)`; **observed case**
+iff onset ≤ `c` (pinned at `T(a*) ≈ ℓ`), else **censored control** at `(−∞, T(c))` —
+a disease-free death is a control censored at the death age, not a phantom
+centenarian. Ages are generationally consistent (proband 40–70 born ≈1950–1980,
+parents ≈29–31 y older, grandparents ≈56–58 y), so with mortality grandparents are
+observed to death (~80, ~98 % deceased, correct ≈1908 cohort); observed prevalence
+tracks the CIP (~2 % at K=0.05, not the lifetime K). 3-generation pedigree, 4 000
+families × 3 reps, PA backend.
+
+Two threshold policies are compared: **cohort-aware** — the LT-FH++/ADuLT personalised
+threshold `Tᵢ = Φ⁻¹(1 − K(ageᵢ; birth_yearᵢ))`, anchoring each person to *their own*
+cohort's prevalence `K(by)` — versus **single-K** — the classical-LTM / original-LT-FH
+baseline that uses **one** lifetime prevalence `K` (the 1965 reference) for *everyone*,
+blind to birth cohort (and sex). They coincide when there is no secular trend (`R=1`).
+
+**(a) vs ascertainment** (proband case fraction `P`; h²=0.5, K=0.05, no trend):
+
+| P | cc | count | LT-FH | LT-FH++ | LT-FH/cc | LT-FH++/LT-FH |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0.02 (pop) | 0.228 | 0.266 | 0.344 | 0.346 | **2.27×** | 1.016× |
+| 0.10 | 0.471 | 0.318 | 0.527 | 0.532 | 1.25× | 1.019× |
+| 0.25 | 0.627 | 0.357 | 0.661 | 0.669 | 1.11× | 1.024× |
+| 0.50 | 0.699 | 0.376 | 0.730 | 0.744 | 1.09× | 1.040× |
+
+**(b) vs heritability** (K=0.05, 50 % ascertained):
+
+| h² | cc | LT-FH | LT-FH++ | LT-FH/cc | LT-FH++/LT-FH |
+|---:|---:|---:|---:|---:|---:|
+| 0.2 | 0.490 | 0.522 | 0.535 | 1.13× | 1.050× |
+| 0.4 | 0.650 | 0.679 | 0.696 | 1.09× | 1.053× |
+| 0.6 | 0.740 | 0.769 | 0.786 | 1.08× | 1.045× |
+| 0.8 | 0.807 | 0.828 | 0.846 | 1.05× | 1.043× |
+
+**(c) vs secular prevalence trend `R`** (× per 30 y; h²=0.5, K=0.05, 50 % ascertained)
+— cohort-aware vs single-`K` thresholds on the **pedigree**; here the harm is mostly
+**bias** (the living proband spans a narrow cohort — see (d) for the ranking gain):
+
+| R | corr (cohort-aware) | corr (single-K) | single-K liability bias |
+|---:|---:|---:|---:|
+| 1.0 | 0.742 | 0.742 | +0.000 |
+| 1.5 | 0.740 | 0.740 | −0.040 |
+| 2.0 | 0.741 | 0.740 | −0.058 |
+| 3.0 | 0.741 | 0.739 | **−0.073** |
+
+**(d) cohort *ranking* gain vs cohort span of cases** (own age of onset, no family,
+R=3) — isolates the re-ranking the pedigree dilutes:
+
+| cohort half-span | corr (cohort-aware) | corr (single-K) | Δ |
+|---|---:|---:|---:|
+| ±10 y (1955–1975) | 0.426 | 0.422 | +0.004 |
+| ±25 y (1940–1990) | 0.456 | 0.414 | +0.042 |
+| ±40 y (1925–2005) | 0.506 | 0.414 | +0.092 |
+| ±55 y (1910–2020) | **0.524** | 0.418 | **+0.106** |
+
+- **Family history (LT-FH over case/control) is largest for rare observed disease.**
+  In a population sample the observed prevalence is ~2 %, case/control is weak
+  (corr 0.23), and family history is worth **2.27× effective N**; under 50 %
+  ascertainment the balanced label is strong (0.70) and the gain shrinks to 1.09×.
+- **Age of onset (LT-FH++ over LT-FH) grows with ascertainment** (1.6 % → 4.0 %) and,
+  separately, with prevalence (reproduce with `--K`: it reached ~10 % at K=0.20) —
+  the Pedersen 2022 direction (~4 % → ~18 % under ascertainment), at smaller magnitude
+  (Gaussian not survival model, one pedigree, no sex thresholds, corr-based eff-N).
+- **Heritability scales everything**; the family-history gain shrinks a little as h²
+  rises because a high-h² case/control label is already informative.
+- **Birth cohort helps both calibration *and* ranking.** Ignoring a secular
+  prevalence trend (i) shifts the liability estimate systematically — up to
+  **−0.073 at R=3**, a bias that correlates with birth year and can confound — and
+  (ii) **loses ranking/power** whenever cases span a range of birth cohorts, because
+  two cases with the *same age of onset* but different cohorts have *different* true
+  liabilities (the one born in a low-prevalence era is more extreme), and a single-`K`
+  analysis collapses them to one value. The ranking gain grows with the cohort span
+  of the **cases** (panel (d)): negligible at ±10 y (0.426 vs 0.422 — like the narrow
+  living-proband pedigree in (c)), rising to corr **0.524 (cohort-aware) vs 0.418
+  (single-K)** at ±55 y — a **~1.57× effective-N** gain. So on a real pedigree the
+  cohort correction shows up mostly as the (c) bias (the high-weight proband spans a
+  narrow cohort; the wide-cohort grandparents are low-relatedness controls), but the
+  underlying power gain (d) is large when cases themselves span many cohorts. This is
+  *why* LT-FH++ personalises thresholds by birth year. (GWAS λ_GC not tested.)
+- **Death as a competing risk** makes the ages realistic (relatives observed to death,
+  grandparents ≈98 % deceased at ≈80) with the correct birth cohorts, and the results
+  above are essentially unchanged from the no-mortality version — deceased relatives
+  observed over their full life carry the same lifetime signal.
+
 ## Bottom line
 
 PA-FGRS is a drop-in, deterministic replacement for the LT-FH++ Gibbs sampler:

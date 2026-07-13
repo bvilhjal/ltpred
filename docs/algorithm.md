@@ -252,28 +252,61 @@ above). Both run on the same multivariate liability-threshold engine; what LT-FH
 Gibbs for arbitrary pedigrees, and the deterministic Pearson–Aitken sweep for
 biobank-scale, age-censored genealogies — together with the age-of-onset encodings.
 
-## Thresholds: status, age and onset
+## Thresholds: status, age, onset — and personalisation by sex and birth cohort
 
-Each observed person contributes a truncation of their liability:
+Each observed person `i` contributes a truncation of their full liability `l_i` to an
+interval whose edge is a **personalised threshold** (ADuLT / LT-FH++, Pedersen 2022/2023):
 
-- **classic LT-FH** (`prevalence_thresholds`): case `(T, inf)`, control
-  `(-inf, T)`.
-- **LT-FH++ / ADuLT** (`age_thresholds`): the cumulative incidence rises with age
-  along a logistic curve,
+```text
+T_i = Phi^-1( 1 - K(t ; s_i, b_i) )
+```
 
-  ```text
-  CIP(age) = K / (1 + exp((mid_point - age) * slope))
-  thresh(age) = Phi^-1(1 - CIP(age))
-  ```
+where `K(t; s, b)` is the population **cumulative incidence proportion (CIP)** — the
+fraction of people of sex `s` born in year `b` who are diagnosed by age `t`. Status,
+age and demographics map person `i` to an interval:
 
-  A **case** is *pinned* at `thresh(age_of_onset)` (`lower == upper`): younger
-  onset ⇒ lower incidence ⇒ higher threshold ⇒ more extreme liability — the
-  age-of-onset map. A **control** is `(-inf, thresh(current_age))`: surviving
-  disease-free to an older age is stronger evidence of low liability. The map is
-  invertible (`convert_liability_to_aoo` ↔ `convert_age_to_thresh`), so
-  `thresh(onset)` equals the case's liability at onset.
+- **control** at current age `c_i`:  `l_i ∈ (-inf, T_i(c_i)]` — the "lived-through-risk"
+  bound: an older disease-free person has cleared a *lower* threshold, i.e. stronger
+  evidence of low liability;
+- **case** with onset age `a_i`:  liability **pinned** at `T_i(a_i)` (`lower == upper`;
+  PA-FGRS instead uses the interval `[T_i(a_i), inf)`). Younger onset ⇒ lower CIP ⇒
+  higher threshold ⇒ more extreme liability. The map is invertible
+  (`convert_liability_to_aoo` ↔ `convert_age_to_thresh`), so `T_i(a_i)` *equals* the
+  case's liability at onset.
 
-Pinning (a point mass) is handled exactly by both estimators.
+Age, sex and birth cohort enter **only through `K(t; s, b)`** — i.e. only through the
+interval edge `T_i`, never the covariance `Sigma`. What ltpred ships:
+
+| helper | CIP model | strata |
+|---|---|---|
+| `prevalence_thresholds` | one lifetime prevalence `K` → `T = Phi^-1(1-K)` | none (classic LT-FH) |
+| `age_thresholds` / `pa_thresholds` | logistic `K / (1 + exp((mid_point - age)·slope))` | age only, single `K` |
+| `thresholds_from_cip` | an **empirical** CIP curve you supply, **called once per stratum** | sex × birth year × ancestry (full LT-FH++) |
+
+**"Single-`K`"** (the baseline in `bench_fh_prediction`) means using **one** lifetime
+prevalence `K` for everyone — the classical-LTM / original-LT-FH threshold, blind to
+birth cohort and sex. LT-FH++ replaces it with the stratified `K(t; s, b)`; in LT-FH
+"the thresholds are the same for all children, and another threshold for all parents"
+(Pedersen 2022), whereas LT-FH++ assigns each person their own.
+
+**Why personalisation is calibration *and* (sometimes) power.** From the BLUP
+decomposition above, `E[g | family] = Cov(g, l_F) Var(l_F)^-1 · E[l_F | intervals]`, the
+thresholds `T_i` enter **only** the truncated means `E[l_F | intervals]` — never the BLUP
+weights `Cov(g,l_F)Var(l_F)^-1`. Hence:
+
+- a **uniform** threshold error (wrong `K` for *everyone*) shifts every truncated mean
+  the same way → a pure **calibration / scale** shift of the score (its bias), leaving
+  the ranking almost intact;
+- a **stratum-differential** threshold (cases from birth cohorts, or sexes, of
+  *different* prevalence) shifts the truncated means by *different* amounts → it
+  **re-orders** them, so getting `K(t;s,b)` right also improves **ranking / discovery
+  power**. Two cases with the same onset age but different cohorts have different true
+  liabilities; the stratified CIP separates them, a single `K` collapses them.
+
+`bench_fh_prediction` shows both faces: on the pedigree it is mostly the bias (the
+high-weight proband spans a narrow living cohort), while the own-onset panel isolates the
+ranking gain — up to ~1.6× effective N as cases span wide birth cohorts. Pinning (a point
+mass) is handled exactly by both estimators.
 
 ## Estimator 1: Gibbs sampler (LT-FH++)
 
