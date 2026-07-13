@@ -333,9 +333,11 @@ below `tol` (`batch_means`, R's `batchmeans::bmmat`).
 **Performance.** The inner sweep is Numba-JIT'd. Families with the same role
 sequence share one covariance, so the estimator groups them and runs the group in
 one `prange`-parallel kernel that accumulates the mean and the batch-means SE
-**online** — no full `(n_sim × n_out)` sample array, and each family seeds its own
-RNG so results are deterministic regardless of thread scheduling. Without Numba
-the identical code runs serially in pure Python.
+**online** from streaming batch summaries (running sums and sums-of-squares) — no
+full `(n_sim × n_out)` sample array, so the Monte-Carlo-SE memory is `O(families)`
+regardless of `n_sim`, and each family seeds its own RNG so results are
+deterministic regardless of thread scheduling. Without Numba the identical code
+runs serially in pure Python.
 
 ## Estimator 2: Pearson–Aitken (PA-FGRS)
 

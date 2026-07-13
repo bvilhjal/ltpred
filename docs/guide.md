@@ -641,3 +641,34 @@ Before running a production analysis:
   approaches the population mean and the gain over case/control shrinks.
 - **Install `[fast]`** (Numba) for large runs; the pure-Python fallback is
   numerically identical but much slower.
+
+## Function reference
+
+Every public name, and where to reach for it.
+
+| Function | Purpose |
+|---|---|
+| `estimate_liability` | end-to-end estimator (`method=` gibbs / pearson-aitken; trait dispatch) |
+| `liability_sensitivity` | sweep the assumed h² and report how stable the score is |
+| `estimate_liability_pa` | deterministic PA-FGRS estimator |
+| `estimate_liability_pa_arrays` / `_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
+| `fit_heritability` | **fit** liability-scale h² from family data (data-augmentation fixed point, Haseman–Elston update) |
+| `fit_variance_components` | **fit** additive `A` + shared-environment components `C` (sibship) / `M` (couple) as proportions (multiple HE regression) |
+| `fit_genetic_correlation` | **fit** the genetic correlation `r_g` between traits (cross-trait HE regression) |
+| `bootstrap_fit` | family-resampling bootstrap SE / CI for any of the fitters (honest uncertainty) |
+| `test_variance_component` / `test_genetic_correlation` | parametric-bootstrap significance test (is `C` / `M` / `r_g` non-zero?) |
+| `set_num_threads` | set the Numba-parallel thread count |
+| `pa_algorithm` / `pa_estimate_batched` | Pearson–Aitken selection updates |
+| `tnorm_moments` / `tnorm_mixture_conditional` | truncated-normal moments (+ censoring mixture) |
+| `construct_covmat` / `_single` / `_multi` | family covariance from relatedness |
+| `get_relatedness` | shared-DNA × h² for a pair of roles |
+| `kinship_from_pedigree` | additive relationship matrix `A` from a pedigree (`id`, `father`, `mother`) — arbitrary pedigrees |
+| `construct_covmat_from_kinship` | liability covariance from a kinship/`A` matrix (generalises the role grammar) |
+| `estimate_liability_from_kinship` | estimate a target's liability from a pedigree `A` + per-member bounds |
+| `rtmvnorm_gibbs` | truncated-MVN Gibbs sampler |
+| `prevalence_thresholds` / `age_thresholds` / `pa_thresholds` | status (+age) → liability bounds |
+| `thresholds_from_cip` | bounds from an empirical (population) CIP curve — for real data |
+| `convert_age_to_cir` / `convert_age_to_thresh` / … | age ↔ incidence ↔ threshold |
+| `convert_observed_to_liability_scale` | observed → liability-scale h² (Lee et al.) |
+| `simulate_under_LTM_single` | simulate families for testing/benchmarking |
+| `families_from_columns` | build family inputs from flat columns |
