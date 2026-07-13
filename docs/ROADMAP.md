@@ -40,7 +40,10 @@ poorly and showed structure-dependent bias. Dominance `D` is intentionally not
 offered — it needs MZ/DZ twin contrasts to estimate honestly.) `fit_genetic_correlation` estimates
 the **genetic correlation `r_g`** between traits by the cross-trait analogue of
 the same regression — validated ~unbiased near the null with mild attenuation at
-large `|r_g|`.
+large `|r_g|`. On top of that `r_g` matrix, `fit_genetic_factor` fits a
+**common-factor model `r_g ≈ ΛΛ' + Ψ`** (Genomic-SEM-lite, by MINRES): does one
+latent genetic factor explain the correlations among the traits? — with an `srmr`
+fit index that flags when it does not.
 
 **Benchmarks** (`benchmarks/`, `RESULTS.md`) cover accuracy, runtime scaling,
 age-of-onset, and GWAS power (LT-FH++ and PA both ~1.52× effective-N over
@@ -53,7 +56,7 @@ BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
 connection, and the environmental-covariance extension), plus `CITATION.cff`
 (15 references).
 
-The test suite is 150 tests passing.
+The test suite is 167 tests passing.
 
 ## Near-term — variance-component thread ✅ complete
 
@@ -117,9 +120,17 @@ likelihood-based inference) to the pedigree/registry setting.
   the boundary it under-penalises, so the parametric-bootstrap test above remains
   the calibrated decision tool).
 
-- **Latent factor model on the multi-trait genetic covariance** (Genomic-SEM-lite):
-  fit `G ≈ ΛΛ' + Ψ` to the estimated genetic covariance — does one genetic factor
-  explain the `r_g` among traits?
+- ~~**Latent factor model on the multi-trait genetic covariance** (Genomic-SEM-lite).~~
+  **Done.** `fit_genetic_factor` fits `r_g ≈ ΛΛ' + Ψ` — a common-factor model — to
+  the genetic correlation matrix from `fit_genetic_correlation`, by **MINRES**
+  (minimising the off-diagonal residuals, so the factor(s) explain the cross-trait
+  correlations, not each trait's own variance). `srmr` / `prop_explained` read off
+  the fit; a single factor needs `P ≥ 3` traits (and `P ≥ 4` to *test* it), and
+  `n_factors` must leave `df = ½((P−m)²−(P+m)) ≥ 0`. Validated: recovers planted
+  loadings end-to-end, and `srmr` rises when a one-factor model is fit to two-factor
+  data (`bench_genetic_factor.py`). It is a descriptive decomposition of a
+  point-estimate `r_g` (bootstrap the pipeline for uncertainty); an optional DWLS
+  weighting hook is there for when honest per-`r_g` weights are supplied.
 
 - **Relationship-specific environmental components.** *Partly done.* The single `C`
   is now a **bank**: `_COMPONENT_OFFDIAG` ships `C` (full-sib / sibship) and `M`

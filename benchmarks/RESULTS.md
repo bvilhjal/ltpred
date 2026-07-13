@@ -363,6 +363,47 @@ R=3) — isolates the re-ranking the pedigree dilutes:
   above are essentially unchanged from the no-mortality version — deceased relatives
   observed over their full life carry the same lifetime signal.
 
+## 11. Genetic factor model (`bench_genetic_factor.py`)
+
+`fit_genetic_factor` fits a common-factor model `r_g ≈ ΛΛ' + Ψ` to the genetic
+correlation matrix from `fit_genetic_correlation` — the whole pipeline run
+end-to-end on family case/control data (simulate → fit `r_g` → fit the factor
+model). P = 5 traits, h² = (0.5, 0.45, 0.4, 0.35, 0.3), `parents+2 sibs`,
+prevalence 0.10, 15 replicate cohorts of 3 000 families.
+
+**(a) Single-factor loading recovery** (truth: one factor, loadings
+Λ = 0.8, 0.7, 0.6, 0.5, 0.4):
+
+| trait | true loading | fitted (mean ± SD) |
+|---:|---:|---:|
+| 0 | 0.80 | 0.779 ± 0.082 |
+| 1 | 0.70 | 0.711 ± 0.088 |
+| 2 | 0.60 | 0.594 ± 0.068 |
+| 3 | 0.50 | 0.524 ± 0.057 |
+| 4 | 0.40 | 0.411 ± 0.049 |
+
+The one-factor fit gives `srmr = 0.046 ± 0.014` and `prop_explained = 0.984` — one
+latent genetic factor reproduces the `r_g` matrix, with loadings recovered close to
+truth (the mild attenuation on the largest loading is inherited from the `r_g`
+estimator, §7).
+
+**(b) Does `srmr` flag too few factors?** (truth: *two* independent genetic
+factors, blocks {0,1,2} and {3,4}):
+
+| model fit | `srmr` |
+|---|---:|
+| 1 factor (well-specified, from (a)) | 0.046 |
+| 1 factor on two-factor data | **0.155** |
+| 2 factors on two-factor data | 0.017 |
+
+- **A mis-specified one-factor model triples the off-diagonal misfit** — `srmr`
+  0.046 → 0.155 — while adding the second factor drops it back to 0.017. So `srmr`
+  distinguishes "one general genetic axis" from "several genetic dimensions" even
+  through the noisy pedigree → `r_g` → factor pipeline.
+- It is a **descriptive decomposition of a point estimate**: the loadings carry no
+  inference of their own, so bootstrap the whole pipeline over families for
+  uncertainty (the within-dataset `se` understates it, as everywhere in §5–7).
+
 ## Bottom line
 
 PA-FGRS is a drop-in, deterministic replacement for the LT-FH++ Gibbs sampler:
@@ -374,5 +415,8 @@ faster. Use `method="pearson-aitken"` for large biobank-scale runs and
 ~0.05 at a few thousand informative families); `fit_variance_components` adds a
 bank of shared-environment components — sibship `C` and couple `M` (both unbiased,
 negligible false positives) — and `fit_genetic_correlation` recovers the genetic
-correlation `r_g` between traits (unbiased near the null). Report their uncertainty
-by bootstrapping families, not from the reported `se`.
+correlation `r_g` between traits (unbiased near the null). On top of `r_g`,
+`fit_genetic_factor` fits a common-factor model — one genetic factor cleanly
+reproduces a one-factor `r_g` (srmr ≈ 0.05), and `srmr` rises sharply when the truth
+has more factors. Report their uncertainty by bootstrapping families, not from the
+reported `se`.

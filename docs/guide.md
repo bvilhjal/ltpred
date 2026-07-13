@@ -344,6 +344,25 @@ The phenotypic correlation splits into genetic and environmental parts —
 cross-relative, cross-trait resemblance). It is ~unbiased near the null and mildly
 attenuated at large `|r_g|`; use `bootstrap_fit` for a CI.
 
+With several traits, ask whether one genetic factor explains the `r_g` among them —
+a **common-factor model** `r_g ≈ Λ Λ' + Ψ` (Genomic-SEM-lite):
+
+```python
+from ltpred import fit_genetic_factor
+fa = fit_genetic_factor(gc)              # gc from fit_genetic_correlation (or a (P,P) matrix)
+fa.loadings                              # (P, 1) each trait's correlation with the factor
+fa.communality                           # per-trait genetic variance the factor explains
+fa.srmr, fa.prop_explained               # off-diagonal misfit; fraction of r_g captured
+```
+
+`fit_genetic_factor` fits the loadings by MINRES (minimising the **off-diagonal**
+residuals, so the factor explains the cross-trait correlations, not each trait's own
+variance). A small `srmr` (≲ 0.05–0.08) means one factor suffices; if it is large,
+refit with `n_factors=2` and compare. A single factor needs `P ≥ 3` traits (and
+`P ≥ 4` to actually *test* one factor's fit — at `P = 3` it is exact by
+construction). It is a descriptive decomposition of a point-estimate `r_g`, so
+bootstrap the `fit_genetic_correlation → fit_genetic_factor` pipeline for uncertainty.
+
 ### Is a component / correlation significant?
 
 The frequentist analog of the twin-SEM likelihood-ratio test ("is `C` in the
@@ -655,6 +674,7 @@ Every public name, and where to reach for it.
 | `fit_heritability` | **fit** liability-scale h² from family data (data-augmentation fixed point, Haseman–Elston update) |
 | `fit_variance_components` | **fit** additive `A` + shared-environment components `C` (sibship) / `M` (couple) as proportions (multiple HE regression) |
 | `fit_genetic_correlation` | **fit** the genetic correlation `r_g` between traits (cross-trait HE regression) |
+| `fit_genetic_factor` | **fit** a common-factor model `r_g ≈ ΛΛ' + Ψ` — does one genetic factor explain the correlations? (Genomic-SEM-lite) |
 | `bootstrap_fit` | family-resampling bootstrap SE / CI for any of the fitters (honest uncertainty) |
 | `test_variance_component` / `test_genetic_correlation` | parametric-bootstrap significance test (is `C` / `M` / `r_g` non-zero?) |
 | `set_num_threads` | set the Numba-parallel thread count |

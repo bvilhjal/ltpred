@@ -484,6 +484,55 @@ phenotypically correlated), with mild attenuation at large `|rg|` (the bounded
 ratio estimator); bootstrap families for a CI. This is the pedigree-scale analogue
 of bivariate GREML / cross-trait LD-score regression.
 
+### Genetic factor structure (common-factor model)
+
+With more than a handful of traits, the genetic correlation matrix `r_g` is itself a
+structured object worth summarising. `fit_genetic_factor` fits a **common-factor
+model** to it,
+
+```text
+r_g ≈ Λ Λ' + Ψ ,     Ψ = diag(uniquenesses),
+```
+
+where `Λ` is a `P × m` matrix of factor loadings and `Ψ` the trait-specific genetic
+residuals — the pedigree-scale analogue of the **Genomic SEM** common-factor model
+(Grotzinger et al. 2019), which fits the same structure to an LD-score-regression
+genetic covariance. For `m = 1` it answers a concrete question: does a *single*
+latent genetic factor — one general axis of shared genetic liability — reproduce all
+the pairwise `r_g`, or do the traits split into several genetic dimensions?
+
+The fit is **MINRES** (minimum-residual) factor analysis: choose `Λ` to minimise the
+sum of squared **off-diagonal** residuals of `r_g − Λ Λ'`,
+
+```text
+minimise  sum_{p≠q} w_pq (r_g[p,q] − (Λ Λ')[p,q])^2 ,   then  Ψ_p = 1 − (Λ Λ')_pp .
+```
+
+The diagonal is *excluded* from the objective and absorbed afterwards by the
+uniquenesses, so the factors are pinned by the **cross-trait correlations** — the
+shared signal — not by each trait's own heritable variance. (This is the factor-
+analytic counterpart of what the `C`/`M` environment components do in the
+variance-component fit: model the off-diagonal resemblance, leave the diagonal to a
+residual.) Loadings come back on the correlation scale — a covariance input is
+standardised first — so `communality_p = sum_k Λ_pk^2` is the fraction of trait `p`'s
+*genetic* variance explained by the common factor(s). The optimisation is warm-started
+from the top-`m` eigenvectors of `r_g` (principal factors) and polished by L-BFGS-B
+with the analytic gradient `−2 (W∘R_res) Λ`; an optional weight matrix `W` (e.g.
+`1/se²` of each `r_g`) gives a diagonally-weighted (DWLS) fit.
+
+Fit is read off the **off-diagonal residuals**: `srmr` (their standardised
+root-mean-square) small — say ≲ 0.05–0.08 — means the `m` factors reproduce the
+genetic correlations, and `prop_explained` is the fraction of the off-diagonal
+structure they capture. A single factor is identified only for `P ≥ 3` traits, and
+in general the model must be (over-)identified, `df = ½((P − m)² − (P + m)) ≥ 0`; at
+`df = 0` (one factor on three traits) the fit is exact by construction, so testing
+one factor's adequacy needs `P ≥ 4`. As with the `r_g` estimate itself the loadings
+carry no inference of their own — bootstrap the whole
+`fit_genetic_correlation → fit_genetic_factor` pipeline over families for uncertainty,
+since the within-dataset `se` understates it. `benchmarks/bench_genetic_factor.py`
+recovers planted loadings end-to-end and shows `srmr` rising when a one-factor model
+is fit to two-factor data.
+
 ## Background and references
 
 The method sits in a long quantitative-genetics lineage. **Threshold models** for
@@ -533,3 +582,9 @@ Numerics:
 - Genz & Bretz 2009, *Springer* — computation of multivariate normal probabilities
   (the GHK simulator behind the MCEM log-likelihood).
 - Lee et al. 2011, *AJHG* — observed-to-liability-scale heritability.
+
+Multi-trait / genetic factor structure:
+
+- Grotzinger et al. 2019, *Nat. Hum. Behav.* — Genomic SEM: structural equation
+  models (including the common-factor model) fit to a multi-trait genetic
+  covariance — the model `fit_genetic_factor` ports to the pedigree scale.

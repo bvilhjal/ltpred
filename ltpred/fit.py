@@ -52,6 +52,7 @@ from .family import Family, Member
 
 __all__ = ["FitResult", "fit_heritability", "VarCompResult",
            "fit_variance_components", "GenCorrResult", "fit_genetic_correlation",
+           "FactorResult", "fit_genetic_factor",
            "BootstrapResult", "bootstrap_fit", "SignificanceTest",
            "test_variance_component", "test_genetic_correlation"]
 
@@ -493,7 +494,6 @@ def _reml_observed_se(groups, comps, h2, eps, rng, n_score=60, sweeps=1):
     estimate's covariance."""
     C = len(comps)
     info = np.zeros((C, C))
-    Dmats = {}
     for g in groups:
         k = g["k"]
         Kmats = [g["K"][c] for c in comps]
@@ -807,6 +807,171 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
         traces=dict(h2=tr_h2[sl].copy(), rg=tr_rg[sl].copy(),
                     re=tr_re[sl].copy(), rp=tr_rp[sl].copy()),
         n_iter=int(n_iter), burn_in=int(burn_in))
+
+
+@dataclass
+class FactorResult:
+    """Result of :func:`fit_genetic_factor` — a common-factor decomposition of the
+    genetic correlation matrix, ``r_g ≈ Λ Λ' + Ψ`` (a Genomic-SEM-style common-factor
+    model on the correlation scale).
+
+    ``loadings`` is the ``(P, n_factors)`` matrix ``Λ`` of standardised factor
+    loadings (each trait's correlation with a latent genetic factor). ``communality``
+    is the per-trait proportion of *genetic* variance explained by the common
+    factor(s) — the row sums of ``Λ²``, clipped to ``[0, 1]`` — and ``uniqueness = 1
+    − communality`` the trait-specific genetic residual. ``fitted`` is the
+    model-implied correlation ``Λ Λ' + diag(Ψ)`` (diagonal 1) and ``residual`` the
+    misfit ``r_g − fitted``, whose **off-diagonal** is what the fit targets.
+
+    ``srmr`` is the standardised root-mean-square of those off-diagonal residuals —
+    the headline fit index: small (≲ 0.05–0.08) means the factor(s) reproduce the
+    genetic correlations well, so one general genetic axis suffices.
+    ``prop_explained`` is the fraction of the off-diagonal genetic-correlation
+    structure the factor(s) capture. ``df = ½((P − m)² − (P + m))`` is the model
+    degrees of freedom; at ``df = 0`` (e.g. one factor on three traits) the model is
+    **just-identified** and ``srmr`` is ~0 by construction, so it cannot test fit —
+    need ``P ≥ 4`` for a one-factor test.
+
+    For ``n_factors > 1`` the ``loadings`` are the unrotated (MINRES) orientation:
+    ``communality``, ``fitted`` and ``srmr`` are rotation-invariant, but the
+    individual loadings are only defined up to an orthogonal rotation.
+    ``input_correlation`` records whether the supplied matrix already had a unit
+    diagonal (a correlation) or was standardised from a covariance."""
+    loadings: np.ndarray
+    uniqueness: np.ndarray
+    communality: np.ndarray
+    n_factors: int
+    fitted: np.ndarray
+    residual: np.ndarray
+    srmr: float
+    prop_explained: float
+    df: int
+    phen_names: list
+    input_correlation: bool
+
+
+def _minres_loadings(R, m, W, max_iter, tol):
+    """MINRES common-factor loadings: minimise the (optionally weighted) sum of
+    squared **off-diagonal** residuals of ``R − Λ Λ'`` over the ``(P, m)`` loading
+    matrix ``Λ`` — the diagonal is excluded because the uniquenesses absorb it, so the
+    factors explain the *correlations*, not each trait's own variance. Warm-started
+    from the top-``m`` eigenpairs of ``R`` (principal factors) and polished by L-BFGS-B
+    with the analytic gradient ``−2 (W∘Rres) Λ``. ``W`` is an optional ``(P, P)``
+    inverse-variance weight matrix (its diagonal is ignored)."""
+    from scipy.optimize import minimize
+    P = R.shape[0]
+    Wm = np.ones((P, P)) if W is None else np.array(W, dtype=float)
+    Wm = 0.5 * (Wm + Wm.T)
+    np.fill_diagonal(Wm, 0.0)                       # off-diagonal objective only
+    w, V = np.linalg.eigh(R)                        # principal-factor warm start
+    order = np.argsort(w)[::-1][:m]
+    L0 = V[:, order] * np.sqrt(np.clip(w[order], 0.0, None))
+
+    def obj_grad(vec):
+        L = vec.reshape(P, m)
+        Rres = R - L @ L.T
+        WR = Wm * Rres
+        f = 0.5 * float(np.sum(WR * Rres))
+        grad = -2.0 * (WR @ L)
+        return f, grad.ravel()
+
+    res = minimize(obj_grad, L0.ravel(), jac=True, method="L-BFGS-B",
+                   options=dict(maxiter=int(max_iter), gtol=float(tol), ftol=1e-14))
+    L = res.x.reshape(P, m)
+    for k in range(m):                             # deterministic sign per factor
+        if L[np.argmax(np.abs(L[:, k])), k] < 0:
+            L[:, k] *= -1.0
+    return L
+
+
+def fit_genetic_factor(genetic, n_factors=1, *, phen_names=None, weights=None,
+                       max_iter=500, tol=1e-8):
+    """Fit a genetic **common-factor** model ``r_g ≈ Λ Λ' + Ψ`` (Genomic-SEM-lite).
+
+    Given the genetic correlations among ``P`` traits — typically from
+    :func:`fit_genetic_correlation` — this asks whether a few latent genetic factors
+    reproduce them: does *one* genetic factor explain the pairwise ``r_g`` (a general
+    genetic axis shared across the traits), or are several needed? It is the
+    pedigree-scale analogue of the Genomic-SEM common-factor model fit to an
+    LD-score-regression genetic covariance (Grotzinger et al. 2019).
+
+    ``genetic`` is either a :class:`GenCorrResult` (its ``rg`` matrix and
+    ``phen_names`` are used) or a ``(P, P)`` genetic correlation / covariance array; a
+    covariance is standardised to a correlation first, so ``loadings`` are always on
+    the correlation scale. The fit is **MINRES** common-factor analysis: choose ``Λ``
+    (``P × n_factors``) to minimise the sum of squared **off-diagonal** residuals of
+    ``r_g − Λ Λ'``, letting the trait-specific uniquenesses ``Ψ`` soak up the
+    diagonal — so the factor(s) explain the *cross-trait* genetic correlations rather
+    than each trait's own heritable variance.
+
+    A single factor needs ``P ≥ 3`` traits (three correlations pin one set of
+    loadings), and ``n_factors`` must leave the model (over-)identified,
+    ``df = ½((P − n_factors)² − (P + n_factors)) ≥ 0``. Returns a
+    :class:`FactorResult` with the loadings, per-trait communalities (genetic variance
+    explained by the factor[s]) and an ``srmr`` fit index; compare one vs more factors
+    by ``srmr`` / ``prop_explained``.
+
+    ``weights`` optionally supplies a ``(P, P)`` inverse-variance weight matrix for a
+    diagonally-weighted (DWLS) fit — e.g. ``1 / se²`` of each ``r_g`` — instead of the
+    unweighted (ULS) default. Because the within-dataset ``se`` from
+    :func:`fit_genetic_correlation` understates the true sampling variability, prefer
+    weights (and uncertainty on the loadings) from bootstrapping the whole
+    ``fit_genetic_correlation`` → ``fit_genetic_factor`` pipeline over families
+    (:func:`bootstrap_fit`) to relying on that ``se``. This is a descriptive
+    decomposition of a *point-estimate* correlation matrix; it carries no inference
+    of its own."""
+    if isinstance(genetic, GenCorrResult):
+        M = np.asarray(genetic.rg, dtype=float)
+        if phen_names is None:
+            phen_names = list(genetic.phen_names)
+    else:
+        M = np.asarray(genetic, dtype=float)
+    if M.ndim != 2 or M.shape[0] != M.shape[1]:
+        raise ValueError("genetic must be a square (P, P) matrix or a GenCorrResult")
+    P = M.shape[0]
+    m = int(n_factors)
+    if m < 1:
+        raise ValueError("n_factors must be >= 1")
+    if P < 3:
+        raise ValueError("need >= 3 traits for a common-factor model "
+                         "(a single factor is unidentified for P < 3)")
+    df = ((P - m) ** 2 - (P + m)) // 2
+    if df < 0:
+        raise ValueError(f"{m} factors are not identified from {P} traits "
+                         f"(model df = {df} < 0); use fewer factors")
+    if phen_names is None:
+        phen_names = [f"phenotype{p + 1}" for p in range(P)]
+    elif len(phen_names) != P:
+        raise ValueError("phen_names length must match number of traits")
+    if weights is not None:
+        weights = np.asarray(weights, dtype=float)
+        if weights.shape != (P, P):
+            raise ValueError("weights must be a (P, P) matrix")
+
+    M = 0.5 * (M + M.T)                             # symmetrise, then standardise
+    input_correlation = bool(np.allclose(np.diag(M), 1.0, atol=1e-6))
+    d = np.sqrt(np.clip(np.diag(M), 1e-12, None))
+    R = M / np.outer(d, d)
+    np.fill_diagonal(R, 1.0)
+
+    L = _minres_loadings(R, m, weights, max_iter, tol)
+    comm_raw = np.sum(L * L, axis=1)               # row sums of Λ²
+    communality = np.clip(comm_raw, 0.0, 1.0)      # Heywood-guarded proportion
+    uniqueness = 1.0 - communality
+    fitted = L @ L.T + np.diag(1.0 - comm_raw)     # diagonal reproduces R exactly
+    np.fill_diagonal(fitted, 1.0)
+    residual = R - fitted
+    iu = np.triu_indices(P, 1)
+    off = residual[iu]
+    srmr = float(np.sqrt(np.mean(off ** 2))) if off.size else 0.0
+    ss_tot = float(np.sum(R[iu] ** 2))
+    prop_explained = (float(1.0 - np.sum(off ** 2) / ss_tot)
+                      if ss_tot > 1e-12 else 0.0)
+    return FactorResult(
+        loadings=L, uniqueness=uniqueness, communality=communality,
+        n_factors=m, fitted=fitted, residual=residual, srmr=srmr,
+        prop_explained=prop_explained, df=int(df),
+        phen_names=list(phen_names), input_correlation=input_correlation)
 
 
 @dataclass

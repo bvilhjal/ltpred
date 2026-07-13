@@ -176,6 +176,94 @@ def test_genetic_correlation_validates_input():
                                 50, [0.1, 0.1], seed=1), n_iter=50)
 
 
+def test_genetic_factor_recovers_single_factor():
+    # a planted one-factor genetic correlation r_g = lam lam' (diag 1): MINRES
+    # recovers the loadings exactly (rank-1 off-diagonal is fit perfectly)
+    from ltpred import fit_genetic_factor
+    lam = np.array([0.8, 0.7, 0.6, 0.5, 0.4])
+    R = np.outer(lam, lam)
+    np.fill_diagonal(R, 1.0)
+    r = fit_genetic_factor(R, 1, phen_names=list("ABCDE"))
+    assert r.loadings.shape == (5, 1)
+    assert np.allclose(r.loadings.ravel(), lam, atol=1e-3)   # exact up to sign (fixed +)
+    assert np.allclose(r.communality, lam ** 2, atol=1e-3)   # variance explained
+    assert np.allclose(r.uniqueness, 1.0 - lam ** 2, atol=1e-3)
+    assert r.srmr < 1e-3 and r.prop_explained > 0.999        # one factor fits
+    assert r.df == ((5 - 1) ** 2 - (5 + 1)) // 2 == 5
+    assert r.input_correlation and r.phen_names == list("ABCDE")
+
+
+def test_genetic_factor_detects_two_factors():
+    # two independent blocks (a two-factor truth): one factor fits poorly, two well
+    from ltpred import fit_genetic_factor
+    l1, l2 = np.array([0.8, 0.7, 0.6]), np.array([0.75, 0.65, 0.55])
+    R = np.zeros((6, 6))
+    R[:3, :3] = np.outer(l1, l1)
+    R[3:, 3:] = np.outer(l2, l2)
+    np.fill_diagonal(R, 1.0)
+    one = fit_genetic_factor(R, 1)
+    two = fit_genetic_factor(R, 2)
+    assert one.srmr > 0.1 and one.prop_explained < 0.7        # one factor mis-specified
+    assert two.srmr < 1e-3 and two.prop_explained > 0.999     # two factors fit
+    assert two.loadings.shape == (6, 2)
+    # each factor loads only its own block (cross-block loadings ~0)
+    assert np.max(np.abs(two.loadings[3:, 0])) < 1e-2
+    assert np.max(np.abs(two.loadings[:3, 1])) < 1e-2
+
+
+def test_genetic_factor_standardizes_covariance():
+    # a genetic *covariance* (diag = h2, not 1) is standardised to a correlation, so
+    # the loadings come back on the correlation scale regardless
+    from ltpred import fit_genetic_factor
+    lam = np.array([0.8, 0.7, 0.6, 0.5, 0.4])
+    h2 = np.array([0.5, 0.4, 0.3, 0.6, 0.45])
+    G = np.outer(lam, lam) * np.outer(np.sqrt(h2), np.sqrt(h2))
+    np.fill_diagonal(G, h2)
+    r = fit_genetic_factor(G, 1)
+    assert not r.input_correlation
+    assert np.allclose(r.loadings.ravel(), lam, atol=1e-3)
+
+
+def test_genetic_factor_no_structure_flags_zero_explained():
+    # genetically uncorrelated traits: whatever the (degenerate) loadings, the honest
+    # fit flags are srmr ~ 0 and prop_explained ~ 0 (no real structure to explain)
+    from ltpred import fit_genetic_factor
+    r = fit_genetic_factor(np.eye(4), 1)
+    assert r.srmr < 1e-6
+    assert r.prop_explained == pytest.approx(0.0, abs=1e-6)
+
+
+def test_genetic_factor_from_gencorrresult():
+    # accepts a GenCorrResult directly, pulling rg and phen_names off it
+    from ltpred import fit_genetic_factor
+    from ltpred.fit import GenCorrResult
+    lam = np.array([0.7, 0.6, 0.5, 0.4])
+    R = np.outer(lam, lam)
+    np.fill_diagonal(R, 1.0)
+    gc = GenCorrResult(h2=np.full(4, 0.4), rg=R, re=np.eye(4), rp=np.eye(4),
+                       genetic_cov=R * 0.4, env_cov=np.eye(4), se={},
+                       phen_names=["w", "x", "y", "z"], traces={}, n_iter=1, burn_in=0)
+    r = fit_genetic_factor(gc)
+    assert r.phen_names == ["w", "x", "y", "z"]
+    assert np.allclose(r.loadings.ravel(), lam, atol=1e-3)
+
+
+def test_genetic_factor_validates_input():
+    from ltpred import fit_genetic_factor
+    with pytest.raises(ValueError, match="3 traits"):            # P < 3
+        fit_genetic_factor(np.eye(2), 1)
+    with pytest.raises(ValueError, match="not identified"):      # df < 0
+        fit_genetic_factor(np.eye(3), 2)
+    with pytest.raises(ValueError, match="n_factors"):           # m < 1
+        fit_genetic_factor(np.eye(4), 0)
+    with pytest.raises(ValueError, match="square"):              # non-square
+        fit_genetic_factor(np.zeros((3, 4)))
+    with pytest.raises(ValueError, match="phen_names"):          # name/size mismatch
+        fit_genetic_factor(np.eye(4), 1, phen_names=["a", "b"])
+    with pytest.raises(ValueError, match="weights"):             # wrong-shape weights
+        fit_genetic_factor(np.eye(4), 1, weights=np.ones((3, 3)))
+
+
 def test_bootstrap_fit_scalar_and_calibration():
     from ltpred import bootstrap_fit
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,

@@ -123,8 +123,9 @@ pedigree (`kinship_from_pedigree`) covariance construction, the threshold/age/CI
 conversions, both estimators (Gibbs and PA-FGRS), single- and multi-trait
 `estimate_liability`, simulation, and **model fitting** — heritability
 (`fit_heritability`), variance components A + C + M (`fit_variance_components`),
-genetic correlation (`fit_genetic_correlation`), bootstrap CIs (`bootstrap_fit`)
-and h² sensitivity (`liability_sensitivity`).
+genetic correlation (`fit_genetic_correlation`) and its common-factor model
+(`fit_genetic_factor`), bootstrap CIs (`bootstrap_fit`) and h² sensitivity
+(`liability_sensitivity`).
 
 Not included: an igraph-style pedigree-object interface, plotting utilities, and
 the xgboost heritability helpers from LTFHPlus; and ltpred does not build LD or run

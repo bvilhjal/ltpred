@@ -183,3 +183,12 @@ references:
     journal: "Nature Human Behaviour"
     year: 2017
     doi: 10.1038/s41562-016-0016
+  # Multi-trait genetic factor structure (the fit_genetic_factor common-factor model)
+  - type: article
+    title: "Genomic structural equation modelling provides insights into the multivariate genetic architecture of complex traits (Genomic SEM)"
+    authors:
+      - family-names: Grotzinger
+        given-names: "Andrew D."
+    journal: "Nature Human Behaviour"
+    year: 2019
+    doi: 10.1038/s41562-019-0566-x
