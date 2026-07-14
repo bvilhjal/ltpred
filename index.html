@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="ltpred — a from-scratch Python implementation of the liability-threshold family-history models LT-FH++, ADuLT and PA-FGRS.">
+<title>ltpred — liability-threshold genetics toolkit</title>
+<style>
+  :root{
+    --paper:#F5F6F8; --surface:#FFFFFF; --ink:#171A21; --muted:#59616F;
+    --line:#E1E4EA; --line-strong:#CDD2DA; --accent:#3B4A9C; --accent-soft:#EBEEF8;
+    --tail:#B95C3C; --tail-soft:#F5E9E3;
+    --good:#2F7D4F; --amber:#B07A16;
+    --shadow:0 1px 2px rgba(23,26,33,.04), 0 8px 24px rgba(23,26,33,.05);
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,ui-serif,serif;
+    --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#101219; --surface:#181B23; --ink:#E9EBEF; --muted:#9AA3B2;
+      --line:#262A33; --line-strong:#333945; --accent:#95A2EC; --accent-soft:#1C2233;
+      --tail:#DE8A63; --tail-soft:#2A211C; --good:#68C089; --amber:#D6A94A;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#101219; --surface:#181B23; --ink:#E9EBEF; --muted:#9AA3B2;
+    --line:#262A33; --line-strong:#333945; --accent:#95A2EC; --accent-soft:#1C2233;
+    --tail:#DE8A63; --tail-soft:#2A211C; --good:#68C089; --amber:#D6A94A;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --paper:#F5F6F8; --surface:#FFFFFF; --ink:#171A21; --muted:#59616F;
+    --line:#E1E4EA; --line-strong:#CDD2DA; --accent:#3B4A9C; --accent-soft:#EBEEF8;
+    --tail:#B95C3C; --tail-soft:#F5E9E3; --good:#2F7D4F; --amber:#B07A16;
+    --shadow:0 1px 2px rgba(23,26,33,.04), 0 8px 24px rgba(23,26,33,.05);
+  }
+  *{box-sizing:border-box}
+  html{background:var(--paper)}
+  body{margin:0;background:var(--paper);color:var(--ink)}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px;font-family:var(--sans);
+    color:var(--ink);background:var(--paper);line-height:1.65;
+    font-size:16px;-webkit-font-smoothing:antialiased}
+  .prose{max-width:64ch}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+  h1,h2,h3{font-family:var(--serif);font-weight:600;color:var(--ink);
+    text-wrap:balance;letter-spacing:-.01em;margin:0}
+  h2{font-size:clamp(24px,3.4vw,32px);line-height:1.15}
+  h3{font-size:19px;line-height:1.25}
+  p{margin:0 0 1rem}
+  a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
+  a:hover{border-bottom-color:currentColor}
+  a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+  code{font-family:var(--mono);font-size:.86em;background:var(--accent-soft);
+    color:var(--ink);padding:.08em .38em;border-radius:5px;white-space:nowrap}
+  .rule{height:1px;background:var(--line);border:0;margin:0}
+  section{padding:56px 0}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:30px;flex-wrap:wrap}
+  .sec-head .n{font-family:var(--mono);font-size:13px;color:var(--tail);
+    letter-spacing:.05em;font-weight:500}
+
+  /* hero */
+  .hero{padding:64px 0 44px}
+  .mark{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+  .mark .glyph{width:34px;height:34px;flex:0 0 34px}
+  .mark .name{font-family:var(--serif);font-size:26px;font-weight:600;letter-spacing:-.02em}
+  .mark .name b{color:var(--accent);font-weight:600}
+  .hero h1{font-size:clamp(30px,5.4vw,52px);line-height:1.06;margin:0 0 20px;max-width:20ch}
+  .lede{font-size:clamp(17px,2.1vw,20px);color:var(--muted);max-width:56ch;margin:0}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+  .chip{font-family:var(--mono);font-size:12px;letter-spacing:.02em;color:var(--muted);
+    background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
+  .chip b{color:var(--ink);font-weight:600}
+  .figure{margin:34px 0 4px;background:var(--surface);border:1px solid var(--line);
+    border-radius:14px;padding:20px 18px 14px;box-shadow:var(--shadow);overflow-x:auto}
+  .figure svg{display:block;width:100%;height:auto;max-width:720px;margin:0 auto}
+  .figcap{font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:center;
+    margin:8px auto 0;max-width:640px;letter-spacing:.02em;line-height:1.6}
+  .figcap b{color:var(--ink);font-weight:600}
+
+  /* lineage timeline */
+  .line-grid{display:grid;grid-template-columns:1fr;gap:0;border-top:1px solid var(--line)}
+  .lin{display:grid;grid-template-columns:132px 1fr;gap:18px;padding:18px 0;
+    border-bottom:1px solid var(--line)}
+  .lin .yr{font-family:var(--mono);font-size:13px;color:var(--muted);letter-spacing:.02em}
+  .lin .yr b{display:block;color:var(--accent);font-size:15px;font-weight:600;margin-bottom:2px}
+  .lin h3{margin-bottom:4px}
+  .lin p{margin:0;color:var(--muted);font-size:15px}
+  .lin .src{font-family:var(--mono);font-size:11.5px;color:var(--tail);letter-spacing:.02em}
+
+  /* capability cards */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:20px 20px 18px;box-shadow:var(--shadow);transition:border-color .18s ease,transform .18s ease}
+  .card:hover{border-color:var(--line-strong);transform:translateY(-2px)}
+  .card .k{font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--tail);margin-bottom:10px}
+  .card h3{font-size:17px;margin-bottom:8px}
+  .card p{font-size:14.5px;color:var(--muted);margin:0 0 12px;line-height:1.6}
+  .fns{display:flex;flex-wrap:wrap;gap:6px}
+  .fn{font-family:var(--mono);font-size:11.5px;color:var(--ink);background:var(--accent-soft);
+    border-radius:6px;padding:3px 7px;line-height:1.4}
+
+  /* theory */
+  .theory{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:30px;box-shadow:var(--shadow)}
+  .eq{font-family:var(--serif);font-size:clamp(21px,3.4vw,29px);text-align:center;
+    margin:8px 0 6px;color:var(--ink);letter-spacing:.01em;overflow-x:auto}
+  .eq .op{color:var(--muted)}
+  .eq .w{color:var(--accent)}
+  .eq .mu{color:var(--tail)}
+  sub,sup{font-size:.62em}
+  .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:22px}
+  .leg{padding-left:14px;border-left:2px solid var(--line)}
+  .leg.w-b{border-left-color:var(--accent)}
+  .leg.mu-b{border-left-color:var(--tail)}
+  .leg .t{font-family:var(--mono);font-size:13px;color:var(--ink);margin-bottom:4px}
+  .leg p{font-size:14px;color:var(--muted);margin:0}
+
+  /* validated strip */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+    background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .stat{background:var(--surface);padding:20px 18px}
+  .stat .v{font-family:var(--serif);font-size:29px;font-weight:600;color:var(--ink);
+    font-variant-numeric:tabular-nums;line-height:1}
+  .stat .v small{font-size:16px;color:var(--muted);font-weight:600}
+  .stat .l{font-size:13px;color:var(--muted);margin-top:7px;line-height:1.45}
+  .benchlist{margin-top:20px;font-size:14.5px;color:var(--muted)}
+  .benchlist code{font-size:.82em}
+
+  /* roadmap */
+  .tier{margin-bottom:34px}
+  .tier:last-child{margin-bottom:0}
+  .tier-head{display:flex;align-items:baseline;gap:12px;margin-bottom:16px;
+    padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .tier-head h3{font-size:18px}
+  .tier-head .when{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted);margin-left:auto}
+  .items{display:grid;gap:12px}
+  .item{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start}
+  .status{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+    padding:3px 8px;border-radius:999px;white-space:nowrap;margin-top:2px;border:1px solid transparent}
+  .s-plan{color:var(--muted);border-color:var(--line-strong)}
+  .s-prog{color:var(--amber);background:color-mix(in srgb,var(--amber) 12%,transparent);
+    border-color:color-mix(in srgb,var(--amber) 30%,transparent)}
+  .s-part{color:var(--good);background:color-mix(in srgb,var(--good) 12%,transparent);
+    border-color:color-mix(in srgb,var(--good) 30%,transparent)}
+  .item .body strong{font-weight:600;color:var(--ink)}
+  .item .body{font-size:15px;color:var(--muted);line-height:1.55}
+  .item .body code{font-size:.82em;white-space:normal}
+
+  footer{padding:44px 0 60px;color:var(--muted);font-size:14px}
+  footer .row{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;margin-bottom:14px}
+  footer .cite{font-family:var(--mono);font-size:12px;line-height:1.9;color:var(--muted)}
+  footer .cite b{color:var(--ink);font-weight:600}
+  @media (max-width:560px){
+    .lin{grid-template-columns:1fr;gap:6px}
+    .item{grid-template-columns:1fr;gap:6px}
+    .status{justify-self:start}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="mark">
+      <svg class="glyph" viewBox="0 0 34 34" aria-hidden="true">
+        <path d="M2 26 C 9 26, 11 6, 17 6 S 25 26, 32 26" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M21 26 C 24 26, 25 15, 28.6 10.4 C 30 20, 30.4 26, 32 26 Z" fill="var(--tail)" opacity="0.9"/>
+        <line x1="21" y1="4" x2="21" y2="30" stroke="var(--tail)" stroke-width="1.4" stroke-dasharray="2 2.4"/>
+      </svg>
+      <span class="name"><b>lt</b>pred</span>
+    </div>
+
+    <h1>Liability-threshold genetics at pedigree and registry scale.</h1>
+    <p class="lede">A from-scratch Python implementation of LT-FH++, ADuLT and PA-FGRS — it turns a family's case/control status and ages of onset into a continuous, GWAS-ready estimate of each person's genetic liability, and fits the variance-component model behind it.</p>
+
+    <div class="meta">
+      <span class="chip">v<b>0.1.0.dev0</b></span>
+      <span class="chip"><b>167</b> tests passing</span>
+      <span class="chip"><b>~3,600</b> LOC · numpy + numba</span>
+      <span class="chip">Python <b>≥3.9</b></span>
+      <span class="chip">GPL-3.0</span>
+    </div>
+
+    <div class="figure">
+      <svg viewBox="0 0 720 300" role="img" aria-label="A standard-normal liability curve with a threshold T at the right; the shaded right tail is cases (liability above T), the left region is controls.">
+        <line x1="43" y1="250" x2="677" y2="250" stroke="var(--line-strong)" stroke-width="1.2"/>
+        <path d="M473,164 L492,187 L536,224 L580,241 L624,248 L677,250 L677,250 L473,250 Z" fill="var(--tail)" opacity="0.16"/>
+        <polyline points="43,250 96,248 140,241 184,224 228,187 272,132 294,103 316,78 338,61 360,55 382,61 404,78 426,103 448,132 473,164 492,187 536,224 580,241 624,248 677,250" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="473" y1="150" x2="473" y2="266" stroke="var(--tail)" stroke-width="1.6" stroke-dasharray="3 3"/>
+        <circle cx="473" cy="164" r="3.4" fill="var(--tail)"/>
+        <text x="473" y="286" text-anchor="middle" font-family="ui-monospace,monospace" font-size="13" fill="var(--tail)">T = Φ⁻¹(1 − K(age; sex, cohort))</text>
+        <text x="250" y="150" text-anchor="middle" font-family="ui-monospace,monospace" font-size="13" fill="var(--muted)">controls · ℓ &lt; T</text>
+        <text x="560" y="150" text-anchor="middle" font-family="ui-monospace,monospace" font-size="13" fill="var(--tail)">cases · ℓ &gt; T</text>
+      </svg>
+      <p class="figcap">The whole package lives on this picture: a latent Gaussian <b>liability</b> ℓ per person, a diagnosis when it crosses a personalized <b>threshold T</b>, and a posterior mean of the proband's <b>genetic</b> liability recovered from where their relatives' liabilities must lie.</p>
+    </div>
+  </header>
+
+  <hr class="rule"/>
+
+  <section>
+    <div class="sec-head"><span class="n">01</span><h2>The method lineage it implements</h2></div>
+    <div class="prose"><p>ltpred is a faithful, tested port of a specific line of methods — each paper adds one thing to the liability-threshold model, and ltpred implements them on one covariance engine with two interchangeable back-ends.</p></div>
+    <div class="line-grid" style="margin-top:26px">
+      <div class="lin"><div class="yr"><b>1950–65</b>Foundations</div><div><h3>The liability-threshold model</h3><p>A latent normal liability; a disease when it exceeds a threshold set by prevalence.</p><span class="src">Dempster &amp; Lerner 1950 · Falconer 1965</span></div></div>
+      <div class="lin"><div class="yr"><b>2020</b>LT-FH</div><div><h3>Family history as a phenotype</h3><p>Replace the 0/1 case label with the posterior-mean genetic liability given parents' and siblings' status — recovering GWAS power a binary label discards.</p><span class="src">Hujoel et al., Nature Genetics</span></div></div>
+      <div class="lin"><div class="yr"><b>2022</b>LT-FH++</div><div><h3>Personalized thresholds</h3><p>Age of onset, sex and birth cohort each get their own threshold from population cumulative-incidence curves; arbitrary pedigrees; a scalable Gibbs sampler.</p><span class="src">Pedersen et al., AJHG</span></div></div>
+      <div class="lin"><div class="yr"><b>2023</b>ADuLT</div><div><h3>Age-dependent threshold</h3><p>The same personalized threshold as a robust, ascertainment-proof alternative to time-to-event (Cox) GWAS.</p><span class="src">Pedersen et al., Nature Communications</span></div></div>
+      <div class="lin"><div class="yr"><b>2024</b>PA-FGRS</div><div><h3>Deterministic, registry-scale</h3><p>A closed-form Pearson–Aitken sweep with an age-censored-control mixture — the same estimate without MCMC, at biobank scale.</p><span class="src">Krebs et al., AJHG</span></div></div>
+    </div>
+  </section>
+
+  <hr class="rule"/>
+
+  <section>
+    <div class="sec-head"><span class="n">02</span><h2>What the package does</h2></div>
+    <div class="cards">
+      <div class="card">
+        <div class="k">Estimate</div>
+        <h3>Posterior genetic liability</h3>
+        <p>The core score. A truncated-MVN Gibbs sampler and the deterministic Pearson–Aitken back-end, single- or multi-trait, with array fast paths and a one-call h² sensitivity sweep.</p>
+        <div class="fns"><span class="fn">estimate_liability</span><span class="fn">…_multi</span><span class="fn">…_pa_arrays</span><span class="fn">liability_sensitivity</span></div>
+      </div>
+      <div class="card">
+        <div class="k">Encode</div>
+        <h3>Thresholds &amp; cumulative incidence</h3>
+        <p>Turn status, age and demographics into liability intervals — classic prevalence, the logistic age-of-onset map, or an empirical CIP curve supplied per stratum (sex × birth year × ancestry).</p>
+        <div class="fns"><span class="fn">prevalence_thresholds</span><span class="fn">age_thresholds</span><span class="fn">thresholds_from_cip</span></div>
+      </div>
+      <div class="card">
+        <div class="k">Fit</div>
+        <h3>Variance components &amp; factors</h3>
+        <p>Estimate h² and shared-environment components (A + sibship C + couple M) by multiple Haseman–Elston or Monte-Carlo-EM ML — with model-based SEs, AIC, bootstrap CIs and parametric-bootstrap significance tests — plus a between-trait genetic correlation and a Genomic-SEM-lite common factor fit over it.</p>
+        <div class="fns"><span class="fn">fit_heritability</span><span class="fn">fit_variance_components</span><span class="fn">fit_genetic_correlation</span><span class="fn">fit_genetic_factor</span><span class="fn">bootstrap_fit</span></div>
+      </div>
+      <div class="card">
+        <div class="k">Generalize</div>
+        <h3>Arbitrary pedigrees</h3>
+        <p>Beyond the fixed role grammar: build the additive relationship matrix from any pedigree (Henderson's recursive method, inbreeding-aware) and run the sampler on it — cousins, half-sibs, inbred lines.</p>
+        <div class="fns"><span class="fn">kinship_from_pedigree</span><span class="fn">construct_covmat_from_kinship</span><span class="fn">estimate_liability_from_kinship</span></div>
+      </div>
+      <div class="card">
+        <div class="k">Scale</div>
+        <h3>Biobank-ready performance</h3>
+        <p>Numba-JIT, <code>prange</code>-parallel kernels; families grouped by structure; streaming batch-means standard errors at O(F) memory; optional float32 bounds. PA-FGRS runs ~170k families/second.</p>
+        <div class="fns"><span class="fn">pa_estimate_batched</span><span class="fn">gibbs_estimate_batched</span></div>
+      </div>
+      <div class="card">
+        <div class="k">Validate</div>
+        <h3>Eleven reproducible benchmarks</h3>
+        <p>Every capability ships with a simulation benchmark that scores it against the known truth — accuracy, scaling, power, and the value (or not) of each modeling choice.</p>
+        <div class="fns"><span class="fn">benchmarks/</span><span class="fn">RESULTS.md</span></div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule"/>
+
+  <section>
+    <div class="sec-head"><span class="n">03</span><h2>One idea underneath it all</h2></div>
+    <div class="prose"><p>The estimate is the mean of the family's liability distribution, restricted to the box the observations imply — and because it's Gaussian, it factors cleanly into a genetics part and a data part.</p></div>
+    <div class="theory" style="margin-top:24px">
+      <div class="eq">ĝ<sub>0</sub> <span class="op">=</span> <span class="w">w</span><sup>⊤</sup><span class="mu">μ</span><span class="op">,</span> &nbsp; <span class="w">w</span> <span class="op">=</span> V<sup>−1</sup>c<span class="op">,</span> &nbsp; <span class="mu">μ</span> <span class="op">=</span> E[ ℓ<sub>F</sub> | ℓ<sub>i</sub> ∈ (a<sub>i</sub>, b<sub>i</sub>) ]</div>
+      <div class="legend">
+        <div class="leg w-b"><div class="t">w — BLUP weights</div><p>Selection-index weights from heritability and kinship only. Threshold-free; they do the <em>ranking</em>. Reduces exactly to GBLUP when liabilities are observed.</p></div>
+        <div class="leg mu-b"><div class="t">μ — truncated means</div><p>What each relative's liability must average, given status and age. This is where <em>every</em> threshold lives — prevalence, age of onset, sex, birth cohort, ascertainment.</p></div>
+      </div>
+      <p style="margin:22px 0 0;font-size:14.5px;color:var(--muted)">A consequence the benchmarks make concrete: since the thresholds touch only <span class="mu" style="font-family:var(--mono);font-size:.9em">μ</span>, personalizing them (by cohort or sex) always fixes <strong style="color:var(--ink);font-weight:600">calibration</strong> — and additionally lifts <strong style="color:var(--ink);font-weight:600">ranking/power</strong> whenever cases span strata of different prevalence, because two same-onset cases from different eras hold different true liabilities that a single prevalence would collapse.</p>
+    </div>
+  </section>
+
+  <hr class="rule"/>
+
+  <section>
+    <div class="sec-head"><span class="n">04</span><h2>What's been validated</h2></div>
+    <div class="stats">
+      <div class="stat"><div class="v">≥ 0.997</div><div class="l">corr(PA-FGRS, Gibbs) across every accuracy cell</div></div>
+      <div class="stat"><div class="v">100–350<small>×</small></div><div class="l">PA-FGRS speed-up over the Gibbs sampler, same accuracy</div></div>
+      <div class="stat"><div class="v">1.2–2.8<small>×</small></div><div class="l">effective-N gain over a raw case/control label</div></div>
+      <div class="stat"><div class="v">11</div><div class="l">simulation benchmarks, truth known in each</div></div>
+    </div>
+    <p class="benchlist"><code>bench_accuracy</code>, <code>bench_scaling</code>, <code>bench_age_onset</code>, <code>bench_gwas_power</code>, <code>bench_fit_heritability</code>, <code>bench_variance_components</code>, <code>bench_genetic_correlation</code>, <code>bench_genetic_factor</code>, <code>bench_shared_env</code>, <code>bench_couple_env</code>, and <code>bench_fh_prediction</code> — the last covering ascertainment, heritability, birth-cohort and competing-risk mortality, each written up with tables in <code>RESULTS.md</code>.</p>
+  </section>
+
+  <hr class="rule"/>
+
+  <section>
+    <div class="sec-head"><span class="n">05</span><h2>Where it's going</h2></div>
+    <div class="prose"><p style="margin-bottom:34px">The estimation and fitting cores are in place and tested. What's next splits into closing loops that already have the machinery, deepening the model, and reaching production scale.</p></div>
+
+    <div class="tier">
+      <div class="tier-head"><h3>Close the loop</h3><span class="when">Near-term</span></div>
+      <div class="items">
+        <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Feed fitted C / M back into prediction.</strong> <code>fit_variance_components</code> estimates the shared- and couple-environment components, but <code>estimate_liability</code> has no <code>c2=</code> / <code>m2=</code> argument yet — wiring the fitted covariance end-to-end.</div></div>
+        <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>A λ<sub>GC</sub> / false-positive panel.</strong> A small genotyped simulation with a birth-year-correlated null SNP, to show cohort-blind thresholds inflate genomic control while personalized ones hold it at ≈ 1 — the confounding side of the cohort story the correlation benchmark can't reach.</div></div>
+        <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Calibration diagnostics.</strong> Slope / intercept of true g on the estimate and tail behavior, alongside the correlation already reported.</div></div>
+      </div>
+    </div>
+
+    <div class="tier">
+      <div class="tier-head"><h3>Deepen the model</h3><span class="when">Medium-term</span></div>
+      <div class="items">
+        <div class="item"><span class="status s-part">partly done</span><div class="body"><strong>Relationship-specific environments.</strong> A + sibship C + couple M ship today; a maternal-lineage rearing environment and cousin environments are the next valid equivalence-class components for extended registry pedigrees.</div></div>
+        <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Sex- and cohort-specific covariance.</strong> Move sex and birth cohort from the threshold (where they correct calibration) into Σ — sex-specific h², a cross-sex genetic correlation r<sub>g</sub> &lt; 1 — so they also become a ranking / power lever.</div></div>
+        <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Direct vs. indirect (genetic-nurture) effects.</strong> Separate a proband's own genetic effect from parental effects — an asymmetric / structural covariance extension of the current symmetric model.</div></div>
+        <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Competing-risk CIP helpers.</strong> Kaplan–Meier / Aalen–Johansen estimators to build the cumulative-incidence curves <code>thresholds_from_cip</code> consumes, straight from registry follow-up with competing mortality.</div></div>
+      </div>
+    </div>
+
+    <div class="tier">
+      <div class="tier-head"><h3>Reach scale &amp; ecosystem</h3><span class="when">Longer-term</span></div>
+      <div class="items">
+        <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Sparse, streamed covariance.</strong> A chunked driver for single giant pedigrees and biobank runs that can't hold every family in memory at once.</div></div>
+        <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>End-to-end GWAS example.</strong> Real-LD HAPNEST genotypes → liability score → mixed-model GWAS, with covariate / residualization helpers.</div></div>
+        <div class="item"><span class="status s-prog">in progress</span><div class="body"><strong>Packaging &amp; a docs site.</strong> A tagged PyPI release beyond <code>0.1.0.dev0</code>, and MkDocs / Sphinx API docs — a lean README, the user guide (with a full function reference) and the algorithm write-up already live in <code>docs/</code>.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule"/>
+
+  <footer>
+    <div class="row">
+      <a href="https://github.com/bvilhjal/ltpred">github.com/bvilhjal/ltpred</a>
+      <span>·</span><span>GPL-3.0-or-later</span>
+      <span>·</span><span>numpy, scipy; numba optional</span>
+    </div>
+    <div class="cite">
+      <b>Implements:</b> Hujoel 2020 (LT-FH) · Pedersen 2022 (LT-FH++) · Pedersen 2023 (ADuLT) · Krebs 2024 (PA-FGRS)<br/>
+      <b>Builds on:</b> Falconer 1965 · Tallis 1961 (truncated-MVN moments) · Pearson 1903 / Aitken 1935 (selection formula) · Henderson 1975 (BLUP) · Grotzinger 2019 (Genomic SEM)
+    </div>
+  </footer>
+
+</div>
+
+</body>
+</html>
