@@ -22,9 +22,10 @@ from relatives (see
 
 ## Documentation
 
-- **[User guide](docs/guide.md)** — inputs, role grammar, threshold builders,
-  choosing a method, reading results, GWAS use, options, and the full
-  [function reference](docs/guide.md#function-reference).
+- **User guide** — the [quickstart](docs/quickstart.md) (a complete run), then
+  [data preparation](docs/data-preparation.md), [estimation](docs/estimation.md),
+  [inference](docs/inference.md), [assumptions & checklist](docs/assumptions.md),
+  and the [API reference](docs/api.md). ([Overview & when-to-use](docs/guide.md).)
 - **[Algorithm & model](docs/algorithm.md)** — the liability-threshold model, both
   estimators, the Pearson–Aitken selection formula, the censoring mixture, and the
   implementation/performance notes.
@@ -49,7 +50,7 @@ liability-threshold model:
    (`o`) liability. PA has no Monte-Carlo error and runs ~100–360× faster; the two
    agree on the `genetic` score to corr ≥ 0.997 on the benchmarked structures.
 
-See the [guide](docs/guide.md#choosing-gibbs-vs-pearsonaitken) for how to choose,
+See [estimation](docs/estimation.md#choosing-gibbs-vs-pearsonaitken) for how to choose,
 and [algorithm.md](docs/algorithm.md) for the math and the performance internals
 (Numba JIT, thread-parallel per-structure kernels, and the biobank-scale array API).
 
@@ -67,7 +68,7 @@ pytest -q          # optional: confirm the install
 `numpy` and `scipy` are required. `[fast]` adds an optional **Numba** JIT for the
 Gibbs sweep and is strongly recommended — the pure-Python fallback is numerically
 identical, just slower. For biobank-scale runs see the guide's
-[scaling section](docs/guide.md#scaling-to-large-cohorts).
+[scaling section](docs/estimation.md#scaling-to-large-cohorts).
 
 ## Quickstart
 

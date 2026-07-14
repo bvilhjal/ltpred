@@ -67,7 +67,7 @@ def main():
     # ancestry stratum, e.g.:
     #     lower, upper, K_i, K_pop = thresholds_from_cip(
     #         status, age, cip_ages, cip_values, k_pop=lifetime_prevalence)
-    # See docs/guide.md, "A real register-data recipe".
+    # See docs/data-preparation.md, "A real register-data recipe".
     lower, upper = age_thresholds(status, age, pop_prev=POP_PREV)
 
     # 3) group rows into families

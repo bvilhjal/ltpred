@@ -24,6 +24,7 @@ Issues = "https://github.com/bvilhjal/ltpred/issues"
 fast = ["numba>=0.59"]          # JIT-compiled truncated-MVN Gibbs sweep (recommended)
 test = ["pytest>=7"]
 lint = ["ruff>=0.5"]            # pyflakes-style lint gate (see [tool.ruff])
+docs = ["mkdocs-material>=9", "mkdocstrings[python]>=0.24"]   # `mkdocs serve` / `mkdocs build`
 
 [tool.setuptools]
 packages = ["ltpred"]
