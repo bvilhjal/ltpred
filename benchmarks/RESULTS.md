@@ -15,11 +15,11 @@ Summary of the ltpred benchmark suite, comparing the two fitting methods — the
   draw, so re-running shifts values by sampling noise. The conclusions are stable.
   They validate PA-FGRS against Gibbs for the **simulated structures included
   here** (small/realistic pedigrees, additive-genetic model); they do not prove
-  exact equivalence for arbitrary pedigrees, extreme prevalences/heritabilities,
-  densely affected families, or the censoring mixture. The reported metric is a
-  correlation — it can hide scale/tail/calibration shifts; extending the diagnostics
-  (mean error, slope/intercept, tail calibration, PA fold-in ordering, large/rare
-  pedigrees) is future work.
+  exact equivalence for arbitrary pedigrees or extreme prevalences/heritabilities.
+  Beyond the headline correlation, the diagnostics now cover **calibration**
+  (slope/intercept + tail, §12), **cohort-confounding / λ_GC** (§13), and **PA
+  robustness on large/rare/densely-affected pedigrees + fold-in ordering** (§14). A
+  dedicated **censoring-mixture** benchmark is still pending (see the roadmap).
 
 ## Headline findings
 

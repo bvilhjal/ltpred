@@ -29,7 +29,6 @@ Writes bench_shared_env.csv (+ .png if matplotlib is present).
 
 import os
 import csv
-import time
 import argparse
 
 import numpy as np
@@ -55,7 +54,6 @@ ROLES = roles_with_sibs(3)
 
 
 def _matrices(roles):
-    n = len(roles)
     A = np.array([[get_relatedness(a, b, 1.0) for b in roles] for a in roles])
     A = correct_positive_definite(A)[0]
     C = _component_matrix(roles, "C")

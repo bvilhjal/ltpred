@@ -6,7 +6,7 @@ from scipy import stats
 
 from ltpred.family import Family, Member
 from ltpred.gibbs import gibbs_estimate_batched, gibbs_params
-from ltpred.estimate import estimate_liability, batch_means
+from ltpred.estimate import estimate_liability
 
 
 def _imr(t):
@@ -93,7 +93,6 @@ def test_canonical_grouping_permuted_members():
 
 def test_float32_bounds_match_float64():
     # float32 per-family bounds halve memory and match float64 to f32 precision
-    from ltpred.estimate import estimate_liability_pa_arrays
     from ltpred.simulate import simulate_under_LTM_single
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5, n_sim=400,
                                     pop_prev=0.05, seed=1)

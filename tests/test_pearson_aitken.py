@@ -154,8 +154,7 @@ def test_mixture_split_is_lifetime_threshold_not_passed_upper():
 def _simulate_pa_calibration(n_sim=8000, h2=0.5, pop_prev=0.1, seed=0):
     """proband + parents + 2 sibs, young ages; returns g_true and pa_thresholds cols."""
     from ltpred.covariance import construct_covmat_single
-    from ltpred.thresholds import (liability_threshold, convert_age_to_thresh,
-                                   convert_liability_to_aoo)
+    from ltpred.thresholds import (liability_threshold, convert_liability_to_aoo)
     rng = np.random.default_rng(seed)
     cov = construct_covmat_single(fam_vec=("m", "f", "s1", "s2"), add_ind=True, h2=h2)
     roles, mat = cov.roles, cov.matrix

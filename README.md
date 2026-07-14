@@ -107,7 +107,9 @@ families = families_from_columns(
     role=role,           # "o" = proband, "m"/"f"/"s1"/"mgm"/... = relatives
     lower=lower, upper=upper,
 )
-res = estimate_liability(families, h2=0.05, out=("genetic", "full"))
+res = estimate_liability(families, h2=0.5,          # your disease's liability-scale h²
+                         method="pearson-aitken",   # match the recommendation above
+                         out=("genetic", "full"))
 ```
 
 Roles follow the LTFHPlus grammar (`o` proband, `m`/`f` parents, `s1`/`s2` sibs,

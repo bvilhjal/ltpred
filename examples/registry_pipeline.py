@@ -1,7 +1,11 @@
 """End-to-end template: a registry-style status/age table -> a GWAS phenotype.
 
-Mirrors the "bring your own data" flow in docs/guide.md on a small synthetic
-table, so you have a copy-paste starting point for real data. The steps are:
+Mirrors the "bring your own data" flow in docs/guide.md on a small **synthetic**
+table, so you have a copy-paste starting point for the plumbing. One step is
+demo-only and must be swapped for real data: step 2 uses the built-in logistic
+incidence (``age_thresholds``); a real analysis needs ``thresholds_from_cip`` with
+your population's stratified cumulative-incidence curve (flagged inline below). The
+steps are:
 
   1. start from one row per (proband, relative): fam_id, role, status, age;
   2. turn status (+age) into liability bounds with a threshold builder;
@@ -55,7 +59,15 @@ def make_toy_table(n_fam=1500, seed=0):
 def main():
     fam_id, role, status, age, true_g = make_toy_table()
 
-    # 2) status (+age) -> liability bounds (LT-FH++/ADuLT age thresholds)
+    # 2) status (+age) -> liability bounds.
+    # DEMO ONLY: age_thresholds uses a built-in *logistic* incidence curve. That is
+    # fine for this synthetic table, but NOT an acceptable real-data analysis. For
+    # real registry data, replace this line with thresholds_from_cip and pass your
+    # population's stratified cumulative-incidence (CIP) curve per sex / birth-year /
+    # ancestry stratum, e.g.:
+    #     lower, upper, K_i, K_pop = thresholds_from_cip(
+    #         status, age, cip_ages, cip_values, k_pop=lifetime_prevalence)
+    # See docs/guide.md, "A real register-data recipe".
     lower, upper = age_thresholds(status, age, pop_prev=POP_PREV)
 
     # 3) group rows into families

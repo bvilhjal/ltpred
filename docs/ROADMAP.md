@@ -60,7 +60,7 @@ BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
 connection, and the environmental-covariance extension), plus `CITATION.cff`
 (15 references).
 
-The test suite is 167 tests passing.
+The test suite is 174 tests passing.
 
 ## Near-term — variance-component thread ✅ complete
 

@@ -31,7 +31,7 @@ if ROOT not in sys.path:
 
 from ltpred.simulate import simulate_under_LTM_single          # noqa: E402
 from ltpred.covariance import construct_covmat_single, correct_positive_definite  # noqa: E402
-from ltpred.thresholds import liability_threshold, convert_age_to_thresh, convert_age_to_cir  # noqa: E402
+from ltpred.thresholds import liability_threshold  # noqa: E402
 from ltpred.family import Family, Member                       # noqa: E402
 from ltpred.estimate import estimate_liability                 # noqa: E402
 

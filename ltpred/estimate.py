@@ -70,6 +70,8 @@ class LiabilityResult:
 
 
 def _normalise_out(out):
+    if np.isscalar(out):                 # a bare "genetic"/"full"/0/1 -> single column
+        out = (out,)
     coords = []
     for o in out:
         if o not in _OUT_ALIASES:
@@ -77,6 +79,22 @@ def _normalise_out(out):
         coords.append(_OUT_ALIASES[o])
     coords = sorted(set(coords))
     return coords or [0]
+
+
+def _single_out(out):
+    """Resolve ``out`` to one column index for the APIs that return a single array.
+
+    Accepts a scalar (``"genetic"``/``"full"``/``0``/``1``) or a length-1 sequence, so
+    every estimator takes the same spellings as :func:`estimate_liability`."""
+    if not np.isscalar(out):
+        seq = list(out)
+        if len(seq) != 1:
+            raise ValueError("this API returns a single column; out must be one of "
+                             "genetic/full (or a length-1 sequence)")
+        out = seq[0]
+    if out not in _OUT_ALIASES:
+        raise ValueError(f"out {out!r} must be one of genetic/full/g/o/0/1")
+    return _OUT_ALIASES[out]
 
 
 def batch_means(samples):
@@ -473,7 +491,7 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
     cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
     cov, _ = correct_positive_definite(cov_obj.matrix)
     cov_roles = cov_obj.roles
-    target = cov_roles.index("g") if _OUT_ALIASES[out] == 0 else cov_roles.index("o")
+    target = cov_roles.index("g") if _single_out(out) == 0 else cov_roles.index("o")
 
     lo, hi = _align_to_cov(roles, cov_roles, (lower, upper), (-np.inf, np.inf))
     if use_mixture:
@@ -499,7 +517,7 @@ def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic",
     cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
     cov, _ = correct_positive_definite(cov_obj.matrix)
     cov_roles = cov_obj.roles
-    target = cov_roles.index("g") if _OUT_ALIASES[out] == 0 else cov_roles.index("o")
+    target = cov_roles.index("g") if _single_out(out) == 0 else cov_roles.index("o")
 
     lo, hi = _align_to_cov(roles, cov_roles, (lower, upper), (-np.inf, np.inf))
     seeds = _base_seeds(seed, lo.shape[0], max_rounds)
@@ -534,8 +552,7 @@ def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="gene
     upper = np.atleast_2d(as_bounds(upper))
     if lower.shape[1] != n or upper.shape[1] != n:
         raise ValueError(f"lower/upper must have {n} columns (one per pedigree member)")
-    out_coord = _OUT_ALIASES[out] if not isinstance(out, (list, tuple)) \
-        else _OUT_ALIASES[out[0]]
+    out_coord = _single_out(out)
 
     cov_obj = construct_covmat_from_kinship(A, h2=h2, target=target, add_ind=True)
     cov, _ = correct_positive_definite(cov_obj.matrix)
@@ -639,7 +656,7 @@ def liability_sensitivity(families, h2_values, *, method="gibbs", out="genetic",
         raise ValueError("all h2 values must be in [0, 1]")
     if isinstance(out, (list, tuple)):
         out = out[0]
-    name = _OUT_NAMES[_OUT_ALIASES[out]]
+    name = _OUT_NAMES[_single_out(out)]
 
     rows = []
     for h2 in h2_values:

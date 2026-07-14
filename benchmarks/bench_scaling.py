@@ -16,7 +16,6 @@ import os
 import csv
 import argparse
 
-import numpy as np
 
 from _common import simulate_families, estimate, get_plt
 

@@ -185,3 +185,42 @@ def test_liability_sensitivity_validation():
         liability_sensitivity(sim.families, [0.5], method="pa")
     with pytest.raises(ValueError, match="in \\[0, 1\\]"):
         liability_sensitivity(sim.families, [0.5, 1.5], method="pa")
+
+
+@pytest.mark.parametrize("spelling", ["genetic", ("genetic",), "g", 0])
+def test_out_accepts_scalar_and_sequence(spelling):
+    # a bare "genetic" (documented) must work everywhere, not just the tuple form
+    from ltpred import (simulate_under_LTM_single, liability_sensitivity,
+                        estimate_liability_from_kinship)
+    from ltpred.estimate import (estimate_liability_pa_arrays,
+                                 estimate_liability_gibbs_arrays)
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5, n_sim=80,
+                                    pop_prev=0.1, seed=1)
+    # object API, both back-ends
+    assert "genetic" in estimate_liability(sim.families, h2=0.5, method="pa",
+                                           out=spelling).est
+    assert "genetic" in estimate_liability(sim.families, h2=0.5, method="gibbs",
+                                           out=spelling, n_sim=2000, seed=1).est
+    # single-column APIs (array, kinship, sensitivity) take the same spellings
+    roles = ["g", "o", "m", "f"]
+    lo = np.array([[-9.0, 1.2, -9.0, 1.2]]); hi = np.array([[9.0, 9.0, 1.2, 9.0]])
+    estimate_liability_pa_arrays(roles, lo, hi, h2=0.5, out=spelling)
+    estimate_liability_gibbs_arrays(roles, lo, hi, h2=0.5, out=spelling, n_sim=2000, seed=1)
+    A = np.array([[1.0, .5, .5], [.5, 1, 0], [.5, 0, 1]])
+    klo = np.array([[-9.0, 1.2, 1.2]]); khi = np.array([[9.0, 9.0, 9.0]])
+    estimate_liability_from_kinship(A, klo, khi, h2=0.5, out=spelling)
+    liability_sensitivity(sim.families, [0.3, 0.5], method="pa", out=spelling)
+
+
+def test_out_invalid_and_multicolumn_errors():
+    from ltpred import simulate_under_LTM_single
+    from ltpred.estimate import estimate_liability_pa_arrays
+    sim = simulate_under_LTM_single(fam_vec=["m", "f"], h2=0.5, n_sim=60,
+                                    pop_prev=0.1, seed=1)
+    with pytest.raises(ValueError, match="genetic/full"):
+        estimate_liability(sim.families, h2=0.5, method="pa", out="bogus")
+    # a single-column API cannot return two columns at once
+    roles = ["g", "o", "m", "f"]
+    lo = np.array([[-9.0, 1.2, -9.0, 1.2]]); hi = np.array([[9.0, 9.0, 1.2, 9.0]])
+    with pytest.raises(ValueError, match="single column"):
+        estimate_liability_pa_arrays(roles, lo, hi, out=("genetic", "full"))
