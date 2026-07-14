@@ -123,6 +123,98 @@ def test_mixture_changes_genetic_estimate():
     assert with_mix.est["genetic"][0] != no_mix.est["genetic"][0]
 
 
+def test_mixture_split_is_lifetime_threshold_not_passed_upper():
+    # PA-FGRS (Krebs et al. 2024, eqs S3-S5): the censored-control mixture splits at
+    # the *lifetime* threshold Phi^-1(1-K_pop), not the passed `upper`. Age enters
+    # only through K_i. So a censored control encoded with the age-specific bound
+    # Phi^-1(1-K_i) must yield the SAME estimate as one encoded with the lifetime
+    # bound Phi^-1(1-K_pop). Before the fix the split was taken from `upper`, so the
+    # age bound got corrected a second time and the two disagreed.
+    K_i, K_pop = 0.02, 0.10
+    thr_age = float(stats.norm.isf(K_i))          # Phi^-1(1 - K_i), age-specific
+    thr_life = float(stats.norm.isf(K_pop))       # Phi^-1(1 - K_pop), lifetime
+
+    m_age, v_age = tnorm_mixture_conditional(0.3, 0.8, -np.inf, thr_age,
+                                             K_i=K_i, K_pop=K_pop)
+    m_life, v_life = tnorm_mixture_conditional(0.3, 0.8, -np.inf, thr_life,
+                                               K_i=K_i, K_pop=K_pop)
+    assert m_age == pytest.approx(m_life)
+    assert v_age == pytest.approx(v_life)
+
+    # ...and end-to-end through a family estimate (proband case + control sibling)
+    fam_age = Family("f", [Member("o", thr_life, np.inf),
+                           Member("s1", -np.inf, thr_age, K_i=K_i, K_pop=K_pop)])
+    fam_life = Family("f", [Member("o", thr_life, np.inf),
+                            Member("s1", -np.inf, thr_life, K_i=K_i, K_pop=K_pop)])
+    e_age = estimate_liability_pa([fam_age], h2=0.5, use_mixture=True).est["genetic"][0]
+    e_life = estimate_liability_pa([fam_life], h2=0.5, use_mixture=True).est["genetic"][0]
+    assert e_age == pytest.approx(e_life)
+
+
+def _simulate_pa_calibration(n_sim=8000, h2=0.5, pop_prev=0.1, seed=0):
+    """proband + parents + 2 sibs, young ages; returns g_true and pa_thresholds cols."""
+    from ltpred.covariance import construct_covmat_single
+    from ltpred.thresholds import (liability_threshold, convert_age_to_thresh,
+                                   convert_liability_to_aoo)
+    rng = np.random.default_rng(seed)
+    cov = construct_covmat_single(fam_vec=("m", "f", "s1", "s2"), add_ind=True, h2=h2)
+    roles, mat = cov.roles, cov.matrix
+    liab = rng.multivariate_normal(np.zeros(len(roles)), mat, size=n_sim)
+    t = float(liability_threshold(pop_prev))
+    non_g = [r for r in roles if r != "g"]
+    ranges = {"o": (10, 40), "s1": (10, 40), "s2": (10, 40), "m": (40, 70), "f": (40, 70)}
+
+    fam_id, role, age, status = [], [], [], []
+    for i in range(n_sim):
+        for r in non_g:
+            col = roles.index(r)
+            is_case = liab[i, col] > t
+            if is_case:
+                aoo = convert_liability_to_aoo(liab[i, col], pop_prev=pop_prev)
+                a = 0.0 if not np.isfinite(aoo) else round(float(aoo))
+            else:
+                a = int(rng.integers(*ranges[r]))
+            fam_id.append(f"fam_{i}"); role.append(r); age.append(a)
+            status.append(bool(is_case))
+    return liab[:, roles.index("g")], (np.array(fam_id), np.array(role, dtype=object),
+                                       np.array(status), np.array(age, dtype=float))
+
+
+def test_mixture_is_calibrated_no_double_correction():
+    # Calibration regression guard for the PA-FGRS censored-control mixture. On data
+    # simulated under the LTM (young controls, so censoring bites), the mixture fed
+    # `pa_thresholds`' age bounds is checked against the *exact* LT-FH++ encoding
+    # (same age bounds, no mixture) computed on the same data -- the two well-
+    # calibrated estimators of the same generative model. Anchoring to that in-test
+    # reference is seed-robust and independent of the absolute slope (~0.84 here,
+    # set by the interval case encoding). The pre-fix double-correction inflated the
+    # estimate badly -- bias +0.84 vs +0.25, corr(g) 0.47 vs 0.52, slope 0.77 vs
+    # 0.84, and only ~0.98 agreement with the exact encoding -- so it fails below.
+    from ltpred.family import families_from_columns
+    from ltpred.thresholds import pa_thresholds
+
+    g, (fam_id, role, status, age) = _simulate_pa_calibration()
+    lo, hi, ki, kp = pa_thresholds(status, age, pop_prev=0.1)
+
+    mix = families_from_columns(fam_id, role, lo, hi, K_i=ki, K_pop=kp)
+    est = estimate_liability(mix, h2=0.5, method="pa", use_mixture=True).est["genetic"]
+    exact = families_from_columns(fam_id, role, lo, hi)   # age bounds, no mixture
+    est0 = estimate_liability(exact, h2=0.5, method="pa",
+                              use_mixture=False).est["genetic"]
+
+    slope = np.cov(g, est)[0, 1] / np.var(est)
+    slope0 = np.cov(g, est0)[0, 1] / np.var(est0)
+    assert np.corrcoef(g, est)[0, 1] > 0.50            # not degraded (pre-fix: ~0.47)
+    assert abs(float(np.mean(est - g))) < 0.45         # no blow-up (pre-fix bias ~+0.84)
+    assert abs(slope - slope0) < 0.04, (slope, slope0)  # calibrated like the exact model
+
+    # the mixture on age bounds must reproduce the exact LT-FH++ encoding almost
+    # exactly -- the split is at the lifetime threshold, so the age bound only flags
+    # censoring. Pre-fix these diverged (corr ~0.98, mean off by ~0.6).
+    assert np.corrcoef(est, est0)[0, 1] > 0.999
+    assert abs(np.mean(est) - np.mean(est0)) < 0.05
+
+
 def test_method_dispatch_and_multi_trait_error():
     t = float(stats.norm.isf(0.05))
     fam = Family("f", [Member("o", t, np.inf)])

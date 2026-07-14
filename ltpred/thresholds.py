@@ -167,10 +167,24 @@ def pa_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     A case gets ``(thresh(age_of_onset), inf)`` and no mixture (``K_i = K_pop =
     nan``). An age-censored control gets ``(-inf, thresh(current_age))`` together
     with its cumulative incidence ``K_i = cir(current_age)`` and the lifetime
-    prevalence ``K_pop = pop_prev`` -- the two numbers the Pearson-Aitken mixture
-    uses to correct for the control not yet having passed through their full risk
-    period. Feed the result to :func:`ltpred.estimate.estimate_liability` with
-    ``method="pearson-aitken"``."""
+    prevalence ``K_pop = pop_prev``. Feed the result to
+    :func:`ltpred.estimate.estimate_liability` with ``method="pearson-aitken"``.
+
+    The control ``upper`` is the *age-specific* threshold ``Phi^-1(1 - K_i)``, and
+    how the estimator reads it depends on ``use_mixture``:
+
+    * ``use_mixture=False`` -- the age bound is used directly as the truncation, i.e.
+      the exact LT-FH++/ADuLT encoding (equivalent to :func:`age_thresholds`).
+    * ``use_mixture=True`` -- the PA-FGRS censored-control correction switches on. It
+      does the age adjustment itself, from ``K_i``/``K_pop``, by splitting the
+      control's liability at the *lifetime* threshold ``Phi^-1(1 - K_pop)`` into a
+      genuine-control and a not-yet-onset-case component (Krebs et al. 2024, eqs.
+      S3-S5). The age-specific ``upper`` is then only a censored-vs-observed flag --
+      its value does not re-enter, so the mixture does **not** double-count the
+      censoring already implicit in the age bound.
+
+    Either way the result is well calibrated; the two are near-identical estimators
+    of the same generative model."""
     status = np.asarray(status, dtype=bool)
     age = np.asarray(age, dtype=float)
     thr = np.asarray(convert_age_to_thresh(age, dist="logistic", pop_prev=pop_prev,

@@ -90,28 +90,39 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     Returns ``(mean, var)`` after conditioning. With ``K_i``/``K_pop`` NaN this is
     just the truncated-normal moments on ``(lower, upper)`` (the plain PA / LT-FH
     behaviour). When both are given and the individual is not a fully observed case
-    (finite ``upper`` or a point mass), the result is a two-component mixture: a
-    genuine control on ``(lower, upper)`` with weight ``mixture_prob``, and a
-    not-yet-onset future case on ``(upper, inf)`` with the complement -- the
-    PA-FGRS age-censoring correction (supp. eqs. S3-S5)."""
+    (finite ``upper`` or a point mass), the result is the PA-FGRS age-censoring
+    mixture (Krebs et al. 2024, supp. eqs. S3-S5): a genuine control on
+    ``(lower, thr_pop)`` with weight ``mixture_prob``, and a not-yet-onset future
+    case on ``(thr_pop, inf)`` with the complement.
+
+    The split point is the *lifetime* threshold ``thr_pop = Phi^-1(1 - K_pop)`` --
+    the quantity the model defines the two components by -- **not** the passed
+    ``upper``. Age enters solely through the mixture weight via ``K_i``. The passed
+    ``upper`` only flags a censored control (finite) versus an observed case
+    (``+inf``); its exact value is irrelevant in mixture mode, so feeding either the
+    lifetime bound ``thr_pop`` or an age-specific bound ``Phi^-1(1 - K_i)`` (as
+    :func:`ltpred.thresholds.pa_thresholds` emits, for the no-mixture LT-FH++ path)
+    yields the same, paper-correct result. Sourcing the split from ``upper`` instead
+    would double-correct an age-specific bound -- the censoring gets encoded twice."""
     sd = math.sqrt(var)
     use_mix = (not math.isnan(K_pop)) and (not math.isnan(K_i)) and \
         (upper != math.inf or lower == upper)
     if use_mix:
-        thr_pop = _norm_ppf(1.0 - K_pop)
-        cdf_pop = _norm_cdf((thr_pop - mu) / sd)
+        split = _norm_ppf(1.0 - K_pop)          # lifetime threshold thr_pop
+        cdf_pop = _norm_cdf((split - mu) / sd)
         mixture_prob = cdf_pop / (cdf_pop + (1.0 - cdf_pop) * (K_pop - K_i) / K_pop)
     else:
+        split = upper                            # plain truncated normal on (lower, upper)
         mixture_prob = 1.0
 
-    m0 = _tnorm_mean(mu, sd, lower, upper)
-    v0 = _tnorm_var(mu, sd, lower, upper)
-    if upper == math.inf or lower == upper:  # observed case -> no upper component
+    m0 = _tnorm_mean(mu, sd, lower, split)
+    v0 = _tnorm_var(mu, sd, lower, split)
+    if split == math.inf or lower == split:  # observed case -> no upper component
         m1 = 0.0
         v1 = 0.0
     else:
-        m1 = _tnorm_mean(mu, sd, upper, math.inf)
-        v1 = _tnorm_var(mu, sd, upper, math.inf)
+        m1 = _tnorm_mean(mu, sd, split, math.inf)
+        v1 = _tnorm_var(mu, sd, split, math.inf)
 
     new_mean = mixture_prob * m0 + (1.0 - mixture_prob) * m1
     new_var = mixture_prob * (m0 * m0 + v0) + (1.0 - mixture_prob) * (m1 * m1 + v1) \
