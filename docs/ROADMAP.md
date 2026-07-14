@@ -50,8 +50,10 @@ age-of-onset, and GWAS power (LT-FH++ and PA both ~1.52× effective-N over
 case/control at λ_GC ≈ 1), plus `fit_heritability` quality (unbiased, but
 `h2_se` understates the true SD ~20–30×, so use `bootstrap_fit`), `A+C` recovery,
 and `r_g` recovery, plus **calibration** of the score (self-calibrating under the
-correct model; ranking robust but scale sensitive to a wrong `h²`). Real-LD runs go
-through an opt-in HAPNEST path.
+correct model; ranking robust but scale sensitive to a wrong `h²`), **cohort
+confounding / `λ_GC`** (personalised thresholds keep genomic control valid), and
+**PA robustness / fold-order** (PA tracks Gibbs to corr ≥ 0.998 on stressful
+pedigrees). Real-LD runs go through an opt-in HAPNEST path.
 
 **Docs.** README, a user guide, and an algorithm/model doc (with the
 BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
@@ -165,13 +167,20 @@ likelihood-based inference) to the pedigree/registry setting.
    special case; a role-less array interface — `A` + per-member bounds — replaces
    the originally-envisaged `families_from_pedigree` object builder.)
 
-5. **Expand benchmark diagnostics.** *Calibration done.* `bench_calibration.py`
-   adds slope/intercept and **decile (tail) calibration** to the correlation-only
-   accuracy story: the correctly-specified estimate is a self-calibrating posterior
-   mean (slope ≈ 1, and Gibbs/PA agree on scale, not just ranking), while a wrong
-   assumed `h²` leaves the ranking robust but tilts the scale — the complement to
-   `liability_sensitivity`. Still open: PA fold-in-ordering sensitivity,
-   large/rare/densely-affected pedigrees, and mixture validation.
+5. **Expand benchmark diagnostics.** *Mostly done.* Three benchmarks landed:
+   `bench_calibration.py` adds slope/intercept and **decile (tail) calibration** to
+   the correlation-only accuracy story (the correctly-specified estimate is a
+   self-calibrating posterior mean; a wrong `h²` tilts the scale but not the ranking —
+   the complement to `liability_sensitivity`); `bench_confounding.py` shows
+   cohort-blind (single-K) thresholds **inflate `λ_GC`** under a secular prevalence
+   trend while cohort-aware LT-FH++ holds it at ≈1 (valid genomic control, not just
+   power); `bench_pa_robustness.py` confirms **PA tracks Gibbs to corr ≥ 0.998** on
+   large/rare/densely-affected pedigrees with negligible **fold-in-ordering**
+   sensitivity. **Mixture validation** is *deferred*: a clean LTM check showed the
+   censored-control mixture's effect is highly sensitive to the control-bound
+   convention, and that the documented `pa_thresholds` (age bounds) + `use_mixture`
+   path appears to **double-correct** the censoring — flagged for a focused
+   investigation against the PA-FGRS paper before it can be benchmarked honestly.
 
 6. **Censoring-aware CIPs.** Helpers and guidance for Kaplan–Meier /
    Aalen–Johansen incidence with competing risks (death, emigration), for

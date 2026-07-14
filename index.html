@@ -255,8 +255,8 @@
       </div>
       <div class="card">
         <div class="k">Validate</div>
-        <h3>Twelve reproducible benchmarks</h3>
-        <p>Every capability ships with a simulation benchmark that scores it against the known truth — accuracy, calibration, scaling, power, and the value (or not) of each modeling choice.</p>
+        <h3>Fourteen reproducible benchmarks</h3>
+        <p>Every capability ships with a simulation benchmark that scores it against the known truth — accuracy, calibration, genomic control, scaling, power, and the value (or not) of each modeling choice.</p>
         <div class="fns"><span class="fn">benchmarks/</span><span class="fn">RESULTS.md</span></div>
       </div>
     </div>
@@ -285,9 +285,9 @@
       <div class="stat"><div class="v">≥ 0.997</div><div class="l">corr(PA-FGRS, Gibbs) across every accuracy cell</div></div>
       <div class="stat"><div class="v">100–350<small>×</small></div><div class="l">PA-FGRS speed-up over the Gibbs sampler, same accuracy</div></div>
       <div class="stat"><div class="v">1.2–2.8<small>×</small></div><div class="l">effective-N gain over a raw case/control label</div></div>
-      <div class="stat"><div class="v">12</div><div class="l">simulation benchmarks, truth known in each</div></div>
+      <div class="stat"><div class="v">14</div><div class="l">simulation benchmarks, truth known in each</div></div>
     </div>
-    <p class="benchlist"><code>bench_accuracy</code>, <code>bench_calibration</code>, <code>bench_scaling</code>, <code>bench_age_onset</code>, <code>bench_gwas_power</code>, <code>bench_fit_heritability</code>, <code>bench_variance_components</code>, <code>bench_genetic_correlation</code>, <code>bench_genetic_factor</code>, <code>bench_shared_env</code>, <code>bench_couple_env</code>, and <code>bench_fh_prediction</code> — the last covering ascertainment, heritability, birth-cohort and competing-risk mortality, each written up with tables in <code>RESULTS.md</code>.</p>
+    <p class="benchlist"><code>bench_accuracy</code>, <code>bench_calibration</code>, <code>bench_confounding</code>, <code>bench_pa_robustness</code>, <code>bench_scaling</code>, <code>bench_age_onset</code>, <code>bench_gwas_power</code>, <code>bench_fit_heritability</code>, <code>bench_variance_components</code>, <code>bench_genetic_correlation</code>, <code>bench_genetic_factor</code>, <code>bench_shared_env</code>, <code>bench_couple_env</code>, and <code>bench_fh_prediction</code> — covering ascertainment, calibration, genomic-control confounding, birth-cohort and competing-risk mortality, each written up with tables in <code>RESULTS.md</code>.</p>
   </section>
 
   <hr class="rule"/>
@@ -300,7 +300,7 @@
       <div class="tier-head"><h3>Close the loop</h3><span class="when">Near-term</span></div>
       <div class="items">
         <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Feed fitted C / M back into prediction.</strong> <code>fit_variance_components</code> estimates the shared- and couple-environment components, but <code>estimate_liability</code> has no <code>c2=</code> / <code>m2=</code> argument yet — wiring the fitted covariance end-to-end.</div></div>
-        <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>A λ<sub>GC</sub> / false-positive panel.</strong> A small genotyped simulation with a birth-year-correlated null SNP, to show cohort-blind thresholds inflate genomic control while personalized ones hold it at ≈ 1 — the confounding side of the cohort story the correlation benchmark can't reach.</div></div>
+        <div class="item"><span class="status s-part">shipped</span><div class="body"><strong>A λ<sub>GC</sub> / false-positive panel.</strong> <code>bench_confounding</code> pairs a secular prevalence trend with birth-cohort-correlated null SNPs: cohort-blind (single-K) thresholds inflate genomic control up to ~15× (worse than raw case/control) while cohort-aware LT-FH++ holds λ<sub>GC</sub> ≈ 1 — the confounding side of the cohort story.</div></div>
         <div class="item"><span class="status s-part">shipped</span><div class="body"><strong>Calibration diagnostics.</strong> <code>bench_calibration</code> now reports the calibration slope / intercept and decile (tail) calibration alongside correlation — the estimate is a self-calibrating posterior mean under the correct model, and a wrong assumed h² tilts the scale while leaving the ranking robust.</div></div>
       </div>
     </div>

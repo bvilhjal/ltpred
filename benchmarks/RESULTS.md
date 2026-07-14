@@ -450,6 +450,80 @@ parents+2 sibs; the h² handed to the estimator is swept):
   the scale-side complement to the rank-side robustness `liability_sensitivity`
   reports.
 
+## 13. Cohort confounding & genomic control (`bench_confounding.py`)
+
+LT-FH++ personalizes the threshold by birth cohort because prevalence drifts over
+time; the docs claim this **controls confounding**, not just improves power. This
+tests that directly: a secular prevalence trend `K(by) = K·R^((by−1965)/30)` plus
+**birth-cohort-correlated null SNPs** (allele frequency drifts with cohort — the SNPs
+carry no liability effect, so any association is spurious). The genetic-liability
+estimate is built cohort-aware vs single-K (cohort-blind), and the genomic-control
+inflation `λ_GC` is read off a linear GWAS against the null SNPs. h²=0.5, K=0.05,
+parents+2 sibs, 8 000 families, 2 000 SNPs (half cohort-correlated).
+
+**λ_GC on cohort-correlated null SNPs:**
+
+| trend R | cohort-aware | single-K | case/control label |
+|---:|---:|---:|---:|
+| 1.0 *(no trend)* | 1.04 | 1.04 | 1.05 |
+| 2.0 | 1.07 | 4.42 | 1.88 |
+| 3.0 | 1.11 | 10.2 | 3.48 |
+| 4.0 | 1.02 | **15.5** | 6.02 |
+
+- **Cohort-aware thresholds hold `λ_GC ≈ 1`** (1.02–1.11) even under a 4×-per-30-years
+  secular trend — the confounding is removed.
+- **Single-K (cohort-blind) inflates badly** (up to 15×): using one threshold when
+  prevalence varies by cohort leaks the cohort trend into the estimate, which then
+  correlates with any cohort-stratified SNP. Notably it is **worse than the raw
+  case/control label** (6.0) — a sophisticated estimator with the wrong threshold
+  does more damage than the naive one.
+- **The inflation is specific to cohort-correlated SNPs**: on cohort-independent null
+  SNPs every method stays at `λ_GC ≈ 1.0–1.1`. With no trend (R=1) there is nothing
+  to confound and all three coincide.
+
+This is the confounding-control counterpart to the power gains in §10 — the reason
+LT-FH++ personalizes thresholds by birth year is not only sharper ranking but valid
+genomic control.
+
+## 14. PA-FGRS robustness & fold-order (`bench_pa_robustness.py`)
+
+Pearson-Aitken folds relatives into the proband's liability one at a time, exact for
+a single truncation but an approximation for several — so where does it strain, and
+does the fold-in order matter? h²=0.5.
+
+**(a) Agreement with Gibbs on stressful pedigrees:**
+
+| regime | corr(PA, Gibbs) | corr(PA, g) | corr(Gibbs, g) |
+|---|---:|---:|---:|
+| baseline (4 rel) | 0.9997 | 0.447 | 0.448 |
+| large pedigree (11 rel) | 0.9997 | 0.440 | 0.441 |
+| rare (K=0.005) | 0.9980 | 0.215 | 0.215 |
+| dense (≥3 affected) | 0.9991 | 0.479 | 0.480 |
+
+PA tracks the Gibbs posterior mean to **corr ≥ 0.998** across all of them, loosening
+only slightly for very rare disease (0.998 at K=0.005) — where the truncation is deep
+and one-at-a-time conditioning is most strained — and both recover `g` equally well.
+The deterministic approximation holds at large pedigree size and heavy family
+loading.
+
+**(b) Fold-in ordering sensitivity** (re-running PA under random orderings; spread of
+the per-proband estimate as % of the between-proband SD):
+
+| pedigree | typical (median) | worst-case (p95) |
+|---|---:|---:|
+| trio (2 rel) | 0.08% | 2.0% |
+| parents+2 sibs (4) | 0.11% | 2.2% |
+| extended (8 rel) | 0.09% | 3.2% |
+| large (11 rel) | 0.07% | 3.0% |
+
+The order relatives are folded in **barely matters**: the typical proband's estimate
+shifts < 0.15% of the signal SD across orderings, far below the Monte-Carlo noise of
+the Gibbs comparison it approximates. The worst-case (p95) shift grows with pedigree
+size — from ~2% (trio) to ~3% (8+ relatives) — so on large, densely-truncated
+pedigrees a few probands are mildly order-sensitive, but never enough to affect
+ranking. (The order-dependence is a property of the moment approximation; it would be
+zero for exact sequential Gaussian conditioning.)
+
 ## Bottom line
 
 PA-FGRS is a drop-in, deterministic replacement for the LT-FH++ Gibbs sampler:
@@ -472,3 +546,10 @@ self-calibrating posterior mean, slope ≈ 1) and Gibbs and PA agree on its scal
 just its ranking. A wrong assumed `h²` leaves the ranking almost untouched but tilts
 the scale — so the score is safe to feed a GWAS as-is, but read it as a calibrated
 liability only if you trust the `h²` you assumed.
+
+Two robustness checks round it out: **personalizing thresholds by birth cohort is
+what keeps genomic control valid** — a cohort-blind single-K analysis inflates `λ_GC`
+severely under a secular prevalence trend (worse than raw case/control), while
+cohort-aware LT-FH++ holds `λ_GC ≈ 1` — and **PA-FGRS tracks the Gibbs posterior mean
+to corr ≥ 0.998** on large, rare and densely-affected pedigrees, with negligible
+fold-in ordering sensitivity.
