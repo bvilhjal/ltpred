@@ -68,6 +68,17 @@ class LiabilityResult:
     def column(self, name):
         return self.est[name]
 
+    @property
+    def genetic(self):
+        """Shorthand for the single-trait genetic-liability estimate ``est['genetic']``
+        (the usual output). Multi-trait results are keyed per trait, e.g.
+        ``genetic_height`` — index ``.est`` directly for those."""
+        if "genetic" not in self.est:
+            raise AttributeError(
+                "no 'genetic' column; multi-trait results use per-trait keys like "
+                "'genetic_<trait>' — index .est directly")
+        return self.est["genetic"]
+
 
 def _normalise_out(out):
     if np.isscalar(out):                 # a bare "genetic"/"full"/0/1 -> single column
@@ -346,6 +357,14 @@ def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
     ``dtype=np.float32`` halves the per-family bound memory. Returns a
     :class:`LiabilityResult` with ``se = 0`` and posterior variances in ``var``."""
     _check_unique_roles(families)
+    if use_mixture and not any(
+            m.K_i is not None and np.isfinite(np.asarray(m.K_i, dtype=float)).any()
+            for fam in families for m in fam.members):
+        raise ValueError(
+            "use_mixture=True but no family member carries a K_i/K_pop, so the "
+            "censored-control mixture has nothing to act on. Build bounds with "
+            "pa_thresholds or thresholds_from_cip (which emit K_i/K_pop for controls), "
+            "or set use_mixture=False.")
     dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
     names = [_OUT_NAMES[c] for c in out_coords]
@@ -570,20 +589,29 @@ def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="gene
     return est[:, 0], se[:, 0]
 
 
-def estimate_liability(families, h2=0.5, *, method="gibbs", out=("genetic",),
+def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",),
                        tol=0.01, use_mixture=False, genetic_corrmat=None,
                        full_corrmat=None, phen_names=None, n_sim=100_000,
                        burn_in=1000, seed=None, max_rounds=100, dtype=np.float64):
     """Estimate posterior liabilities, dispatching on method and trait count.
 
-    ``method="gibbs"`` (default) runs the truncated-MVN Gibbs sampler;
-    ``method="pearson-aitken"`` (aliases ``"pa"``, ``"pa-fgrs"``) runs the
-    deterministic PA-FGRS estimator (single trait only; ``use_mixture`` enables the
-    age-censored-control correction). Scalar ``h2`` -> single trait; a vector ``h2``
-    with ``genetic_corrmat`` and ``full_corrmat`` -> multi-trait (Gibbs only).
-    ``dtype=np.float32`` stores the per-family liability bounds in single precision
-    (half the memory) — useful at biobank scale."""
+    ``method`` selects the estimator; the **default** (``None``) picks the deterministic
+    **Pearson-Aitken (PA-FGRS)** estimator for a single trait — it matches the Gibbs
+    posterior mean to ~1e-2 and is 100-350x faster — and falls back to the **Gibbs**
+    sampler for the multi-trait model, which PA does not support. Pass ``method``
+    explicitly to override: ``"pearson-aitken"`` (aliases ``"pa"``, ``"pa-fgrs"``;
+    single trait only, ``use_mixture`` enables the age-censored-control correction) or
+    ``"gibbs"`` (the truncated-MVN sampler; needed for multiple traits, or when you
+    want a Monte-Carlo SE or posterior draws). An explicit ``method="pearson-aitken"``
+    with a multi-trait request raises.
+
+    Scalar ``h2`` -> single trait; a vector ``h2`` with ``genetic_corrmat`` and
+    ``full_corrmat`` -> multi-trait. ``dtype=np.float32`` stores the per-family
+    liability bounds in single precision (half the memory) — useful at biobank scale."""
     is_multi = np.ndim(h2) > 0 or genetic_corrmat is not None or full_corrmat is not None
+
+    if method is None:                       # default: PA (single trait), Gibbs (multi, PA can't)
+        method = "gibbs" if is_multi else "pearson-aitken"
 
     if str(method).lower() in _PA_METHODS:
         if is_multi:

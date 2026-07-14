@@ -62,8 +62,8 @@ def test_gibbs_arrays_match_object_api():
                                                   n_sim=20_000, burn_in=400, seed=3)
     fams = [Family(i, [Member(r, lower[i, k], upper[i, k]) for k, r in enumerate(roles)])
             for i in range(2)]
-    obj = estimate_liability(fams, h2=0.5, out=("genetic",), n_sim=20_000,
-                             burn_in=400, seed=3)
+    obj = estimate_liability(fams, h2=0.5, method="gibbs", out=("genetic",),
+                             n_sim=20_000, burn_in=400, seed=3)
     assert np.allclose(est_a, obj.est["genetic"])
     assert np.allclose(se_a, obj.se["genetic"])
 
@@ -96,10 +96,10 @@ def test_float32_bounds_match_float64():
     from ltpred.simulate import simulate_under_LTM_single
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5, n_sim=400,
                                     pop_prev=0.05, seed=1)
-    g64 = estimate_liability(sim.families, h2=0.5, out=("genetic",), n_sim=20_000,
-                             burn_in=400, seed=0)
-    g32 = estimate_liability(sim.families, h2=0.5, out=("genetic",), n_sim=20_000,
-                             burn_in=400, seed=0, dtype=np.float32)
+    g64 = estimate_liability(sim.families, h2=0.5, method="gibbs", out=("genetic",),
+                             n_sim=20_000, burn_in=400, seed=0)
+    g32 = estimate_liability(sim.families, h2=0.5, method="gibbs", out=("genetic",),
+                             n_sim=20_000, burn_in=400, seed=0, dtype=np.float32)
     assert np.allclose(g64.est["genetic"], g32.est["genetic"], atol=1e-5)
     p64 = estimate_liability(sim.families, h2=0.5, method="pa")
     p32 = estimate_liability(sim.families, h2=0.5, method="pa", dtype=np.float32)
@@ -135,11 +135,11 @@ def test_grouping_gives_same_answer_regardless_of_order():
     solo = lambda i: Family(f"s{i}", [Member("o", -np.inf, t)])
     fams = [trio(0), solo(0), trio(1), solo(1), trio(2)]
 
-    res = estimate_liability(fams, h2=0.5, out=("genetic",), tol=0.02,
-                             n_sim=40_000, burn_in=800, seed=5)
+    res = estimate_liability(fams, h2=0.5, method="gibbs", out=("genetic",),
+                             tol=0.02, n_sim=40_000, burn_in=800, seed=5)
     order = [3, 0, 4, 1, 2]
-    res2 = estimate_liability([fams[i] for i in order], h2=0.5, out=("genetic",),
-                              tol=0.02, n_sim=40_000, burn_in=800, seed=5)
+    res2 = estimate_liability([fams[i] for i in order], h2=0.5, method="gibbs",
+                              out=("genetic",), tol=0.02, n_sim=40_000, burn_in=800, seed=5)
     # same fam -> same estimate; seed is tied to global position, so compare by id
     by_id = dict(zip(res.fam_ids, res.est["genetic"]))
     for fid, val in zip(res2.fam_ids, res2.est["genetic"]):
@@ -152,10 +152,10 @@ def test_batched_estimator_is_deterministic():
     fams = [Family(f"f{i}", [Member("o", t if i % 2 else -np.inf,
                                     np.inf if i % 2 else t),
                              Member("m", -np.inf, t)]) for i in range(8)]
-    a = estimate_liability(fams, h2=0.5, out=("genetic", "full"), tol=0.05,
-                           n_sim=20_000, burn_in=400, seed=3)
-    b = estimate_liability(fams, h2=0.5, out=("genetic", "full"), tol=0.05,
-                           n_sim=20_000, burn_in=400, seed=3)
+    a = estimate_liability(fams, h2=0.5, method="gibbs", out=("genetic", "full"),
+                           tol=0.05, n_sim=20_000, burn_in=400, seed=3)
+    b = estimate_liability(fams, h2=0.5, method="gibbs", out=("genetic", "full"),
+                           tol=0.05, n_sim=20_000, burn_in=400, seed=3)
     assert np.array_equal(a.est["genetic"], b.est["genetic"])
     assert np.array_equal(a.est["full"], b.est["full"])
 
@@ -164,6 +164,6 @@ def test_multi_round_convergence_tightens_se():
     # a tight tolerance forces extra rounds; the reported SE must respect it
     t = float(stats.norm.isf(0.05))
     fam = Family("f", [Member("o", t, np.inf), Member("m", t, np.inf)])
-    res = estimate_liability([fam], h2=0.5, out=("genetic",), tol=0.005,
-                             n_sim=20_000, burn_in=500, seed=1, max_rounds=20)
+    res = estimate_liability([fam], h2=0.5, method="gibbs", out=("genetic",),
+                             tol=0.005, n_sim=20_000, burn_in=500, seed=1, max_rounds=20)
     assert res.se["genetic"][0] <= 0.005

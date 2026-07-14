@@ -35,7 +35,7 @@ def test_single_proband_case_only():
     h2, prev = 0.5, 0.05
     t = float(stats.norm.isf(prev))
     fam = Family("f1", [Member("o", lower=t, upper=np.inf)])
-    res = estimate_liability([fam], h2=h2, out=("genetic", "full"),
+    res = estimate_liability([fam], h2=h2, method="gibbs", out=("genetic", "full"),
                              tol=0.02, n_sim=40_000, burn_in=800, seed=1)
     assert res.est["full"][0] == pytest.approx(_imr(t), abs=0.05)
     assert res.est["genetic"][0] == pytest.approx(h2 * _imr(t), abs=0.05)
@@ -98,8 +98,8 @@ def test_warns_when_not_converged():
     fam = Family("f1", [Member("o", t, np.inf), Member("m", t, np.inf)])
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        res = estimate_liability([fam], h2=0.5, out=("genetic",), tol=1e-6,
-                                 n_sim=5000, burn_in=200, max_rounds=1, seed=1)
+        res = estimate_liability([fam], h2=0.5, method="gibbs", out=("genetic",),
+                                 tol=1e-6, n_sim=5000, burn_in=200, max_rounds=1, seed=1)
     assert any("did not reach tol" in str(x.message) for x in w)
     assert np.isfinite(res.est["genetic"][0])
 
@@ -224,3 +224,31 @@ def test_out_invalid_and_multicolumn_errors():
     lo = np.array([[-9.0, 1.2, -9.0, 1.2]]); hi = np.array([[9.0, 9.0, 1.2, 9.0]])
     with pytest.raises(ValueError, match="single column"):
         estimate_liability_pa_arrays(roles, lo, hi, out=("genetic", "full"))
+
+
+def test_default_method_is_pa_and_multitrait_falls_back_to_gibbs():
+    from ltpred import simulate_under_LTM_single
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5, n_sim=200,
+                                    pop_prev=0.1, seed=1)
+    # single-trait default -> PA (deterministic: se == 0)
+    res = estimate_liability(sim.families, h2=0.5)
+    assert np.all(res.se["genetic"] == 0.0)
+    assert res.genetic is res.est["genetic"]        # convenience property
+    # multi-trait default -> Gibbs fallback (PA can't); works without method=
+    rg = np.array([[1.0, 0.3], [0.3, 1.0]]); rp = np.array([[1.0, 0.2], [0.2, 1.0]])
+    m = [Family(f.fam_id, [Member(mm.role, [mm.lower, mm.lower], [mm.upper, mm.upper])
+                           for mm in f.members]) for f in sim.families[:40]]
+    multi = estimate_liability(m, h2=[0.5, 0.4], genetic_corrmat=rg, full_corrmat=rp,
+                               n_sim=3000, seed=1)
+    assert "genetic_phenotype1" in multi.est
+    # but an *explicit* PA request for multi-trait still raises
+    with pytest.raises(NotImplementedError, match="single-trait"):
+        estimate_liability(m, h2=[0.5, 0.4], method="pa", genetic_corrmat=rg,
+                           full_corrmat=rp)
+
+
+def test_use_mixture_without_K_raises():
+    t = float(stats.norm.isf(0.05))
+    fam = Family("f", [Member("o", -np.inf, t), Member("m", -np.inf, t)])  # no K_i
+    with pytest.raises(ValueError, match="K_i/K_pop"):
+        estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)

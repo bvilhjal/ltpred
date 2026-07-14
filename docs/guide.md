@@ -407,13 +407,16 @@ objects directly if you prefer.
 
 ```python
 from ltpred import estimate_liability
-res = estimate_liability(families, h2=0.05, out=("genetic",))
+res = estimate_liability(families, h2=0.5, out=("genetic",))
 ```
 
 - `h2` — liability-scale heritability (scalar; a vector selects the multi-trait
   model, below).
-- `method` — `"gibbs"` (default, the LT-FH++ sampler) or `"pearson-aitken"`
-  (aliases `"pa"`, `"pa-fgrs"`, the deterministic PA-FGRS estimator).
+- `method` — the **default** is the deterministic **Pearson–Aitken** (PA-FGRS)
+  estimator for a single trait (fast, matches Gibbs to ~1e-2), falling back to
+  **Gibbs** for the multi-trait model. Pass `"gibbs"` to force the sampler (needed
+  for multiple traits, a Monte-Carlo SE, or posterior draws), or `"pearson-aitken"`
+  (aliases `"pa"`, `"pa-fgrs"`) to force PA.
 - `out` — which liabilities to return: `"genetic"` (the proband's `g`), `"full"`
   (the proband's `o`), or both.
 - `use_mixture` — PA only: turn on the age-censored-control mixture (needs
@@ -588,7 +591,7 @@ causal variants — a ~1.5× effective-sample-size gain over the case/control la
 
 | option | default | use |
 |---|---:|---|
-| `method` | `"gibbs"` | `"gibbs"` or `"pearson-aitken"` |
+| `method` | `None` → PA (single-trait), Gibbs (multi-trait) | `"pearson-aitken"` or `"gibbs"` to force |
 | `h2` | `0.5` | liability-scale heritability (scalar, or vector for multi-trait) |
 | `out` | `("genetic",)` | `"genetic"`, `"full"`, or both |
 | `use_mixture` | `False` | PA age-censored-control mixture (needs `K_i`/`K_pop`) |

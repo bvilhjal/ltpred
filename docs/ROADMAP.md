@@ -60,7 +60,8 @@ BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
 connection, and the environmental-covariance extension), plus `CITATION.cff`
 (15 references).
 
-The test suite is 174 tests passing.
+The full test suite passes (`pytest`), with CI running it and the `ruff` gate on
+Python 3.9 and 3.12.
 
 ## Near-term — variance-component thread ✅ complete
 

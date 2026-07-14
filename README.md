@@ -80,8 +80,8 @@ sim = simulate_under_LTM_single(
 )
 
 # posterior mean genetic liability per proband — the LT-FH++ GWAS phenotype.
-# PA-FGRS is deterministic and fast; use it by default.
-pa = estimate_liability(sim.families, h2=0.5, method="pearson-aitken")
+# The deterministic, fast PA-FGRS estimator is the default (no method= needed).
+pa = estimate_liability(sim.families, h2=0.5)
 pa.est["genetic"]      # (n_families,) posterior means
 pa.var["genetic"]      # posterior variances (pa.se is 0 — deterministic)
 
@@ -108,8 +108,7 @@ families = families_from_columns(
     lower=lower, upper=upper,
 )
 res = estimate_liability(families, h2=0.5,          # your disease's liability-scale h²
-                         method="pearson-aitken",   # match the recommendation above
-                         out=("genetic", "full"))
+                         out=("genetic", "full"))   # PA-FGRS by default; method="gibbs" to switch
 ```
 
 Roles follow the LTFHPlus grammar (`o` proband, `m`/`f` parents, `s1`/`s2` sibs,
