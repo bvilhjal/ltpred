@@ -49,7 +49,7 @@ liability-threshold model:
 3. **Inference** — a **Gibbs** sampler (the exact reference) or the deterministic
    **Pearson–Aitken** (PA) engine turns the covariance and
    intervals into the posterior mean of the proband's genetic (`g`) and/or full
-   (`o`) liability. PA has no Monte-Carlo error and ran 323–569× faster in the
+   (`o`) liability. PA has no Monte-Carlo error and ran 315–510× faster in the
    controlled 10-thread benchmark; the two agree on the `genetic` score to
    corr ≥ 0.997 on the benchmarked structures.
 

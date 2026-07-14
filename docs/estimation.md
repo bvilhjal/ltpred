@@ -111,7 +111,7 @@ truncated — treat Gibbs as the reference and cross-check.
 | kind | Monte-Carlo (truncated-MVN sampler) | deterministic sequential-selection approximation |
 | error | batch-means MC SE (`res.se`) | no Monte-Carlo error, but a non-zero sequential moment-approximation error; gives `Var(G_i \| family)` in `res.var` |
 | exactness | exact in the limit of infinite draws | exact for 1 truncation, close approx for families |
-| speed | 246–803 families/s (10 threads) | 138k–298k families/s — **323–569× faster** across tested sizes/structures |
+| speed | ~300–990 families/s (10 threads) | ~152k–310k families/s — **315–510× faster** across tested sizes/structures |
 | censoring mixture | not implemented | `use_mixture=True` |
 
 Those rates are machine-specific medians from five warmed timings per point;
@@ -142,8 +142,8 @@ est, var = estimate_liability_pa_arrays(
 ```
 
 This runs the covariance construction once and the parallel PA kernel directly —
-7–31× faster than the object path in the current warmed timing grid, at
-1.6–9.4 million already-aligned families/s (and
+6–31× faster than the object path in the current warmed timing grid, at
+1.6–8.6 million already-aligned families/s (and
 `estimate_liability_gibbs_arrays` does the same for Gibbs, returning `(est, se)`).
 Control the thread count with `ltpred.set_num_threads(n)`, and warm up once (the
 first call JIT-compiles) before timing. Different family structures still need

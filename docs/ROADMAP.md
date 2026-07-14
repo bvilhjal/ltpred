@@ -14,7 +14,7 @@ inference engines for posterior-mean genetic liability:
   batch-means convergence.
 - **Pearson–Aitken (PA)** — a deterministic selection-formula sweep. Its optional
   PA-FGRS extension adds the age-censored-control mixture. PA agrees with Gibbs
-  to correlation ≥0.997 across the benchmark grid and ran 323–569× faster in the
+  to correlation ≥0.997 across the benchmark grid and ran 315–510× faster in the
   controlled 10-thread timing benchmark.
 
 Both support classic LT-FH; personalised pinned bounds used as LT-FH++ with
@@ -24,8 +24,8 @@ Multi-trait estimation is Gibbs-only (PA is single-trait).
 **Performance and scale.** The core is Numba-JIT'd and `prange`-parallel, with
 families grouped by structure (canonical form). Streaming batch-means keeps
 standard-error memory at `O(F)`; the array API skips Python objects and, in the
-current warmed timing run, adds another 7–31× over the PA object path while
-processing 1.6–9.4 million already-aligned families/s. A float32 bounds option
+current warmed timing run, adds another 6–31× over the PA object path while
+processing 1.6–8.6 million already-aligned families/s. A float32 bounds option
 halves memory. (The exploration also showed
 why int8-quantising the covariance, ldpred3-style, is the wrong lever here.)
 
@@ -69,7 +69,7 @@ pedigrees). Real-LD runs go through an opt-in HAPNEST path.
 **Docs.** README, a user guide, and an algorithm/model doc (with the
 BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
 connection, and the environmental-covariance extension), plus `CITATION.cff`
-(15 references).
+(20 references).
 
 The full test suite passes (`pytest`), with CI running it and the `ruff` gate on
 Python 3.9 and 3.12.

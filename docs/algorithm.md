@@ -375,7 +375,7 @@ proceeds as if the remaining variables were Gaussian with those moments. Hence i
 is **exact for a single truncation** (and for exact Gaussian conditioning on
 point-pinned variables), but an approximation for multiple interval observations —
 the standard sequential-selection approximation, which matches the Gibbs posterior
-to corr ≥ 0.997 on realistic families while running 323–569× faster in the
+to corr ≥ 0.997 on realistic families while running 315–510× faster in the
 controlled 10-thread benchmark. Same grouping / `prange` structure as the Gibbs
 path.
 

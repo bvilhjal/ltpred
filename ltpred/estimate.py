@@ -615,7 +615,7 @@ def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",),
 
     ``method`` selects the inference engine; the **default** (``None``) picks the
     deterministic **Pearson-Aitken (PA)** estimator for a single trait — it matches the Gibbs
-    posterior mean to ~1e-2 and is 100-350x faster — and falls back to the **Gibbs**
+    posterior mean to ~1e-2 and is 315-510x faster in the benchmark — and falls back to the **Gibbs**
     sampler for the multi-trait model, which PA does not support. Pass ``method``
     explicitly to override: ``"pearson-aitken"`` (aliases ``"pa"``, ``"aitken"``;
     single trait only, ``use_mixture`` enables the age-censored-control correction) or

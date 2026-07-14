@@ -80,6 +80,22 @@
   .figcap{font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:center;
     margin:8px auto 0;max-width:640px;letter-spacing:.02em;line-height:1.6}
   .figcap b{color:var(--ink);font-weight:600}
+  .encode{display:grid;grid-template-columns:150px 1fr;gap:6px 18px;align-items:center;
+    max-width:640px;margin:2px auto 0}
+  .encode .lab{font-family:var(--mono);font-size:12.5px}
+  .encode .lab b{display:block;color:var(--ink);font-weight:600;font-size:13.5px}
+  .encode .lab span{color:var(--muted)}
+
+  /* result charts */
+  .charts2{display:grid;grid-template-columns:1fr;gap:18px;margin-top:28px}
+  @media(min-width:740px){.charts2{grid-template-columns:1fr 1fr}}
+  .chart{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:20px 20px 16px;box-shadow:var(--shadow);overflow-x:auto}
+  .chart svg{display:block;width:100%;height:auto}
+  .chart .ct{font-family:var(--serif);font-size:18px;font-weight:600;margin:0 0 4px;color:var(--ink)}
+  .chart .cs{font-size:13.5px;color:var(--muted);margin:0 0 12px;line-height:1.5}
+  .chart .cnote{font-family:var(--mono);font-size:11px;color:var(--muted);
+    margin:12px 0 0;line-height:1.6;letter-spacing:.01em}
 
   /* lineage timeline */
   .line-grid{display:grid;grid-template-columns:1fr;gap:0;border-top:1px solid var(--line)}
@@ -183,8 +199,8 @@
 
     <div class="meta">
       <span class="chip">v<b>0.1.0.dev0</b></span>
-      <span class="chip"><b>176</b> tests passing</span>
-      <span class="chip"><b>~3,600</b> LOC · numpy + numba</span>
+      <span class="chip"><b>191</b> tests passing</span>
+      <span class="chip"><b>~3,750</b> LOC · numpy + numba</span>
       <span class="chip">Python <b>≥3.9</b></span>
       <span class="chip">GPL-3.0</span>
     </div>
@@ -250,12 +266,12 @@
       <div class="card">
         <div class="k">Scale</div>
         <h3>Biobank-ready performance</h3>
-        <p>Numba-JIT, <code>prange</code>-parallel kernels; families grouped by structure; streaming batch-means standard errors at O(F) memory; optional float32 bounds. PA-FGRS runs ~170k families/second.</p>
+        <p>Numba-JIT, <code>prange</code>-parallel kernels; families grouped by structure; streaming batch-means standard errors at O(F) memory; optional float32 bounds. PA-FGRS runs ~150k–310k families/second (object path), millions/s through the array API.</p>
         <div class="fns"><span class="fn">pa_estimate_batched</span><span class="fn">gibbs_estimate_batched</span></div>
       </div>
       <div class="card">
         <div class="k">Validate</div>
-        <h3>Fourteen reproducible benchmarks</h3>
+        <h3>Fifteen reproducible benchmarks</h3>
         <p>Every capability ships with a simulation benchmark that scores it against the known truth — accuracy, calibration, genomic control, scaling, power, and the value (or not) of each modeling choice.</p>
         <div class="fns"><span class="fn">benchmarks/</span><span class="fn">RESULTS.md</span></div>
       </div>
@@ -275,6 +291,43 @@
       </div>
       <p style="margin:22px 0 0;font-size:14.5px;color:var(--muted)">A consequence the benchmarks make concrete: since the thresholds touch only <span class="mu" style="font-family:var(--mono);font-size:.9em">μ</span>, personalizing them (by cohort or sex) always fixes <strong style="color:var(--ink);font-weight:600">calibration</strong> — and additionally lifts <strong style="color:var(--ink);font-weight:600">ranking/power</strong> whenever cases span strata of different prevalence, because two same-onset cases from different eras hold different true liabilities that a single prevalence would collapse.</p>
     </div>
+
+    <div class="figure" style="margin-top:28px">
+      <svg viewBox="0 0 720 246" role="img" aria-label="Three rows showing how a diagnosis becomes an interval on the latent liability axis: a control is bounded above by its threshold, an age-of-onset case is pinned at its onset threshold, and a censored control is a mixture of a control and a future case.">
+        <g font-family="ui-monospace,monospace">
+          <!-- Row 1 · control -->
+          <line x1="250" y1="58" x2="648" y2="58" stroke="var(--line)" stroke-width="1"/>
+          <rect x="250" y="49" width="290" height="18" fill="var(--accent)" opacity="0.16"/>
+          <line x1="540" y1="40" x2="540" y2="76" stroke="var(--tail)" stroke-width="1.6"/>
+          <text x="540" y="33" text-anchor="middle" font-size="11" fill="var(--tail)">T(age)</text>
+          <text x="256" y="45" font-size="10" fill="var(--muted)">−∞</text>
+          <text x="24" y="54" font-size="14" font-weight="600" fill="var(--ink)">Control</text>
+          <text x="24" y="70" font-size="11" fill="var(--muted)">ℓ ≤ T</text>
+
+          <!-- Row 2 · case, age of onset -->
+          <line x1="250" y1="128" x2="648" y2="128" stroke="var(--line)" stroke-width="1"/>
+          <line x1="566" y1="110" x2="566" y2="146" stroke="var(--tail)" stroke-width="1.6"/>
+          <circle cx="566" cy="128" r="5.5" fill="var(--tail)"/>
+          <text x="566" y="103" text-anchor="middle" font-size="11" fill="var(--tail)">T(onset a)</text>
+          <text x="24" y="124" font-size="14" font-weight="600" fill="var(--ink)">Case</text>
+          <text x="24" y="140" font-size="11" fill="var(--muted)">ℓ = T(a) · pinned</text>
+
+          <!-- Row 3 · censored control -->
+          <line x1="250" y1="198" x2="648" y2="198" stroke="var(--line)" stroke-width="1"/>
+          <rect x="250" y="189" width="250" height="18" fill="var(--accent)" opacity="0.16"/>
+          <rect x="500" y="189" width="112" height="18" fill="var(--tail)" opacity="0.15"/>
+          <line x1="500" y1="180" x2="500" y2="216" stroke="var(--tail)" stroke-width="1.6"/>
+          <text x="500" y="173" text-anchor="middle" font-size="11" fill="var(--tail)">T(c)</text>
+          <text x="556" y="200" text-anchor="middle" font-size="9.5" fill="var(--tail)">future case?</text>
+          <text x="256" y="185" font-size="10" fill="var(--muted)">−∞</text>
+          <text x="24" y="194" font-size="14" font-weight="600" fill="var(--ink)">Censored</text>
+          <text x="24" y="210" font-size="11" fill="var(--muted)">control / future case</text>
+
+          <text x="648" y="234" text-anchor="end" font-size="10.5" fill="var(--muted)">latent liability ℓ →</text>
+        </g>
+      </svg>
+      <p class="figcap">Every observation is really a statement about where a latent liability lies. A <b>control</b> has cleared its threshold from below; an age-of-onset <b>case</b> is pinned exactly at its onset threshold; a <b>censored control</b> is a control/future-case mixture (the PA-FGRS correction). These intervals are the <b>only</b> place age, sex and birth cohort enter — they set <span class="mu" style="font-family:var(--mono)">μ</span>, never the covariance.</p>
+    </div>
   </section>
 
   <hr class="rule"/>
@@ -283,11 +336,76 @@
     <div class="sec-head"><span class="n">04</span><h2>What's been validated</h2></div>
     <div class="stats">
       <div class="stat"><div class="v">≥ 0.997</div><div class="l">corr(PA-FGRS, Gibbs) across every accuracy cell</div></div>
-      <div class="stat"><div class="v">100–350<small>×</small></div><div class="l">PA-FGRS speed-up over the Gibbs sampler, same accuracy</div></div>
-      <div class="stat"><div class="v">1.2–2.8<small>×</small></div><div class="l">effective-N gain over a raw case/control label</div></div>
-      <div class="stat"><div class="v">14</div><div class="l">simulation benchmarks, truth known in each</div></div>
+      <div class="stat"><div class="v">315–510<small>×</small></div><div class="l">PA-FGRS speed-up over the Gibbs sampler, same accuracy</div></div>
+      <div class="stat"><div class="v">1.2–2.7<small>×</small></div><div class="l">effective-N gain over a raw case/control label</div></div>
+      <div class="stat"><div class="v">15</div><div class="l">simulation benchmarks, truth known in each</div></div>
     </div>
-    <p class="benchlist"><code>bench_accuracy</code>, <code>bench_calibration</code>, <code>bench_confounding</code>, <code>bench_pa_robustness</code>, <code>bench_scaling</code>, <code>bench_age_onset</code>, <code>bench_gwas_power</code>, <code>bench_fit_heritability</code>, <code>bench_variance_components</code>, <code>bench_genetic_correlation</code>, <code>bench_genetic_factor</code>, <code>bench_shared_env</code>, <code>bench_couple_env</code>, and <code>bench_fh_prediction</code> — covering ascertainment, calibration, genomic-control confounding, birth-cohort and competing-risk mortality, each written up with tables in <code>RESULTS.md</code>.</p>
+    <p class="benchlist"><code>bench_accuracy</code>, <code>bench_calibration</code>, <code>bench_confounding</code>, <code>bench_pa_robustness</code>, <code>bench_scaling</code>, <code>bench_age_onset</code>, <code>bench_gwas_power</code>, <code>bench_fit_heritability</code>, <code>bench_variance_components</code>, <code>bench_genetic_correlation</code>, <code>bench_genetic_factor</code>, <code>bench_shared_env</code>, <code>bench_couple_env</code>, <code>bench_fh_prediction</code>, and the integrated <code>bench_ltfhpp_personalization</code> (age-, sex-, and cohort-dependent CIP, coherent onset/censoring, ascertainment, and a matched family-free ADuLT arm) — covering ascertainment, calibration, genomic-control confounding, birth-cohort and competing-risk mortality, each written up with tables in <code>RESULTS.md</code>.</p>
+
+    <div class="charts2">
+      <div class="chart">
+        <p class="ct">Each modeling choice, measured</p>
+        <p class="cs">Adjusted causal-SNP power (χ² noncentrality) relative to the plain case/control label, in the integrated LT-FH++ GWAS.</p>
+        <svg viewBox="0 0 480 210" role="img" aria-label="Horizontal bars of causal-SNP noncentrality ratio over case/control: ADuLT 1.049, LT-FH 1.149, plus age CIP 1.189, full LT-FH++ 1.194.">
+          <g font-family="ui-monospace,monospace" font-size="9" fill="var(--muted)" text-anchor="middle">
+            <line x1="255" y1="30" x2="255" y2="175" stroke="var(--line)" stroke-width="1"/>
+            <line x1="310" y1="30" x2="310" y2="175" stroke="var(--line)" stroke-width="1"/>
+            <line x1="365" y1="30" x2="365" y2="175" stroke="var(--line)" stroke-width="1"/>
+            <line x1="420" y1="30" x2="420" y2="175" stroke="var(--line)" stroke-width="1"/>
+            <line x1="200" y1="30" x2="200" y2="185" stroke="var(--tail)" stroke-width="1.2" stroke-dasharray="3 3"/>
+            <text x="200" y="198" fill="var(--tail)">1.00×</text>
+            <text x="255" y="198">1.05</text><text x="310" y="198">1.10</text>
+            <text x="365" y="198">1.15</text><text x="420" y="198">1.20</text>
+          </g>
+          <g font-family="ui-monospace,monospace" font-size="11">
+            <text x="12" y="56" fill="var(--muted)">ADuLT</text>
+            <rect x="200" y="43" width="54" height="18" rx="3" fill="var(--tail)" opacity="0.7"/>
+            <text x="262" y="56" fill="var(--ink)">1.049×</text>
+            <text x="12" y="91" fill="var(--muted)">LT-FH</text>
+            <rect x="200" y="78" width="164" height="18" rx="3" fill="var(--accent)" opacity="0.5"/>
+            <text x="372" y="91" fill="var(--ink)">1.149×</text>
+            <text x="12" y="126" fill="var(--muted)">+ age CIP</text>
+            <rect x="200" y="113" width="208" height="18" rx="3" fill="var(--accent)" opacity="0.72"/>
+            <text x="416" y="126" fill="var(--ink)">1.189×</text>
+            <text x="12" y="161" fill="var(--muted)">LT-FH++</text>
+            <rect x="200" y="148" width="213" height="18" rx="3" fill="var(--accent)"/>
+            <text x="421" y="161" fill="var(--ink)">1.194×</text>
+          </g>
+        </svg>
+        <p class="cnote">10 paired replicates · 4,000 ascertained probands · age/sex/cohort CIP. Family history is the large step (ADuLT→LT-FH); age and birth cohort add the rest. Noncentrality ratio, not the squared-correlation eff-N proxy.</p>
+      </div>
+
+      <div class="chart">
+        <p class="ct">Ranking is robust; scale is not</p>
+        <p class="cs">Feed the estimator the wrong heritability: its calibration <em>slope</em> swings, but its <em>correlation</em> with the true liability barely moves.</p>
+        <svg viewBox="0 0 480 250" role="img" aria-label="Line chart versus assumed heritability. Calibration slope falls from 2.25 at 0.2 through 1.0 at the true 0.5 to 0.68 at 0.8, while correlation with truth stays flat near 0.42.">
+          <g font-family="ui-monospace,monospace" font-size="9" fill="var(--muted)">
+            <line x1="60" y1="230" x2="452" y2="230" stroke="var(--line-strong)" stroke-width="1"/>
+            <line x1="60" y1="150.8" x2="452" y2="150.8" stroke="var(--tail)" stroke-width="1" stroke-dasharray="3 3"/>
+            <text x="53" y="234" text-anchor="end">0</text>
+            <text x="53" y="154" text-anchor="end" fill="var(--tail)">1·ideal</text>
+            <text x="53" y="75" text-anchor="end">2</text>
+            <line x1="255" y1="40" x2="255" y2="230" stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 3" opacity="0.55"/>
+            <text x="70" y="245" text-anchor="middle">0.2</text>
+            <text x="193" y="245" text-anchor="middle">0.4</text>
+            <text x="255" y="245" text-anchor="middle" fill="var(--ink)">0.5 true</text>
+            <text x="316" y="245" text-anchor="middle">0.6</text>
+            <text x="440" y="245" text-anchor="middle">0.8</text>
+          </g>
+          <g font-family="ui-monospace,monospace" font-size="10">
+            <line x1="300" y1="55" x2="322" y2="55" stroke="var(--tail)" stroke-width="2.4"/>
+            <text x="328" y="58" fill="var(--muted)">calibration slope</text>
+            <line x1="300" y1="72" x2="322" y2="72" stroke="var(--accent)" stroke-width="2.4"/>
+            <text x="328" y="75" fill="var(--muted)">corr with truth</text>
+          </g>
+          <polyline points="70,51.9 193,133.1 255,149.7 316,161.1 440,175.8" fill="none" stroke="var(--tail)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
+          <g fill="var(--tail)"><circle cx="70" cy="51.9" r="3.2"/><circle cx="193" cy="133.1" r="3.2"/><circle cx="255" cy="149.7" r="3.6"/><circle cx="316" cy="161.1" r="3.2"/><circle cx="440" cy="175.8" r="3.2"/></g>
+          <polyline points="70,196.7 193,196.5 255,196.5 316,196.5 440,196.8" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
+          <g fill="var(--accent)"><circle cx="70" cy="196.7" r="3.2"/><circle cx="193" cy="196.5" r="3.2"/><circle cx="255" cy="196.5" r="3.2"/><circle cx="316" cy="196.5" r="3.2"/><circle cx="440" cy="196.8" r="3.2"/></g>
+        </svg>
+        <p class="cnote">Single-seed diagnostic · 3,000 families · K=0.05 · true h²=0.5. A linear GWAS uses only the ranking, so the assumed h² is low-stakes for discovery — even as it rescales the risk.</p>
+      </div>
+    </div>
   </section>
 
   <hr class="rule"/>
