@@ -1,4 +1,4 @@
-"""Accuracy of the estimated genetic liability: Gibbs (LT-FH++) vs Pearson-Aitken.
+"""Accuracy of classic LT-FH genetic liability: Gibbs vs Pearson-Aitken.
 
 Inspired by the LT-FH++ and PA-FGRS papers, which score a genetic-liability
 estimator by how well it recovers the *true* genetic value. For a grid of
@@ -12,8 +12,9 @@ with both back-ends, and reports:
   * eff-N gain = (corr / corr_status)^2 vs the raw case/control label
 
 The two methods should track each other closely (PA is a fast deterministic
-approximation to the Gibbs posterior mean), with accuracy rising as h2 grows, as
-prevalence drops, and as more informative relatives are added.
+approximation to the Gibbs posterior mean). Absolute accuracy rises with h2,
+prevalence, and informative relatives; the *relative* effective-N gain over a
+case/control label is largest at low prevalence.
 
     python benchmarks/bench_accuracy.py                 # default grid
     python benchmarks/bench_accuracy.py --n-fam 3000
@@ -74,7 +75,7 @@ def run(n_fam, h2s, prevs, n_sim, seed):
 def write_csv(rows):
     path = os.path.join(HERE, "bench_accuracy.csv")
     with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+        w = csv.DictWriter(fh, fieldnames=list(rows[0]), lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
     return path
@@ -92,8 +93,8 @@ def plot(rows):
     lim = [min(cg + cp) - 0.02, max(cg + cp) + 0.02]
     axes[0].plot(lim, lim, "k--", lw=1)
     axes[0].set_xlabel("corr(Gibbs, true g)")
-    axes[0].set_ylabel("corr(PA-FGRS, true g)")
-    axes[0].set_title("(a) accuracy: Gibbs vs PA-FGRS")
+    axes[0].set_ylabel("corr(PA estimate, true g)")
+    axes[0].set_title("(a) accuracy: Gibbs vs PA")
     # (b) accuracy vs prevalence, by structure (h2=0.5)
     for sname in STRUCTURES:
         sub = [r for r in rows if r["structure"] == sname and r["h2"] == 0.5]
@@ -129,6 +130,14 @@ def main():
     ap.add_argument("--n-sim", type=int, default=25_000)
     ap.add_argument("--seed", type=int, default=1)
     args = ap.parse_args()
+
+    # Compile both inference paths before recording any timing cell. Without
+    # this, the first grid cell pays JIT cost and is not comparable to the rest.
+    warm = simulate_families(["m", "f", "s1"], args.h2[0], args.prev[0], 64,
+                             args.seed + 10_000)
+    estimate(warm.families, args.h2[0], "gibbs", n_sim=1_000,
+             seed=args.seed + 10_000)
+    estimate(warm.families, args.h2[0], "pearson-aitken")
 
     rows = run(args.n_fam, args.h2, args.prev, args.n_sim, args.seed)
     path = write_csv(rows)

@@ -5,14 +5,14 @@ recover additive `A` and common-environment `C`, and how precisely?
 Haseman-Elston regression, fitting `A` and `C` together. As for the single-
 component fit, the properties that matter are **bias** and **sampling variability
 across datasets**, so this benchmark fits many independent simulated cohorts (each
-a fresh draw) and reads the spread of the fitted values as the true sampling
-distribution. It reports:
+a fresh draw) and uses their spread as an empirical estimate of sampling
+variability. It reports:
 
   (a) **A+C recovery** — mean(fitted) - true and across-replicate SD for both
       components, at a few (a2, c2) settings;
-  (b) **false positives** — fitting `A,C` on purely additive data (true c2 = 0):
-      the C estimate should sit near 0, not manufacture a common-environment
-      component;
+  (b) **boundary behaviour** — fitting `A,C` on purely additive data (true c2 =
+      0): because estimates are constrained nonnegative, report the null estimate's
+      mean and SD rather than mislabeling it as a hypothesis-test false-positive rate;
   (c) **precision vs #families** — the across-replicate SD of C as N grows.
 
 Ground truth is set by the simulator (liabilities drawn from
@@ -30,6 +30,7 @@ import time
 import argparse
 
 import numpy as np
+from scipy.stats import chi2
 
 from _common import get_plt
 from ltpred.covariance import correct_positive_definite
@@ -41,6 +42,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 # a full-sib-rich structure so C (identified from the full-sib excess) is powered
 STRUCT = ["m", "f", "s1", "s2", "s3", "s4"]
+
+
+def _sd_ci(sd, reps, alpha=0.05):
+    """Normal-theory confidence interval for an across-replicate SD."""
+    df = reps - 1
+    return (sd * np.sqrt(df / chi2.ppf(1.0 - alpha / 2.0, df)),
+            sd * np.sqrt(df / chi2.ppf(alpha / 2.0, df)))
 
 
 def simulate_ac(fam_vec, a2, c2, n_fam, prev, seed):
@@ -70,7 +78,8 @@ def fit_replicates(fam_vec, a2, c2, n_fam, prev, reps, seed0, n_iter, burn_in):
     for r in range(reps):
         fams = simulate_ac(fam_vec, a2, c2, n_fam, prev, seed0 + r)
         res = fit_variance_components(fams, ("A", "C"), n_iter=n_iter,
-                                      burn_in=burn_in, seed=1)
+                                      burn_in=burn_in,
+                                      seed=seed0 + 100_000 + r)
         fa[r], fc[r] = res.components["A"], res.components["C"]
     return fa, fc
 
@@ -109,17 +118,16 @@ def main():
               f"SD={rec['A_sd']:.3f} | C={fc.mean():.3f}({rec['C_bias']:+.3f}) "
               f"SD={rec['C_sd']:.3f}  [{time.time()-t0:.0f}s]")
 
-    # (b) false positives: C on additive-only data -----------------------------
-    print("== (b) false-positive C (true c2=0) ==")
+    # (b) boundary behaviour: C on additive-only data --------------------------
+    print("== (b) boundary estimate for C (true c2=0; not a rejection rate) ==")
     fa, fc = fit_replicates(STRUCT, 0.5, 0.0, args.n_fam, args.prev, args.reps,
                             args.seed + 500, args.n_iter, args.burn_in)
     fp = dict(a2=0.5, c2=0.0, A_bias=float(fa.mean() - 0.5), A_sd=float(fa.std(ddof=1)),
               C_bias=float(fc.mean()), C_sd=float(fc.std(ddof=1)), C_mean=float(fc.mean()))
-    rows.append(dict(panel="false_positive", **{k: fp[k] for k in
+    rows.append(dict(panel="boundary_null", **{k: fp[k] for k in
                 ("a2", "c2", "A_bias", "A_sd", "C_bias", "C_sd")},
                 n_fam=args.n_fam, reps=args.reps))
-    print(f"  A={fa.mean():.3f}  C(false)={fc.mean():.3f} +/- {fp['C_sd']:.3f} "
-          f"(should be ~0)")
+    print(f"  A={fa.mean():.3f}  C(boundary)={fc.mean():.3f} +/- {fp['C_sd']:.3f}")
 
     # (c) precision vs #families (C at a2=0.4, c2=0.2) --------------------------
     print("== (c) precision (SD of C) vs #families ==")
@@ -127,7 +135,8 @@ def main():
     for n in args.sizes:
         fa, fc = fit_replicates(STRUCT, 0.4, 0.2, n, args.prev, args.reps_scaling,
                                 args.seed + 1000, args.n_iter, args.burn_in)
-        rec = dict(n_fam=n, C_sd=float(fc.std(ddof=1)), A_sd=float(fa.std(ddof=1)))
+        rec = dict(n_fam=n, C_sd=float(fc.std(ddof=1)), A_sd=float(fa.std(ddof=1)),
+                   reps=args.reps_scaling)
         panel_c.append(rec)
         rows.append(dict(panel="scaling", a2=0.4, c2=0.2, A_bias=float(fa.mean() - 0.4),
                          A_sd=rec["A_sd"], C_bias=float(fc.mean() - 0.2), C_sd=rec["C_sd"],
@@ -143,7 +152,7 @@ def write_csv(rows):
     fields = ["panel", "a2", "c2", "A_bias", "A_sd", "C_bias", "C_sd", "n_fam", "reps"]
     path = os.path.join(HERE, "bench_variance_components.csv")
     with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields)
+        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
         w.writeheader()
         w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
 
@@ -166,16 +175,18 @@ def plot(panel_a, fp, panel_c):
     ax[0].set_ylabel("proportion of variance")
     ax[0].set_title("(a) A+C recovery")
     ax[0].legend(fontsize=8)
-    # (b) false-positive C histogram-ish bar
+    # (b) nonnegative boundary estimate (not a hypothesis-test rejection rate)
     ax[1].bar(["true c2=0"], [fp["C_mean"]], yerr=[fp["C_sd"]], capsize=5,
               color="tab:red", alpha=0.7)
     ax[1].axhline(0, color="k", lw=1)
     ax[1].set_ylabel("fitted C on additive-only data")
-    ax[1].set_title("(b) false-positive C (→ 0)")
+    ax[1].set_title("(b) null boundary estimate (not false-positive rate)")
     # (c) SD of C vs N
     n = np.array([r["n_fam"] for r in panel_c], float)
     csd = np.array([r["C_sd"] for r in panel_c])
-    ax[2].plot(n, csd, "-o", label="across-replicate SD of C")
+    ci = np.array([_sd_ci(r["C_sd"], r["reps"]) for r in panel_c])
+    ax[2].errorbar(n, csd, yerr=np.vstack([csd - ci[:, 0], ci[:, 1] - csd]),
+                   fmt="-o", capsize=3, label="across-replicate SD of C (95% CI)")
     ref = csd[0] * np.sqrt(n[0] / n)
     ax[2].plot(n, ref, "k:", lw=1, label="∝ 1/√N")
     ax[2].set_xscale("log"); ax[2].set_yscale("log")

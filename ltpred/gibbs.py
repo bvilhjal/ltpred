@@ -13,11 +13,11 @@ mean ``P[:, j] . x`` and standard deviation ``sd[j]`` -- restricted to
 ``sd[j]^2 = Sigma[j,j] - P[:,j] . Sigma[:,j]``. They depend only on ``Sigma``, so
 they are precomputed once and reused across every sweep.
 
-In LT-FH++ the coordinates are ordered ``g`` (genetic liability), ``o`` (proband
-full liability), then one per relative; ``out`` picks which posterior samples to
-return (0 = genetic, 1 = full). Coordinates whose bounds coincide are ``fixed``
-(a case's liability pinned at its age-of-onset threshold -- the ADuLT model) and
-are held constant rather than resampled.
+In the family-model estimators the coordinates are ordered ``g`` (genetic
+liability), ``o`` (proband full liability), then one per relative; ``out`` picks
+which posterior samples to return (0 = genetic, 1 = full). Coordinates whose
+bounds coincide are ``fixed`` (for example an onset-pinned case in LT-FH++, or
+in family-free ADuLT) and are held constant rather than resampled.
 """
 
 from __future__ import annotations
@@ -259,8 +259,8 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
         Coordinates to hold constant instead of resampling. Defaults to
         ``upper - lower < 1e-8`` (a pinned point mass, e.g. an age-of-onset case).
     out : sequence of int
-        Zero-based coordinate indices to return (0 = genetic, 1 = full in the
-        LT-FH++ ordering). Duplicates dropped, order sorted.
+        Zero-based coordinate indices to return (0 = genetic, 1 = proband full
+        liability in the family-model ordering). Duplicates dropped, order sorted.
     n_sim, burn_in : int
         Post-burn-in draws to keep and sweeps to discard first.
     seed : int, optional

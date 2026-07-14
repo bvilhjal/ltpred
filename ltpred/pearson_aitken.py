@@ -1,8 +1,11 @@
-"""Pearson-Aitken selection formula -- deterministic liability estimation (PA-FGRS).
+"""Pearson-Aitken selection formula -- deterministic liability inference.
 
-An analytical alternative to the Gibbs sampler, following Krebs et al. 2024
+An analytical alternative to the Gibbs sampler. Pearson-Aitken is the inference
+engine: the supplied liability bounds and inclusion of relatives determine whether
+the fitted model is classic LT-FH, onset-pinned LT-FH++, family-free ADuLT, or
+interval-case PA-FGRS. Following Krebs et al. 2024
 (*Am. J. Hum. Genet.*, "Genetic liability estimated from large-scale family
-data ...", PA-FGRS). Instead of sampling the truncated multivariate normal, it
+data ..."), it
 folds each observed relative in one at a time using the classical Pearson-Aitken
 selection theorem: if a jointly-Gaussian vector's component ``i`` has its marginal
 moved from ``N(m_i, v_i)`` to a selected mean/variance ``(m*, v*)``, every other
@@ -101,7 +104,7 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     ``upper`` only flags a censored control (finite) versus an observed case
     (``+inf``); its exact value is irrelevant in mixture mode, so feeding either the
     lifetime bound ``thr_pop`` or an age-specific bound ``Phi^-1(1 - K_i)`` (as
-    :func:`ltpred.thresholds.pa_thresholds` emits, for the no-mixture LT-FH++ path)
+    :func:`ltpred.thresholds.pa_thresholds` emits for the no-mixture interval path)
     yields the same, paper-correct result. Sourcing the split from ``upper`` instead
     would double-correct an age-specific bound -- the censoring gets encoded twice."""
     sd = math.sqrt(var)

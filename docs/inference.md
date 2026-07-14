@@ -71,7 +71,7 @@ pedigree): the assumed `h²` mostly **rescales** the liability, barely changing 
 sensitivity changes the truncation bounds rather than the covariance, so probe it
 by rebuilding the families under each prevalence and comparing. (The *scale* is more
 sensitive than the ranking — see the calibration benchmark in
-[RESULTS.md](../benchmarks/RESULTS.md).)
+[benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md).)
 
 ## Variance components (A / C / M)
 
@@ -99,8 +99,8 @@ identifying pairs; the fit raises on a rank-deficient design). `M` is a
 **descriptive spousal-resemblance component**: it absorbs shared adult environment
 and some manifestations of assortative mating, but it is *not* a generative model
 of assortative mating (which would also alter the genetic covariance among
-offspring and across generations). Because mates have `A = 0`, omitting a real `M` leaves `A`
-**essentially unbiased** (unlike omitting `C`, which inflates it) — so fit `M` to
+offspring and across generations). Because mates have `A = 0`, omitting a real
+`M` biases `A` **much less than omitting `C`** — so fit `M` to
 quantify, or `test_variance_component(families, "M")` to test, spousal resemblance
 for its own sake rather than to de-bias `h²`. Only equivalence-class (PSD) environments are valid components; a vertical
 parent-offspring "environment" is not, and is rejected.

@@ -1,8 +1,9 @@
 # ltpred benchmarks
 
-Benchmarks for the two ltpred fitting methods — the **Gibbs sampler** (LT-FH++)
-and the deterministic **Pearson–Aitken** estimator (PA-FGRS) — inspired by the
-comparisons made in the LT-FH++, ADuLT and PA-FGRS papers. Everything simulates
+Benchmarks for the two ltpred inference engines — the **Gibbs sampler** and
+deterministic **Pearson–Aitken (PA)** — across LT-FH, LT-FH++, ADuLT and PA-FGRS
+inputs. Bounds define the observation encoding; relative rows distinguish
+LT-FH++ from family-free ADuLT. Everything simulates
 its own data, so the true genetic liability is known and the benchmarks run
 locally with no downloads (the one exception, real-LD genotypes, is an opt-in
 [HAPNEST](hapnest/README.md) step).
@@ -13,7 +14,7 @@ speed:
 ```bash
 python benchmarks/bench_accuracy.py
 python benchmarks/bench_scaling.py
-OMP_NUM_THREADS=10 python benchmarks/bench_gwas_power.py
+NUMBA_NUM_THREADS=10 OMP_NUM_THREADS=10 python benchmarks/bench_gwas_power.py
 ```
 
 Each script writes a `.csv` and (if matplotlib is present) a `.png`.
@@ -29,42 +30,53 @@ numerically identical, just slower). Each script takes CLI flags (`--reps`,
 
 | Script | What it measures |
 |--------|------------------|
-| `bench_accuracy.py` | corr(estimated genetic liability, true g) across heritability × prevalence × family structure — Gibbs vs PA-FGRS accuracy, calibration slope, RMSE and the effective-N gain over case/control (→ `bench_accuracy.{csv,png}`) |
+| `bench_accuracy.py` | corr(estimated classic LT-FH liability, true g) across heritability × prevalence × family structure — Gibbs vs PA accuracy, calibration slope, RMSE and effective-N gain over case/control (→ `bench_accuracy.{csv,png}`) |
 | `bench_scaling.py` | wall-clock scaling of both methods with #families and family size; families/second and speed-up (→ `bench_scaling.{csv,png}`) |
-| `bench_age_onset.py` | value of the liability→age-of-onset map (ADuLT/LT-FH++): plain case/control vs onset-pinned cases, fit with PA (and Gibbs, to confirm agreement); accuracy and eff-N gain vs prevalence (→ `bench_age_onset.{csv,png}`) |
-| `bench_gwas_power.py` | genotype-based GWAS power: case/control vs LT-FH++ vs PA-FGRS vs an oracle — mean χ² at causal SNPs (effective N), detection power, and λ_GC calibration at nulls (→ `bench_gwas_power.{csv,png}`). Pass `--plink PREFIX` for **real-LD** HAPNEST genotypes (opt-in; see [`hapnest/README.md`](hapnest/README.md)) |
+| `bench_age_onset.py` | LT-FH++ age component with the same relatives on both sides: classic binary LT-FH vs FH + onset-pinned cases, fit with PA (and Gibbs as an agreement check); correlation-based eff-N proxy across prevalence (→ `bench_age_onset.{csv,png}`) |
+| `bench_gwas_power.py` | replicated genotype-based GWAS power for classic LT-FH: case/control vs LT-FH inferred by Gibbs/PA vs an oracle — causal noncentrality/effective N, detection power, SEs, and λ_GC (→ `bench_gwas_power.{csv,png}`). Pass `--plink PREFIX` for **real-LD** HAPNEST genotypes; causal LD proxies are excluded from its calibration set (opt-in; see [`hapnest/README.md`](hapnest/README.md)) |
+| `bench_ltfhpp_personalization.py` | **integrated LT-FH++ genotype GWAS** with age-, sex-, and cohort-dependent CIP, coherent family onset/follow-up, competing mortality, ascertainment, and demographically stratified null SNPs. A matched ADuLT arm uses the identical personalised proband bounds with all relatives removed, directly isolating the LT-FH++ family-history increment. The 10-replicate main panel reports paired CIs; a prespecified 5-replicate sex-isolation panel compares age-only with age+sex family bounds. PA is primary and Gibbs diagnostics cover the first two main replicates (→ `bench_ltfhpp_personalization.{csv,png}`) |
 | `bench_fit_heritability.py` | variance-component inference: bias and across-dataset precision of `fit_heritability` vs true h², vs #families and family structure, and the calibration of the reported `h2_se` (→ `bench_fit_heritability.{csv,png}`) |
-| `bench_variance_components.py` | multi-component inference: recovery of additive `A` and common-environment `C` by `fit_variance_components` (bias & across-dataset SD), the false-positive `C` on purely additive data, and precision vs #families (→ `bench_variance_components.{csv,png}`) |
+| `bench_variance_components.py` | multi-component inference: recovery of additive `A` and common-environment `C` by `fit_variance_components` (bias & across-dataset SD), the constrained C estimate at the zero boundary, and precision vs #families (→ `bench_variance_components.{csv,png}`) |
 | `bench_genetic_correlation.py` | genetic-correlation inference: bias & across-dataset SD of `r_g` from `fit_genetic_correlation` vs the true value — including the null (`r_g=0` with non-zero phenotypic correlation) — and precision vs #families (→ `bench_genetic_correlation.{csv,png}`) |
-| `bench_genetic_factor.py` | genetic factor model `r_g ≈ ΛΛ' + Ψ` (`fit_genetic_factor`): end-to-end recovery of planted single-factor loadings from family case/control data, and whether the `srmr` fit index flags a one-factor model as too few when the truth has two genetic factors (→ `bench_genetic_factor.{csv,png}`) |
+| `bench_genetic_factor.py` | genetic factor model `r_g ≈ ΛΛ' + Ψ` (`fit_genetic_factor`): end-to-end recovery of planted single-factor loadings from family case/control data, plus `srmr` as an in-sample diagnostic for a planted two-factor misspecification (not a calibrated factor-number test) (→ `bench_genetic_factor.{csv,png}`) |
 | `bench_calibration.py` | **calibration** of the genetic-liability estimate, not just its ranking: the calibration slope/intercept and decile calibration curve of true `g` on the estimate (a correctly-specified posterior mean is self-calibrating, slope ≈ 1), and how a **wrong assumed `h²`** leaves the ranking (`corr`) robust but tilts the scale (slope) — the complement to `liability_sensitivity` (→ `bench_calibration.{csv,png}`) |
-| `bench_confounding.py` | **cohort confounding & genomic control**: a secular prevalence trend plus birth-cohort-correlated null SNPs, showing cohort-blind (single-K) thresholds inflate `λ_GC` (up to ~15×, worse than the raw case/control label) while cohort-personalized (LT-FH++) thresholds hold `λ_GC ≈ 1`; inflation is specific to cohort-correlated SNPs (→ `bench_confounding.{csv,png}`) |
-| `bench_pa_robustness.py` | **PA-FGRS robustness**: agreement with the Gibbs posterior mean (corr ≥ 0.998) on stressful pedigrees — large, rare (K=0.005), densely-affected — and the deterministic sweep's **fold-in ordering sensitivity** (tiny: median < 0.15% of the signal SD, worst-case growing to ~3% with pedigree size) (→ `bench_pa_robustness.{csv,png}`) |
+| `bench_confounding.py` | **LT-FH++ cohort-component confounding**: a secular prevalence trend plus birth-cohort-correlated null SNPs, showing cohort-blind family thresholds inflate `λ_GC` (to ~16.5 at the strongest trend) while cohort-aware family thresholds remain near 1; this isolates cohort, not full age/sex/cohort LT-FH++ (→ `bench_confounding.{csv,png}`) |
+| `bench_pa_robustness.py` | **PA robustness**: agreement with the Gibbs posterior mean (corr ≥ 0.998) on stressful pedigrees — large, rare (K=0.005), densely affected — and deterministic fold-in ordering sensitivity (→ `bench_pa_robustness.{csv,png}`) |
 | `bench_shared_env.py` | value of modelling shared environment `C`: corr(genetic-liability estimate, true genetic liability) when families are simulated under `A+C+E`, comparing ignore-C (additive) vs fit-`A+C` vs oracle, swept over `c²` and sib-ship size (→ `bench_shared_env.{csv,png}`) |
-| `bench_couple_env.py` | the couple/spousal environment `M`: recovery of `A+M` (bias & across-dataset SD, no spurious `M` at `m²=0`), and the identifiability contrast — ignoring a real `C` inflates additive-only `Â` while ignoring a real `M` leaves it essentially unbiased (mates have `A=0`) (→ `bench_couple_env.{csv,png}`) |
-| `bench_fh_prediction.py` | the LT-FH++ GWAS phenotype `E[g \| self+family(+age+cohort)]` vs case/control, on an **age-, cohort-, and mortality-consistent registry** simulation (onset when liability crosses the age-declining, birth-cohort-shifted CIP threshold; **death a competing risk** so relatives are observed up to `min(death, now)`; generationally-consistent ages), swept over **ascertainment**, **heritability**, and **secular prevalence trend**; family-history gain over case/control is largest for rare observed disease (2.4× eff-N), age-of-onset gain grows with ascertainment, and the birth-cohort correction helps both calibration (removes a bias) and ranking/power (up to ~1.6× eff-N when cases span wide cohorts) — the Pedersen 2022/2023 directions (→ `bench_fh_prediction.{csv,png}`) |
+| `bench_couple_env.py` | the couple/spousal environment `M`: recovery of `A+M` (bias & across-dataset SD, including constrained-boundary behaviour at `m²=0`), and the identifiability contrast — ignoring a real `C` inflates additive-only `Â` much more than ignoring a real `M` (mates have `A=0`) (→ `bench_couple_env.{csv,png}`) |
+| `bench_fh_prediction.py` | registry simulation with age, cohort and competing mortality: pedigree panels compare LT-FH with age/cohort-personalised family bounds; a separate own-onset cohort-span panel is explicitly family-free **ADuLT** and tests cohort-aware vs cohort-blind ranking (→ `bench_fh_prediction.{csv,png}`) |
 
 `_common.py` holds the shared simulation, estimation, GWAS and plotting helpers,
 plus a minimal PLINK `.bed` reader for the HAPNEST path.
 
 ## How the data are simulated
 
-* **Family-only benchmarks** (accuracy, scaling, age-of-onset) draw whole
-  families straight from the LT-FH++ covariance — genetic `g`, full `o` and
-  relatives jointly multivariate normal — and threshold them. `g` is the ground
-  truth, so accuracy is just corr(estimate, `g`).
-* **The GWAS benchmark** builds each proband's genetic liability from simulated
+* **Family-only benchmarks** (accuracy, scaling, age-of-onset) draw genetic `g`,
+  full liability `o`, and relatives jointly from the liability-threshold family
+  covariance. The bounds and retained relative rows define classic LT-FH or an
+  LT-FH++ component ablation; none of these rows is ADuLT.
+  Because `g` is retained, accuracy is corr(estimate, `g`).
+* **The classic GWAS benchmark** builds each proband's genetic liability from simulated
   causal-SNP genotypes, then draws the relatives' liabilities *conditional on that
   value* from the same covariance. This gives a genotype matrix to associate
   against and a correctly correlated family history to estimate from. LD is not
   needed for the power comparison (which turns on each phenotype's correlation to
   the true genetic value); pass `--plink` for real-LD HAPNEST genotypes if you
   want realistic multiple-testing structure.
+* **The personalised LT-FH++ GWAS benchmark** adds coherent age, onset,
+  competing mortality, birth-cohort effects, ascertainment, and stratified null
+  variants. Its matched ADuLT row retains the full proband CIP but removes family
+  history. The integrated panel measures the combined `++` design; its separate
+  sex-isolation panel removes cohort and mortality-sex effects before comparing
+  age-only with age+sex thresholds. The CSV identifies replicate, paired-contrast,
+  and CIP-curve rows and records the material simulation and Gibbs configuration.
 
 ## Caveats
 
-- These are **stochastic** benchmarks: every number is one Monte-Carlo draw, so
-  re-running shifts values by sampling noise. The qualitative conclusions in
-  [`RESULTS.md`](RESULTS.md) are stable.
-- The Gibbs timings use the structure-grouped, Numba-parallel path; set
-  `OMP_NUM_THREADS` to fix the core count for comparable numbers.
+- These are **stochastic** benchmarks. Some cells are single simulated cohorts;
+  others report means across independent cohorts. Re-running shifts both by
+  sampling noise, so read the reported replicate counts and uncertainty where
+  available.
+- The Gibbs timings use the structure-grouped, Numba-parallel path. Set
+  `NUMBA_NUM_THREADS` to fix Numba's worker count; optionally set
+  `OMP_NUM_THREADS` too so linked numerical libraries use the same limit.

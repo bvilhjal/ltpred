@@ -1,11 +1,15 @@
 """Input containers: a proband, their relatives, and each one's liability bounds.
 
-LT-FH++ conditions on a *family*: the proband plus a set of relatives, each with
-a ``role`` (``o`` = the proband's own status, ``m``/``f``/``s1``/... = relatives)
-and a liability interval ``(lower, upper)`` encoding their case/control status and
-age. A :class:`Member` holds one such row; a :class:`Family` groups the members
-that share a proband. The genetic-liability row ``g`` is added automatically by
-the estimator, so callers supply only ``o`` and the relatives.
+The family-history models condition on a proband plus zero or more relatives,
+each with a ``role`` (``o`` = the proband's own status, ``m``/``f``/``s1``/... =
+relatives) and a liability interval ``(lower, upper)``. A :class:`Member` holds
+one such row; a :class:`Family` groups the rows that share a proband. The
+genetic-liability row ``g`` is added automatically by the estimator.
+
+Model identity depends on both the bounds and the rows supplied: personalised
+age/sex/cohort bounds with relatives are LT-FH++; the same bounds with only role
+``o`` are family-free ADuLT. Classic single-prevalence bounds with relatives are
+LT-FH.
 
 For a single trait ``lower``/``upper`` are scalars. For the multi-trait model they
 are length-``n_pheno`` sequences (one interval per phenotype, in ``phen_names``
@@ -28,9 +32,9 @@ class Member:
     """One family member's role and liability truncation bounds.
 
     ``lower``/``upper`` are scalars for a single trait or length-``n_pheno``
-    sequences for the multi-trait model. A case pins ``lower == upper`` at its
-    age-of-onset threshold (ADuLT); a control sets ``lower = -inf`` with ``upper``
-    at its age threshold. ``pid`` is an optional personal identifier.
+    sequences for the multi-trait model. They may encode one-sided case/control
+    truncation, an onset-pinned case (``lower == upper``), or an uninformative
+    interval. ``pid`` is an optional personal identifier.
 
     ``K_i``/``K_pop`` are only used by the Pearson-Aitken estimator's censored
     -control mixture: ``K_i`` is the individual's (age/sex-stratified) cumulative

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ltpred"
 dynamic = ["version"]                # single-sourced from ltpred.__version__
-description = "LT-FH++ in Python: liability-threshold, family-history & age-of-onset (ADuLT) posterior genetic-liability estimation, via a truncated-MVN Gibbs sampler or the deterministic Pearson-Aitken (PA-FGRS) estimator"
+description = "LT-FH++ with family history and family-free ADuLT via Gibbs or Pearson-Aitken inference"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "GPL-3.0-or-later" }

@@ -3,7 +3,7 @@
 The important properties of a heritability estimator are **bias** and **sampling
 variability across datasets** — not runtime. This benchmark measures them by
 fitting many independent simulated cohorts (each a fresh draw), so the spread of
-the fitted values *is* the true sampling distribution. It reports:
+the fitted values estimates sampling variability. It reports:
 
   (a) **bias & precision vs true h2** — mean(fitted) - h2_true and the
       across-replicate SD, for h2 from 0.2 to 0.8;
@@ -28,6 +28,7 @@ import time
 import argparse
 
 import numpy as np
+from scipy.stats import chi2
 
 from _common import get_plt
 from ltpred import simulate_under_LTM_single, fit_heritability
@@ -41,6 +42,13 @@ STRUCTURES = {
 }
 
 
+def _sd_ci(sd, reps, alpha=0.05):
+    """Normal-theory confidence interval for an across-replicate SD."""
+    df = reps - 1
+    return (sd * np.sqrt(df / chi2.ppf(1.0 - alpha / 2.0, df)),
+            sd * np.sqrt(df / chi2.ppf(alpha / 2.0, df)))
+
+
 def fit_replicates(fam_vec, h2_true, n_fam, prev, reps, seed0, n_iter, burn_in,
                    inner_sweeps):
     """Fit `reps` independent simulated cohorts; return (fitted[], reported_se[])."""
@@ -50,7 +58,8 @@ def fit_replicates(fam_vec, h2_true, n_fam, prev, reps, seed0, n_iter, burn_in,
         sim = simulate_under_LTM_single(fam_vec=fam_vec, h2=h2_true, n_sim=n_fam,
                                         pop_prev=prev, seed=seed0 + r)
         res = fit_heritability(sim.families, n_iter=n_iter, burn_in=burn_in,
-                               inner_sweeps=inner_sweeps, seed=1)
+                               inner_sweeps=inner_sweeps,
+                               seed=seed0 + 100_000 + r)
         fitted[r] = res.h2
         rep_se[r] = res.h2_se
     return fitted, rep_se
@@ -102,7 +111,7 @@ def main():
         fitted, _ = fit_replicates(fam_a, 0.5, n, args.prev, args.reps_scaling,
                                    args.seed + 1000, args.n_iter, args.burn_in, args.inner_sweeps)
         sd = float(fitted.std(ddof=1))
-        panel_b.append(dict(n_fam=n, sd=sd))
+        panel_b.append(dict(n_fam=n, sd=sd, reps=args.reps_scaling))
         rows.append(dict(panel="scaling", h2=0.5, n_fam=n, structure="parents+2 sibs",
                          bias=float(fitted.mean() - 0.5), sd=sd, reported_se=np.nan,
                          reps=args.reps_scaling))
@@ -128,7 +137,7 @@ def write_csv(rows):
     fields = ["panel", "h2", "n_fam", "structure", "bias", "sd", "reported_se", "reps"]
     path = os.path.join(HERE, "bench_fit_heritability.csv")
     with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields)
+        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
         w.writeheader()
         w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
 
@@ -152,7 +161,9 @@ def plot(panel_a, panel_b, panel_s):
     # (b) SD vs N with 1/sqrt(N) reference
     n = np.array([r["n_fam"] for r in panel_b], float)
     sdb = np.array([r["sd"] for r in panel_b])
-    ax[1].plot(n, sdb, "-o", label="across-replicate SD")
+    ci = np.array([_sd_ci(r["sd"], r["reps"]) for r in panel_b])
+    ax[1].errorbar(n, sdb, yerr=np.vstack([sdb - ci[:, 0], ci[:, 1] - sdb]),
+                   fmt="-o", capsize=3, label="across-replicate SD (95% CI)")
     ref = sdb[0] * np.sqrt(n[0] / n)
     ax[1].plot(n, ref, "k:", lw=1, label="∝ 1/√N")
     ax[1].set_xscale("log"); ax[1].set_yscale("log")

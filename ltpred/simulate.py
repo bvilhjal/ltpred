@@ -1,6 +1,6 @@
 """Simulate families under the liability-threshold model.
 
-Draws each family's liabilities from the LT-FH++ covariance (genetic ``g``, full
+Draws each family's liabilities from the liability-threshold family covariance (genetic ``g``, full
 ``o``, and relatives jointly multivariate normal), assigns case/control status by
 thresholding the full liabilities, and packages the per-member truncation bounds
 as ready-to-estimate :class:`~ltpred.family.Family` objects. Two flavours:
@@ -8,9 +8,10 @@ as ready-to-estimate :class:`~ltpred.family.Family` objects. Two flavours:
 * ``use_age=False`` -- classic LT-FH: a single prevalence threshold ``T``, cases
   ``(T, inf)`` and controls ``(-inf, T)``. Self-consistent, handy for validating
   the estimator against the simulated truth.
-* ``use_age=True`` -- LT-FH++/ADuLT: each member gets an age; a case is pinned at
-  the threshold of its (rounded) age of onset, a control lies below the threshold
-  for its current age.
+* ``use_age=True`` -- age-dependent onset-pinned bounds: each supplied member gets
+  an age; a case is pinned at the threshold of its (rounded) age of onset, and a
+  control lies below the threshold for its current age. With relatives this is an
+  age-only LT-FH++ component simulation; with no relatives it is ADuLT-like.
 
 The returned :class:`Simulation` also keeps the true liabilities so downstream
 tests can check that the estimated genetic liability tracks the simulated one.
@@ -77,8 +78,11 @@ def simulate_under_LTM_single(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf
 
     Builds the covariance from ``fam_vec``/``n_fam`` (``g``/``o`` prepended when
     ``add_ind``), draws liabilities, thresholds them at prevalence ``pop_prev``, and
-    returns a :class:`Simulation`. With ``use_age`` the bounds follow the ADuLT
-    age-of-onset construction; otherwise the classic case/control bounds."""
+    returns a :class:`Simulation`. With ``use_age`` the bounds use the shared
+    onset-pinned age construction (family-history when ``fam_vec`` is nonempty,
+    family-free when it is empty); otherwise they use classic LT-FH bounds. This
+    helper has one logistic CIP and does not simulate the full sex/birth-cohort
+    personalisation of LT-FH++."""
     cov_obj = construct_covmat_single(fam_vec=fam_vec, n_fam=n_fam,
                                       add_ind=add_ind, h2=h2)
     roles = cov_obj.roles

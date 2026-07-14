@@ -1,8 +1,9 @@
 # Algorithm and model
 
-ltpred implements the **liability-threshold model conditioned on family history**
-(LT-FH++) and its deterministic cousin (PA-FGRS). This page describes the model
-and the two estimators. See [guide.md](guide.md) for usage.
+ltpred implements classic LT-FH, personalised LT-FH++ with family history,
+family-free ADuLT, and the PA-FGRS censoring variant. Gibbs and deterministic
+Pearson–Aitken are inference engines, not additional model names. This page
+describes the models and engines. See [guide.md](guide.md) for usage.
 
 ## The liability-threshold model
 
@@ -50,7 +51,7 @@ directly from the pedigree by the recursive tabular method (Henderson 1976) —
 target)` assembles the same `h2 A + (1-h2) I` covariance (plus the target's `g`
 row). This reproduces the role-grammar covariance entry-for-entry where they
 overlap, and additionally covers half-sibs of any degree, cousins and inbred
-pedigrees; `estimate_liability_from_kinship` runs the Gibbs sampler on it.
+pedigrees; `estimate_liability_from_kinship` runs PA by default or Gibbs on request.
 
 This is an **additive-genetic** model: familial resemblance is entirely genetic
 sharing. Shared environment, household/cultural transmission, assortative mating
@@ -236,9 +237,8 @@ liability-threshold multivariate normal over relatives — with **known
 susceptibility loci**, and already handled the ingredients `ltpred` centres on:
 each relative's **current age and follow-up period**, and even **competing risks
 of mortality**. That is the same pairing the LT-FH family exploits — (a) a
-family-history liability under the threshold model, and (b) age / censoring
-(age-dependent thresholds in LT-FH++, time-to-event in ADuLT, age-censored
-genealogies in PA-FGRS) — and the same downstream idea of fusing the
+liability under the threshold model, optionally conditioned on family history,
+and (b) personalised age/censoring information — and the same downstream idea of fusing the
 family-history liability with molecular predictors (a polygenic score). On the
 parameter side, So & Sham's liability-scale heritability work is the tradition
 `convert_observed_to_liability_scale` (Lee et al. 2011) belongs to.
@@ -247,15 +247,16 @@ The difference is the **estimand and the scale of computation**. So & Sham (2011
 target an individual's **absolute disease risk** for screening; `ltpred` targets
 the **posterior mean additive genetic liability of the proband** — a
 breeding-value-style score and a GWAS phenotype (the [BLUP framing](#connection-to-selection-index-and-blup)
-above). Both run on the same multivariate liability-threshold engine; what LT-FH++
-/ ADuLT / PA-FGRS add over the classical construction is scalable inference —
-Gibbs for arbitrary pedigrees, and the deterministic Pearson–Aitken sweep for
-biobank-scale, age-censored genealogies — together with the age-of-onset encodings.
+above). LT-FH++ and ADuLT share personalised age/onset/sex/cohort thresholds.
+LT-FH++ conditions on relatives; ADuLT uses only the index person. PA-FGRS adds
+its interval-case and censored-control-mixture encoding. Gibbs and
+Pearson–Aitken are the inference engines applied to those inputs.
 
 ## Thresholds: status, age, onset — and personalisation by sex and birth cohort
 
 Each observed person `i` contributes a truncation of their full liability `l_i` to an
-interval whose edge is a **personalised threshold** (ADuLT / LT-FH++, Pedersen 2022/2023):
+interval whose edge is a **personalised threshold** shared by LT-FH++ and ADuLT
+(Pedersen 2022/2023):
 
 ```text
 T_i = Phi^-1( 1 - K(t ; s_i, b_i) )
@@ -277,17 +278,23 @@ age and demographics map person `i` to an interval:
 Age, sex and birth cohort enter **only through `K(t; s, b)`** — i.e. only through the
 interval edge `T_i`, never the covariance `Sigma`. What ltpred ships:
 
-| helper | CIP model | strata |
-|---|---|---|
-| `prevalence_thresholds` | one lifetime prevalence `K` → `T = Phi^-1(1-K)` | none (classic LT-FH) |
-| `age_thresholds` / `pa_thresholds` | logistic `K / (1 + exp((mid_point - age)·slope))` | age only, single `K` |
-| `thresholds_from_cip` | an **empirical** CIP curve you supply, **called once per stratum** | sex × birth year × ancestry (full LT-FH++) |
+| helper | CIP model | strata | family context |
+|---|---|---|---|
+| `prevalence_thresholds` | one lifetime prevalence `K` → `T = Phi^-1(1-K)` | none | relatives: classic LT-FH |
+| `age_thresholds` | logistic `K / (1 + exp((mid_point - age)·slope))` | age only, single `K` | pinned tutorial encoding; model depends on rows |
+| `pa_thresholds` | same logistic demo CIP | age only, single `K` | PA-FGRS interval/mixture inputs; not the PA engine switch |
+| `thresholds_from_cip` | an **empirical** CIP curve you supply, **called once per stratum** | sex × birth year × ancestry | relatives: full LT-FH++; proband only: ADuLT |
 
-**"Single-`K`"** (the baseline in `bench_fh_prediction`) means using **one** lifetime
-prevalence `K` for everyone — the classical-LTM / original-LT-FH threshold, blind to
-birth cohort and sex. LT-FH++ replaces it with the stratified `K(t; s, b)`; in LT-FH
-"the thresholds are the same for all children, and another threshold for all parents"
-(Pedersen 2022), whereas LT-FH++ assigns each person their own.
+The same personalised CIP therefore feeds two models: relative observations make
+it LT-FH++; their absence makes it ADuLT. A threshold helper cannot decide that
+for you.
+
+**"Single-`K`"** is context-dependent in the benchmark labels. Classic LT-FH uses
+one lifetime threshold and ignores age. The cohort-blind ablation in
+`bench_fh_prediction` instead uses one lifetime-`K` *anchor* for everyone while
+still letting the logistic threshold vary with age; it is not classic LT-FH.
+Full LT-FH++ uses stratified `K(t; s, b)` so each person receives their own
+age-, birth-year- and sex-specific threshold.
 
 **Why personalisation is calibration *and* (sometimes) power.** From the BLUP
 decomposition above, `E[g | family] = Cov(g, l_F) Var(l_F)^-1 · E[l_F | intervals]`, the
@@ -303,12 +310,13 @@ weights `Cov(g,l_F)Var(l_F)^-1`. Hence:
   power**. Two cases with the same onset age but different cohorts have different true
   liabilities; the stratified CIP separates them, a single `K` collapses them.
 
-`bench_fh_prediction` shows both faces: on the pedigree it is mostly the bias (the
-high-weight proband spans a narrow living cohort), while the own-onset panel isolates the
-ranking gain — up to ~1.6× effective N as cases span wide birth cohorts. Pinning (a point
+`bench_fh_prediction` shows both faces: on the pedigree it is mostly a mean-score
+shift (and a truth-referenced single-`K` error) because the high-weight proband spans
+a narrow living cohort, while the replicated own-onset panel isolates the ranking
+gain — about 1.66× effective N at the widest tested cohort span. Pinning (a point
 mass) is handled exactly by both estimators.
 
-## Estimator 1: Gibbs sampler (LT-FH++)
+## Inference engine 1: Gibbs sampler
 
 `E[l_g | data]` is the mean of the family covariance's multivariate normal
 truncated to the per-person intervals — a truncated MVN with no closed form for
@@ -339,7 +347,7 @@ regardless of `n_sim`, and each family seeds its own RNG so results are
 deterministic regardless of thread scheduling. Without Numba the identical code
 runs serially in pure Python.
 
-## Estimator 2: Pearson–Aitken (PA-FGRS)
+## Inference engine 2: Pearson–Aitken
 
 The **Pearson–Aitken selection formula** gives, in closed form, how a
 jointly-Gaussian vector's mean and covariance change when one component's marginal
@@ -364,10 +372,11 @@ proceeds as if the remaining variables were Gaussian with those moments. Hence i
 is **exact for a single truncation** (and for exact Gaussian conditioning on
 point-pinned variables), but an approximation for multiple interval observations —
 the standard sequential-selection approximation, which matches the Gibbs posterior
-to corr ≥ 0.997 on realistic families while running 100–360× faster. Same grouping
-/ `prange` structure as the Gibbs path.
+to corr ≥ 0.997 on realistic families while running 323–569× faster in the
+controlled 10-thread benchmark. Same grouping / `prange` structure as the Gibbs
+path.
 
-### Censored-control mixture (optional)
+### PA-FGRS censored-control mixture (optional)
 
 `tnorm_mixture_conditional` extends the truncated moments for **age-censored
 controls**: someone unaffected only up to their current follow-up is a mixture of
@@ -431,15 +440,16 @@ contrasts — `A` is pinned by the parent-offspring / grandparent / avuncular
 relatednesses, `C` by the full-sib excess, `M` by the resemblance between the
 genetically-unrelated mates — so each needs its identifying pairs (`C` full-sib
 pairs, `M` mate pairs); the design is otherwise rank-deficient and the fit raises.
-Validated unbiased for `A`, `A+C` and `A+M` across family structures. Note the two
+Simulation benchmarks recover `A`, `A+C` and `A+M` with small bias relative to
+their across-dataset SD. Note the two
 shared-environment components differ in how they bias `A` if omitted: ignoring a
 real `C` inflates `A` (sibs share both, so sib resemblance is over-credited to
-genes), whereas ignoring `M` leaves `A` **essentially unbiased** — mates have
-`A = 0`, so they carry no weight in the additive regression (a small residual can
-remain from imputing under the misspecified model). In `bench_couple_env` (3000
-families, true `a² = 0.4`) the same shared-environment variance inflates the
-additive-only `Â` by ≈ +0.05, +0.09, +0.15 as `s²` runs 0.1 → 0.2 → 0.3 when it is
-`C`, but only ≈ +0.01, +0.02, +0.03 when it is `M`. So `M` is worth fitting for its
+genes), whereas ignoring `M` biases `A` **much less** — mates have `A = 0`, so
+they carry little direct weight in the additive regression (a residual can remain
+from imputing under the misspecified model). In `bench_couple_env` (3000
+families, true `a² = 0.4`) the same shared-environment variance biases the
+additive-only `Â` by +0.04, +0.11, +0.16 as `s²` runs 0.1 → 0.2 → 0.3 when it is
+`C`, but only +0.00, +0.01, +0.04 when it is `M`. So `M` is worth fitting for its
 own sake (quantifying/testing spousal resemblance) rather than to de-bias `h²`. A
 **dominance** component is
 deliberately not offered: from sib-only pedigrees it is identified only through
@@ -543,16 +553,17 @@ prediction of additive genetic value from relatives' phenotypes and a relationsh
 matrix (Hazel 1943; Henderson 1975; the animal model, and its genomic-relationship
 extensions, VanRaden 2008). **LT-FH** (Hujoel 2020) adapts the threshold model to
 case-control GWAS by using the posterior mean genetic liability as the phenotype;
-**LT-FH++** (Pedersen 2022) adds age of onset, sex and flexible pedigrees;
-**ADuLT** (Pedersen 2023) turns the age-dependent threshold into an alternative to
-time-to-event GWAS; and **PA-FGRS** (Krebs 2024) gives a deterministic
+**LT-FH++** (Pedersen 2022) adds personalised age-, birth-year- and sex-dependent
+prevalence to family-history liability; **ADuLT** (Pedersen 2023) uses the same
+personalised construction without family history as an alternative to time-to-event
+GWAS; and **PA-FGRS** (Krebs 2024) gives a deterministic
 Pearson–Aitken approximation for large, age-censored genealogies.
 
 Core methods:
 
 - Hujoel et al. 2020, *Nat Genet* — LT-FH.
 - Pedersen et al. 2022, *AJHG* — LT-FH++ (flexible pedigrees, age, sex).
-- Pedersen et al. 2023, *Nat Commun* — ADuLT (age-dependent liability threshold).
+- Pedersen et al. 2023, *Nat Commun* — ADuLT (family-free personalised threshold).
 - Krebs et al. 2024, *AJHG* — PA-FGRS (Pearson–Aitken family genetic risk scores).
 
 Threshold-model background:

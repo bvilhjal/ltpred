@@ -1,11 +1,19 @@
 # ltpred user guide
 
-ltpred estimates an individual's **genetic liability** to a disease from their
-own and their relatives' case/control status and ages, under the
-liability-threshold model (LT-FH++ / ADuLT / PA-FGRS). The estimate is a
-continuous score you use in place of the 0/1 case-control label — most often as
-the phenotype in a GWAS, where it recovers power, but also directly as a
-family-based risk score.
+ltpred estimates an individual's **genetic liability** to a disease under the
+liability-threshold model. The model names describe different inputs, not
+different inference engines:
+
+- **LT-FH** uses family history with non-personalised prevalence thresholds.
+- **LT-FH++** adds age-, birth-year- and sex-dependent prevalence for the
+  proband and relatives.
+- **ADuLT** uses the same personalised construction for the proband alone,
+  without family history.
+- **PA-FGRS** uses its interval-case and censored-control-mixture encoding.
+
+The resulting continuous score can replace the 0/1 case-control label in a GWAS.
+Pearson–Aitken (PA, the single-trait default) and Gibbs are inference engines for
+these inputs; neither engine determines the model name.
 
 The guide is split into short, task-focused pages:
 
@@ -18,12 +26,12 @@ The guide is split into short, task-focused pages:
 | **[Assumptions & checklist](assumptions.md)** | modelling assumptions, real-data checklist, pitfalls |
 | **[API reference](api.md)** | every public function, with signatures and docstrings |
 
-See [algorithm.md](algorithm.md) for the model and the estimators, and
-[../benchmarks/RESULTS.md](../benchmarks/RESULTS.md) for how the two methods
-compare. For runnable end-to-end scripts see
-[`../examples/registry_pipeline.py`](../examples/registry_pipeline.py) (a
+See [algorithm.md](algorithm.md) for the model and the estimators, and the
+[benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
+for model and engine comparisons. For runnable end-to-end scripts see
+[`examples/registry_pipeline.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/registry_pipeline.py) (a
 status/age table → GWAS phenotype template) and
-[`../examples/ltfh_power_demo.py`](../examples/ltfh_power_demo.py).
+[`examples/ltfh_power_demo.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/ltfh_power_demo.py).
 
 ## When to use ltpred
 
@@ -31,14 +39,14 @@ Use ltpred when you have, per proband:
 
 - a binary disease **status** (and ideally an **age** — age of onset for cases,
   age at last follow-up for controls), and
-- the same for some **relatives** of known relationship (parents, siblings,
-  grandparents, half-sibs, aunts/uncles, children), and
+- for LT-FH/LT-FH++, the same for some **relatives** of known relationship
+  (parents, siblings, grandparents, half-sibs, aunts/uncles, children), and
 - a **population prevalence** and a **liability-scale heritability** `h²` for the
   disease.
 
 The output is the posterior mean genetic liability of each proband. Feeding it to
-a linear-regression GWAS is the canonical use (LT-FH++ / ADuLT); it also stands
-alone as a pedigree-based genetic risk score (PA-FGRS).
+a linear-regression GWAS is the canonical use. With relatives and personalised
+CIPs the analysis is LT-FH++; with the proband only it is ADuLT.
 
 ltpred does not build LD or run the GWAS itself — those are upstream/downstream
 steps. It **does** estimate `h²` from the family data (`fit_heritability`) when you
@@ -54,12 +62,13 @@ LTFHPlus plotting utilities.
 
 **Which path to run:**
 
-| use case | bounds builder | estimator | notes |
+| use case | bounds and family rows | estimator | model |
 |---|---|---|---|
-| toy / simulation, no age | `prevalence_thresholds` | PA or Gibbs | classic LT-FH |
-| age-of-onset (LT-FH++ / ADuLT) | `age_thresholds`, or `thresholds_from_cip(…, case_mode="pin")` | Gibbs (PA without mixture as an approximation) | cases pinned at the onset threshold |
-| PA-FGRS with censoring | `pa_thresholds`, or `thresholds_from_cip(…, case_mode="interval")` | `method="pearson-aitken"`, `use_mixture=True` | conservative case intervals; censored-control mixture |
-| real register analysis | `thresholds_from_cip` (empirical, per stratum) | usually PA (the default) | **not** the logistic demo CIP |
-| multiple traits | vector `h2` + `genetic_corrmat` + `full_corrmat` | Gibbs only (auto-selected) | PA multi-trait not implemented |
+| no age, with relatives | `prevalence_thresholds`; include `o` + relatives | PA or Gibbs | classic LT-FH |
+| personalised CIP, with relatives | `thresholds_from_cip(…, case_mode="pin")`; include `o` + relatives | PA (default); Gibbs reference | LT-FH++ |
+| personalised CIP, no relatives | same pinned bounds; include role `o` only | PA (default); Gibbs reference | ADuLT |
+| logistic tutorial | `age_thresholds` with either row pattern above | PA or Gibbs | age-only demonstration, not full LT-FH++ |
+| PA-FGRS with censoring | `pa_thresholds`, or `thresholds_from_cip(…, case_mode="interval")` | PA with `use_mixture=True` | PA-FGRS |
+| multiple traits | vector `h2` + correlation matrices | Gibbs only | model still follows bounds + rows |
 
 New here? Start with the **[quickstart](quickstart.md)**.

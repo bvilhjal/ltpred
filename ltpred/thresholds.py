@@ -2,19 +2,19 @@
 
 Under the liability-threshold model a person is a case when their full liability
 exceeds a threshold ``T``. With a single population prevalence ``K`` that
-threshold is ``T = Phi^-1(1 - K)``. LT-FH++ makes it *age-dependent*: the
-cumulative incidence rises with age along a logistic curve, so each age maps to
-its own threshold. A case is pinned at the threshold matching its age of onset
-(the ADuLT model); a control's liability lies below the threshold for its current
-age. This module ports LTFHPlus's ``convert_*`` helpers and adds two convenience
-builders, :func:`prevalence_thresholds` (classic LT-FH) and
-:func:`age_thresholds` (LT-FH++/ADuLT), that produce the ``(lower, upper)`` bounds
-the estimator consumes.
+threshold is ``T = Phi^-1(1 - K)``. Personalised models instead derive a person's
+threshold from cumulative incidence at their age, birth year and sex. A case can
+be pinned at the threshold matching their age of onset; a control's liability is
+bounded above by the threshold at their current age.
+
+Those bounds do not, by themselves, name the model. They form **LT-FH++** when
+the proband and relatives are conditioned on together, and **ADuLT** when only
+the proband is used (no family history). This module ports LTFHPlus's ``convert_*``
+helpers and provides convenience builders that produce the ``(lower, upper)``
+bounds consumed by either inference engine.
 """
 
 from __future__ import annotations
-
-import warnings
 
 import numpy as np
 
@@ -144,14 +144,18 @@ def prevalence_thresholds(status, pop_prev=0.1):
 
 
 def age_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
-    """LT-FH++/ADuLT bounds from status and age (of onset for cases).
+    """Age-dependent, onset-pinned bounds from status and age.
 
     A case is pinned at its onset threshold (``lower = upper = thresh(age_of_onset)``,
     a point mass); a control lies below the threshold for its current age
     (``lower = -inf``, ``upper = thresh(current_age)``). ``age`` is the age of onset
     for cases and the current/censoring age for controls. Returns ``(lower, upper)``
-    arrays ready for :func:`ltpred.estimate.estimate_liability`. This is the
-    construction LTFHPlus builds internally in ``construct_thresholds``."""
+    arrays ready for :func:`ltpred.estimate.estimate_liability`.
+
+    This helper uses one logistic CIP curve and is mainly for simulation and
+    tutorials. For full LT-FH++, use :func:`thresholds_from_cip` with age-, birth-
+    year- and sex-specific curves and include relatives. The same personalised
+    construction with proband rows only is ADuLT."""
     status = np.asarray(status, dtype=bool)
     thr = convert_age_to_thresh(age, dist="logistic", pop_prev=pop_prev,
                                 mid_point=mid_point, slope=slope)
@@ -164,6 +168,12 @@ def age_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
 def pa_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     """PA-FGRS inputs from status and age: ``(lower, upper, K_i, K_pop)``.
 
+    The name refers to the PA-FGRS observation model, not to selecting the
+    Pearson-Aitken inference engine. To infer onset-pinned LT-FH++ or ADuLT with
+    Pearson-Aitken, use :func:`age_thresholds` or
+    :func:`thresholds_from_cip` with ``case_mode="pin"`` and pass the resulting
+    families to the default estimator.
+
     A case gets ``(thresh(age_of_onset), inf)`` and no mixture (``K_i = K_pop =
     nan``). An age-censored control gets ``(-inf, thresh(current_age))`` together
     with its cumulative incidence ``K_i = cir(current_age)`` and the lifetime
@@ -173,8 +183,10 @@ def pa_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     The control ``upper`` is the *age-specific* threshold ``Phi^-1(1 - K_i)``, and
     how the estimator reads it depends on ``use_mixture``:
 
-    * ``use_mixture=False`` -- the age bound is used directly as the truncation, i.e.
-      the exact LT-FH++/ADuLT encoding (equivalent to :func:`age_thresholds`).
+    * ``use_mixture=False`` -- the supplied intervals are used directly. Controls
+      have the same age-specific upper bound as :func:`age_thresholds`, but cases
+      remain intervals rather than the point pins used by LT-FH++ and ADuLT; the
+      encodings are not equivalent.
     * ``use_mixture=True`` -- the PA-FGRS censored-control correction switches on. It
       does the age adjustment itself, from ``K_i``/``K_pop``, by splitting the
       control's liability at the *lifetime* threshold ``Phi^-1(1 - K_pop)`` into a
@@ -199,7 +211,7 @@ def pa_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
 
 
 def thresholds_from_cip(status, age, cip_ages, cip_values, k_pop=None,
-                        case_mode="interval", min_cip=1e-5):
+                        case_mode="pin", min_cip=1e-5):
     """Liability bounds (+ ``K_i``, ``K_pop``) from an *empirical* CIP curve.
 
     The production alternative to the logistic ``age_thresholds`` /
@@ -211,28 +223,46 @@ def thresholds_from_cip(status, age, cip_ages, cip_values, k_pop=None,
     threshold ``Phi^-1(1 - CIP)``.
 
     ``k_pop`` is the lifetime prevalence for the stratum (defaults to
-    ``max(cip_values)``). ``case_mode`` sets the case encoding: ``"pin"`` pins a
-    case at ``thresh(age_of_onset)`` (ADuLT / LT-FH++), ``"interval"`` (default)
-    uses ``(thresh(age_of_onset), inf)`` (PA-FGRS). Controls are always
+    ``max(cip_values)``). ``case_mode`` sets the case encoding: ``"pin"`` (the
+    default) pins a case at ``thresh(age_of_onset)`` (the encoding used by LT-FH++
+    with family history and ADuLT without it), while ``"interval"`` uses
+    ``(thresh(age_of_onset), inf)`` (the PA-FGRS encoding). Controls are always
     ``(-inf, thresh(current_age))`` and carry ``K_i`` / ``K_pop`` for the PA
     censored-control mixture. Returns ``(lower, upper, K_i, K_pop)``."""
     status = np.asarray(status, dtype=bool)
     age = np.asarray(age, dtype=float)
     cip_ages = np.asarray(cip_ages, dtype=float)
     cip_values = np.asarray(cip_values, dtype=float)
-    if np.any(np.diff(cip_ages) < 0):
-        raise ValueError("cip_ages must be sorted ascending")
+    if status.ndim != 1 or age.ndim != 1 or status.shape != age.shape:
+        raise ValueError("status and age must be one-dimensional arrays of equal length")
+    if cip_ages.ndim != 1 or cip_values.ndim != 1 or cip_ages.size == 0:
+        raise ValueError("cip_ages and cip_values must be non-empty one-dimensional arrays")
+    if cip_ages.shape != cip_values.shape:
+        raise ValueError("cip_ages and cip_values must have equal length")
+    if not np.all(np.isfinite(age)) or not np.all(np.isfinite(cip_ages)):
+        raise ValueError("age and cip_ages must contain only finite values")
+    if not np.all(np.isfinite(cip_values)):
+        raise ValueError("cip_values must contain only finite values")
+    if np.any(np.diff(cip_ages) <= 0):
+        raise ValueError("cip_ages must be strictly increasing")
     if np.any(np.diff(cip_values) < 0):
         raise ValueError("cip_values must be non-decreasing (a cumulative incidence)")
+    if np.any((cip_values < 0.0) | (cip_values >= 1.0)):
+        raise ValueError("cip_values must lie in [0, 1)")
     if case_mode not in ("pin", "interval"):
         raise ValueError("case_mode must be 'pin' or 'interval'")
+    if not np.isfinite(min_cip) or not 0.0 < min_cip < 1.0:
+        raise ValueError("min_cip must lie in (0, 1)")
     cip_max = float(np.max(cip_values))
     kpop = cip_max if k_pop is None else float(k_pop)
+    if not np.isfinite(kpop) or not 0.0 < kpop < 1.0:
+        raise ValueError("k_pop must lie in (0, 1)")
+    if min_cip > kpop:
+        raise ValueError("min_cip must not exceed k_pop")
     if kpop < cip_max:
-        warnings.warn(
-            f"k_pop ({kpop}) is below max(cip_values) ({cip_max}); age-specific "
-            "CIPs above k_pop will be clipped down. The lifetime prevalence should "
-            "be at least the largest age-specific cumulative incidence.", stacklevel=2)
+        raise ValueError(
+            f"k_pop ({kpop}) is below max(cip_values) ({cip_max}); lifetime "
+            "prevalence must be at least the largest cumulative incidence")
 
     cip = np.interp(age, cip_ages, cip_values)          # CIP at each person's age
     cip = np.clip(cip, min_cip, kpop)

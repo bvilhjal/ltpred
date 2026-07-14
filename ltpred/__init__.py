@@ -1,16 +1,18 @@
 """ltpred -- LT-FH++ in Python.
 
 A faithful port of the R package **LTFHPlus**: the liability-threshold model
-conditioned on family history, age of onset and sex (LT-FH++), and its
-family-free age-dependent variant (ADuLT). Given each individual's case/control
+conditioned on family history and age-, birth-year- and sex-dependent prevalence
+(LT-FH++), and the same personalised construction without family history
+(ADuLT). Given each individual's case/control
 status, age and relatives' statuses, it estimates the **posterior mean genetic
 liability** -- a continuous phenotype that, used in a linear GWAS, recovers power
 lost by a plain case/control label.
 
-Typical use::
+Typical use (single-trait inference defaults to Pearson-Aitken)::
 
     from ltpred import simulate_under_LTM_single, estimate_liability
-    sim = simulate_under_LTM_single(h2=0.5, pop_prev=0.05, n_sim=2000, seed=1)
+    sim = simulate_under_LTM_single(h2=0.5, pop_prev=0.05, n_sim=2000,
+                                    use_age=True, seed=1)
     res = estimate_liability(sim.families, h2=0.5, out=("genetic",))
     res.est["genetic"]        # posterior mean genetic liability per proband
 
@@ -59,7 +61,18 @@ _EXPORTS = {
 
 _NAME_TO_MODULE = {name: mod for mod, names in _EXPORTS.items() for name in names}
 
-__all__ = ["__version__", *_NAME_TO_MODULE]
+# Keep wildcard imports and interactive completion focused on the ordinary
+# single-trait workflow. Advanced names remain available as explicit top-level
+# imports for compatibility, and from their owning modules documented in api.md.
+__all__ = [
+    "__version__",
+    "Member", "Family", "families_from_columns",
+    "prevalence_thresholds", "age_thresholds", "pa_thresholds",
+    "thresholds_from_cip", "convert_observed_to_liability_scale",
+    "estimate_liability", "LiabilityResult", "liability_sensitivity",
+    "kinship_from_pedigree", "estimate_liability_from_kinship",
+    "simulate_under_LTM_single", "fit_heritability", "set_num_threads",
+]
 
 
 def __getattr__(name):

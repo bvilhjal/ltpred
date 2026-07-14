@@ -9,7 +9,7 @@ et al., *Bioinformatics* 2023): synthetic genotypes **resampled from a real
 1000G + HGDP reference**, carrying real LD, MAF spectra and population structure.
 
 HAPNEST produces genotypes for **unrelated** individuals, which is exactly what
-this benchmark needs: the LT-FH++/PA-FGRS family history is *simulated on top* of
+this benchmark needs: the classic LT-FH family history is *simulated on top* of
 each proband's real-LD genotype (relatives' liabilities are drawn conditional on
 the genotype-derived genetic liability). So HAPNEST supplies the probands' real
 genomes; ltpred supplies the pedigree and the liability-threshold phenotype.
@@ -39,7 +39,7 @@ names are stable but the YAML nesting can shift between versions.
 ## Step 2 — run the benchmark on the real-LD genotypes
 
 ```bash
-OMP_NUM_THREADS=10 python benchmarks/bench_gwas_power.py \
+NUMBA_NUM_THREADS=10 OMP_NUM_THREADS=10 python benchmarks/bench_gwas_power.py \
     --plink data/output/synthetic \
     --n-fam 10000 --n-causal 30 --h2 0.5 --prev 0.05
 ```
@@ -48,14 +48,17 @@ OMP_NUM_THREADS=10 python benchmarks/bench_gwas_power.py \
 (SNP-major `.bed`, missing calls mean-imputed) and uses the first `--n-fam`
 individuals as probands. Everything else is identical to the default run:
 causal effects are drawn on the real genotypes, family history is simulated, and
-the four phenotypes (case/control, LT-FH++, PA-FGRS, oracle) are scored on mean
-χ² at causal SNPs, detection power, and λ_GC at nulls — now with real LD under
-the nulls.
+the four phenotypes (case/control, LT-FH via Gibbs, LT-FH via PA, oracle) are
+scored on mean χ² at causal SNPs, detection power, and λ_GC. For calibration,
+SNPs with `r² >= 0.1` to any causal SNP are excluded by default; change that with
+`--ld-null-r2`.
 
 ## Caveats
 
 - **Not CI-runnable**: the reference download and generation are large and slow.
 - The benchmark reads only `.bed/.bim/.fam`; it never parses a HAPNEST phenotype
   file (the phenotype is the simulated liability-threshold family history).
-- With real LD the causal SNPs tag neighbours, so `power` counts tagged signals
-  too; the mean-χ²-at-causal and eff-N ratios remain the cleanest method contrast.
+- With real LD, causal effects and marginal statistics depend on the local LD
+  pattern. Power is still evaluated at the selected causal SNPs; the
+  mean-χ²-at-causal and within-replicate effective-N ratios remain the cleanest
+  method contrast.

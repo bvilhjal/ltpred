@@ -1,10 +1,12 @@
 cff-version: 1.2.0
 message: "If you use ltpred, please cite the software and the methods it implements."
-title: "ltpred: LT-FH++ (and PA-FGRS) genetic-liability estimation in Python"
+title: "ltpred: LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python"
 abstract: >-
-  A Python implementation of the liability-threshold model conditioned on family
-  history and age of onset (LT-FH++ / ADuLT), with both a truncated-multivariate-
-  normal Gibbs sampler and the deterministic Pearson-Aitken (PA-FGRS) estimator.
+  A Python implementation of personalised liability-threshold genetic-liability
+  estimation: LT-FH++ conditions on family history and age-, birth-year- and
+  sex-dependent prevalence, while ADuLT uses the same personalised construction
+  without family history. Inference uses a truncated-multivariate-normal Gibbs
+  sampler or deterministic Pearson-Aitken approximation.
 type: software
 authors:
   - family-names: "Vilhjálmsson"

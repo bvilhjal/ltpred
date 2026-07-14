@@ -53,7 +53,8 @@ father = ["f", "mgf", None, "f", None, None]      # None / unlisted = unknown fo
 mother = ["m", "mgm", None, "m", None, None]
 _, A = kinship_from_pedigree(ids, father, mother)
 # lower/upper are (n_families, n_individuals) in `ids` order (from a threshold builder)
-gen, se = estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0)
+gen, var = estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0)
+# Pearson-Aitken is the default; pass method="gibbs" to receive Monte-Carlo SE instead.
 ```
 
 For a pedigree that *does* fit the role grammar the two paths give identical
@@ -76,20 +77,21 @@ age    = np.array([45, 70, 52, 33])      # onset age for cases, follow-up age fo
 # (1) classic LT-FH — one prevalence threshold, no age
 lower, upper = prevalence_thresholds(status, pop_prev=0.05)
 
-# (2) LT-FH++ / ADuLT — case pinned at onset threshold, control below its age threshold
+# (2) personalised pinned bounds — LT-FH++ with relatives, ADuLT without them
 lower, upper = age_thresholds(status, age, pop_prev=0.05)
 
 # (3) PA-FGRS — like (1)/(2) but also emits K_i, K_pop for the censoring mixture
 lower, upper, K_i, K_pop = pa_thresholds(status, age, pop_prev=0.05)
 ```
 
-The three builders differ mainly in **how they encode a case** — this is the
-distinction between the LT-FH, ADuLT and PA-FGRS variants, so pick deliberately:
+The builders determine **how an observation is encoded**. They do not, by
+themselves, distinguish LT-FH++ from ADuLT: personalised pinned bounds plus
+relative rows are LT-FH++; the same bounds with only role `o` are ADuLT.
 
 | builder | case encoding | control encoding | extra outputs | model |
 |---|---|---|---|---|
 | `prevalence_thresholds` | `(T, ∞)` | `(-∞, T)` | — | classic **LT-FH** (no age) |
-| `age_thresholds` | **pinned** `[thresh(onset), thresh(onset)]` | `(-∞, thresh(age))` | — | **ADuLT / LT-FH++** point-mass onset |
+| `age_thresholds` | **pinned** `[thresh(onset), thresh(onset)]` | `(-∞, thresh(age))` | — | personalised demo: **LT-FH++ with relatives; ADuLT without** |
 | `pa_thresholds` | interval `(thresh(onset), ∞)` — **not** pinned | `(-∞, thresh(age))` | `K_i`, `K_pop` | **PA-FGRS** (optionally with the mixture) |
 
 `T = Φ⁻¹(1 − K)`. Note the two age-aware builders are **not** interchangeable:
@@ -132,25 +134,28 @@ lower, upper, K_i, K_pop = thresholds_from_cip(
     status=status, age=age,               # 1=case; onset age (cases) / follow-up age (controls)
     cip_ages=cip_ages, cip_values=cip_values,
     k_pop=lifetime_prevalence,            # stratum lifetime prevalence (defaults to max CIP)
-    case_mode="interval",                 # PA-FGRS case encoding ("pin" = ADuLT/LT-FH++)
+    case_mode="pin",                      # personalised pinned encoding (the default)
 )
 families = families_from_columns(
     fam_id=fam_id, role=role, lower=lower, upper=upper,
-    K_i=K_i, K_pop=K_pop,                 # carry the mixture inputs
 )
-res = estimate_liability(families, h2=0.5, method="pearson-aitken",
-                         use_mixture=True, out=("genetic",))
+res = estimate_liability(families, h2=0.5)  # LT-FH++ here; PA is the default engine
 ```
 
 Key points:
 
-- `case_mode="pin"` is the ADuLT / LT-FH++ onset-pinned encoding; `case_mode="interval"`
-  (default) is the conservative PA-FGRS interval encoding.
+- `case_mode="pin"` (the default) is the personalised onset-pinned encoding:
+  LT-FH++ with relative rows, ADuLT with role `o` only;
+  `case_mode="interval"` is the conservative PA-FGRS interval encoding.
 - `use_mixture=True` only makes sense when `K_i` / `K_pop` are supplied (from
   `pa_thresholds` or `thresholds_from_cip`); it is the age-censored-control correction.
 - Estimate the **CIP outside ltpred** from population-representative register data,
   stratified by sex, birth cohort, ancestry and calendar period, and accounting for
   competing risks — then pass one stratum's curve per call.
+
+For **ADuLT**, use the same stratum-specific proband bounds but build one row per
+person with `role="o"`; do not add relative rows. There is no separate ADuLT
+inference switch—the absence of family history is the distinction.
 
 ### Getting heritability on the liability scale
 

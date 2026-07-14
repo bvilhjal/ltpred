@@ -10,7 +10,7 @@ steps are:
   1. start from one row per (proband, relative): fam_id, role, status, age;
   2. turn status (+age) into liability bounds with a threshold builder;
   3. group the rows into families;
-  4. estimate each proband's genetic liability (Gibbs and PA-FGRS);
+  4. estimate each proband's age-aware family-history liability with Gibbs and PA;
   5. hand the estimate to a linear-regression GWAS as a quantitative phenotype.
 
 Replace `make_toy_table()` with your own table (e.g. read a CSV into the same
@@ -74,7 +74,8 @@ def main():
     families = families_from_columns(fam_id=fam_id, role=role,
                                      lower=lower, upper=upper)
 
-    # 4) estimate the proband genetic liability, two ways
+    # 4) estimate the proband genetic liability, two ways. This toy uses one
+    # logistic age curve; full LT-FH++ requires age/sex/birth-cohort CIPs.
     gibbs = estimate_liability(families, h2=H2, method="gibbs",
                                out=("genetic",), seed=0)
     pa = estimate_liability(families, h2=H2, method="pearson-aitken",

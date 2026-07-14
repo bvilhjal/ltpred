@@ -7,7 +7,8 @@ port of the R package [LTFHPlus](https://github.com/EmilMiP/LTFHPlus)
 ([Pedersen et al. 2022, AJHG](https://doi.org/10.1016/j.ajhg.2022.01.009); the
 family-free age-dependent variant, ADuLT, in
 [Pedersen et al. 2023, Nat Commun](https://www.nature.com/articles/s41467-023-41210-z)),
-and it also ships the deterministic **PA-FGRS** estimator
+and it also ships a deterministic **Pearson–Aitken (PA)** inference engine plus the
+optional PA-FGRS censoring model
 ([Krebs et al. 2024, AJHG](https://pubmed.ncbi.nlm.nih.gov/39471805/)).
 
 Given each individual's case/control status, age and their relatives' statuses,
@@ -41,14 +42,16 @@ liability-threshold model:
    environmental part, summing to a full liability `l_o ~ N(0, 1)`. Two relatives'
    genetic parts correlate by the fraction of DNA they share, so every covariance
    entry is `shared_DNA × h²`.
-2. **Thresholds** — each person's status and age become a liability interval:
-   classic LT-FH puts a case in `(T, ∞)` and a control in `(-∞, T)`; LT-FH++/ADuLT
-   instead pin a case at the threshold of its age of onset.
-3. **Fitting** — a **Gibbs** sampler (the exact LT-FH++ reference) or the
-   deterministic **Pearson–Aitken** (PA-FGRS) estimator turns the covariance and
+2. **Thresholds and family context** — classic LT-FH uses non-personalised
+   case/control bounds with family history. LT-FH++ uses age-, birth-year- and
+   sex-specific prevalence for the proband and relatives. ADuLT uses the same
+   personalised construction for the proband alone, without family history.
+3. **Inference** — a **Gibbs** sampler (the exact reference) or the deterministic
+   **Pearson–Aitken** (PA) engine turns the covariance and
    intervals into the posterior mean of the proband's genetic (`g`) and/or full
-   (`o`) liability. PA has no Monte-Carlo error and runs ~100–360× faster; the two
-   agree on the `genetic` score to corr ≥ 0.997 on the benchmarked structures.
+   (`o`) liability. PA has no Monte-Carlo error and ran 323–569× faster in the
+   controlled 10-thread benchmark; the two agree on the `genetic` score to
+   corr ≥ 0.997 on the benchmarked structures.
 
 See [estimation](docs/estimation.md#choosing-gibbs-vs-pearsonaitken) for how to choose,
 and [algorithm.md](docs/algorithm.md) for the math and the performance internals
@@ -77,16 +80,18 @@ from ltpred import simulate_under_LTM_single, estimate_liability
 
 # simulate families (proband + mother, father, one sibling) under h²=0.5
 sim = simulate_under_LTM_single(
-    fam_vec=["m", "f", "s1"], h2=0.5, pop_prev=0.05, n_sim=2000, seed=1,
+    fam_vec=["m", "f", "s1"], h2=0.5, pop_prev=0.05, n_sim=2000,
+    use_age=True, seed=1,
 )
 
-# posterior mean genetic liability per proband — the LT-FH++ GWAS phenotype.
-# The deterministic, fast PA-FGRS estimator is the default (no method= needed).
+# posterior mean genetic liability per proband. This is an age-only family
+# example; full LT-FH++ uses sex/birth-cohort-stratified CIPs (shown below).
+# The deterministic, fast PA inference engine is the single-trait default.
 pa = estimate_liability(sim.families, h2=0.5)
 pa.est["genetic"]      # (n_families,) posterior means
 pa.var["genetic"]      # posterior variances (pa.se is 0 — deterministic)
 
-# ...or the Gibbs sampler (the exact LT-FH++ reference) as a cross-check.
+# ...or the Gibbs sampler (the exact truncated-MVN reference) as a cross-check.
 gibbs = estimate_liability(sim.families[:200], h2=0.5, method="gibbs",
                            tol=0.03, n_sim=25_000, burn_in=800, seed=1)
 gibbs.est["genetic"]   # agrees with PA to ~1e-2
@@ -101,15 +106,17 @@ import numpy as np
 from ltpred import families_from_columns, age_thresholds, estimate_liability
 
 # status (1=case) and age (age of onset for cases, current age otherwise)
-lower, upper = age_thresholds(status, age, pop_prev=0.05)   # LT-FH++/ADuLT bounds
+lower, upper = age_thresholds(status, age, pop_prev=0.05)   # shared personalised bounds
 
 families = families_from_columns(
     fam_id=fam_id,       # groups rows into families
     role=role,           # "o" = proband, "m"/"f"/"s1"/"mgm"/... = relatives
     lower=lower, upper=upper,
 )
-res = estimate_liability(families, h2=0.5,          # your disease's liability-scale h²
-                         out=("genetic", "full"))   # PA-FGRS by default; method="gibbs" to switch
+# Relative rows make this a family-history analysis. With real stratum-specific
+# CIPs it is LT-FH++; keep only role="o" for family-free ADuLT.
+res = estimate_liability(families, h2=0.5)          # PA is the single-trait default
+score = res.genetic
 ```
 
 Roles follow the LTFHPlus grammar (`o` proband, `m`/`f` parents, `s1`/`s2` sibs,
@@ -122,7 +129,7 @@ choosing between the methods, and using the score in a GWAS, see the
 
 ltpred covers the **statistical engine end to end**: role-based *and* arbitrary-
 pedigree (`kinship_from_pedigree`) covariance construction, the threshold/age/CIP
-conversions, both estimators (Gibbs and PA-FGRS), single- and multi-trait
+conversions, both inference engines (Gibbs and PA), single- and multi-trait
 `estimate_liability`, simulation, and **model fitting** — heritability
 (`fit_heritability`), variance components A + C + M (`fit_variance_components`),
 genetic correlation (`fit_genetic_correlation`) and its common-factor model
@@ -136,11 +143,17 @@ one).
 
 ## Benchmarks
 
-[`benchmarks/`](benchmarks/) compares the two methods on simulated data (accuracy,
-runtime scaling, age-of-onset information, and genotype-based GWAS power), inspired
-by the LT-FH++, ADuLT and PA-FGRS papers. Headline: PA-FGRS matches the Gibbs
-LT-FH++ posterior mean to corr ≥ 0.997 with the same 1.52× GWAS effective-N gain
-over case/control — while running **100–360× faster**. See
+[`benchmarks/`](benchmarks/) compares model encodings and inference engines on
+simulated data. The integrated LT-FH++ benchmark includes age-, sex-, and
+cohort-dependent CIP, coherent onset/censoring, ascertainment, and a genotype
+GWAS. A matched ADuLT arm keeps the same personalised proband bounds but removes
+relatives: it reaches 1.049 ± 0.004× adjusted effective N, versus 1.194 ± 0.006×
+for full LT-FH++; the paired family-history increment is +0.1454 ± 0.0154
+(95% CI half-width). Full LT-FH++ has calibration slope 0.995 ± 0.015. A
+prespecified sex-CIP panel separately shows removal of a
+0.05091 ± 0.00096 female–male score-error gap, while its adjusted power increment
+remains unresolved. In the replicated classic-LT-FH GWAS, PA and Gibbs both
+reach 1.47 ± 0.04×. Across matched bounds, PA tracks Gibbs to corr ≥ 0.997. See
 [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md); real-LD runs use
 [HAPNEST](benchmarks/hapnest/README.md) genotypes (opt-in).
 

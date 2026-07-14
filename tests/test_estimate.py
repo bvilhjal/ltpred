@@ -9,6 +9,7 @@ from scipy import stats
 from ltpred.family import Family, Member, families_from_columns
 from ltpred.estimate import (batch_means, estimate_liability,
                              estimate_liability_multi)
+from ltpred.thresholds import age_thresholds
 
 
 def _imr(t):
@@ -40,6 +41,25 @@ def test_single_proband_case_only():
     assert res.est["full"][0] == pytest.approx(_imr(t), abs=0.05)
     assert res.est["genetic"][0] == pytest.approx(h2 * _imr(t), abs=0.05)
     assert res.se["genetic"][0] <= 0.02
+
+
+def test_adult_is_personalized_bounds_without_family_history():
+    """ADuLT uses the proband's age-dependent bound and no relative rows."""
+    h2 = 0.5
+    lower, upper = age_thresholds([1], [45], pop_prev=0.1)
+    fam = Family("adult", [Member("o", lower[0], upper[0])])
+    res = estimate_liability([fam], h2=h2, method="pa", out=("genetic",))
+    assert res.est["genetic"][0] == pytest.approx(h2 * lower[0])
+
+
+def test_personalized_family_model_adds_relatives_to_adult_proband_bound():
+    """Adding an affected relative changes the score; ADuLT itself has none."""
+    lower, upper = age_thresholds([1, 1], [45, 35], pop_prev=0.1)
+    adult = Family("adult", [Member("o", lower[0], upper[0])])
+    family = Family("family", [Member("o", lower[0], upper[0]),
+                               Member("m", lower[1], upper[1])])
+    res = estimate_liability([adult, family], h2=0.5, out=("genetic",))
+    assert res.est["genetic"][1] > res.est["genetic"][0]
 
 
 def test_family_history_raises_genetic_estimate():
@@ -145,7 +165,8 @@ def test_estimate_from_kinship_matches_role_based():
         for c, r in enumerate(ids):
             lower[fi, c], upper[fi, c] = byrole[r].lower, byrole[r].upper
     kin, _ = estimate_liability_from_kinship(A, lower, upper, h2=h2, target=0,
-                                             out="genetic", n_sim=20000, burn_in=500, seed=1)
+                                             out="genetic", method="gibbs",
+                                             n_sim=20000, burn_in=500, seed=1)
     # identical covariance + identical seeds -> identical draws
     assert np.corrcoef(role.est["genetic"], kin)[0, 1] > 0.999
     assert np.max(np.abs(role.est["genetic"] - kin)) < 1e-9
@@ -160,17 +181,32 @@ def test_estimate_from_kinship_validation():
         estimate_liability_from_kinship(np.zeros((3, 2)), np.zeros((5, 3)), np.ones((5, 3)))
 
 
+def test_estimate_from_kinship_defaults_to_pa():
+    from ltpred import estimate_liability_from_kinship, kinship_from_pedigree
+    _, A = kinship_from_pedigree(["o", "m", "f"], ["f", None, None], ["m", None, None])
+    lower = np.array([[1.2, -np.inf, -np.inf], [-np.inf, 1.2, -np.inf]])
+    upper = np.array([[1.2, 1.2, 1.2], [1.2, np.inf, 1.2]])
+    default = estimate_liability_from_kinship(A, lower, upper)
+    explicit = estimate_liability_from_kinship(A, lower, upper, method="pa")
+    assert np.array_equal(default[0], explicit[0])
+    assert np.array_equal(default[1], explicit[1])
+    with pytest.raises(ValueError, match="unknown method"):
+        estimate_liability_from_kinship(A, lower, upper, method="magic")
+
+
 def test_liability_sensitivity_h2_grid():
     from ltpred import simulate_under_LTM_single, liability_sensitivity
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
                                     n_sim=800, pop_prev=0.1, seed=9)
     grid = [0.3, 0.4, 0.5, 0.6, 0.7]
     r = liability_sensitivity(sim.families, grid, method="pa", out="genetic")
+    default = liability_sensitivity(sim.families, grid, out="genetic")
     assert r.estimates.shape == (len(grid), 800)
     assert r.corr.shape == (len(grid), len(grid))
     assert np.allclose(np.diag(r.corr), 1.0)
     assert r.mean.shape == r.sd.shape == (len(grid),)
     assert r.out == "genetic"
+    assert np.array_equal(default.estimates, r.estimates)
     # ranking is highly stable to the assumed h2 (the reassuring result)
     assert r.min_corr > 0.9
     # scale grows with h2 even though ranking does not
@@ -245,6 +281,9 @@ def test_default_method_is_pa_and_multitrait_falls_back_to_gibbs():
     with pytest.raises(NotImplementedError, match="single-trait"):
         estimate_liability(m, h2=[0.5, 0.4], method="pa", genetic_corrmat=rg,
                            full_corrmat=rp)
+    # PA-FGRS names a threshold/censoring model, not an inference engine.
+    with pytest.raises(ValueError, match="unknown method"):
+        estimate_liability(sim.families, h2=0.5, method="pa-fgrs")
 
 
 def test_use_mixture_without_K_raises():

@@ -1,555 +1,479 @@
 # ltpred benchmark results
 
-Summary of the ltpred benchmark suite, comparing the two fitting methods — the
-**Gibbs sampler** (LT-FH++) and the deterministic **Pearson–Aitken** estimator
-(PA-FGRS) — on simulated data where the true genetic liability is known.
+Current results for the 15 local benchmark scripts in this directory. Bounds
+distinguish non-personalised, personalised pinned and interval-case encodings;
+family-history inclusion distinguishes LT-FH++ (with relatives) from ADuLT
+(index person only). Gibbs and Pearson–Aitken (PA) are inference engines, not
+model variants.
 
-- **Generated:** 2026-07-07 (regenerated after the efficiency pass — precision-
-  matrix Gibbs params, canonical grouping, streamed batch means, faster PA
-  kernels), numpy 2.2.6 / scipy 1.15 / numba 0.66, 10 cores. Accuracy / GWAS /
-  age-of-onset numbers are unchanged (the optimisations are equivalent); Gibbs
-  timings dropped ~15–20%.
-- **Reproduce:** `OMP_NUM_THREADS=10 python benchmarks/<script>.py` (see
-  [`README.md`](README.md) for what each measures).
-- **Caveat:** these are *stochastic* benchmarks — each number is one Monte-Carlo
-  draw, so re-running shifts values by sampling noise. The conclusions are stable.
-  They validate PA-FGRS against Gibbs for the **simulated structures included
-  here** (small/realistic pedigrees, additive-genetic model); they do not prove
-  exact equivalence for arbitrary pedigrees or extreme prevalences/heritabilities.
-  Beyond the headline correlation, the diagnostics now cover **calibration**
-  (slope/intercept + tail, §12), **cohort-confounding / λ_GC** (§13), and **PA
-  robustness on large/rare/densely-affected pedigrees + fold-in ordering** (§14). A
-  dedicated **censoring-mixture** benchmark is still pending (see the roadmap).
+- **Generated:** 2026-07-14.
+- **Environment:** Python 3.13.5, NumPy 2.1.3, SciPy 1.15.3, Numba 0.61.0,
+  10 logical cores.
+- **Reproduce:** set `NUMBA_NUM_THREADS=10` (and optionally
+  `OMP_NUM_THREADS=10` for linked numerical libraries), then run the scripts
+  listed in [`README.md`](README.md).
+- **Coverage:** every default local benchmark was rerun. The HAPNEST real-LD path
+  was not run because it requires an external multi-GB dataset; it remains an
+  explicit opt-in workflow in [`hapnest/README.md`](hapnest/README.md).
+
+Unless stated otherwise, `±` denotes the standard error of a mean across
+independent simulated cohorts. Tables labelled SD instead report the empirical
+across-cohort standard deviation. Some diagnostic grids remain single-seed
+illustrations; those are identified rather than dressed up as certainty.
 
 ## Headline findings
 
-- **PA-FGRS closely matches the Gibbs LT-FH++ posterior mean.** It is a
-  deterministic moment approximation (exact for a single truncation); across all 27
-  accuracy cells the two estimates correlate **≥ 0.997** (usually ≥ 0.999), and in
-  the genotype GWAS they give the **same** effective sample size (1.52×).
-- **PA-FGRS is 100–350× faster** — a deterministic sweep with no MCMC —
-  processing **~170 000 families/second** vs ~700/s for the Gibbs sampler, at
-  identical accuracy. (Via the object API; the array API removes the remaining
-  Python overhead — see the efficiency note below.)
-- **Both recover 1.2–2.8× the effective sample size of a raw case/control
-  label.** The gain grows with heritability, with *lower* prevalence, and with
-  more informative relatives (siblings, extended pedigrees).
-- **The power gain carries into a genotype GWAS with no inflation:** LT-FH++ and
-  PA-FGRS both reach **1.52× effective N** over case/control at λ_GC ≈ 1.0; the
-  oracle (true genetic liability) ceiling is 9.6×.
-- **Age-of-onset (the liability→onset map) adds a further ~1–10%**, growing with
-  prevalence; PA and Gibbs exploit it identically.
+- **PA is the right default for single-trait work.** Across the 27-cell accuracy
+  grid, corr(PA, Gibbs) is 0.9972–0.9999. The stressful-pedigree benchmark remains
+  at least 0.9984. PA and Gibbs also give indistinguishable downstream GWAS
+  results. In the isolated 10-thread timing run, the PA object path is
+  **323–569× faster** than grouped Gibbs across the tested sizes and pedigrees.
+- **Classic LT-FH improves genotype-GWAS signal without average null inflation.**
+  Across three genotype/effect/cohort replicates, both engines deliver about
+  **1.47 ± 0.04× effective N** over case/control.
+- **Full personalised LT-FH++ adds family-history value beyond matched ADuLT.**
+  With identical age/sex/cohort proband bounds, ADuLT reaches **1.049 ± 0.004×**
+  adjusted effective N over case/control and full LT-FH++ reaches
+  **1.194 ± 0.006×**. The paired LT-FH++ minus ADuLT increment is
+  **+0.1454 ± 0.0154** effective-N units (95% CI half-width). Full LT-FH++ has
+  adjusted calibration slope **0.995 ± 0.015** and PA/Gibbs agreement 0.99990.
+- **Sex-specific CIP improves stratum calibration, not proven adjusted power.**
+  In a prespecified sex-only scenario, correct sex curves close the female-minus-
+  male mean-score-error gap by **0.05091 ± 0.00096** (paired 95% CI), while the
+  adjusted effective-N increment is **0.0040 ± 0.0046** and remains unresolved.
+- **Cohort personalisation has two distinct benefits.** In a narrow living-proband
+  pedigree it mainly corrects a mean-score shift; in the family-free ADuLT panel,
+  cases spanning ±55 birth years reach corr 0.512 ± 0.007 with cohort-aware
+  thresholds versus 0.397 ± 0.017 when cohort is ignored (about 1.66× in
+  squared-correlation terms).
+- **Variance-component point estimates need sampling uncertainty.** The fitter's
+  reported Monte Carlo SE is much smaller than empirical across-cohort SD. Use
+  family bootstrap intervals for inference. A constrained component estimate at
+  zero is a boundary estimate, not a false-positive rate.
 
----
+## 1. PA versus Gibbs accuracy (`bench_accuracy.py`)
 
-## 1. Accuracy — Gibbs vs PA-FGRS (`bench_accuracy.py`)
+Single simulated cohorts, 1,500 families per cell. At h²=0.5 and K=0.05:
 
-corr(estimate, true g) at **h²=0.5**, 1500 families, and the effective-N gain
-over the raw case/control label. Gibbs and PA are indistinguishable; PA is
-~250–350× faster per cell.
+| Family structure | corr Gibbs | corr PA | PA eff-N / case-control | corr(PA, Gibbs) |
+|---|---:|---:|---:|---:|
+| parents | 0.394 | 0.394 | 1.29× | 0.9997 |
+| parents + 2 siblings | 0.440 | 0.440 | 1.78× | 0.9997 |
+| extended | 0.412 | 0.412 | 1.81× | 0.9997 |
 
-| Family | Prev | corr Gibbs | corr PA | eff-N gain | Gibbs≈PA |
-|---|---:|---:|---:|---:|---:|
-| parents | 0.05 | 0.394 | 0.394 | 1.30× | 0.9997 |
-| parents+2 sibs | 0.05 | 0.454 | 0.454 | 1.88× | 0.9997 |
-| extended (7 rel) | 0.05 | 0.374 | 0.374 | 2.16× | 0.9997 |
-| parents+2 sibs | 0.01 | 0.296 | 0.297 | 2.83× | 0.9990 |
-| parents+2 sibs | 0.20 | 0.601 | 0.601 | 1.54× | 0.9999 |
+Across all 27 cells, agreement is 0.9972–0.9999. Absolute accuracy increases
+with prevalence, heritability, and informative relatives. Relative gain over a
+case/control label is often largest for rarer disease; the largest current grid
+value is 2.67× (parents + siblings, h²=0.2, K=0.05).
 
-Accuracy rises with heritability and prevalence; the *relative* gain over
-case/control is largest at low prevalence and with siblings in the pedigree
-(rarer cases carry more family-history information). Minimum Gibbs–PA agreement
-across the whole grid was 0.997.
+## 2. Controlled runtime scaling (`bench_scaling.py`)
 
-## 2. Runtime scaling (`bench_scaling.py`)
+Five warmed timings per point, reported as medians; Python 3.13.5, Numba 0.61.0,
+10 Numba threads, h²=0.5, K=0.05, and 25,000 Gibbs draws. No other benchmark ran
+concurrently.
 
-Wall time, h²=0.5, K=0.05, Numba on 10 cores.
+### Number of trio families
 
-| #families (trios) | Gibbs | PA-FGRS | speed-up |
-|---:|---:|---:|---:|
-| 1 000 | 1.5 s | 0.006 s | 244× |
-| 2 000 | 3.0 s | 0.012 s | 252× |
-| 8 000 | 11.4 s | 0.046 s | 247× |
+| families | Gibbs families/s | PA object families/s | PA array families/s | object speed-up |
+|---:|---:|---:|---:|---:|
+| 500 | 616 | 257,428 | 1.95 M | 418× |
+| 1,000 | 657 | 240,036 | 4.05 M | 365× |
+| 2,000 | 571 | 255,508 | 1.79 M | 447× |
+| 4,000 | 599 | 290,873 | 4.92 M | 486× |
+| 8,000 | 655 | 298,032 | 9.36 M | 455× |
 
-Both scale linearly in the number of families; PA sustains ~170 000 families/s
-against ~700/s for Gibbs. Growing the family from 2 to 10 relatives raises the
-Gibbs cost 2.5 s → 8.4 s (n=2000) while PA stays under 0.03 s — the speed-up
-holds (230–350×) across family sizes. These use the object API; the **array API**
-(`estimate_liability_pa_arrays`) removes the per-family Python overhead entirely —
-measured ~10 M families/s (≈100× over the object PA path) on trios after warm-up.
+The object path includes `Family`/`Member` bounds assembly and grouping. The
+array path receives already aligned, repeatedly reused arrays; its 1.8–9.4
+million families/s is therefore a hot-kernel measurement, not end-to-end input
+preparation. Its very short calls also make cache and scheduler effects visible,
+so use the CSV IQRs rather than interpreting the non-monotone point rates.
+
+### Family size at 2,000 families
+
+| relatives | structure | Gibbs time | PA object time | PA array time | object speed-up |
+|---:|---|---:|---:|---:|---:|
+| 2 | parents | 2.49 s | 0.0077 s | 0.00031 s | 323× |
+| 3 | + sibling | 3.31 s | 0.0095 s | 0.00043 s | 348× |
+| 5 | + two grandparents | 4.83 s | 0.0145 s | 0.00071 s | 334× |
+| 7 | extended | 6.09 s | 0.0116 s | 0.00092 s | 525× |
+| 10 | extended + aunts | 8.12 s | 0.0143 s | 0.00122 s | 569× |
+
+The small PA times are not strictly monotone; five repeats quantify timing
+variation but do not abolish operating-system noise. The defensible claim on
+this machine is the observed **323–569×** object-path speed-up, not a universal
+hardware-independent constant.
+
+This is the only benchmark used for performance claims. It warms all paths,
+records five timings per point with median/IQR, uses `perf_counter`, records the
+Numba thread count and simulation configuration, and measures PA's object and
+array APIs separately.
 
 ## 3. Age-of-onset information (`bench_age_onset.py`)
 
-Pinning cases at their onset threshold (ADuLT/LT-FH++) vs plain case/control,
-both fit with PA (Gibbs shown to agree). corr(estimate, true g), 3000 families,
-8-relative pedigree.
+Three independent cohorts per cell, 3,000 families, eight
+relatives. Gibbs is a first-replicate cross-check only (`gibbs_reps=1`).
 
-| h² | Prev | case/control | age-of-onset (PA) | Gibbs | gain |
+| h² | K | classic LT-FH corr | FH + onset corr (PA) | first-rep Gibbs | onset / LT-FH eff-N proxy |
 |---:|---:|---:|---:|---:|---:|
-| 0.5 | 0.05 | 0.428 | 0.433 | 0.433 | 1.03× |
-| 0.5 | 0.30 | 0.643 | 0.673 | 0.673 | 1.10× |
-| 0.8 | 0.30 | 0.751 | 0.784 | 0.783 | 1.09× |
+| 0.5 | 0.05 | 0.4328 ± 0.0042 | 0.4349 ± 0.0040 | 0.4345 | 1.0097 ± 0.0029× |
+| 0.5 | 0.30 | 0.6365 ± 0.0065 | 0.6651 ± 0.0042 | 0.6666 | 1.0924 ± 0.0092× |
+| 0.8 | 0.30 | 0.7381 ± 0.0049 | 0.7723 ± 0.0037 | 0.7787 | 1.0949 ± 0.0061× |
 
-Onset information helps most when cases are common (more relatives contribute an
-onset age); at low prevalence the gain is small because case relatives are rare.
-PA and Gibbs use the onset map identically (curves overlap).
+Both columns condition on the same family; this is an LT-FH++ age-component
+ablation over classic LT-FH, not ADuLT and not raw case/control. The mean gain
+over the eight-cell grid is 1.038×. Onset information matters
+most when enough relatives are observed as cases; at low prevalence its
+increment is small. Minimum first-replicate PA/Gibbs agreement is 0.998997.
 
-## 4. GWAS power (`bench_gwas_power.py`)
+## 4. Replicated classic-LT-FH genotype GWAS (`bench_gwas_power.py`)
 
-Linear-regression GWAS on 10 000 probands × 5 000 SNPs (30 causal), h²=0.5,
-K=0.05, trios. Phenotypes: case/control, LT-FH++ (Gibbs), PA-FGRS, and the oracle
-true genetic liability.
+Three independent genotype/effect/cohort replicates; each has 10,000 probands,
+5,000 independent SNPs, 30 causal SNPs, h²=0.5, K=0.05, and trios. Effective N
+uses the noncentral component `(mean chi² - 1)`, not raw mean chi².
 
-| Phenotype | mean χ² at causal | eff-N vs c/c | power (p<5e-8) | λ_GC |
+| Phenotype | mean causal chi² | eff-N / c-c | power at 5e-8 | lambda GC |
 |---|---:|---:|---:|---:|
-| case/control | 35.4 | 1.00× | 36.7% | 0.99 |
-| **LT-FH++ (Gibbs)** | 53.8 | **1.52×** | 43.3% | 1.01 |
-| **PA-FGRS** | 53.8 | **1.52×** | 43.3% | 1.02 |
-| oracle (true g) | 341.5 | 9.64× | 76.7% | 1.04 |
+| case/control | 39.63 ± 2.19 | 1.00× | 41.1 ± 2.2% | 1.011 ± 0.009 |
+| LT-FH Gibbs | 57.53 ± 1.87 | 1.468 ± 0.040× | 48.9 ± 4.0% | 1.012 ± 0.019 |
+| LT-FH PA | 57.60 ± 1.91 | 1.469 ± 0.039× | 48.9 ± 4.0% | 1.006 ± 0.021 |
+| oracle true g | 337.37 ± 2.07 | 8.77 ± 0.57× | 75.6 ± 1.1% | 1.047 ± 0.015 |
 
-Both family-based estimators lift the mean association χ² at causal SNPs by ~52%
-— a real effective-sample-size gain — and raise detection power, while staying
-calibrated at null SNPs (λ_GC ≈ 1). LT-FH++ and PA-FGRS are interchangeable in
-power; the oracle marks the ceiling if the genetic liability were known exactly.
-For real-LD genotypes, rerun with `--plink` on a HAPNEST fileset
-([`hapnest/README.md`](hapnest/README.md)).
+The former 1.53× headline was one seed; 1.47 ± 0.04× is the replicated
+estimate. In real-LD mode, variants with r² >= 0.1 to any causal SNP are excluded
+from lambda/QQ calibration by default because causal proxies are associated, not
+null.
 
-## 5. Variance-component inference (`bench_fit_heritability.py`)
+## 5. Heritability fitting (`bench_fit_heritability.py`)
 
-Quality of `fit_heritability` — the data-augmentation Gibbs that *fits*
-liability-scale h² from family statuses — measured by fitting many independent
-simulated cohorts (25 replicates), so the spread of the fits is the true sampling
-distribution. Prevalence 0.10, `parents+2 sibs` unless noted.
+Twenty-five independent cohorts per recovery cell, K=0.10, 3,000 families with
+parents + two siblings. Fitter RNG seeds are distinct across cohorts.
 
-**Bias & precision** at 3000 families:
-
-| true h² | fitted (mean) | bias | SD (across datasets) | reported `h2_se` | SD / se |
+| true h² | fitted mean | bias | empirical SD | reported MC SE | SD / MC SE |
 |---:|---:|---:|---:|---:|---:|
-| 0.2 | 0.187 | −0.013 | 0.046 | 0.0022 | 21× |
-| 0.4 | 0.386 | −0.014 | 0.057 | 0.0019 | 31× |
-| 0.6 | 0.596 | −0.004 | 0.061 | 0.0025 | 24× |
-| 0.8 | 0.786 | −0.014 | 0.061 | 0.0025 | 24× |
+| 0.2 | 0.201 | +0.001 | 0.040 | 0.0019 | 21× |
+| 0.4 | 0.386 | -0.014 | 0.057 | 0.0020 | 28× |
+| 0.6 | 0.596 | -0.004 | 0.061 | 0.0024 | 25× |
+| 0.8 | 0.786 | -0.014 | 0.062 | 0.0025 | 25× |
 
-- **Approximately unbiased** across 0.2–0.8 (|bias| ≤ 0.014, within the
-  replicate-averaging noise).
-- **Precision improves with data**: SD falls ~`1/√N` (0.069 at 1 000 families →
-  0.029 at 4 000–8 000), and with more informative relatives — 0.098 (parents
-  only) → 0.058 (parents + 2 sibs) → 0.046 (extended, 8 relatives) at 3 000
-  families.
-- **The reported `h2_se` under-states the true uncertainty by ~20–30×.** It is the
-  *within-dataset* Monte-Carlo error of one fit, **not** the sampling SD across
-  datasets. Do not use it as a confidence interval — use **`bootstrap_fit`**
-  (family resampling) for a real CI. On one 3 000-family dataset it gives a
-  bootstrap SE of 0.047 against a reported `h2_se` of 0.002 (a 23× gap), matching
-  the across-dataset SD above — the same helper works for `fit_variance_components`
-  and `fit_genetic_correlation`. (This is the single most important caveat of these
-  estimators.)
+At 3,000 families, empirical SD is 0.105 with parents only, 0.054 with parents +
+two siblings, and 0.046 with the extended structure. The 4,000/8,000-family SDs
+are 0.039/0.041; their chi-square SD intervals overlap substantially, so the tiny
+uptick is replicate noise, not evidence against 1/sqrt(N) scaling.
 
-## 6. Multi-component variance components (`bench_variance_components.py`)
+The returned `h2_se` is within-run Monte Carlo error. It is not a sampling
+standard error. Use `bootstrap_fit` for family-resampling intervals.
 
-`fit_variance_components` generalises `fit_heritability` to a **multiple**
-Haseman–Elston regression, fitting additive `A` and common-environment `C`
-together. Measured over 20 replicate cohorts, prevalence 0.10, a full-sib-rich
-structure (`m, f, s1…s4`) so `C` — identified from the full-sib excess — is
-powered.
+## 6. A+C variance components (`bench_variance_components.py`)
 
-**A+C recovery** at 3000 families:
+Twenty-five independent 3,000-family cohorts per recovery cell, with distinct
+fitter seeds. Values are fitted means (empirical across-cohort SD):
 
-| true (a², c²) | A fitted (bias) | A SD | C fitted (bias) | C SD |
-|:---:|---:|---:|---:|---:|
-| (0.4, 0.2) | 0.408 (+0.008) | 0.052 | 0.193 (−0.007) | 0.031 |
-| (0.5, 0.1) | 0.484 (−0.016) | 0.048 | 0.101 (+0.001) | 0.032 |
-| (0.3, 0.3) | 0.299 (−0.001) | 0.057 | 0.294 (−0.006) | 0.045 |
-| (0.6, 0.0) | 0.579 (−0.021) | 0.047 | 0.011 (+0.011) | 0.007 |
+| true A | true C | fitted A (SD) | fitted C (SD) |
+|---:|---:|---:|---:|
+| 0.4 | 0.2 | 0.398 (0.055) | 0.197 (0.034) |
+| 0.5 | 0.1 | 0.486 (0.051) | 0.099 (0.032) |
+| 0.3 | 0.3 | 0.295 (0.064) | 0.295 (0.042) |
+| 0.6 | 0.0 | 0.583 (0.046) | 0.010 (0.007) |
 
-- **Unbiased for both components** across the grid (|bias| ≤ 0.021), and the two
-  do not trade off — `A` is pinned by the parent-offspring / grandparent
-  relatednesses, `C` by the full-sib excess.
-- **Negligible false positive.** Fitting `A, C` on purely additive data
-  (true c² = 0) gives C = 0.013 ± 0.011 — it does not manufacture a
-  common-environment component.
-- **Precision improves ~`1/√N`**: C SD 0.070 → 0.051 → 0.036 → 0.026 from
-  1 000 to 8 000 families. Same `h2_se` caveat as `fit_heritability` — bootstrap
-  families for a CI.
-- **Dominance is not offered.** From sib-only pedigrees `D` is identified only by
-  the small full-sib excess beyond additive, so the non-negativity constraint
-  biases it upward (a spurious `D` on additive-only data); honest estimation needs
-  MZ-vs-DZ twin contrasts. (This replaced an earlier experimental Bayesian
-  animal-model Gibbs that mixed poorly and was structure-dependent-biased.)
+At true A=0.4 and C=0.2, increasing N from 1,000 to 8,000 families reduces
+empirical SD from 0.053 to 0.029 for A and from 0.066 to 0.025 for C. The small
+positive biases at N=1,000 shrink toward zero with N.
+
+The null panel reports a constrained boundary mean and SD. Formal component
+testing belongs to `test_variance_component`; a point estimate near zero is not a
+test rejection rate.
 
 ## 7. Genetic correlation (`bench_genetic_correlation.py`)
 
-`fit_genetic_correlation` estimates the genetic correlation `r_g` between traits
-by a cross-trait Haseman–Elston regression. Two traits, h² = (0.5, 0.4),
-phenotypic correlation `r_p = 0.2`, prevalence 0.10, `parents+2 sibs`, 20
-replicate cohorts.
+Twenty-five independent 3,000-family cohorts per recovery cell; the simulation
+includes phenotypic correlation 0.2 even when genetic correlation is zero.
 
-**Bias & precision vs true r_g** at 3000 families:
-
-| true r_g | fitted (mean) | bias | SD (across datasets) |
+| true r_g | fitted mean | bias | empirical SD |
 |---:|---:|---:|---:|
-| 0.0 *(null)* | +0.016 | +0.016 | 0.075 |
-| 0.3 | +0.289 | −0.011 | 0.058 |
-| 0.6 | +0.572 | −0.028 | 0.065 |
+| 0.0 | 0.0068 | +0.0068 | 0.0688 |
+| 0.3 | 0.2755 | -0.0245 | 0.0581 |
+| 0.6 | 0.5778 | -0.0222 | 0.0653 |
 
-- **No false positive at the null**: with genetically independent but
-  *phenotypically* correlated traits (`r_p = 0.2`, `r_g = 0`), the fit returns
-  +0.016 — it does not read the phenotypic correlation as a genetic one.
-- **Approximately unbiased**, with a **mild attenuation at large `|r_g|`**
-  (−0.03 at 0.6) from the bounded ratio estimator `G / √(h²_p h²_q)`.
-- **Precision improves ~`1/√N`**: SD of `r_g` 0.132 → 0.098 → 0.072 → 0.038 from
-  1 000 to 8 000 families. Same `se` caveat — bootstrap families for a CI.
+At true r_g=0.5, the across-cohort SD is 0.124, 0.099, 0.064, and 0.037
+for N=1,000, 2,000, 4,000, and 8,000 families (15 cohorts per point). Bias at
+8,000 is +0.0009. The null cell shows that non-genetic phenotypic correlation is
+not spuriously recovered as genetic correlation on average.
 
-## 8. Does modelling shared environment help? (`bench_shared_env.py`)
+## 8. Shared environment and prediction (`bench_shared_env.py`)
 
-Families simulated under the true `A+C+E` model (so the proband's *true genetic
-liability* `g` is known), then the genetic-liability score estimated under models
-that ignore vs. fit the shared-environment component `C`. Metric: corr(estimate,
-true `g`) — i.e. how well the score predicts the genetic value. h²=0.5, prevalence
-0.10, proband + parents + a sib-ship, 4 replicates × 3 000 families.
+Four independent 3,000-family cohorts per cell, h²=0.5, parents + three full
+sibs. The paired gain is fitted A+C minus fitted additive-only prediction;
+uncertainty shown here is a t-based 95% CI half-width.
 
-**Accuracy vs true c²** (3 sibs):
+| true c² | ignore C, fitted h² | fit A+C | paired gain ± 95% CI |
+|---:|---:|---:|---:|
+| 0.0 | 0.53356 | 0.53351 | -0.00005 ± 0.00034 |
+| 0.1 | 0.50160 | 0.50291 | +0.00131 ± 0.00019 |
+| 0.2 | 0.48912 | 0.49319 | +0.00407 ± 0.00199 |
+| 0.3 | 0.47151 | 0.47805 | +0.00654 ± 0.00204 |
 
-| true c² | ignore C (fitted h²) | fit `A+C` | oracle `A+C` | gain | fitted h² (additive) |
-|---:|---:|---:|---:|---:|---:|
-| 0.0 | 0.5195 | 0.5195 | 0.5196 | +0.000 | 0.48 ✓ |
-| 0.1 | 0.5063 | 0.5064 | 0.5066 | +0.000 | 0.56 |
-| 0.2 | 0.4866 | 0.4886 | 0.4888 | +0.002 | 0.66 |
-| 0.3 | 0.4759 | 0.4813 | 0.4820 | +0.005 | **0.75** |
+At c²=0.3, the paired gains with 2, 4, and 6 full siblings are respectively
++0.00480 ± 0.00472, +0.00668 ± 0.00127, and +0.00601 ± 0.00229 (95% CI
+half-widths). More relatives help identify C, but four replicates are too few to
+claim monotone gain with sibship size.
 
-**Gain vs sib-ship size** (c²=0.3): 2 sibs +0.003, 4 sibs +0.006, 6 sibs +0.007.
+The benchmark now retains per-family Gibbs MCSEs and warns when estimates miss
+the requested tolerance. That instrumentation was added immediately after this
+30-minute canonical run, whose pre-instrumentation code discarded the MCSEs;
+therefore convergence flags cannot honestly be reconstructed for these rows.
 
-- **Modelling `C` barely changes the score's prediction accuracy** — the gain is
-  ≤ ~0.007 corr (≈1 % relative) even with strong shared environment (c²=0.3) and a
-  large sib-ship. It grows with c² and sib-ship size but stays small, and the
-  **fitted `A+C` captures essentially all of it** (it sits right at the oracle).
-  The threshold-model BLUP is forgiving of the h²/c² split for *point prediction*.
-- **The real cost of ignoring `C` is a badly inflated heritability.** Additive
-  `fit_heritability` reports ĥ²=0.75 at c²=0.3 (true 0.5) — `C`'s sib resemblance
-  leaks into ĥ² — whereas `fit_variance_components` recovers ≈(0.46, 0.28). So the
-  practical value of fitting `C` is getting **h² and its interpretation right**
-  (and hence calibration), not sharpening the per-person score.
+The predictive increment is intentionally evaluated as a paired difference on
+the same cohorts. Its main practical value is smaller than the parameter-
+interpretation benefit: ignoring C causes sib resemblance to leak into fitted h².
 
-## 9. Couple / spousal environment `M` (`bench_couple_env.py`)
+## 9. Couple/spousal environment M (`bench_couple_env.py`)
 
-`fit_variance_components` fits a **bank** of shared-environment components. Besides
-sibship `C` it ships `M`, a couple/spousal environment that loads on the
-genetically-unrelated mate pairs — the proband's parents `(m, f)` and the
-grandparent couples. Families simulated from `a² A + s² K + e² I` (thresholded, so
-ground truth is known), true `a²=0.4`, prevalence 0.10, structure
-`o+s1+s2+m+f+mgm+mgf+pgm+pgf`, 25 replicate cohorts × 3 000 families.
+Twenty-five independent cohorts per cell, 3,000 extended families.
 
-**(a) `A+M` recovery** (mean fitted, bias in parentheses, across-cohort SD):
-
-| true `m²` | `Â` (bias) | SD | `M̂` (bias) | SD |
+| true m² | fitted A (true 0.4) | A SD | fitted M | M SD |
 |---:|---:|---:|---:|---:|
-| 0.0 | 0.394 (−0.006) | 0.031 | 0.017 (+0.017) | 0.014 |
-| 0.1 | 0.395 (−0.005) | 0.027 | 0.096 (−0.004) | 0.029 |
-| 0.2 | 0.400 (+0.000) | 0.032 | 0.205 (+0.005) | 0.042 |
-| 0.3 | 0.387 (−0.013) | 0.029 | 0.293 (−0.007) | 0.038 |
+| 0.0 | 0.398 | 0.034 | 0.018 | 0.012 |
+| 0.1 | 0.400 | 0.031 | 0.106 | 0.038 |
+| 0.2 | 0.396 | 0.027 | 0.197 | 0.042 |
+| 0.3 | 0.393 | 0.036 | 0.301 | 0.029 |
 
-**(b) Bias in the additive-only `Â` from ignoring shared environment** — the *same*
-variance `s²` placed once as `C` (sibship) and once as `M` (couple), then fit the
-misspecified `("A",)` model:
+Omission comparison, using the same shared variance as sibship C or couple M:
 
-| true `s²` | ignore `C` → `Â` (bias) | ignore `M` → `Â` (bias) |
+| shared variance | bias in A if C omitted (SD) | bias in A if M omitted (SD) |
 |---:|---:|---:|
-| 0.1 | 0.447 (**+0.047**) | 0.407 (+0.007) |
-| 0.2 | 0.492 (**+0.092**) | 0.420 (+0.020) |
-| 0.3 | 0.547 (**+0.147**) | 0.430 (+0.030) |
+| 0.1 | +0.044 (0.034) | +0.004 (0.033) |
+| 0.2 | +0.108 (0.034) | +0.012 (0.052) |
+| 0.3 | +0.163 (0.034) | +0.038 (0.033) |
 
-- **`A+M` is recovered unbiased** across the sweep (biases ≤ 0.013, within one
-  across-cohort SD), with **no spurious `M`** at the null (`M̂=0.017`, a small
-  boundary floor, not a manufactured component).
-- **`C` and `M` bias heritability oppositely if omitted.** Ignoring a real sibship
-  `C` inflates `Â` substantially and ~linearly in `s²` (up to +0.15 at `s²=0.3`,
-  a 37 % over-estimate) because sibs share both genes and `C`; ignoring a real
-  couple `M` barely moves `Â` (≤ +0.03, ~5× smaller) because mates are genetically
-  unrelated (`A=0`) and carry ~no weight in the additive regression. So `M` is
-  worth fitting to **quantify / test spousal resemblance** (shared environment or
-  assortative mating, which parent data cannot separate), not to de-bias `h²`.
+Omitting M biases A much less than omitting C, but not identically zero. The
+M=0 result is a constrained boundary floor, not evidence of a false-positive
+rate. This simulation generates shared adult environment; it does not validate a
+generative assortative-mating interpretation.
 
-## 10. LT-FH / LT-FH++ vs case/control — ascertainment, heritability, birth cohort (`bench_fh_prediction.py`)
+## 10. Registry family-history and ADuLT prediction (`bench_fh_prediction.py`)
 
-The GWAS *phenotype* is `E[g | own status + family history (+ age of onset + birth
-cohort)]`, scored against the plain **case/control** label, using **population** CIP
-thresholds so it stays valid under case ascertainment (Pedersen 2022/2023).
+Age-, cohort-, and mortality-consistent three-generation pedigrees, 4,000
+families and three independent cohorts per main cell. Relatives are censored at
+death or current age. Values are scored against known true genetic liability.
 
-**Age-, cohort-, and mortality-consistent generative model.** A liability `ℓ` is
-fixed; the threshold `T(age; birth_year) = Φ⁻¹(1 − CIP(age; by))` falls with age and
-shifts with birth cohort — `CIP(age; by) = K(by)/(1+exp((60−age)/8))`, cohort
-prevalence `K(by) = K·R^((by−1965)/30)`. `ℓ` has an onset age under its *own*
-cohort's CIP. **Death is a competing risk**: each relative has an age at death
-(other-cause) and is observed only up to `c = min(death, age now)`; **observed case**
-iff onset ≤ `c` (pinned at `T(a*) ≈ ℓ`), else **censored control** at `(−∞, T(c))` —
-a disease-free death is a control censored at the death age, not a phantom
-centenarian. Ages are generationally consistent (proband 40–70 born ≈1950–1980,
-parents ≈29–31 y older, grandparents ≈56–58 y), so with mortality grandparents are
-observed to death (~80, ~98 % deceased, correct ≈1908 cohort); observed prevalence
-tracks the CIP (~2 % at K=0.05, not the lifetime K). 3-generation pedigree, 4 000
-families × 3 reps, PA backend.
+### Ascertainment
 
-Two threshold policies are compared: **cohort-aware** — the LT-FH++/ADuLT personalised
-threshold `Tᵢ = Φ⁻¹(1 − K(ageᵢ; birth_yearᵢ))`, anchoring each person to *their own*
-cohort's prevalence `K(by)` — versus **single-K** — the classical-LTM / original-LT-FH
-baseline that uses **one** lifetime prevalence `K` (the 1965 reference) for *everyone*,
-blind to birth cohort (and sex). They coincide when there is no secular trend (`R=1`).
-
-**(a) vs ascertainment** (proband case fraction `P`; h²=0.5, K=0.05, no trend):
-
-| P | cc | count | LT-FH | LT-FH++ | LT-FH/cc | LT-FH++/LT-FH |
-|---:|---:|---:|---:|---:|---:|---:|
-| 0.02 (pop) | 0.228 | 0.266 | 0.344 | 0.346 | **2.27×** | 1.016× |
-| 0.10 | 0.471 | 0.318 | 0.527 | 0.532 | 1.25× | 1.019× |
-| 0.25 | 0.627 | 0.357 | 0.661 | 0.669 | 1.11× | 1.024× |
-| 0.50 | 0.699 | 0.376 | 0.730 | 0.744 | 1.09× | 1.040× |
-
-**(b) vs heritability** (K=0.05, 50 % ascertained):
-
-| h² | cc | LT-FH | LT-FH++ | LT-FH/cc | LT-FH++/LT-FH |
+| observed proband case fraction | case/control corr | LT-FH corr | FH + age/cohort corr | FH eff-N / c-c | onset eff-N / FH |
 |---:|---:|---:|---:|---:|---:|
-| 0.2 | 0.490 | 0.522 | 0.535 | 1.13× | 1.050× |
-| 0.4 | 0.650 | 0.679 | 0.696 | 1.09× | 1.053× |
-| 0.6 | 0.740 | 0.769 | 0.786 | 1.08× | 1.045× |
-| 0.8 | 0.807 | 0.828 | 0.846 | 1.05× | 1.043× |
+| 0.019 (population) | 0.233 | 0.347 | 0.348 | 2.212 ± 0.015× | 1.009 ± 0.011× |
+| 0.10 | 0.464 | 0.524 | 0.530 | 1.276 ± 0.006× | 1.021 ± 0.002× |
+| 0.25 | 0.623 | 0.658 | 0.668 | 1.118 ± 0.006× | 1.029 ± 0.001× |
+| 0.50 | 0.698 | 0.728 | 0.744 | 1.086 ± 0.009× | 1.045 ± 0.002× |
 
-**(c) vs secular prevalence trend `R`** (× per 30 y; h²=0.5, K=0.05, 50 % ascertained)
-— cohort-aware vs single-`K` thresholds on the **pedigree**; here the harm is mostly
-**bias** (the living proband spans a narrow cohort — see (d) for the ranking gain):
+Family history is most valuable relative to case/control in population sampling;
+the incremental onset benefit grows under ascertainment.
 
-| R | corr (cohort-aware) | corr (single-K) | single-K liability bias |
-|---:|---:|---:|---:|
-| 1.0 | 0.742 | 0.742 | +0.000 |
-| 1.5 | 0.740 | 0.740 | −0.040 |
-| 2.0 | 0.741 | 0.740 | −0.058 |
-| 3.0 | 0.741 | 0.739 | **−0.073** |
+### Cohort effects
 
-**(d) cohort *ranking* gain vs cohort span of cases** (own age of onset, no family,
-R=3) — isolates the re-ranking the pedigree dilutes:
+At a 3× lifetime-prevalence trend per 30 birth years, cohort-aware and single-K
+pedigree scores have similar narrow-cohort ranking (0.7445 versus 0.7427), but
+their mean scores differ by -0.07246 ± 0.00031. Truth-referenced mean errors are
++0.0031 ± 0.0059 for cohort-aware and -0.0693 ± 0.0062 for single-K.
 
-| cohort half-span | corr (cohort-aware) | corr (single-K) | Δ |
-|---|---:|---:|---:|
-| ±10 y (1955–1975) | 0.426 | 0.422 | +0.004 |
-| ±25 y (1940–1990) | 0.456 | 0.414 | +0.042 |
-| ±40 y (1925–2005) | 0.506 | 0.414 | +0.092 |
-| ±55 y (1910–2020) | **0.524** | 0.418 | **+0.106** |
+The replicated own-onset panel has **no family-history inputs** and is therefore
+ADuLT. It isolates cohort-aware versus cohort-blind ranking across broader birth
+cohorts:
 
-- **Family history (LT-FH over case/control) is largest for rare observed disease.**
-  In a population sample the observed prevalence is ~2 %, case/control is weak
-  (corr 0.23), and family history is worth **2.27× effective N**; under 50 %
-  ascertainment the balanced label is strong (0.70) and the gain shrinks to 1.09×.
-- **Age of onset (LT-FH++ over LT-FH) grows with ascertainment** (1.6 % → 4.0 %) and,
-  separately, with prevalence (reproduce with `--K`: it reached ~10 % at K=0.20) —
-  the Pedersen 2022 direction (~4 % → ~18 % under ascertainment), at smaller magnitude
-  (Gaussian not survival model, one pedigree, no sex thresholds, corr-based eff-N).
-- **Heritability scales everything**; the family-history gain shrinks a little as h²
-  rises because a high-h² case/control label is already informative.
-- **Birth cohort helps both calibration *and* ranking.** Ignoring a secular
-  prevalence trend (i) shifts the liability estimate systematically — up to
-  **−0.073 at R=3**, a bias that correlates with birth year and can confound — and
-  (ii) **loses ranking/power** whenever cases span a range of birth cohorts, because
-  two cases with the *same age of onset* but different cohorts have *different* true
-  liabilities (the one born in a low-prevalence era is more extreme), and a single-`K`
-  analysis collapses them to one value. The ranking gain grows with the cohort span
-  of the **cases** (panel (d)): negligible at ±10 y (0.426 vs 0.422 — like the narrow
-  living-proband pedigree in (c)), rising to corr **0.524 (cohort-aware) vs 0.418
-  (single-K)** at ±55 y — a **~1.57× effective-N** gain. So on a real pedigree the
-  cohort correction shows up mostly as the (c) bias (the high-weight proband spans a
-  narrow cohort; the wide-cohort grandparents are low-relatedness controls), but the
-  underlying power gain (d) is large when cases themselves span many cohorts. This is
-  *why* LT-FH++ personalises thresholds by birth year. (GWAS λ_GC not tested.)
-- **Death as a competing risk** makes the ages realistic (relatives observed to death,
-  grandparents ≈98 % deceased at ≈80) with the correct birth cohorts, and the results
-  above are essentially unchanged from the no-mortality version — deceased relatives
-  observed over their full life carry the same lifetime signal.
-
-## 11. Genetic factor model (`bench_genetic_factor.py`)
-
-`fit_genetic_factor` fits a common-factor model `r_g ≈ ΛΛ' + Ψ` to the genetic
-correlation matrix from `fit_genetic_correlation` — the whole pipeline run
-end-to-end on family case/control data (simulate → fit `r_g` → fit the factor
-model). P = 5 traits, h² = (0.5, 0.45, 0.4, 0.35, 0.3), `parents+2 sibs`,
-prevalence 0.10, 15 replicate cohorts of 3 000 families.
-
-**(a) Single-factor loading recovery** (truth: one factor, loadings
-Λ = 0.8, 0.7, 0.6, 0.5, 0.4):
-
-| trait | true loading | fitted (mean ± SD) |
+| cohort half-span | ADuLT cohort-aware corr | ADuLT cohort-blind corr |
 |---:|---:|---:|
-| 0 | 0.80 | 0.779 ± 0.082 |
-| 1 | 0.70 | 0.711 ± 0.088 |
-| 2 | 0.60 | 0.594 ± 0.068 |
-| 3 | 0.50 | 0.524 ± 0.057 |
-| 4 | 0.40 | 0.411 ± 0.049 |
+| ±10 years | 0.387 ± 0.021 | 0.378 ± 0.025 |
+| ±25 years | 0.427 ± 0.015 | 0.374 ± 0.023 |
+| ±40 years | 0.477 ± 0.015 | 0.383 ± 0.018 |
+| ±55 years | 0.512 ± 0.007 | 0.397 ± 0.017 |
 
-The one-factor fit gives `srmr = 0.046 ± 0.014` and `prop_explained = 0.984` — one
-latent genetic factor reproduces the `r_g` matrix, with loadings recovered close to
-truth (the mild attenuation on the largest loading is inherited from the `r_g`
-estimator, §7).
+## 11. Genetic factor diagnostic (`bench_genetic_factor.py`)
 
-**(b) Does `srmr` flag too few factors?** (truth: *two* independent genetic
-factors, blocks {0,1,2} and {3,4}):
+Fifteen independent cohorts, 3,000 families, five traits. Under planted
+one-factor truth, loadings 0.8/0.7/0.6/0.5/0.4 are recovered as
+0.822/0.704/0.606/0.487/0.404, with SD 0.056–0.102.
 
-| model fit | `srmr` |
-|---|---:|
-| 1 factor (well-specified, from (a)) | 0.046 |
-| 1 factor on two-factor data | **0.155** |
-| 2 factors on two-factor data | 0.017 |
-
-- **A mis-specified one-factor model triples the off-diagonal misfit** — `srmr`
-  0.046 → 0.155 — while adding the second factor drops it back to 0.017. So `srmr`
-  distinguishes "one general genetic axis" from "several genetic dimensions" even
-  through the noisy pedigree → `r_g` → factor pipeline.
-- It is a **descriptive decomposition of a point estimate**: the loadings carry no
-  inference of their own, so bootstrap the whole pipeline over families for
-  uncertainty (the within-dataset `se` understates it, as everywhere in §5–7).
-
-## 12. Calibration, not just ranking (`bench_calibration.py`)
-
-Every benchmark above scores the estimate by `corr(estimate, true g)` — its
-**ranking**. But the estimate is a posterior *mean*, so it also has a **scale**,
-which is what matters for risk stratification (is someone really in the top decile
-of genetic liability?) rather than a GWAS phenotype (standardised anyway). This
-regresses the known true `g` on the estimate — slope 1 / intercept 0 = calibrated —
-and reads the decile calibration curve. h²=0.5, 3 000 families.
-
-**(a) Correctly specified — the posterior mean is self-calibrating** (`E[g | ĝ] = ĝ`):
-
-| structure | K | slope (Gibbs) | slope (PA) | intercept | corr | top-decile realised/pred |
-|---|---:|---:|---:|---:|---:|---:|
-| parents+2 sibs | 0.05 | 1.021 | 1.012 | +0.003 | 0.443 | 0.99 |
-| parents+2 sibs | 0.20 | 0.993 | 0.990 | +0.004 | 0.597 | 0.99 |
-| extended (7 rel) | 0.05 | 0.997 | 0.992 | −0.010 | 0.409 | 0.98 |
-| extended (7 rel) | 0.20 | 1.006 | 1.003 | −0.015 | 0.605 | 0.95 |
-
-Slope ≈ 1, intercept ≈ 0, and the top decile of the score holds ~the genetic
-liability it predicts. **Gibbs and PA-FGRS agree on the *scale*, not only the
-ranking** (slopes within ~0.01). At very low prevalence (K=0.01) the slope is
-noisier (1.05 for parents+sibs, 0.90 for the extended family) — rare cases carry
-thinner, higher-variance family information.
-
-**(b) Wrong assumed h² — ranking robust, scale is not** (true h²=0.5, K=0.05,
-parents+2 sibs; the h² handed to the estimator is swept):
-
-| assumed h² | slope | corr | top-decile realised/pred | decile cal-RMSE |
-|---:|---:|---:|---:|---:|
-| 0.2 | 2.256 | 0.444 | 2.14 | 0.164 |
-| 0.4 | 1.224 | 0.444 | 1.16 | 0.063 |
-| **0.5 (true)** | **1.012** | 0.443 | 0.95 | **0.040** |
-| 0.6 | 0.867 | 0.442 | 0.82 | 0.062 |
-| 0.8 | 0.678 | 0.438 | 0.64 | 0.142 |
-
-- **`corr` is flat** (0.444 → 0.438 across assumed h² 0.2–0.8) — the ranking is
-  almost invariant to the assumed h², matching `liability_sensitivity` (min_corr
-  ≈ 0.97). A linear GWAS on the score barely notices.
-- **The slope is not.** Assume too little h² and the estimate under-spreads (slope
-  2.26, top decile over-stated 2×); too much and it over-spreads (slope 0.68). The
-  decile calibration-RMSE is a clean U-shape minimized at the true h².
-- **So: use the score as-is for GWAS, but if you read it as a calibrated genetic
-  liability, get h² right** (or report on the liability scale you assumed). This is
-  the scale-side complement to the rank-side robustness `liability_sensitivity`
-  reports.
-
-## 13. Cohort confounding & genomic control (`bench_confounding.py`)
-
-LT-FH++ personalizes the threshold by birth cohort because prevalence drifts over
-time; the docs claim this **controls confounding**, not just improves power. This
-tests that directly: a secular prevalence trend `K(by) = K·R^((by−1965)/30)` plus
-**birth-cohort-correlated null SNPs** (allele frequency drifts with cohort — the SNPs
-carry no liability effect, so any association is spurious). The genetic-liability
-estimate is built cohort-aware vs single-K (cohort-blind), and the genomic-control
-inflation `λ_GC` is read off a linear GWAS against the null SNPs. h²=0.5, K=0.05,
-parents+2 sibs, 8 000 families, 2 000 SNPs (half cohort-correlated).
-
-**λ_GC on cohort-correlated null SNPs:**
-
-| trend R | cohort-aware | single-K | case/control label |
-|---:|---:|---:|---:|
-| 1.0 *(no trend)* | 1.04 | 1.04 | 1.05 |
-| 2.0 | 1.07 | 4.42 | 1.88 |
-| 3.0 | 1.11 | 10.2 | 3.48 |
-| 4.0 | 1.02 | **15.5** | 6.02 |
-
-- **Cohort-aware thresholds hold `λ_GC ≈ 1`** (1.02–1.11) even under a 4×-per-30-years
-  secular trend — the confounding is removed.
-- **Single-K (cohort-blind) inflates badly** (up to 15×): using one threshold when
-  prevalence varies by cohort leaks the cohort trend into the estimate, which then
-  correlates with any cohort-stratified SNP. Notably it is **worse than the raw
-  case/control label** (6.0) — a sophisticated estimator with the wrong threshold
-  does more damage than the naive one.
-- **The inflation is specific to cohort-correlated SNPs**: on cohort-independent null
-  SNPs every method stays at `λ_GC ≈ 1.0–1.1`. With no trend (R=1) there is nothing
-  to confound and all three coincide.
-
-This is the confounding-control counterpart to the power gains in §10 — the reason
-LT-FH++ personalizes thresholds by birth year is not only sharper ranking but valid
-genomic control.
-
-## 14. PA-FGRS robustness & fold-order (`bench_pa_robustness.py`)
-
-Pearson-Aitken folds relatives into the proband's liability one at a time, exact for
-a single truncation but an approximation for several — so where does it strain, and
-does the fold-in order matter? h²=0.5.
-
-**(a) Agreement with Gibbs on stressful pedigrees:**
-
-| regime | corr(PA, Gibbs) | corr(PA, g) | corr(Gibbs, g) |
-|---|---:|---:|---:|
-| baseline (4 rel) | 0.9997 | 0.447 | 0.448 |
-| large pedigree (11 rel) | 0.9997 | 0.440 | 0.441 |
-| rare (K=0.005) | 0.9980 | 0.215 | 0.215 |
-| dense (≥3 affected) | 0.9991 | 0.479 | 0.480 |
-
-PA tracks the Gibbs posterior mean to **corr ≥ 0.998** across all of them, loosening
-only slightly for very rare disease (0.998 at K=0.005) — where the truncation is deep
-and one-at-a-time conditioning is most strained — and both recover `g` equally well.
-The deterministic approximation holds at large pedigree size and heavy family
-loading.
-
-**(b) Fold-in ordering sensitivity** (re-running PA under random orderings; spread of
-the per-proband estimate as % of the between-proband SD):
-
-| pedigree | typical (median) | worst-case (p95) |
+| truth and fitted model | SRMR mean | SRMR SD |
 |---|---:|---:|
-| trio (2 rel) | 0.08% | 2.0% |
-| parents+2 sibs (4) | 0.11% | 2.2% |
-| extended (8 rel) | 0.09% | 3.2% |
-| large (11 rel) | 0.07% | 3.0% |
+| true 1F, fit 1F | 0.047 | 0.015 |
+| true 2F, fit 1F | 0.146 | 0.030 |
+| true 2F, fit 2F | 0.017 | 0.011 |
 
-The order relatives are folded in **barely matters**: the typical proband's estimate
-shifts < 0.15% of the signal SD across orderings, far below the Monte-Carlo noise of
-the Gibbs comparison it approximates. The worst-case (p95) shift grows with pedigree
-size — from ~2% (trio) to ~3% (8+ relatives) — so on large, densely-truncated
-pedigrees a few probands are mildly order-sensitive, but never enough to affect
-ranking. (The order-dependence is a property of the moment approximation; it would be
-zero for exact sequential Gaussian conditioning.)
+This demonstrates that SRMR diagnoses this planted misspecification. It is not a
+calibrated factor-number test; extra factors improve in-sample fit by construction.
+Bootstrap the whole correlation-to-factor pipeline for uncertainty.
 
-## Bottom line
+## 12. Score calibration (`bench_calibration.py`)
 
-PA-FGRS is a drop-in, deterministic replacement for the LT-FH++ Gibbs sampler:
-same accuracy and GWAS power to three decimals, two-to-three orders of magnitude
-faster. Use `method="pearson-aitken"` for large biobank-scale runs and
-`method="gibbs"` when you want posterior draws or a sampling-based check.
+These are single-seed, 3,000-family diagnostic cells. Correctly specified PA:
 
-`fit_heritability` recovers liability-scale h² approximately without bias (SD
-~0.05 at a few thousand informative families); `fit_variance_components` adds a
-bank of shared-environment components — sibship `C` and couple `M` (both unbiased,
-negligible false positives) — and `fit_genetic_correlation` recovers the genetic
-correlation `r_g` between traits (unbiased near the null). On top of `r_g`,
-`fit_genetic_factor` fits a common-factor model — one genetic factor cleanly
-reproduces a one-factor `r_g` (srmr ≈ 0.05), and `srmr` rises sharply when the truth
-has more factors. Report their uncertainty by bootstrapping families, not from the
-reported `se`.
+| structure | K | slope | corr | top-decile realised/predicted |
+|---|---:|---:|---:|---:|
+| parents + siblings | 0.01 | 1.006 | 0.265 | 1.033 |
+| parents + siblings | 0.05 | 1.014 | 0.421 | 1.010 |
+| parents + siblings | 0.20 | 0.996 | 0.589 | 0.999 |
+| extended | 0.01 | 0.916 | 0.215 | 0.896 |
+| extended | 0.05 | 1.017 | 0.428 | 1.009 |
+| extended | 0.20 | 1.015 | 0.608 | 0.987 |
 
-The genetic-liability score is **well-calibrated** under the correct model (a
-self-calibrating posterior mean, slope ≈ 1) and Gibbs and PA agree on its scale, not
-just its ranking. A wrong assumed `h²` leaves the ranking almost untouched but tilts
-the scale — so the score is safe to feed a GWAS as-is, but read it as a calibrated
-liability only if you trust the `h²` you assumed.
+Most cells are near slope 1; rare disease with the extended pedigree is an
+outlier in this single seed, so the benchmark does not justify a universal
+calibration claim.
 
-Two robustness checks round it out: **personalizing thresholds by birth cohort is
-what keeps genomic control valid** — a cohort-blind single-K analysis inflates `λ_GC`
-severely under a secular prevalence trend (worse than raw case/control), while
-cohort-aware LT-FH++ holds `λ_GC ≈ 1` — and **PA-FGRS tracks the Gibbs posterior mean
-to corr ≥ 0.998** on large, rare and densely-affected pedigrees, with negligible
-fold-in ordering sensitivity.
+Misspecified h², with true h²=0.5 and K=0.05:
+
+| assumed h² | slope | corr | top realised/predicted | calibration RMSE |
+|---:|---:|---:|---:|---:|
+| 0.2 | 2.249 | 0.419 | 2.272 | 0.160 |
+| 0.4 | 1.224 | 0.421 | 1.224 | 0.059 |
+| 0.5 | 1.014 | 0.421 | 1.010 | 0.026 |
+| 0.6 | 0.870 | 0.421 | 0.866 | 0.046 |
+| 0.8 | 0.684 | 0.420 | 0.681 | 0.124 |
+
+Ranking barely changes, while scale changes sharply. A realised/predicted ratio
+above 1 means the score under-predicted the realised top decile; it does not mean
+the score overstated it.
+
+## 13. Cohort confounding (`bench_confounding.py`)
+
+Three independent cohorts per trend. Lambda GC below is for SNPs correlated with
+birth cohort; truly independent null SNPs stay near 1 for every method.
+
+| prevalence trend R per 30 y | FH + cohort-specific K | single-K FH | case/control |
+|---:|---:|---:|---:|
+| 1 | 0.960 ± 0.011 | 0.960 ± 0.011 | 0.899 ± 0.034 |
+| 2 | 0.965 ± 0.054 | 4.539 ± 0.252 | 2.008 ± 0.257 |
+| 3 | 0.922 ± 0.057 | 10.274 ± 0.077 | 4.616 ± 0.220 |
+| 4 | 1.008 ± 0.041 | 16.461 ± 0.397 | 7.666 ± 0.094 |
+
+This benchmark isolates the cohort component in a family model; it is not the
+full age/sex/cohort LT-FH++ design. At R=1 there is no trend-driven inflation;
+the methods need not have identical finite-sample lambda values. Under strong
+trends, cohort-aware thresholds remove the induced stratified-SNP inflation on
+average.
+
+## 14. PA robustness (`bench_pa_robustness.py`)
+
+Single-seed stress cells:
+
+| regime | corr(PA, Gibbs) | corr(PA, true g) | corr(Gibbs, true g) |
+|---|---:|---:|---:|
+| baseline | 0.99969 | 0.4380 | 0.4377 |
+| large pedigree | 0.99973 | 0.4490 | 0.4501 |
+| rare, K=0.005 | 0.99843 | 0.2300 | 0.2308 |
+| densely affected | 0.99909 | 0.4657 | 0.4665 |
+
+Fold-order spread as a percentage of the between-proband score SD:
+
+| pedigree | median | p95 |
+|---|---:|---:|
+| trio | 0.084% | 1.96% |
+| parents + 2 siblings | 0.114% | 2.24% |
+| extended | 0.094% | 3.36% |
+| large | 0.069% | 2.82% |
+
+The typical order effect is tiny. The p95 values are small but not monotone in
+pedigree size. This script does not compare fold-order spread with Gibbs Monte
+Carlo noise and does not directly measure rank changes, so it makes neither claim.
+
+## 15. Integrated personalised LT-FH++ genotype GWAS (`bench_ltfhpp_personalization.py`)
+
+### Integrated panel
+
+Ten paired replicates, 4,000 ascertained probands each, 1,200 SNPs (30 causal,
+300 sex/cohort-stratified null), age-, sex-, and cohort-dependent CIP, coherent
+onset/follow-up, and sex-dependent competing mortality. Accuracy, slope, and
+GWAS values below are adjusted for proband sex and birth year; `±` is replicate
+SE. The final column shows the stratified-null lambda before and after the same
+standard covariate adjustment.
+
+| Phenotype | adjusted corr | adjusted slope | adjusted eff-N / c-c | stratified-null lambda raw -> adjusted |
+|---|---:|---:|---:|---:|
+| case/control | 0.586 ± 0.008 | 1.123 ± 0.021 | 1.000× | 1.140 ± 0.051 -> 1.019 ± 0.024 |
+| ADuLT (same full personalised proband CIP, no FH) | 0.600 ± 0.008 | 1.004 ± 0.018 | 1.049 ± 0.004× | 1.024 ± 0.047 -> 1.014 ± 0.031 |
+| LT-FH single-K | 0.629 ± 0.008 | 1.183 ± 0.020 | 1.149 ± 0.007× | 1.131 ± 0.046 -> 0.990 ± 0.041 |
+| FH + age CIP (ablation) | 0.639 ± 0.008 | 1.009 ± 0.016 | 1.189 ± 0.006× | 0.998 ± 0.033 -> 1.018 ± 0.041 |
+| FH + age + sex CIP (ablation) | 0.639 ± 0.008 | 1.008 ± 0.016 | 1.188 ± 0.006× | 0.986 ± 0.032 -> 1.011 ± 0.036 |
+| FH + age + cohort CIP (ablation) | 0.640 ± 0.008 | 0.995 ± 0.015 | 1.194 ± 0.006× | 1.014 ± 0.034 -> 1.020 ± 0.034 |
+| **LT-FH++ (full age + sex + cohort CIP)** | **0.640 ± 0.008** | **0.995 ± 0.015** | **1.194 ± 0.006×** | **0.996 ± 0.036 -> 1.010 ± 0.039** |
+
+The matched ADuLT row uses exactly the full personalised proband bounds but no
+relative columns. Adding relatives to reach full LT-FH++ improves adjusted
+correlation by **+0.04073 ± 0.00358** and effective-N ratio by
+**+0.1454 ± 0.0154** (paired 95% CI half-widths). ADuLT itself gains
++0.0490 ± 0.0096 effective-N units over case/control.
+
+Other paired t-based 95% intervals isolate the components. Single-K gains
++0.1489 ± 0.0147 effective-N units over case/control; age adds
++0.0399 ± 0.0076 beyond single-K; cohort adds +0.0056 ± 0.0022 beyond age.
+Full LT-FH++ adds **+0.0455 ± 0.0073** beyond classic LT-FH.
+Sex adds -0.0004 ± 0.0010 beyond age, and adding sex to age+cohort adds
+-0.00004 ± 0.00076. Thus this cancellation-prone integrated scenario establishes
+age and cohort gains, but no conditional sex-power gain.
+
+The stratified-null panel is a **covariate-adjustment sanity check**, not evidence
+that personalization substitutes for standard GWAS adjustment. After proper FWL
+adjustment, lambda is near one for every phenotype.
+
+### Prespecified sex-CIP isolation
+
+Five paired replicates, 3,000 ascertained probands, 600 SNPs (30 causal), age-
+dependent CIP, female:male lifetime-risk ratio 2, equal onset midpoints, and no
+cohort or sex-dependent-mortality effect. This isolates sex-specific thresholds
+without retrofitting the integrated parameters after seeing its result.
+
+| Phenotype | adjusted corr | adjusted eff-N / c-c | female mean error | male mean error |
+|---|---:|---:|---:|---:|
+| FH + age CIP (ablation) | 0.6298 ± 0.0078 | 1.292 ± 0.016× | +0.0301 ± 0.0086 | -0.0142 ± 0.0084 |
+| FH + age + sex CIP (ablation) | 0.6307 ± 0.0080 | 1.296 ± 0.016× | -0.0068 ± 0.0087 | -0.0002 ± 0.0084 |
+
+The adjusted ranking and effective-N increments are small and unresolved:
+Δcorr = +0.00097 ± 0.00110 and Δeff-N = +0.0040 ± 0.0046 (paired 95% CIs).
+The calibration benefit is decisive because the paired errors are highly
+correlated: adding the correct sex curve shifts female error by
+-0.03689 ± 0.00041 and male error by +0.01401 ± 0.00064, closing the
+female-minus-male error gap by **0.05091 ± 0.00096**.
+
+On the first two 300-family main-panel cross-checks, PA/Gibbs agreement is
+0.999901. Gibbs reaches the requested MCSE tolerance for every score (maximum
+MCSE 0.0090 at tolerance 0.03); PA-vs-Gibbs normalized RMSE is 0.0174 score SD,
+the Gibbs-on-PA slope is 0.990, and the mean difference is -0.0019.
+
+## What changed in this rerun
+
+- Added independent-replicate SEs to GWAS power, age-onset, family-history,
+  confounding, and cohort-span panels.
+- Corrected effective N to use chi-square noncentrality rather than raw mean
+  chi-square.
+- Warmed and replicated runtime measurements; added a directly measured PA array
+  path and recorded configuration/thread metadata.
+- Used distinct deterministic inference seeds across fitted cohorts.
+- Added uncertainty intervals for empirical SD curves and small prediction gains.
+- Rebuilt the integrated LT-FH++ benchmark around ten paired main replicates,
+  consistent adjusted metrics, a matched family-free ADuLT arm, a prespecified
+  sex-CIP isolation panel, richer Gibbs diagnostics, and a self-describing CSV
+  with safe output prefixes.
+- Recast constrained C/M null estimates as boundary behavior rather than false-
+  positive rates.
+- Added LD-proxy filtering to the real-LD calibration path.
+- Removed unsupported claims about fold-order monotonicity, Gibbs-noise dominance,
+  universal score calibration, and zero omission bias for M.
+
+## Remaining limitations
+
+- Accuracy, calibration, and PA stress grids still contain single-seed diagnostic
+  cells. Treat small differences there as descriptive.
+- Three- or four-replicate panels give useful SEs but still estimate tail
+  uncertainty coarsely. The integrated main panel now uses ten replicates and
+  its sex isolation uses five; tail calibration remains noisier than paired
+  score contrasts.
+- Component boundary means do not establish Type-I error or interval coverage.
+  Use the package's parametric-bootstrap tests and family bootstrap intervals.
+- The HAPNEST path was not executed here, and a dedicated PA-FGRS censoring-
+  mixture benchmark remains outstanding.
+- The lightweight GWAS helper uses the large-sample `n * r²` score statistic.
+  A finite-sample regression test would use residual degrees of freedom and the
+  `r² / (1-r²)` correction; the matched effective-N ratios are robust to this
+  small approximation, but genome-wide discovery counts are only illustrative.
+- Most benchmark scripts still write canonical artifacts unconditionally. The
+  integrated-personalization script now accepts `--output-prefix` and writes a
+  self-describing CSV, but a common runner and run manifest remain outstanding.

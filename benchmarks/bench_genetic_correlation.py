@@ -25,6 +25,7 @@ import time
 import argparse
 
 import numpy as np
+from scipy.stats import chi2
 
 from _common import get_plt
 from ltpred.covariance import construct_covmat_multi, correct_positive_definite
@@ -37,6 +38,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FAM = ["m", "f", "s1", "s2"]
 H2 = [0.5, 0.4]
 RP_OFFDIAG = 0.2                       # phenotypic (full-liability) correlation
+
+
+def _sd_ci(sd, reps, alpha=0.05):
+    """Normal-theory confidence interval for an across-replicate SD."""
+    df = reps - 1
+    return (sd * np.sqrt(df / chi2.ppf(1.0 - alpha / 2.0, df)),
+            sd * np.sqrt(df / chi2.ppf(alpha / 2.0, df)))
 
 
 def simulate_two_trait(fam_vec, h2_vec, rg_val, rp_val, n_fam, prev, seed):
@@ -73,7 +81,8 @@ def fit_replicates(rg_val, n_fam, prev, reps, seed0, n_iter, burn_in):
     for r in range(reps):
         fams = simulate_two_trait(FAM, H2, rg_val, RP_OFFDIAG, n_fam, (prev, prev),
                                   seed0 + r)
-        res = fit_genetic_correlation(fams, n_iter=n_iter, burn_in=burn_in, seed=1)
+        res = fit_genetic_correlation(fams, n_iter=n_iter, burn_in=burn_in,
+                                      seed=seed0 + 100_000 + r)
         fitted[r] = res.rg[0, 1]
     return fitted
 
@@ -120,7 +129,7 @@ def main():
         fitted = fit_replicates(0.5, n, args.prev, args.reps_scaling, args.seed + 1000,
                                 args.n_iter, args.burn_in)
         sd = float(fitted.std(ddof=1))
-        panel_b.append(dict(n_fam=n, sd=sd))
+        panel_b.append(dict(n_fam=n, sd=sd, reps=args.reps_scaling))
         rows.append(dict(panel="scaling", rg=0.5, n_fam=n,
                          bias=float(fitted.mean() - 0.5), sd=sd, reps=args.reps_scaling))
         print(f"  n_fam={n:5d} | SD={sd:.3f}")
@@ -134,7 +143,7 @@ def write_csv(rows):
     fields = ["panel", "rg", "n_fam", "bias", "sd", "reps"]
     path = os.path.join(HERE, "bench_genetic_correlation.csv")
     with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields)
+        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
         w.writeheader()
         w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
 
@@ -156,7 +165,9 @@ def plot(panel_a, panel_b):
     ax[0].legend(fontsize=8)
     n = np.array([r["n_fam"] for r in panel_b], float)
     sdb = np.array([r["sd"] for r in panel_b])
-    ax[1].plot(n, sdb, "-o", label="across-replicate SD")
+    ci = np.array([_sd_ci(r["sd"], r["reps"]) for r in panel_b])
+    ax[1].errorbar(n, sdb, yerr=np.vstack([sdb - ci[:, 0], ci[:, 1] - sdb]),
+                   fmt="-o", capsize=3, label="across-replicate SD (95% CI)")
     ref = sdb[0] * np.sqrt(n[0] / n)
     ax[1].plot(n, ref, "k:", lw=1, label="∝ 1/√N")
     ax[1].set_xscale("log"); ax[1].set_yscale("log")

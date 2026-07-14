@@ -357,8 +357,8 @@ def fit_variance_components(families, components=("A", "C"), *, method="he",
       pairs** (the proband's parents, and grandparent couples). Because mates are
       genetically unrelated, ``M`` captures spousal resemblance from *any* source —
       shared adult environment or assortative mating, which parent data alone cannot
-      separate. Note that, unlike ``C``, leaving ``M`` unmodelled leaves ``A``
-      **essentially unbiased**: mates have ``A_ab = 0`` so they carry ~no weight in
+      separate. Note that, unlike ``C``, leaving ``M`` unmodelled biases ``A``
+      **much less**: mates have ``A_ab = 0`` so they carry little direct weight in
       the additive regression; ``M`` matters when the spousal resemblance is itself
       of interest, or to test/report it.
 
@@ -369,9 +369,10 @@ def fit_variance_components(families, components=("A", "C"), *, method="he",
 
     Runs a data-augmentation sweep of ``inner_sweeps`` truncated-MVN sweeps per
     outer iteration; ``damp`` controls the moment-update stability. Returns a
-    :class:`VarCompResult`. Validated unbiased for ``A`` and ``A+C`` across family
-    structures; as with :func:`fit_heritability`, ``se`` under-states the true
-    across-dataset SD, so bootstrap families for a confidence interval."""
+    :class:`VarCompResult`. Simulation benchmarks recover ``A`` and ``A+C`` with
+    small bias relative to their across-dataset SD; as with
+    :func:`fit_heritability`, ``se`` under-states that sampling SD, so bootstrap
+    families for a confidence interval."""
     comps = list(components)
     for c in comps:
         if c not in _COMPONENT_OFFDIAG:

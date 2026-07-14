@@ -1,4 +1,4 @@
-"""Pearson-Aitken (PA-FGRS) estimation: exactness, agreement with Gibbs, mixture."""
+"""Pearson-Aitken inference: exactness, agreement with Gibbs, and PA-FGRS mixture."""
 
 import numpy as np
 import pytest
@@ -50,7 +50,7 @@ def test_pa_single_control_is_negative():
 
 
 def test_pa_pinned_case_conditions_exactly():
-    # ADuLT point-mass: o pinned at c -> E[g] = h2 * c exactly
+    # Family-free ADuLT point mass: only o is pinned at c -> E[g] = h2*c.
     h2, c = 0.5, 1.3
     cov = np.array([[h2, h2], [h2, 1.0]])
     est, var = pa_algorithm(cov, lower=[-np.inf, c], upper=[np.inf, c], target=0)
@@ -182,9 +182,8 @@ def _simulate_pa_calibration(n_sim=8000, h2=0.5, pop_prev=0.1, seed=0):
 def test_mixture_is_calibrated_no_double_correction():
     # Calibration regression guard for the PA-FGRS censored-control mixture. On data
     # simulated under the LTM (young controls, so censoring bites), the mixture fed
-    # `pa_thresholds`' age bounds is checked against the *exact* LT-FH++ encoding
-    # (same age bounds, no mixture) computed on the same data -- the two well-
-    # calibrated estimators of the same generative model. Anchoring to that in-test
+    # `pa_thresholds`' mixture is checked against the same interval-case bounds with
+    # no mixture, computed on the same data. Anchoring to that in-test
     # reference is seed-robust and independent of the absolute slope (~0.84 here,
     # set by the interval case encoding). The pre-fix double-correction inflated the
     # estimate badly -- bias +0.84 vs +0.25, corr(g) 0.47 vs 0.52, slope 0.77 vs
@@ -197,8 +196,8 @@ def test_mixture_is_calibrated_no_double_correction():
 
     mix = families_from_columns(fam_id, role, lo, hi, K_i=ki, K_pop=kp)
     est = estimate_liability(mix, h2=0.5, method="pa", use_mixture=True).est["genetic"]
-    exact = families_from_columns(fam_id, role, lo, hi)   # age bounds, no mixture
-    est0 = estimate_liability(exact, h2=0.5, method="pa",
+    interval = families_from_columns(fam_id, role, lo, hi)   # same bounds, no mixture
+    est0 = estimate_liability(interval, h2=0.5, method="pa",
                               use_mixture=False).est["genetic"]
 
     slope = np.cov(g, est)[0, 1] / np.var(est)
@@ -207,8 +206,8 @@ def test_mixture_is_calibrated_no_double_correction():
     assert abs(float(np.mean(est - g))) < 0.45         # no blow-up (pre-fix bias ~+0.84)
     assert abs(slope - slope0) < 0.04, (slope, slope0)  # calibrated like the exact model
 
-    # the mixture on age bounds must reproduce the exact LT-FH++ encoding almost
-    # exactly -- the split is at the lifetime threshold, so the age bound only flags
+    # the mixture on age bounds must closely reproduce the direct interval encoding --
+    # the split is at the lifetime threshold, so the age bound only flags
     # censoring. Pre-fix these diverged (corr ~0.98, mean off by ~0.6).
     assert np.corrcoef(est, est0)[0, 1] > 0.999
     assert abs(np.mean(est) - np.mean(est0)) < 0.05
@@ -217,7 +216,7 @@ def test_mixture_is_calibrated_no_double_correction():
 def test_method_dispatch_and_multi_trait_error():
     t = float(stats.norm.isf(0.05))
     fam = Family("f", [Member("o", t, np.inf)])
-    for m in ("pa", "pearson-aitken", "PA-FGRS"):
+    for m in ("pa", "pearson-aitken", "AITKEN"):
         res = estimate_liability([fam], h2=0.5, method=m, out=("genetic",))
         assert res.est["genetic"][0] > 0
     with pytest.raises(NotImplementedError):

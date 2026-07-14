@@ -39,7 +39,7 @@ def test_age_to_thresh_logistic_formula():
 
 
 def test_thresh_of_aoo_recovers_liability():
-    # convert_age_to_thresh and convert_liability_to_aoo are inverses (ADuLT):
+    # The onset-to-threshold map shared by LT-FH++ and ADuLT is invertible:
     # thresh(aoo(liab)) == liab for a case liability above the base threshold.
     liab = np.array([1.5, 2.0, 2.7, 3.2])
     aoo = convert_liability_to_aoo(liab, pop_prev=0.1)
@@ -94,20 +94,39 @@ def test_thresholds_from_cip_matches_manual():
 
 
 def test_thresholds_from_cip_pin_mode_and_validation():
-    import warnings
-    lo, up, _, _ = thresholds_from_cip([1], [50], [0, 100], [0.0, 0.2],
-                                       case_mode="pin")
+    # Onset-pinned cases (used by LT-FH++ and ADuLT) are the default.
+    lo, up, _, _ = thresholds_from_cip([1], [50], [0, 100], [0.0, 0.2])
     assert lo[0] == up[0]                              # pinned case
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="strictly increasing"):
         thresholds_from_cip([1], [50], [100, 0], [0.2, 0.0])   # unsorted ages
     with pytest.raises(ValueError):
         thresholds_from_cip([1], [50], [0, 100], [0.0, 0.2], case_mode="bogus")
     with pytest.raises(ValueError):                    # decreasing CIP
         thresholds_from_cip([1], [50], [0, 100], [0.2, 0.1])
-    with warnings.catch_warnings(record=True) as w:    # k_pop below max(CIP)
-        warnings.simplefilter("always")
+    with pytest.raises(ValueError, match="below max"):
         thresholds_from_cip([0], [50], [0, 100], [0.0, 0.2], k_pop=0.1)
-    assert any("below max(cip_values)" in str(x.message) for x in w)
+
+
+@pytest.mark.parametrize(
+    "status,age,cip_ages,cip_values,k_pop,min_cip,match",
+    [
+        ([0, 1], [50], [0, 100], [0.0, 0.2], None, 1e-5, "equal length"),
+        ([0], [50], [0, 50], [0.0], None, 1e-5, "equal length"),
+        ([0], [50], [0, 0], [0.0, 0.1], None, 1e-5, "strictly increasing"),
+        ([0], [np.nan], [0, 100], [0.0, 0.2], None, 1e-5, "finite"),
+        ([0], [50], [0, 100], [0.0, np.nan], None, 1e-5, "finite"),
+        ([0], [50], [0, 100], [-0.1, 0.2], None, 1e-5, r"\[0, 1\)"),
+        ([0], [50], [0, 100], [0.0, 1.0], None, 1e-5, r"\[0, 1\)"),
+        ([0], [50], [0, 100], [0.0, 0.2], 1.0, 1e-5, r"\(0, 1\)"),
+        ([0], [50], [0, 100], [0.0, 0.2], None, 0.0, r"\(0, 1\)"),
+        ([0], [50], [0, 100], [0.0, 0.2], 0.2, 0.3, "must not exceed"),
+    ],
+)
+def test_thresholds_from_cip_rejects_invalid_inputs(
+        status, age, cip_ages, cip_values, k_pop, min_cip, match):
+    with pytest.raises(ValueError, match=match):
+        thresholds_from_cip(status, age, cip_ages, cip_values,
+                            k_pop=k_pop, min_cip=min_cip)
 
 
 def test_age_thresholds_case_pinned_control_open():

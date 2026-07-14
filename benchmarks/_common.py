@@ -2,10 +2,11 @@
 
 Two simulation paths feed the benchmarks:
 
-* :func:`simulate_families` -- draws whole families straight from the LT-FH++
-  covariance (genetic ``g``, full ``o``, relatives jointly MVN) and thresholds
-  them. The true genetic liability is known (``sim.genetic``), so accuracy,
-  scaling and censoring benchmarks need nothing else.
+* :func:`simulate_families` -- draws genetic ``g``, full liability ``o``, and
+  relatives jointly from the liability-threshold family covariance, then applies
+  model-specific observation bounds. The true genetic liability is known
+  (``sim.genetic``), so accuracy, scaling and censoring benchmarks need nothing
+  else.
 * :func:`simulate_genotype_families` -- for the GWAS-power benchmark: simulates
   causal-SNP genotypes, builds each proband's genetic liability from them, then
   draws the relatives' liabilities *conditional on that value* from the same
@@ -41,7 +42,7 @@ from ltpred.estimate import estimate_liability                 # noqa: E402
 # --------------------------------------------------------------------------- #
 def simulate_families(fam_vec, h2, prevalence, n_fam, seed, use_age=False,
                       mid_point=60.0, slope=1.0 / 8.0):
-    """Families drawn from the LT-FH++ covariance; ``sim.genetic`` is the truth."""
+    """Families drawn from the family covariance; ``sim.genetic`` is the truth."""
     return simulate_under_LTM_single(fam_vec=fam_vec, h2=h2, n_sim=n_fam,
                                      pop_prev=prevalence, use_age=use_age,
                                      mid_point=mid_point, slope=slope, seed=seed)
@@ -55,7 +56,7 @@ def simulate_genotype_families(fam_vec, h2, prevalence, n_fam, m_snps,
     Simulates (or accepts) ``n_fam x m_snps`` genotypes, draws ``n_causal`` causal
     effects so the proband's genetic liability ``g = X_std @ beta`` has variance
     ``h2``, then samples each family's remaining liabilities (full ``o`` and the
-    relatives) *conditional on* ``g`` from the LT-FH++ covariance and thresholds
+    relatives) *conditional on* ``g`` from the family covariance and thresholds
     them at ``prevalence``. Returns a dict with the standardised genotypes, causal
     index, true ``g``, proband ``status`` and the list of :class:`Family` inputs."""
     rng = np.random.default_rng(seed)
@@ -113,13 +114,14 @@ def estimate(families, h2, method, *, n_sim=25_000, burn_in=800, tol=0.03,
              seed=0, use_mixture=False):
     """Run one estimator and time it; returns ``(genetic_estimate, seconds)``.
 
-    ``method`` is ``"gibbs"`` (LT-FH++) or ``"pearson-aitken"`` / ``"pa"``
-    (PA-FGRS). ``use_mixture`` turns on the PA censored-control correction."""
-    t0 = time.time()
+    ``method`` is ``"gibbs"`` or ``"pearson-aitken"`` / ``"pa"``. The family
+    bounds determine the fitted model; ``use_mixture`` turns on the PA-FGRS
+    censored-control correction."""
+    t0 = time.perf_counter()
     res = estimate_liability(families, h2=h2, method=method, out=("genetic",),
                              use_mixture=use_mixture, tol=tol, n_sim=n_sim,
                              burn_in=burn_in, seed=seed)
-    return res.est["genetic"], time.time() - t0
+    return res.est["genetic"], time.perf_counter() - t0
 
 
 # --------------------------------------------------------------------------- #

@@ -34,8 +34,9 @@ and for [arbitrary pedigrees](data-preparation.md#beyond-the-role-grammar-arbitr
 
 ## 2. Turn status + age into liability bounds
 
-Pick the threshold builder that matches your model (classic LT-FH, ADuLT/LT-FH++, or
-PA-FGRS). Here, the age-of-onset (LT-FH++) encoding:
+Threshold builders set the observation encoding; family rows distinguish
+LT-FH++ from ADuLT. This example includes relatives, so the onset-pinned bounds
+form a family-history analysis. The logistic builder is tutorial-only:
 
 ```python
 from ltpred import age_thresholds
@@ -56,9 +57,13 @@ families = families_from_columns(fam_id=fam_id, role=role, lower=lower, upper=up
 
 ```python
 from ltpred import estimate_liability
-res = estimate_liability(families, h2=0.5)        # PA-FGRS by default; fast + deterministic
+res = estimate_liability(families, h2=0.5)        # PA is the single-trait default
 score = res.genetic                                # == res.est["genetic"]
 ```
+
+For full LT-FH++, replace the logistic helper with age-, birth-year- and
+sex-stratified empirical CIPs. To run ADuLT instead, build the same personalised
+bounds for role `o` only and omit every relative row.
 
 `h2` is the **liability-scale** heritability. Don't have one? Estimate it from the
 families with [`fit_heritability`](inference.md#fitting-heritability-from-the-family-data), or

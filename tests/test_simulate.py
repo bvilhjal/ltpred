@@ -33,7 +33,7 @@ def test_estimate_recovers_true_genetic_liability():
 
 
 def test_estimate_beats_raw_status():
-    # LT-FH++ posterior mean should track true genetic liability at least as
+    # Classic LT-FH posterior mean should track true genetic liability at least as
     # well as the raw case/control label of the proband.
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
                                     n_sim=400, pop_prev=0.1, seed=9)

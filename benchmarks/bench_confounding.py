@@ -1,8 +1,8 @@
 """Cohort confounding: do personalized thresholds control genomic inflation?
 
-LT-FH++ personalizes the liability threshold by birth cohort because prevalence
-drifts over time. The docs claim this **controls confounding**, not just improves
-power — but the power benchmark only tests an unstructured null. This one tests the
+Birth-cohort personalisation is one component of LT-FH++. This benchmark isolates
+that component in a family-history model; it does not include onset-age or sex
+effects and is therefore not the full LT-FH++ design. It tests the
 confounding side directly. It simulates a secular prevalence trend (disease more
 common in recent cohorts) together with **birth-cohort-correlated null SNPs**
 (population stratification: allele frequency drifts with cohort). None of the test
@@ -10,8 +10,8 @@ SNPs affect liability, so any association is spurious. The genetic-liability
 estimate is built two ways and run through a linear-regression GWAS against the
 null SNPs; the genomic-control inflation `λ_GC` is read off:
 
-  * **cohort-aware** — each person thresholded at their own cohort's prevalence
-    `K(by) = K·R^((by−1965)/30)` (LT-FH++);
+  * **cohort-aware FH** — each person thresholded at their own cohort's prevalence
+    `K(by) = K·R^((by−1965)/30)` (the LT-FH++ cohort component);
   * **single-K** — one prevalence `K` for everyone (cohort-blind), plus the raw
     **case/control** label as a reference.
 
@@ -21,7 +21,7 @@ cohort-aware estimate holds `λ_GC ≈ 1`; on cohort-independent null SNPs all s
 at 1. The gap grows with the secular trend `R`.
 
     python benchmarks/bench_confounding.py
-    python benchmarks/bench_confounding.py --trends 1 2 4 --n-fam 10000
+    python benchmarks/bench_confounding.py --trends 1 2 4 --n-fam 10000 --reps 5
 Writes bench_confounding.csv (+ .png if matplotlib is present).
 """
 
@@ -124,8 +124,12 @@ def main():
     ap.add_argument("--h2", type=float, default=0.5)
     ap.add_argument("--K", type=float, default=0.05)
     ap.add_argument("--trends", type=float, nargs="+", default=[1.0, 2.0, 3.0, 4.0])
+    ap.add_argument("--reps", type=int, default=3,
+                    help="independent cohorts per trend (reported as mean ± SE)")
     ap.add_argument("--seed", type=int, default=1)
     args = ap.parse_args()
+    if args.reps < 1:
+        ap.error("--reps must be at least 1")
 
     estimate_liability(simulate(STRUCT, args.h2, args.K, 2.0, 60, 40, 20,
                                 np.r_[np.ones(20, bool), np.zeros(20, bool)], 0)["fam_coh"],
@@ -136,12 +140,23 @@ def main():
     print("  λ_GC on cohort-correlated null SNPs — should stay ≈1 only if cohort-aware")
     rows = []
     for R in args.trends:
-        m = run(STRUCT, args.h2, args.K, R, args.n_fam, args.m_snps, args.n_strat, args.seed)
+        reps = [run(STRUCT, args.h2, args.K, R, args.n_fam, args.m_snps,
+                    args.n_strat, args.seed + rep) for rep in range(args.reps)]
+        keys = [key for key in reps[0] if key != "trend_R"]
+        m = {"trend_R": R, "reps": args.reps}
+        for key in keys:
+            values = np.asarray([rep[key] for rep in reps])
+            m[key] = float(values.mean())
+            m[f"se_{key}"] = (float(values.std(ddof=1) / np.sqrt(args.reps))
+                               if args.reps > 1 else 0.0)
         rows.append(m)
-        print("  R=%.1f/30y | stratified-null λ_GC: cohort-aware=%.2f  single-K=%.2f  "
-              "case/control=%.2f | (unstratified cohort-aware=%.2f)"
-              % (R, m["lgc_strat_cohort"], m["lgc_strat_single_K"],
-                 m["lgc_strat_casecontrol"], m["lgc_null_cohort"]))
+        print("  R=%.1f/30y | stratified-null λ_GC: cohort-aware=%.2f±%.2f  "
+              "single-K=%.2f±%.2f  case/control=%.2f±%.2f | "
+              "(unstratified cohort-aware=%.2f±%.2f)"
+              % (R, m["lgc_strat_cohort"], m["se_lgc_strat_cohort"],
+                 m["lgc_strat_single_K"], m["se_lgc_strat_single_K"],
+                 m["lgc_strat_casecontrol"], m["se_lgc_strat_casecontrol"],
+                 m["lgc_null_cohort"], m["se_lgc_null_cohort"]))
 
     write_csv(rows)
     plot(rows)
@@ -149,11 +164,12 @@ def main():
 
 
 def write_csv(rows):
-    fields = ["trend_R"] + [f"lgc_{s}_{m}" for s in ("strat", "null")
-                            for m in ("cohort", "single_K", "casecontrol")]
+    metrics = [f"lgc_{s}_{m}" for s in ("strat", "null")
+               for m in ("cohort", "single_K", "casecontrol")]
+    fields = ["trend_R", "reps", *metrics, *[f"se_{metric}" for metric in metrics]]
     path = os.path.join(HERE, "bench_confounding.csv")
     with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields)
+        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
         w.writeheader()
         w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
 
@@ -166,10 +182,12 @@ def plot(rows):
     R = [r["trend_R"] for r in rows]
     fig, ax = plt.subplots(1, 2, figsize=(10.5, 4.4))
     C = dict(cohort="#2F7D4F", single_K="#B95C3C", casecontrol="#888780")
-    lab = dict(cohort="cohort-aware (LT-FH++)", single_K="single-K (cohort-blind)",
+    lab = dict(cohort="FH + cohort-specific K", single_K="single-K (cohort-blind)",
                casecontrol="case/control label")
     for key in ("cohort", "single_K", "casecontrol"):
-        ax[0].plot(R, [r[f"lgc_strat_{key}"] for r in rows], "-o", color=C[key], label=lab[key])
+        ax[0].errorbar(R, [r[f"lgc_strat_{key}"] for r in rows],
+                       yerr=[r[f"se_lgc_strat_{key}"] for r in rows],
+                       fmt="-o", capsize=3, color=C[key], label=lab[key])
     ax[0].axhline(1.0, color="k", ls=":", lw=1)
     ax[0].set_xlabel("secular prevalence trend  R  (× per 30 y)")
     ax[0].set_ylabel("λ_GC on cohort-correlated null SNPs")
@@ -180,9 +198,9 @@ def plot(rows):
     keys = ["cohort", "single_K", "casecontrol"]
     x = np.arange(len(keys)); w = 0.38
     ax[1].bar(x - w / 2, [top[f"lgc_strat_{k}"] for k in keys], w, label="cohort-correlated SNPs",
-              color="#B95C3C")
+              yerr=[top[f"se_lgc_strat_{k}"] for k in keys], capsize=3, color="#B95C3C")
     ax[1].bar(x + w / 2, [top[f"lgc_null_{k}"] for k in keys], w, label="independent null SNPs",
-              color="#3B4A9C")
+              yerr=[top[f"se_lgc_null_{k}"] for k in keys], capsize=3, color="#3B4A9C")
     ax[1].axhline(1.0, color="k", ls=":", lw=1)
     ax[1].set_xticks(x); ax[1].set_xticklabels([lab[k] for k in keys], fontsize=7.5, rotation=12)
     ax[1].set_ylabel("λ_GC")

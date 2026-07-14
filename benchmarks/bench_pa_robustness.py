@@ -1,4 +1,4 @@
-"""PA-FGRS robustness: where does the deterministic approximation strain?
+"""Pearson-Aitken robustness: where does the deterministic approximation strain?
 
 Pearson-Aitken folds relatives into the proband's liability one at a time, updating
 moments by the Gaussian selection formula. That is *exact* for a single truncation
@@ -15,8 +15,8 @@ but an **approximation** for several at once, so two things are worth measuring:
       versus pedigree size.
 
 Truth `g` is known from the simulation. Expectation: PA tracks Gibbs to corr ≳ 0.99
-across all regimes (loosening a little for the largest/densest), and the ordering
-spread is small (well under the sampling noise) but grows with pedigree size.
+across all regimes, and the ordering spread stays small across the tested pedigree
+sizes. This script does not compare that spread with Gibbs Monte-Carlo noise.
 
     python benchmarks/bench_pa_robustness.py
     python benchmarks/bench_pa_robustness.py --n-fam 3000 --orders 12
@@ -164,7 +164,7 @@ def main():
 def write_csv(reg, fo):
     path = os.path.join(HERE, "bench_pa_robustness.csv")
     with open(path, "w", newline="") as fh:
-        w = csv.writer(fh)
+        w = csv.writer(fh, lineterminator="\n")
         w.writerow(["panel", "label", "n_rel", "agree", "corr_pa", "corr_gibbs",
                     "median_sd", "p95_sd", "rel_median", "rel_p95", "between_sd"])
         for r in reg:
@@ -197,7 +197,7 @@ def plot(reg, fo):
                label="typical (median)")
     ax[1].set_xlabel("number of relatives folded in")
     ax[1].set_ylabel("order-induced spread (% of between-proband SD)")
-    ax[1].set_title("(b) fold-order sensitivity: tiny, worst case grows with size")
+    ax[1].set_title("(b) fold-order sensitivity stays small across sizes")
     ax[1].legend(fontsize=8)
     fig.tight_layout()
     fig.savefig(os.path.join(HERE, "bench_pa_robustness.png"), dpi=130)

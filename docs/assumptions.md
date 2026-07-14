@@ -62,8 +62,9 @@ Before running a production analysis:
   per-person `K_i`).
 - **`use_mixture=True` needs `K_i`/`K_pop`** on the members (from `pa_thresholds`
   or `thresholds_from_cip`) — otherwise it now raises rather than silently doing
-  nothing. And do **not** combine an already age-adjusted control bound with the
-  mixture (it would double-correct); the mixture does the age adjustment itself.
+  nothing. In mixture mode, age enters through `K_i`; the implementation splits at
+  the lifetime threshold and uses the finite control bound only as a censoring flag,
+  so an age-specific bound from these helpers is safe and is not applied twice.
 - **Very low prevalence + tiny families** carry little information; the estimate
   approaches the population mean and the gain over case/control shrinks.
 - **Install `[fast]`** (Numba) for large runs; the pure-Python fallback is

@@ -12,20 +12,22 @@ The two shared-environment components differ in a way that matters. Sibs share b
 genes and `C` (`A = 0.5`), so **ignoring a real `C` inflates the additive estimate**
 — sib resemblance is over-credited to genetics. Mates share `M` but no genes
 (`A = 0`), so they carry ~zero weight in the additive regression: **ignoring a real
-`M` leaves the additive estimate essentially unbiased** (a small residual can remain
-from imputing under the misspecified model). `M` is worth fitting for its own sake
-(quantifying / testing spousal resemblance), not to de-bias `h²`.
+`M` biases the additive estimate much less than ignoring `C`** (a residual can remain
+from imputing under the misspecified model, especially when `M` is large). `M` is
+worth fitting for its own sake (quantifying / testing spousal resemblance), not only
+to de-bias `h²`.
 
 This benchmark makes both points empirically on simulated data (liabilities drawn
 from `a2 A + s2 K + e2 I`, thresholded, so ground truth is known):
 
   (a) **A+M recovery** — sweep the true couple variance `m2`; fit `("A", "M")` over
       many independent cohorts and read mean(fitted) - true and the across-replicate
-      SD. Both should be unbiased, with no spurious `M` at `m2 = 0`.
+      SD. At `m2 = 0`, report the small positive boundary estimate expected from
+      the nonnegative constraint; it is not a hypothesis-test rejection rate.
   (b) **bias from ignoring shared environment** — put the *same* shared-environment
       variance `s2` in once as `C` (sibship) and once as `M` (couple), then fit the
       **additive-only** model `("A",)`. The `C` version inflates `A`; the `M`
-      version leaves `A` essentially unbiased. This is the identifiability contrast the theory
+      version is much less biased. This is the identifiability contrast the theory
       predicts (algorithm.md, *Relationship-specific environments and identifiability*).
 
     python benchmarks/bench_couple_env.py
@@ -82,7 +84,13 @@ def fit_replicates(roles, props, comps, n_fam, prev, reps, seed0, n_iter, burn_i
     out = {c: np.empty(reps) for c in comps}
     for r in range(reps):
         fams = simulate_vc(roles, props, n_fam, prev, seed0 + r)
-        res = fit_variance_components(fams, comps, n_iter=n_iter, burn_in=burn_in, seed=1)
+        # Use a reproducible but distinct inference stream for every cohort. A fixed
+        # fitter seed would suppress one source of across-replicate Monte-Carlo
+        # variation and synchronize all chains unnecessarily.
+        fit_seed = 1_000_000 + seed0 + r
+        res = fit_variance_components(
+            fams, comps, n_iter=n_iter, burn_in=burn_in, seed=fit_seed
+        )
         for c in comps:
             out[c][r] = res.components[c]
     return out
@@ -100,6 +108,16 @@ def main():
     ap.add_argument("--burn-in", type=int, default=250)
     ap.add_argument("--seed", type=int, default=100)
     args = ap.parse_args()
+
+    if not np.isfinite(args.a2) or not 0.0 <= args.a2 <= 1.0:
+        ap.error("--a2 must be finite and between 0 and 1")
+    for flag, values in (("--m2", args.m2), ("--s2", args.s2)):
+        for value in values:
+            if not np.isfinite(value) or value < 0.0:
+                ap.error(f"{flag} values must be finite and nonnegative")
+            if args.a2 + value > 1.0:
+                ap.error(f"--a2 + {flag} must be <= 1 (got {args.a2 + value:g})")
+
     a2 = args.a2
     kw = dict(n_fam=args.n_fam, prev=args.prev, reps=args.reps,
               n_iter=args.n_iter, burn_in=args.burn_in)
@@ -133,11 +151,15 @@ def main():
         fc = fit_replicates(STRUCT, {"A": a2, "C": s2}, ("A",), seed0=args.seed + 300, **kw)["A"]
         fm = fit_replicates(STRUCT, {"A": a2, "M": s2}, ("A",), seed0=args.seed + 600, **kw)["A"]
         rec = dict(s2=s2, A_ignoreC=float(fc.mean()), A_ignoreC_bias=float(fc.mean() - a2),
-                   A_ignoreM=float(fm.mean()), A_ignoreM_bias=float(fm.mean() - a2))
+                   A_ignoreC_sd=float(fc.std(ddof=1)), A_ignoreM=float(fm.mean()),
+                   A_ignoreM_bias=float(fm.mean() - a2),
+                   A_ignoreM_sd=float(fm.std(ddof=1)))
         panel_b.append(rec)
         rows.append(dict(panel="ignore_bias", a2=a2, **rec, n_fam=args.n_fam, reps=args.reps))
-        print(f"  s2={s2:.1f} | ignore C: A={fc.mean():.3f} ({rec['A_ignoreC_bias']:+.3f}, inflated)"
-              f" | ignore M: A={fm.mean():.3f} ({rec['A_ignoreM_bias']:+.3f}, ~unbiased)")
+        print(f"  s2={s2:.1f} | ignore C: A={fc.mean():.3f} "
+              f"({rec['A_ignoreC_bias']:+.3f}, SD={rec['A_ignoreC_sd']:.3f}; inflated)"
+              f" | ignore M: A={fm.mean():.3f} "
+              f"({rec['A_ignoreM_bias']:+.3f}, SD={rec['A_ignoreM_sd']:.3f}; much less biased)")
 
     write_csv(rows)
     plot(panel_a, panel_b, a2)
@@ -146,11 +168,11 @@ def main():
 
 def write_csv(rows):
     fields = ["panel", "a2", "m2", "s2", "A_mean", "A_bias", "A_sd", "M_mean",
-              "M_bias", "M_sd", "A_ignoreC", "A_ignoreC_bias", "A_ignoreM",
-              "A_ignoreM_bias", "n_fam", "reps"]
+              "M_bias", "M_sd", "A_ignoreC", "A_ignoreC_bias", "A_ignoreC_sd",
+              "A_ignoreM", "A_ignoreM_bias", "A_ignoreM_sd", "n_fam", "reps"]
     path = os.path.join(HERE, "bench_couple_env.csv")
     with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields)
+        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
         w.writeheader()
         w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
 
@@ -174,10 +196,12 @@ def plot(panel_a, panel_b, a2):
     ax[0].legend(fontsize=8)
     # (b) additive-only A bias: ignore C vs ignore M
     s2 = [r["s2"] for r in panel_b]
-    ax[1].plot(s2, [r["A_ignoreC_bias"] for r in panel_b], "-o", color="tab:red",
-               label="ignore C (sibship) → A inflated")
-    ax[1].plot(s2, [r["A_ignoreM_bias"] for r in panel_b], "-o", color="tab:blue",
-               label="ignore M (couple) → A unbiased")
+    ax[1].errorbar(s2, [r["A_ignoreC_bias"] for r in panel_b],
+                   yerr=[r["A_ignoreC_sd"] for r in panel_b], fmt="-o", capsize=3,
+                   color="tab:red", label="ignore C (sibship) → A inflated (± SD)")
+    ax[1].errorbar(s2, [r["A_ignoreM_bias"] for r in panel_b],
+                   yerr=[r["A_ignoreM_sd"] for r in panel_b], fmt="-o", capsize=3,
+                   color="tab:blue", label="ignore M (couple) → much less bias (± SD)")
     ax[1].axhline(0, color="k", lw=1)
     ax[1].set_xlabel("true shared-environment variance s²")
     ax[1].set_ylabel("bias in additive-only Â  (fitted − true)")

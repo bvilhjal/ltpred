@@ -1,9 +1,9 @@
-"""LT-FH / LT-FH++ genetic-liability phenotype vs case/control — heritability,
-age-of-onset (CIP over age), and prevalence change over birth cohorts.
+"""Family-history and family-free personalised liability across registry settings.
 
 The GWAS *phenotype* is the posterior-mean genetic liability
-`E[g | own status + family history (+ age of onset + birth cohort)]`, scored against
-the plain **case/control** label, using **population** cumulative-incidence (CIP)
+`E[g | own status + family history (+ age of onset + birth cohort)]`, compared with
+the plain **case/control** label by correlation with known true `g`, using
+**population** cumulative-incidence (CIP)
 thresholds so it stays valid under case ascertainment (Pedersen 2022/2023).
 
 Age- and cohort-consistent generative model. A liability `ℓ` is fixed; the threshold
@@ -14,25 +14,27 @@ risk**: each relative has an age at death `D` (other-cause mortality), and is ob
 only up to `c = min(D, age now)`; the proband is a living participant. **Observed
 case** iff `a* ≤ c` (pinned at `T(a*) ≈ ℓ`), else **censored control** at `(−∞, T(c))`
 — a relative who dies disease-free is a control censored at their death age, not a
-phantom centenarian. `CIP(age; by) = K(by) / (1 + exp((mid − age)/slope))`, with the
+phantom centenarian. `CIP(age; by) = K(by) / (1 + exp((mid − age) · slope))`, with the
 cohort lifetime prevalence `K(by) = K · R^((by − 1965)/30)` (a secular ratio `R` per
 30 years). Ages are generationally consistent (proband 40–70 born ≈1950–1980, parents
 ≈29–31 y older, grandparents ≈56–58 y); with mortality, grandparents are observed to
 death (~80, ~98 % deceased) with their correct ≈1908 birth cohort.
 
-Two threshold policies are compared throughout:
-  * **cohort-aware** — the LT-FH++/ADuLT personalised threshold
+Two threshold policies are compared:
+  * **cohort-aware** — the personalised threshold
     `Tᵢ = Φ⁻¹(1 − K(ageᵢ ; birth_yearᵢ))`, each person anchored to *their own* birth
     cohort's lifetime prevalence `K(by) = K·R^((by−1965)/30)`;
   * **single-K** — the classical-LTM / original-LT-FH baseline: **one** lifetime
     prevalence `K` (the 1965 reference) for *everyone*, i.e. the same CIP anchor
     regardless of birth cohort (cohort-blind; sex is not modelled either).
-They coincide when there is no secular trend (`R=1`).
+They coincide when there is no secular trend (`R=1`). In pedigree panels (a)–(c),
+the personalised model includes relatives and is an LT-FH++ cohort component.
+Panel (d) uses only each index case and is therefore ADuLT.
 
-Predictors (all use the population CIP): `cc` (own case/control), `count`
-(# observed-case relatives), `LT-FH` (binary, single `K`), `LT-FH++` (age of onset,
-**cohort-aware** thresholds), and `LT-FH++(single-K)` (age of onset but single-K
-thresholds — the cohort-blind mis-specification).
+Predictors in panels (a)–(c): `cc` (own case/control), `count` (# observed-case
+relatives), `LT-FH` (binary, single `K`), `FH + age/cohort CIP` (personalised
+family bounds), and its cohort-blind age-dependent ablation. Panel (d) compares
+cohort-aware ADuLT with the corresponding cohort-blind ADuLT ablation.
 
 Sweeps: (a) **ascertainment** (family-history vs age-of-onset gains); (b)
 **heritability** (accuracy scales with h²); (c) **secular prevalence trend R** —
@@ -43,11 +45,10 @@ range of birth cohorts — two cases with the same age of onset but different co
 have different true liabilities (the earlier-born, lower-prevalence one is more
 extreme), which a single-K analysis collapses. On this pedigree the ranking gain is
 small (the high-weight proband is a living participant spanning ~1950–1980, and the
-wide-cohort grandparents are low-relatedness controls), but for cases drawn across
-1900–2000 at R=4 the own-onset estimate reaches corr 0.50 (cohort-aware) vs 0.38
-(single-K), a ~1.7× effective-N gain — which is why LT-FH++ personalises thresholds
-by birth year. Panel (d) isolates that ranking gain: cases across a widening birth-
-cohort span, each estimated from its own age of onset, cohort-aware vs single-K. The
+wide-cohort grandparents are low-relatedness controls). Panel (d) isolates that
+ranking gain across widening case-cohort spans; at the default R=3 and ±55 years,
+the current replicated result is about 0.51 (cohort-aware) vs 0.40 (single-K), or ~1.66× in
+squared-correlation terms. The
 CIP shape (`--mid`, `--slope`) is configurable; GWAS λ_GC is not tested here.
 
     python benchmarks/bench_fh_prediction.py
@@ -137,7 +138,8 @@ def simulate_cohort(fam_vec, h2, K, n_fam, seed, case_frac=None, proband_age=(40
         Lm = L[:, mem_cols]
         BY, OA = _draw_family(non_g, proband_age, n, rng, death_mean, death_sd)
         Ki = _cohort_K(BY, K, trend_R)                     # cohort prevalence by birth year
-        aoo = convert_liability_to_aoo(Lm, pop_prev=Ki)    # onset under own cohort CIP
+        aoo = convert_liability_to_aoo(Lm, pop_prev=Ki, mid_point=mid,
+                                       slope=slope)        # onset under own cohort CIP
         aoo = np.where(np.isfinite(aoo), np.round(aoo), np.inf)
         obs = aoo <= OA                                    # observed case iff onset before censoring
         return L[:, 0], Lm, OA, Ki, aoo, obs
@@ -189,10 +191,12 @@ def _corr(pred, g):
     return 0.0 if np.std(pred) < 1e-12 else float(np.corrcoef(pred, g)[0, 1])
 
 
-def run_point(fam_vec, h2, K, case_frac, n_fam, reps, method, seed0, proband_age, trend_R):
+def run_point(fam_vec, h2, K, case_frac, n_fam, reps, method, seed0, proband_age,
+              trend_R, mid, slope):
     acc = defaultdict(list)
     for r in range(reps):
-        s = simulate_cohort(fam_vec, h2, K, n_fam, seed0 + r, case_frac, proband_age, trend_R)
+        s = simulate_cohort(fam_vec, h2, K, n_fam, seed0 + r, case_frac,
+                            proband_age, trend_R, mid=mid, slope=slope)
         g = s["g"]
         preds = dict(cc=s["o_status"], count=s["count"],
                      ltfh=estimate(s["fams_bin"], h2, method, seed=seed0 + r)[0],
@@ -203,16 +207,26 @@ def run_point(fam_vec, h2, K, case_frac, n_fam, reps, method, seed0, proband_age
             acc[f"corr_{k}"].append(v)
         acc["effN_ltfh"].append((c["ltfh"] / c["cc"]) ** 2 if c["cc"] > 0 else np.nan)
         acc["effN_age"].append((c["ltfhpp"] / c["ltfh"]) ** 2 if c["ltfh"] > 0 else np.nan)
-        # birth-cohort mis-specification is a bias, not an accuracy, effect:
+        # Store actual truth-referenced errors plus the policy-induced mean shift.
         acc["rmse_ltfhpp"].append(float(np.sqrt(np.mean((preds["ltfhpp"] - g) ** 2))))
         acc["rmse_ltfhpp_one"].append(float(np.sqrt(np.mean((preds["ltfhpp_one"] - g) ** 2))))
-        acc["cohort_bias"].append(float(preds["ltfhpp_one"].mean() - preds["ltfhpp"].mean()))
+        acc["mean_error_ltfhpp"].append(float(np.mean(preds["ltfhpp"] - g)))
+        acc["mean_error_ltfhpp_one"].append(float(np.mean(preds["ltfhpp_one"] - g)))
+        acc["cohort_mean_shift"].append(
+            float(preds["ltfhpp_one"].mean() - preds["ltfhpp"].mean()))
         acc["case_frac"].append(float(s["o_status"].mean()))
-    return {k: float(np.nanmean(v)) for k, v in acc.items()}
+    out = {k: float(np.nanmean(v)) for k, v in acc.items()}
+    for key, values in acc.items():
+        values = np.asarray(values, float)
+        finite = values[np.isfinite(values)]
+        out[f"{key}_se"] = (float(finite.std(ddof=1) / np.sqrt(finite.size))
+                             if finite.size > 1 else np.nan)
+    out["reps"] = reps
+    return out
 
 
 def run_cohort_span(h2, K, span, n, seed, mid, slope, trend_R):
-    """Isolate the birth-cohort **ranking** gain that the pedigree in (a)–(c) dilutes.
+    """Isolate the family-free ADuLT birth-cohort ranking gain.
 
     Cases spanning ±``span`` birth years around 1965, each estimated from its **own**
     age of onset (no family), cohort-aware vs single-``K``. Two cases with the same
@@ -224,19 +238,22 @@ def run_cohort_span(h2, K, span, n, seed, mid, slope, trend_R):
     Ki = _cohort_K(by, K, trend_R)
     g = rng.normal(0.0, np.sqrt(h2), n)
     L = g + rng.normal(0.0, np.sqrt(1.0 - h2), n)
-    aoo = convert_liability_to_aoo(L, pop_prev=Ki)
+    aoo = convert_liability_to_aoo(L, pop_prev=Ki, mid_point=mid, slope=slope)
     obs = rng.uniform(40, 90, n)
     m = np.isfinite(aoo) & (aoo <= obs)                 # observed cases
     a = np.round(aoo[m])
     coh = _thr(a, Ki[m], mid, slope)                    # cohort-aware pin ≈ true liability
     one = _thr(a, K, mid, slope)                        # single-K pin (ignores cohort)
-    return dict(corr_cohort=_corr(h2 * coh, g[m]), corr_single=_corr(h2 * one, g[m]),
+    return dict(corr_adult=_corr(h2 * coh, g[m]),
+                corr_adult_single_k=_corr(h2 * one, g[m]),
                 n_cases=int(m.sum()))
 
 
 def _fmt(m):
-    return (f"cc={m['corr_cc']:.3f} LT-FH={m['corr_ltfh']:.3f} LT-FH++={m['corr_ltfhpp']:.3f} "
-            f"| effN: fh={m['effN_ltfh']:.2f}x age={m['effN_age']:.3f}x")
+    return (f"cc={m['corr_cc']:.3f} LT-FH={m['corr_ltfh']:.3f} "
+            f"FH+age/cohort={m['corr_ltfhpp']:.3f} "
+            f"| effN: fh={m['effN_ltfh']:.2f}±{m['effN_ltfh_se']:.2f}x "
+            f"age={m['effN_age']:.3f}±{m['effN_age_se']:.3f}x")
 
 
 def main():
@@ -248,6 +265,8 @@ def main():
     ap.add_argument("--spans", type=float, nargs="+", default=[10, 25, 40, 55],
                     help="birth-cohort half-spans (± years) for the ranking-gain panel")
     ap.add_argument("--span-trend", type=float, default=3.0, help="trend R for panel (d)")
+    ap.add_argument("--span-reps", type=int, default=3,
+                    help="independent cohorts per birth-cohort-span cell")
     ap.add_argument("--h2", type=float, default=0.5)
     ap.add_argument("--K", type=float, default=0.05)
     ap.add_argument("--mid", type=float, default=60.0)
@@ -257,9 +276,11 @@ def main():
     ap.add_argument("--method", default="pa")
     ap.add_argument("--seed", type=int, default=1)
     args = ap.parse_args()
+    if args.reps < 1 or args.span_reps < 1:
+        ap.error("--reps and --span-reps must be at least 1")
     pa = tuple(args.proband_age)
     base = dict(fam_vec=STRUCT, n_fam=args.n_fam, reps=args.reps, method=args.method,
-                proband_age=pa)
+                proband_age=pa, mid=args.mid, slope=args.slope)
 
     estimate(simulate_cohort(STRUCT, args.h2, args.K, 40, 0, proband_age=pa)["fams_coh"],
              args.h2, args.method)
@@ -272,30 +293,53 @@ def main():
     for cf in [None] + list(args.fractions):
         m = run_point(h2=args.h2, K=args.K, case_frac=cf, seed0=args.seed, trend_R=1.0, **base)
         rows.append(dict(panel="ascertain", h2=args.h2, K=args.K, trend_R=1.0,
-                         target_frac=(cf or 0.0), **m))
+                         target_frac=(cf or 0.0), n_fam=args.n_fam,
+                         mid=args.mid, slope=args.slope, **m))
         print(f"  P={m['case_frac']:.3f} | {_fmt(m)}")
 
     print(f"\n(b) vs heritability  [K={args.K}, 50% ascertained, no cohort trend]")
     for h2 in args.h2s:
         m = run_point(h2=h2, K=args.K, case_frac=0.5, seed0=args.seed + 100, trend_R=1.0, **base)
-        rows.append(dict(panel="h2", h2=h2, K=args.K, trend_R=1.0, target_frac=0.5, **m))
+        rows.append(dict(panel="h2", h2=h2, K=args.K, trend_R=1.0,
+                         target_frac=0.5, n_fam=args.n_fam,
+                         mid=args.mid, slope=args.slope, **m))
         print(f"  h2={h2:.1f} | {_fmt(m)}")
 
     print(f"\n(c) vs secular prevalence trend R  [h2={args.h2}, K={args.K}, 50% ascertained]")
     for R in args.trends:
         m = run_point(h2=args.h2, K=args.K, case_frac=0.5, seed0=args.seed + 200, trend_R=R, **base)
-        rows.append(dict(panel="trend", h2=args.h2, K=args.K, trend_R=R, target_frac=0.5, **m))
-        print(f"  R={R:.1f}/30y | corr coh={m['corr_ltfhpp']:.3f} single-K={m['corr_ltfhpp_one']:.3f} "
-              f"(~equal) | single-K bias={m['cohort_bias']:+.3f} rmse {m['rmse_ltfhpp']:.3f}/{m['rmse_ltfhpp_one']:.3f}")
+        rows.append(dict(panel="trend", h2=args.h2, K=args.K, trend_R=R,
+                         target_frac=0.5, n_fam=args.n_fam,
+                         mid=args.mid, slope=args.slope, **m))
+        print(f"  R={R:.1f}/30y | corr aware={m['corr_ltfhpp']:.3f} "
+              f"cohort-blind={m['corr_ltfhpp_one']:.3f} "
+              f"| blind−aware mean shift={m['cohort_mean_shift']:+.3f} "
+              f"rmse {m['rmse_ltfhpp']:.3f}/{m['rmse_ltfhpp_one']:.3f}")
 
-    print(f"\n(d) cohort RANKING gain vs cohort span of cases  [own onset, R={args.span_trend}]")
+    print(f"\n(d) ADuLT cohort RANKING gain  [no family history, R={args.span_trend}]")
     for span in args.spans:
-        d = run_cohort_span(args.h2, args.K, span, 5 * args.n_fam, args.seed + 300,
-                            args.mid, args.slope, args.span_trend)
-        rows.append(dict(panel="cohortspan", span=span, trend_R=args.span_trend,
-                         corr_ltfhpp=d["corr_cohort"], corr_ltfhpp_one=d["corr_single"]))
+        ds = [run_cohort_span(args.h2, args.K, span, 5 * args.n_fam,
+                              args.seed + 300 + rep, args.mid, args.slope,
+                              args.span_trend) for rep in range(args.span_reps)]
+        coh = np.asarray([d["corr_adult"] for d in ds])
+        one = np.asarray([d["corr_adult_single_k"] for d in ds])
+        d = dict(corr_adult=float(coh.mean()), corr_adult_single_k=float(one.mean()),
+                 se_cohort=(float(coh.std(ddof=1) / np.sqrt(args.span_reps))
+                            if args.span_reps > 1 else np.nan),
+                 se_single=(float(one.std(ddof=1) / np.sqrt(args.span_reps))
+                            if args.span_reps > 1 else np.nan),
+                 n_cases=int(round(np.mean([x["n_cases"] for x in ds]))))
+        rows.append(dict(panel="cohortspan", h2=args.h2, K=args.K, span=span,
+                         trend_R=args.span_trend, n_fam=5 * args.n_fam,
+                         reps=args.span_reps, mid=args.mid, slope=args.slope,
+                         n_cases=d["n_cases"], corr_adult=d["corr_adult"],
+                         corr_adult_se=d["se_cohort"],
+                         corr_adult_single_k=d["corr_adult_single_k"],
+                         corr_adult_single_k_se=d["se_single"]))
         print(f"  ±{span:.0f}y (born {int(BY_REF - span)}-{int(BY_REF + span)}): "
-              f"cohort-aware={d['corr_cohort']:.3f} single-K={d['corr_single']:.3f} (n={d['n_cases']})")
+              f"cohort-aware={d['corr_adult']:.3f}±{d['se_cohort']:.3f} "
+              f"cohort-blind={d['corr_adult_single_k']:.3f}±{d['se_single']:.3f} "
+              f"(mean n={d['n_cases']})")
 
     write_csv(rows)
     plot(rows, args)
@@ -303,12 +347,21 @@ def main():
 
 
 def write_csv(rows):
-    fields = ["panel", "h2", "K", "trend_R", "span", "target_frac", "case_frac",
+    fields = ["panel", "h2", "K", "trend_R", "span", "target_frac", "n_fam",
+              "reps", "mid", "slope", "n_cases", "case_frac",
               "corr_cc", "corr_count", "corr_ltfh", "corr_ltfhpp", "corr_ltfhpp_one",
-              "effN_ltfh", "effN_age", "rmse_ltfhpp", "rmse_ltfhpp_one", "cohort_bias"]
+              "corr_adult", "corr_adult_single_k",
+              "effN_ltfh", "effN_age", "rmse_ltfhpp", "rmse_ltfhpp_one",
+              "mean_error_ltfhpp", "mean_error_ltfhpp_one", "cohort_mean_shift"]
+    metrics = ["case_frac", "corr_cc", "corr_count", "corr_ltfh", "corr_ltfhpp",
+               "corr_ltfhpp_one", "corr_adult", "corr_adult_single_k",
+               "effN_ltfh", "effN_age", "rmse_ltfhpp",
+               "rmse_ltfhpp_one", "mean_error_ltfhpp", "mean_error_ltfhpp_one",
+               "cohort_mean_shift"]
+    fields.extend(f"{name}_se" for name in metrics)
     path = os.path.join(HERE, "bench_fh_prediction.csv")
     with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields)
+        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
         w.writeheader()
         w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
 
@@ -326,19 +379,33 @@ def plot(rows, args):
     C = dict(ltfhpp="#2a78d6", ltfh="#1baf7a", count="#eda100", cc="#888780", one="#e34948")
 
     P = [r["case_frac"] for r in asc]
-    ax[0].plot(P, [r["corr_ltfhpp"] for r in asc], "-o", color=C["ltfhpp"], label="LT-FH++")
-    ax[0].plot(P, [r["corr_ltfh"] for r in asc], "-s", color=C["ltfh"], label="LT-FH")
-    ax[0].plot(P, [r["corr_cc"] for r in asc], "--^", color=C["cc"], label="case/control")
-    ax[0].plot(P, [r["corr_count"] for r in asc], ":d", color=C["count"], label="FH-count")
+    ax[0].errorbar(P, [r["corr_ltfhpp"] for r in asc],
+                   yerr=[r["corr_ltfhpp_se"] for r in asc], fmt="-o",
+                   capsize=2, color=C["ltfhpp"], label="FH + age/cohort CIP")
+    ax[0].errorbar(P, [r["corr_ltfh"] for r in asc],
+                   yerr=[r["corr_ltfh_se"] for r in asc], fmt="-s",
+                   capsize=2, color=C["ltfh"], label="LT-FH")
+    ax[0].errorbar(P, [r["corr_cc"] for r in asc],
+                   yerr=[r["corr_cc_se"] for r in asc], fmt="--^",
+                   capsize=2, color=C["cc"], label="case/control")
+    ax[0].errorbar(P, [r["corr_count"] for r in asc],
+                   yerr=[r["corr_count_se"] for r in asc], fmt=":d",
+                   capsize=2, color=C["count"], label="FH-count")
     ax[0].set_xlabel("proband case fraction (ascertainment)")
     ax[0].set_ylabel("corr(prediction, true g)")
     ax[0].set_title(f"(a) ascertainment (h²={args.h2}, K={args.K})")
     ax[0].legend(fontsize=8)
 
     H = [r["h2"] for r in h2s]
-    ax[1].plot(H, [r["corr_ltfhpp"] for r in h2s], "-o", color=C["ltfhpp"], label="LT-FH++")
-    ax[1].plot(H, [r["corr_ltfh"] for r in h2s], "-s", color=C["ltfh"], label="LT-FH")
-    ax[1].plot(H, [r["corr_cc"] for r in h2s], "--^", color=C["cc"], label="case/control")
+    ax[1].errorbar(H, [r["corr_ltfhpp"] for r in h2s],
+                   yerr=[r["corr_ltfhpp_se"] for r in h2s], fmt="-o",
+                   capsize=2, color=C["ltfhpp"], label="FH + age/cohort CIP")
+    ax[1].errorbar(H, [r["corr_ltfh"] for r in h2s],
+                   yerr=[r["corr_ltfh_se"] for r in h2s], fmt="-s",
+                   capsize=2, color=C["ltfh"], label="LT-FH")
+    ax[1].errorbar(H, [r["corr_cc"] for r in h2s],
+                   yerr=[r["corr_cc_se"] for r in h2s], fmt="--^",
+                   capsize=2, color=C["cc"], label="case/control")
     ax[1].set_xlabel("heritability h²")
     ax[1].set_ylabel("corr(prediction, true g)")
     ax[1].set_title("(b) vs heritability (50% ascertained)")
@@ -346,17 +413,23 @@ def plot(rows, args):
 
     R = [r["trend_R"] for r in trd]
     ax[2].axhline(0.0, color="k", ls=":", lw=1)
-    ax[2].bar([str(r) for r in R], [r["cohort_bias"] for r in trd], color=C["one"], width=0.55)
+    ax[2].bar([str(r) for r in R], [r["cohort_mean_shift"] for r in trd],
+              yerr=[r["cohort_mean_shift_se"] for r in trd], capsize=3,
+              color=C["one"], width=0.55)
     ax[2].set_xlabel("secular prevalence trend  R  (× per 30 y)")
-    ax[2].set_ylabel("single-K liability bias")
-    ax[2].set_title("(c) ignoring cohort biases the estimate (pedigree)")
+    ax[2].set_ylabel("cohort-blind − cohort-aware mean score")
+    ax[2].set_title("(c) ignoring cohort shifts the score (pedigree)")
 
     S = [r["span"] for r in csp]
-    ax[3].plot(S, [r["corr_ltfhpp"] for r in csp], "-o", color=C["ltfhpp"], label="cohort-aware")
-    ax[3].plot(S, [r["corr_ltfhpp_one"] for r in csp], "-x", color=C["one"], label="single-K")
+    ax[3].errorbar(S, [r["corr_adult"] for r in csp],
+                   yerr=[r["corr_adult_se"] for r in csp], fmt="-o",
+                   capsize=2, color=C["ltfhpp"], label="ADuLT: cohort-aware")
+    ax[3].errorbar(S, [r["corr_adult_single_k"] for r in csp],
+                   yerr=[r["corr_adult_single_k_se"] for r in csp], fmt="-x",
+                   capsize=2, color=C["one"], label="ADuLT: cohort-blind")
     ax[3].set_xlabel("birth-cohort half-span of cases  (± years)")
     ax[3].set_ylabel("corr(own-onset estimate, true g)")
-    ax[3].set_title(f"(d) cohort also gives a RANKING gain (R={args.span_trend})")
+    ax[3].set_title(f"(d) ADuLT: cohort personalisation improves ranking (R={args.span_trend})")
     ax[3].legend(fontsize=8)
 
     fig.tight_layout()

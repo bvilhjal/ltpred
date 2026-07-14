@@ -2,38 +2,45 @@
 
 Where ltpred stands and where it is going. See [guide.md](guide.md) for usage,
 [algorithm.md](algorithm.md) for the model and estimators, and
-[../benchmarks/RESULTS.md](../benchmarks/RESULTS.md) for the method comparison.
+[benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
+for model and inference-engine comparisons.
 
 ## Where things stand
 
 ltpred is a from-scratch Python port of LT-FH++. It provides two interchangeable
-estimators of the posterior-mean genetic liability:
+inference engines for posterior-mean genetic liability:
 
-- **Gibbs (LT-FH++)** — a truncated-multivariate-normal sampler (Rcpp port) with
+- **Gibbs** — a truncated-multivariate-normal sampler (Rcpp port) with
   batch-means convergence.
-- **Pearson–Aitken (PA-FGRS)** — a deterministic selection-formula sweep with the
-  age-censored-control mixture. It agrees with Gibbs to correlation 0.9997 and
-  runs 100–360× faster.
+- **Pearson–Aitken (PA)** — a deterministic selection-formula sweep. Its optional
+  PA-FGRS extension adds the age-censored-control mixture. PA agrees with Gibbs
+  to correlation ≥0.997 across the benchmark grid and ran 323–569× faster in the
+  controlled 10-thread timing benchmark.
 
-Both support the classic LT-FH, age-of-onset ADuLT, and PA-FGRS threshold
-encodings; multi-trait estimation is Gibbs-only (PA is single-trait).
+Both support classic LT-FH; personalised pinned bounds used as LT-FH++ with
+relatives or ADuLT without them; and the PA-FGRS interval/mixture encoding.
+Multi-trait estimation is Gibbs-only (PA is single-trait).
 
 **Performance and scale.** The core is Numba-JIT'd and `prange`-parallel, with
 families grouped by structure (canonical form). Streaming batch-means keeps
-standard-error memory at `O(F)`; a precision-matrix `gibbs_params` path is
-~7.7× faster; an array API that skips Python objects is ~105× faster at biobank
-scale; and a float32 bounds option halves memory. (The exploration also showed
+standard-error memory at `O(F)`; the array API skips Python objects and, in the
+current warmed timing run, adds another 7–31× over the PA object path while
+processing 1.6–9.4 million already-aligned families/s. A float32 bounds option
+halves memory. (The exploration also showed
 why int8-quantising the covariance, ldpred3-style, is the wrong lever here.)
 
 **Variance-component fitting.** `fit_heritability` is a data-augmentation
 fixed point (Gibbs augmentation + damped Haseman–Elston update, not posterior
-sampling of h²), validated unbiased across h² 0.2–0.8.
+sampling of h²). Across h² 0.2–0.8, current simulations show small bias relative
+to the across-dataset SD rather than exact unbiasedness.
 `fit_variance_components` fits additive `A` and a **bank of relationship-specific
 shared-environment components** — `C` (sibship, from the full-sib excess) and `M`
 (couple, from the `A = 0` mate pairs) — together by a **multiple Haseman–Elston
 regression** on the same well-mixing collapsed data-augmentation, validated
-unbiased for `A`, `A+C` and `A+M` across family structures, with negligible
-false-positive `C`/`M`. Environment components are validated to be equivalence-class
+approximately unbiased for `A`, `A+C` and `A+M` across family structures. At a
+zero component, the constrained estimates show a small positive boundary floor;
+formal false-positive control comes from the parametric-bootstrap component test.
+Environment components are validated to be equivalence-class
 (PSD) partitions, so a non-PSD vertical parent-offspring "environment" is rejected.
 (This replaced an earlier experimental Bayesian animal-model Gibbs, which mixed
 poorly and showed structure-dependent bias. Dominance `D` is intentionally not
@@ -42,15 +49,19 @@ the **genetic correlation `r_g`** between traits by the cross-trait analogue of
 the same regression — validated ~unbiased near the null with mild attenuation at
 large `|r_g|`. On top of that `r_g` matrix, `fit_genetic_factor` fits a
 **common-factor model `r_g ≈ ΛΛ' + Ψ`** (Genomic-SEM-lite, by MINRES): does one
-latent genetic factor explain the correlations among the traits? — with an `srmr`
-fit index that flags when it does not.
+latent genetic factor explain the correlations among the traits? — with `srmr` as
+an in-sample misfit diagnostic, not a calibrated factor-number test.
 
 **Benchmarks** (`benchmarks/`, `RESULTS.md`) cover accuracy, runtime scaling,
-age-of-onset, and GWAS power (LT-FH++ and PA both ~1.52× effective-N over
-case/control at λ_GC ≈ 1), plus `fit_heritability` quality (unbiased, but
-`h2_se` understates the true SD ~20–30×, so use `bootstrap_fit`), `A+C` recovery,
-and `r_g` recovery, plus **calibration** of the score (self-calibrating under the
-correct model; ranking robust but scale sensitive to a wrong `h²`), **cohort
+age-of-onset, replicated classic LT-FH GWAS power (Gibbs and PA both
+1.47 ± 0.04× effective-N over case/control at λ_GC ≈ 1), and an integrated
+personalized LT-FH++ GWAS with
+age-, sex-, and cohort-dependent CIP, plus `fit_heritability` quality (small bias
+relative to sampling SD, while `h2_se` understates that SD ~20–30×, so use
+`bootstrap_fit`), `A+C` recovery,
+and `r_g` recovery, plus **calibration** of the score (generally near the
+posterior-mean target under the tested correct models, with a rare extended-family
+outlier; ranking robust but scale sensitive to a wrong `h²`), **cohort
 confounding / `λ_GC`** (personalised thresholds keep genomic control valid), and
 **PA robustness / fold-order** (PA tracks Gibbs to corr ≥ 0.998 on stressful
 pedigrees). Real-LD runs go through an opt-in HAPNEST path.
@@ -72,7 +83,9 @@ Python 3.9 and 3.12.
    was to abandon it for a **multiple Haseman–Elston regression** — the validated
    `fit_heritability` data-augmentation generalised to several relationship
    matrices at once. It is unbiased and precise for `A` and `A+C` across
-   structures with negligible false-positive `C` (`bench_variance_components.py`).
+   structures. At true `C=0`, the constrained point estimate has a small positive
+   boundary floor; it is not itself a false-positive rate
+   (`bench_variance_components.py`).
    Dominance `D` was dropped: from sib-only data the non-negativity constraint
    biases it upward (a spurious `D` on additive-only data), so it needs twin
    contrasts. The "experimental" label is lifted.
@@ -131,9 +144,10 @@ likelihood-based inference) to the pedigree/registry setting.
   (minimising the off-diagonal residuals, so the factor(s) explain the cross-trait
   correlations, not each trait's own variance). `srmr` / `prop_explained` read off
   the fit; a single factor needs `P ≥ 3` traits (and `P ≥ 4` to *test* it), and
-  `n_factors` must leave `df = ½((P−m)²−(P+m)) ≥ 0`. Validated: recovers planted
-  loadings end-to-end, and `srmr` rises when a one-factor model is fit to two-factor
-  data (`bench_genetic_factor.py`). It is a descriptive decomposition of a
+  `n_factors` must leave `df = ½((P−m)²−(P+m)) ≥ 0`. In the planted simulation it
+  recovers loadings end-to-end, and `srmr` rises when a one-factor model is fit to
+  two-factor data (`bench_genetic_factor.py`). That demonstrates a diagnostic,
+  not validated model selection. It is a descriptive decomposition of a
   point-estimate `r_g` (bootstrap the pipeline for uncertainty); an optional DWLS
   weighting hook is there for when honest per-`r_g` weights are supplied.
 
@@ -161,27 +175,34 @@ likelihood-based inference) to the pedigree/registry setting.
    father, mother)` builds the additive relationship matrix `A` from an arbitrary
    pedigree (recursive tabular method, handles inbreeding);
    `construct_covmat_from_kinship` turns `A` into the liability covariance and
-   `estimate_liability_from_kinship` runs the sampler on it. This generalises past
+   `estimate_liability_from_kinship` runs PA by default or Gibbs on request. This generalises past
    the fixed role grammar — it reproduces the role-based covariance and estimates
    entry-for-entry where they overlap, and additionally handles half-sibs of any
    degree, cousins and inbred pedigrees. (The role grammar itself is the compact
    special case; a role-less array interface — `A` + per-member bounds — replaces
    the originally-envisaged `families_from_pedigree` object builder.)
 
-5. **Expand benchmark diagnostics.** *Mostly done.* Three benchmarks landed:
+5. **Expand benchmark diagnostics.** *Mostly done.* Four benchmarks landed:
    `bench_calibration.py` adds slope/intercept and **decile (tail) calibration** to
-   the correlation-only accuracy story (the correctly-specified estimate is a
-   self-calibrating posterior mean; a wrong `h²` tilts the scale but not the ranking —
-   the complement to `liability_sensitivity`); `bench_confounding.py` shows
+   the correlation-only accuracy story (most correctly specified cells are near
+   slope 1, with a rare extended-family outlier; a wrong `h²` tilts the scale but
+   barely changes ranking — the complement to `liability_sensitivity`);
+   `bench_confounding.py` shows
    cohort-blind (single-K) thresholds **inflate `λ_GC`** under a secular prevalence
-   trend while cohort-aware LT-FH++ holds it at ≈1 (valid genomic control, not just
-   power); `bench_pa_robustness.py` confirms **PA tracks Gibbs to corr ≥ 0.998** on
-   large/rare/densely-affected pedigrees with negligible **fold-in-ordering**
-   sensitivity. **Mixture validation** is *deferred*: a clean LTM check showed the
-   censored-control mixture's effect is highly sensitive to the control-bound
-   convention, and that the documented `pa_thresholds` (age bounds) + `use_mixture`
-   path appears to **double-correct** the censoring — flagged for a focused
-   investigation against the PA-FGRS paper before it can be benchmarked honestly.
+   trend while the cohort-aware family ablation stays near 1 on average;
+   `bench_pa_robustness.py`
+   confirms **PA tracks Gibbs to corr ≥ 0.998** on large/rare/densely-affected
+   pedigrees, with median fold-order spread below 0.12% and p95 below 3.4% of the
+   between-proband SD; `bench_ltfhpp_personalization.py` is the integrated genotype-GWAS
+   benchmark with age-, sex-, and cohort-specific CIP, onset/follow-up, competing
+   mortality, ascertainment, and stratified null variants. Its matched ADuLT arm
+   uses identical proband bounds without relatives, directly measuring the
+   LT-FH++ family-history increment. Its prespecified
+   sex-isolation panel shows a clear stratum-calibration benefit but no resolved
+   adjusted-power increment, rather than conflating those two claims. **Mixture validation**
+   remains deferred: the implementation now correctly splits at the lifetime
+   threshold (the age-specific upper bound only flags censoring), but a dedicated
+   generative benchmark against the PA-FGRS censoring model is still needed.
 
 6. **Censoring-aware CIPs.** Helpers and guidance for Kaplan–Meier /
    Aalen–Johansen incidence with competing risks (death, emigration), for
@@ -203,10 +224,11 @@ likelihood-based inference) to the pedigree/registry setting.
 9. **Chunked/streaming driver** so biobank runs never hold all families in
    memory at once.
 
-10. **End-to-end GWAS example** (HAPNEST genotypes → liability → LMM GWAS) plus
-    covariate/residualisation helpers.
+10. **End-to-end real-LD GWAS example** (HAPNEST genotypes → liability → LMM GWAS).
+    The independent-SNP integrated LT-FH++ benchmark and covariate residualisation
+    are now present; real-LD orchestration remains opt-in work.
 
-11. **API-docs site** (MkDocs/Sphinx) and PyPI packaging.
+11. **PyPI packaging.** The MkDocs API/user-guide site and strict CI build are in place.
 
 12. **Multi-trait PA approximation**, if it can be made accurate, for scalable
     multi-trait analysis.

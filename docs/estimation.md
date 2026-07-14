@@ -32,11 +32,13 @@ res = estimate_liability(families, h2=0.5, out=("genetic",))
 
 - `h2` — liability-scale heritability (scalar; a vector selects the multi-trait
   model, below).
-- `method` — the **default** is the deterministic **Pearson–Aitken** (PA-FGRS)
-  estimator for a single trait (fast, matches Gibbs to ~1e-2), falling back to
+- `method` — the **default** is the deterministic **Pearson–Aitken** (PA)
+  inference engine for a single trait (fast, matches Gibbs to ~1e-2), falling back to
   **Gibbs** for the multi-trait model. Pass `"gibbs"` to force the sampler (needed
   for multiple traits, a Monte-Carlo SE, or posterior draws), or `"pearson-aitken"`
-  (aliases `"pa"`, `"pa-fgrs"`) to force PA.
+  (aliases `"pa"`, `"aitken"`) to force PA. Bounds determine the observation
+  encoding; inclusion of relatives distinguishes LT-FH++ from ADuLT. The engine
+  is orthogonal to both.
 - `out` — which liabilities to return: `"genetic"` (the proband's `g`), `"full"`
   (the proband's `o`), or both.
 - `use_mixture` — PA only: turn on the age-censored-control mixture (needs
@@ -109,13 +111,17 @@ truncated — treat Gibbs as the reference and cross-check.
 | kind | Monte-Carlo (truncated-MVN sampler) | deterministic sequential-selection approximation |
 | error | batch-means MC SE (`res.se`) | no Monte-Carlo error, but a non-zero sequential moment-approximation error; gives `Var(G_i \| family)` in `res.var` |
 | exactness | exact in the limit of infinite draws | exact for 1 truncation, close approx for families |
-| speed | ~570 families/s (10 cores) | ~150 000 families/s — **100–360× faster** |
+| speed | 246–803 families/s (10 threads) | 138k–298k families/s — **323–569× faster** across tested sizes/structures |
 | censoring mixture | not implemented | `use_mixture=True` |
+
+Those rates are machine-specific medians from five warmed timings per point;
+`benchmarks/RESULTS.md` reports the configuration and IQR-backed grid. Treat the
+range as evidence about scale, not a hardware promise.
 
 **Rule of thumb:** the default already picks **Pearson–Aitken** for single-trait
 runs — keep it for biobank-scale cohorts and the age-censoring mixture; pass
-`method="gibbs"` when you want posterior draws, a sampling-based cross-check, or the
-exact LT-FH++ reference behaviour. For the `genetic` score they agree closely and
+`method="gibbs"` when you want posterior draws, a sampling-based cross-check, or
+the exact truncated-MVN reference behaviour. For the `genetic` score they agree closely and
 give the same downstream GWAS power on the benchmarked structures.
 
 ## Scaling to large cohorts
@@ -136,7 +142,8 @@ est, var = estimate_liability_pa_arrays(
 ```
 
 This runs the covariance construction once and the parallel PA kernel directly —
-in practice ~100× faster than the object path at large `N` (and
+7–31× faster than the object path in the current warmed timing grid, at
+1.6–9.4 million already-aligned families/s (and
 `estimate_liability_gibbs_arrays` does the same for Gibbs, returning `(est, se)`).
 Control the thread count with `ltpred.set_num_threads(n)`, and warm up once (the
 first call JIT-compiles) before timing. Different family structures still need
@@ -206,9 +213,10 @@ y = (y - y.mean()) / y.std()                     # center + scale (after covaria
 chi2 = len(y) * ((Xs.T @ y) / len(y)) ** 2       # 1-df association statistic per SNP
 ```
 
-After centering/residualization the phenotype is continuous and stays well
-calibrated (λ_GC ≈ 1 in the benchmarks) while lifting the association signal at
-causal variants — a ~1.5× effective-sample-size gain over the case/control label.
+After centering/residualization the phenotype is continuous and is near
+λ_GC = 1 on average in the benchmark replicates while lifting the association
+signal at causal variants — a 1.47 ± 0.04× effective-sample-size gain over the
+case/control label in the replicated classic-LT-FH GWAS.
 Personalising the thresholds by birth cohort (see [data preparation](data-preparation.md#getting-lowerupper-from-status-and-age))
 is what keeps `λ_GC` valid under a secular prevalence trend.
 

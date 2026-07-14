@@ -1,11 +1,13 @@
-"""Posterior mean liabilities -- the LT-FH++ phenotype.
+"""Posterior mean liabilities for LT-FH, LT-FH++, ADuLT and PA-FGRS.
 
-For each proband this runs the truncated-MVN Gibbs sampler over the family
-covariance, conditioning every member on their liability interval, and returns
-the posterior mean of the proband's genetic liability ``g`` (and/or full liability
-``o``). That posterior mean is the continuous phenotype LT-FH++ feeds to a GWAS:
-it uses a case's relatives and age to sharpen the estimate of their genetic
-value, recovering power a plain case/control label throws away.
+For each proband this conditions a family covariance on every member's liability
+interval and returns the posterior mean of the proband's genetic liability ``g``
+(and/or full liability ``o``). Single-trait inference defaults to the deterministic
+Pearson-Aitken engine; Gibbs remains the reference and handles multiple traits.
+That posterior mean is the continuous phenotype fed to a GWAS. The observation
+bounds and presence or absence of relatives determine the model; ``method`` only
+selects the inference engine. In particular, PA is the single-trait default, but
+it does not turn classic LT-FH inputs into LT-FH++ automatically.
 
 Families are independent, so the estimator groups those that share a family
 structure (identical roles -> identical covariance) and samples the whole group
@@ -35,7 +37,7 @@ __all__ = ["LiabilityResult", "batch_means", "estimate_liability",
            "estimate_liability_gibbs_arrays", "estimate_liability_from_kinship",
            "SensitivityResult", "liability_sensitivity"]
 
-_PA_METHODS = {"pa", "pearson-aitken", "pearson_aitken", "aitken", "pa-fgrs"}
+_PA_METHODS = {"pa", "pearson-aitken", "pearson_aitken", "aitken"}
 
 _OUT_ALIASES = {"genetic": 0, "g": 0, 0: 0, "full": 1, "o": 1, 1: 1}
 _OUT_NAMES = {0: "genetic", 1: "full"}
@@ -345,11 +347,11 @@ def _ordered_bounds_pa(family, cov_roles):
 
 def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
                           dtype=np.float64):
-    """Deterministic Pearson-Aitken (PA-FGRS) liability estimation, one trait.
+    """Deterministic Pearson-Aitken liability inference for one trait.
 
     A closed-form alternative to :func:`estimate_liability_single`: no sampling, no
     tolerance, no Monte-Carlo error. ``out=("genetic",)`` estimates the proband's
-    genetic liability ``g`` conditional on the whole family (the PA-FGRS score);
+    genetic liability ``g`` conditional on the whole family;
     ``"full"`` targets ``o`` and predicts the proband's full liability from the
     *relatives* (its own status is the target and so is not conditioned on).
     ``use_mixture=True`` turns on the age-censored-control mixture, using each
@@ -494,7 +496,7 @@ def _align_to_cov(roles, cov_roles, columns, defaults):
 
 def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
                                  K_i=None, K_pop=None, use_mixture=False):
-    """Array-level PA-FGRS estimator — skips ``Family``/``Member`` objects.
+    """Array-level Pearson-Aitken estimator — skips ``Family``/``Member`` objects.
 
     The production fast path for many same-structure probands: ``roles`` is the
     shared list of member roles (``o`` and relatives; ``g`` is added), and ``lower``
@@ -524,7 +526,7 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
 def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic",
                                     tol=0.01, n_sim=100_000, burn_in=1000,
                                     seed=None, max_rounds=100):
-    """Array-level Gibbs (LT-FH++) estimator — skips ``Family``/``Member`` objects.
+    """Array-level Gibbs inference — skips ``Family``/``Member`` objects.
 
     Same array inputs as :func:`estimate_liability_pa_arrays` (float32 ``lower``/
     ``upper`` halve their memory). Returns ``(est, se)`` (posterior mean and
@@ -547,19 +549,24 @@ def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic",
 
 def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="genetic",
                                     tol=0.01, n_sim=100_000, burn_in=1000, seed=None,
-                                    max_rounds=100):
+                                    max_rounds=100, method=None):
     """Estimate a target individual's liability from an **arbitrary pedigree**.
 
-    The kinship-based counterpart of :func:`estimate_liability_gibbs_arrays`: instead
-    of the fixed role grammar you pass the additive relationship matrix ``A``
+    The kinship-based counterpart of the array estimators: instead of the fixed role
+    grammar you pass the additive relationship matrix ``A``
     (``n×n``, e.g. from :func:`~ltpred.covariance.kinship_from_pedigree`) shared by a
     batch of families, and the per-individual truncation bounds. ``lower``/``upper``
     are ``(n_families, n)`` (one column per pedigree member, in ``A`` order); the
     genetic-liability row for ``target`` is added internally and left unbounded.
 
     ``out`` selects ``"genetic"`` (the target's genetic liability — the usual
-    LT-FH++ phenotype) or ``"full"`` (its full liability). Returns ``(est, se)``,
-    each length ``n_families``. The covariance is built by
+    family-history GWAS phenotype) or ``"full"`` (its full liability). ``method=None`` uses the
+    deterministic Pearson-Aitken engine, matching the main single-trait default;
+    pass ``method="gibbs"`` for reference sampling. Returns ``(est, uncertainty)``,
+    where the second array is posterior variance for PA and Monte-Carlo SE for Gibbs.
+    As in the object PA API, PA ``out="full"`` predicts the target's full liability
+    from the other members without conditioning on its own bound; Gibbs conditions
+    on all supplied bounds. Each array has length ``n_families``. The covariance is built by
     :func:`~ltpred.covariance.construct_covmat_from_kinship`, so results match the
     role-based estimator whenever the pedigree encodes the same relationships — but
     this also handles half-sibs of any degree, cousins, and inbred pedigrees."""
@@ -583,6 +590,13 @@ def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="gene
     hi = np.ascontiguousarray(np.concatenate([pos, upper], axis=1))
     tgt = 0 if out_coord == 0 else 1 + int(target)     # g row, or the target's o row
 
+    if method is None:
+        method = "pearson-aitken"
+    if str(method).lower() in _PA_METHODS:
+        return pa_estimate_batched(cov, lo, hi, target=tgt)
+    if str(method).lower() != "gibbs":
+        raise ValueError(f"unknown method {method!r}; use 'gibbs' or 'pearson-aitken'")
+
     seeds = _base_seeds(seed, F, max_rounds)
     est, se = _estimate_group(cov, [tgt], lo, hi, seeds, tol, n_sim, burn_in,
                               max_rounds)
@@ -595,11 +609,15 @@ def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",),
                        burn_in=1000, seed=None, max_rounds=100, dtype=np.float64):
     """Estimate posterior liabilities, dispatching on method and trait count.
 
-    ``method`` selects the estimator; the **default** (``None``) picks the deterministic
-    **Pearson-Aitken (PA-FGRS)** estimator for a single trait — it matches the Gibbs
+    The bounds in ``families`` and whether relative rows are present determine the
+    model (LT-FH, LT-FH++, ADuLT or PA-FGRS). ``method`` selects only the numerical
+    inference engine.
+
+    ``method`` selects the inference engine; the **default** (``None``) picks the
+    deterministic **Pearson-Aitken (PA)** estimator for a single trait — it matches the Gibbs
     posterior mean to ~1e-2 and is 100-350x faster — and falls back to the **Gibbs**
     sampler for the multi-trait model, which PA does not support. Pass ``method``
-    explicitly to override: ``"pearson-aitken"`` (aliases ``"pa"``, ``"pa-fgrs"``;
+    explicitly to override: ``"pearson-aitken"`` (aliases ``"pa"``, ``"aitken"``;
     single trait only, ``use_mixture`` enables the age-censored-control correction) or
     ``"gibbs"`` (the truncated-MVN sampler; needed for multiple traits, or when you
     want a Monte-Carlo SE or posterior draws). An explicit ``method="pearson-aitken"``
@@ -657,7 +675,7 @@ class SensitivityResult:
     out: str
 
 
-def liability_sensitivity(families, h2_values, *, method="gibbs", out="genetic",
+def liability_sensitivity(families, h2_values, *, method=None, out="genetic",
                           seed=None, **est_kwargs):
     """Sweep the assumed ``h2`` and report how much the liability estimate moves.
 

@@ -84,8 +84,13 @@ def panel_correct(n_fam, h2, prevs, n_sim, seed):
             rows.append(dict(panel="correct", structure=sname, prevalence=prev,
                              assumed_h2=h2, true_h2=h2,
                              slope_gibbs=cg["slope"], slope_pa=cp["slope"],
-                             intercept_gibbs=cg["intercept"], corr_gibbs=cg["corr"],
-                             cal_rmse_gibbs=cg["cal_rmse"], top_ratio_gibbs=cg["top_ratio"]))
+                             intercept_gibbs=cg["intercept"],
+                             intercept_pa=cp["intercept"],
+                             corr_gibbs=cg["corr"], corr_pa=cp["corr"],
+                             cal_rmse_gibbs=cg["cal_rmse"],
+                             cal_rmse_pa=cp["cal_rmse"],
+                             top_ratio_gibbs=cg["top_ratio"],
+                             top_ratio_pa=cp["top_ratio"]))
     return rows
 
 
@@ -106,9 +111,11 @@ def panel_misspec(n_fam, true_h2, assumed_grid, prev, seed):
               % (a_h2, c["slope"], c["corr"], c["top_ratio"], flag))
         rows.append(dict(panel="misspec", structure="parents+sibs", prevalence=prev,
                          assumed_h2=a_h2, true_h2=true_h2, slope_gibbs="",
-                         slope_pa=c["slope"], intercept_gibbs=c["intercept"],
-                         corr_gibbs=c["corr"], cal_rmse_gibbs=c["cal_rmse"],
-                         top_ratio_gibbs=c["top_ratio"]))
+                         slope_pa=c["slope"], intercept_gibbs="",
+                         intercept_pa=c["intercept"], corr_gibbs="",
+                         corr_pa=c["corr"], cal_rmse_gibbs="",
+                         cal_rmse_pa=c["cal_rmse"], top_ratio_gibbs="",
+                         top_ratio_pa=c["top_ratio"]))
     return rows, sim, g
 
 
@@ -145,11 +152,12 @@ def main():
 
 def write_csv(rows):
     fields = ["panel", "structure", "prevalence", "assumed_h2", "true_h2",
-              "slope_gibbs", "slope_pa", "intercept_gibbs", "corr_gibbs",
-              "cal_rmse_gibbs", "top_ratio_gibbs"]
+              "slope_gibbs", "slope_pa", "intercept_gibbs", "intercept_pa",
+              "corr_gibbs", "corr_pa", "cal_rmse_gibbs", "cal_rmse_pa",
+              "top_ratio_gibbs", "top_ratio_pa"]
     path = os.path.join(HERE, "bench_calibration.csv")
     with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields)
+        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
         w.writeheader()
         w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
 
@@ -175,7 +183,7 @@ def plot(rows, true_h2, curves):
     ms.sort(key=lambda r: r["assumed_h2"])
     a = [r["assumed_h2"] for r in ms]
     slope = [r["slope_pa"] for r in ms]
-    corr = [r["corr_gibbs"] for r in ms]
+    corr = [r["corr_pa"] for r in ms]
     ax[1].plot(a, slope, "-o", color="#B95C3C", label="calibration slope")
     ax[1].plot(a, corr, "-s", color="#3B4A9C", label="corr(est, true g)")
     ax[1].axhline(1.0, color="k", ls=":", lw=1)
