@@ -9,12 +9,13 @@ with both back-ends, and reports:
   * corr(estimate, true g)          -- the headline accuracy
   * slope of true_g ~ estimate      -- calibration (1.0 = well-calibrated posterior mean)
   * RMSE(estimate, true g)
-  * eff-N gain = (corr / corr_status)^2 vs the raw case/control label
+  * squared-correlation effective-N proxy =
+    (corr / corr_status)^2 vs the raw case/control label
 
 The two methods should track each other closely (PA is a fast deterministic
 approximation to the Gibbs posterior mean). Absolute accuracy rises with h2,
-prevalence, and informative relatives; the *relative* effective-N gain over a
-case/control label is largest at low prevalence.
+prevalence, and informative relatives; the *relative* squared-correlation
+effective-N proxy over a case/control label is largest at low prevalence.
 
     python benchmarks/bench_accuracy.py                 # default grid
     python benchmarks/bench_accuracy.py --n-fam 3000
@@ -43,8 +44,8 @@ def _metrics(est, true_g, status):
     slope = np.polyfit(est, true_g, 1)[0]
     rmse = float(np.sqrt(np.mean((est - true_g) ** 2)))
     corr_status = np.corrcoef(status.astype(float), true_g)[0, 1]
-    gain = (corr / corr_status) ** 2 if corr_status > 0 else np.nan
-    return corr, slope, rmse, gain
+    eff_n_proxy = (corr / corr_status) ** 2 if corr_status > 0 else np.nan
+    return corr, slope, rmse, eff_n_proxy
 
 
 def run(n_fam, h2s, prevs, n_sim, seed):
@@ -63,11 +64,12 @@ def run(n_fam, h2s, prevs, n_sim, seed):
                                  corr_gibbs=cg[0], corr_pa=cp[0],
                                  slope_gibbs=cg[1], slope_pa=cp[1],
                                  rmse_gibbs=cg[2], rmse_pa=cp[2],
-                                 gain_gibbs=cg[3], gain_pa=cp[3],
+                                 eff_n_proxy_gibbs=cg[3],
+                                 eff_n_proxy_pa=cp[3],
                                  gibbs_pa_corr=agree, t_gibbs=t_g, t_pa=t_p))
                 print(f"{sname:14s} h2={h2:.1f} K={prev:.2f} | "
-                      f"corr Gibbs={cg[0]:.3f} PA={cp[0]:.3f} | "
-                      f"gain={cg[3]:.2f}x | agree={agree:.4f} | "
+                      f"corr PA={cp[0]:.3f} Gibbs={cg[0]:.3f} | "
+                      f"PA eff-N proxy={cp[3]:.2f}x | agree={agree:.4f} | "
                       f"t: {t_g:.2f}s / {t_p:.3f}s")
     return rows
 
@@ -99,24 +101,25 @@ def plot(rows):
     for sname in STRUCTURES:
         sub = [r for r in rows if r["structure"] == sname and r["h2"] == 0.5]
         sub.sort(key=lambda r: r["prevalence"])
-        axes[1].plot([r["prevalence"] for r in sub], [r["corr_gibbs"] for r in sub],
+        axes[1].plot([r["prevalence"] for r in sub], [r["corr_pa"] for r in sub],
                      "-o", label=sname)
     axes[1].set_xscale("log")
     axes[1].set_xlabel("prevalence")
-    axes[1].set_ylabel("corr(estimate, true g)")
-    axes[1].set_title("(b) accuracy vs prevalence (h2=0.5)")
+    axes[1].set_ylabel("corr(PA estimate, true g)")
+    axes[1].set_title("(b) PA accuracy vs prevalence (h2=0.5)")
     axes[1].legend(fontsize=8)
-    # (c) effective-N gain vs case/control, by h2 (extended family)
+    # (c) squared-correlation effective-N proxy, by h2 (extended family)
     for h2 in sorted({r["h2"] for r in rows}):
         sub = [r for r in rows if r["structure"] == "extended" and r["h2"] == h2]
         sub.sort(key=lambda r: r["prevalence"])
-        axes[2].plot([r["prevalence"] for r in sub], [r["gain_gibbs"] for r in sub],
+        axes[2].plot([r["prevalence"] for r in sub],
+                     [r["eff_n_proxy_pa"] for r in sub],
                      "-o", label=f"h2={h2}")
     axes[2].axhline(1.0, color="k", ls=":", lw=1)
     axes[2].set_xscale("log")
     axes[2].set_xlabel("prevalence")
-    axes[2].set_ylabel("eff-N gain vs case/control")
-    axes[2].set_title("(c) power gain (extended family)")
+    axes[2].set_ylabel("squared-correlation eff-N proxy vs case/control")
+    axes[2].set_title("(c) PA effective-N proxy (extended family)")
     axes[2].legend(fontsize=8)
     fig.tight_layout()
     fig.savefig(os.path.join(HERE, "bench_accuracy.png"), dpi=130)

@@ -313,8 +313,11 @@ weights `Cov(g,l_F)Var(l_F)^-1`. Hence:
 `bench_fh_prediction` shows both faces: on the pedigree it is mostly a mean-score
 shift (and a truth-referenced single-`K` error) because the high-weight proband spans
 a narrow living cohort, while the replicated own-onset panel isolates the ranking
-gain — about 1.66× effective N at the widest tested cohort span. Pinning (a point
-mass) is handled exactly by both estimators.
+gain — about 1.66× in the squared-correlation effective-N proxy at the widest
+tested cohort span. This is a prediction proxy, not a causal-SNP noncentrality
+ratio. Both pedigree variants in that benchmark use PA; the change is in their
+bounds, not their inference engine. Pinning (a point mass) is handled exactly by
+both estimators.
 
 ## Inference engine 1: Gibbs sampler
 

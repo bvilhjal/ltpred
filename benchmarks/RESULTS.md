@@ -21,31 +21,37 @@ independent simulated cohorts. Tables labelled SD instead report the empirical
 across-cohort standard deviation. Some diagnostic grids remain single-seed
 illustrations; those are identified rather than dressed up as certainty.
 
+Metric names matter here. **NCP ratio** means a ratio of causal-SNP chi-square
+noncentrality components. **Eff-N proxy** means a squared-correlation ratio to
+case/control. The latter is useful for prediction comparisons but is not an
+observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable.
+
 ## Headline findings
 
 - **PA is the right default for single-trait work.** Across the 27-cell accuracy
   grid, corr(PA, Gibbs) is 0.9972–0.9999. The stressful-pedigree benchmark remains
   at least 0.9984. PA and Gibbs also give indistinguishable downstream GWAS
   results. In the isolated 10-thread timing run, the PA object path is
-  **323–569× faster** than grouped Gibbs across the tested sizes and pedigrees.
+  **315–510× faster** than grouped Gibbs across the tested sizes and pedigrees.
 - **Classic LT-FH improves genotype-GWAS signal without average null inflation.**
-  Across three genotype/effect/cohort replicates, both engines deliver about
-  **1.47 ± 0.04× effective N** over case/control.
+  Across three genotype/effect/cohort replicates, the same classic LT-FH model
+  inferred by either PA or Gibbs delivers a causal-SNP NCP ratio of
+  **1.47 ± 0.04×** over case/control.
 - **Full personalised LT-FH++ adds family-history value beyond matched ADuLT.**
   With identical age/sex/cohort proband bounds, ADuLT reaches **1.049 ± 0.004×**
-  adjusted effective N over case/control and full LT-FH++ reaches
+  adjusted causal-SNP NCP ratio over case/control and full LT-FH++ reaches
   **1.194 ± 0.006×**. The paired LT-FH++ minus ADuLT increment is
-  **+0.1454 ± 0.0154** effective-N units (95% CI half-width). Full LT-FH++ has
+  **+0.1454 ± 0.0154** NCP-ratio units (95% CI half-width). Full LT-FH++ has
   adjusted calibration slope **0.995 ± 0.015** and PA/Gibbs agreement 0.99990.
 - **Sex-specific CIP improves stratum calibration, not proven adjusted power.**
   In a prespecified sex-only scenario, correct sex curves close the female-minus-
   male mean-score-error gap by **0.05091 ± 0.00096** (paired 95% CI), while the
-  adjusted effective-N increment is **0.0040 ± 0.0046** and remains unresolved.
+  adjusted NCP-ratio increment is **0.0040 ± 0.0046** and remains unresolved.
 - **Cohort personalisation has two distinct benefits.** In a narrow living-proband
   pedigree it mainly corrects a mean-score shift; in the family-free ADuLT panel,
   cases spanning ±55 birth years reach corr 0.512 ± 0.007 with cohort-aware
   thresholds versus 0.397 ± 0.017 when cohort is ignored (about 1.66× in
-  squared-correlation terms).
+  the squared-correlation eff-N proxy).
 - **Variance-component point estimates need sampling uncertainty.** The fitter's
   reported Monte Carlo SE is much smaller than empirical across-cohort SD. Use
   family bootstrap intervals for inference. A constrained component estimate at
@@ -55,7 +61,7 @@ illustrations; those are identified rather than dressed up as certainty.
 
 Single simulated cohorts, 1,500 families per cell. At h²=0.5 and K=0.05:
 
-| Family structure | corr Gibbs | corr PA | PA eff-N / case-control | corr(PA, Gibbs) |
+| Family structure | corr Gibbs | corr PA | PA squared-correlation eff-N proxy / case-control | corr(PA, Gibbs) |
 |---|---:|---:|---:|---:|
 | parents | 0.394 | 0.394 | 1.29× | 0.9997 |
 | parents + 2 siblings | 0.440 | 0.440 | 1.78× | 0.9997 |
@@ -72,18 +78,18 @@ Five warmed timings per point, reported as medians; Python 3.13.5, Numba 0.61.0,
 10 Numba threads, h²=0.5, K=0.05, and 25,000 Gibbs draws. No other benchmark ran
 concurrently.
 
-### Number of trio families
+### Scaling with number of families (parents + one sibling)
 
 | families | Gibbs families/s | PA object families/s | PA array families/s | object speed-up |
 |---:|---:|---:|---:|---:|
-| 500 | 616 | 257,428 | 1.95 M | 418× |
-| 1,000 | 657 | 240,036 | 4.05 M | 365× |
-| 2,000 | 571 | 255,508 | 1.79 M | 447× |
-| 4,000 | 599 | 290,873 | 4.92 M | 486× |
-| 8,000 | 655 | 298,032 | 9.36 M | 455× |
+| 500 | 654 | 224,027 | 2.11 M | 343× |
+| 1,000 | 606 | 211,930 | 3.18 M | 349× |
+| 2,000 | 626 | 261,006 | 1.55 M | 417× |
+| 4,000 | 677 | 240,743 | 2.74 M | 355× |
+| 8,000 | 724 | 280,243 | 8.63 M | 387× |
 
 The object path includes `Family`/`Member` bounds assembly and grouping. The
-array path receives already aligned, repeatedly reused arrays; its 1.8–9.4
+array path receives already aligned, repeatedly reused arrays; its 1.6–8.6
 million families/s is therefore a hot-kernel measurement, not end-to-end input
 preparation. Its very short calls also make cache and scheduler effects visible,
 so use the CSV IQRs rather than interpreting the non-monotone point rates.
@@ -92,15 +98,15 @@ so use the CSV IQRs rather than interpreting the non-monotone point rates.
 
 | relatives | structure | Gibbs time | PA object time | PA array time | object speed-up |
 |---:|---|---:|---:|---:|---:|
-| 2 | parents | 2.49 s | 0.0077 s | 0.00031 s | 323× |
-| 3 | + sibling | 3.31 s | 0.0095 s | 0.00043 s | 348× |
-| 5 | + two grandparents | 4.83 s | 0.0145 s | 0.00071 s | 334× |
-| 7 | extended | 6.09 s | 0.0116 s | 0.00092 s | 525× |
-| 10 | extended + aunts | 8.12 s | 0.0143 s | 0.00122 s | 569× |
+| 2 | parents | 2.03 s | 0.0064 s | 0.00028 s | 315× |
+| 3 | + sibling | 2.67 s | 0.0073 s | 0.00032 s | 367× |
+| 5 | + two grandparents | 3.66 s | 0.0101 s | 0.00054 s | 363× |
+| 7 | extended | 5.05 s | 0.0102 s | 0.00058 s | 495× |
+| 10 | extended + aunts | 6.73 s | 0.0132 s | 0.00090 s | 510× |
 
 The small PA times are not strictly monotone; five repeats quantify timing
 variation but do not abolish operating-system noise. The defensible claim on
-this machine is the observed **323–569×** object-path speed-up, not a universal
+this machine is the observed **315–510×** object-path speed-up, not a universal
 hardware-independent constant.
 
 This is the only benchmark used for performance claims. It warms all paths,
@@ -113,33 +119,35 @@ array APIs separately.
 Three independent cohorts per cell, 3,000 families, eight
 relatives. Gibbs is a first-replicate cross-check only (`gibbs_reps=1`).
 
-| h² | K | classic LT-FH corr | FH + onset corr (PA) | first-rep Gibbs | onset / LT-FH eff-N proxy |
+| h² | K | classic LT-FH corr (PA) | FH + onset corr (PA) | first-rep FH + onset Gibbs | squared-correlation eff-N proxy: onset / classic |
 |---:|---:|---:|---:|---:|---:|
 | 0.5 | 0.05 | 0.4328 ± 0.0042 | 0.4349 ± 0.0040 | 0.4345 | 1.0097 ± 0.0029× |
 | 0.5 | 0.30 | 0.6365 ± 0.0065 | 0.6651 ± 0.0042 | 0.6666 | 1.0924 ± 0.0092× |
 | 0.8 | 0.30 | 0.7381 ± 0.0049 | 0.7723 ± 0.0037 | 0.7787 | 1.0949 ± 0.0061× |
 
-Both columns condition on the same family; this is an LT-FH++ age-component
-ablation over classic LT-FH, not ADuLT and not raw case/control. The mean gain
-over the eight-cell grid is 1.038×. Onset information matters
+Both main columns use PA and condition on the same family; Gibbs is only the
+first-replicate agreement check. This is an LT-FH++ age-component ablation over
+classic LT-FH, not ADuLT and not raw case/control. The mean squared-correlation
+eff-N proxy over the eight-cell grid is 1.038×. Onset information matters
 most when enough relatives are observed as cases; at low prevalence its
 increment is small. Minimum first-replicate PA/Gibbs agreement is 0.998997.
 
 ## 4. Replicated classic-LT-FH genotype GWAS (`bench_gwas_power.py`)
 
 Three independent genotype/effect/cohort replicates; each has 10,000 probands,
-5,000 independent SNPs, 30 causal SNPs, h²=0.5, K=0.05, and trios. Effective N
-uses the noncentral component `(mean chi² - 1)`, not raw mean chi².
+5,000 independent SNPs, 30 causal SNPs, h²=0.5, K=0.05, and parents plus one
+sibling. The NCP ratio uses `(mean causal chi² - 1)`, not raw mean chi².
 
-| Phenotype | mean causal chi² | eff-N / c-c | power at 5e-8 | lambda GC |
+| Phenotype | mean causal chi² | causal-SNP NCP ratio / c-c | power at 5e-8 | lambda GC |
 |---|---:|---:|---:|---:|
 | case/control | 39.63 ± 2.19 | 1.00× | 41.1 ± 2.2% | 1.011 ± 0.009 |
-| LT-FH Gibbs | 57.53 ± 1.87 | 1.468 ± 0.040× | 48.9 ± 4.0% | 1.012 ± 0.019 |
-| LT-FH PA | 57.60 ± 1.91 | 1.469 ± 0.039× | 48.9 ± 4.0% | 1.006 ± 0.021 |
+| classic LT-FH (Gibbs) | 57.53 ± 1.87 | 1.468 ± 0.040× | 48.9 ± 4.0% | 1.012 ± 0.019 |
+| classic LT-FH (PA) | 57.60 ± 1.91 | 1.469 ± 0.039× | 48.9 ± 4.0% | 1.006 ± 0.021 |
 | oracle true g | 337.37 ± 2.07 | 8.77 ± 0.57× | 75.6 ± 1.1% | 1.047 ± 0.015 |
 
-The former 1.53× headline was one seed; 1.47 ± 0.04× is the replicated
-estimate. In real-LD mode, variants with r² >= 0.1 to any causal SNP are excluded
+The former 1.53× headline was one seed; 1.47 ± 0.04× is the replicated NCP
+ratio. Both rows are the same classic LT-FH model with different inference
+engines. In real-LD mode, variants with r² >= 0.1 to any causal SNP are excluded
 from lambda/QQ calibration by default because causal proxies are associated, not
 null.
 
@@ -258,15 +266,20 @@ death or current age. Values are scored against known true genetic liability.
 
 ### Ascertainment
 
-| observed proband case fraction | case/control corr | LT-FH corr | FH + age/cohort corr | FH eff-N / c-c | onset eff-N / FH |
+| observed proband case fraction | case/control corr | classic LT-FH corr (PA) | FH + age/cohort corr (PA) | classic LT-FH squared-correlation eff-N proxy / c-c | age/cohort proxy / classic |
 |---:|---:|---:|---:|---:|---:|
 | 0.019 (population) | 0.233 | 0.347 | 0.348 | 2.212 ± 0.015× | 1.009 ± 0.011× |
 | 0.10 | 0.464 | 0.524 | 0.530 | 1.276 ± 0.006× | 1.021 ± 0.002× |
 | 0.25 | 0.623 | 0.658 | 0.668 | 1.118 ± 0.006× | 1.029 ± 0.001× |
 | 0.50 | 0.698 | 0.728 | 0.744 | 1.086 ± 0.009× | 1.045 ± 0.002× |
 
-Family history is most valuable relative to case/control in population sampling;
-the incremental onset benefit grows under ascertainment.
+Both family-history scores use PA. The first is classic LT-FH; the second changes
+the bounds to add age and cohort information, not the inference engine. Thus the
+population-sampling **2.212 ± 0.015×** is
+`(corr(classic LT-FH) / corr(case/control))²`, a squared-correlation eff-N
+proxy, not the causal-SNP NCP ratio reported in section 4. Family history is most
+valuable relative to case/control in population sampling; the incremental
+age/cohort benefit grows under ascertainment.
 
 ### Cohort effects
 
@@ -386,7 +399,7 @@ GWAS values below are adjusted for proband sex and birth year; `±` is replicate
 SE. The final column shows the stratified-null lambda before and after the same
 standard covariate adjustment.
 
-| Phenotype | adjusted corr | adjusted slope | adjusted eff-N / c-c | stratified-null lambda raw -> adjusted |
+| Phenotype | adjusted corr | adjusted slope | adjusted causal-SNP NCP ratio / c-c | stratified-null lambda raw -> adjusted |
 |---|---:|---:|---:|---:|
 | case/control | 0.586 ± 0.008 | 1.123 ± 0.021 | 1.000× | 1.140 ± 0.051 -> 1.019 ± 0.024 |
 | ADuLT (same full personalised proband CIP, no FH) | 0.600 ± 0.008 | 1.004 ± 0.018 | 1.049 ± 0.004× | 1.024 ± 0.047 -> 1.014 ± 0.031 |
@@ -398,12 +411,13 @@ standard covariate adjustment.
 
 The matched ADuLT row uses exactly the full personalised proband bounds but no
 relative columns. Adding relatives to reach full LT-FH++ improves adjusted
-correlation by **+0.04073 ± 0.00358** and effective-N ratio by
-**+0.1454 ± 0.0154** (paired 95% CI half-widths). ADuLT itself gains
-+0.0490 ± 0.0096 effective-N units over case/control.
+correlation by **+0.04073 ± 0.00358** and causal-SNP NCP ratio by
+**+0.1454 ± 0.0154** (paired 95% CI half-widths). Here and below these are
+causal-SNP NCP-ratio units. ADuLT itself gains +0.0490 ± 0.0096 NCP-ratio
+units over case/control.
 
 Other paired t-based 95% intervals isolate the components. Single-K gains
-+0.1489 ± 0.0147 effective-N units over case/control; age adds
++0.1489 ± 0.0147 NCP-ratio units over case/control; age adds
 +0.0399 ± 0.0076 beyond single-K; cohort adds +0.0056 ± 0.0022 beyond age.
 Full LT-FH++ adds **+0.0455 ± 0.0073** beyond classic LT-FH.
 Sex adds -0.0004 ± 0.0010 beyond age, and adding sex to age+cohort adds
@@ -421,13 +435,14 @@ dependent CIP, female:male lifetime-risk ratio 2, equal onset midpoints, and no
 cohort or sex-dependent-mortality effect. This isolates sex-specific thresholds
 without retrofitting the integrated parameters after seeing its result.
 
-| Phenotype | adjusted corr | adjusted eff-N / c-c | female mean error | male mean error |
+| Phenotype | adjusted corr | adjusted causal-SNP NCP ratio / c-c | female mean error | male mean error |
 |---|---:|---:|---:|---:|
 | FH + age CIP (ablation) | 0.6298 ± 0.0078 | 1.292 ± 0.016× | +0.0301 ± 0.0086 | -0.0142 ± 0.0084 |
 | FH + age + sex CIP (ablation) | 0.6307 ± 0.0080 | 1.296 ± 0.016× | -0.0068 ± 0.0087 | -0.0002 ± 0.0084 |
 
-The adjusted ranking and effective-N increments are small and unresolved:
-Δcorr = +0.00097 ± 0.00110 and Δeff-N = +0.0040 ± 0.0046 (paired 95% CIs).
+The adjusted ranking and NCP-ratio increments are small and unresolved:
+Δcorr = +0.00097 ± 0.00110 and ΔNCP ratio = +0.0040 ± 0.0046
+(paired 95% CIs).
 The calibration benefit is decisive because the paired errors are highly
 correlated: adding the correct sex curve shifts female error by
 -0.03689 ± 0.00041 and male error by +0.01401 ± 0.00064, closing the
@@ -442,8 +457,8 @@ the Gibbs-on-PA slope is 0.990, and the mean difference is -0.0019.
 
 - Added independent-replicate SEs to GWAS power, age-onset, family-history,
   confounding, and cohort-span panels.
-- Corrected effective N to use chi-square noncentrality rather than raw mean
-  chi-square.
+- Corrected genotype-GWAS NCP ratios to use chi-square noncentrality rather than
+  raw mean chi-square.
 - Warmed and replicated runtime measurements; added a directly measured PA array
   path and recorded configuration/thread metadata.
 - Used distinct deterministic inference seeds across fitted cohorts.
@@ -472,7 +487,7 @@ the Gibbs-on-PA slope is 0.990, and the mean difference is -0.0019.
   mixture benchmark remains outstanding.
 - The lightweight GWAS helper uses the large-sample `n * r²` score statistic.
   A finite-sample regression test would use residual degrees of freedom and the
-  `r² / (1-r²)` correction; the matched effective-N ratios are robust to this
+  `r² / (1-r²)` correction; the matched NCP ratios are robust to this
   small approximation, but genome-wide discovery counts are only illustrative.
 - Most benchmark scripts still write canonical artifacts unconditionally. The
   integrated-personalization script now accepts `--output-prefix` and writes a

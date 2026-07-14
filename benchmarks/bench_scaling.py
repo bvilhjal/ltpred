@@ -159,7 +159,7 @@ def plot(nfam_rows, size_rows):
     axes[0].set_xlabel("number of families")
     axes[0].set_ylabel("wall time (s)")
     axes[0].set_yscale("log")
-    axes[0].set_title("(a) scaling with #families (trios)")
+    axes[0].set_title("(a) scaling: parents + one sibling")
     axes[0].legend()
     sz = [r["value"] for r in size_rows]
     for key, label, marker in (("t_gibbs", "Gibbs", "o"),
@@ -203,7 +203,8 @@ def main():
     estimate_liability_pa_arrays(wr, wl, wu, h2=args.h2)
 
     print(f"threads={get_num_threads()} timing_reps={args.timing_reps}")
-    print("== scaling with number of families (trios) ==")
+    print("== scaling with number of families (parents + one sibling; "
+          "three relatives) ==")
     nfam_rows = scan_n_fam(args.sizes, args.h2, args.prev, args.n_sim, args.seed,
                            args.timing_reps)
     print("\n== scaling with family size (n_fam=%d) ==" % args.size_n_fam)

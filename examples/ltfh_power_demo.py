@@ -5,8 +5,8 @@ with an individual's *true* genetic liability. This demo simulates families unde
 the liability-threshold model, estimates each proband's posterior mean genetic
 liability two ways -- the Gibbs sampler and the deterministic Pearson-Aitken
 (PA) engine -- and compares each to the simulated truth and to the plain
-0/1 case/control label. The squared ratio of correlations approximates the
-effective-sample-size gain from using the estimated liability. This compact demo
+0/1 case/control label. The squared ratio of correlations is reported as an
+effective-sample-size proxy for using the estimated liability. This compact demo
 uses one logistic age curve, so it illustrates the age component rather than full
 age/sex/birth-cohort LT-FH++. It also reports
 how closely the two fitting methods agree and their relative speed.
@@ -57,10 +57,10 @@ def main():
     print(f"case rate (proband)            : {status.mean():.3f}")
     print()
     print(f"corr(case/control    , true)   : {r_status:.3f}")
-    print(f"corr(Gibbs genetic   , true)   : {r_gibbs:.3f}   ({t_gibbs:.2f}s)")
+    print(f"corr(FH + onset via Gibbs, true): {r_gibbs:.3f}   ({t_gibbs:.2f}s)")
     print(f"corr(FH + onset via PA, true)   : {r_pa:.3f}   ({t_pa:.3f}s)")
     print()
-    print(f"approx. effective-N gain       : {(r_gibbs / r_status) ** 2:.2f}x")
+    print(f"PA squared-corr eff-N proxy     : {(r_pa / r_status) ** 2:.2f}x")
     print(f"Gibbs vs PA agreement (corr)   : "
           f"{np.corrcoef(gibbs.est['genetic'], pa.est['genetic'])[0, 1]:.4f}")
     print(f"PA speed-up over Gibbs         : {t_gibbs / t_pa:.0f}x")

@@ -48,7 +48,8 @@ NUMBA_NUM_THREADS=10 OMP_NUM_THREADS=10 python benchmarks/bench_gwas_power.py \
 (SNP-major `.bed`, missing calls mean-imputed) and uses the first `--n-fam`
 individuals as probands. Everything else is identical to the default run:
 causal effects are drawn on the real genotypes, family history is simulated, and
-the four phenotypes (case/control, LT-FH via Gibbs, LT-FH via PA, oracle) are
+the four phenotypes (case/control, classic LT-FH inferred with Gibbs, classic
+LT-FH inferred with PA, oracle) are
 scored on mean χ² at causal SNPs, detection power, and λ_GC. For calibration,
 SNPs with `r² >= 0.1` to any causal SNP are excluded by default; change that with
 `--ld-null-r2`.
@@ -60,5 +61,5 @@ SNPs with `r² >= 0.1` to any causal SNP are excluded by default; change that wi
   file (the phenotype is the simulated liability-threshold family history).
 - With real LD, causal effects and marginal statistics depend on the local LD
   pattern. Power is still evaluated at the selected causal SNPs; the
-  mean-χ²-at-causal and within-replicate effective-N ratios remain the cleanest
-  method contrast.
+  mean-χ²-at-causal and within-replicate causal-SNP NCP ratios remain the
+  cleanest method contrast.

@@ -147,13 +147,15 @@ one).
 simulated data. The integrated LT-FH++ benchmark includes age-, sex-, and
 cohort-dependent CIP, coherent onset/censoring, ascertainment, and a genotype
 GWAS. A matched ADuLT arm keeps the same personalised proband bounds but removes
-relatives: it reaches 1.049 ± 0.004× adjusted effective N, versus 1.194 ± 0.006×
-for full LT-FH++; the paired family-history increment is +0.1454 ± 0.0154
+relatives: it reaches a 1.049 ± 0.004× adjusted causal-SNP NCP ratio, versus
+1.194 ± 0.006× for full LT-FH++; the paired family-history increment is
++0.1454 ± 0.0154 NCP-ratio units
 (95% CI half-width). Full LT-FH++ has calibration slope 0.995 ± 0.015. A
 prespecified sex-CIP panel separately shows removal of a
 0.05091 ± 0.00096 female–male score-error gap, while its adjusted power increment
 remains unresolved. In the replicated classic-LT-FH GWAS, PA and Gibbs both
-reach 1.47 ± 0.04×. Across matched bounds, PA tracks Gibbs to corr ≥ 0.997. See
+reach a 1.47 ± 0.04× causal-SNP NCP ratio. Across matched bounds, PA tracks
+Gibbs to corr ≥ 0.997. See
 [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md); real-LD runs use
 [HAPNEST](benchmarks/hapnest/README.md) genotypes (opt-in).
 

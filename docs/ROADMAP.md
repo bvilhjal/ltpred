@@ -54,7 +54,7 @@ an in-sample misfit diagnostic, not a calibrated factor-number test.
 
 **Benchmarks** (`benchmarks/`, `RESULTS.md`) cover accuracy, runtime scaling,
 age-of-onset, replicated classic LT-FH GWAS power (Gibbs and PA both
-1.47 ± 0.04× effective-N over case/control at λ_GC ≈ 1), and an integrated
+1.47 ± 0.04× causal-SNP NCP ratio over case/control at λ_GC ≈ 1), and an integrated
 personalized LT-FH++ GWAS with
 age-, sex-, and cohort-dependent CIP, plus `fit_heritability` quality (small bias
 relative to sampling SD, while `h2_se` understates that SD ~20–30×, so use
