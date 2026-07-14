@@ -49,7 +49,9 @@ fit index that flags when it does not.
 age-of-onset, and GWAS power (LT-FH++ and PA both ~1.52× effective-N over
 case/control at λ_GC ≈ 1), plus `fit_heritability` quality (unbiased, but
 `h2_se` understates the true SD ~20–30×, so use `bootstrap_fit`), `A+C` recovery,
-and `r_g` recovery. Real-LD runs go through an opt-in HAPNEST path.
+and `r_g` recovery, plus **calibration** of the score (self-calibrating under the
+correct model; ranking robust but scale sensitive to a wrong `h²`). Real-LD runs go
+through an opt-in HAPNEST path.
 
 **Docs.** README, a user guide, and an algorithm/model doc (with the
 BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
@@ -163,9 +165,13 @@ likelihood-based inference) to the pedigree/registry setting.
    special case; a role-less array interface — `A` + per-member bounds — replaces
    the originally-envisaged `families_from_pedigree` object builder.)
 
-5. **Expand benchmark diagnostics.** Slope/intercept and tail calibration (not
-   just correlation), PA fold-in-ordering sensitivity, large/rare/densely-
-   affected pedigrees, and mixture validation.
+5. **Expand benchmark diagnostics.** *Calibration done.* `bench_calibration.py`
+   adds slope/intercept and **decile (tail) calibration** to the correlation-only
+   accuracy story: the correctly-specified estimate is a self-calibrating posterior
+   mean (slope ≈ 1, and Gibbs/PA agree on scale, not just ranking), while a wrong
+   assumed `h²` leaves the ranking robust but tilts the scale — the complement to
+   `liability_sensitivity`. Still open: PA fold-in-ordering sensitivity,
+   large/rare/densely-affected pedigrees, and mixture validation.
 
 6. **Censoring-aware CIPs.** Helpers and guidance for Kaplan–Meier /
    Aalen–Johansen incidence with competing risks (death, emigration), for

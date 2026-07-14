@@ -404,6 +404,52 @@ factors, blocks {0,1,2} and {3,4}):
   inference of their own, so bootstrap the whole pipeline over families for
   uncertainty (the within-dataset `se` understates it, as everywhere in §5–7).
 
+## 12. Calibration, not just ranking (`bench_calibration.py`)
+
+Every benchmark above scores the estimate by `corr(estimate, true g)` — its
+**ranking**. But the estimate is a posterior *mean*, so it also has a **scale**,
+which is what matters for risk stratification (is someone really in the top decile
+of genetic liability?) rather than a GWAS phenotype (standardised anyway). This
+regresses the known true `g` on the estimate — slope 1 / intercept 0 = calibrated —
+and reads the decile calibration curve. h²=0.5, 3 000 families.
+
+**(a) Correctly specified — the posterior mean is self-calibrating** (`E[g | ĝ] = ĝ`):
+
+| structure | K | slope (Gibbs) | slope (PA) | intercept | corr | top-decile realised/pred |
+|---|---:|---:|---:|---:|---:|---:|
+| parents+2 sibs | 0.05 | 1.021 | 1.012 | +0.003 | 0.443 | 0.99 |
+| parents+2 sibs | 0.20 | 0.993 | 0.990 | +0.004 | 0.597 | 0.99 |
+| extended (7 rel) | 0.05 | 0.997 | 0.992 | −0.010 | 0.409 | 0.98 |
+| extended (7 rel) | 0.20 | 1.006 | 1.003 | −0.015 | 0.605 | 0.95 |
+
+Slope ≈ 1, intercept ≈ 0, and the top decile of the score holds ~the genetic
+liability it predicts. **Gibbs and PA-FGRS agree on the *scale*, not only the
+ranking** (slopes within ~0.01). At very low prevalence (K=0.01) the slope is
+noisier (1.05 for parents+sibs, 0.90 for the extended family) — rare cases carry
+thinner, higher-variance family information.
+
+**(b) Wrong assumed h² — ranking robust, scale is not** (true h²=0.5, K=0.05,
+parents+2 sibs; the h² handed to the estimator is swept):
+
+| assumed h² | slope | corr | top-decile realised/pred | decile cal-RMSE |
+|---:|---:|---:|---:|---:|
+| 0.2 | 2.256 | 0.444 | 2.14 | 0.164 |
+| 0.4 | 1.224 | 0.444 | 1.16 | 0.063 |
+| **0.5 (true)** | **1.012** | 0.443 | 0.95 | **0.040** |
+| 0.6 | 0.867 | 0.442 | 0.82 | 0.062 |
+| 0.8 | 0.678 | 0.438 | 0.64 | 0.142 |
+
+- **`corr` is flat** (0.444 → 0.438 across assumed h² 0.2–0.8) — the ranking is
+  almost invariant to the assumed h², matching `liability_sensitivity` (min_corr
+  ≈ 0.97). A linear GWAS on the score barely notices.
+- **The slope is not.** Assume too little h² and the estimate under-spreads (slope
+  2.26, top decile over-stated 2×); too much and it over-spreads (slope 0.68). The
+  decile calibration-RMSE is a clean U-shape minimized at the true h².
+- **So: use the score as-is for GWAS, but if you read it as a calibrated genetic
+  liability, get h² right** (or report on the liability scale you assumed). This is
+  the scale-side complement to the rank-side robustness `liability_sensitivity`
+  reports.
+
 ## Bottom line
 
 PA-FGRS is a drop-in, deterministic replacement for the LT-FH++ Gibbs sampler:
@@ -420,3 +466,9 @@ correlation `r_g` between traits (unbiased near the null). On top of `r_g`,
 reproduces a one-factor `r_g` (srmr ≈ 0.05), and `srmr` rises sharply when the truth
 has more factors. Report their uncertainty by bootstrapping families, not from the
 reported `se`.
+
+The genetic-liability score is **well-calibrated** under the correct model (a
+self-calibrating posterior mean, slope ≈ 1) and Gibbs and PA agree on its scale, not
+just its ranking. A wrong assumed `h²` leaves the ranking almost untouched but tilts
+the scale — so the score is safe to feed a GWAS as-is, but read it as a calibrated
+liability only if you trust the `h²` you assumed.
