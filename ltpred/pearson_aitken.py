@@ -42,6 +42,18 @@ __all__ = ["pa_algorithm", "pa_estimate_batched", "tnorm_moments",
 
 _SQRT_2 = 1.4142135623730951
 _LOG_SQRT_2PI = 0.9189385332046727
+_GL8_NODES = np.array([
+    -0.9602898564975363, -0.7966664774136267,
+    -0.5255324099163290, -0.1834346424956498,
+     0.1834346424956498,  0.5255324099163290,
+     0.7966664774136267,  0.9602898564975363,
+])
+_GL8_WEIGHTS = np.array([
+    0.1012285362903763, 0.2223810344533745,
+    0.3137066458778873, 0.3626837833783620,
+    0.3626837833783620, 0.3137066458778873,
+    0.2223810344533745, 0.1012285362903763,
+])
 
 
 @_jit
@@ -63,6 +75,41 @@ def _log_norm_cdf(x):
 
 
 @_jit
+def _narrow_std_tnorm_moments(a, b):
+    """Moments on a narrow finite interval, evaluated on ``[-1, 1]``.
+
+    Centering and rescaling make the variance ``half_width**2 * Var(y)``;
+    unlike the closed-form tail expression, this never subtracts quantities of
+    order ``a**2`` to recover a result of order ``(b-a)**2``. Eight-point
+    Gauss-Legendre integration is ample for the smooth density over this path's
+    maximum standardized width of ``1e-3``.
+    """
+    half_width = 0.5 * (b - a)
+    center = a + half_width
+
+    # Scale weights by their maximum log-density on [-1, 1]. This changes no
+    # moments and prevents overflow for intervals far into either tail.
+    mode_y = -center / half_width
+    mode_y = min(1.0, max(-1.0, mode_y))
+    peak = -center * half_width * mode_y - 0.5 * half_width * half_width * mode_y * mode_y
+
+    mass = 0.0
+    first = 0.0
+    second = 0.0
+    for i in range(8):
+        y = _GL8_NODES[i]
+        log_density = -center * half_width * y - 0.5 * half_width * half_width * y * y
+        weight = _GL8_WEIGHTS[i] * math.exp(log_density - peak)
+        mass += weight
+        first += weight * y
+        second += weight * y * y
+
+    mean_y = first / mass
+    var_y = second / mass - mean_y * mean_y
+    return center + half_width * mean_y, half_width * half_width * var_y
+
+
+@_jit
 def _std_tnorm_moments(a, b):
     """Stable moments of ``N(0, 1)`` truncated to ``(a, b)``.
 
@@ -71,6 +118,9 @@ def _std_tnorm_moments(a, b):
     then evaluated as a log-space difference using ``expm1``. This covers both
     finite tail intervals and one-sided truncation with the same calculation.
     """
+    if a != -math.inf and b != math.inf and b - a <= 1e-3:
+        return _narrow_std_tnorm_moments(a, b)
+
     sign = 1.0
     if a > 0.0:
         a, b = -b, -a

@@ -50,6 +50,21 @@ def test_tnorm_moments_are_stable_in_finite_tail_intervals(lower, upper):
     assert var == pytest.approx(expected.var(), abs=2e-10)
 
 
+@pytest.mark.parametrize("width", [1e-6, 1e-5])
+def test_tnorm_moments_are_stable_in_narrow_tail_intervals(width):
+    lower = 8.0
+    upper = lower + width
+    actual_width = upper - lower
+    center = lower + 0.5 * actual_width
+    # Over a microscopic interval the normal density is locally exponential.
+    # These leading centered-series terms have errors far below the tolerances.
+    expected_mean = center - center * actual_width ** 2 / 12.0
+    expected_var = actual_width ** 2 / 12.0
+    mean, var = tnorm_moments(lower=lower, upper=upper)
+    assert mean == pytest.approx(expected_mean, abs=1e-12)
+    assert var == pytest.approx(expected_var, rel=1e-6)
+
+
 @pytest.mark.parametrize("threshold", [8.0, 9.0])
 def test_tnorm_moments_extreme_tail_symmetry(threshold):
     right_mean, right_var = tnorm_moments(lower=threshold)
