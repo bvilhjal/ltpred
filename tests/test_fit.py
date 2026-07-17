@@ -658,6 +658,16 @@ def test_genetic_correlation_test_preserves_nuisance_genetics(monkeypatch):
     assert np.min(np.linalg.eigvalsh(rp0)) > 0.0
 
 
+def test_offset_seed_wraps_within_uint32_range():
+    import importlib
+    fit_mod = importlib.import_module("ltpred.fit")
+
+    maximum = (1 << 32) - 1
+    assert fit_mod._offset_seed(None, 1) is None
+    assert fit_mod._offset_seed(maximum, 1) == 0
+    assert fit_mod._offset_seed(np.uint32(maximum), 2) == 1
+
+
 def test_variance_components_reml_matches_and_has_modelbased_se():
     # REML point estimate agrees with HE; its se is a model-based SE (~ the true
     # across-dataset SD ~0.05), far larger than HE's within-dataset MC error.

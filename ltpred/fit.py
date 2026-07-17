@@ -64,6 +64,13 @@ _MAT_AVUNC = re.compile(r"mau\d*")         # mother's full sibs
 _PAT_AVUNC = re.compile(r"pau\d*")         # father's full sibs
 
 
+def _offset_seed(seed, offset):
+    """Derive a deterministic uint32 seed without overflowing its public range."""
+    if seed is None:
+        return None
+    return (operator.index(seed) + int(offset)) % (1 << 32)
+
+
 def _is_full_sib(a, b):
     """Whether roles ``a`` and ``b`` are **full siblings** — the pairs the common-
     environment component ``C`` loads on. Three cases: both in one sib-ship (proband
@@ -604,7 +611,7 @@ def _fit_vc_reml(families, comps, *, n_iter, burn_in, inner_sweeps, damp, seed, 
 
     samples = trace[int(burn_in):]
     est = samples.mean(axis=0)
-    rng = np.random.default_rng(None if seed is None else seed + 999)
+    rng = np.random.default_rng(_offset_seed(seed, 999))
     se = _reml_observed_se(groups, comps, est, eps, rng)
     ll = _reml_loglik(groups, comps, est, eps, rng)
     aic = None if ll is None else 2.0 * C - 2.0 * ll
@@ -1247,7 +1254,7 @@ def test_variance_component(families, component="C", *, n_boot=200, seed=None,
     null = np.empty(int(n_boot))
     for b in range(int(n_boot)):
         sim = _simulate_null(families, h2_vec, G, rp, rng)
-        s = None if seed is None else int(seed) + b + 1
+        s = _offset_seed(seed, b + 1)
         null[b] = fit_variance_components(sim, comps, seed=s, **fit_kwargs).components[component]
     p = (1 + int(np.sum(null >= obs))) / (1 + int(n_boot))
     return SignificanceTest(estimate=float(obs), p_value=float(p), null=null,
@@ -1298,7 +1305,7 @@ def test_genetic_correlation(families, i=0, j=1, *, n_boot=200, seed=None,
     null = np.empty(int(n_boot))
     for b in range(int(n_boot)):
         sim = _simulate_null(families, h2_vec, G0, rp_null, rng)
-        s = None if seed is None else int(seed) + b + 1
+        s = _offset_seed(seed, b + 1)
         null[b] = fit_genetic_correlation(sim, seed=s, **fit_kwargs).rg[i, j]
     p = (1 + int(np.sum(np.abs(null) >= abs(obs)))) / (1 + int(n_boot))
     return SignificanceTest(estimate=obs, p_value=float(p), null=null,
