@@ -12,7 +12,7 @@ authors:
   - family-names: "Vilhjálmsson"
     given-names: "Bjarni Jóhann"
 repository-code: "https://github.com/bvilhjal/ltpred"
-license: GPL-3.0-or-later
+license: MIT
 keywords:
   - liability-threshold model
   - LT-FH++

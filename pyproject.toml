@@ -8,7 +8,7 @@ dynamic = ["version"]                # single-sourced from ltpred.__version__
 description = "LT-FH++ with family history and family-free ADuLT via Gibbs or Pearson-Aitken inference"
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "GPL-3.0-or-later" }
+license = "MIT"
 authors = [{ name = "Bjarni Vilhjálmsson" }]
 # Faithful Python port of the R package LTFHPlus (Pedersen et al. 2022, AJHG;
 # Pedersen et al. 2023, Nat Commun). numpy is the only required runtime dep;

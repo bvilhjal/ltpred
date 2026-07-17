@@ -161,5 +161,5 @@ Gibbs to corr ≥ 0.997. See
 
 ## License
 
-[GPL-3.0-or-later](LICENSE). Please cite the LT-FH++, ADuLT and PA-FGRS papers
+[MIT](LICENSE). Please cite the LT-FH++, ADuLT and PA-FGRS papers
 (linked above) and this repository; see [CITATION.cff](CITATION.cff).
