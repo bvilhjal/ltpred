@@ -32,6 +32,32 @@ def test_tnorm_moments_point_mass_and_infinite():
     assert m == pytest.approx(0.7) and v == pytest.approx(2.0)
 
 
+@pytest.mark.parametrize("threshold", [8.0, 9.0])
+def test_tnorm_moments_are_stable_in_extreme_tails(threshold):
+    expected = stats.truncnorm(threshold, np.inf)
+    mean, var = tnorm_moments(lower=threshold)
+    assert mean == pytest.approx(expected.mean(), abs=2e-10)
+    assert var == pytest.approx(expected.var(), abs=2e-10)
+    assert mean > threshold
+    assert 0.0 < var < 0.02
+
+
+@pytest.mark.parametrize("lower,upper", [(8.0, 9.0), (9.0, 10.0)])
+def test_tnorm_moments_are_stable_in_finite_tail_intervals(lower, upper):
+    expected = stats.truncnorm(lower, upper)
+    mean, var = tnorm_moments(lower=lower, upper=upper)
+    assert mean == pytest.approx(expected.mean(), abs=2e-10)
+    assert var == pytest.approx(expected.var(), abs=2e-10)
+
+
+@pytest.mark.parametrize("threshold", [8.0, 9.0])
+def test_tnorm_moments_extreme_tail_symmetry(threshold):
+    right_mean, right_var = tnorm_moments(lower=threshold)
+    left_mean, left_var = tnorm_moments(upper=-threshold)
+    assert left_mean == pytest.approx(-right_mean, abs=1e-12)
+    assert left_var == pytest.approx(right_var, abs=1e-12)
+
+
 def test_pa_single_case_is_exact():
     h2, prev = 0.5, 0.05
     t = float(stats.norm.isf(prev))
@@ -39,6 +65,17 @@ def test_pa_single_case_is_exact():
     est, var = pa_algorithm(cov, lower=[-np.inf, t], upper=[np.inf, np.inf], target=0)
     assert est == pytest.approx(h2 * _imr(t), abs=1e-9)
     assert var > 0
+
+
+def test_pa_single_extreme_case_propagates_stable_tail_moments():
+    h2, threshold = 0.5, 9.0
+    cov = np.array([[h2, h2], [h2, 1.0]])
+    mean, selected_var = tnorm_moments(lower=threshold)
+    est, var = pa_algorithm(cov, lower=[-np.inf, threshold],
+                            upper=[np.inf, np.inf], target=0)
+    assert est == pytest.approx(h2 * mean, abs=1e-10)
+    assert var == pytest.approx(h2 + h2 ** 2 * (selected_var - 1.0), abs=1e-10)
+    assert np.isfinite(est) and 0.0 < var < h2
 
 
 def test_pa_single_control_is_negative():

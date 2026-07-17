@@ -40,13 +40,64 @@ from .gibbs import as_bounds
 __all__ = ["pa_algorithm", "pa_estimate_batched", "tnorm_moments",
            "tnorm_mixture_conditional"]
 
-_INV_SQRT_2PI = 0.3989422804014327  # 1 / sqrt(2*pi)
+_SQRT_2 = 1.4142135623730951
+_LOG_SQRT_2PI = 0.9189385332046727
 
 
 @_jit
-def _norm_pdf(x):
-    """Standard-normal density; ``0`` at ``+/-inf`` (``exp(-inf) -> 0``)."""
-    return _INV_SQRT_2PI * math.exp(-0.5 * x * x)
+def _log_norm_cdf(x):
+    """Log standard-normal CDF without rounding a tail probability to zero."""
+    if x == -math.inf:
+        return -math.inf
+    if x < -37.0:
+        # Phi(x) = phi(x) / -x * (1 - x^-2 + 3x^-4 - ...).  ``erfc``
+        # underflows beyond about -38, while this expansion remains finite.
+        inv_x2 = 1.0 / (x * x)
+        term = 1.0
+        series = 1.0
+        for k in range(1, 9):
+            term *= -(2.0 * k - 1.0) * inv_x2
+            series += term
+        return -0.5 * x * x - _LOG_SQRT_2PI - math.log(-x) + math.log(series)
+    return math.log(0.5 * math.erfc(-x / _SQRT_2))
+
+
+@_jit
+def _std_tnorm_moments(a, b):
+    """Stable moments of ``N(0, 1)`` truncated to ``(a, b)``.
+
+    Positive intervals are reflected into the lower tail, where ``Phi`` retains
+    the small probability that ``1 - Phi`` would round away. Interval mass is
+    then evaluated as a log-space difference using ``expm1``. This covers both
+    finite tail intervals and one-sided truncation with the same calculation.
+    """
+    sign = 1.0
+    if a > 0.0:
+        a, b = -b, -a
+        sign = -1.0
+
+    if b <= 0.0:
+        log_cdf_b = _log_norm_cdf(b)
+        if a == -math.inf:
+            log_z = log_cdf_b
+        else:
+            log_cdf_a = _log_norm_cdf(a)
+            log_z = log_cdf_b + math.log(-math.expm1(log_cdf_a - log_cdf_b))
+    else:
+        # An interval crossing zero has no tail cancellation.
+        log_z = math.log(_norm_cdf(b) - _norm_cdf(a))
+
+    ratio_a = 0.0 if a == -math.inf else \
+        math.exp(-0.5 * a * a - _LOG_SQRT_2PI - log_z)
+    ratio_b = 0.0 if b == math.inf else \
+        math.exp(-0.5 * b * b - _LOG_SQRT_2PI - log_z)
+    mean = ratio_a - ratio_b
+    term_a = 0.0 if a == -math.inf else a * ratio_a
+    term_b = 0.0 if b == math.inf else b * ratio_b
+    var = 1.0 + term_a - term_b - mean * mean
+    # Roundoff can only make this infinitesimally negative for a very narrow
+    # interval; a truncated-normal variance is never negative.
+    return sign * mean, max(0.0, var)
 
 
 @_jit
@@ -54,36 +105,30 @@ def _tnorm_mean(mu, sd, lower, upper):
     """Mean of ``N(mu, sd^2)`` truncated to ``(lower, upper)``.
 
     Returns ``mu`` for an infinite interval and ``lower`` for a point mass
-    (``lower == upper``). Infinite bounds are handled through ``_norm_cdf`` /
-    ``_norm_pdf`` limits (no ``inf * 0`` NaNs)."""
+    (``lower == upper``)."""
     if lower == -math.inf and upper == math.inf:
         return mu
     if lower == upper:
         return lower
     a = (lower - mu) / sd
     b = (upper - mu) / sd
-    return mu - sd * (_norm_pdf(b) - _norm_pdf(a)) / (_norm_cdf(b) - _norm_cdf(a))
+    mean, _ = _std_tnorm_moments(a, b)
+    return mu + sd * mean
 
 
 @_jit
 def _tnorm_var(mu, sd, lower, upper):
     """Variance of ``N(mu, sd^2)`` truncated to ``(lower, upper)``.
 
-    ``sd^2`` for an infinite interval, ``0`` for a point mass. The ``a*phi(a)`` /
-    ``b*phi(b)`` terms are forced to their ``0`` limit at infinite bounds."""
+    ``sd^2`` for an infinite interval and ``0`` for a point mass."""
     if lower == -math.inf and upper == math.inf:
         return sd * sd
     if lower == upper:
         return 0.0
     a = (lower - mu) / sd
     b = (upper - mu) / sd
-    pa = _norm_pdf(a)
-    pb = _norm_pdf(b)
-    z = _norm_cdf(b) - _norm_cdf(a)
-    term_a = 0.0 if math.isinf(a) else a * pa
-    term_b = 0.0 if math.isinf(b) else b * pb
-    ratio = (pa - pb) / z
-    return sd * sd * (1.0 + (term_a - term_b) / z - ratio * ratio)
+    _, var = _std_tnorm_moments(a, b)
+    return sd * sd * var
 
 
 @_jit
