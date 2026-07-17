@@ -197,6 +197,23 @@ def test_covmat_from_kinship_matches_role_grammar():
     assert construct_covmat_from_kinship(A, h2=h2, add_ind=False).matrix.shape == (9, 9)
 
 
+def test_covmat_from_kinship_scales_inbred_target_genetic_variance():
+    ids = ["gm", "gf", "sA", "sB", "x"]
+    father = [None, None, "gf", "gf", "sA"]
+    mother = [None, None, "gm", "gm", "sB"]
+    _, A = kinship_from_pedigree(ids, father, mother)
+    target = ids.index("x")
+    h2 = 0.8
+
+    cov = construct_covmat_from_kinship(A, h2=h2, target=target).matrix
+
+    expected = h2 * A[target, target]
+    assert expected == pytest.approx(1.0)
+    assert cov[0, 0] == pytest.approx(expected)
+    assert cov[0, 1 + target] == pytest.approx(expected)
+    assert np.min(np.linalg.eigvalsh(cov)) > 0.0
+
+
 def test_kinship_input_validation():
     with pytest.raises(ValueError, match="unique"):
         kinship_from_pedigree(["a", "a"], [None, None], [None, None])

@@ -432,9 +432,10 @@ def construct_covmat_from_kinship(A, h2=0.5, target=0, add_ind=True):
     The kinship-based counterpart of :func:`construct_covmat_single`: given ``A``
     (``n×n``, e.g. from :func:`kinship_from_pedigree`) it builds the covariance of
     the ``n`` individuals' **full liabilities** ``o`` under the liability-threshold
-    model — ``h2 * A + (1 - h2) * I`` (so each diagonal is 1) — and, when
+    model — ``h2 * A + (1 - h2) * I`` (diagonal 1 for non-inbred individuals) — and, when
     ``add_ind``, prepends the **genetic liability** ``g`` of the ``target``
-    individual (variance ``h2``, ``Cov(g, o_i) = h2 * A[target, i]``). Row order is
+    individual (variance ``h2 * A[target, target]`` and
+    ``Cov(g, o_i) = h2 * A[target, i]``). Row order is
     ``[g, o_0, …, o_{n-1}]``; the ``target``'s own full-liability row is labelled
     ``o`` and the rest ``rel<i>``. Returns a :class:`Covmat`.
 
@@ -455,7 +456,7 @@ def construct_covmat_from_kinship(A, h2=0.5, target=0, add_ind=True):
         return Covmat(o_block, o_roles, h2=h2)
     d = n + 1
     cov = np.empty((d, d), dtype=np.float64)
-    cov[0, 0] = h2
+    cov[0, 0] = h2 * A[target, target]
     cov[0, 1:] = cov[1:, 0] = h2 * A[target]
     cov[1:, 1:] = o_block
     return Covmat(cov, ["g"] + o_roles, h2=h2)
