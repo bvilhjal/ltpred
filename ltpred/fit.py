@@ -39,6 +39,7 @@ component would need contrasting relative types (MZ vs DZ twins) and is not offe
 
 from __future__ import annotations
 
+import operator
 import re
 from dataclasses import dataclass
 
@@ -136,7 +137,7 @@ def _init_x(lowers, uppers):
 def _prepare_group(families, idx):
     """Per-structure precompute: relationship matrix ``A``, related-pair list,
     per-family bounds/fixed mask, and the initial chain state ``x``."""
-    roles = [m.role for m in families[idx[0]].members]
+    roles = sorted(m.role for m in families[idx[0]].members)
     k = len(roles)
     A = np.array([[get_relatedness(ri, rj, h2=1.0) for rj in roles] for ri in roles])
     A, _ = correct_positive_definite(A)               # ensure PSD (usually a no-op)
@@ -146,14 +147,15 @@ def _prepare_group(families, idx):
     lowers = np.empty((F, k))
     uppers = np.empty((F, k))
     for slot, f in enumerate(idx):
-        for c, m in enumerate(families[f].members):
+        members = sorted(families[f].members, key=lambda member: member.role)
+        for c, m in enumerate(members):
             lowers[slot, c] = float(m.lower)
             uppers[slot, c] = float(m.upper)
     fixed = np.ascontiguousarray((uppers - lowers) < 1e-8)
     x = np.empty((F, k))
     for slot in range(F):
         x[slot] = _init_x(lowers[slot], uppers[slot])
-    return dict(A=np.ascontiguousarray(A), pairs=pairs, k=k, F=F,
+    return dict(roles=roles, A=np.ascontiguousarray(A), pairs=pairs, k=k, F=F,
                 lowers=np.ascontiguousarray(lowers),
                 uppers=np.ascontiguousarray(uppers), fixed=fixed,
                 x=np.ascontiguousarray(x))
@@ -180,7 +182,7 @@ def fit_heritability(families, *, h2_init=0.5, n_iter=1500, burn_in=500,
                          "(need relatives, not lone probands).")
 
     if seed is not None:
-        _seed_rng(int(seed))
+        _seed_rng(seed)
 
     h2 = float(h2_init)
     trace = np.empty(int(n_iter))
@@ -291,7 +293,7 @@ def _prepare_group_vc(families, idx, comps):
     component's relationship matrix ``K_c``, the list of related pairs with their
     ``(K_c[i,j])_c`` predictor rows, per-family bounds / fixed mask, and the
     initial chain state ``x``."""
-    roles = [m.role for m in families[idx[0]].members]
+    roles = sorted(m.role for m in families[idx[0]].members)
     k = len(roles)
     F = len(idx)
     K = {c: correct_positive_definite(_component_matrix(roles, c))[0] for c in comps}
@@ -304,7 +306,8 @@ def _prepare_group_vc(families, idx, comps):
     lowers = np.empty((F, k))
     uppers = np.empty((F, k))
     for slot, f in enumerate(idx):
-        for c, m in enumerate(families[f].members):
+        members = sorted(families[f].members, key=lambda member: member.role)
+        for c, m in enumerate(members):
             lowers[slot, c] = float(m.lower)
             uppers[slot, c] = float(m.upper)
     fixed = np.ascontiguousarray((uppers - lowers) < 1e-8)
@@ -407,7 +410,7 @@ def fit_variance_components(families, components=("A", "C"), *, method="he",
     XtX_reg = XtX + 1e-10 * np.eye(C)
 
     if seed is not None:
-        _seed_rng(int(seed))
+        _seed_rng(seed)
 
     h2 = np.full(C, 0.5 / C)
     trace = np.empty((int(n_iter), C))
@@ -580,7 +583,7 @@ def _fit_vc_reml(families, comps, *, n_iter, burn_in, inner_sweeps, damp, seed, 
             "relationship design is rank-deficient (e.g. fitting 'C' with no "
             "full-sib pairs, or no related pairs at all).")
     if seed is not None:
-        _seed_rng(int(seed))
+        _seed_rng(seed)
 
     h2 = np.full(C, 0.5 / C)
     trace = np.empty((int(n_iter), C))
@@ -659,19 +662,93 @@ def _multi_cov(A, h2, G, rp):
     return S
 
 
+def _project_correlation(matrix, *, zero_pairs=(), eps=1e-8):
+    """Project a symmetric matrix to a positive-definite correlation matrix.
+
+    ``zero_pairs`` adds affine constraints used by the pairwise genetic-correlation
+    null. Alternating PSD/affine projections keep those entries exactly zero; a
+    final shrink towards identity makes the result strictly positive definite
+    without changing either the diagonal or constrained zeros.
+    """
+    corr = np.asarray(matrix, dtype=float)
+    corr = (corr + corr.T) / 2.0
+    np.fill_diagonal(corr, 1.0)
+    pairs = tuple((min(int(i), int(j)), max(int(i), int(j)))
+                  for i, j in zero_pairs)
+    for i, j in pairs:
+        corr[i, j] = corr[j, i] = 0.0
+
+    if pairs:
+        # Higham/Dykstra alternating projection: PSD cone, then the affine set
+        # (unit diagonal plus the requested zero entries).
+        correction = np.zeros_like(corr)
+        for _ in range(200):
+            residual = corr - correction
+            values, vectors = np.linalg.eigh((residual + residual.T) / 2.0)
+            psd = (vectors * np.maximum(values, 0.0)) @ vectors.T
+            correction = psd - residual
+            previous = corr
+            corr = (psd + psd.T) / 2.0
+            np.fill_diagonal(corr, 1.0)
+            for i, j in pairs:
+                corr[i, j] = corr[j, i] = 0.0
+            if (np.max(np.abs(corr - previous)) < 1e-12
+                    and np.min(np.linalg.eigvalsh(corr)) >= -1e-10):
+                break
+    else:
+        values, vectors = np.linalg.eigh(corr)
+        corr = (vectors * np.maximum(values, eps)) @ vectors.T
+        scale = np.sqrt(np.clip(np.diag(corr), eps, None))
+        corr /= np.outer(scale, scale)
+        corr = (corr + corr.T) / 2.0
+        np.fill_diagonal(corr, 1.0)
+
+    smallest = float(np.min(np.linalg.eigvalsh(corr)))
+    if smallest < eps:
+        shrink = (eps - smallest) / (1.0 - smallest)
+        corr = (1.0 - shrink) * corr + shrink * np.eye(corr.shape[0])
+    corr = (corr + corr.T) / 2.0
+    np.fill_diagonal(corr, 1.0)
+    for i, j in pairs:
+        corr[i, j] = corr[j, i] = 0.0
+    return corr
+
+
+def _project_covariance(matrix, variances, *, zero_pairs=(), eps=1e-8):
+    """Return a PSD covariance with fixed ``variances`` and its correlation."""
+    variances = np.asarray(variances, dtype=float)
+    sd = np.sqrt(np.clip(variances, eps, None))
+    raw_corr = np.asarray(matrix, dtype=float) / np.outer(sd, sd)
+    corr = _project_correlation(raw_corr, zero_pairs=zero_pairs, eps=eps)
+    cov = corr * np.outer(sd, sd)
+    np.fill_diagonal(cov, variances)
+    return cov, corr
+
+
+def _cov_to_corr(cov, variances, eps=1e-8):
+    """Standardise an already-PSD covariance without elementwise clipping."""
+    sd = np.sqrt(np.clip(np.asarray(variances, dtype=float), eps, None))
+    corr = np.asarray(cov, dtype=float) / np.outer(sd, sd)
+    corr = (corr + corr.T) / 2.0
+    np.fill_diagonal(corr, 1.0)
+    return corr
+
+
 def _prepare_group_multi(families, idx, n_pheno):
     """Per-structure precompute for the r_g fit: relationship matrix ``A`` and its
     upper-triangle weights, phenotype-major bounds ``(F, kP)`` and initial state."""
-    roles = [m.role for m in families[idx[0]].members]
+    roles = sorted(m.role for m in families[idx[0]].members)
     k = len(roles)
     F = len(idx)
     A = np.array([[get_relatedness(ri, rj, 1.0) for rj in roles] for ri in roles])
+    A, _ = correct_positive_definite(A)
     W = np.triu(A, 1)                                 # a<b relatedness weights
     sA2 = float(np.sum(W * W)) * F                    # sum_{a<b} A_ab^2, pooled over F
     lo = np.empty((F, k, n_pheno))
     hi = np.empty((F, k, n_pheno))
     for slot, f in enumerate(idx):
-        for c, m in enumerate(families[f].members):
+        members = sorted(families[f].members, key=lambda member: member.role)
+        for c, m in enumerate(members):
             lo[slot, c] = np.broadcast_to(np.asarray(m.lower, float), (n_pheno,))
             hi[slot, c] = np.broadcast_to(np.asarray(m.upper, float), (n_pheno,))
     # phenotype-major: coordinate p*k + a
@@ -681,7 +758,8 @@ def _prepare_group_multi(families, idx, n_pheno):
     x = np.empty((F, k * n_pheno))
     for slot in range(F):
         x[slot] = _init_x(lo_pm[slot], hi_pm[slot])
-    return dict(k=k, F=F, A=A, W=W, sA2=sA2, lowers=lo_pm, uppers=hi_pm,
+    return dict(roles=roles, k=k, F=F, A=A, W=W, sA2=sA2,
+                lowers=lo_pm, uppers=hi_pm,
                 fixed=fixed, x=np.ascontiguousarray(x))
 
 
@@ -734,21 +812,24 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
     n_members = sum(g["F"] * g["k"] for g in groups)
 
     if seed is not None:
-        _seed_rng(int(seed))
+        _seed_rng(seed)
 
     h2 = np.full(P, 0.4)
     G = np.diag(h2).astype(float)
-    rp = np.eye(P)
+    E = np.diag(1.0 - h2)
     tr_h2 = np.empty((int(n_iter), P))
     tr_rg = np.empty((int(n_iter), P, P))
     tr_re = np.empty((int(n_iter), P, P))
     tr_rp = np.empty((int(n_iter), P, P))
+    G_sum = np.zeros((P, P))
+    E_sum = np.zeros((P, P))
     for it in range(int(n_iter)):
         numG = np.zeros((P, P))
         numRp = np.zeros((P, P))
+        rp = G + E
         for g in groups:
             k = g["k"]
-            sigma, _ = correct_positive_definite(_multi_cov(g["A"], h2, G, rp))
+            sigma = _multi_cov(g["A"], h2, G, rp)
             Pm, sd = gibbs_params(sigma)
             gibbs_advance(Pm, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
                           int(inner_sweeps))
@@ -759,46 +840,52 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
                     numG[p, q] += float(np.sum(g["W"] * block))    # a<b relatedness
                     numRp[p, q] += float(np.trace(block))          # same individual
         h2_hat = np.clip(np.array([numG[p, p] / sA2 for p in range(P)]), eps, 1 - eps)
-        G_hat = np.diag(h2_hat).astype(float)
+        G_raw = np.diag(h2_hat).astype(float)
         for p in range(P):
             for q in range(p + 1, P):
-                G_hat[p, q] = G_hat[q, p] = (numG[p, q] + numG[q, p]) / (2 * sA2)
+                G_raw[p, q] = G_raw[q, p] = (
+                    numG[p, q] + numG[q, p]) / (2 * sA2)
+        G_hat, _ = _project_covariance(G_raw, h2_hat, eps=eps)
         rp_hat = numRp / n_members
         drp = np.sqrt(np.clip(np.diag(rp_hat), eps, None))
         rp_hat = rp_hat / np.outer(drp, drp)
         np.fill_diagonal(rp_hat, 1.0)
+        e2_hat = 1.0 - h2_hat
+        E_hat, _ = _project_covariance(rp_hat - G_hat, e2_hat, eps=eps)
 
-        h2 = (1 - damp) * h2 + damp * h2_hat
         G = (1 - damp) * G + damp * G_hat
-        np.fill_diagonal(G, h2)
-        rp = (1 - damp) * rp + damp * rp_hat
+        E = (1 - damp) * E + damp * E_hat
+        h2 = np.diag(G).copy()
+        np.fill_diagonal(E, 1.0 - h2)
+        rp = G + E
         np.fill_diagonal(rp, 1.0)
 
-        rg = np.clip(G / np.sqrt(np.outer(h2, h2)), -0.999, 0.999)
-        np.fill_diagonal(rg, 1.0)
-        # environmental correlation: phenotypic covariance not from shared genes,
-        # standardised by the residual (environmental) SDs sqrt(1 - h2)
-        e2 = np.clip(1.0 - h2, eps, None)
-        re = np.clip((rp - G) / np.sqrt(np.outer(e2, e2)), -0.999, 0.999)
-        np.fill_diagonal(re, 1.0)
+        rg = _cov_to_corr(G, h2, eps)
+        re = _cov_to_corr(E, 1.0 - h2, eps)
         tr_h2[it] = h2
         tr_rg[it] = rg
         tr_re[it] = re
         tr_rp[it] = rp
+        if it >= int(burn_in):
+            G_sum += G
+            E_sum += E
 
     sl = slice(int(burn_in), int(n_iter))
-    h2_est, h2_se = batch_means(tr_h2[sl])
-    rg_est, rg_se = batch_means(tr_rg[sl].reshape(-1, P * P))
-    re_est, re_se = batch_means(tr_re[sl].reshape(-1, P * P))
-    rp_est, rp_se = batch_means(tr_rp[sl].reshape(-1, P * P))
-    rg_est = rg_est.reshape(P, P)
-    re_est = re_est.reshape(P, P)
-    rp_est = rp_est.reshape(P, P)
-    G_est = rg_est * np.sqrt(np.outer(h2_est, h2_est))
-    np.fill_diagonal(G_est, h2_est)
-    e2_est = 1.0 - h2_est
-    E_est = rp_est - G_est                          # environmental covariance = rp - G
-    np.fill_diagonal(E_est, e2_est)
+    _, h2_se = batch_means(tr_h2[sl])
+    _, rg_se = batch_means(tr_rg[sl].reshape(-1, P * P))
+    _, re_se = batch_means(tr_re[sl].reshape(-1, P * P))
+    _, rp_se = batch_means(tr_rp[sl].reshape(-1, P * P))
+    # Average covariance states (a convex, hence PSD, operation) and derive every
+    # reported correlation from those same two matrices. Ratio-averaging rg/re
+    # separately would generally break rp == G + E after burn-in.
+    n_post = int(n_iter) - int(burn_in)
+    G_est = G_sum / n_post
+    E_est = E_sum / n_post
+    h2_est = np.diag(G_est).copy()
+    rg_est = _cov_to_corr(G_est, h2_est, eps)
+    re_est = _cov_to_corr(E_est, 1.0 - h2_est, eps)
+    rp_est = G_est + E_est
+    np.fill_diagonal(rp_est, 1.0)
     return GenCorrResult(
         h2=h2_est, rg=rg_est, re=re_est, rp=rp_est,
         genetic_cov=G_est, env_cov=E_est,
@@ -1113,19 +1200,19 @@ def _threshold_status(members, L_kP, k, P, fam_id):
 
 def _simulate_null(families, h2_vec, G, rp, rng):
     """One null dataset on the same pedigrees + thresholds. ``G`` is the genetic
-    covariance (``diag(h2)`` under an independence null), ``rp`` the phenotypic
-    correlation to preserve (environmental resemblance)."""
+    covariance under the requested null and ``rp = G + E`` its phenotypic
+    correlation."""
     P = len(h2_vec)
     out = [None] * len(families)
     for _key, idx in _group_by_structure(families):
-        roles = [mm.role for mm in families[idx[0]].members]
+        roles = sorted(mm.role for mm in families[idx[0]].members)
         k = len(roles)
         A = correct_positive_definite(_component_matrix(roles, "A"))[0]
         sig = correct_positive_definite(_multi_cov(A, h2_vec, G, rp))[0]
         L = rng.multivariate_normal(np.zeros(k * P), sig, size=len(idx))
         for slot, f in enumerate(idx):
-            out[f] = _threshold_status(families[f].members, L[slot], k, P,
-                                       families[f].fam_id)
+            members = sorted(families[f].members, key=lambda member: member.role)
+            out[f] = _threshold_status(members, L[slot], k, P, families[f].fam_id)
     return out
 
 
@@ -1173,20 +1260,39 @@ def test_genetic_correlation(families, i=0, j=1, *, n_boot=200, seed=None,
 
     Parametric-bootstrap analog of the SEM test "is the cross-trait genetic path
     zero?". Fits the full model (observed ``rg[i,j]``), then simulates ``n_boot``
-    datasets under the **genetic-independence null** — ``r_g = 0`` but with each
-    trait's ``h2`` and the *phenotypic/environmental* correlation preserved (so a
-    real environmental correlation does not leak into a spurious genetic one) — on
-    the same pedigrees and thresholds, refits, and returns the two-sided p-value
+    datasets under a **pair-specific null** — ``rg[i,j] = 0`` while preserving each
+    trait's ``h2``, the environmental covariance, and all nuisance genetic
+    correlations compatible with a coherent PSD null — on the same pedigrees and
+    thresholds, refits, and returns the two-sided p-value
     ``P(|rg| >= |observed| | H0)``. In simulation it controls the false-positive
     rate (slightly conservative) and has good power for moderate ``|r_g|``. Extra
     keyword args pass to :func:`fit_genetic_correlation`. Needs case/control-style
     bounds. Returns a :class:`SignificanceTest`."""
+    def trait_index(value, name):
+        if isinstance(value, (bool, np.bool_)):
+            raise TypeError(f"{name} must be an integer trait index, not bool")
+        try:
+            return operator.index(value)
+        except TypeError:
+            raise TypeError(f"{name} must be an integer trait index") from None
+
+    i = trait_index(i, "i")
+    j = trait_index(j, "j")
+    if not families:
+        raise ValueError("no families provided")
+    P = int(np.size(families[0].members[0].lower))
+    if not (0 <= i < P and 0 <= j < P) or i == j:
+        raise ValueError(f"i and j must be distinct trait indices in [0, {P})")
     _assert_case_control_bounds(families)
     full = fit_genetic_correlation(families, seed=seed, **fit_kwargs)
     obs = float(full.rg[i, j])
     h2_vec = np.asarray(full.h2, dtype=float)
-    G0 = np.diag(h2_vec)                         # r_g = 0
-    rp_null = full.rp - full.genetic_cov         # keep environmental covariance only
+    # Zero only the tested path. If that edit makes G indefinite, project to the
+    # nearest correlation matrix under the fixed-zero constraint; nuisance paths
+    # move only as much as coherence requires. Keep environmental covariance exact.
+    G0, _ = _project_covariance(full.genetic_cov, h2_vec,
+                                zero_pairs=((i, j),), eps=1e-8)
+    rp_null = G0 + np.asarray(full.env_cov, dtype=float)
     np.fill_diagonal(rp_null, 1.0)
     rng = np.random.default_rng(seed)
     null = np.empty(int(n_boot))

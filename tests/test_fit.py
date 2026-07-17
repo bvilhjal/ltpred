@@ -59,6 +59,33 @@ def test_converges_from_different_inits():
     assert abs(lo - hi) < 0.05          # the fit forgets its starting point
 
 
+def test_fit_preparers_align_bounds_by_role():
+    import importlib
+    fit_mod = importlib.import_module("ltpred.fit")
+
+    scalar = [
+        Family(0, [Member("m", -1.0, 0.0), Member("f", 0.0, 1.0)]),
+        Family(1, [Member("f", 0.2, 1.2), Member("m", -0.8, 0.2)]),
+    ]
+    expected_scalar = np.array([[0.0, -1.0], [0.2, -0.8]])
+    for group in (fit_mod._prepare_group(scalar, [0, 1]),
+                  fit_mod._prepare_group_vc(scalar, [0, 1], ["A"])):
+        assert group["roles"] == ["f", "m"]
+        assert np.allclose(group["lowers"], expected_scalar)
+
+    multi = [
+        Family(0, [Member("m", [-1.0, -0.5], [0.0, 0.5]),
+                   Member("f", [0.0, 0.5], [1.0, 1.5])]),
+        Family(1, [Member("f", [0.2, 0.6], [1.2, 1.6]),
+                   Member("m", [-0.8, -0.4], [0.2, 0.6])]),
+    ]
+    group = fit_mod._prepare_group_multi(multi, [0, 1], 2)
+    assert group["roles"] == ["f", "m"]
+    assert np.allclose(group["lowers"],
+                       [[0.0, -1.0, 0.5, -0.5],
+                        [0.2, -0.8, 0.6, -0.4]])
+
+
 def test_lone_probands_raise():
     # no relatives -> no related pairs -> h2 not identified
     t = 1.64
@@ -158,6 +185,53 @@ def test_genetic_correlation_null_no_false_positive():
     # the phenotypic correlation shows up as an *environmental* one instead
     # (true r_e = 0.3 / (1-0.5) = 0.6)
     assert r.re[0, 1] > 0.30
+
+
+def test_genetic_correlation_uses_and_reports_one_coherent_psd_model(monkeypatch):
+    import importlib
+    fit_mod = importlib.import_module("ltpred.fit")
+
+    # The fixed augmented liabilities imply an impossible pairwise genetic
+    # correlation matrix (one negative eigenvalue), reproducing the old failure.
+    n_pheno = n_fam = 3
+    raw_rg = np.array([[1.0, 0.9, 0.9],
+                       [0.9, 1.0, -0.9],
+                       [0.9, -0.9, 1.0]])
+    U = np.eye(n_pheno)
+    V = (n_fam / 2.0) * 0.4 * raw_rg
+    fixed_x = np.empty((n_fam, 2 * n_pheno))
+    for p in range(n_pheno):
+        fixed_x[:, 2 * p] = U[:, p]
+        fixed_x[:, 2 * p + 1] = V[:, p]
+
+    fams = [Family(f, [Member("o", [-np.inf] * n_pheno, [np.inf] * n_pheno),
+                             Member("m", [-np.inf] * n_pheno, [np.inf] * n_pheno)])
+            for f in range(n_fam)]
+    sampled = []
+
+    def fake_params(sigma):
+        sampled.append(np.array(sigma, copy=True))
+        return None, None
+
+    def fake_advance(_P, _sd, _lo, _hi, _fixed, state, _sweeps):
+        state[:] = fixed_x
+
+    monkeypatch.setattr(fit_mod, "gibbs_params", fake_params)
+    monkeypatch.setattr(fit_mod, "gibbs_advance", fake_advance)
+    result = fit_mod.fit_genetic_correlation(
+        fams, n_iter=5, burn_in=1, inner_sweeps=1, damp=1.0)
+
+    for matrix in (result.genetic_cov, result.env_cov, result.rg,
+                   result.re, result.rp):
+        assert np.min(np.linalg.eigvalsh(matrix)) >= -1e-10
+    assert np.allclose(result.rp, result.genetic_cov + result.env_cov)
+    assert np.allclose(np.diag(result.genetic_cov), result.h2)
+    assert np.allclose(np.diag(result.env_cov), 1.0 - result.h2)
+
+    group = fit_mod._prepare_group_multi(fams, list(range(n_fam)), n_pheno)
+    reported_model = fit_mod._multi_cov(
+        group["A"], result.h2, result.genetic_cov, result.rp)
+    assert np.allclose(sampled[-1], reported_model)
 
 
 def test_genetic_correlation_validates_input():
@@ -493,6 +567,95 @@ def test_genetic_correlation_test_detects_rg():
     assert r.null.shape == (25,)
     assert 0.0 < r.p_value <= 1.0
     assert r.p_value < 0.2                          # real r_g -> significant
+
+
+def test_simulate_null_aligns_reordered_family_bounds_by_role():
+    import importlib
+    fit_mod = importlib.import_module("ltpred.fit")
+
+    def members(order):
+        by_role = {
+            "m": Member("m", [-np.inf, 2.0], [1.0, np.inf]),
+            "f": Member("f", [3.0, -np.inf], [np.inf, 4.0]),
+        }
+        return [by_role[role] for role in order]
+
+    fams = [Family(0, members(["m", "f"])),
+            Family(1, members(["f", "m"]))]
+
+    class FixedRng:
+        def multivariate_normal(self, _mean, _cov, size):
+            assert size == 2
+            # phenotype-major, canonical role order: first role high, second low
+            return np.tile([10.0, -10.0, 10.0, -10.0], (size, 1))
+
+    h2 = np.array([0.4, 0.5])
+    simulated = fit_mod._simulate_null(
+        fams, h2, np.diag(h2), np.eye(2), FixedRng())
+    for family in simulated:
+        by_role = {member.role: member for member in family.members}
+        assert np.array_equal(by_role["f"].lower, [3.0, 4.0])
+        assert np.array_equal(by_role["f"].upper, [np.inf, np.inf])
+        assert np.array_equal(by_role["m"].lower, [-np.inf, -np.inf])
+        assert np.array_equal(by_role["m"].upper, [1.0, 2.0])
+
+
+def test_genetic_correlation_test_validates_indices_before_fit(monkeypatch):
+    import importlib
+    fit_mod = importlib.import_module("ltpred.fit")
+
+    def unexpected_fit(*_args, **_kwargs):
+        pytest.fail("fit must not run for an invalid trait index")
+
+    monkeypatch.setattr(fit_mod, "fit_genetic_correlation", unexpected_fit)
+    fams = [Family(0, [Member("o", [-np.inf] * 3, [0.0] * 3)])]
+    for bad in (True, np.bool_(False), 0.0, np.float64(1.0)):
+        with pytest.raises(TypeError, match="integer trait index"):
+            fit_mod.test_genetic_correlation(fams, i=bad, j=1, n_boot=1)
+    for i, j in ((0, 0), (-1, 1), (0, 3)):
+        with pytest.raises(ValueError, match="distinct trait indices"):
+            fit_mod.test_genetic_correlation(fams, i=i, j=j, n_boot=1)
+
+
+def test_genetic_correlation_test_preserves_nuisance_genetics(monkeypatch):
+    import importlib
+    from types import SimpleNamespace
+    fit_mod = importlib.import_module("ltpred.fit")
+
+    h2 = np.array([0.5, 0.6, 0.7])
+    rg = np.array([[1.0, 0.2, 0.25],
+                   [0.2, 1.0, 0.3],
+                   [0.25, 0.3, 1.0]])
+    G = rg * np.sqrt(np.outer(h2, h2))
+    e2 = 1.0 - h2
+    re = np.array([[1.0, 0.1, -0.1],
+                   [0.1, 1.0, 0.15],
+                   [-0.1, 0.15, 1.0]])
+    E = re * np.sqrt(np.outer(e2, e2))
+    full = SimpleNamespace(h2=h2, rg=rg, genetic_cov=G, env_cov=E, rp=G + E)
+    refits = iter([full, SimpleNamespace(rg=np.eye(3))])
+    captured = []
+
+    def fake_fit(_families, **_kwargs):
+        return next(refits)
+
+    def fake_sim(_families, h2_null, G_null, rp_null, _rng):
+        captured.append((h2_null.copy(), G_null.copy(), rp_null.copy()))
+        return _families
+
+    monkeypatch.setattr(fit_mod, "fit_genetic_correlation", fake_fit)
+    monkeypatch.setattr(fit_mod, "_simulate_null", fake_sim)
+    fams = [Family(0, [Member("o", [-np.inf] * 3, [0.0] * 3)])]
+    fit_mod.test_genetic_correlation(
+        fams, i=np.int64(0), j=np.int32(1), n_boot=1, seed=3)
+
+    _, G0, rp0 = captured[0]
+    assert G0[0, 1] == pytest.approx(0.0, abs=1e-12)
+    assert G0[0, 2] == pytest.approx(G[0, 2])
+    assert G0[1, 2] == pytest.approx(G[1, 2])
+    assert np.allclose(rp0 - G0, E)
+    assert np.min(np.linalg.eigvalsh(G0)) > 0.0
+    assert np.min(np.linalg.eigvalsh(rp0)) > 0.0
 
 
 def test_variance_components_reml_matches_and_has_modelbased_se():

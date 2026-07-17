@@ -141,10 +141,13 @@ gc.h2, gc.rp   # per-trait heritabilities; phenotypic (full-liability) correlati
 ```
 
 The phenotypic correlation splits into genetic and environmental parts —
-`gc.rp` corresponds to `gc.genetic_cov + gc.env_cov` — so you get both `r_g` and
-`r_e`. It needs related pairs (the genetic correlation is carried by the
-cross-relative, cross-trait resemblance). It is ~unbiased near the null and mildly
-attenuated at large `|r_g|`; use `bootstrap_fit` for a CI.
+`gc.rp` **equals** `gc.genetic_cov + gc.env_cov` — so you get both `r_g` and
+`r_e`. Both covariances are positive semi-definite and every reported correlation
+is derived from that one pair, so the returned object is a coherent model you can
+simulate from or hand to `fit_genetic_factor` directly. It needs related pairs (the
+genetic correlation is carried by the cross-relative, cross-trait resemblance). It
+is ~unbiased near the null and mildly attenuated at large `|r_g|`; use
+`bootstrap_fit` for a CI.
 
 ## A genetic common-factor model
 
@@ -180,10 +183,12 @@ tc.p_value, tc.estimate, tc.null      # p-value, observed statistic, null distri
 ```
 
 Each fits the full model, then simulates `n_boot` datasets under the null — for
-`C`, an `A`-only model; for `r_g`, genetic independence with each trait's `h²`
-**and the phenotypic/environmental correlation preserved** — on the same pedigrees
-and thresholds, refits, and locates the observed statistic in that null. Because
-the null is simulated and refit the same way, the moment estimator's boundary bias
+`C`, an `A`-only model; for `r_g[i,j]`, a pair-specific null with only that genetic
+correlation set to zero. Each trait's `h²`, the environmental covariance, and
+nuisance genetic correlations are preserved as far as positive-semidefinite
+coherence permits. Simulation uses the same pedigrees and thresholds, then refits
+and locates the observed statistic in that null. Because the null is simulated and
+refit the same way, the moment estimator's boundary bias
 cancels, so the test is calibrated where a normal-theory test would not be (it is
 uniform under H0 in simulation). It costs ~`n_boot` refits, so lower `n_iter` for
 the refits; needs **case/control-style bounds** (pinned age-of-onset bounds raise).
