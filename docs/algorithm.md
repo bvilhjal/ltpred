@@ -428,6 +428,17 @@ and depends on the number and informativeness of the families (bootstrap over
 families for that). Identifiability comes entirely from the *between-relative*
 covariance, so relatives are required (lone probands carry no information).
 
+**Seeding.** Unlike the estimator's kernel, where each family seeds its own RNG,
+the augmentation kernel is a single `prange` over families, and Numba's random
+state belongs to whichever worker thread picks a family up — so seeding the calling
+thread could not by itself pin the result. `gibbs_advance` instead draws its
+uniforms from a seeded NumPy generator *before* entering the kernel and passes them
+in, so a seeded fit reproduces exactly whatever the thread count and scheduling.
+The generator is thread-local (concurrent seeded fits do not disturb each other)
+and the uniforms are chunked, capping the temporary at a few MiB no matter how many
+families or sweeps. `seed` must be an integer in `[0, 2^32 - 1]`; anything else
+raises rather than being silently coerced.
+
 `fit_variance_components` extends the same augment-then-regress machinery to
 several components at once — a **multiple** Haseman–Elston regression. Each sweep
 draws the liabilities from the full family truncated-MVN under
@@ -491,8 +502,20 @@ the genetic part transmits by relatedness, so `E[l_ip l_jq] = A_ij G[p,q]` for
 `i != j` — the within-individual environmental covariance drops out. The phenotypic
 correlation then splits into genetic and environmental covariances, `rp = G + E`,
 so the **environmental correlation** `re[p,q] = (rp[p,q] - G[p,q]) / sqrt(e2_p e2_q)`
-(`e2 = 1 - h2`) is returned alongside `rg`. Validated approximately unbiased near
-the null (no spurious `rg` when traits are genetically independent but
+(`e2 = 1 - h2`) is returned alongside `rg`.
+
+The moment step is unconstrained, so its raw `G` and `E = rp - G` need not be
+positive semi-definite — especially with few families or a large `|rg|`. Each sweep
+therefore projects both onto the correlation-matrix cone with the fitted
+variances held fixed (an eigenvalue projection, then a shrink towards the identity
+that leaves the diagonal alone), and the chain carries the two projected
+*covariance* states rather than ratios. The reported estimates are the post-burn-in
+averages of those states — averaging covariances is convex, so `G_est` and `E_est`
+are PSD too — with `rg`, `re` and `rp` all derived from that same pair. So the
+returned object is one coherent model: `rp == genetic_cov + env_cov` exactly, and
+every correlation it reports comes from a single PSD fit rather than from
+separately averaged ratios. Validated approximately unbiased near the null (no
+spurious `rg` when traits are genetically independent but
 phenotypically correlated), with mild attenuation at large `|rg|` (the bounded
 ratio estimator); bootstrap families for a CI. This is the pedigree-scale analogue
 of bivariate GREML / cross-trait LD-score regression.
