@@ -42,6 +42,8 @@ __all__ = ["pa_algorithm", "pa_estimate_batched", "tnorm_moments",
 
 _SQRT_2 = 1.4142135623730951
 _LOG_SQRT_2PI = 0.9189385332046727
+_FAR_TAIL_START = 16.0
+_FAR_TAIL_QUAD_LIMIT = 40.0
 _GL8_NODES = np.array([
     -0.9602898564975363, -0.7966664774136267,
     -0.5255324099163290, -0.1834346424956498,
@@ -110,6 +112,55 @@ def _narrow_std_tnorm_moments(a, b):
 
 
 @_jit
+def _far_right_std_tnorm_moments(a, b):
+    """Moments on ``(a, b)`` when ``a`` is far into the right tail.
+
+    With ``y = a * (x - a)``, the unnormalised density is proportional to
+    ``exp(-y - y**2 / (2*a**2))``.  Its mass is concentrated at order-one
+    ``y`` even when ``a`` is enormous, so recovering ``Var(y)`` does not
+    subtract quantities of order ``a**2``.  Composite eight-point
+    Gauss-Legendre integration over unit-width panels is effectively exact at
+    double precision; mass beyond 40 is below machine precision.
+    """
+    if b == math.inf:
+        limit = _FAR_TAIL_QUAD_LIMIT
+    else:
+        limit = a * (b - a)
+        if limit > _FAR_TAIL_QUAD_LIMIT:
+            limit = _FAR_TAIL_QUAD_LIMIT
+
+    n_panels = max(1, int(math.ceil(limit)))
+    panel_width = limit / n_panels
+    mass = 0.0
+    first = 0.0
+    for panel in range(n_panels):
+        left = panel * panel_width
+        half_width = 0.5 * panel_width
+        center = left + half_width
+        for i in range(8):
+            y = center + half_width * _GL8_NODES[i]
+            density = math.exp(-y - 0.5 * (y / a) * (y / a))
+            weight = half_width * _GL8_WEIGHTS[i] * density
+            mass += weight
+            first += weight * y
+
+    mean_y = first / mass
+    centered_second = 0.0
+    for panel in range(n_panels):
+        left = panel * panel_width
+        half_width = 0.5 * panel_width
+        center = left + half_width
+        for i in range(8):
+            y = center + half_width * _GL8_NODES[i]
+            density = math.exp(-y - 0.5 * (y / a) * (y / a))
+            weight = half_width * _GL8_WEIGHTS[i] * density
+            centered_second += weight * (y - mean_y) * (y - mean_y)
+
+    var_y = centered_second / mass
+    return a + mean_y / a, var_y / a / a
+
+
+@_jit
 def _std_tnorm_moments(a, b):
     """Stable moments of ``N(0, 1)`` truncated to ``(a, b)``.
 
@@ -118,6 +169,16 @@ def _std_tnorm_moments(a, b):
     then evaluated as a log-space difference using ``expm1``. This covers both
     finite tail intervals and one-sided truncation with the same calculation.
     """
+    # The usual closed form obtains the variance by subtracting terms of order
+    # ``a**2``.  Beyond the moderate tail that destroys all useful digits even
+    # though the log interval mass remains accurate.  Reflect left tails and
+    # evaluate both cases in a local, order-one coordinate instead.
+    if a >= _FAR_TAIL_START:
+        return _far_right_std_tnorm_moments(a, b)
+    if b <= -_FAR_TAIL_START:
+        mean, var = _far_right_std_tnorm_moments(-b, -a)
+        return -mean, var
+
     if a != -math.inf and b != math.inf and b - a <= 1e-3:
         return _narrow_std_tnorm_moments(a, b)
 

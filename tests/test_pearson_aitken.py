@@ -73,6 +73,47 @@ def test_tnorm_moments_extreme_tail_symmetry(threshold):
     assert left_var == pytest.approx(right_var, abs=1e-12)
 
 
+@pytest.mark.parametrize("threshold", [1_000.0, 10_000.0, 100_000.0])
+def test_tnorm_moments_are_stable_in_far_one_sided_tails(threshold):
+    # Inverse-Mills asymptotics, through terms well below double precision at
+    # these thresholds.  SciPy's direct variance formula also cancels here, so
+    # it is not a usable reference for this regression.
+    inv = 1.0 / threshold
+    expected_mean = threshold + inv - 2.0 * inv ** 3 + 10.0 * inv ** 5
+    expected_var = inv ** 2 - 6.0 * inv ** 4 + 50.0 * inv ** 6
+
+    right_mean, right_var = tnorm_moments(lower=threshold)
+    left_mean, left_var = tnorm_moments(upper=-threshold)
+
+    assert right_mean == pytest.approx(expected_mean,
+                                       abs=2.0 * np.spacing(expected_mean))
+    assert right_var == pytest.approx(expected_var, rel=2e-13)
+    assert right_mean > threshold
+    assert 0.0 < right_var < inv ** 2
+    assert left_mean == -right_mean
+    assert left_var == right_var
+
+
+@pytest.mark.parametrize("lower,upper", [
+    (1_000.0, 1_001.0),
+    (100_000.0, 100_000.0005),
+])
+def test_tnorm_moments_are_stable_in_far_finite_tail_intervals(lower, upper):
+    one_sided_mean, one_sided_var = tnorm_moments(lower=lower)
+    right_mean, right_var = tnorm_moments(lower=lower, upper=upper)
+    left_mean, left_var = tnorm_moments(lower=-upper, upper=-lower)
+
+    # The excluded upper-tail mass is below double precision in both cases, so
+    # these finite-interval moments equal the one-sided result numerically.  The
+    # second case also guards routing before the generic narrow-interval path.
+    assert right_mean == one_sided_mean
+    assert right_var == one_sided_var
+    assert lower < right_mean < upper
+    assert 0.0 < right_var < 1.0 / lower ** 2
+    assert left_mean == -right_mean
+    assert left_var == right_var
+
+
 def test_pa_single_case_is_exact():
     h2, prev = 0.5, 0.05
     t = float(stats.norm.isf(prev))
