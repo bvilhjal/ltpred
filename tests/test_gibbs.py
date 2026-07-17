@@ -1,15 +1,33 @@
 """The truncated-MVN Gibbs sampler against closed-form truncated-normal results."""
 
+from concurrent.futures import ThreadPoolExecutor
+import importlib
+import threading
+
 import numpy as np
 import pytest
 from scipy import stats
 
-from ltpred.gibbs import rtmvnorm_gibbs, gibbs_params
+from ltpred._numba import HAVE_NUMBA
+from ltpred.gibbs import (rtmvnorm_gibbs, gibbs_params, gibbs_advance,
+                          _seed_rng)
+
+gibbs_mod = importlib.import_module("ltpred.gibbs")
 
 
 def _imr(t):
     """Inverse Mills ratio phi(t)/(1-Phi(t)) = mean of N(0,1) above t."""
     return stats.norm.pdf(t) / stats.norm.sf(t)
+
+
+def _advance_from_zero(seed=None, n_families=12, d=3, n_sweeps=7):
+    if seed is not None:
+        _seed_rng(seed)
+    x = np.zeros((n_families, d))
+    gibbs_advance(np.zeros((d, d)), np.ones(d),
+                  np.full_like(x, -np.inf), np.full_like(x, np.inf),
+                  np.zeros_like(x, dtype=bool), x, n_sweeps)
+    return x
 
 
 def test_gibbs_params_precision_matches_regression():
@@ -97,3 +115,134 @@ def test_params_reuse_matches_fresh():
     b = rtmvnorm_gibbs(cov, lower=lo, upper=hi, out=(0,), n_sim=20_000,
                        burn_in=300, seed=11)
     assert np.array_equal(a, b)
+
+
+@pytest.mark.skipif(not HAVE_NUMBA, reason="requires Numba worker threads")
+def test_parallel_gibbs_advance_seed_is_scheduler_independent():
+    from numba import config, get_num_threads, set_num_threads
+
+    if config.NUMBA_NUM_THREADS < 2:
+        pytest.skip("requires at least two Numba worker threads")
+
+    n_families, d = 32, 3
+    P = np.zeros((d, d))
+    sd = np.ones(d)
+    lower = np.full((n_families, d), -np.inf)
+    upper = np.full((n_families, d), np.inf)
+    fixed = np.zeros((n_families, d), dtype=bool)
+
+    def run(seed, n_threads):
+        set_num_threads(n_threads)
+        x = np.zeros((n_families, d))
+        _seed_rng(seed)
+        gibbs_advance(P, sd, lower, upper, fixed, x, 7)
+        return x
+
+    previous = get_num_threads()
+    workers = min(4, config.NUMBA_NUM_THREADS)
+    try:
+        # Compile before the comparison; compilation itself must not be part of
+        # the experiment.
+        run(0, workers)
+        serial = run(123, 1)
+        parallel_a = run(123, workers)
+        parallel_b = run(123, workers)
+    finally:
+        set_num_threads(previous)
+
+    assert np.array_equal(serial, parallel_a)
+    assert np.array_equal(parallel_a, parallel_b)
+    # A tempting but broken fix is np.random.seed(seed) inside every iteration.
+    # Identical families must not therefore receive identical draws.
+    assert np.unique(parallel_a, axis=0).shape[0] == n_families
+
+
+def test_concurrent_gibbs_advance_seed_streams_are_isolated():
+    barrier = threading.Barrier(2)
+
+    def run(seed, synchronize=False):
+        if HAVE_NUMBA:
+            from numba import set_num_threads
+            set_num_threads(1)
+        _seed_rng(seed)
+        x = np.zeros((12, 3))
+        P = np.zeros((3, 3))
+        sd = np.ones(3)
+        lower = np.full_like(x, -np.inf)
+        upper = np.full_like(x, np.inf)
+        fixed = np.zeros_like(x, dtype=bool)
+        for _ in range(4):
+            if synchronize:
+                barrier.wait(timeout=10)
+            gibbs_advance(P, sd, lower, upper, fixed, x, 2)
+        return x
+
+    expected = {seed: run(seed) for seed in (101, 202)}
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = {seed: pool.submit(run, seed, True) for seed in expected}
+        actual = {seed: future.result(timeout=30)
+                  for seed, future in futures.items()}
+
+    for seed in expected:
+        assert np.array_equal(actual[seed], expected[seed])
+
+
+@pytest.mark.parametrize("seed", [True, np.bool_(False), 1.0, np.float64(2), "3"])
+def test_seed_rejects_non_integer_types(seed):
+    with pytest.raises(TypeError, match="seed must be an integer"):
+        _seed_rng(seed)
+
+
+@pytest.mark.parametrize("seed", [-1, np.int64(-1), 1 << 32])
+def test_seed_rejects_values_outside_uint32(seed):
+    with pytest.raises(ValueError, match="seed must be in"):
+        _seed_rng(seed)
+
+
+def test_invalid_seed_does_not_mutate_parallel_stream():
+    _seed_rng(29)
+    with pytest.raises(ValueError):
+        _seed_rng(-1)
+    actual = _advance_from_zero()
+    expected = _advance_from_zero(seed=29)
+    assert np.array_equal(actual, expected)
+
+
+def test_public_sampler_rejects_float_seed():
+    with pytest.raises(TypeError, match="seed must be an integer"):
+        rtmvnorm_gibbs(np.eye(1), n_sim=1, burn_in=0, seed=1.0)
+
+
+def test_gibbs_advance_chunks_uniform_storage(monkeypatch):
+    class RecordingGenerator:
+        def __init__(self):
+            self.shapes = []
+
+        def random(self, shape):
+            self.shapes.append(shape)
+            return np.full(shape, 0.5)
+
+    generator = RecordingGenerator()
+    monkeypatch.setattr(gibbs_mod._advance_rng_state, "generator", generator,
+                        raising=False)
+    monkeypatch.setattr(gibbs_mod, "_MAX_ADVANCE_UNIFORMS", 20)
+    _advance_from_zero(n_families=9, d=3, n_sweeps=5)
+
+    assert len(generator.shapes) > 1
+    assert max(np.prod(shape) for shape in generator.shapes) <= 20
+
+
+def test_gibbs_advance_python_fallback_is_random_free(monkeypatch):
+    expected = _advance_from_zero(seed=77)
+    _seed_rng(77)
+
+    kernel = gibbs_mod._gibbs_advance
+    monkeypatch.setattr(gibbs_mod, "_gibbs_advance",
+                        getattr(kernel, "py_func", kernel))
+
+    def unexpected_reseed(*_args, **_kwargs):
+        raise AssertionError("advance kernel must consume supplied uniforms")
+
+    monkeypatch.setattr(np.random, "seed", unexpected_reseed)
+    actual = _advance_from_zero()
+    assert np.array_equal(actual, expected)

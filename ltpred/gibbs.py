@@ -22,6 +22,8 @@ in family-free ADuLT) and are held constant rather than resampled.
 
 from __future__ import annotations
 
+import threading
+
 import numpy as np
 
 from ._numba import _jit, _jit_parallel, prange
@@ -35,6 +37,14 @@ __all__ = ["rtmvnorm_gibbs", "gibbs_params", "gibbs_estimate_batched",
 # infinite liability. Statistically negligible; the R/Rcpp code omits it only
 # because R's runif never returns its endpoints.
 _U_EPS = 1e-15
+
+# Numba's ``np.random`` state is tied to worker threads, so seeding the calling
+# thread cannot make a ``prange`` kernel scheduler-independent. Generate trusted
+# float64 uniforms here instead and pass them into a random-free kernel. The RNG
+# is thread-local so concurrent seeded fits cannot overwrite one another.
+_advance_rng_state = threading.local()
+_MAX_ADVANCE_UNIFORMS = 1 << 20       # 8 MiB of float64 temporary storage
+_MAX_SEED = (1 << 32) - 1
 
 
 def gibbs_params(covmat):
@@ -206,19 +216,12 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
 
 
 @_jit_parallel
-def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
-    """Advance many families' truncated-MVN chains in place by ``n_sweeps`` sweeps.
-
-    Unlike :func:`gibbs_estimate_batched` (which runs independent short chains and
-    returns their means), this keeps a **persistent** state ``x`` (``F x d``) that
-    the caller carries across outer iterations — the data-augmentation step of a
-    variance-component fit (:mod:`ltpred.fit`), where the covariance (hence ``P`` /
-    ``sd``) changes between calls. ``fixed[f, j]`` coordinates (pinned cases) are
-    held. Parallel over families; seed once beforehand with :func:`_seed_rng`."""
+def _gibbs_advance(P, sd, lowers, uppers, fixed, x, uniforms):
+    """Parallel random-free kernel for one bounded block of uniforms."""
     F = x.shape[0]
     d = x.shape[1]
     for f in prange(F):
-        for _ in range(n_sweeps):
+        for sweep in range(uniforms.shape[1]):
             for j in range(d):
                 if not fixed[f, j]:
                     mu_j = 0.0
@@ -227,7 +230,7 @@ def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
                     sd_j = sd[j]
                     fa = _norm_cdf((lowers[f, j] - mu_j) / sd_j)
                     fb = _norm_cdf((uppers[f, j] - mu_j) / sd_j)
-                    u = fa + np.random.random() * (fb - fa)
+                    u = fa + uniforms[f, sweep, j] * (fb - fa)
                     if u < _U_EPS:
                         u = _U_EPS
                     elif u > 1.0 - _U_EPS:
@@ -236,11 +239,65 @@ def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
 
 
 @_jit
-def _seed_rng(seed):
-    """Seed the RNG the kernel draws from (Numba's generator under njit, NumPy's
-    global generator in the pure-Python fallback). Isolated so the with/without
-    -numba reproducibility switch stays in one jitted spot."""
+def _seed_numba_rng(seed):
+    """Seed serial jitted samplers (or NumPy in the pure-Python fallback)."""
     np.random.seed(seed)
+
+
+def _seed_rng(seed):
+    """Seed serial and parallel sampler streams for reproducibility."""
+    if isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer)):
+        raise TypeError(f"seed must be an integer in [0, {_MAX_SEED}]")
+    seed = int(seed)
+    if seed < 0 or seed > _MAX_SEED:
+        raise ValueError(f"seed must be in [0, {_MAX_SEED}]")
+
+    # Construct first, then mutate the serial and parallel states only after all
+    # validation has succeeded.
+    generator = np.random.default_rng(seed)
+    _seed_numba_rng(seed)
+    _advance_rng_state.generator = generator
+
+
+def _advance_rng():
+    """Return this calling thread's parallel-sampler generator."""
+    generator = getattr(_advance_rng_state, "generator", None)
+    if generator is None:
+        generator = np.random.default_rng()
+        _advance_rng_state.generator = generator
+    return generator
+
+
+def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
+    """Advance many families' truncated-MVN chains in place by ``n_sweeps`` sweeps.
+
+    Unlike :func:`gibbs_estimate_batched` (which runs independent short chains and
+    returns their means), this keeps a **persistent** state ``x`` (``F x d``) that
+    the caller carries across outer iterations — the data-augmentation step of a
+    variance-component fit (:mod:`ltpred.fit`), where the covariance (hence ``P`` /
+    ``sd``) changes between calls. ``fixed[f, j]`` coordinates (pinned cases) are
+    held. Parallel over families; seed once beforehand with :func:`_seed_rng`.
+
+    Uniforms are generated before entering ``prange`` so a seeded fit is exact
+    regardless of how Numba schedules families across worker threads. Generation
+    is thread-local (isolating concurrent fits) and chunked to cap temporary memory.
+    """
+    n_sweeps = int(n_sweeps)
+    n_families, d = x.shape
+    if n_sweeps <= 0 or n_families == 0 or d == 0:
+        return
+
+    generator = _advance_rng()
+    family_chunk = max(1, min(n_families, _MAX_ADVANCE_UNIFORMS // d))
+    for start in range(0, n_families, family_chunk):
+        stop = min(start + family_chunk, n_families)
+        block_size = stop - start
+        sweep_chunk = max(1, _MAX_ADVANCE_UNIFORMS // (block_size * d))
+        for first_sweep in range(0, n_sweeps, sweep_chunk):
+            this_sweeps = min(sweep_chunk, n_sweeps - first_sweep)
+            uniforms = generator.random((block_size, this_sweeps, d))
+            _gibbs_advance(P, sd, lowers[start:stop], uppers[start:stop],
+                           fixed[start:stop], x[start:stop], uniforms)
 
 
 def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
@@ -306,7 +363,7 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
     x = np.ascontiguousarray(np.where(np.isfinite(x), x, 0.0), dtype=np.float64)
 
     if seed is not None:
-        _seed_rng(int(seed))
+        _seed_rng(seed)
 
     res = np.empty((int(n_sim), len(out)), dtype=np.float64)
     _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, int(n_sim),
