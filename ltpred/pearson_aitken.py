@@ -3,7 +3,8 @@
 An analytical alternative to the Gibbs sampler. Pearson-Aitken is the inference
 engine: the supplied liability bounds and inclusion of relatives determine whether
 the fitted model is classic LT-FH, onset-pinned LT-FH++, family-free ADuLT, or
-interval-case PA-FGRS. Following Krebs et al. 2024
+base PA-FGRS or an age-dependent PA-FGRS-style interval variant. Following
+Dybdahl Krebs et al. 2024
 (*Am. J. Hum. Genet.*, "Genetic liability estimated from large-scale family
 data ..."), it
 folds each observed relative in one at a time using the classical Pearson-Aitken
@@ -22,10 +23,13 @@ error**. Zero Monte-Carlo error does not mean zero approximation error. For a
 single truncation the moments are exact; for several they are the standard
 sequential-selection approximation, which is orders of magnitude faster than Gibbs.
 
-The PA-FGRS extension for **age-censored controls** (:func:`_tnorm_mixture`)
+The PA-FGRS component for **age-censored controls** (:func:`_tnorm_mixture`)
 models an as-yet-unaffected relative as a mixture of a true control and a
 not-yet-onset future case, weighted by how far their individual cumulative
-incidence ``K_i`` lags the population lifetime prevalence ``K_pop``.
+incidence ``K_i`` lags the population lifetime prevalence ``K_pop``. Base PA-FGRS
+uses a lifetime-threshold interval for observed cases; the age-specific case
+intervals emitted by :func:`ltpred.thresholds.pa_thresholds` are a separate,
+age-dependent PA-FGRS-style variant.
 """
 
 from __future__ import annotations
@@ -37,6 +41,7 @@ import numpy as np
 from ._numba import _jit, _jit_parallel, prange
 from ._mathfun import _norm_cdf, _norm_ppf
 from .gibbs import as_bounds
+from ._validation import validate_mixture_inputs
 
 __all__ = ["pa_algorithm", "pa_estimate_batched", "tnorm_moments",
            "tnorm_mixture_conditional"]
@@ -251,7 +256,7 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     just the truncated-normal moments on ``(lower, upper)`` (the plain PA / LT-FH
     behaviour). When both are given and the individual is not a fully observed case
     (finite ``upper`` or a point mass), the result is the PA-FGRS age-censoring
-    mixture (Krebs et al. 2024, supp. eqs. S3-S5): a genuine control on
+    mixture (Dybdahl Krebs et al. 2024, supp. eqs. S3-S5): a genuine control on
     ``(lower, thr_pop)`` with weight ``mixture_prob``, and a not-yet-onset future
     case on ``(thr_pop, inf)`` with the complement.
 
@@ -262,8 +267,9 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     (``+inf``); its exact value is irrelevant in mixture mode, so feeding either the
     lifetime bound ``thr_pop`` or an age-specific bound ``Phi^-1(1 - K_i)`` (as
     :func:`ltpred.thresholds.pa_thresholds` emits for the no-mixture interval path)
-    yields the same, paper-correct result. Sourcing the split from ``upper`` instead
-    would double-correct an age-specific bound -- the censoring gets encoded twice."""
+    yields the same censored-control moments. Sourcing the split from ``upper``
+    instead would double-correct an age-specific bound -- the censoring gets
+    encoded twice."""
     sd = math.sqrt(var)
     use_mix = (not math.isnan(K_pop)) and (not math.isnan(K_i)) and \
         (upper != math.inf or lower == upper)
@@ -372,9 +378,9 @@ def tnorm_moments(mu=0.0, var=1.0, lower=-np.inf, upper=np.inf):
 
 def tnorm_mixture_conditional(mu, var, lower, upper, K_i=np.nan, K_pop=np.nan):
     """Public scalar helper for the censored-control mixture; returns ``(mean, var)``."""
-    K_i = np.nan if K_i is None else K_i
-    K_pop = np.nan if K_pop is None else K_pop
-    return _tnorm_mixture(mu, var, lower, upper, K_i, K_pop)
+    K_i, K_pop = validate_mixture_inputs(
+        K_i, K_pop, expected_shape=(), context="scalar mixture inputs")
+    return _tnorm_mixture(mu, var, lower, upper, float(K_i), float(K_pop))
 
 
 def pa_algorithm(covmat, lower, upper, target=0, K_i=None, K_pop=None):
@@ -395,8 +401,10 @@ def pa_algorithm(covmat, lower, upper, target=0, K_i=None, K_pop=None):
     lo, hi = lower[order], upper[order]
     if K_i is None and K_pop is None:          # no-mixture fast path
         return _pa_family_nomix(cov, lo, hi)
-    K_i = np.full(d, np.nan) if K_i is None else np.asarray(K_i, dtype=np.float64)
-    K_pop = np.full(d, np.nan) if K_pop is None else np.asarray(K_pop, dtype=np.float64)
+    K_i, K_pop = validate_mixture_inputs(
+        K_i, K_pop, expected_shape=(d,), context="pa_algorithm mixture inputs")
+    K_i = as_bounds(K_i)
+    K_pop = as_bounds(K_pop)
     return _pa_family(cov, lo, hi, K_i[order], K_pop[order])
 
 
@@ -421,8 +429,11 @@ def pa_estimate_batched(covmat, lowers, uppers, target=0, K_is=None, K_pops=None
     if K_is is None and K_pops is None:        # no-mixture fast path (no K arrays)
         _pa_batched_nomix(cov, lo, hi, est, var)
         return est, var
-    K_is = np.full((F, d), np.nan) if K_is is None else as_bounds(K_is)
-    K_pops = np.full((F, d), np.nan) if K_pops is None else as_bounds(K_pops)
+    K_is, K_pops = validate_mixture_inputs(
+        K_is, K_pops, expected_shape=(F, d),
+        context="batched PA mixture inputs")
+    K_is = as_bounds(K_is)
+    K_pops = as_bounds(K_pops)
     _pa_batched(cov, lo, hi, np.ascontiguousarray(K_is[:, order]),
                 np.ascontiguousarray(K_pops[:, order]), est, var)
     return est, var

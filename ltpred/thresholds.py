@@ -166,11 +166,19 @@ def age_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
 
 
 def pa_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
-    """PA-FGRS inputs from status and age: ``(lower, upper, K_i, K_pop)``.
+    """Age-dependent PA-FGRS-style inputs: ``(lower, upper, K_i, K_pop)``.
 
-    The name refers to the PA-FGRS observation model, not to selecting the
-    Pearson-Aitken inference engine. To infer onset-pinned LT-FH++ or ADuLT with
-    Pearson-Aitken, use :func:`age_thresholds` or
+    The historical name refers to an observation encoding, not to selecting the
+    Pearson-Aitken inference engine. The helper is **not** the paper-faithful base
+    PA-FGRS encoding: Dybdahl Krebs et al. (2024) give observed cases the lifetime
+    interval ``(Phi^-1(1 - K_pop), inf)`` and use age-specific incidence only in
+    the censored-control mixture. This helper instead gives cases age-specific
+    onset intervals, making it an age-dependent PA-FGRS-style variant.
+
+    For base PA-FGRS, obtain lifetime case/control intervals with
+    :func:`prevalence_thresholds`, supply ``K_i``/``K_pop`` for controls, and use
+    the Pearson-Aitken estimator with ``use_mixture=True``. To infer onset-pinned
+    LT-FH++ or ADuLT with Pearson-Aitken, use :func:`age_thresholds` or
     :func:`thresholds_from_cip` with ``case_mode="pin"`` and pass the resulting
     families to the default estimator.
 
@@ -190,13 +198,14 @@ def pa_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     * ``use_mixture=True`` -- the PA-FGRS censored-control correction switches on. It
       does the age adjustment itself, from ``K_i``/``K_pop``, by splitting the
       control's liability at the *lifetime* threshold ``Phi^-1(1 - K_pop)`` into a
-      genuine-control and a not-yet-onset-case component (Krebs et al. 2024, eqs.
-      S3-S5). The age-specific ``upper`` is then only a censored-vs-observed flag --
-      its value does not re-enter, so the mixture does **not** double-count the
-      censoring already implicit in the age bound.
+      genuine-control and a not-yet-onset-case component (Dybdahl Krebs et al.
+      2024, eqs. S3-S5). The age-specific ``upper`` is then only a
+      censored-vs-observed flag -- its value does not re-enter. Age therefore
+      enters through ``K_i`` only and is not applied twice.
 
-    Either way the result is well calibrated; the two are near-identical estimators
-    of the same generative model."""
+    These two settings encode different observation models; neither their
+    equivalence nor calibration should be assumed without a generative validation
+    matching the intended study design."""
     status = np.asarray(status, dtype=bool)
     age = np.asarray(age, dtype=float)
     thr = np.asarray(convert_age_to_thresh(age, dist="logistic", pop_prev=pop_prev,
@@ -227,12 +236,14 @@ def thresholds_from_cip(status, age, cip_ages, cip_values, k_pop=None,
     ``k_pop`` is the lifetime prevalence for the stratum. It defaults to
     ``max(cip_values)``, which is appropriate only when the curve reaches the
     intended lifetime horizon; otherwise pass a separately justified value.
-    ``case_mode`` sets the case encoding: ``"pin"`` (the
-    default) pins a case at ``thresh(age_of_onset)`` (the encoding used by LT-FH++
-    with family history and ADuLT without it), while ``"interval"`` uses
-    ``(thresh(age_of_onset), inf)`` (the PA-FGRS encoding). Controls are always
-    ``(-inf, thresh(current_age))`` and carry ``K_i`` / ``K_pop`` for the PA
-    censored-control mixture. Returns ``(lower, upper, K_i, K_pop)``."""
+    ``case_mode`` sets the case encoding: ``"pin"`` (the default) pins a case at
+    ``thresh(age_of_onset)`` (the encoding used by LT-FH++ with family history and
+    ADuLT without it), while ``"interval"`` uses
+    ``(thresh(age_of_onset), inf)``. The latter is an age-dependent PA-FGRS-style
+    variant, not base PA-FGRS, whose observed cases use the lifetime threshold.
+    Controls are always ``(-inf, thresh(current_age))`` and carry ``K_i`` /
+    ``K_pop`` for the PA censored-control mixture. Returns
+    ``(lower, upper, K_i, K_pop)``."""
     status = np.asarray(status, dtype=bool)
     age = np.asarray(age, dtype=float)
     cip_ages = np.asarray(cip_ages, dtype=float)

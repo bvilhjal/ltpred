@@ -202,6 +202,57 @@ def test_mixture_raises_young_control_liability():
     assert mix > nomix
 
 
+@pytest.mark.parametrize(
+    "K_i,K_pop,match",
+    [(0.01, np.nan, "finite K_i and K_pop"),
+     (np.nan, 0.10, "finite K_i and K_pop"),
+     (-0.01, 0.10, "0 <= K_i <= K_pop < 1"),
+     (0.20, 0.10, "0 <= K_i <= K_pop < 1"),
+     (0.00, 0.00, "K_pop > 0"),
+     (0.10, 1.00, "K_pop > 0")],
+)
+def test_public_scalar_and_family_pa_validate_mixture_pairs(K_i, K_pop, match):
+    t = float(stats.norm.isf(0.10))
+    with pytest.raises(ValueError, match=match):
+        tnorm_mixture_conditional(
+            0.0, 1.0, -np.inf, t, K_i=K_i, K_pop=K_pop)
+
+    cov = np.array([[0.5, 0.5], [0.5, 1.0]])
+    with pytest.raises(ValueError, match=match):
+        pa_algorithm(
+            cov, [-np.inf, -np.inf], [np.inf, t], target=0,
+            K_i=[np.nan, K_i], K_pop=[np.nan, K_pop])
+
+
+def test_public_pa_allows_nan_nan_at_unused_coordinates():
+    t = float(stats.norm.isf(0.10))
+    plain = tnorm_moments(0.0, 1.0, -np.inf, t)
+    assert tnorm_mixture_conditional(
+        0.0, 1.0, -np.inf, t, K_i=np.nan, K_pop=np.nan) == pytest.approx(plain)
+
+    cov = np.array([[0.5, 0.5, 0.25],
+                    [0.5, 1.0, 0.25],
+                    [0.25, 0.25, 1.0]])
+    est, var = pa_algorithm(
+        cov, [-np.inf, t, -np.inf], [np.inf, np.inf, t], target=0,
+        K_i=[np.nan, np.nan, 0.02], K_pop=[np.nan, np.nan, 0.10])
+    assert np.isfinite(est) and np.isfinite(var)
+
+
+def test_pa_algorithm_normalises_float16_mixture_inputs_for_numba():
+    t = float(stats.norm.isf(0.10))
+    cov = np.array([[0.5, 0.5], [0.5, 1.0]])
+    K_i = np.array([np.nan, 0.02], dtype=np.float16)
+    K_pop = np.array([np.nan, 0.10], dtype=np.float16)
+    args = (cov, [-np.inf, -np.inf], [np.inf, t])
+
+    got = pa_algorithm(*args, target=0, K_i=K_i, K_pop=K_pop)
+    ref = pa_algorithm(
+        *args, target=0, K_i=K_i.astype(np.float64),
+        K_pop=K_pop.astype(np.float64))
+    assert got == pytest.approx(ref)
+
+
 def test_mixture_changes_genetic_estimate():
     # a proband case with a single young control sibling: the mixture (accounting
     # for the sibling's residual risk) should not decrease the genetic estimate.

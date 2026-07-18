@@ -5,10 +5,11 @@ interval and estimates the posterior mean of the proband's genetic liability ``g
 (and/or full liability ``o``). Gibbs estimates that target by Monte Carlo;
 single-trait inference defaults to the deterministic Pearson-Aitken (PA)
 sequential-moment approximation. Gibbs also handles multiple traits. The resulting
-genetic-liability estimate is the continuous phenotype fed to a GWAS. The observation
-bounds and presence or absence of relatives determine the model; ``method`` only
-selects the inference engine. In particular, PA is the single-trait default, but
-it does not turn classic LT-FH inputs into LT-FH++ automatically.
+genetic-liability estimate is the continuous phenotype fed to a GWAS. Observation
+bounds and relative rows distinguish LT-FH, LT-FH++ and ADuLT; PA-FGRS additionally
+requires its PA-specific ``K_i``/``K_pop`` censoring mixture. In particular, PA is
+the single-trait default, but it does not turn classic LT-FH inputs into LT-FH++
+or PA-FGRS automatically.
 
 Families are independent, so the estimator groups those that share a family
 structure (identical roles -> identical covariance) and samples the whole group
@@ -34,7 +35,7 @@ from .covariance import (construct_covmat_single, construct_covmat_multi,
 from .gibbs import (gibbs_params, gibbs_estimate_batched, as_bounds, _MAX_SEED,
                     _validate_seed)
 from .pearson_aitken import pa_estimate_batched
-from ._validation import validate_bounds
+from ._validation import validate_bounds, validate_mixture_inputs
 
 __all__ = ["LiabilityResult", "batch_means", "estimate_liability",
            "estimate_liability_single", "estimate_liability_multi",
@@ -430,14 +431,13 @@ def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
     :class:`LiabilityResult` with ``se = 0`` and PA approximations to conditional
     variances in ``var``."""
     _check_unique_roles(families)
-    if use_mixture and not any(
-            m.K_i is not None and np.isfinite(np.asarray(m.K_i, dtype=float)).any()
-            for fam in families for m in fam.members):
-        raise ValueError(
-            "use_mixture=True but no family member carries a K_i/K_pop, so the "
-            "censored-control mixture has nothing to act on. Build bounds with "
-            "pa_thresholds or thresholds_from_cip (which emit K_i/K_pop for controls), "
-            "or set use_mixture=False.")
+    if use_mixture:
+        members = [member for family in families for member in family.members]
+        K_i = [np.nan if member.K_i is None else member.K_i for member in members]
+        K_pop = [np.nan if member.K_pop is None else member.K_pop for member in members]
+        validate_mixture_inputs(
+            K_i, K_pop, expected_shape=(len(members),), require_pair=True,
+            context="family mixture inputs")
     dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
     names = [_OUT_NAMES[c] for c in out_coords]
@@ -603,6 +603,9 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
 
     lo, hi = _align_to_cov(roles, cov_roles, (lower, upper), (-np.inf, np.inf))
     if use_mixture:
+        K_i, K_pop = validate_mixture_inputs(
+            K_i, K_pop, expected_shape=lower.shape, require_pair=True,
+            context="array estimator mixture inputs")
         K_i = as_bounds(K_i)
         K_pop = as_bounds(K_pop)
         ki, kp = _align_to_cov(roles, cov_roles, (K_i, K_pop), (np.nan, np.nan))
@@ -709,14 +712,15 @@ def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",),
                        burn_in=1000, seed=None, max_rounds=100, dtype=np.float64):
     """Estimate conditional liabilities, dispatching on method and trait count.
 
-    The bounds in ``families`` and whether relative rows are present determine the
-    model (LT-FH, LT-FH++, ADuLT or PA-FGRS). ``method`` selects only the numerical
-    inference engine.
+    Bounds and relative rows distinguish LT-FH, LT-FH++ and ADuLT. PA-FGRS also
+    requires ``K_i``/``K_pop`` and ``use_mixture=True`` and is implemented only by
+    the Pearson-Aitken engine.
 
     ``method`` selects the inference engine; the **default** (``None``) picks the
-    deterministic **Pearson-Aitken (PA)** estimator for a single trait. On the
-    benchmark's tested family structures it matched the Gibbs estimate to about
-    ``1e-2`` and ran 315–510x faster on the benchmark hardware. The dispatcher
+    deterministic **Pearson-Aitken (PA)** estimator for a single trait. Across the
+    benchmark's tested no-mixture structures, PA and Gibbs posterior-mean estimates
+    had correlation at least ``0.997`` and PA ran 315–510x faster on the benchmark
+    hardware. The dispatcher
     falls back to the **Gibbs**
     sampler for the multi-trait model, which PA does not support. Pass ``method``
     explicitly to override: ``"pearson-aitken"`` (aliases ``"pa"``, ``"aitken"``;
@@ -738,7 +742,8 @@ def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",),
     if method is None:                       # default: PA (single trait), Gibbs (multi, PA can't)
         method = "gibbs" if is_multi else "pearson-aitken"
 
-    if str(method).lower() in _PA_METHODS:
+    method_name = str(method).lower()
+    if method_name in _PA_METHODS:
         if is_multi:
             raise NotImplementedError(
                 "Pearson-Aitken estimation is single-trait; use method='gibbs' "
@@ -746,8 +751,12 @@ def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",),
         return estimate_liability_pa(families, h2=h2, out=out,
                                      use_mixture=use_mixture, dtype=dtype)
 
-    if str(method).lower() != "gibbs":
+    if method_name != "gibbs":
         raise ValueError(f"unknown method {method!r}; use 'gibbs' or 'pearson-aitken'")
+    if use_mixture:
+        raise ValueError(
+            "use_mixture=True is only supported by Pearson-Aitken; the Gibbs "
+            "estimator does not implement the censored-control mixture")
 
     if not is_multi:
         return estimate_liability_single(families, h2=h2, out=out, tol=tol,

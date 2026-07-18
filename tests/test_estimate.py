@@ -422,10 +422,49 @@ def test_default_method_is_pa_and_multitrait_falls_back_to_gibbs():
 
 
 def test_use_mixture_without_K_raises():
+    from ltpred.estimate import estimate_liability_pa_arrays
+
     t = float(stats.norm.isf(0.05))
     fam = Family("f", [Member("o", -np.inf, t), Member("m", -np.inf, t)])  # no K_i
-    with pytest.raises(ValueError, match="K_i/K_pop"):
+    with pytest.raises(ValueError, match="at least one valid K_i/K_pop pair"):
         estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
+    with pytest.raises(ValueError, match="at least one valid K_i/K_pop pair"):
+        estimate_liability_pa_arrays(
+            ["o"], np.array([[-np.inf]]), np.array([[t]]),
+            K_i=np.array([[np.nan]]), K_pop=np.array([[np.nan]]),
+            use_mixture=True)
+
+
+@pytest.mark.parametrize(
+    "K_i,K_pop,match",
+    [(0.01, np.nan, "finite K_i and K_pop"),
+     (np.nan, 0.10, "finite K_i and K_pop"),
+     (np.inf, 0.10, "finite K_i and K_pop"),
+     (-0.01, 0.10, "0 <= K_i <= K_pop < 1"),
+     (0.20, 0.10, "0 <= K_i <= K_pop < 1"),
+     (0.00, 0.00, "K_pop > 0"),
+     (0.10, 1.00, "K_pop > 0")],
+)
+def test_mixture_pair_validation_object_and_array_apis(K_i, K_pop, match):
+    from ltpred.estimate import estimate_liability_pa_arrays
+
+    t = float(stats.norm.isf(0.10))
+    fam = Family("f", [Member("o", -np.inf, t, K_i=K_i, K_pop=K_pop)])
+    with pytest.raises(ValueError, match=match):
+        estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
+
+    with pytest.raises(ValueError, match=match):
+        estimate_liability_pa_arrays(
+            ["o"], np.array([[-np.inf]]), np.array([[t]]),
+            K_i=np.array([[K_i]]), K_pop=np.array([[K_pop]]),
+            use_mixture=True)
+
+
+def test_gibbs_rejects_unsupported_mixture():
+    t = float(stats.norm.isf(0.10))
+    fam = Family("f", [Member("o", -np.inf, t, K_i=0.05, K_pop=0.10)])
+    with pytest.raises(ValueError, match="only supported by Pearson-Aitken"):
+        estimate_liability([fam], h2=0.5, method="gibbs", use_mixture=True)
 
 
 def _seed_probe_families(n=4):

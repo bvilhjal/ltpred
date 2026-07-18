@@ -30,3 +30,54 @@ def validate_bounds(lower, upper, *, context="bounds"):
         raise ValueError(
             f"{context}: upper must be >= lower at every coordinate; reversed "
             f"bounds at indices {locations}")
+
+
+def validate_mixture_inputs(K_i, K_pop, *, expected_shape=None,
+                            require_pair=False, context="mixture inputs"):
+    """Validate paired cumulative-incidence inputs for the PA mixture.
+
+    ``NaN``/``NaN`` marks a coordinate where the mixture is unused. Every other
+    coordinate must provide a finite pair satisfying
+    ``0 <= K_i <= K_pop < 1``, with strictly positive ``K_pop`` because it is a
+    denominator in the mixture weight. ``None`` is treated like an all-NaN input.
+    The normalised arrays are returned so callers share the same missing-value
+    semantics.
+    """
+    shape = None if expected_shape is None else tuple(expected_shape)
+
+    def _coerce(value):
+        if value is None:
+            return np.full((), np.nan) if shape is None else np.full(shape, np.nan)
+        array = np.asarray(value)
+        if not np.issubdtype(array.dtype, np.floating):
+            try:
+                array = np.asarray(value, dtype=float)
+            except (TypeError, ValueError):
+                raise TypeError(f"{context}: K_i and K_pop must be numeric") from None
+        return array
+
+    K_i = _coerce(K_i)
+    K_pop = _coerce(K_pop)
+    if K_i.shape != K_pop.shape:
+        raise ValueError(
+            f"{context}: K_i and K_pop must have the same shape; got "
+            f"{K_i.shape} and {K_pop.shape}")
+    if shape is not None and K_i.shape != shape:
+        raise ValueError(
+            f"{context}: K_i and K_pop must have shape {shape}; got {K_i.shape}")
+
+    unused = np.isnan(K_i) & np.isnan(K_pop)
+    supplied = ~unused
+    if np.any(supplied & (~np.isfinite(K_i) | ~np.isfinite(K_pop))):
+        raise ValueError(
+            f"{context}: every supplied coordinate requires finite K_i and K_pop; "
+            "use NaN/NaN where the mixture is unused")
+    if np.any(supplied & ((K_i < 0.0) | (K_i > K_pop) |
+                          (K_pop <= 0.0) | (K_pop >= 1.0))):
+        raise ValueError(
+            f"{context}: every supplied pair must satisfy "
+            "0 <= K_i <= K_pop < 1 with K_pop > 0")
+    if require_pair and not np.any(supplied):
+        raise ValueError(
+            f"{context}: use_mixture=True requires at least one valid K_i/K_pop pair")
+    return K_i, K_pop
