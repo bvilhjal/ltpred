@@ -70,17 +70,19 @@ family history rather than a pure causal genetic value.
 The covariance is **modular**, and adding non-genetic components to the
 between-relative covariance can improve prediction. Following the classic
 variance-components (ACE-type) decomposition, extend the full-liability covariance
-with shared-environment, maternal or assortative-mating terms:
+with valid shared-environment kernels:
 
 ```text
-Cov(l_i, l_j) = h2 * A_ij  +  c2 * C_ij  +  m2 * M_ij  +  ...
-Var(l_i)      = h2 + c2 + m2 + ... + e2 = 1
+Cov(l_i, l_j) = h2 A_ij + c2 C_ij + m2 M_ij + sum_q u2_q K_q[i,j]
+Var(l_i)      = h2 + c2 + m2 + sum_q u2_q + e2 = 1
 ```
 
-where `C_ij` marks relatives who share a rearing/household environment (e.g. sibs
-or co-resident parent–offspring) with variance fraction `c2`, `M_ij` a shared
-maternal–offspring environment, and a couple term the mates' shared household. Two
-payoffs:
+Here `C` is the shipped sibship kernel, `M` is reserved for the shipped
+mate/couple kernel, and each optional `K_q` is another symmetric
+positive-semidefinite (PSD) sharing kernel. A directional maternal effect is not
+`M` and is not generally representable by one symmetric covariance kernel. Each
+kernel has unit diagonal in the fitted model, so its variance fraction reduces the
+individual residual `e2`; the kernels are not off-diagonal adjustments alone. Two payoffs:
 
 - **A sharper genetic estimate.** Modelling shared-environment resemblance lets
   the estimator attribute it to environment rather than genetics, so the genetic
@@ -97,11 +99,11 @@ This is a **low-level covariance interface, not yet a high-level
 `estimate_liability(..., c2=...)` option**: `construct_covmat` builds only the
 additive-genetic `h2 * A` table, and there is no user-facing shared-environment
 argument. To use environmental components today, assemble the covariance yourself
-(add `c2 * C` etc.) and pass it to a covariance-level entry point —
+(add `c2 * C`, `m2 * M`, etc.) and pass it to a covariance-level entry point —
 `rtmvnorm_gibbs`, `pa_algorithm`, or `pa_estimate_batched` — which accept an
 arbitrary covariance directly. (Note this is separate from `fit_variance_components`,
-which *estimates* an `A + C` decomposition but does not yet feed a fitted `C` back
-into the liability estimator.)
+which *estimates* an `A + C + M` decomposition but does not yet feed fitted `C` or
+`M` back into the liability estimator.)
 
 ### Relationship-specific environments and identifiability
 
@@ -110,7 +112,8 @@ sharing pattern — a full-sib rearing environment, a couple/household environme
 shared by mates, mother– or father–offspring environments, a cousin environment:
 
 ```text
-Cov(l_i, l_j) = h2 A_ij + sum_c c2_c K_c[i,j] ,   K_c[i,j] = 1 if i, j share environment c
+Cov(l_i, l_j) = h2 A_ij + sum_c c2_c K_c[i,j] ,   K_c = K_c' >= 0,
+Var(l_i) = h2 + sum_c c2_c + e2 = 1               (K_c[i,i] = 1).
 ```
 
 `fit_variance_components` estimates a set of components **jointly** (multiple HE
@@ -121,11 +124,12 @@ full-sib excess) and `M` (couple / spousal environment, identified from the `A =
 mate pairs — the parents and the grandparent couples); `M` captures spousal
 resemblance from shared environment *or* assortative mating (Robinson et al. 2017),
 which parent data alone cannot separate — it is a descriptive spousal-resemblance
-component, not a generative model of assortative mating. Each environment component must be a valid
-**equivalence-class partition** (a group of relatives fully sharing one deviation),
-so its `K_c` is positive-semidefinite; the fitter rejects a component whose `K_c`
-is not (e.g. a vertical parent-offspring "environment" — see caution (i)). Adding a
-valid component is adding a column to the design; e.g.
+component, not a generative model of assortative mating. The shipped `C` and `M`
+components are **equivalence-class partitions** (groups fully sharing one
+deviation), which is a convenient sufficient construction for a PSD `K_c`, not a
+necessary one. Any component must be symmetric and PSD; the fitter rejects a
+kernel that is not (e.g. the naive vertical parent-offspring indicator — see
+caution (i)). Adding a valid component is adding a column to the design; e.g.
 `fit_variance_components(fams, ("A", "C", "M"))` fits all three at once given a
 3-generation pedigree.
 
@@ -157,9 +161,8 @@ structural/latent-variable parameterisation rather than one symmetric matrix.
 **(ii)** An environment shared *in proportion to relatedness* is a multiple of `A`
 and is absorbed into `h2`; only environments whose pattern **differs** from `A` are
 estimable, and the couple term is further confounded with assortative mating.
-Extending `_COMPONENT_OFFDIAG` past `A`/`C` with such pair-indicator matrices (and
-lifting the `{A, C}` restriction) is the natural next step — the fit and the
-rank-deficiency guard already generalise.
+Extending `_COMPONENT_OFFDIAG` past the shipped `A`/`C`/`M` bank with valid PSD
+kernels is the natural next step; the rank-deficiency guard already generalises.
 
 ## Connection to selection index and BLUP
 
@@ -431,8 +434,9 @@ pooling their cross-products reconstructs the model covariance, so the chain
 settles at the `h2` consistent with the observed familial resemblance — a
 threshold-model variance-component estimate from pedigree affection data (in the
 Sorensen–Gianola / Bayesian animal-model tradition; the moment-with-damping update
-is the bipred-style analogue of a full conjugate step). In simulation it recovers
-`h2` to within Monte-Carlo error across 0.3–0.8. The reported `h2_se` is the
+is the bipred-style analogue of a full conjugate step). In the repository simulation
+benchmark, bias across `h2 = 0.3–0.8` was small relative to the across-dataset SD,
+but larger than the within-fit Monte-Carlo error in some settings. The reported `h2_se` is the
 *within-dataset* Monte-Carlo error; sampling variability across datasets is larger
 and depends on the number and informativeness of the families (bootstrap over
 families for that). Identifiability comes entirely from the *between-relative*
@@ -475,11 +479,21 @@ families, true `a² = 0.4`) the same shared-environment variance biases the
 additive-only `Â` by +0.04, +0.11, +0.16 as `s²` runs 0.1 → 0.2 → 0.3 when it is
 `C`, but only +0.00, +0.01, +0.04 when it is `M`. So `M` is worth fitting for its
 own sake (quantifying/testing spousal resemblance) rather than to de-bias `h²`. A
-**dominance** component is
-deliberately not offered: from sib-only pedigrees it is identified only through
-the small full-sib excess beyond additive, so the non-negativity constraint
-biases it upward (a spurious `D` even on purely additive data); it needs MZ-vs-DZ
-twin contrasts to estimate honestly.
+**dominance** component is deliberately not offered: in the current role-based
+design its sharing pattern is not separated reliably from additive and sibship
+components. Identification would require an explicit dominance relationship
+kernel and relationship contrasts linearly independent of `A` and `C`. MZ/DZ
+twin observations can contribute such contrasts within a richer design, but MZ/DZ
+pairs alone cannot identify `A`, `C`, and `D` simultaneously.
+
+With `method="mcem"`, the M-step instead optimises the Gaussian likelihood of the
+imputed liabilities. This implementation is an **approximate finite-iteration
+Monte-Carlo EM-style procedure**: it uses a fixed damping coefficient, averages
+post-burn-in iterates, and does not stop on an observed-likelihood convergence
+criterion. Its OPG/BHHH information SE and GHK log-likelihood/AIC therefore retain
+both Monte-Carlo and finite-iteration error. Check stability across seeds and
+iteration settings and use family resampling for sampling uncertainty when the
+independent-cluster assumptions hold.
 
 ## Multiple traits
 
@@ -523,18 +537,21 @@ so the **environmental correlation** `re[p,q] = (rp[p,q] - G[p,q]) / sqrt(e2_p e
 
 The moment step is unconstrained, so its raw `G` and `E = rp - G` need not be
 positive semi-definite — especially with few families or a large `|rg|`. Each sweep
-therefore projects both onto the correlation-matrix cone with the fitted
-variances held fixed (an eigenvalue projection, then a shrink towards the identity
+therefore projects both onto the convex set of correlation matrices (the PSD cone
+intersected with the unit-diagonal constraint) with the fitted variances held
+fixed (an eigenvalue projection, then a shrink towards the identity
 that leaves the diagonal alone), and the chain carries the two projected
 *covariance* states rather than ratios. The reported estimates are the post-burn-in
 averages of those states — averaging covariances is convex, so `G_est` and `E_est`
 are PSD too — with `rg`, `re` and `rp` all derived from that same pair. So the
 returned object is one coherent model: `rp == genetic_cov + env_cov` exactly, and
 every correlation it reports comes from a single PSD fit rather than from
-separately averaged ratios. Validated approximately unbiased near the null (no
+separately averaged ratios. In the repository benchmarks it was approximately
+unbiased near the null (no
 spurious `rg` when traits are genetically independent but
 phenotypically correlated), with mild attenuation at large `|rg|` (the bounded
-ratio estimator); bootstrap families for a CI. This is the pedigree-scale analogue
+ratio estimator); use an iid-family cluster bootstrap for sampling uncertainty when
+its assumptions hold. This is the pedigree-scale analogue
 of bivariate GREML / cross-trait LD-score regression.
 
 ### Genetic factor structure (common-factor model)

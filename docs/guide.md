@@ -24,7 +24,7 @@ The guide is split into short, task-focused pages:
 | **[Estimation](estimation.md)** | running the estimator, reading the result, Gibbs vs PA, scaling, multi-trait, GWAS export |
 | **[Inference](inference.md)** | fitting `h²`, variance components (A/C/M), genetic correlation, factor models, significance tests |
 | **[Assumptions & checklist](assumptions.md)** | modelling assumptions, real-data checklist, pitfalls |
-| **[API reference](api.md)** | every public function, with signatures and docstrings |
+| **[API reference](api.md)** | the exported workflow plus advanced module APIs, with signatures and docstrings |
 
 See [algorithm.md](algorithm.md) for the model and the estimators, and the
 [benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
@@ -44,8 +44,9 @@ Use ltpred when you have, per proband:
 - a **population prevalence** and a **liability-scale heritability** `h²` for the
   disease.
 
-The output is the posterior mean genetic liability of each proband. Feeding it to
-a linear-regression GWAS is the canonical use. With relatives and personalised
+The output targets the posterior mean genetic liability of each proband (Gibbs by
+Monte Carlo; PA by a sequential-moment approximation). Feeding it to a
+linear-regression GWAS is the canonical use. With relatives and personalised
 CIPs the analysis is LT-FH++; with the proband only it is ADuLT.
 
 ltpred does not build LD or run the GWAS itself — those are upstream/downstream
@@ -62,7 +63,7 @@ LTFHPlus plotting utilities.
 
 **Which path to run:**
 
-| use case | bounds and family rows | estimator | model |
+| use case | bounds and observed-person records | estimator | model |
 |---|---|---|---|
 | no age, with relatives | `prevalence_thresholds`; include `o` + relatives | PA or Gibbs | classic LT-FH |
 | personalised CIP, with relatives | `thresholds_from_cip(…, case_mode="pin")`; include `o` + relatives | PA (default); Gibbs reference | LT-FH++ |

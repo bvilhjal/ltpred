@@ -48,12 +48,12 @@ res = estimate_liability(families, h2=0.5, out=("genetic",))
 
 | field | meaning |
 |---|---|
-| `res.fam_ids` | family id per row (aligned with the input order) |
-| `res.pids` | proband id (the `o` member's `pid`, else the `fam_id`) |
-| `res.est["genetic"]` | posterior mean genetic liability per proband — **the score** |
-| `res.est["full"]` | posterior mean full liability (if requested; see caveat below) |
+| `res.fam_ids` | one family id per result, in first-appearance family order |
+| `res.pids` | one proband id per result (the `o` member's `pid`, else the `fam_id`) |
+| `res.est["genetic"]` | genetic-liability estimate per proband — a Gibbs Monte-Carlo estimate or PA sequential-moment approximation to the posterior mean; **the score** |
+| `res.est["full"]` | full-liability estimate (if requested), with the same Gibbs/PA interpretation as above; see caveat below |
 | `res.se["genetic"]` | Gibbs: Monte-Carlo standard error of the mean; PA: `0` |
-| `res.var["genetic"]` | PA only: conditional variance of the latent genetic liability, `Var(G_i \| family)` — residual uncertainty about `G_i`, **not** a standard error of the estimate (`None` for Gibbs) |
+| `res.var["genetic"]` | PA only: sequential-moment approximation to the conditional variance `Var(G_i \| family)` — residual uncertainty about `G_i`, **not** a standard error of the estimate (`None` for Gibbs) |
 
 `res.genetic` is shorthand for `res.est["genetic"]` (the usual single-trait output).
 Multi-trait columns are suffixed with the phenotype name, e.g.
@@ -80,8 +80,9 @@ Estimand:  mu_i = E[ additive genetic liability of proband i
                      | statuses, ages, family structure, h2, CIP/prevalence model ]
 ```
 
-`res.est["genetic"]` is the **posterior mean additive genetic liability** under
-the specified liability-threshold model — a family-history-derived *latent*
+`res.est["genetic"]` targets the **posterior mean additive genetic liability** under
+the specified liability-threshold model—by Monte Carlo for Gibbs and a
+sequential-moment approximation for PA—and is a family-history-derived *latent*
 phenotype on the standardized liability scale. It is the threshold-model,
 family-history analogue of a BLUP / selection-index breeding value (see
 [algorithm.md](algorithm.md#connection-to-selection-index-and-blup)). Concretely:
@@ -120,8 +121,8 @@ range as evidence about scale, not a hardware promise.
 
 **Rule of thumb:** the default already picks **Pearson–Aitken** for single-trait
 runs — keep it for biobank-scale cohorts and the age-censoring mixture; pass
-`method="gibbs"` for a sampling-based cross-check or the exact truncated-MVN
-reference behaviour. The high-level estimator returns posterior means and
+`method="gibbs"` for a sampling-based truncated-MVN cross-check. The high-level
+estimator returns posterior-mean estimates and
 Monte-Carlo SEs, not retained draws; use the low-level `rtmvnorm_gibbs` function
 when you need the sampled TMVN coordinates themselves. For the `genetic` score,
 PA and Gibbs agree closely and gave the same downstream GWAS power on the
@@ -245,7 +246,7 @@ misspecification.
 | `tol` | `0.01` | Gibbs: batch-means SE convergence target |
 | `n_sim`, `burn_in` | `100_000`, `1000` | Gibbs: draws kept / discarded per round |
 | `max_rounds` | `100` | Gibbs: cap on convergence rounds |
-| `seed` | `None` | Gibbs: RNG seed (per-family, deterministic) |
+| `seed` | `None` | Gibbs: integer RNG seed in `[0, 2**32 - 1]` (booleans rejected; per-family, deterministic) |
 | `genetic_corrmat`, `full_corrmat`, `phen_names` | `None` | multi-trait only |
 
 `n_sim`/`tol` trade speed for Monte-Carlo precision; the defaults converge for

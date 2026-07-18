@@ -11,8 +11,8 @@ requires-python = ">=3.9"
 license = "MIT"
 authors = [{ name = "Bjarni Vilhjálmsson" }]
 # Faithful Python port of the R package LTFHPlus (Pedersen et al. 2022, AJHG;
-# Pedersen et al. 2023, Nat Commun). numpy is the only required runtime dep;
-# scipy supplies the vectorised normal CDF/PPF used by the threshold helpers.
+# Pedersen et al. 2023, Nat Commun). NumPy and SciPy are required runtime
+# dependencies; SciPy supplies the vectorised normal CDF/PPF used by the helpers.
 dependencies = ["numpy>=1.20", "scipy>=1.6"]
 
 [project.urls]

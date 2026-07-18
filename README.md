@@ -2,7 +2,8 @@
 
 **ltpred** is a Python implementation of **LT-FH++**, the liability-threshold
 model conditioned on family history and age of onset (sex and cohort effects enter
-through the sex/cohort-specific thresholds or CIPs you supply). It is a faithful
+through the sex/cohort-specific thresholds or cumulative-incidence proportions
+(CIPs) you supply). It is a faithful
 port of the R package [LTFHPlus](https://github.com/EmilMiP/LTFHPlus)
 ([Pedersen et al. 2022, AJHG](https://doi.org/10.1016/j.ajhg.2022.01.009); the
 family-free age-dependent variant, ADuLT, in
@@ -12,9 +13,11 @@ optional PA-FGRS censoring model
 ([Krebs et al. 2024, AJHG](https://pubmed.ncbi.nlm.nih.gov/39471805/)).
 
 Given each individual's case/control status, age and their relatives' statuses,
-ltpred estimates the **posterior mean genetic liability** — a continuous phenotype
-that, used in a linear GWAS, recovers association power a plain case/control label
-throws away. Conceptually it is a **liability-threshold, age-aware, family-history
+ltpred estimates with Gibbs—or sequentially approximates with PA—the **posterior
+mean genetic liability**. This continuous phenotype can recover association power
+relative to a plain case/control label when the liability model and inputs are
+appropriate. Conceptually it is a
+**liability-threshold, age-aware, family-history
 analogue of BLUP / selection-index prediction**: binary and censored disease
 observations are treated as intervals on latent liabilities, which are projected
 onto the proband's additive genetic value the way a breeding value is predicted
@@ -46,10 +49,11 @@ liability-threshold model:
    case/control bounds with family history. LT-FH++ uses age-, birth-year- and
    sex-specific prevalence for the proband and relatives. ADuLT uses the same
    personalised construction for the proband alone, without family history.
-3. **Inference** — a **Gibbs** sampler (the exact reference) or the deterministic
+3. **Inference** — a **Gibbs** sampler (the sampling-based reference) or the deterministic
    **Pearson–Aitken** (PA) engine turns the covariance and
-   intervals into the posterior mean of the proband's genetic (`g`) and/or full
-   (`o`) liability. PA has no Monte-Carlo error and ran 315–510× faster in the
+   intervals into an estimate of the posterior mean of the proband's genetic (`g`)
+   and/or full (`o`) liability. PA has no Monte-Carlo error, but retains sequential
+   approximation error, and ran 315–510× faster in the
    controlled 10-thread benchmark; the two agree on the `genetic` score to
    corr ≥ 0.997 on the benchmarked structures.
 
@@ -84,14 +88,15 @@ sim = simulate_under_LTM_single(
     use_age=True, seed=1,
 )
 
-# posterior mean genetic liability per proband. This is an age-only family
-# example; full LT-FH++ uses sex/birth-cohort-stratified CIPs (shown below).
+# PA approximation to posterior mean genetic liability per proband. This is an
+# age-only family example; full LT-FH++ uses sex/birth-cohort-stratified CIPs.
 # The deterministic, fast PA inference engine is the single-trait default.
 pa = estimate_liability(sim.families, h2=0.5)
-pa.est["genetic"]      # (n_families,) posterior means
-pa.var["genetic"]      # posterior variances (pa.se is 0 — deterministic)
+pa.est["genetic"]      # (n_families,) PA approximations to posterior means
+pa.var["genetic"]      # PA moment approximations to conditional variances
+                        # (pa.se is 0 — deterministic, not zero approximation error)
 
-# ...or the Gibbs sampler (the exact truncated-MVN reference) as a cross-check.
+# ...or the Gibbs truncated-MVN sampler as a sampling-based cross-check.
 gibbs = estimate_liability(sim.families[:200], h2=0.5, method="gibbs",
                            tol=0.03, n_sim=25_000, burn_in=800, seed=1)
 gibbs.est["genetic"]   # agrees with PA to ~1e-2
@@ -127,14 +132,19 @@ choosing between the methods, and using the score in a GWAS, see the
 
 ## Scope
 
-ltpred covers the **statistical engine end to end**: role-based *and* arbitrary-
+ltpred covers the core prediction and fitting APIs: role-based *and* arbitrary-
 pedigree (`kinship_from_pedigree`) covariance construction, the threshold/age/CIP
 conversions, both inference engines (Gibbs and PA), single- and multi-trait
 `estimate_liability`, simulation, and **model fitting** — heritability
 (`fit_heritability`), variance components A + C + M (`fit_variance_components`),
 genetic correlation (`fit_genetic_correlation`) and its common-factor model
-(`fit_genetic_factor`), bootstrap CIs (`bootstrap_fit`) and h² sensitivity
+(`fit_genetic_factor`), approximate iid-family cluster percentile intervals
+(`bootstrap_fit`) and h² sensitivity
 (`liability_sensitivity`).
+
+The high-level predictor currently uses the additive `A` covariance only. Fitted
+`C`/`M` components can be studied and tested, but are not yet wired back into
+`estimate_liability`; low-level covariance APIs are required for that extension.
 
 Not included: an igraph-style pedigree-object interface, plotting utilities, and
 the xgboost heritability helpers from LTFHPlus; and ltpred does not build LD or run

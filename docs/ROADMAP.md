@@ -36,18 +36,25 @@ to the across-dataset SD rather than exact unbiasedness.
 `fit_variance_components` fits additive `A` and a **bank of relationship-specific
 shared-environment components** — `C` (sibship, from the full-sib excess) and `M`
 (couple, from the `A = 0` mate pairs) — together by a **multiple Haseman–Elston
-regression** on the same well-mixing collapsed data-augmentation, validated
-approximately unbiased for `A`, `A+C` and `A+M` across family structures. At a
+regression** on the same well-mixing collapsed data-augmentation. Repository
+benchmarks found small bias relative to sampling variability for `A`, `A+C` and
+`A+M` across the tested family structures. At a
 zero component, the constrained estimates show a small positive boundary floor;
 formal false-positive control comes from the parametric-bootstrap component test.
-Environment components are validated to be equivalence-class
-(PSD) partitions, so a non-PSD vertical parent-offspring "environment" is rejected.
+The shipped environment components are equivalence-class partitions, a sufficient
+construction for PSD kernels; any future kernel must likewise be symmetric and
+PSD. A non-PSD vertical parent-offspring "environment" is rejected. Each fitted
+kernel has diagonal one and therefore reduces the residual variance by its fitted
+proportion.
 (This replaced an earlier experimental Bayesian animal-model Gibbs, which mixed
 poorly and showed structure-dependent bias. Dominance `D` is intentionally not
-offered — it needs MZ/DZ twin contrasts to estimate honestly.) `fit_genetic_correlation` estimates
+offered: it needs an explicit dominance kernel and independent relationship
+contrasts. MZ/DZ observations can contribute within a richer design, but MZ/DZ
+pairs alone cannot identify `A`, `C`, and `D` simultaneously.) `fit_genetic_correlation` estimates
 the **genetic correlation `r_g`** between traits by the cross-trait analogue of
-the same regression — validated ~unbiased near the null with mild attenuation at
-large `|r_g|`. On top of that `r_g` matrix, `fit_genetic_factor` fits a
+the same regression — approximately unbiased near the null with mild attenuation
+at large `|r_g|` in the repository benchmarks. On top of that `r_g` matrix,
+`fit_genetic_factor` fits a
 **common-factor model `r_g ≈ ΛΛ' + Ψ`** (Genomic-SEM-lite, by MINRES): does one
 latent genetic factor explain the correlations among the traits? — with `srmr` as
 an in-sample misfit diagnostic, not a calibrated factor-number test.
@@ -57,12 +64,14 @@ age-of-onset, replicated classic LT-FH GWAS power (Gibbs and PA both
 1.47 ± 0.04× causal-SNP NCP ratio over case/control at λ_GC ≈ 1), and an integrated
 personalized LT-FH++ GWAS with
 age-, sex-, and cohort-dependent CIP, plus `fit_heritability` quality (small bias
-relative to sampling SD, while `h2_se` understates that SD ~20–30×, so use
+relative to sampling SD, while `h2_se` substantially understates that SD, so use
 `bootstrap_fit`), `A+C` recovery,
 and `r_g` recovery, plus **calibration** of the score (generally near the
 posterior-mean target under the tested correct models, with a rare extended-family
-outlier; ranking robust but scale sensitive to a wrong `h²`), **cohort
-confounding / `λ_GC`** (personalised thresholds keep genomic control valid), and
+outlier; score correlation changed little while scale moved under the tested wrong-`h²`
+settings), **cohort
+confounding / `λ_GC`** (personalised thresholds removed the tested
+threshold-misspecification inflation after ordinary covariate adjustment), and
 **PA robustness / fold-order** (PA tracks Gibbs to corr ≥ 0.998 on stressful
 pedigrees). Real-LD runs go through an opt-in HAPNEST path.
 
@@ -74,7 +83,7 @@ connection, and the environmental-covariance extension), plus `CITATION.cff`
 The full test suite passes (`pytest`), with CI running it and the `ruff` gate on
 Python 3.9 and 3.12.
 
-## Near-term — variance-component thread ✅ complete
+## Completed implementation history — variance components
 
 1. ~~**Fix the animal-model Gibbs mixing.**~~ **Done — resolved by replacing the
    sampler.** The Bayesian animal-model Gibbs proved fragile: PX-DA / ASIS /
@@ -82,13 +91,15 @@ Python 3.9 and 3.12.
    structure-dependent bias (A-only itself hit 0.69 on a 4-sib pedigree). The fix
    was to abandon it for a **multiple Haseman–Elston regression** — the validated
    `fit_heritability` data-augmentation generalised to several relationship
-   matrices at once. It is unbiased and precise for `A` and `A+C` across
-   structures. At true `C=0`, the constrained point estimate has a small positive
+   matrices at once. In the repository benchmarks its bias was small relative to
+   across-dataset variability for `A` and `A+C` across the tested structures. At
+   true `C=0`, the constrained point estimate has a small positive
    boundary floor; it is not itself a false-positive rate
    (`bench_variance_components.py`).
    Dominance `D` was dropped: from sib-only data the non-negativity constraint
-   biases it upward (a spurious `D` on additive-only data), so it needs twin
-   contrasts. The "experimental" label is lifted.
+   biases it upward (a spurious `D` on additive-only data). It needs an explicit
+   dominance kernel in a richer relationship design; MZ/DZ pairs alone cannot
+   separate `A`, `C`, and `D`. The "experimental" label is lifted.
 
 2. ~~**Multi-trait genetic correlations `r_g`.**~~ **Done.**
    `fit_genetic_correlation` estimates `r_g` between traits by a **cross-trait
@@ -110,7 +121,7 @@ Python 3.9 and 3.12.
    sampling interpretation assumes iid, non-overlapping family clusters and a
    design compatible with the fitted model.
 
-## SEM-inspired inference
+## Completed and partial implementation history — SEM-inspired inference
 
 Bringing twin/family structural-equation-modelling strengths (model comparison,
 likelihood-based inference) to the pedigree/registry setting.
@@ -126,20 +137,18 @@ likelihood-based inference) to the pedigree/registry setting.
   individualized thresholds require an explicit assertion that they were fixed
   from baseline covariates, never age of onset.
 
-- ~~**ML backend (Monte-Carlo EM).**~~ **Done.**
+- ~~**Approximate Monte-Carlo EM backend.**~~ **Done.**
   `fit_variance_components(..., method="mcem")` (aliases `"ml"`/`"reml"`) runs a
-  Monte-Carlo EM **maximum-likelihood** fit — ML on the imputed liabilities, *not*
-  restricted ML: the E-step is the truncated-MVN liability draw already used; the
+  finite-iteration, damped Monte-Carlo EM-style fit, *not* restricted ML: the
+  E-step is the truncated-MVN liability draw already used; the
   M-step maximises the Gaussian likelihood of the imputed liabilities
-  (`min log|Σ| + tr(Σ⁻¹ S)`) instead of the HE regression. In the benchmarked
-  configurations it was **unbiased and ~30 % more efficient** than HE, with an
-  **approximate model-based SE** (an OPG/BHHH observed-information estimate, subject
-  to Monte-Carlo error) that approximated the true across-dataset SD (se/SD ≈
-  0.9–1.4) — where the HE `se` understates it ~15-20×. Also returns a Monte-Carlo
-  (GHK) observed-data **log-likelihood** and **AIC** (both Monte-Carlo estimates)
-  for nested-model comparison (AIC strongly prefers `A+C` on real `A+C` data; near
-  the boundary it under-penalises, so the conditional parametric-bootstrap test
-  above is the preferred decision aid under its sampling/model assumptions).
+  (`min log|Σ| + tr(Σ⁻¹ S)`) instead of the HE regression. The current implementation
+  uses fixed damping and averages post-burn-in iterates rather than checking an
+  observed-likelihood convergence criterion. Its OPG/BHHH information SE, GHK
+  observed-data log-likelihood, and AIC are therefore approximate diagnostics with
+  Monte-Carlo and finite-iteration error. Their sampling calibration must be
+  validated for the target design; the conditional parametric-bootstrap test or
+  family bootstrap remains the relevant uncertainty route under its assumptions.
 
 - ~~**Latent factor model on the multi-trait genetic covariance** (Genomic-SEM-lite).~~
   **Done.** `fit_genetic_factor` fits `r_g ≈ ΛΛ' + Ψ` — a common-factor model — to
@@ -160,8 +169,10 @@ likelihood-based inference) to the pedigree/registry setting.
   (couple / spousal, identified from the `A = 0` mate pairs), fitted jointly with
   `A` by `fit_variance_components(fams, ("A", "C", "M"))` and testable with
   `test_variance_component(fams, "M")`. Each environment component must be a valid
-  **equivalence-class partition** (PSD `K_c`); the fitter now rejects one that is
-  not — which rules out a naive **vertical** parent-offspring "environment" (its
+  symmetric PSD kernel. The shipped kernels are **equivalence-class partitions**,
+  which guarantees PSD but is not the only valid construction; the fitter rejects
+  a kernel that is not PSD. This rules out the naive **vertical** parent-offspring
+  "environment" considered here (its
   sharing chains across generations, so `K_c` is indefinite; that is the directional
   maternal-effect case below, not a symmetric variance component). Remaining bank
   ideas that *are* valid partitions: a maternal-lineage rearing environment
@@ -175,7 +186,7 @@ likelihood-based inference) to the pedigree/registry setting.
 
 ## Medium-term — rigor and real data
 
-4. ~~**Pedigree/kinship-matrix input.**~~ **Done.** `kinship_from_pedigree(id,
+4. ~~**Pedigree/kinship-matrix input.**~~ **Done.** `kinship_from_pedigree(ids,
    father, mother)` builds the additive relationship matrix `A` from an arbitrary
    pedigree (recursive tabular method, handles inbreeding);
    `construct_covmat_from_kinship` turns `A` into the liability covariance and

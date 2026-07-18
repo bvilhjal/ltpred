@@ -6,8 +6,8 @@ the [quickstart](quickstart.md); this page is the reference for each piece.
 
 ## Inputs
 
-You describe the data as a flat table with one row per (proband, relative),
-grouped into families. Each row needs:
+You describe the data as a flat table with one row per observed person, grouped
+by the target proband into families. Each record needs:
 
 | column | meaning |
 |---|---|
@@ -122,6 +122,13 @@ uninformative).
 > K_pop` — use it instead of the logistic builders for real data. CIPs from an
 > ascertained biobank sample, or that ignore competing risks (death, emigration),
 > can bias the estimate.
+>
+> `thresholds_from_cip` interpolates within the supplied age grid and holds the
+> first or last CIP constant outside it; it does **not** extrapolate incidence.
+> Make the grid cover every onset/follow-up age you will analyse. If `k_pop` is
+> omitted, the helper uses `max(cip_values)` as lifetime prevalence, which is
+> appropriate only when the curve reaches the intended lifetime horizon. Pass a
+> separately justified lifetime prevalence otherwise.
 
 #### A real register-data recipe
 
@@ -182,6 +189,9 @@ Key points:
 - Estimate the **CIP outside ltpred** from population-representative register data,
   stratified by sex, birth cohort, ancestry and calendar period, and accounting for
   competing risks — then pass one stratum's curve per call.
+- Ensure each stratum's age grid covers the analysed ages. Values outside the grid
+  use the nearest endpoint rather than extrapolation, and `k_pop` should be passed
+  explicitly unless the last CIP value is a defensible lifetime prevalence.
 
 For **ADuLT**, use the same stratum-specific proband bounds but build one row per
 person with `role="o"`; do not add relative rows. There is no separate ADuLT

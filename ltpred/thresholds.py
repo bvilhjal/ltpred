@@ -218,12 +218,16 @@ def thresholds_from_cip(status, age, cip_ages, cip_values, k_pop=None,
     ``pa_thresholds``: instead of the built-in logistic incidence, pass a
     population-representative cumulative-incidence curve as ``cip_ages`` (ascending)
     and ``cip_values`` (CIP at each age). Call once **per stratum** (sex, birth
-    year, ancestry, ...) with that stratum's curve. Each person's CIP is
-    interpolated at their ``age`` (clipped to ``[min_cip, k_pop]``) and turned into a
-    threshold ``Phi^-1(1 - CIP)``.
+    year, ancestry, ...) with that stratum's curve. Each person's CIP is linearly
+    interpolated at their ``age`` and clipped to ``[min_cip, k_pop]`` before being
+    turned into a threshold ``Phi^-1(1 - CIP)``. ``numpy.interp`` holds the first
+    or last CIP constant outside the supplied age grid; it does not extrapolate
+    incidence, so the grid should cover all analysed onset/follow-up ages.
 
-    ``k_pop`` is the lifetime prevalence for the stratum (defaults to
-    ``max(cip_values)``). ``case_mode`` sets the case encoding: ``"pin"`` (the
+    ``k_pop`` is the lifetime prevalence for the stratum. It defaults to
+    ``max(cip_values)``, which is appropriate only when the curve reaches the
+    intended lifetime horizon; otherwise pass a separately justified value.
+    ``case_mode`` sets the case encoding: ``"pin"`` (the
     default) pins a case at ``thresh(age_of_onset)`` (the encoding used by LT-FH++
     with family history and ADuLT without it), while ``"interval"`` uses
     ``(thresh(age_of_onset), inf)`` (the PA-FGRS encoding). Controls are always

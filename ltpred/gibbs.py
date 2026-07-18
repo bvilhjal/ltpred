@@ -103,8 +103,8 @@ def _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, n_sim, burn_in, res):
     requested coordinates into ``res``. ``x`` is the working state (updated in
     place); ``to_return[j] >= 0`` gives the output column for coordinate ``j``,
     or -1 to drop it. Everything here is scalar/loop so it compiles under
-    ``numba.njit`` and matches the pure-Python path bit-for-bit given the same
-    RNG draws."""
+    ``numba.njit`` when Numba is installed and otherwise uses the serial Python
+    fallback. Both paths match given the same RNG draws."""
     d = sd.shape[0]
     for k in range(-burn_in, n_sim):
         for j in range(d):
@@ -129,7 +129,7 @@ def _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, n_sim, burn_in, res):
 @_jit_parallel
 def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                             batch_size, n_batch, seeds, total_sum, bm_sum, bm_sumsq):
-    """Sample many families in parallel, accumulating means online (no sample store).
+    """Sample many families, accumulating means online (no sample store).
 
     All families share the conditional-regression factorisation ``(P, sd)`` (they
     have the same covariance structure); only their truncation bounds differ. Each
@@ -141,7 +141,8 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
     Because each family seeds its own RNG (``seeds[f]``) at the top of the
     iteration, results are deterministic regardless of how ``prange`` maps families
     to threads. Streaming these summaries (instead of the ``(ncols, n_batch)`` array)
-    keeps the SE memory at ``O(ncols)`` per family."""
+    keeps the SE memory at ``O(ncols)`` per family. The family loop is parallel
+    when Numba is installed and serial in the pure-Python fallback."""
     F = lowers.shape[0]
     d = sd.shape[0]
     ncols = out_idx.shape[0]
@@ -218,7 +219,7 @@ def as_bounds(a):
 
 def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                            batch_size, n_batch, seeds):
-    """Thin wrapper over the parallel kernel; returns ``(total_sum, bm_sum, bm_sumsq)``.
+    """Thin wrapper over the batched kernel; returns ``(total_sum, bm_sum, bm_sumsq)``.
 
     ``total_sum[f, c]`` is the sum of ``n_sim`` post-burn-in draws (divide by
     ``n_sim`` for the posterior mean); ``bm_sum`` / ``bm_sumsq`` are the sum and
@@ -242,7 +243,7 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
 
 @_jit_parallel
 def _gibbs_advance(P, sd, lowers, uppers, fixed, x, uniforms):
-    """Parallel random-free kernel for one bounded block of uniforms."""
+    """Random-free kernel for one bounded block (Numba-parallel when available)."""
     F = x.shape[0]
     d = x.shape[1]
     for f in prange(F):
@@ -319,7 +320,10 @@ def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
     the caller carries across outer iterations — the data-augmentation step of a
     variance-component fit (:mod:`ltpred.fit`), where the covariance (hence ``P`` /
     ``sd``) changes between calls. ``fixed[f, j]`` coordinates (pinned cases) are
-    held. Parallel over families; seed once beforehand with :func:`_seed_rng`.
+    held. The family loop is parallel when Numba is installed and serial otherwise.
+    This is an internal fitting primitive; public callers should control
+    reproducibility through the ``seed`` argument of the fitters rather than the
+    private RNG helpers.
 
     Uniforms are generated before entering ``prange`` so a seeded fit is exact
     regardless of how Numba schedules families across worker threads. Generation
@@ -359,6 +363,8 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
     fixed : (d,) bool array, optional
         Coordinates to hold constant instead of resampling. Defaults to
         ``upper - lower < 1e-8`` (a pinned point mass, e.g. an age-of-onset case).
+        If a caller explicitly fixes a non-point interval, that coordinate starts
+        at its marginal truncated median and remains there.
     out : sequence of int
         Zero-based coordinate indices to return (0 = genetic, 1 = proband full
         liability in the family-model ordering). Indices must be integers in
@@ -366,7 +372,7 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
     n_sim, burn_in : int
         Post-burn-in draws to keep and sweeps to discard first.
     seed : int, optional
-        Seeds the sampler for reproducibility.
+        Non-boolean integer in ``[0, 2**32 - 1]`` for reproducibility, or ``None``.
     params : (P, sd), optional
         Precomputed :func:`gibbs_params` output; recomputed from ``covmat`` when
         omitted.

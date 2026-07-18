@@ -16,10 +16,11 @@ component ``j`` updates in closed form,
 
 Processing the observed liabilities sequentially (each treated as a truncated
 normal, so ``(m*, v*)`` are its truncated moments) and reading off the target
-genetic-liability component gives ``E[l_g | family]`` with **no Monte-Carlo
-error**. For a single truncation this is exact; for several it is the standard
-sequential-selection approximation, and it is orders of magnitude faster than
-Gibbs.
+genetic-liability component gives a deterministic sequential-moment approximation
+to ``E[l_g | family]`` and its conditional variance, with **no Monte-Carlo
+error**. Zero Monte-Carlo error does not mean zero approximation error. For a
+single truncation the moments are exact; for several they are the standard
+sequential-selection approximation, which is orders of magnitude faster than Gibbs.
 
 The PA-FGRS extension for **age-censored controls** (:func:`_tnorm_mixture`)
 models an as-yet-unaffected relative as a mixture of a true control and a
@@ -315,7 +316,8 @@ def _pa_family(cov, lower, upper, K_i, K_pop):
     """One family's PA sweep **with** the censored-control mixture; target row 0.
 
     Mutates ``cov`` in place, folding observations ``d-1, ..., 1``. Returns
-    ``(est, var)`` = the target's posterior mean and variance."""
+    ``(est, var)`` as sequential-moment approximations to the target's posterior
+    mean and conditional variance."""
     d = cov.shape[0]
     mu = np.zeros(d)
     for i in range(d - 1, 0, -1):
@@ -382,7 +384,8 @@ def pa_algorithm(covmat, lower, upper, target=0, K_i=None, K_pop=None):
     per-row truncation bounds (the target row should be ``(-inf, inf)``). ``target``
     is the row to estimate (0 = the genetic liability ``g`` in the usual ordering).
     ``K_i``/``K_pop`` (per row, ``nan`` where unused) switch on the censored-control
-    mixture. Returns ``(est, var)`` -- the target's posterior mean and variance."""
+    mixture. Returns ``(est, var)`` -- sequential-moment approximations to the
+    target's posterior mean and conditional variance (exact for one truncation)."""
     cov = np.array(covmat, dtype=np.float64, copy=True)
     d = cov.shape[0]
     lower = np.asarray(lower, dtype=np.float64)
@@ -403,7 +406,8 @@ def pa_estimate_batched(covmat, lowers, uppers, target=0, K_is=None, K_pops=None
     ``lowers``/``uppers`` are ``(F, d)`` per-family bounds; ``covmat`` is shared.
     Reorders once so the target is row 0, then runs the parallel kernel. When no
     ``K_is``/``K_pops`` are given, dispatches to the no-mixture kernel, which never
-    allocates the ``(F, d)`` mixture arrays. Returns ``(est, var)`` of length ``F``."""
+    allocates the ``(F, d)`` mixture arrays. Returns the PA sequential-moment
+    approximations ``(est, var)`` of length ``F``."""
     cov = np.array(covmat, dtype=np.float64, copy=True)
     d = cov.shape[0]
     lowers = as_bounds(lowers)             # keeps float32 to halve memory

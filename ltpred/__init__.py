@@ -5,8 +5,8 @@ conditioned on family history and age-, birth-year- and sex-dependent prevalence
 (LT-FH++), and the same personalised construction without family history
 (ADuLT). Given each individual's case/control
 status, age and relatives' statuses, it estimates the **posterior mean genetic
-liability** -- a continuous phenotype that, used in a linear GWAS, recovers power
-lost by a plain case/control label.
+liability** -- a continuous phenotype that can improve power over a plain
+case/control label when the liability model and supplied inputs are appropriate.
 
 Typical use (single-trait inference defaults to Pearson-Aitken)::
 
@@ -14,7 +14,7 @@ Typical use (single-trait inference defaults to Pearson-Aitken)::
     sim = simulate_under_LTM_single(h2=0.5, pop_prev=0.05, n_sim=2000,
                                     use_age=True, seed=1)
     res = estimate_liability(sim.families, h2=0.5, out=("genetic",))
-    res.est["genetic"]        # posterior mean genetic liability per proband
+    res.est["genetic"]        # genetic-liability estimate per proband
 
 The pieces, if you want them directly:
 

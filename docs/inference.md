@@ -32,8 +32,9 @@ fit.h2, fit.h2_se                    # fitted liability-scale heritability (+ MC
 
 It needs relatives (lone probands carry no information and raise). `fit.h2_se` is a
 *within-dataset* Monte-Carlo **diagnostic** of the fixed point, not an inferential
-standard error — the spread across datasets is ~20–30× larger — so for a real
-confidence interval use `bootstrap_fit` (below). Feed the point estimate back in as
+standard error; it substantially understated across-dataset variability in the
+repository benchmarks. For an approximate iid-family cluster interval, use
+`bootstrap_fit` (below). Feed the point estimate back in as
 `h2=fit.h2` (or, better, run the [sensitivity analysis](#sensitivity-to-the-assumed-heritability)
 around it).
 
@@ -55,7 +56,10 @@ spread reflects family sampling, not sampler noise. It costs `n_boot`+1 fits.
 The interval assumes iid, non-overlapping family clusters and a sampling design
 compatible with the fitted model. It is not automatically calibrated under
 case/control or family-history ascertainment, boundary parameters, or overlapping
-pedigrees.
+pedigrees. The `n_boot=100` call above is a computational example, not a
+recommended final precision: percentile endpoints can be visibly unstable with
+so few resamples. Increase `n_boot` until the SE and interval endpoints are stable
+for your analysis, and report the number of successful refits.
 
 ## Sensitivity to the assumed heritability
 
@@ -95,8 +99,12 @@ vc.components["A"], vc.components["C"], vc.residual   # proportions of liability
 
 `C` is identified only from **full-sib pairs**, so the families must contain them
 (otherwise the fit raises). The same `h2_se` caveat applies — use `bootstrap_fit` for a CI.
-Dominance is intentionally not offered (it needs MZ/DZ twin contrasts). With
-`("A",)` alone the result matches `fit_heritability`.
+Dominance is intentionally not offered. It requires a dominance relationship
+kernel with contrasts linearly independent of `A` and `C`. MZ/DZ twin observations
+can contribute useful contrasts within a richer design, but MZ/DZ pairs alone
+cannot identify `A`, `C`, and `D` simultaneously. The current role bank does not
+provide a dominance kernel. With `("A",)` alone the result matches
+`fit_heritability`.
 
 A second shared-environment component, `"M"` (couple / spousal environment), loads
 on the genetically-unrelated **mate pairs** — the parents `(m, f)` and the
@@ -109,28 +117,34 @@ of assortative mating (which would also alter the genetic covariance among
 offspring and across generations). Because mates have `A = 0`, omitting a real
 `M` biases `A` **much less than omitting `C`** — so fit `M` to
 quantify, or `test_variance_component(families, "M")` to test, spousal resemblance
-for its own sake rather than to de-bias `h²`. Only equivalence-class (PSD) environments are valid components; a vertical
-parent-offspring "environment" is not, and is rejected.
+for its own sake rather than to de-bias `h²`. The shipped `C` and `M` kernels are
+equivalence-class partitions, which guarantees that they are positive
+semi-definite (PSD); equivalence classes are sufficient, not necessary. Any future
+kernel must be symmetric and PSD. Every fitted kernel has diagonal one, so each
+component also consumes that fraction of marginal liability variance and the
+individual residual is `1 - sum(components)`. The naive vertical parent-offspring
+indicator considered here is non-PSD and is rejected.
 
-Pass `method="mcem"` for a **Monte-Carlo EM maximum-likelihood** fit instead of the
-moment regression (`method="reml"` is a deprecated alias — the procedure is
-maximum-likelihood on the imputed liabilities, not restricted ML):
+Pass `method="mcem"` for the package's **approximate Monte-Carlo EM-style
+likelihood fit** instead of the moment regression (`method="reml"` is a deprecated
+alias; this is not restricted ML):
 
 ```python
 vc = fit_variance_components(families, ("A", "C"), method="mcem")
-vc.components["A"], vc.se["A"]      # estimate + an approximate model-based SE
-vc.loglik, vc.aic                  # Monte-Carlo (GHK) log-likelihood + AIC (model comparison)
+vc.components["A"], vc.se["A"]  # estimate + approximate OPG/BHHH information SE
+vc.loglik, vc.aic                # Monte-Carlo GHK log-likelihood + AIC diagnostic
 ```
 
-Unlike the default `"he"` fit, the MCEM fit was ~30 % more efficient *in the
-benchmarked configurations*, and its `se` is an **approximate** model-based SE (an
-OPG/BHHH observed-information estimate, itself subject to Monte-Carlo error) that
-approximated the true across-dataset SD there — so it is often usable in place of a
-`bootstrap_fit` interval, but confirm on your own design. It also reports a
-Monte-Carlo (GHK) log-likelihood and `aic` (both Monte-Carlo estimates), so you can
-compare nested models (e.g. `A` vs `A+C`) by AIC. For a *calibrated* yes/no on a
-component, prefer `test_variance_component` — AIC, like any likelihood-based
-selection for variance components, under-penalises near the boundary.
+The implementation runs a finite `n_iter` trajectory with a fixed damping
+coefficient and averages the post-burn-in iterates; it does not stop on an EM
+likelihood-convergence criterion. Consequently the component estimates, the
+OPG/BHHH information SE, and the GHK log-likelihood/AIC are all Monte-Carlo and
+finite-iteration approximations. Use them as diagnostics, check stability across
+seeds and iteration settings, and do not replace a family-cluster bootstrap with
+the reported `se` unless its repeated-sampling calibration has been established
+for your design. AIC can compare nested fits descriptively, but it is particularly
+fragile near a variance-component boundary; use `test_variance_component` when
+its conditional parametric-bootstrap assumptions are appropriate.
 
 ## Genetic correlation between traits
 
@@ -153,7 +167,8 @@ The phenotypic correlation splits into genetic and environmental parts —
 is derived from that one pair, so the returned object is a coherent model you can
 simulate from or hand to `fit_genetic_factor` directly. It needs related pairs (the
 genetic correlation is carried by the cross-relative, cross-trait resemblance). It
-is ~unbiased near the null and mildly attenuated at large `|r_g|`; use
+was approximately unbiased near the null and mildly attenuated at large `|r_g|`
+in the repository benchmarks; use
 `bootstrap_fit` for a CI.
 
 ## A genetic common-factor model
@@ -186,6 +201,11 @@ residual misfit, so the fit is not universally exact. This is a descriptive
 decomposition of a point-estimate `r_g`; bootstrap the
 `fit_genetic_correlation → fit_genetic_factor` pipeline for uncertainty.
 
+For `n_factors > 1`, factor signs, order and rotation are not identified. Align
+bootstrap loading matrices to the reference solution (for example by permutation,
+sign matching and Procrustes rotation) before elementwise intervals, or bootstrap
+rotation-invariant summaries instead.
+
 ## Is a component / correlation significant?
 
 The frequentist analog of the twin-SEM likelihood-ratio test ("is `C` in the
@@ -213,4 +233,7 @@ of status**; pinned age-of-onset bounds raise. A common prevalence threshold is
 accepted automatically. For individualized thresholds fixed from baseline
 covariates, pass `thresholds_are_status_independent=True` only when that statement
 is genuinely true; never use it for a threshold derived from age of onset. It
-costs about `n_boot` refits.
+costs about `n_boot` refits. With the plus-one Monte-Carlo p-value used here, `B`
+null replicates give a minimum attainable p-value of `1 / (B + 1)`; for example,
+`n_boot=200` cannot resolve a p-value below about `0.005`. Increase `n_boot` for
+smaller target significance levels and report the simulation count.

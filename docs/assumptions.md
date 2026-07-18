@@ -11,6 +11,19 @@ correct relationships and diagnoses, and correctly specified prevalence/CIPs and
 liability-scale `h²`. Under its standard model, individual-specific residuals are
 independent of relatives' additive genetic values and of each other.
 
+The age-dependent formulation assumes a non-decreasing cumulative-incidence curve
+(hence a non-increasing liability threshold) and, in the current high-level model,
+the same liability covariance and genetic architecture across age at diagnosis,
+sex and cohort. Those variables alter thresholds, not `h²` or genetic
+correlations. Follow-up/censoring must be represented by a defensible observation
+model; independent censoring is required for ordinary Kaplan–Meier risk estimates,
+and competing events require a cumulative-incidence estimator.
+
+Gibbs targets the truncated-Gaussian conditional moments by Monte Carlo. PA is a
+deterministic sequential-moment approximation when several interval observations
+are folded in (exact for one truncation or point conditioning), so unusual family
+structures should be checked against Gibbs.
+
 Shared household/cultural transmission, dominance/epistasis, indirect genetic
 effects and generative assortative mating are not included. Assortative mating is
 not an environmental component: it changes genetic covariances among mates and
@@ -46,18 +59,23 @@ Before running a production analysis:
    incidence differs. With independent right censoring and no competing events,
    `1 − Kaplan–Meier` estimates risk; with competing death or diagnoses, use a
    cause-specific cumulative-incidence estimator such as Aalen–Johansen.
-3. Convert `h²` to the **liability scale** (`convert_observed_to_liability_scale`).
-4. Check **sensitivity** of the score to `h²` and to prevalence/CIP choices,
+3. Make each CIP age grid cover the analysed onset/follow-up ages and supply
+   `k_pop` explicitly unless its final value is a defensible lifetime prevalence;
+   the helper holds endpoint values constant outside the grid.
+4. Convert `h²` to the **liability scale** (`convert_observed_to_liability_scale`),
+   passing the actual study case fraction; its `sample_prev=0.5` default represents
+   a balanced case/control design only.
+5. Check **sensitivity** of the score to `h²` and to prevalence/CIP choices,
    especially for rare traits and dense pedigrees.
-5. **Validate roles**: valid abbreviations, no duplicate roles within a family
+6. **Validate roles**: valid abbreviations, no duplicate roles within a family
    (the estimator now raises on duplicates).
-6. Decide **case encoding** — pinned (`age_thresholds`) vs interval
+7. Decide **case encoding** — pinned (`age_thresholds`) vs interval
    (`pa_thresholds`) — and record it.
-7. Choose **Gibbs vs Pearson–Aitken**; for unusual pedigrees cross-check PA
+8. Choose **Gibbs vs Pearson–Aitken**; for unusual pedigrees cross-check PA
    against Gibbs.
-8. **Residualize** the phenotype for covariates (sex, cohort, PCs, batch) and
+9. **Residualize** the phenotype for covariates (sex, cohort, PCs, batch) and
    handle related probands (LMM / pruning) before the GWAS.
-9. For family-data **fitting or bootstrap inference**, verify that sampled family
+10. For family-data **fitting or bootstrap inference**, verify that sampled family
    clusters do not overlap and either avoid ascertainment or model it explicitly.
 
 ## Pitfalls
@@ -72,6 +90,9 @@ Before running a production analysis:
 - **Prevalence and CIPs should match the population** the thresholds refer to;
   stratify by sex/birth-year if your incidence differs across strata (pass the
   per-person `K_i`).
+- **CIP interpolation is flat beyond its age grid.** It does not extrapolate an
+  incidence trend; cover the analysed ages and do not equate the last observed CIP
+  with lifetime prevalence unless the curve reaches that horizon.
 - **`use_mixture=True` needs `K_i`/`K_pop`** on the members (from `pa_thresholds`
   or `thresholds_from_cip`) — otherwise it now raises rather than silently doing
   nothing. In mixture mode, age enters through `K_i`; the implementation splits at

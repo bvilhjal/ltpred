@@ -16,9 +16,9 @@ optional but strongly recommended at scale.
 
 ## 1. Describe your data
 
-One row per **(proband, relative)**, grouped into families by `fam_id`. Each person
-has a role (relative to the proband), a case/control `status`, and an `age` (age of
-onset for cases, age at last follow-up for controls):
+One row per **observed person**, grouped by the target proband's `fam_id`. Each
+person has a role defined relative to that proband, a case/control `status`, and an
+`age` (age of onset for cases, age at last follow-up for controls):
 
 ```python
 import numpy as np
@@ -74,7 +74,9 @@ convert an observed-scale value — see
 
 `score` is a continuous per-proband phenotype on the liability scale — use it in a
 linear-regression GWAS in place of the 0/1 label (that's where the power gain comes
-from), or as a standalone family-based risk score:
+from in the benchmarked settings). It is not an absolute disease-risk probability;
+use it as a model-based family-history liability predictor only after validating
+the prevalence/CIP and covariance assumptions:
 
 ```python
 # after residualising for covariates (sex, cohort, PCs, batch) — see estimation.md

@@ -3,7 +3,7 @@
 The family-history models condition on a proband plus zero or more relatives,
 each with a ``role`` (``o`` = the proband's own status, ``m``/``f``/``s1``/... =
 relatives) and a liability interval ``(lower, upper)``. A :class:`Member` holds
-one such row; a :class:`Family` groups the rows that share a proband. The
+one such observed-person record; a :class:`Family` groups records for one proband. The
 genetic-liability row ``g`` is added automatically by the estimator.
 
 Model identity depends on both the bounds and the rows supplied: personalised
@@ -63,7 +63,7 @@ def families_from_columns(fam_id, role, lower, upper, pid=None, K_i=None, K_pop=
     """Group flat, column-oriented threshold data into a list of families.
 
     Mirrors the R ``.tbl`` input (columns ``fam_id``, ``role``, ``lower``,
-    ``upper`` and optionally ``pid``). Rows sharing a ``fam_id`` become one
+    ``upper`` and optionally ``pid``). Records sharing a ``fam_id`` become one
     :class:`Family`; family order follows first appearance. For the multi-trait
     model pass ``lower``/``upper`` as 2-D (rows x phenotypes). ``K_i``/``K_pop`` are
     optional per-row columns for the Pearson-Aitken censored-control mixture."""

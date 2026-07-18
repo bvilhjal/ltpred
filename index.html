@@ -74,6 +74,11 @@
   .chip{font-family:var(--mono);font-size:12px;letter-spacing:.02em;color:var(--muted);
     background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
   .chip b{color:var(--ink);font-weight:600}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+  .action{display:inline-flex;align-items:center;border:1px solid var(--accent);
+    border-radius:8px;padding:8px 14px;font-size:14px;font-weight:600}
+  .action.primary{background:var(--accent);color:var(--surface)}
+  .action:hover{border-bottom-color:var(--accent)}
   .figure{margin:34px 0 4px;background:var(--surface);border:1px solid var(--line);
     border-radius:14px;padding:20px 18px 14px;box-shadow:var(--shadow);overflow-x:auto}
   .figure svg{display:block;width:100%;height:auto;max-width:720px;margin:0 auto}
@@ -195,14 +200,20 @@
     </div>
 
     <h1>Liability-threshold genetics at pedigree and registry scale.</h1>
-    <p class="lede">A from-scratch Python implementation of LT-FH++, ADuLT and PA-FGRS — it turns a family's case/control status and ages of onset into a continuous, GWAS-ready estimate of each person's genetic liability, and fits the variance-component model behind it.</p>
+    <p class="lede">A from-scratch Python implementation of LT-FH++, ADuLT and PA-FGRS. It turns a family's case/control status and ages of onset into a continuous, GWAS-ready estimate of each person's genetic liability; separate APIs fit variance-component models from family data.</p>
 
     <div class="meta">
       <span class="chip">v<b>0.1.0.dev0</b></span>
-      <span class="chip"><b>~4,000</b> LOC · NumPy + SciPy · Numba optional</span>
+      <span class="chip"><b>NumPy + SciPy</b> · Numba optional</span>
       <span class="chip">Python <b>≥3.9</b></span>
       <span class="chip">MIT</span>
     </div>
+
+    <nav class="actions" aria-label="Getting started">
+      <a class="action primary" href="https://github.com/bvilhjal/ltpred/blob/main/docs/quickstart.md">Run the quickstart</a>
+      <a class="action" href="https://github.com/bvilhjal/ltpred/blob/main/docs/guide.md">Read the guide</a>
+      <a class="action" href="https://github.com/bvilhjal/ltpred">View on GitHub</a>
+    </nav>
 
     <div class="figure">
       <svg viewBox="0 0 720 300" role="img" aria-label="A standard-normal liability curve with a threshold T at the right; the shaded right tail is cases (liability above T), the left region is controls.">
@@ -215,7 +226,7 @@
         <text x="250" y="150" text-anchor="middle" font-family="ui-monospace,monospace" font-size="13" fill="var(--muted)">controls · ℓ &lt; T</text>
         <text x="560" y="150" text-anchor="middle" font-family="ui-monospace,monospace" font-size="13" fill="var(--tail)">cases · ℓ &gt; T</text>
       </svg>
-      <p class="figcap">The whole package lives on this picture: a latent Gaussian <b>liability</b> ℓ per person, a diagnosis when it crosses a personalized <b>threshold T</b>, and a posterior mean of the proband's <b>genetic</b> liability recovered from where their relatives' liabilities must lie.</p>
+      <p class="figcap">The whole package lives on this picture: a latent Gaussian <b>liability</b> ℓ per person, a diagnosis when it crosses a personalized <b>threshold T</b>, and the proband's posterior-mean <b>genetic</b> liability estimated from where relatives' liabilities must lie.</p>
     </div>
   </header>
 
@@ -223,11 +234,11 @@
 
   <section>
     <div class="sec-head"><span class="n">01</span><h2>The method lineage it implements</h2></div>
-    <div class="prose"><p>ltpred is a faithful, tested port of a specific line of methods — each paper adds one thing to the liability-threshold model, and ltpred implements them on one covariance engine with two interchangeable back-ends.</p></div>
+    <div class="prose"><p>ltpred is a faithful, tested port of a specific line of methods — each paper adds one thing to the liability-threshold model, and ltpred implements them on one covariance engine with two complementary back-ends.</p></div>
     <div class="line-grid" style="margin-top:26px">
       <div class="lin"><div class="yr"><b>1950–65</b>Foundations</div><div><h3>The liability-threshold model</h3><p>A latent normal liability; a disease when it exceeds a threshold set by prevalence.</p><span class="src">Dempster &amp; Lerner 1950 · Falconer 1965</span></div></div>
-      <div class="lin"><div class="yr"><b>2020</b>LT-FH</div><div><h3>Family history as a phenotype</h3><p>Replace the 0/1 case label with the posterior-mean genetic liability given parents' and siblings' status — recovering GWAS power a binary label discards.</p><span class="src">Hujoel et al., Nature Genetics</span></div></div>
-      <div class="lin"><div class="yr"><b>2022</b>LT-FH++</div><div><h3>Personalized thresholds</h3><p>Age of onset, sex and birth cohort each get their own threshold from population cumulative-incidence curves; arbitrary pedigrees; a scalable Gibbs sampler.</p><span class="src">Pedersen et al., AJHG</span></div></div>
+      <div class="lin"><div class="yr"><b>2020</b>LT-FH</div><div><h3>Family history as a phenotype</h3><p>Replace the 0/1 case label with the posterior-mean genetic liability given parents' and siblings' status — designed to recover GWAS information discarded by a binary label.</p><span class="src">Hujoel et al., Nature Genetics</span></div></div>
+      <div class="lin"><div class="yr"><b>2022</b>LT-FH++</div><div><h3>Personalized thresholds</h3><p>Age of onset, sex and birth cohort each get their own threshold from population cumulative-incidence-proportion (CIP) curves; arbitrary pedigrees; a scalable Gibbs sampler.</p><span class="src">Pedersen et al., AJHG</span></div></div>
       <div class="lin"><div class="yr"><b>2023</b>ADuLT</div><div><h3>Age-dependent threshold</h3><p>The same personalized threshold, benchmarked as robust under the ascertainment mechanisms studied, as an alternative to time-to-event (Cox) GWAS.</p><span class="src">Pedersen et al., Nature Communications</span></div></div>
       <div class="lin"><div class="yr"><b>2024</b>PA-FGRS</div><div><h3>Deterministic, registry-scale</h3><p>A sequential Pearson–Aitken moment approximation with an optional age-censored-control mixture — no MCMC, at biobank scale.</p><span class="src">Krebs et al., AJHG</span></div></div>
     </div>
@@ -253,7 +264,7 @@
       <div class="card">
         <div class="k">Fit</div>
         <h3>Variance components &amp; factors</h3>
-        <p>Estimate h² and shared-environment components (A + sibship C + couple M) by multiple Haseman–Elston or approximate Monte-Carlo EM. MCEM supplies approximate model-based SEs and AIC; family-cluster bootstrap intervals and parametric-bootstrap tests are available under their sampling assumptions. Fit genetic correlations and a descriptive common-factor model over them.</p>
+        <p>Estimate h² and shared-environment components (A + sibship C + couple M) by multiple Haseman–Elston or a finite-iteration Monte-Carlo EM-style fit. MCEM SE and AIC outputs are approximate diagnostics; family-cluster bootstrap intervals and parametric-bootstrap tests are available under their sampling assumptions. Fitted C/M are not yet inputs to the high-level liability predictor. Fit genetic correlations and a descriptive common-factor model over them.</p>
         <div class="fns"><span class="fn">fit_heritability</span><span class="fn">fit_variance_components</span><span class="fn">fit_genetic_correlation</span><span class="fn">fit_genetic_factor</span><span class="fn">bootstrap_fit</span></div>
       </div>
       <div class="card">
@@ -425,7 +436,7 @@
     <div class="tier">
       <div class="tier-head"><h3>Deepen the model</h3><span class="when">Medium-term</span></div>
       <div class="items">
-        <div class="item"><span class="status s-part">partly done</span><div class="body"><strong>Relationship-specific environments.</strong> A + sibship C + couple M ship today; a maternal-lineage rearing environment and cousin environments are the next valid equivalence-class components for extended registry pedigrees.</div></div>
+        <div class="item"><span class="status s-part">partly done</span><div class="body"><strong>Relationship-specific environments.</strong> A + sibship C + couple M ship today; additional symmetric PSD sharing kernels, such as carefully defined maternal-lineage rearing or cousin environments, are candidates for extended registry pedigrees.</div></div>
         <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Sex- and cohort-specific covariance.</strong> Move sex and birth cohort from the threshold (where they correct calibration) into Σ — sex-specific h², a cross-sex genetic correlation r<sub>g</sub> &lt; 1 — so they also become a ranking / power lever.</div></div>
         <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Direct vs. indirect (genetic-nurture) effects.</strong> Separate a proband's own genetic effect from parental effects — an asymmetric / structural covariance extension of the current symmetric model.</div></div>
         <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Competing-risk CIP helpers.</strong> <code>1 − Kaplan–Meier</code> under independent censoring without competing events, and Aalen–Johansen cumulative incidence when competing mortality or diagnoses are present, to build the curves <code>thresholds_from_cip</code> consumes.</div></div>
@@ -446,6 +457,9 @@
 
   <footer>
     <div class="row">
+      <a href="https://github.com/bvilhjal/ltpred/blob/main/docs/quickstart.md">Quickstart</a>
+      <span>·</span><a href="https://github.com/bvilhjal/ltpred/blob/main/docs/guide.md">Guide</a>
+      <span>·</span>
       <a href="https://github.com/bvilhjal/ltpred">github.com/bvilhjal/ltpred</a>
       <span>·</span><span>MIT</span>
       <span>·</span><span>numpy, scipy; numba optional</span>

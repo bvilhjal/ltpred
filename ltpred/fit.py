@@ -27,14 +27,16 @@ Haseman-Elston regression (regressing the sampled cross-products on more than on
 relationship matrix at once), fitting additive ``A`` alongside a **bank of
 relationship-specific shared-environment components** — ``C`` (full-sib / sibship
 environment) and ``M`` (couple / spousal environment) — chosen from
-``_COMPONENT_OFFDIAG``. Each environment component is an equivalence-class
-partition of the pedigree (a group of relatives who fully share one environmental
-deviation), so its relationship matrix is positive-semidefinite by construction;
+``_COMPONENT_OFFDIAG``. The shipped environment components are equivalence-class
+partitions of the pedigree (groups that fully share one environmental deviation),
+so their relationship matrices are positive-semidefinite by construction;
 different components load on **different relationship contrasts** (``C`` on the
 full-sib excess, ``M`` on the resemblance between genetically-unrelated mates), so
-a multi-generational pedigree can identify several at once. All reuse the
-well-mixing collapsed truncated-MVN draw and are validated unbiased; a dominance
-component would need contrasting relative types (MZ vs DZ twins) and is not offered.
+a multi-generational pedigree can identify several at once when those contrasts are
+linearly independent. All reuse the collapsed truncated-MVN draw. Repository
+benchmarks found small bias relative to across-dataset variability in the tested
+designs. A dominance component would require an explicit dominance kernel and a
+richer relationship design; it is not offered.
 """
 
 from __future__ import annotations
@@ -115,9 +117,10 @@ class FitResult:
 
     **Caveat:** ``h2_se`` is a *within-dataset* Monte-Carlo **diagnostic** of the
     fixed point, not an inferential standard error and not the sampling variability
-    of ``h2`` across datasets — in the benchmarks it under-states the true SD by
-    ~20-30x. Do **not** use it as a confidence interval; bootstrap over families for
-    that. ``samples`` is the post-burn-in ``h2`` trace and ``trace`` the full one
+    of ``h2`` across datasets; it can substantially understate that variability.
+    Do **not** use it as a confidence interval. A family-cluster bootstrap is one
+    sampling-uncertainty option when its assumptions hold. ``samples`` is the
+    post-burn-in ``h2`` trace and ``trace`` the full one
     (for convergence diagnostics; despite the name they are fixed-point iterates,
     not posterior draws)."""
     h2: float
@@ -177,7 +180,8 @@ def fit_heritability(families, *, h2_init=0.5, n_iter=1500, burn_in=500,
     ``damp`` controls the moment-update stability. Returns a :class:`FitResult`.
 
     Needs relatives (at least one related pair); a set of lone probands carries no
-    information about ``h2`` and raises."""
+    information about ``h2`` and raises. ``seed`` must be a non-boolean integer in
+    ``[0, 2**32 - 1]`` or ``None``."""
     groups = [_prepare_group(families, idx) for _key, idx in _group_by_structure(families)]
     sxx = sum(sum(aij * aij for (_i, _j, aij) in g["pairs"]) * g["F"] for g in groups)
     if sxx <= 0:
@@ -218,20 +222,20 @@ _COMPONENT_OFFDIAG = {
     # couple (spousal) environment: shared by genetically-unrelated mates
     "M": lambda a, b: 1.0 if _is_mates(a, b) else 0.0,
 }
-# The environment components (``C``, ``M``, and any future addition) are each an
+# The shipped environment components ``C`` and ``M`` are each an
 # **equivalence-class partition**: a set of relatives who fully share one
-# environmental deviation (sib-ship for ``C``, couple for ``M``), so the off-diagonal
-# indicator matrix is positive-semidefinite and corresponds to a proper variance
-# component. A *vertical* / parent-offspring "shared environment" is deliberately
+# environmental deviation (sib-ship for ``C``, couple for ``M``), so their kernels
+# are positive-semidefinite. A future component need not be a partition, but its
+# kernel must be substantively meaningful, symmetric, and PSD. A *vertical* /
+# parent-offspring "shared environment" is deliberately
 # not offered because it is not an equivalence relation (parent-offspring
 # cohabitation chains across generations), so its indicator matrix is not PSD and
 # would be a mis-specified component -- :func:`_component_matrix` guards against it.
 #
-# Dominance ("D") is likewise not offered: from sib-only pedigrees it is identified
-# only through the small full-sib excess beyond additive, so the non-negativity
-# constraint biases it upward (real D over-estimated, and a spurious D appears on
-# purely-additive data). It needs contrasting relative types (MZ vs DZ twins) to
-# estimate honestly -- out of scope for the fixed role grammar here.
+# Dominance ("D") is likewise not offered. It requires an explicit dominance
+# relationship kernel and contrasts linearly independent of the additive and
+# sibship kernels; MZ/DZ observations can contribute in a richer design but cannot
+# identify A, C, and D by themselves.
 
 
 @dataclass
@@ -241,22 +245,23 @@ class VarCompResult:
     ``components`` maps each fitted component (``"A"`` additive, ``"C"`` sibship
     common environment, ``"M"`` couple/spousal environment) to its estimated
     **proportion** of the liability variance; ``residual`` is the remaining ``e2``.
-    So ``A`` is the (narrow-sense) heritability. ``se`` is the within-dataset
-    Monte-Carlo error per component
-    (same caveat as :class:`FitResult` — it is the MC error of this one fit, not
-    the across-dataset sampling SD, so it under-states the real uncertainty;
-    bootstrap families for a genuine CI). ``traces`` are the post-burn-in
-    proportion traces per component.
+    So ``A`` is the (narrow-sense) heritability. For ``method="he"``, ``se`` is a
+    within-dataset Monte-Carlo diagnostic (same caveat as :class:`FitResult`), not
+    across-dataset sampling uncertainty. For ``method="mcem"``, it is an
+    approximate OPG/BHHH information SE with Monte-Carlo, finite-iteration,
+    iid-family and model-correctness assumptions. Use an appropriately designed
+    family-cluster bootstrap for sampling uncertainty. ``traces`` are the
+    post-burn-in proportion traces per component.
 
     ``loglik`` / ``aic`` are populated only by the ``method="mcem"`` fit: the
     Monte-Carlo (GHK) observed-data log-likelihood and ``AIC = 2·(#components) −
     2·loglik`` (both Monte-Carlo estimates), for comparing nested models (e.g.
     ``A`` vs ``A+C``). They are
     ``None`` for the moment (``"he"``) fit and for pinned/degenerate bounds. As
-    always for variance components, likelihood-based selection **under-penalises
-    near the boundary** (a small spurious component can nudge AIC down), so for a
-    calibrated yes/no on a component use :func:`test_variance_component`; AIC is a
-    descriptive comparison."""
+    always for variance components, AIC can be unreliable near a parameter
+    boundary, so use it only as a descriptive comparison. The conditional
+    parametric-bootstrap :func:`test_variance_component` is the package's component
+    test when its model and sampling assumptions hold."""
     components: dict
     residual: float
     se: dict
@@ -271,8 +276,8 @@ def _component_matrix(roles, comp):
     """Relationship matrix ``K`` for one variance component (diagonal 1).
 
     A valid variance component has a positive-semidefinite ``K`` (the additive
-    relationship is PSD for any consistent pedigree; a shared-environment component
-    is PSD when it is a proper equivalence-class partition). A non-PSD ``K`` — e.g. a
+    relationship is PSD for any consistent pedigree; an equivalence-class partition
+    is one sufficient construction for a shared-environment kernel). A non-PSD ``K`` — e.g. a
     vertical parent-offspring "environment" whose sharing chains across generations —
     is not a proper component and would be silently distorted downstream by
     :func:`~ltpred.covariance.correct_positive_definite`, so it is rejected here."""
@@ -285,9 +290,9 @@ def _component_matrix(roles, comp):
     if np.min(np.linalg.eigvalsh(K)) < -1e-8:
         raise ValueError(
             f"component {comp!r} does not yield a positive-semidefinite relationship "
-            "matrix for these roles — it is not a proper variance component (a "
-            "shared-environment component must be an equivalence-class partition; "
-            "vertical parent-offspring environments are not).")
+            "matrix for these roles — it is not a proper variance component (the "
+            "kernel must be symmetric and positive-semidefinite; the naive "
+            "vertical parent-offspring indicator is not).")
     return K
 
 
@@ -330,14 +335,12 @@ def fit_variance_components(families, components=("A", "C"), *, method="he",
     """Fit liability-scale variance components by a multiple Haseman-Elston regression.
 
     ``method="he"`` (default) is the moment fit described below. ``method="mcem"``
-    instead runs a **Monte-Carlo EM maximum-likelihood** fit (see
-    :func:`_fit_vc_reml`) — same augmentation, but each sweep's M-step maximises the
-    Gaussian likelihood of the imputed liabilities rather than regressing moments;
-    it is more efficient and returns an **approximate model-based** standard error
-    (an OPG/BHHH observed-information estimate, subject to Monte-Carlo error) instead
-    of a within-dataset Monte-Carlo diagnostic. (It is maximum-likelihood on the
-    imputed liabilities, *not* restricted ML; ``method="reml"``/``"ml"`` are accepted
-    as aliases for backward compatibility.)
+    instead runs the package's **finite-iteration, fixed-damping Monte-Carlo
+    EM-style likelihood fit** (see :func:`_fit_vc_reml`). Each sweep's M-step
+    maximises the Gaussian likelihood of the imputed liabilities rather than
+    regressing moments. It returns an approximate OPG/BHHH information SE rather
+    than the HE within-dataset Monte-Carlo diagnostic. This is not restricted ML;
+    ``method="reml"``/``"ml"`` are aliases retained for backward compatibility.
 
     Generalises :func:`fit_heritability` from one component to several. Each sweep
     it (1) draws the latent liabilities from the **full family truncated-MVN**
@@ -349,8 +352,8 @@ def fit_variance_components(families, components=("A", "C"), *, method="he",
         [h2_c] = (X'X)^-1 X'y ,   X[p, c] = K_c[i, j] ,   y[p] = l_i l_j ,
 
     damped across sweeps for stability. Unlike a single-``h2`` fit this separates
-    relative *kinds*: each component is pinned by a **different relationship
-    contrast**, so they do not trade off — ``A`` by the parent-offspring /
+    relative *kinds* when the supplied pedigrees yield linearly independent
+    relationship contrasts: ``A`` by the parent-offspring /
     grandparent / avuncular relatednesses, ``C`` by the full-sib excess, ``M`` by
     the resemblance between genetically-unrelated mates. The thresholds stay fixed
     (total liability variance 1); components are returned as **proportions**, with
@@ -372,20 +375,23 @@ def fit_variance_components(families, components=("A", "C"), *, method="he",
     A component whose identifying pairs are absent (``C`` with no full-sib pairs,
     ``M`` with no mate pairs, or no related pairs at all) leaves the design singular
     and this raises. (Dominance ``"D"`` is intentionally unsupported — see the note
-    by ``_COMPONENT_OFFDIAG``; it needs twin contrasts to estimate honestly.)
+    by ``_COMPONENT_OFFDIAG``; it needs an explicit dominance kernel and an
+    independently informative relationship design.)
 
     Runs a data-augmentation sweep of ``inner_sweeps`` truncated-MVN sweeps per
     outer iteration; ``damp`` controls the moment-update stability. Returns a
     :class:`VarCompResult`. Simulation benchmarks recover ``A`` and ``A+C`` with
-    small bias relative to their across-dataset SD; as with
-    :func:`fit_heritability`, ``se`` under-states that sampling SD, so bootstrap
-    families for a confidence interval."""
+    small bias relative to their across-dataset SD. For ``method="he"``, ``se`` is
+    only a within-fit Monte-Carlo diagnostic; the MCEM interpretation is described
+    above. Use family resampling for a sampling interval when clusters are
+    independent and representative. ``seed`` must be a non-boolean integer in
+    ``[0, 2**32 - 1]`` or ``None``."""
     comps = list(components)
     for c in comps:
         if c not in _COMPONENT_OFFDIAG:
             avail = ", ".join(_COMPONENT_OFFDIAG)
             raise ValueError(f"unknown component {c!r}; choose from {avail} "
-                             "(dominance 'D' is not supported — needs twin data)")
+                             "(dominance 'D' is not supported)")
     if len(set(comps)) != len(comps):
         raise ValueError(f"duplicate components in {components!r}")
     if int(burn_in) >= int(n_iter):
@@ -560,20 +566,20 @@ def _reml_loglik(groups, comps, h2, eps, rng, n_draw=200):
 
 
 def _fit_vc_reml(families, comps, *, n_iter, burn_in, inner_sweeps, damp, seed, eps):
-    """Monte-Carlo EM maximum-likelihood variance components.
+    """Approximate fixed-damping Monte-Carlo EM-style variance components.
 
     E-step: draw the liabilities from the truncated family MVN under the current
     ``Sigma(h2)`` (the same augmentation as the HE fit). M-step: set ``h2`` to the
-    Gaussian ML of those liabilities (:func:`_mstep_reml`) rather than the moment
-    regression — the GLS-weighted, statistically efficient update. Damped across
-    sweeps (stochastic-approximation EM); the post-burn-in average is the estimate.
+    Gaussian likelihood optimum of those liabilities (:func:`_mstep_reml`) rather
+    than the moment regression. The implementation uses fixed damping and reports
+    the post-burn-in average; it does not apply an increasing Monte-Carlo E-step or
+    stop on an observed-likelihood convergence criterion.
     The SE is an **approximate** observed-information SE (:func:`_reml_observed_se`,
     an OPG/BHHH outer-product estimate that is itself subject to Monte-Carlo error),
-    accounting for the information lost to thresholding. In the benchmarked
-    configurations the estimate was unbiased and ~30% more efficient than the HE fit,
-    and the SE approximated the true across-dataset SD (well-calibrated to mildly
-    conservative) — unlike the HE ``se``, which understated it ~15-20×. Confirm on
-    your own design, and use :func:`bootstrap_fit` for a fully non-parametric interval."""
+    accounting approximately for the information lost to thresholding. The SE,
+    GHK likelihood and AIC retain Monte-Carlo and finite-iteration error and require
+    validation for the target design. Use :func:`bootstrap_fit` for an iid-family
+    cluster percentile interval when its sampling assumptions hold."""
     C = len(comps)
     groups = [_prepare_group_vc(families, idx, comps)
               for _key, idx in _group_by_structure(families)]
@@ -632,9 +638,9 @@ class GenCorrResult:
     correlation of the full liabilities (same individual, across traits).
     ``genetic_cov`` and ``env_cov`` are the ``(P, P)`` genetic ``G`` and
     environmental ``E`` covariances, so ``rp = G + E`` (``G`` has diagonal ``h2``,
-    ``E`` diagonal ``e2 = 1 - h2``). ``se`` holds the within-dataset Monte-Carlo
-    errors (``"h2"``, ``"rg"``, ``"re"``, ``"rp"``) — same caveat as
-    :class:`FitResult`: bootstrap families for a real CI. ``phen_names`` labels the
+    ``E`` diagonal ``e2 = 1 - h2``). ``se`` holds within-dataset Monte-Carlo
+    errors (``"h2"``, ``"rg"``, ``"re"``, ``"rp"``), not sampling uncertainty.
+    ``phen_names`` labels the
     traits; ``traces`` are the post-burn-in traces (``"h2"``/``"rg"``/``"re"``/``"rp"``)."""
     h2: np.ndarray
     rg: np.ndarray
@@ -789,12 +795,15 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
     correlation splits into genetic and environmental parts, ``rp = G + E``, so the
     **environmental correlation** ``re[p,q] = (rp[p,q] - G[p,q]) / sqrt(e2_p e2_q)``
     (``e2 = 1 - h2``) is returned too. Damped across sweeps; needs related pairs
-    (raises otherwise). Validated ~unbiased near the null (no spurious correlation)
-    with mild attenuation at large ``|rg|``.
+    (raises otherwise). Repository benchmarks found approximately unbiased estimates
+    near the null and mild attenuation at large ``|rg|`` in the tested designs.
 
     Returns a :class:`GenCorrResult` (``rg``, ``re``, ``rp``, per-trait ``h2``, the
     ``genetic_cov``/``env_cov`` matrices). As with :func:`fit_heritability`, the
-    reported ``se`` is a within-dataset Monte-Carlo error — bootstrap families for a CI."""
+    reported ``se`` is a within-dataset Monte-Carlo error. Use a family-cluster
+    bootstrap for sampling uncertainty when families are independent and
+    representative. ``seed`` must be a non-boolean integer in
+    ``[0, 2**32 - 1]`` or ``None``."""
     if not families:
         raise ValueError("no families provided")
     first_lower = np.asarray(families[0].members[0].lower)
@@ -918,20 +927,23 @@ class FactorResult:
     model-implied correlation ``Λ Λ' + diag(Ψ)`` (diagonal 1) and ``residual`` the
     misfit ``r_g − fitted``, whose **off-diagonal** is what the fit targets.
 
-    ``srmr`` is the standardised root-mean-square of those off-diagonal residuals —
-    the headline fit index: small (≲ 0.05–0.08) means the factor(s) reproduce the
-    genetic correlations well, so one general genetic axis suffices.
+    ``srmr`` is the standardised root-mean-square of those off-diagonal residuals.
+    Values around 0.05–0.08 are sometimes used as informal descriptive heuristics;
+    they are not a calibrated test that a given number of factors suffices.
     ``prop_explained`` is the fraction of the off-diagonal genetic-correlation
     structure the factor(s) capture. ``df = ½((P − m)² − (P + m))`` is the model
     nominal degrees of freedom. At ``df = 0`` (e.g. one factor on three traits), an
     admissible solution is just-identified, but incompatible correlation signs or a
     Heywood solution can put the optimum on the communality boundary and leave
-    non-zero residual misfit. Use ``P ≥ 4`` for an over-identified one-factor test.
+    non-zero residual misfit. ``P ≥ 4`` makes a one-factor model over-identified,
+    but this point-matrix MINRES fit still provides no calibrated factor-number test.
 
     For ``n_factors > 1`` the ``loadings`` are the unrotated (MINRES) orientation:
     ``communality``, ``fitted`` and ``srmr`` are rotation-invariant, but the
-    individual loadings are only defined up to an orthogonal rotation.
-    ``input_correlation`` records whether the supplied matrix already had a unit
+    individual loadings are only defined up to an orthogonal rotation. Align
+    bootstrap loading matrices by sign, permutation and rotation before elementwise
+    intervals, or use rotation-invariant summaries. ``input_correlation`` records
+    whether the supplied matrix already had a unit
     diagonal (a correlation) or was standardised from a covariance."""
     loadings: np.ndarray
     uniqueness: np.ndarray
@@ -1041,8 +1053,8 @@ def fit_genetic_factor(genetic, n_factors=1, *, phen_names=None, weights=None,
     loadings), and ``n_factors`` must leave the model (over-)identified,
     ``df = ½((P − n_factors)² − (P + n_factors)) ≥ 0``. Returns a
     :class:`FactorResult` with the loadings, per-trait communalities (genetic variance
-    explained by the factor[s]) and an ``srmr`` fit index; compare one vs more factors
-    by ``srmr`` / ``prop_explained``.
+    explained by the factor[s]) and an ``srmr`` fit index. Comparisons by ``srmr`` /
+    ``prop_explained`` are descriptive in-sample comparisons, not calibrated tests.
 
     ``weights`` optionally supplies a ``(P, P)`` inverse-variance weight matrix for a
     diagonally-weighted (DWLS) fit — e.g. ``1 / se²`` of each ``r_g`` — instead of the
@@ -1052,7 +1064,9 @@ def fit_genetic_factor(genetic, n_factors=1, *, phen_names=None, weights=None,
     ``fit_genetic_correlation`` → ``fit_genetic_factor`` pipeline over families
     (:func:`bootstrap_fit`) to relying on that ``se``. This is a descriptive
     decomposition of a *point-estimate* correlation matrix; it carries no inference
-    of its own."""
+    of its own. For multiple factors, align bootstrap signs, permutations and
+    rotations before elementwise loading intervals, or use rotation-invariant
+    summaries."""
     if isinstance(genetic, GenCorrResult):
         M = np.asarray(genetic.rg, dtype=float)
         if phen_names is None:
@@ -1140,13 +1154,16 @@ class BootstrapResult:
 
 
 def bootstrap_fit(families, estimator, *, n_boot=100, seed=None, ci_level=0.95):
-    """Honest uncertainty for a family-data fit by **resampling families**.
+    """Approximate percentile uncertainty by **resampling family clusters**.
 
-    The ``se`` reported by :func:`fit_heritability`, :func:`fit_variance_components`
-    and :func:`fit_genetic_correlation` is a *within-dataset* Monte-Carlo error and
-    badly under-states the true sampling variability across datasets (~20–30× in the
-    benchmarks). This resamples the families with replacement ``n_boot`` times,
-    refits, and takes the spread of the refits as the real uncertainty.
+    The HE ``se`` reported by :func:`fit_heritability`,
+    :func:`fit_variance_components` and :func:`fit_genetic_correlation` is a
+    *within-dataset* Monte-Carlo diagnostic and can substantially understate
+    sampling variability. This helper resamples families with replacement
+    ``n_boot`` times and reports the refit SD and percentile interval. Its sampling
+    interpretation assumes independent, non-overlapping, representative family
+    clusters and a compatible ascertainment/model; it is not bias-corrected,
+    studentized, or automatically calibrated at boundaries.
 
     ``estimator`` is a callable ``families -> value`` returning the quantity of
     interest as a float or array, e.g.::
@@ -1161,7 +1178,10 @@ def bootstrap_fit(families, estimator, *, n_boot=100, seed=None, ci_level=0.95):
     own Monte-Carlo noise. Returns a :class:`BootstrapResult`. Cost is ``n_boot + 1``
     fits, so this is deliberately expensive; lower ``n_boot`` for a quick check.
 
-    ``seed`` seeds the resampling; ``ci_level`` sets the percentile interval."""
+    ``estimator`` must return a stable scalar/array shape. ``n_boot`` is an integer
+    at least 2; substantially more than the default 100 may be needed for stable
+    interval endpoints. ``seed`` follows NumPy ``default_rng`` semantics and seeds
+    only the resampling; ``ci_level`` sets the percentile interval."""
     families = list(families)
     n = len(families)
     if n < 2:
