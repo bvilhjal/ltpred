@@ -352,14 +352,16 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
     covmat : (d, d) array
         Symmetric covariance of the (untruncated) multivariate normal.
     lower, upper : float or (d,) array
-        Per-coordinate truncation bounds; scalars are broadcast. ``upper`` must
-        be >= ``lower`` (they are swapped with a warning otherwise, as in R).
+        Per-coordinate truncation bounds; scalars are broadcast. Every ``upper``
+        must be greater than or equal to its corresponding ``lower``; reversed
+        bounds raise :class:`ValueError`.
     fixed : (d,) bool array, optional
         Coordinates to hold constant instead of resampling. Defaults to
         ``upper - lower < 1e-8`` (a pinned point mass, e.g. an age-of-onset case).
     out : sequence of int
         Zero-based coordinate indices to return (0 = genetic, 1 = proband full
-        liability in the family-model ordering). Duplicates dropped, order sorted.
+        liability in the family-model ordering). Indices must be integers in
+        ``[0, d)``. Duplicates are dropped and the returned order is sorted.
     n_sim, burn_in : int
         Post-burn-in draws to keep and sweeps to discard first.
     seed : int, optional
@@ -380,15 +382,32 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
     upper = np.broadcast_to(np.asarray(upper, dtype=np.float64), (d,)).copy()
     swap = upper < lower
     if np.any(swap):
-        lower[swap], upper[swap] = upper[swap], lower[swap].copy()
+        bad = np.flatnonzero(swap).tolist()
+        raise ValueError(f"upper must be >= lower at every coordinate; reversed "
+                         f"bounds at indices {bad}")
 
     if fixed is None:
         fixed = (upper - lower) < 1e-8
     fixed = np.broadcast_to(np.asarray(fixed, dtype=bool), (d,)).copy()
 
-    out = sorted(set(int(o) for o in out if 0 <= int(o) < d))
-    if not out:
-        out = [0]
+    try:
+        requested = list(out)
+    except TypeError:
+        raise TypeError("out must be a non-empty sequence of integer indices") from None
+    if not requested:
+        raise ValueError("out must contain at least one coordinate index")
+    validated = []
+    for value in requested:
+        if isinstance(value, (bool, np.bool_)):
+            raise TypeError("out indices must be integers, not bool")
+        try:
+            index = operator.index(value)
+        except TypeError:
+            raise TypeError(f"out index {value!r} must be an integer") from None
+        if not 0 <= index < d:
+            raise ValueError(f"out index {index} is outside the valid range [0, {d})")
+        validated.append(index)
+    out = sorted(set(validated))
     to_return = np.full(d, -1, dtype=np.int64)
     for col, o in enumerate(out):
         to_return[o] = col

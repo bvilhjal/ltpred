@@ -250,6 +250,20 @@ def test_genetic_correlation_validates_input():
                                 50, [0.1, 0.1], seed=1), n_iter=50)
 
 
+@pytest.mark.parametrize("attribute", ["lower", "upper"])
+@pytest.mark.parametrize("bad_bound", [0.0, [0.0], [0.0, 0.0, 0.0]])
+def test_genetic_correlation_rejects_scalar_and_wrong_length_bounds(attribute,
+                                                                    bad_bound):
+    valid = Member("m", [-np.inf, -np.inf], [1.0, 1.0])
+    bounds = {"lower": [-np.inf, -np.inf], "upper": [1.0, 1.0]}
+    bounds[attribute] = bad_bound
+    invalid = Member("f", bounds["lower"], bounds["upper"])
+    families = [Family("f1", [valid, invalid])]
+
+    with pytest.raises(ValueError, match=r"must be a length-2 .*sequence"):
+        fit_genetic_correlation(families, n_iter=20, burn_in=5)
+
+
 def test_genetic_factor_recovers_single_factor():
     # a planted one-factor genetic correlation r_g = lam lam' (diag 1): MINRES
     # recovers the loadings exactly (rank-1 off-diagonal is fit perfectly)

@@ -48,7 +48,8 @@ import numpy as np
 from ._mathfun import norm_cdf, norm_ppf
 from .covariance import get_relatedness, correct_positive_definite
 from .gibbs import gibbs_params, gibbs_advance, _offset_seed, _seed_rng
-from .estimate import _group_by_structure, batch_means
+from .estimate import (_group_by_structure, _validate_multitrait_bounds,
+                       batch_means)
 from .family import Family, Member
 
 __all__ = ["FitResult", "fit_heritability", "VarCompResult",
@@ -792,10 +793,12 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
     reported ``se`` is a within-dataset Monte-Carlo error — bootstrap families for a CI."""
     if not families:
         raise ValueError("no families provided")
-    P = int(np.size(families[0].members[0].lower))
+    first_lower = np.asarray(families[0].members[0].lower)
+    P = int(first_lower.size)
     if P < 2:
         raise ValueError("fit_genetic_correlation needs >= 2 traits — each member's "
                          "lower/upper must be length-n_pheno (see estimate_liability_multi)")
+    _validate_multitrait_bounds(families, P)
     if int(burn_in) >= int(n_iter):
         raise ValueError(f"burn_in ({burn_in}) must be < n_iter ({n_iter})")
     if phen_names is None:

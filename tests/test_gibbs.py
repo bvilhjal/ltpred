@@ -141,6 +141,25 @@ def test_out_selection_and_ordering():
     assert both.shape == (10_000, 2)  # out is sorted -> columns are (g, o)
 
 
+def test_reversed_bounds_raise_instead_of_changing_the_model():
+    with pytest.raises(ValueError, match=r"reversed bounds at indices \[1\]"):
+        rtmvnorm_gibbs(np.eye(2), lower=[-np.inf, 1.0], upper=[np.inf, 0.0],
+                       n_sim=1, burn_in=0)
+
+
+@pytest.mark.parametrize("out,exc,match", [
+    ((), ValueError, "at least one"),
+    ((-1,), ValueError, "valid range"),
+    ((2,), ValueError, "valid range"),
+    ((1.0,), TypeError, "must be an integer"),
+    (("1",), TypeError, "must be an integer"),
+    ((True,), TypeError, "not bool"),
+])
+def test_out_rejects_empty_noninteger_and_out_of_range_indices(out, exc, match):
+    with pytest.raises(exc, match=match):
+        rtmvnorm_gibbs(np.eye(2), out=out, n_sim=1, burn_in=0)
+
+
 def test_params_reuse_matches_fresh():
     cov = np.array([[0.5, 0.5, 0.25], [0.5, 1.0, 0.25], [0.25, 0.25, 1.0]])
     lo = [-np.inf, 1.0, -np.inf]

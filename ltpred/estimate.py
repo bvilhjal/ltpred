@@ -236,6 +236,26 @@ def _check_unique_roles(families):
                 "names one individual — number repeated relatives (s1, s2, ...).")
 
 
+def _validate_multitrait_bounds(families, n_pheno):
+    """Require one explicit bound per phenotype on every observed member.
+
+    Broadcasting a scalar across traits silently asserts that the same phenotype
+    observation was made for every trait. That is almost never an intentional
+    multi-trait input, so the object APIs require exact one-dimensional
+    ``(n_pheno,)`` bounds instead.
+    """
+    for fam in families:
+        for member in fam.members:
+            for name in ("lower", "upper"):
+                value = np.asarray(getattr(member, name))
+                if value.ndim != 1 or value.shape[0] != n_pheno:
+                    raise ValueError(
+                        f"family {fam.fam_id!r} member {member.role!r} {name} "
+                        f"must be a length-{n_pheno} one-dimensional sequence "
+                        "(one bound per phenotype); scalar bounds are only valid "
+                        "for single-trait estimation")
+
+
 def _warn_unconverged(se, names, tol, max_rounds, n):
     """Warn (once) if any family's batch-means SE is still above ``tol``."""
     unconverged = np.zeros(n, dtype=bool)
@@ -443,6 +463,7 @@ def estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
     if phen_names is None:
         phen_names = [f"phenotype{p + 1}" for p in range(n_pheno)]
     _check_unique_roles(families)
+    _validate_multitrait_bounds(families, n_pheno)
     dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
     col_names = [f"{_OUT_NAMES[c]}_{phen_names[p]}"
@@ -526,6 +547,9 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
     censored-control mixture. Returns ``(est, var)`` arrays of length
     ``n_families``."""
     roles = list(roles)
+    if len(roles) != len(set(roles)):
+        raise ValueError("roles contains duplicate role labels; each column must "
+                         "identify a different family member")
     lower = as_bounds(lower)                # keeps float32 if given, else float64
     upper = as_bounds(upper)
     # The PA fold is sequential. Canonicalise its covariance order while retaining
@@ -554,6 +578,9 @@ def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic",
     batch-means Monte-Carlo SE) of length ``n_families`` for the single target
     selected by ``out``."""
     roles = list(roles)
+    if len(roles) != len(set(roles)):
+        raise ValueError("roles contains duplicate role labels; each column must "
+                         "identify a different family member")
     lower = as_bounds(lower)
     upper = as_bounds(upper)
     cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)

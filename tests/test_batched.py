@@ -68,6 +68,21 @@ def test_gibbs_arrays_match_object_api():
     assert np.allclose(se_a, obj.se["genetic"])
 
 
+@pytest.mark.parametrize("name", ["pa", "gibbs"])
+def test_array_estimators_reject_duplicate_role_labels(name):
+    from ltpred.estimate import (estimate_liability_gibbs_arrays,
+                                 estimate_liability_pa_arrays)
+
+    estimator = (estimate_liability_pa_arrays if name == "pa"
+                 else estimate_liability_gibbs_arrays)
+    roles = ["o", "m", "m"]
+    lower = np.full((2, 3), -np.inf)
+    upper = np.full((2, 3), np.inf)
+
+    with pytest.raises(ValueError, match="duplicate role"):
+        estimator(roles, lower, upper)
+
+
 def test_pa_nomix_equals_mixture_with_nan_K():
     # the no-mixture fast path must equal the mixture path fed all-NaN K
     from ltpred.pearson_aitken import pa_estimate_batched

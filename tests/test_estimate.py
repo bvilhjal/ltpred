@@ -186,6 +186,24 @@ def test_multi_trait_runs_and_shapes():
     assert res.est["genetic_A"][0] > res.est["genetic_B"][0]
 
 
+@pytest.mark.parametrize("attribute", ["lower", "upper"])
+@pytest.mark.parametrize("bad_bound", [0.0, [0.0], [0.0, 0.0, 0.0]])
+def test_multitrait_estimation_rejects_scalar_and_wrong_length_bounds(attribute,
+                                                                     bad_bound):
+    bounds = {
+        "lower": [-np.inf, -np.inf],
+        "upper": [np.inf, np.inf],
+    }
+    bounds[attribute] = bad_bound
+    fam = Family("f1", [Member("o", bounds["lower"], bounds["upper"])])
+
+    with pytest.raises(ValueError, match=r"must be a length-2 .*sequence"):
+        estimate_liability_multi(
+            [fam], h2_vec=[0.5, 0.4], genetic_corrmat=np.eye(2),
+            full_corrmat=np.eye(2), n_sim=10, burn_in=0,
+        )
+
+
 def test_multi_trait_rejects_incoherent_genetic_and_full_correlations():
     t = float(stats.norm.isf(0.05))
     fam = Family("f1", [Member("o", [t, t], [np.inf, np.inf])])
