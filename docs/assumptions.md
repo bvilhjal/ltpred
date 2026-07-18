@@ -5,26 +5,35 @@ run, and the common mistakes.
 
 ## Modelling assumptions
 
-The family covariance models **additive genetic sharing only**: every off-diagonal
-entry is `shared_DNA × h²`. Not modelled are shared environment, household/cultural
-transmission, assortative mating (parents are assumed genetically unrelated —
-`m`–`f` covariance is 0), dominance/epistasis, and indirect genetic effects. When
-these contribute to familial aggregation — common for psychiatric, reproductive,
-metabolic and social traits — read the output as the **additive-genetic-model
-projection of the family history**, not a pure causal genetic value, and expect
-some over- or under-statement of "genetic" liability. The estimate is also
-conditional on the assumed `h²`, prevalence and CIPs; treat those as inputs whose
-uncertainty propagates (see the checklist).
+The high-level predictor uses **additive genetic sharing only**: every
+off-diagonal entry is `shared_DNA × h²`. It assumes jointly Gaussian liabilities,
+correct relationships and diagnoses, and correctly specified prevalence/CIPs and
+liability-scale `h²`. Under its standard model, individual-specific residuals are
+independent of relatives' additive genetic values and of each other.
 
-The covariance is modular, though: you can **add environmental covariance**
-(shared environment `c²`, maternal effects, assortative mating) to the
-between-relative covariance to separate genetic from shared-environmental
-resemblance and improve prediction. `construct_covmat` ships only the
-additive-genetic table, but the covariance-level entry points (`rtmvnorm_gibbs`,
-`pa_algorithm`, `pa_estimate_batched`) accept an arbitrary covariance — see
-[algorithm.md](algorithm.md#adding-environmental-covariance-to-improve-prediction).
-Several of those components (sibship `C`, couple `M`) can also be **fit and tested**
-from the data — see [Inference](inference.md#variance-components-a-c-m).
+Shared household/cultural transmission, dominance/epistasis, indirect genetic
+effects and generative assortative mating are not included. Assortative mating is
+not an environmental component: it changes genetic covariances among mates and
+descendants. A directional maternal effect is likewise not generally represented
+by a symmetric shared-environment matrix. When omitted processes contribute to
+familial aggregation, read the output as the **additive-model projection of the
+family history**, not a pure causal genetic value.
+
+The low-level covariance entry points (`rtmvnorm_gibbs`, `pa_algorithm`,
+`pa_estimate_batched`) accept a symmetric positive-semidefinite covariance, so a
+valid shared-environment kernel can be added deliberately. The fitters ship
+descriptive sibship `C` and mate/couple `M` kernels, but the high-level predictor
+does not yet accept fitted `C` or `M`; see
+[algorithm.md](algorithm.md#adding-environmental-covariance-to-improve-prediction)
+and [Inference](inference.md#variance-components-a-c-m).
+
+The family-data fitters target population variance components only when families
+are independent sampling clusters and ascertainment is absent or correctly
+represented by the fitted observation model. Overlapping pedigrees, case/control
+sampling, or selection on family history invalidate the ordinary iid-family
+moments, information estimates and bootstrap unless the design is handled
+explicitly. In those settings, treat fitted values as design-dependent model
+projections and validate them under the actual sampling scheme.
 
 ## Real-data checklist
 
@@ -33,9 +42,10 @@ Before running a production analysis:
 1. Obtain **population-representative CIPs** (cumulative incidence by age),
    ideally from a register or other representative source — not the logistic
    default and not an ascertained biobank sample.
-2. **Stratify** CIPs by sex, birth year/cohort, ancestry and calendar period
-   where incidence differs; use a censoring-aware / competing-risk estimator
-   (Kaplan–Meier, Aalen–Johansen) if death/emigration/competing diagnoses matter.
+2. **Stratify** CIPs by sex, birth year/cohort, ancestry and calendar period where
+   incidence differs. With independent right censoring and no competing events,
+   `1 − Kaplan–Meier` estimates risk; with competing death or diagnoses, use a
+   cause-specific cumulative-incidence estimator such as Aalen–Johansen.
 3. Convert `h²` to the **liability scale** (`convert_observed_to_liability_scale`).
 4. Check **sensitivity** of the score to `h²` and to prevalence/CIP choices,
    especially for rare traits and dense pedigrees.
@@ -47,6 +57,8 @@ Before running a production analysis:
    against Gibbs.
 8. **Residualize** the phenotype for covariates (sex, cohort, PCs, batch) and
    handle related probands (LMM / pruning) before the GWAS.
+9. For family-data **fitting or bootstrap inference**, verify that sampled family
+   clusters do not overlap and either avoid ascertainment or model it explicitly.
 
 ## Pitfalls
 
@@ -65,7 +77,8 @@ Before running a production analysis:
   nothing. In mixture mode, age enters through `K_i`; the implementation splits at
   the lifetime threshold and uses the finite control bound only as a censoring flag,
   so an age-specific bound from these helpers is safe and is not applied twice.
-- **Very low prevalence + tiny families** carry little information; the estimate
-  approaches the population mean and the gain over case/control shrinks.
+- **Missing or uninformative family observations** make the estimate rely mostly
+  on the proband's own status. Low prevalence alone does not imply little
+  information: an affected person with a rare disease can be highly informative.
 - **Install `[fast]`** (Numba) for large runs; the pure-Python fallback is
   numerically identical but much slower.

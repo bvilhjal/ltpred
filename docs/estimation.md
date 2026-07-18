@@ -35,8 +35,8 @@ res = estimate_liability(families, h2=0.5, out=("genetic",))
 - `method` — the **default** is the deterministic **Pearson–Aitken** (PA)
   inference engine for a single trait (fast, matches Gibbs to ~1e-2), falling back to
   **Gibbs** for the multi-trait model. Pass `"gibbs"` to force the sampler (needed
-  for multiple traits, a Monte-Carlo SE, or posterior draws), or `"pearson-aitken"`
-  (aliases `"pa"`, `"aitken"`) to force PA. Bounds determine the observation
+  for multiple traits, a Monte-Carlo SE, or a sampling-based cross-check), or
+  `"pearson-aitken"` (aliases `"pa"`, `"aitken"`) to force PA. Bounds determine the observation
   encoding; inclusion of relatives distinguishes LT-FH++ from ADuLT. The engine
   is orthogonal to both.
 - `out` — which liabilities to return: `"genetic"` (the proband's `g`), `"full"`
@@ -120,9 +120,12 @@ range as evidence about scale, not a hardware promise.
 
 **Rule of thumb:** the default already picks **Pearson–Aitken** for single-trait
 runs — keep it for biobank-scale cohorts and the age-censoring mixture; pass
-`method="gibbs"` when you want posterior draws, a sampling-based cross-check, or
-the exact truncated-MVN reference behaviour. For the `genetic` score they agree closely and
-give the same downstream GWAS power on the benchmarked structures.
+`method="gibbs"` for a sampling-based cross-check or the exact truncated-MVN
+reference behaviour. The high-level estimator returns posterior means and
+Monte-Carlo SEs, not retained draws; use the low-level `rtmvnorm_gibbs` function
+when you need the sampled TMVN coordinates themselves. For the `genetic` score,
+PA and Gibbs agree closely and gave the same downstream GWAS power on the
+benchmarked structures.
 
 ## Scaling to large cohorts
 
@@ -190,6 +193,12 @@ res = estimate_liability(
 res.est["genetic_A"], res.est["genetic_B"]
 ```
 
+The three covariance inputs must define one coherent model. With
+`D = diag(sqrt(h2))`, the genetic covariance `G = D @ genetic_corrmat @ D` and
+the residual covariance `E = full_corrmat - G` must both be positive
+semi-definite; both correlation matrices must also be symmetric with unit
+diagonal. Incoherent inputs now raise instead of being silently changed.
+
 Multi-trait borrows strength across genetically correlated diseases. It is
 Gibbs-only — the default picks Gibbs automatically for multiple traits, and an
 explicit `method="pearson-aitken"` here raises `NotImplementedError`. To estimate
@@ -206,19 +215,24 @@ mixed model or by pruning. The estimate is centered on the population mean, but 
 an ascertained sample it may not be mean-zero until you center/residualize.
 
 ```python
-# Xs: (n_indiv, m_snp) column-standardized genotypes, aligned to res.fam_ids
+# Xs: (n_indiv, m_snp) column-standardized genotypes, aligned to res.pids
 # In practice regress out covariates first (or fit an LMM); simple sketch:
 y = res.est["genetic"]
 y = (y - y.mean()) / y.std()                     # center + scale (after covariate residualization)
 chi2 = len(y) * ((Xs.T @ y) / len(y)) ** 2       # 1-df association statistic per SNP
 ```
 
-After centering/residualization the phenotype is continuous and is near
-λ_GC = 1 on average in the benchmark replicates while lifting the association
-signal at causal variants — a 1.47 ± 0.04× effective-sample-size gain over the
-case/control label in the replicated classic-LT-FH GWAS.
-Personalising the thresholds by birth cohort (see [data preparation](data-preparation.md#getting-lowerupper-from-status-and-age))
-is what keeps `λ_GC` valid under a secular prevalence trend.
+Join genotype rows to `res.pids` explicitly; `res.fam_ids` identifies family
+groups and need not be the genotyped proband identifier.
+
+After centering/residualization the phenotype is continuous. In the replicated
+classic-LT-FH benchmark, PA and Gibbs produced a `1.47 ± 0.04×` **causal-SNP
+noncentrality ratio** relative to case/control. That is not the separate
+squared-correlation effective-sample-size proxy. In the tested secular-trend
+simulation, cohort-specific thresholds removed the genomic-control inflation
+caused by the deliberately misspecified single-threshold analysis; this does not
+replace ordinary GWAS covariate adjustment or guarantee calibration under other
+misspecification.
 
 ## Options reference
 

@@ -6,10 +6,12 @@ components, the genetic correlation between traits, a common-factor model over
 those correlations, and parametric-bootstrap significance tests. These are optional
 — skip straight to [estimation](estimation.md) if you already have an `h²`.
 
-All of these are moment/data-augmentation estimators whose reported `se` is a
-*within-dataset* Monte-Carlo diagnostic, **not** the across-dataset sampling
-uncertainty; wrap any of them in [`bootstrap_fit`](#honest-uncertainty-bootstrap_fit)
-for a real interval.
+The meaning of a reported `se` depends on the method. For the default
+Haseman–Elston/data-augmentation fits, it is a *within-dataset* Monte-Carlo
+diagnostic, not across-dataset sampling uncertainty. The MCEM path instead
+reports an approximate model-based SE, with the assumptions and caveats described
+below. [`bootstrap_fit`](#family-cluster-uncertainty-bootstrap_fit) provides an
+approximate family-cluster sampling interval when families are independent.
 
 ## Fitting heritability from the family data
 
@@ -35,21 +37,25 @@ confidence interval use `bootstrap_fit` (below). Feed the point estimate back in
 `h2=fit.h2` (or, better, run the [sensitivity analysis](#sensitivity-to-the-assumed-heritability)
 around it).
 
-### Honest uncertainty: `bootstrap_fit`
+### Family-cluster uncertainty: `bootstrap_fit`
 
-`bootstrap_fit` resamples the families with replacement and refits, giving an honest
-SE and percentile CI:
+`bootstrap_fit` resamples families with replacement and refits, giving a
+family-cluster bootstrap SE and percentile CI:
 
 ```python
 from ltpred import bootstrap_fit
 bs = bootstrap_fit(families, lambda f: fit_heritability(f, seed=1).h2, n_boot=100)
-bs.estimate, bs.se, (bs.ci_low, bs.ci_high)   # point, honest SE, 95% percentile CI
+bs.estimate, bs.se, (bs.ci_low, bs.ci_high)   # point, bootstrap SE, percentile CI
 ```
 
 It wraps any of the fitters (pass a `lambda` that returns the quantity of interest,
 e.g. `fit_variance_components(f, ("A","C"), seed=1).components["C"]` or
 `fit_genetic_correlation(f, seed=1).rg[0,1]`); fix the estimator's `seed` so the
 spread reflects family sampling, not sampler noise. It costs `n_boot`+1 fits.
+The interval assumes iid, non-overlapping family clusters and a sampling design
+compatible with the fitted model. It is not automatically calibrated under
+case/control or family-history ascertainment, boundary parameters, or overlapping
+pedigrees.
 
 ## Sensitivity to the assumed heritability
 
@@ -64,10 +70,11 @@ sens.min_corr          # worst-case correlation of the score across the grid
 sens.mean, sens.sd     # how the scale shifts with h²
 ```
 
-In practice `min_corr` is very high (≈0.97 across `h² 0.2–0.8` for a typical
-pedigree): the assumed `h²` mostly **rescales** the liability, barely changing the
-*ranking* — so a linear GWAS on it is nearly invariant to the choice. A low
-`min_corr` is the signal to pin `h²` down (with `fit_heritability`). Prevalence/CIP
+In the documented benchmark, `min_corr` was high (≈0.97 across `h² 0.2–0.8` for
+the tested pedigree): changing the assumed `h²` acted mostly like a near-linear
+rescaling of the liability score. This is an empirical sensitivity result, not
+rank invariance or a guarantee for other structures. A low `min_corr` is the
+signal to pin `h²` down (with `fit_heritability`). Prevalence/CIP
 sensitivity changes the truncation bounds rather than the covariance, so probe it
 by rebuilding the families under each prevalence and comparing. (The *scale* is more
 sensitive than the ranking — see the calibration benchmark in
@@ -155,8 +162,13 @@ With several traits, ask whether one genetic factor explains the `r_g` among the
 a **common-factor model** `r_g ≈ Λ Λ' + Ψ` (Genomic-SEM-lite):
 
 ```python
-from ltpred import fit_genetic_factor
-fa = fit_genetic_factor(gc)              # gc from fit_genetic_correlation (or a (P,P) matrix)
+from ltpred import fit_genetic_correlation, fit_genetic_factor
+
+gc3 = fit_genetic_correlation(
+    three_trait_families,
+    phen_names=["adhd", "depression", "anxiety"],
+)
+fa = fit_genetic_factor(gc3)             # or pass a valid (P, P) matrix
 fa.loadings                              # (P, 1) each trait's correlation with the factor
 fa.communality                           # per-trait genetic variance the factor explains
 fa.srmr, fa.prop_explained               # off-diagonal misfit; fraction of r_g captured
@@ -164,11 +176,15 @@ fa.srmr, fa.prop_explained               # off-diagonal misfit; fraction of r_g 
 
 `fit_genetic_factor` fits the loadings by MINRES (minimising the **off-diagonal**
 residuals, so the factor explains the cross-trait correlations, not each trait's own
-variance). A small `srmr` (≲ 0.05–0.08) means one factor suffices; if it is large,
-refit with `n_factors=2` and compare. A single factor needs `P ≥ 3` traits (and
-`P ≥ 4` to actually *test* one factor's fit — at `P = 3` it is exact by
-construction). It is a descriptive decomposition of a point-estimate `r_g`, so
-bootstrap the `fit_genetic_correlation → fit_genetic_factor` pipeline for uncertainty.
+variance). `srmr` is a descriptive in-sample misfit measure; values around
+0.05–0.08 are sometimes used as informal heuristics, not as a calibrated test of
+factor number. Communalities are constrained to `[0, 1]`; a value at 1 is a
+Heywood boundary rather than evidence of a perfect measurement. A single factor
+needs `P ≥ 3` traits. Although the usual parameter count gives zero formal degrees
+of freedom at `P = 3`, sign and communality constraints can still leave non-zero
+residual misfit, so the fit is not universally exact. This is a descriptive
+decomposition of a point-estimate `r_g`; bootstrap the
+`fit_genetic_correlation → fit_genetic_factor` pipeline for uncertainty.
 
 ## Is a component / correlation significant?
 
@@ -186,9 +202,15 @@ Each fits the full model, then simulates `n_boot` datasets under the null — fo
 `C`, an `A`-only model; for `r_g[i,j]`, a pair-specific null with only that genetic
 correlation set to zero. Each trait's `h²`, the environmental covariance, and
 nuisance genetic correlations are preserved as far as positive-semidefinite
-coherence permits. Simulation uses the same pedigrees and thresholds, then refits
-and locates the observed statistic in that null. Because the null is simulated and
-refit the same way, the moment estimator's boundary bias
-cancels, so the test is calibrated where a normal-theory test would not be (it is
-uniform under H0 in simulation). It costs ~`n_boot` refits, so lower `n_iter` for
-the refits; needs **case/control-style bounds** (pinned age-of-onset bounds raise).
+coherence permits. Simulation uses the same pedigrees and fixed thresholds, then
+refits and locates the observed statistic in that plug-in null. The resulting
+p-value is an approximate conditional parametric-bootstrap calibration: it
+depends on fitted nuisance parameters, a correctly specified null and observation
+model, independent family clusters, and enough bootstrap replicates. It must not
+reuse an outcome-derived onset threshold after simulating a different status. The
+current helpers therefore require **case/control-style bounds fixed independently
+of status**; pinned age-of-onset bounds raise. A common prevalence threshold is
+accepted automatically. For individualized thresholds fixed from baseline
+covariates, pass `thresholds_are_status_independent=True` only when that statement
+is genuinely true; never use it for a threshold derived from age of onset. It
+costs about `n_boot` refits.

@@ -17,9 +17,9 @@ inference engines for posterior-mean genetic liability:
   to correlation ≥0.997 across the benchmark grid and ran 315–510× faster in the
   controlled 10-thread timing benchmark.
 
-Both support classic LT-FH; personalised pinned bounds used as LT-FH++ with
-relatives or ADuLT without them; and the PA-FGRS interval/mixture encoding.
-Multi-trait estimation is Gibbs-only (PA is single-trait).
+Both support classic LT-FH and personalised pinned bounds used as LT-FH++ with
+relatives or ADuLT without them. The PA-FGRS interval/censoring-mixture encoding
+is PA-only. Multi-trait estimation is Gibbs-only (PA is single-trait).
 
 **Performance and scale.** The core is Numba-JIT'd and `prange`-parallel, with
 families grouped by structure (canonical form). Streaming batch-means keeps
@@ -106,7 +106,9 @@ Python 3.9 and 3.12.
    families with replacement and refits any estimator, returning a bootstrap SE and
    percentile CI. On one 3 000-family dataset it recovers a SE of 0.047 vs the
    reported `h2_se` of 0.002 (23×), matching the true across-dataset SD. Works for
-   all three fitters (pass a `lambda` returning the quantity of interest).
+   all three fitters (pass a `lambda` returning the quantity of interest). Its
+   sampling interpretation assumes iid, non-overlapping family clusters and a
+   design compatible with the fitted model.
 
 ## SEM-inspired inference
 
@@ -117,11 +119,12 @@ likelihood-based inference) to the pedigree/registry setting.
   `test_variance_component` (is `C` needed?) and `test_genetic_correlation` (is
   `r_g ≠ 0`?) — the frequentist analog of the SEM likelihood-ratio test, done as a
   **parametric bootstrap**: fit the null, simulate under it on the same pedigrees
-  and thresholds, refit, locate the observed statistic. Because the null is
-  simulated and refit the same way, the moment estimator's boundary bias cancels —
-  validated calibrated under H0 (VC test uniform p, FPR ≈ nominal; `r_g` test
-  controls Type-I error, slightly conservative) with good power. Case/control
-  bounds only.
+  and fixed thresholds, refit, locate the observed statistic. This is a
+  conditional plug-in calibration, not a guarantee of uniform null p-values: it
+  depends on the fitted nuisance model, independent family clusters and the
+  sampling design. Common case/control thresholds work automatically;
+  individualized thresholds require an explicit assertion that they were fixed
+  from baseline covariates, never age of onset.
 
 - ~~**ML backend (Monte-Carlo EM).**~~ **Done.**
   `fit_variance_components(..., method="mcem")` (aliases `"ml"`/`"reml"`) runs a
@@ -135,16 +138,17 @@ likelihood-based inference) to the pedigree/registry setting.
   0.9–1.4) — where the HE `se` understates it ~15-20×. Also returns a Monte-Carlo
   (GHK) observed-data **log-likelihood** and **AIC** (both Monte-Carlo estimates)
   for nested-model comparison (AIC strongly prefers `A+C` on real `A+C` data; near
-  the boundary it under-penalises, so the parametric-bootstrap test above remains
-  the calibrated decision tool).
+  the boundary it under-penalises, so the conditional parametric-bootstrap test
+  above is the preferred decision aid under its sampling/model assumptions).
 
 - ~~**Latent factor model on the multi-trait genetic covariance** (Genomic-SEM-lite).~~
   **Done.** `fit_genetic_factor` fits `r_g ≈ ΛΛ' + Ψ` — a common-factor model — to
   the genetic correlation matrix from `fit_genetic_correlation`, by **MINRES**
   (minimising the off-diagonal residuals, so the factor(s) explain the cross-trait
   correlations, not each trait's own variance). `srmr` / `prop_explained` read off
-  the fit; a single factor needs `P ≥ 3` traits (and `P ≥ 4` to *test* it), and
-  `n_factors` must leave `df = ½((P−m)²−(P+m)) ≥ 0`. In the planted simulation it
+  the fit; a single factor needs `P ≥ 3` traits, and `n_factors` must leave
+  nominal `df = ½((P−m)²−(P+m)) ≥ 0`. At `P=3, m=1`, sign and communality
+  constraints can still leave residual misfit despite nominal `df=0`. In the planted simulation it
   recovers loadings end-to-end, and `srmr` rises when a one-factor model is fit to
   two-factor data (`bench_genetic_factor.py`). That demonstrates a diagnostic,
   not validated model selection. It is a descriptive decomposition of a
@@ -204,17 +208,18 @@ likelihood-based inference) to the pedigree/registry setting.
    threshold (the age-specific upper bound only flags censoring), but a dedicated
    generative benchmark against the PA-FGRS censoring model is still needed.
 
-6. **Censoring-aware CIPs.** Helpers and guidance for Kaplan–Meier /
-   Aalen–Johansen incidence with competing risks (death, emigration), for
-   registry data.
+6. **Censoring-aware CIPs.** Helpers and guidance for `1 − Kaplan–Meier` under
+   independent censoring without competing events, and Aalen–Johansen cumulative
+   incidence when competing death or diagnoses are present.
 
 7. ~~**Sensitivity utility.**~~ **Done.** `liability_sensitivity(families,
    h2_values)` re-estimates over an h² grid and reports the cross-setting
-   correlation of the scores (`min_corr` = worst-case rank stability) plus how the
-   scale shifts. In practice `min_corr ≈ 0.97` across h² 0.2–0.8 — the assumed h²
-   mostly rescales the liability without changing the ranking, so a linear GWAS on
-   it is nearly invariant. Prevalence/CIP sensitivity (which moves the bounds, not
-   the covariance) is done by rebuilding families per prevalence and comparing.
+   Pearson correlation of the scores (`min_corr` = lowest cross-setting score
+   correlation) plus how the scale shifts. In the tested pedigree,
+   `min_corr ≈ 0.97` across h² 0.2–0.8, consistent with a near-linear rescaling in
+   that setting; this is not general rank invariance. Prevalence/CIP sensitivity
+   (which moves the bounds, not the covariance) is done by rebuilding families per
+   prevalence and comparing.
 
 ## Longer-term — scale and ecosystem
 

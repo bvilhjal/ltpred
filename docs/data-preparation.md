@@ -42,7 +42,7 @@ labels — see `get_relatedness`.
 
 When your relatives don't fit the fixed roles — deeper pedigrees, cousins,
 multiple marriages, inbreeding — describe the pedigree by **who each person's
-parents are** instead. `kinship_from_pedigree` turns `(id, father, mother)` columns
+parents are** instead. `kinship_from_pedigree` turns `(ids, father, mother)` columns
 into the additive relationship matrix `A`, and `estimate_liability_from_kinship`
 estimates the target's liability from `A` and per-individual bounds:
 
@@ -60,7 +60,10 @@ gen, var = estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0)
 For a pedigree that *does* fit the role grammar the two paths give identical
 results (same covariance); the pedigree path additionally handles half-sibs of any
 degree, cousins, and inbred pedigrees (where a self-relationship can exceed 1).
-Build the covariance alone with `construct_covmat_from_kinship(A, h2, target)`.
+For inbred pedigrees, the raw additive covariance is formed from `A` and then
+standardised so every full liability has unit marginal variance; standard-normal
+prevalence thresholds therefore retain their usual meaning. Build the covariance
+alone with `construct_covmat_from_kinship(A, h2, target)`.
 
 ### Getting `lower`/`upper` from status and age
 
@@ -126,20 +129,46 @@ The end-to-end path for register data uses your **own** cumulative-incidence cur
 (not the logistic demo), one call to `thresholds_from_cip` per stratum, and PA:
 
 ```python
+import numpy as np
 from ltpred import thresholds_from_cip, families_from_columns, estimate_liability
 
-# Per sex / birth-cohort / ancestry stratum, with that stratum's CIP curve
-# (cip_ages ascending, cip_values the cumulative incidence at each age):
-lower, upper, K_i, K_pop = thresholds_from_cip(
-    status=status, age=age,               # 1=case; onset age (cases) / follow-up age (controls)
-    cip_ages=cip_ages, cip_values=cip_values,
-    k_pop=lifetime_prevalence,            # stratum lifetime prevalence (defaults to max CIP)
-    case_mode="pin",                      # personalised pinned encoding (the default)
-)
+# One label per observed family-member row, in the same order as status/age.
+# Each mapping value is (CIP ages, CIP values, lifetime prevalence).
+stratum = np.asarray(sex_birth_cohort_ancestry)
+cip_by_stratum = {
+    "F_1950_EUR": (ages_f50, cip_f50, lifetime_f50),
+    "M_1950_EUR": (ages_m50, cip_m50, lifetime_m50),
+    # ...all strata represented in `stratum`
+}
+status, age = np.asarray(status), np.asarray(age)
+lower = np.empty(status.shape, dtype=float)
+upper = np.empty(status.shape, dtype=float)
+K_i = np.full(status.shape, np.nan)
+K_pop = np.full(status.shape, np.nan)
+
+case_mode = "pin"  # LT-FH++ with relatives; change to "interval" for PA-FGRS
+for label in np.unique(stratum):
+    mask = stratum == label
+    cip_ages, cip_values, lifetime_prevalence = cip_by_stratum[label]
+    lo, hi, ki, kp = thresholds_from_cip(
+        status=status[mask],
+        age=age[mask],  # onset age for cases; last follow-up for controls
+        cip_ages=cip_ages,
+        cip_values=cip_values,
+        k_pop=lifetime_prevalence,
+        case_mode=case_mode,
+    )
+    lower[mask], upper[mask] = lo, hi
+    K_i[mask], K_pop[mask] = ki, kp  # restore the original row order
+
 families = families_from_columns(
     fam_id=fam_id, role=role, lower=lower, upper=upper,
+    pid=pid, K_i=K_i, K_pop=K_pop,
 )
-res = estimate_liability(families, h2=0.5)  # LT-FH++ here; PA is the default engine
+res = estimate_liability(
+    families, h2=0.5,
+    use_mixture=(case_mode == "interval"),
+)
 ```
 
 Key points:
@@ -148,7 +177,8 @@ Key points:
   LT-FH++ with relative rows, ADuLT with role `o` only;
   `case_mode="interval"` is the conservative PA-FGRS interval encoding.
 - `use_mixture=True` only makes sense when `K_i` / `K_pop` are supplied (from
-  `pa_thresholds` or `thresholds_from_cip`); it is the age-censored-control correction.
+  `pa_thresholds` or `thresholds_from_cip`); it is the PA-FGRS
+  age-censored-control correction and is supported by the PA engine only.
 - Estimate the **CIP outside ltpred** from population-representative register data,
   stratified by sex, birth cohort, ancestry and calendar period, and accounting for
   competing risks — then pass one stratum's curve per call.

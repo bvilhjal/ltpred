@@ -44,14 +44,19 @@ followed by the relatives (`correct_positive_definite` nudges a rounding-singula
 matrix back to strict PD).
 
 The role grammar is just a compact way to build `A` for common family shapes. For
-**arbitrary pedigrees**, `kinship_from_pedigree(id, father, mother)` builds `A`
+**arbitrary pedigrees**, `kinship_from_pedigree(ids, father, mother)` builds `A`
 directly from the pedigree by the recursive tabular method (Henderson 1976) —
 `A_ii = 1 + F_i` (with `F_i` the inbreeding coefficient) and
 `A_ij = 0.5 (A_i,sire_j + A_i,dam_j)` — and `construct_covmat_from_kinship(A, h2,
-target)` assembles the same `h2 A + (1-h2) I` covariance (plus the target's `g`
-row). This reproduces the role-grammar covariance entry-for-entry where they
-overlap, and additionally covers half-sibs of any degree, cousins and inbred
-pedigrees; `estimate_liability_from_kinship` runs PA by default or Gibbs on request.
+target)` first assembles the raw covariance `V = h2 A + (1-h2) I`, then divides
+`V_ij` by `sqrt(V_ii V_jj)`. The target genetic contribution and its covariances
+are put on the same standardised full-liability scale, so its variance is
+`h2 A_tt / (1 + h2 (A_tt - 1))`. Thus every observed full
+liability retains variance 1, and `Phi^-1(1-K)` retains its prevalence meaning,
+even when `A_ii > 1`; for non-inbred pedigrees the scaling is a no-op. This
+reproduces the role-grammar covariance entry-for-entry where they overlap and
+additionally covers half-sibs of any degree, cousins and inbred pedigrees;
+`estimate_liability_from_kinship` runs PA by default or Gibbs on request.
 
 This is an **additive-genetic** model: familial resemblance is entirely genetic
 sharing. Shared environment, household/cultural transmission, assortative mating
@@ -296,21 +301,20 @@ still letting the logistic threshold vary with age; it is not classic LT-FH.
 Full LT-FH++ uses stratified `K(t; s, b)` so each person receives their own
 age-, birth-year- and sex-specific threshold.
 
-**Why personalisation is calibration *and* (sometimes) power.** From the BLUP
+**Why personalisation can affect calibration and power.** From the BLUP
 decomposition above, `E[g | family] = Cov(g, l_F) Var(l_F)^-1 · E[l_F | intervals]`, the
 thresholds `T_i` enter **only** the truncated means `E[l_F | intervals]` — never the BLUP
 weights `Cov(g,l_F)Var(l_F)^-1`. Hence:
 
-- a **uniform** threshold error (wrong `K` for *everyone*) shifts every truncated mean
-  the same way → a pure **calibration / scale** shift of the score (its bias), leaving
-  the ranking almost intact;
-- a **stratum-differential** threshold (cases from birth cohorts, or sexes, of
-  *different* prevalence) shifts the truncated means by *different* amounts → it
-  **re-orders** them, so getting `K(t;s,b)` right also improves **ranking / discovery
-  power**. Two cases with the same onset age but different cohorts have different true
-  liabilities; the stratified CIP separates them, a single `K` collapses them.
+- changing one common threshold often behaves mainly like a score-scale or
+  calibration change in the tested structures, but upper- and lower-truncated
+  means respond nonlinearly and need not shift identically;
+- stratum-specific threshold errors can also change score ordering because
+  different observations receive different conditional means. Two cases with the
+  same onset age but different population CIPs need not imply the same liability.
 
-`bench_fh_prediction` shows both faces: on the pedigree it is mostly a mean-score
+These are empirical tendencies, not an algebraic separation between calibration
+and ranking. `bench_fh_prediction` shows both effects in its simulation: on the pedigree it is mostly a mean-score
 shift (and a truth-referenced single-`K` error) because the high-weight proband spans
 a narrow living cohort, while the replicated own-onset panel isolates the ranking
 gain — about 1.66× in the squared-correlation effective-N proxy at the widest
@@ -387,11 +391,17 @@ a true control and a not-yet-onset future case. With the individual cumulative
 incidence `K_i` and lifetime prevalence `K_pop`, the selected moments become
 
 ```text
-mix   = Phi_below / (Phi_below + (1 - Phi_below) * (K_pop - K_i) / K_pop)
-mean* = mix * mean(below upper) + (1 - mix) * mean(above upper)
+thr_pop   = Phi^-1(1 - K_pop)          # lifetime threshold
+Phi_below = Phi((thr_pop - mu) / sd)
+mix       = Phi_below / (Phi_below + (1 - Phi_below) * (K_pop - K_i) / K_pop)
+mean*     = mix * mean(below thr_pop) + (1 - mix) * mean(above thr_pop)
 ```
 
 (with the matching two-component variance), following PA-FGRS supp. eqs. S3–S5.
+The split is the **lifetime** threshold, not the passed `upper`: age enters only
+through the mixture weight via `K_i`, and `upper` merely flags a censored control
+(finite) versus an observed case (`+inf`), so passing either the lifetime bound or
+an age-specific `Phi^-1(1 - K_i)` gives the same result.
 Enabled via `use_mixture=True`; off, PA reduces to the plain truncated-moment
 sweep.
 
@@ -481,6 +491,13 @@ the same individual's full liabilities across traits correlate by
 each trait (`estimate_liability_multi`). This lets a well-powered trait sharpen
 the estimate for a correlated, under-powered one.
 
+These inputs are jointly constrained. Let `D = diag(sqrt(h2))`,
+`G = D genetic_corrmat D`, and `E = full_corrmat - G`. Both `G` and `E` must be
+positive semi-definite, while the two supplied correlation matrices must be
+symmetric with unit diagonal. The full pedigree covariance is
+`G ⊗ A + E ⊗ I`. The constructor rejects an incoherent decomposition rather than
+silently applying a positive-definite correction to a different model.
+
 ### Fitting the genetic correlation
 
 `fit_genetic_correlation` estimates `rho_g` between traits from family data — the
@@ -556,14 +573,16 @@ from the top-`m` eigenvectors of `r_g` (principal factors) and polished by L-BFG
 with the analytic gradient `−2 (W∘R_res) Λ`; an optional weight matrix `W` (e.g.
 `1/se²` of each `r_g`) gives a diagonally-weighted (DWLS) fit.
 
-Fit is read off the **off-diagonal residuals**: `srmr` (their standardised
-root-mean-square) small — say ≲ 0.05–0.08 — means the `m` factors reproduce the
-genetic correlations, and `prop_explained` is the fraction of the off-diagonal
-structure they capture. A single factor is identified only for `P ≥ 3` traits, and
-in general the model must be (over-)identified, `df = ½((P − m)² − (P + m)) ≥ 0`; at
-`df = 0` (one factor on three traits) the fit is exact by construction, so testing
-one factor's adequacy needs `P ≥ 4`. As with the `r_g` estimate itself the loadings
-carry no inference of their own — bootstrap the whole
+Fit is read off the **off-diagonal residuals**: `srmr` is their standardised
+root-mean-square, and `prop_explained` is the fraction of off-diagonal structure
+captured. Values around 0.05–0.08 are informal descriptive heuristics, not a
+calibrated factor-number test. The optimizer constrains each communality
+`sum_k Λ_pk²` to `[0, 1]`; a value at 1 is a Heywood boundary. A single factor
+requires `P ≥ 3` traits, and in
+general the usual parameter count requires
+`df = ½((P − m)² − (P + m)) ≥ 0`. At `P = 3, m = 1`, `df = 0`, but sign and
+communality constraints can still prevent an exact representation. As with the
+`r_g` estimate itself the loadings carry no inference of their own — bootstrap the whole
 `fit_genetic_correlation → fit_genetic_factor` pipeline over families for uncertainty,
 since the within-dataset `se` understates it. `benchmarks/bench_genetic_factor.py`
 recovers planted loadings end-to-end and shows `srmr` rising when a one-factor model
