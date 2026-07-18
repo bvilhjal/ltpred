@@ -11,13 +11,26 @@ correct relationships and diagnoses, and correctly specified prevalence/CIPs and
 liability-scale `h²`. Under its standard model, individual-specific residuals are
 independent of relatives' additive genetic values and of each other.
 
+Diagnosis quality and family-history reporting are therefore part of the
+observation model, not clerical details. An Alzheimer-disease proxy-GWAS analysis
+documented bias from survival and non-random participation in parental-history
+surveys ([Wu et al. 2024](https://doi.org/10.1038/s41588-024-01963-9)), while a
+broader psychiatric-genetics Perspective argues that shallow EHR or self-reported
+phenotypes can carry heritable confounding
+([Cai et al. 2026](https://doi.org/10.1038/s41588-025-02465-y)). These sources do
+not imply that every register phenotype is biased. They show or argue, respectively,
+that liability modelling alone cannot correct a biased diagnosis or reporting
+process.
+
 The age-dependent formulation assumes a non-decreasing cumulative-incidence curve
 (hence a non-increasing liability threshold) and, in the current high-level model,
 the same liability covariance and genetic architecture across age at diagnosis,
-sex and cohort. Those variables alter thresholds, not `h²` or genetic
-correlations. Follow-up/censoring must be represented by a defensible observation
-model; independent censoring is required for ordinary Kaplan–Meier risk estimates,
-and competing events require a cumulative-incidence estimator.
+sex and cohort. In LT-FH++/ADuLT those variables alter thresholds; in base PA-FGRS
+they alter a censored control's mixture weight through `K_i`. They do not alter
+`h²` or genetic correlations. Follow-up/censoring must be represented by a
+defensible observation model; independent censoring is required for ordinary
+Kaplan–Meier risk estimates, and competing events require a cumulative-incidence
+estimator.
 
 Gibbs targets the truncated-Gaussian conditional moments by Monte Carlo. PA is a
 deterministic sequential-moment approximation when several interval observations
@@ -52,31 +65,40 @@ projections and validate them under the actual sampling scheme.
 
 Before running a production analysis:
 
-1. Obtain **population-representative CIPs** (cumulative incidence by age),
+1. Validate the **diagnosis and family-history source**: case definition,
+   reporting accuracy, missingness, follow-up, and participation/selection process.
+2. Obtain **population-representative CIPs** (cumulative incidence by age),
    ideally from a register or other representative source — not the logistic
    default and not an ascertained biobank sample.
-2. **Stratify** CIPs by sex, birth year/cohort, ancestry and calendar period where
+3. **Stratify** CIPs by sex, birth year/cohort, ancestry and calendar period where
    incidence differs. With independent right censoring and no competing events,
    `1 − Kaplan–Meier` estimates risk; with competing death or diagnoses, use a
    cause-specific cumulative-incidence estimator such as Aalen–Johansen.
-3. Make each CIP age grid cover the analysed onset/follow-up ages and supply
+4. Make each CIP age grid cover the analysed onset/follow-up ages and supply
    `k_pop` explicitly unless its final value is a defensible lifetime prevalence;
    the helper holds endpoint values constant outside the grid.
-4. Convert `h²` to the **liability scale** (`convert_observed_to_liability_scale`),
+5. Convert `h²` to the **liability scale** (`convert_observed_to_liability_scale`),
    passing the actual study case fraction; its `sample_prev=0.5` default represents
    a balanced case/control design only.
-5. Check **sensitivity** of the score to `h²` and to prevalence/CIP choices,
+6. Check **sensitivity** of the score to `h²` and to prevalence/CIP choices,
    especially for rare traits and dense pedigrees.
-6. **Validate roles**: valid abbreviations, no duplicate roles within a family
+7. **Validate roles**: valid abbreviations, no duplicate roles within a family
    (the estimator now raises on duplicates).
-7. Decide **case encoding** — pinned (`age_thresholds`) vs interval
-   (`pa_thresholds`) — and record it.
-8. Choose **Gibbs vs Pearson–Aitken**; for unusual pedigrees cross-check PA
-   against Gibbs.
-9. **Residualize** the phenotype for covariates (sex, cohort, PCs, batch) and
-   handle related probands (LMM / pruning) before the GWAS.
-10. For family-data **fitting or bootstrap inference**, verify that sampled family
-   clusters do not overlap and either avoid ascertainment or model it explicitly.
+8. Decide whether to **condition on the proband's own status**. Include `o` when
+   intentionally constructing a diagnosis-derived GWAS phenotype; omit it or make
+   it uninformative for prospective prediction/classification of that diagnosis.
+9. Decide **case encoding** — onset-pinned (`age_thresholds`), lifetime-interval
+   (base PA-FGRS), or age-specific interval (`pa_thresholds`, an age-dependent
+   PA-FGRS-style variant) — and record it.
+10. Choose **Gibbs vs Pearson–Aitken**; for unusual no-mixture pedigrees cross-check
+    PA against Gibbs. The PA-FGRS censoring mixture has no Gibbs implementation.
+11. **Residualize** the phenotype for covariates (sex, cohort, PCs, batch). Prefer
+     non-overlapping target families; if related targets remain, use and validate an
+     association method that handles their relatedness, shared family-history
+     phenotype, case-control imbalance, and tail behaviour
+     ([Zhuang et al. 2022](https://doi.org/10.1093/bioinformatics/btac459)).
+12. For family-data **fitting or bootstrap inference**, verify that sampled family
+     clusters do not overlap and either avoid ascertainment or model it explicitly.
 
 ## Pitfalls
 
@@ -86,7 +108,9 @@ Before running a production analysis:
   controls.
 - **Number repeated relatives** (`s1`, `s2`) — an unnumbered duplicate role
   collides.
-- **The proband is role `o`**, not `g`. `g` (what you estimate) is added for you.
+- **The proband's optional observed-status role is `o`**, not `g`. `g` (what you
+  estimate) is added for you. If `o` is omitted, it is inserted unbounded; use that
+  path to avoid outcome leakage in disease prediction/classification.
 - **Prevalence and CIPs should match the population** the thresholds refer to;
   stratify by sex/birth-year if your incidence differs across strata (pass the
   per-person `K_i`).
@@ -97,9 +121,12 @@ Before running a production analysis:
   or `thresholds_from_cip`) — otherwise it now raises rather than silently doing
   nothing. In mixture mode, age enters through `K_i`; the implementation splits at
   the lifetime threshold and uses the finite control bound only as a censoring flag,
-  so an age-specific bound from these helpers is safe and is not applied twice.
-- **Missing or uninformative family observations** make the estimate rely mostly
-  on the proband's own status. Low prevalence alone does not imply little
-  information: an affected person with a rare disease can be highly informative.
+  so an age-specific control bound from these helpers is not applied twice. Their
+  age-specific **case** intervals nevertheless remain a variant of base PA-FGRS.
+- **Missing or uninformative family observations** leave less conditioning
+  information. If `o` is included, the estimate then relies mostly on the
+  proband's own status; if `o` is also unbound, it shrinks toward the prior mean.
+  Low prevalence alone does not imply little information: an affected person with
+  a rare disease can be highly informative.
 - **Install `[fast]`** (Numba) for large runs; the pure-Python fallback is
   numerically identical but much slower.

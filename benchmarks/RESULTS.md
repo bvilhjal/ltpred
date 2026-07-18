@@ -3,8 +3,9 @@
 Current results for the 15 local benchmark scripts in this directory. Bounds
 distinguish non-personalised, personalised pinned and interval-case encodings;
 family-history inclusion distinguishes LT-FH++ (with relatives) from ADuLT
-(index person only). Gibbs and Pearson–Aitken (PA) are inference engines, not
-model variants.
+(index person only). Gibbs and Pearson–Aitken (PA) are alternative inference
+engines for those bounds. PA-FGRS is a separate PA-specific specification; its
+censoring mixture is not included in the PA–Gibbs comparisons below.
 
 - **Generated:** 2026-07-14.
 - **Environment:** Python 3.13.5, NumPy 2.1.3, SciPy 1.15.3, Numba 0.61.0,
@@ -28,7 +29,7 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
 
 ## Headline findings
 
-- **PA is the right default for single-trait work.** Across the 27-cell accuracy
+- **PA is the right default for the tested single-trait, no-mixture work.** Across the 27-cell accuracy
   grid, corr(PA, Gibbs) is 0.9972–0.9999. The stressful-pedigree benchmark remains
   at least 0.9984. PA and Gibbs also give indistinguishable downstream GWAS
   results. In the isolated 10-thread timing run, the PA object path is
@@ -448,7 +449,7 @@ correlated: adding the correct sex curve shifts female error by
 -0.03689 ± 0.00041 and male error by +0.01401 ± 0.00064, closing the
 female-minus-male error gap by **0.05091 ± 0.00096**.
 
-On the first two 300-family main-panel cross-checks, PA/Gibbs agreement is
+On the first two 300-family, no-mixture main-panel cross-checks, PA/Gibbs agreement is
 0.999901. Gibbs reaches the requested MCSE tolerance for every score (maximum
 MCSE 0.0090 at tolerance 0.03); PA-vs-Gibbs normalized RMSE is 0.0174 score SD,
 the Gibbs-on-PA slope is 0.990, and the mean difference is -0.0019.

@@ -16,10 +16,10 @@ is also a top-level export.
 | `liability_sensitivity` | sweep the assumed `h²` and report how stable the score is |
 | `fit_heritability` | **fit** liability-scale `h²` from family data (data-augmentation fixed point) |
 | `prevalence_thresholds` / `age_thresholds` | classic or personalised pinned bounds; family rows determine LT-FH++ vs ADuLT |
-| `pa_thresholds` | PA-FGRS interval-case and censoring-mixture inputs; not required merely to use the PA engine |
-| `thresholds_from_cip` | bounds from an empirical (population) CIP curve — endpoint values are held constant outside its age grid |
+| `pa_thresholds` | age-specific interval-case and PA-FGRS censored-control-mixture inputs; an age-dependent variant, not base PA-FGRS, exact PA-FGRS_ADT, or a requirement merely to use the PA engine |
+| `thresholds_from_cip` | bounds from an empirical (population) CIP curve — `case_mode="interval"` is likewise an age-dependent PA-FGRS-style variant rather than exact PA-FGRS_ADT; endpoint values are held constant outside its age grid |
 | `families_from_columns` | build family inputs from flat columns |
-| `kinship_from_pedigree` / `estimate_liability_from_kinship` | arbitrary-pedigree input and PA-default estimation |
+| `kinship_from_pedigree` / `estimate_liability_from_kinship` | arbitrary-pedigree input and PA-default estimation with ordinary bounds; the high-level estimator has no `K_i`/`K_pop`/`use_mixture` support |
 | `simulate_under_LTM_single` | simulate families for testing/benchmarking |
 | `convert_observed_to_liability_scale` | observed → liability-scale `h²` (Lee et al.) |
 | `set_num_threads` | set the Numba-parallel thread count |

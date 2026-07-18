@@ -26,7 +26,7 @@ Roles use the LTFHPlus abbreviations. Each is relative to the proband:
 
 | role | who |
 |---|---|
-| `o` | the proband's own status (the "offspring"/index person) |
+| `o` | *(optional)* the proband's own status (the "offspring"/index person) |
 | `m`, `f` | mother, father |
 | `s1`, `s2`, … | full siblings (numbered) |
 | `mgm`, `mgf`, `pgm`, `pgf` | maternal/paternal grand-mother/-father |
@@ -34,9 +34,15 @@ Roles use the LTFHPlus abbreviations. Each is relative to the proband:
 | `mau1`…, `pau1`… | maternal/paternal aunts/uncles |
 | `c1.1`, `c1.2`, … | children (partner-group `.` child index) |
 
-A family is any subset of these plus `o`. Two relatives of the same kind must be
+A family can contain any subset of these. If `o` is absent, the estimator inserts
+it with uninformative `(-inf, inf)` bounds. Two relatives of the same kind must be
 numbered (`s1`, `s2`). Relatedness (and hence covariance) is derived from the role
 labels — see `get_relatedness`.
+
+Conditioning on `o` is an analysis choice, not a structural requirement. Include
+it when intentionally constructing a GWAS phenotype from the proband's diagnosis.
+For prospective prediction/classification of that diagnosis, omit `o` or make its
+bounds uninformative; otherwise the outcome leaks directly into the predictor.
 
 ### Beyond the role grammar: arbitrary pedigrees
 
@@ -57,6 +63,10 @@ gen, var = estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0)
 # Pearson-Aitken is the default; pass method="gibbs" to receive Monte-Carlo SE instead.
 ```
 
+This high-level arbitrary-kinship function accepts `A` and `lower`/`upper` only.
+It has no `K_i`, `K_pop`, or `use_mixture` arguments, so it cannot apply the
+PA-FGRS age-censored-control mixture.
+
 For a pedigree that *does* fit the role grammar the two paths give identical
 results (same covariance); the pedigree path additionally handles half-sibs of any
 degree, cousins, and inbred pedigrees (where a self-relationship can exceed 1).
@@ -65,10 +75,21 @@ standardised so every full liability has unit marginal variance; standard-normal
 prevalence thresholds therefore retain their usual meaning. Build the covariance
 alone with `construct_covmat_from_kinship(A, h2, target)`.
 
+ltpred starts from an already specified pedigree; it does not discover relatives
+from population registers. For upstream graph-based extraction of arbitrary-degree
+relatives from population trio records, see
+[Pedersen et al. (2025)](https://doi.org/10.3389/fgene.2025.1708315). Its graph
+utilities are implemented in the R package LTFHPlus: translate `graph_to_trio`
+output into `ids`, `father` and `mother`, then call ltpred's
+`kinship_from_pedigree`. Do **not** pass LTFHPlus `get_kinship` output straight to
+ltpred: it can already contain heritability scaling and target augmentation, while
+ltpred's kinship-matrix API expects the unscaled additive relationship matrix
+`A = 2φ` and applies `h2` itself.
+
 ### Getting `lower`/`upper` from status and age
 
-Three helpers turn status (+age) into the truncation bounds, matching the three
-model variants. Pick one:
+Three helpers turn status (+age) into different truncation encodings. Pick the one
+that matches the intended model:
 
 ```python
 import numpy as np
@@ -83,7 +104,7 @@ lower, upper = prevalence_thresholds(status, pop_prev=0.05)
 # (2) personalised pinned bounds — LT-FH++ with relatives, ADuLT without them
 lower, upper = age_thresholds(status, age, pop_prev=0.05)
 
-# (3) PA-FGRS — like (1)/(2) but also emits K_i, K_pop for the censoring mixture
+# (3) Age-dependent PA-FGRS-style variant — adds K_i, K_pop for the mixture
 lower, upper, K_i, K_pop = pa_thresholds(status, age, pop_prev=0.05)
 ```
 
@@ -95,7 +116,7 @@ relative rows are LT-FH++; the same bounds with only role `o` are ADuLT.
 |---|---|---|---|---|
 | `prevalence_thresholds` | `(T, ∞)` | `(-∞, T)` | — | classic **LT-FH** (no age) |
 | `age_thresholds` | **pinned** `[thresh(onset), thresh(onset)]` | `(-∞, thresh(age))` | — | personalised demo: **LT-FH++ with relatives; ADuLT without** |
-| `pa_thresholds` | interval `(thresh(onset), ∞)` — **not** pinned | `(-∞, thresh(age))` | `K_i`, `K_pop` | **PA-FGRS** (optionally with the mixture) |
+| `pa_thresholds` | interval `(thresh(onset), ∞)` — **not** pinned | `(-∞, thresh(age))` | `K_i`, `K_pop` | age-dependent **PA-FGRS-style variant**, not base PA-FGRS |
 
 `T = Φ⁻¹(1 − K)`. Note the two age-aware builders are **not** interchangeable:
 `age_thresholds` *pins* a case's liability at its onset threshold (a point mass —
@@ -106,14 +127,57 @@ and lifetime prevalence `K_pop` used by the optional censored-control mixture
 **deterministic monotone mapping** from onset age to liability — it treats onset
 age as strictly stronger information than merely being affected. That is powerful,
 but should be checked when diagnosis age is noisy, delayed, or shaped by
-health-care access; the interval encoding is more conservative there.
+health-care access. The interval makes a weaker mechanistic assumption; it does
+**not** necessarily produce a smaller liability score or a statistically more
+conservative analysis.
+
+The published **base PA-FGRS** model uses the lifetime threshold for every
+observed case; age-specific incidence enters only through the censored-control
+mixture. With the built-in logistic curve, construct those inputs as follows:
+
+```python
+# Paper-faithful base PA-FGRS: lifetime bounds plus control-specific mixture data.
+import numpy as np
+from ltpred import (
+    estimate_liability, families_from_columns, pa_thresholds,
+    prevalence_thresholds,
+)
+
+lower, upper = prevalence_thresholds(status, pop_prev=0.05)
+_, _, K_i, K_pop = pa_thresholds(status, age, pop_prev=0.05)
+
+# This is an explicit analysis decision, not an estimate_liability argument.
+include_proband_status = True   # True for GWAS-phenotype construction
+if not include_proband_status: # use False when predicting/classifying this disease
+    is_proband = np.asarray(role) == "o"
+    lower, upper, K_i, K_pop = (x.copy() for x in (lower, upper, K_i, K_pop))
+    lower[is_proband], upper[is_proband] = -np.inf, np.inf
+    K_i[is_proband], K_pop[is_proband] = np.nan, np.nan
+
+res = estimate_liability(
+    families_from_columns(
+        fam_id=fam_id, role=role, lower=lower, upper=upper,
+        K_i=K_i, K_pop=K_pop,
+    ),
+    h2=0.5,
+    use_mixture=True,
+)
+```
+
+For real data, obtain `K_i` from the population CIP rather than the logistic demo,
+retain lifetime bounds from `prevalence_thresholds` (using the matching stratum's
+`K_pop`), and provide `K_i`/`K_pop` only for controls. Instead of unbinding `o` as
+above, you may omit its row entirely; ltpred inserts an uninformative target-status
+coordinate automatically.
 
 You can also build the bounds yourself: any `(lower, upper)` interval per person
 is valid (`lower == upper` pins a liability exactly; `(-inf, inf)` is
 uninformative).
 
-> **CIPs and sex/cohort.** ltpred has no explicit `sex` argument — sex, birth
-> year and cohort enter only through the thresholds/CIPs you supply. The built-in
+> **CIPs and sex/cohort.** ltpred has no explicit `sex` argument. In LT-FH++ and
+> ADuLT, sex, birth year and cohort enter through the personalised thresholds you
+> supply; in base PA-FGRS they enter a censored control's mixture weight through
+> `K_i`. None of them changes the covariance model. The built-in
 > `convert_age_to_cir` is a **logistic placeholder for simulation and demos**; for
 > real analyses use externally estimated, **population-representative** cumulative
 > incidence curves stratified by sex, birth year/cohort, ancestry and calendar
@@ -153,7 +217,7 @@ upper = np.empty(status.shape, dtype=float)
 K_i = np.full(status.shape, np.nan)
 K_pop = np.full(status.shape, np.nan)
 
-case_mode = "pin"  # LT-FH++ with relatives; change to "interval" for PA-FGRS
+case_mode = "pin"  # LT-FH++; "interval" selects the age-dependent PA-style variant
 for label in np.unique(stratum):
     mask = stratum == label
     cip_ages, cip_values, lifetime_prevalence = cip_by_stratum[label]
@@ -182,7 +246,8 @@ Key points:
 
 - `case_mode="pin"` (the default) is the personalised onset-pinned encoding:
   LT-FH++ with relative rows, ADuLT with role `o` only;
-  `case_mode="interval"` is the conservative PA-FGRS interval encoding.
+  `case_mode="interval"` is an age-dependent PA-FGRS-style interval encoding,
+  not the published base model or an exact implementation of PA-FGRS_ADT.
 - `use_mixture=True` only makes sense when `K_i` / `K_pop` are supplied (from
   `pa_thresholds` or `thresholds_from_cip`); it is the PA-FGRS
   age-censored-control correction and is supported by the PA engine only.
@@ -195,7 +260,9 @@ Key points:
 
 For **ADuLT**, use the same stratum-specific proband bounds but build one row per
 person with `role="o"`; do not add relative rows. There is no separate ADuLT
-inference switch—the absence of family history is the distinction.
+inference switch—the absence of family history is the distinction. ADuLT is a
+diagnosis-derived phenotype construction; unbinding its only `o` observation leaves
+no information for disease prediction.
 
 ### Getting heritability on the liability scale
 

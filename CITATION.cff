@@ -1,12 +1,14 @@
 cff-version: 1.2.0
-message: "If you use ltpred, please cite the software and the methods it implements."
-title: "ltpred: LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python"
+message: "If you use ltpred, please cite the software and the method(s) used. The references below cover the implemented methods and their direct interpretation."
+title: "ltpred: LT-FH, LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python"
 abstract: >-
   A Python implementation of personalised liability-threshold genetic-liability
-  estimation: LT-FH++ conditions on family history and age-, birth-year- and
-  sex-dependent prevalence, while ADuLT uses the same personalised construction
-  without family history. Inference uses a truncated-multivariate-normal Gibbs
-  sampler or deterministic Pearson-Aitken approximation.
+  estimation: LT-FH conditions on family history, LT-FH++ adds age-, birth-year-
+  and sex-dependent prevalence, ADuLT uses the personalised construction without
+  family history, and PA-FGRS contributes deterministic Pearson-Aitken inference
+  and an age-censored-control mixture. Inference uses a
+  truncated-multivariate-normal Gibbs sampler or deterministic Pearson-Aitken
+  approximation.
 type: software
 authors:
   - family-names: "Vilhjálmsson"
@@ -15,6 +17,7 @@ repository-code: "https://github.com/bvilhjal/ltpred"
 license: MIT
 keywords:
   - liability-threshold model
+  - LT-FH
   - LT-FH++
   - ADuLT
   - PA-FGRS
@@ -22,175 +25,239 @@ keywords:
   - family history
   - GWAS
 references:
+  # Implemented methods
   - type: article
-    title: "The contribution of family-history information to the assessment of disease risk: the liability-threshold model conditional on family history (LT-FH)"
+    title: "Liability threshold modeling of case–control status and family history of disease increases association power"
     authors:
       - family-names: Hujoel
         given-names: "Margaux L. A."
+      - family-names: Gazal
+        given-names: Steven
+      - family-names: Loh
+        given-names: Po-Ru
+      - family-names: Patterson
+        given-names: Nick
+      - family-names: Price
+        given-names: "Alkes L."
     journal: "Nature Genetics"
+    volume: 52
+    issue: 5
+    start: 541
+    end: 547
     year: 2020
     doi: 10.1038/s41588-020-0613-6
   - type: article
-    title: "Accounting for age of onset and family history improves power in genome-wide association studies (LT-FH++)"
+    title: "Accounting for age of onset and family history improves power in genome-wide association studies"
     authors:
       - family-names: Pedersen
-        given-names: "Emil Michael"
+        given-names: "Emil M."
+      - family-names: Agerbo
+        given-names: Esben
+      - family-names: Plana-Ripoll
+        given-names: Oleguer
+      - family-names: Grove
+        given-names: Jakob
+      - family-names: Dreier
+        given-names: "Julie W."
+      - family-names: Musliner
+        given-names: "Katherine L."
+      - family-names: Bækvad-Hansen
+        given-names: Marie
+      - family-names: Athanasiadis
+        given-names: Georgios
+      - family-names: Schork
+        given-names: Andrew
+      - family-names: Bybjerg-Grauholm
+        given-names: Jonas
+      - family-names: Hougaard
+        given-names: "David M."
+      - family-names: Werge
+        given-names: Thomas
+      - family-names: Nordentoft
+        given-names: Merete
+      - family-names: Mors
+        given-names: Ole
+      - family-names: Dalsgaard
+        given-names: Søren
+      - family-names: Christensen
+        given-names: Jakob
+      - family-names: Børglum
+        given-names: "Anders D."
+      - family-names: Mortensen
+        given-names: "Preben B."
+      - family-names: McGrath
+        given-names: "John J."
+      - family-names: Privé
+        given-names: Florian
+      - family-names: Vilhjálmsson
+        given-names: "Bjarni J."
     journal: "The American Journal of Human Genetics"
+    volume: 109
+    issue: 3
+    start: 417
+    end: 432
     year: 2022
     doi: 10.1016/j.ajhg.2022.01.009
   - type: article
-    title: "ADuLT: an efficient and robust time-to-event GWAS"
+    title: "ADuLT: An efficient and robust time-to-event GWAS"
     authors:
       - family-names: Pedersen
-        given-names: "Emil Michael"
+        given-names: "Emil M."
+      - family-names: Agerbo
+        given-names: Esben
+      - family-names: Plana-Ripoll
+        given-names: Oleguer
+      - family-names: Steinbach
+        given-names: Jette
+      - family-names: Krebs
+        given-names: "Morten D."
+      - family-names: Hougaard
+        given-names: "David M."
+      - family-names: Werge
+        given-names: Thomas
+      - family-names: Nordentoft
+        given-names: Merete
+      - family-names: Børglum
+        given-names: "Anders D."
+      - family-names: Musliner
+        given-names: "Katherine L."
+      - family-names: Ganna
+        given-names: Andrea
+      - family-names: Schork
+        given-names: "Andrew J."
+      - family-names: Mortensen
+        given-names: "Preben B."
+      - family-names: McGrath
+        given-names: "John J."
+      - family-names: Privé
+        given-names: Florian
+      - family-names: Vilhjálmsson
+        given-names: "Bjarni J."
     journal: "Nature Communications"
+    volume: 14
+    issue: 1
+    start: 5553
     year: 2023
     doi: 10.1038/s41467-023-41210-z
   - type: article
-    title: "Genetic liability estimated from large-scale family data improves genetic prediction, risk score profiling, and gene mapping for major depression (PA-FGRS)"
+    title: "Genetic liability estimated from large-scale family data improves genetic prediction, risk score profiling, and gene mapping for major depression"
     authors:
-      - family-names: Krebs
-        given-names: "Morten Dybdahl"
+      - family-names: "Dybdahl Krebs"
+        given-names: Morten
+      - family-names: "Georgii Hellberg"
+        given-names: Kajsa-Lotta
+      - family-names: Lundberg
+        given-names: Mischa
+      - family-names: Appadurai
+        given-names: Vivek
+      - family-names: Ohlsson
+        given-names: Henrik
+      - family-names: Pedersen
+        given-names: Emil
+      - family-names: Steinbach
+        given-names: Jette
+      - family-names: Matthews
+        given-names: Jamie
+      - family-names: Border
+        given-names: Richard
+      - family-names: LaBianca
+        given-names: Sonja
+      - family-names: Calle
+        given-names: Xabier
+      - family-names: Meijsen
+        given-names: "Joeri J."
+      - name: "iPSYCH Study Consortium"
+      - family-names: Ingason
+        given-names: Andrés
+      - family-names: Buil
+        given-names: Alfonso
+      - family-names: Vilhjálmsson
+        given-names: "Bjarni J."
+      - family-names: Flint
+        given-names: Jonathan
+      - family-names: Bacanu
+        given-names: Silviu-Alin
+      - family-names: Cai
+        given-names: Na
+      - family-names: Dahl
+        given-names: Andy
+      - family-names: Zaitlen
+        given-names: Noah
+      - family-names: Werge
+        given-names: Thomas
+      - family-names: Kendler
+        given-names: "Kenneth S."
+      - family-names: Schork
+        given-names: "Andrew J."
     journal: "The American Journal of Human Genetics"
+    volume: 111
+    issue: 11
+    start: 2494
+    end: 2509
     year: 2024
     doi: 10.1016/j.ajhg.2024.09.009
-  # Threshold-model background
+  # Direct interpretation
   - type: article
-    title: "Heritability of threshold characters"
+    title: "Incorporating family history of disease improves polygenic risk scores in diverse populations"
     authors:
-      - family-names: Dempster
-        given-names: "Everett R."
-      - family-names: Lerner
-        given-names: "I. Michael"
-    journal: "Genetics"
-    year: 1950
+      - family-names: Hujoel
+        given-names: "Margaux L. A."
+      - family-names: Loh
+        given-names: Po-Ru
+      - family-names: Neale
+        given-names: "Benjamin M."
+      - family-names: Price
+        given-names: "Alkes L."
+    journal: "Cell Genomics"
+    volume: 2
+    issue: 7
+    start: 100152
+    year: 2022
+    doi: 10.1016/j.xgen.2022.100152
   - type: article
-    title: "The inheritance of liability to certain diseases, estimated from the incidence among relatives"
+    title: "The relationship between genotype- and phenotype-based estimates of genetic liability to psychiatric disorders, in practice and in theory"
     authors:
-      - family-names: Falconer
-        given-names: "Douglas S."
-    journal: "Annals of Human Genetics"
-    year: 1965
-  - type: article
-    title: "Theory and analysis of threshold characters"
-    authors:
-      - family-names: Gianola
-        given-names: "Daniel"
-    journal: "Journal of Animal Science"
-    year: 1982
-  # Selection index / BLUP background
-  - type: article
-    title: "The genetic basis for constructing selection indexes"
-    authors:
-      - family-names: Hazel
-        given-names: "Lanoy N."
-    journal: "Genetics"
-    year: 1943
-  - type: article
-    title: "Best linear unbiased estimation and prediction under a selection model"
-    authors:
-      - family-names: Henderson
-        given-names: "Charles R."
-    journal: "Biometrics"
-    year: 1975
-  - type: article
-    title: "Efficient methods to compute genomic predictions"
-    authors:
-      - family-names: VanRaden
-        given-names: "Paul M."
-    journal: "Journal of Dairy Science"
-    year: 2008
-    doi: 10.3168/jds.2007-0980
-  # Liability-threshold risk models (Sham and colleagues)
-  - type: article
-    title: "Risk prediction of complex diseases from family history and known susceptibility loci, with applications for cancer screening"
-    authors:
-      - family-names: So
-        given-names: "Hon-Cheong"
-      - family-names: Kwan
-        given-names: "Johnny S. H."
-      - family-names: Cherny
-        given-names: "Stacey S."
-      - family-names: Sham
-        given-names: "Pak C."
+      - family-names: "Dybdahl Krebs"
+        given-names: Morten
+      - family-names: Appadurai
+        given-names: Vivek
+      - family-names: "Georgii Hellberg"
+        given-names: Kajsa-Lotta
+      - family-names: Ohlsson
+        given-names: Henrik
+      - family-names: Steinbach
+        given-names: Jette
+      - family-names: Pedersen
+        given-names: Emil
+      - name: "iPSYCH Study Consortium"
+      - family-names: Werge
+        given-names: Thomas
+      - family-names: Sundquist
+        given-names: Jan
+      - family-names: Sundquist
+        given-names: Kristina
+      - family-names: Border
+        given-names: Richard
+      - family-names: Cai
+        given-names: Na
+      - family-names: Zaitlen
+        given-names: Noah
+      - family-names: Dahl
+        given-names: Andy
+      - family-names: Vilhjalmsson
+        given-names: Bjarni
+      - family-names: Flint
+        given-names: Jonathan
+      - family-names: Bacanu
+        given-names: Silviu-Alin
+      - family-names: Kendler
+        given-names: "Kenneth S."
+      - family-names: Schork
+        given-names: "Andrew J."
     journal: "The American Journal of Human Genetics"
-    year: 2011
-    doi: 10.1016/j.ajhg.2011.04.001
-  - type: book
-    title: "Statistical Methods in Genetic Epidemiology"
-    authors:
-      - family-names: Sham
-        given-names: "Pak C."
-    publisher:
-      name: "Oxford University Press"
-    year: 1998
-  # Pearson-Aitken selection formula (the PA-FGRS estimator's origin)
-  - type: article
-    title: "Mathematical contributions to the theory of evolution. XI. On the influence of natural selection on the variability and correlation of organs"
-    authors:
-      - family-names: Pearson
-        given-names: "Karl"
-    journal: "Philosophical Transactions of the Royal Society of London. Series A"
-    year: 1903
-    doi: 10.1098/rsta.1903.0001
-  - type: article
-    title: "On least squares and linear combination of observations"
-    authors:
-      - family-names: Aitken
-        given-names: "Alexander C."
-    journal: "Proceedings of the Royal Society of Edinburgh"
-    year: 1935
-  # Numerics
-  - type: article
-    title: "The moment generating function of the truncated multi-normal distribution"
-    authors:
-      - family-names: Tallis
-        given-names: "George M."
-    journal: "Journal of the Royal Statistical Society: Series B"
-    year: 1961
-  - type: conference-paper
-    title: "Gibbs sampling approach for generation of truncated multivariate Gaussian random variables"
-    authors:
-      - family-names: Kotecha
-        given-names: "Jayesh H."
-      - family-names: Djuric
-        given-names: "Petar M."
-    year: 1999
-    doi: 10.1109/ICASSP.1999.756335
-  - type: book
-    title: "Computation of Multivariate Normal and t Probabilities"
-    authors:
-      - family-names: Genz
-        given-names: "Alan"
-      - family-names: Bretz
-        given-names: "Frank"
-    publisher:
-      name: "Springer"
-    year: 2009
-    doi: 10.1007/978-3-642-01689-9
-  - type: article
-    title: "Estimating missing heritability for disease from genome-wide association studies"
-    authors:
-      - family-names: Lee
-        given-names: "Sang Hong"
-    journal: "The American Journal of Human Genetics"
-    year: 2011
-    doi: 10.1016/j.ajhg.2011.02.002
-  # Assortative mating (interpretation of the couple-environment component M)
-  - type: article
-    title: "Genetic evidence of assortative mating in humans"
-    authors:
-      - family-names: Robinson
-        given-names: "Matthew R."
-    journal: "Nature Human Behaviour"
-    year: 2017
-    doi: 10.1038/s41562-016-0016
-  # Multi-trait genetic factor structure (the fit_genetic_factor common-factor model)
-  - type: article
-    title: "Genomic structural equation modelling provides insights into the multivariate genetic architecture of complex traits (Genomic SEM)"
-    authors:
-      - family-names: Grotzinger
-        given-names: "Andrew D."
-    journal: "Nature Human Behaviour"
-    year: 2019
-    doi: 10.1038/s41562-019-0566-x
+    volume: 113
+    issue: 1
+    start: 184
+    end: 201
+    year: 2026
+    doi: 10.1016/j.ajhg.2025.11.016

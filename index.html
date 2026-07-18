@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta name="description" content="ltpred — a from-scratch Python implementation of the liability-threshold family-history models LT-FH++, ADuLT and PA-FGRS.">
+<meta name="description" content="ltpred — a from-scratch Python implementation of the liability-threshold models LT-FH, LT-FH++, ADuLT and PA-FGRS.">
 <title>ltpred — liability-threshold genetics toolkit</title>
 <style>
   :root{
@@ -111,6 +111,7 @@
   .lin h3{margin-bottom:4px}
   .lin p{margin:0;color:var(--muted);font-size:15px}
   .lin .src{font-family:var(--mono);font-size:11.5px;color:var(--tail);letter-spacing:.02em}
+  .lin .src a{color:inherit;border-bottom-color:var(--line)}
 
   /* capability cards */
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
@@ -200,7 +201,7 @@
     </div>
 
     <h1>Liability-threshold genetics at pedigree and registry scale.</h1>
-    <p class="lede">A from-scratch Python implementation of LT-FH++, ADuLT and PA-FGRS. It turns a family's case/control status and ages of onset into a continuous, GWAS-ready estimate of each person's genetic liability; separate APIs fit variance-component models from family data.</p>
+    <p class="lede">A from-scratch Python implementation of LT-FH, LT-FH++, ADuLT and PA-FGRS. It turns a family's case/control status and ages of onset into a continuous, GWAS-ready estimate of each person's genetic liability; separate APIs fit variance-component models from family data.</p>
 
     <div class="meta">
       <span class="chip">v<b>0.1.0.dev0</b></span>
@@ -237,10 +238,10 @@
     <div class="prose"><p>ltpred is a faithful, tested port of a specific line of methods — each paper adds one thing to the liability-threshold model, and ltpred implements them on one covariance engine with two complementary back-ends.</p></div>
     <div class="line-grid" style="margin-top:26px">
       <div class="lin"><div class="yr"><b>1950–65</b>Foundations</div><div><h3>The liability-threshold model</h3><p>A latent normal liability; a disease when it exceeds a threshold set by prevalence.</p><span class="src">Dempster &amp; Lerner 1950 · Falconer 1965</span></div></div>
-      <div class="lin"><div class="yr"><b>2020</b>LT-FH</div><div><h3>Family history as a phenotype</h3><p>Replace the 0/1 case label with the posterior-mean genetic liability given parents' and siblings' status — designed to recover GWAS information discarded by a binary label.</p><span class="src">Hujoel et al., Nature Genetics</span></div></div>
-      <div class="lin"><div class="yr"><b>2022</b>LT-FH++</div><div><h3>Personalized thresholds</h3><p>Age of onset, sex and birth cohort each get their own threshold from population cumulative-incidence-proportion (CIP) curves; arbitrary pedigrees; a scalable Gibbs sampler.</p><span class="src">Pedersen et al., AJHG</span></div></div>
-      <div class="lin"><div class="yr"><b>2023</b>ADuLT</div><div><h3>Age-dependent threshold</h3><p>The same personalized threshold, benchmarked as robust under the ascertainment mechanisms studied, as an alternative to time-to-event (Cox) GWAS.</p><span class="src">Pedersen et al., Nature Communications</span></div></div>
-      <div class="lin"><div class="yr"><b>2024</b>PA-FGRS</div><div><h3>Deterministic, registry-scale</h3><p>A sequential Pearson–Aitken moment approximation with an optional age-censored-control mixture — no MCMC, at biobank scale.</p><span class="src">Krebs et al., AJHG</span></div></div>
+      <div class="lin"><div class="yr"><b>2020</b>LT-FH</div><div><h3>Family history as a phenotype</h3><p>Replace the 0/1 case label with the posterior-mean genetic liability given parents' and siblings' status — designed to recover GWAS information discarded by a binary label.</p><span class="src"><a href="https://doi.org/10.1038/s41588-020-0613-6">Hujoel et al., Nature Genetics</a></span></div></div>
+      <div class="lin"><div class="yr"><b>2022</b>LT-FH++</div><div><h3>Personalized thresholds</h3><p>Age of onset, sex and birth cohort each get their own threshold from population CIP curves; first-degree relatives in the method (simulation panels used 0–2 siblings); a scalable Gibbs sampler. ltpred's arbitrary-pedigree path extends beyond the 2022 publication.</p><span class="src"><a href="https://doi.org/10.1016/j.ajhg.2022.01.009">Pedersen et al., AJHG</a></span></div></div>
+      <div class="lin"><div class="yr"><b>2023</b>ADuLT</div><div><h3>Age-dependent threshold</h3><p>The same personalized threshold, benchmarked as robust under the ascertainment mechanisms studied, as an alternative to time-to-event (Cox) GWAS.</p><span class="src"><a href="https://doi.org/10.1038/s41467-023-41210-z">Pedersen et al., Nature Communications</a></span></div></div>
+      <div class="lin"><div class="yr"><b>2024</b>PA-FGRS</div><div><h3>Deterministic, registry-scale</h3><p>A sequential Pearson–Aitken moment approximation with lifetime-threshold case intervals and an age-censored-control mixture — no MCMC, at biobank scale.</p><span class="src"><a href="https://doi.org/10.1016/j.ajhg.2024.09.009">Dybdahl Krebs et al., AJHG</a></span></div></div>
     </div>
   </section>
 
@@ -336,7 +337,7 @@
           <text x="648" y="234" text-anchor="end" font-size="10.5" fill="var(--muted)">latent liability ℓ →</text>
         </g>
       </svg>
-      <p class="figcap">Every observation is really a statement about where a latent liability lies. A <b>control</b> has cleared its threshold from below; an age-of-onset <b>case</b> is pinned exactly at its onset threshold; a <b>censored control</b> is a control/future-case mixture (the PA-FGRS correction). These intervals are the <b>only</b> place age, sex and birth cohort enter — they set <span class="mu" style="font-family:var(--mono)">μ</span>, never the covariance.</p>
+      <p class="figcap">Every observation is a statement about where latent liability lies. LT-FH++ and ADuLT pin an age-of-onset <b>case</b> at its onset threshold. Base PA-FGRS instead places an observed case above the lifetime threshold and represents a <b>censored control</b> as a control/future-case mixture; ltpred also exposes a separate age-specific interval-case variant. Age, sex and cohort affect thresholds or mixture weights, never the covariance.</p>
     </div>
   </section>
 
@@ -345,7 +346,7 @@
   <section>
     <div class="sec-head"><span class="n">04</span><h2>What's been validated</h2></div>
     <div class="stats">
-      <div class="stat"><div class="v">≥ 0.997</div><div class="l">corr(PA, Gibbs) across the tested ordinary-PA accuracy cells</div></div>
+      <div class="stat"><div class="v">≥ 0.997</div><div class="l">correlation of PA and Gibbs posterior means across tested ordinary-PA cells</div></div>
       <div class="stat"><div class="v">315–510<small>×</small></div><div class="l">ordinary-PA speed-up over Gibbs on matched bounds</div></div>
       <div class="stat"><div class="v">1.2–2.7<small>×</small></div><div class="l">squared-correlation effective-N proxy over case/control</div></div>
       <div class="stat"><div class="v">15</div><div class="l">simulation benchmarks, truth known in each</div></div>
@@ -465,8 +466,9 @@
       <span>·</span><span>numpy, scipy; numba optional</span>
     </div>
     <div class="cite">
-      <b>Implements:</b> Hujoel 2020 (LT-FH) · Pedersen 2022 (LT-FH++) · Pedersen 2023 (ADuLT) · Krebs 2024 (PA-FGRS)<br/>
-      <b>Builds on:</b> Falconer 1965 · Tallis 1961 (truncated-MVN moments) · Pearson 1903 / Aitken 1935 (selection formula) · Henderson 1975 (BLUP) · Grotzinger 2019 (Genomic SEM)
+      <b>Implements:</b> <a href="https://doi.org/10.1038/s41588-020-0613-6">Hujoel 2020</a> (LT-FH) · <a href="https://doi.org/10.1016/j.ajhg.2022.01.009">Pedersen 2022</a> (LT-FH++) · <a href="https://doi.org/10.1038/s41467-023-41210-z">Pedersen 2023</a> (ADuLT) · <a href="https://doi.org/10.1016/j.ajhg.2024.09.009">Dybdahl Krebs 2024</a> (PA-FGRS)<br/>
+      <b>Related interpretation:</b> <a href="https://doi.org/10.1016/j.xgen.2022.100152">Hujoel 2022</a> (PRS + family history) · <a href="https://doi.org/10.1016/j.ajhg.2025.11.016">Dybdahl Krebs 2026</a> (phenotype- and genotype-based liability)<br/>
+      <b>Builds on:</b> Falconer 1965 · Tallis 1961 (truncated-MVN moments) · Pearson 1903 / <a href="https://doi.org/10.1017/S0013091500008063">Aitken 1935</a> (selection formula) · Henderson 1975 (BLUP) · Grotzinger 2019 (Genomic SEM)
     </div>
   </footer>
 

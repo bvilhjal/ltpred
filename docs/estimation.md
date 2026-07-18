@@ -21,7 +21,10 @@ families = families_from_columns(
 
 Rows sharing a `fam_id` become one family; family order follows first appearance,
 and the results come back in that order. You can also build `Family`/`Member`
-objects directly if you prefer.
+objects directly if you prefer. Role `o` is optional: when absent, the estimator
+inserts an uninformative proband-status coordinate. Include `o` for a deliberately
+diagnosis-derived GWAS phenotype; omit or unbind it when predicting/classifying
+that same diagnosis, or the outcome leaks into the score.
 
 ## Running the estimator
 
@@ -33,12 +36,15 @@ res = estimate_liability(families, h2=0.5, out=("genetic",))
 - `h2` — liability-scale heritability (scalar; a vector selects the multi-trait
   model, below).
 - `method` — the **default** is the deterministic **Pearson–Aitken** (PA)
-  inference engine for a single trait (fast, matches Gibbs to ~1e-2), falling back to
-  **Gibbs** for the multi-trait model. Pass `"gibbs"` to force the sampler (needed
+  inference engine for a single trait (PA–Gibbs posterior-mean correlation ≥ 0.997
+  in the tested no-mixture structures), falling back to **Gibbs** for the
+  multi-trait model. Pass
+  `"gibbs"` to force the sampler (needed
   for multiple traits, a Monte-Carlo SE, or a sampling-based cross-check), or
   `"pearson-aitken"` (aliases `"pa"`, `"aitken"`) to force PA. Bounds determine the observation
   encoding; inclusion of relatives distinguishes LT-FH++ from ADuLT. The engine
-  is orthogonal to both.
+  is orthogonal to both. PA-FGRS is the exception: its published name includes PA,
+  and ltpred's censoring mixture is PA-only.
 - `out` — which liabilities to return: `"genetic"` (the proband's `g`), `"full"`
   (the proband's `o`), or both.
 - `use_mixture` — PA only: turn on the age-censored-control mixture (needs
@@ -99,13 +105,37 @@ family-history analogue of a BLUP / selection-index breeding value (see
   predicts *inferred additive genetic liability*, not merely the observed 0/1
   diagnosis — that is where the power gain comes from.
 
+That last use deliberately allows the proband's observed status into the
+phenotype construction. It is **not** a leakage-free disease predictor. When the
+same diagnosis is the prediction/classification outcome, omit role `o` or set its
+bounds to `(-inf, inf)` and estimate from family history alone.
+
+Combining this family-derived score with a SNP polygenic score is a **separate
+downstream prediction model**, not an operation performed by ltpred. Hujoel et al.
+found that a target-population-fitted PRS-plus-family-history model improved disease
+prediction across the UK Biobank target populations they studied, and preferred a
+logistic combination when clinical covariates were included
+([2022, *Cell Genomics*](https://doi.org/10.1016/j.xgen.2022.100152)). For five
+psychiatric disorders, Dybdahl Krebs et al. found PA-FGRS and PGS to be weakly
+correlated but complementary; their theory explains this as two noisy estimates of
+the same additive genetic liability, not necessarily two different constructs
+([2026, *AJHG*](https://doi.org/10.1016/j.ajhg.2025.11.016)). Fit and validate any
+combination in the target population rather than adding the two scores uncalibrated.
+
 ## Choosing Gibbs vs Pearson–Aitken
 
 Both target the same posterior-liability idea, but Pearson–Aitken is a
-deterministic *approximation*: it is exact for a single observed truncation and,
-in the benchmarked family structures, matches the Gibbs `genetic` estimate to
-corr ≥ 0.997. For unusual pedigrees — very large, densely affected, or heavily
-truncated — treat Gibbs as the reference and cross-check.
+deterministic *approximation*: it is exact for a single observed truncation. In
+the benchmarked **no-mixture** family structures, PA and Gibbs posterior-mean
+`genetic` estimates had correlation ≥ 0.997. For unusual pedigrees — very large, densely
+affected, or heavily truncated — treat Gibbs as the reference and cross-check.
+
+Hujoel et al.'s original LT-FH study reported a less favourable Pearson–Aitken
+comparison for UK Biobank's aggregate sibling question (at least one sibling
+affected). That union event is not equivalent to separately observed per-sibling
+intervals. ltpred requires separate member intervals, so its PA–Gibbs benchmarks
+test a different, no-mixture observation model
+([Hujoel et al. 2020](https://doi.org/10.1038/s41588-020-0613-6)).
 
 | | Gibbs (`"gibbs"`) | Pearson–Aitken (`"pearson-aitken"`) |
 |---|---|---|
@@ -115,7 +145,8 @@ truncated — treat Gibbs as the reference and cross-check.
 | speed | ~300–990 families/s (10 threads) | ~152k–310k families/s — **315–510× faster** across tested sizes/structures |
 | censoring mixture | not implemented | `use_mixture=True` |
 
-Those rates are machine-specific medians from five warmed timings per point;
+The speed and agreement comparisons use ordinary bounds without the censoring
+mixture. Those rates are machine-specific medians from five warmed timings per point;
 `benchmarks/RESULTS.md` reports the configuration and IQR-backed grid. Treat the
 range as evidence about scale, not a hardware promise.
 
@@ -126,7 +157,8 @@ estimator returns posterior-mean estimates and
 Monte-Carlo SEs, not retained draws; use the low-level `rtmvnorm_gibbs` function
 when you need the sampled TMVN coordinates themselves. For the `genetic` score,
 PA and Gibbs agree closely and gave the same downstream GWAS power on the
-benchmarked structures.
+benchmarked no-mixture structures. These comparisons do not validate the PA-only
+censoring mixture.
 
 ## Scaling to large cohorts
 
@@ -211,9 +243,17 @@ The genetic-liability estimate is a quantitative phenotype — feed it to any
 continuous-outcome GWAS. As with any quantitative GWAS, **residualize the
 phenotype (and adjust) for covariates** — sex, birth year, genotyping batch,
 ancestry principal components, and any ascertainment/design covariates — or use a
-linear mixed model; probands who are themselves relatives should be handled by a
-mixed model or by pruning. The estimate is centered on the population mean, but in
-an ascertained sample it may not be mean-zero until you center/residualize.
+linear mixed model. Prefer pruning or non-overlapping family definitions when
+target probands share relatives. If related targets are retained, an ordinary LMM
+is not a blanket calibration guarantee: family-history phenotypes can carry extra
+dependence, while the combination of severe case-control imbalance with
+low-frequency variants can distort Gaussian-tail tests. Verify calibration under
+the actual design and use an association method that represents those features
+when needed
+([Hujoel et al. 2020](https://doi.org/10.1038/s41588-020-0613-6);
+[Zhuang et al. 2022](https://doi.org/10.1093/bioinformatics/btac459)). The estimate
+is centered on the population mean, but in an ascertained sample it may not be
+mean-zero until you center/residualize.
 
 ```python
 # Xs: (n_indiv, m_snp) column-standardized genotypes, aligned to res.pids

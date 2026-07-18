@@ -7,19 +7,22 @@ for model and inference-engine comparisons.
 
 ## Where things stand
 
-ltpred is a from-scratch Python port of LT-FH++. It provides two interchangeable
-inference engines for posterior-mean genetic liability:
+ltpred is a from-scratch Python port of LT-FH++. For ordinary liability bounds it
+provides two alternative inference engines for posterior-mean genetic liability:
 
 - **Gibbs** — a truncated-multivariate-normal sampler (Rcpp port) with
   batch-means convergence.
 - **Pearson–Aitken (PA)** — a deterministic selection-formula sweep. Its optional
-  PA-FGRS extension adds the age-censored-control mixture. PA agrees with Gibbs
-  to correlation ≥0.997 across the benchmark grid and ran 315–510× faster in the
-  controlled 10-thread timing benchmark.
+  PA-FGRS extension adds the age-censored-control mixture. On the **no-mixture**
+  benchmark grid, PA and Gibbs posterior-mean estimates had correlation ≥0.997,
+  and PA ran 315–510× faster in the controlled 10-thread timing benchmark. The
+  PA-only mixture was not part of that comparison.
 
 Both support classic LT-FH and personalised pinned bounds used as LT-FH++ with
-relatives or ADuLT without them. The PA-FGRS interval/censoring-mixture encoding
-is PA-only. Multi-trait estimation is Gibbs-only (PA is single-trait).
+relatives or ADuLT without them. The base PA-FGRS lifetime-case/censored-control-
+mixture encoding is PA-only; the convenience helpers also expose an age-specific
+interval-case variant that is not an exact implementation of PA-FGRS_ADT.
+Multi-trait estimation is Gibbs-only (PA is single-trait).
 
 **Performance and scale.** The core is Numba-JIT'd and `prange`-parallel, with
 families grouped by structure (canonical form). Streaming batch-means keeps
@@ -72,13 +75,14 @@ outlier; score correlation changed little while scale moved under the tested wro
 settings), **cohort
 confounding / `λ_GC`** (personalised thresholds removed the tested
 threshold-misspecification inflation after ordinary covariate adjustment), and
-**PA robustness / fold-order** (PA tracks Gibbs to corr ≥ 0.998 on stressful
-pedigrees). Real-LD runs go through an opt-in HAPNEST path.
+  **PA robustness / fold-order** (under no-mixture bounds, PA and Gibbs
+  posterior-mean estimates had
+correlation ≥ 0.998 on stressful pedigrees). Real-LD runs go through an opt-in
+HAPNEST path.
 
 **Docs.** README, a user guide, and an algorithm/model doc (with the
 BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
-connection, and the environmental-covariance extension), plus `CITATION.cff`
-(20 references).
+connection, and the environmental-covariance extension), plus `CITATION.cff`.
 
 The full test suite passes (`pytest`), with CI running it and the `ruff` gate on
 Python 3.9 and 3.12.
@@ -206,8 +210,9 @@ likelihood-based inference) to the pedigree/registry setting.
    cohort-blind (single-K) thresholds **inflate `λ_GC`** under a secular prevalence
    trend while the cohort-aware family ablation stays near 1 on average;
    `bench_pa_robustness.py`
-   confirms **PA tracks Gibbs to corr ≥ 0.998** on large/rare/densely-affected
-   pedigrees, with median fold-order spread below 0.12% and p95 below 3.4% of the
+   confirms **correlation ≥ 0.998 between PA and Gibbs posterior-mean estimates**
+   on large/rare/densely-affected no-mixture pedigrees, with median fold-order spread below
+   0.12% and p95 below 3.4% of the
    between-proband SD; `bench_ltfhpp_personalization.py` is the integrated genotype-GWAS
    benchmark with age-, sex-, and cohort-specific CIP, onset/follow-up, competing
    mortality, ascertainment, and stratified null variants. Its matched ADuLT arm

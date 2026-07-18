@@ -1,16 +1,21 @@
 # ltpred
 
-**ltpred** is a Python implementation of **LT-FH++**, the liability-threshold
-model conditioned on family history and age of onset (sex and cohort effects enter
-through the sex/cohort-specific thresholds or cumulative-incidence proportions
-(CIPs) you supply). It is a faithful
+**ltpred** is a Python implementation of **LT-FH++**, extending the original
+**LT-FH** family-history phenotype
+([Hujoel et al. 2020, *Nature Genetics*](https://doi.org/10.1038/s41588-020-0613-6))
+with age of onset (sex and cohort effects enter through the sex/cohort-specific
+thresholds or cumulative-incidence proportions (CIPs) you supply). It is a faithful
 port of the R package [LTFHPlus](https://github.com/EmilMiP/LTFHPlus)
 ([Pedersen et al. 2022, AJHG](https://doi.org/10.1016/j.ajhg.2022.01.009); the
 family-free age-dependent variant, ADuLT, in
 [Pedersen et al. 2023, Nat Commun](https://www.nature.com/articles/s41467-023-41210-z)),
 and it also ships a deterministic **Pearson–Aitken (PA)** inference engine plus the
-optional PA-FGRS censoring model
-([Krebs et al. 2024, AJHG](https://pubmed.ncbi.nlm.nih.gov/39471805/)).
+PA-specific, optional PA-FGRS censoring model
+([Dybdahl Krebs et al. 2024, AJHG](https://doi.org/10.1016/j.ajhg.2024.09.009)).
+The published base PA-FGRS model uses lifetime-threshold case intervals and an
+age-censored-control mixture; the age-specific case-interval convenience helpers
+are documented separately as a PA-FGRS-style variant, not as an exact
+implementation of the paper's PA-FGRS_ADT specification.
 
 Given each individual's case/control status, age and their relatives' statuses,
 ltpred estimates with Gibbs—or sequentially approximates with PA—the **posterior
@@ -23,6 +28,16 @@ observations are treated as intervals on latent liabilities, which are projected
 onto the proband's additive genetic value the way a breeding value is predicted
 from relatives (see
 [algorithm.md](docs/algorithm.md#connection-to-selection-index-and-blup)).
+
+The result is not itself a SNP polygenic score. Combining family-derived and
+genotype-derived predictors is a separate downstream model; see
+[Hujoel et al. 2022, *Cell Genomics*](https://doi.org/10.1016/j.xgen.2022.100152)
+and the direct PA-FGRS/PGS analysis and theory in
+[Dybdahl Krebs et al. 2026, *AJHG*](https://doi.org/10.1016/j.ajhg.2025.11.016).
+Conditioning on the proband's own diagnosis is appropriate when constructing a
+GWAS phenotype from that diagnosis. For prospective disease prediction or
+classification, omit the proband's role `o` or give it uninformative
+`(-inf, inf)` bounds; otherwise the outcome being predicted leaks into the score.
 
 ## Documentation
 
@@ -53,9 +68,10 @@ liability-threshold model:
    **Pearson–Aitken** (PA) engine turns the covariance and
    intervals into an estimate of the posterior mean of the proband's genetic (`g`)
    and/or full (`o`) liability. PA has no Monte-Carlo error, but retains sequential
-   approximation error, and ran 315–510× faster in the
-   controlled 10-thread benchmark; the two agree on the `genetic` score to
-   corr ≥ 0.997 on the benchmarked structures.
+   approximation error, and ran 315–510× faster in the controlled 10-thread,
+   **no-mixture** benchmark; PA and Gibbs `genetic` posterior-mean estimates had
+   correlation ≥ 0.997 on those benchmarked structures. The PA-FGRS censoring
+   mixture is PA-only and was not part of that comparison.
 
 See [estimation](docs/estimation.md#choosing-gibbs-vs-pearsonaitken) for how to choose,
 and [algorithm.md](docs/algorithm.md) for the math and the performance internals
@@ -89,7 +105,8 @@ sim = simulate_under_LTM_single(
 )
 
 # PA approximation to posterior mean genetic liability per proband. This is an
-# age-only family example; full LT-FH++ uses sex/birth-cohort-stratified CIPs.
+# age-only, no-mixture family example for GWAS-phenotype construction; full
+# LT-FH++ uses sex/birth-cohort-stratified CIPs.
 # The deterministic, fast PA inference engine is the single-trait default.
 pa = estimate_liability(sim.families, h2=0.5)
 pa.est["genetic"]      # (n_families,) PA approximations to posterior means
@@ -99,7 +116,7 @@ pa.var["genetic"]      # PA moment approximations to conditional variances
 # ...or the Gibbs truncated-MVN sampler as a sampling-based cross-check.
 gibbs = estimate_liability(sim.families[:200], h2=0.5, method="gibbs",
                            tol=0.03, n_sim=25_000, burn_in=800, seed=1)
-gibbs.est["genetic"]   # agrees with PA to ~1e-2
+gibbs.est["genetic"]   # agrees with PA to ~1e-2 in this no-mixture example
 ```
 
 ### Bring your own data
@@ -142,6 +159,11 @@ genetic correlation (`fit_genetic_correlation`) and its common-factor model
 (`bootstrap_fit`) and h² sensitivity
 (`liability_sensitivity`).
 
+The high-level arbitrary-kinship estimator accepts `A` plus `lower`/`upper` only;
+it does not accept `K_i`, `K_pop`, or `use_mixture`. Use the role/object estimator
+for the PA-FGRS censoring mixture (or a covariance-level PA API if you assemble all
+arrays yourself).
+
 The high-level predictor currently uses the additive `A` covariance only. Fitted
 `C`/`M` components can be studied and tested, but are not yet wired back into
 `estimate_liability`; low-level covariance APIs are required for that extension.
@@ -164,12 +186,13 @@ relatives: it reaches a 1.049 ± 0.004× adjusted causal-SNP NCP ratio, versus
 prespecified sex-CIP panel separately shows removal of a
 0.05091 ± 0.00096 female–male score-error gap, while its adjusted power increment
 remains unresolved. In the replicated classic-LT-FH GWAS, PA and Gibbs both
-reach a 1.47 ± 0.04× causal-SNP NCP ratio. Across matched bounds, PA tracks
-Gibbs to corr ≥ 0.997. See
+reach a 1.47 ± 0.04× causal-SNP NCP ratio. Across matched **no-mixture** bounds,
+their posterior-mean estimates had correlation ≥ 0.997. These PA–Gibbs claims do
+not validate the PA-only censoring mixture. See
 [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md); real-LD runs use
 [HAPNEST](benchmarks/hapnest/README.md) genotypes (opt-in).
 
 ## License
 
-[MIT](LICENSE). Please cite the LT-FH++, ADuLT and PA-FGRS papers
-(linked above) and this repository; see [CITATION.cff](CITATION.cff).
+[MIT](LICENSE). Please cite the method(s) used and this repository; see
+[CITATION.cff](CITATION.cff) for curated method and related-work references.

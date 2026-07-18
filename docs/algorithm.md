@@ -1,9 +1,11 @@
 # Algorithm and model
 
 ltpred implements classic LT-FH, personalised LT-FH++ with family history,
-family-free ADuLT, and the PA-FGRS censoring variant. Gibbs and deterministic
-Pearson–Aitken are inference engines, not additional model names. This page
-describes the models and engines. See [guide.md](guide.md) for usage.
+family-free ADuLT, and the PA-FGRS lifetime-case/censored-control model. Its
+convenience helpers also expose an age-specific interval-case variant. Gibbs and
+deterministic Pearson–Aitken are alternative inference engines for LT-FH,
+LT-FH++ and ADuLT; PA-FGRS is PA-specific by definition and implementation.
+This page describes the models and engines. See [guide.md](guide.md) for usage.
 
 ## The liability-threshold model
 
@@ -20,7 +22,8 @@ when `l_o` exceeds a threshold `T`. With a single population prevalence `K`,
 `T = Phi^-1(1 - K)`.
 
 The goal is `E[l_g | data]` for a proband — a graded genetic score — where `data`
-is the case/control status (and age) of the proband and their relatives.
+contains selected case/control statuses (and ages) from the proband and/or their
+relatives. The proband's own status is optional conditioning information.
 
 ## Family covariance
 
@@ -57,6 +60,12 @@ even when `A_ii > 1`; for non-inbred pedigrees the scaling is a no-op. This
 reproduces the role-grammar covariance entry-for-entry where they overlap and
 additionally covers half-sibs of any degree, cousins and inbred pedigrees;
 `estimate_liability_from_kinship` runs PA by default or Gibbs on request.
+That high-level kinship API accepts only `lower`/`upper`; it has no `K_i`, `K_pop`
+or `use_mixture` arguments and therefore does not implement PA-FGRS censoring.
+For upstream graph-based extraction of arbitrary-degree relatives from population
+trio records, see [Pedersen et al. (2025)](https://doi.org/10.3389/fgene.2025.1708315);
+ltpred starts from the resulting specified pedigree rather than discovering the
+relatives itself.
 
 This is an **additive-genetic** model: familial resemblance is entirely genetic
 sharing. Shared environment, household/cultural transmission, assortative mating
@@ -214,6 +223,12 @@ E[l_F | l_F in C_F]
 E[g | family data]
 ```
 
+Here `C_F` may include the proband's own interval when the score is deliberately a
+GWAS phenotype derived from that diagnosis. It must exclude, or leave unbounded,
+the proband's interval when the same diagnosis is the outcome of a prospective
+prediction/classification evaluation; otherwise the conditioning set contains the
+answer.
+
 So the method is **BLUP-like only after conditioning on latent liabilities**.
 Classical BLUP is linear in observed continuous phenotypes; here the binary /
 censored observations define truncation intervals, so the exact posterior mean is
@@ -256,9 +271,10 @@ target an individual's **absolute disease risk** for screening; `ltpred` targets
 the **posterior mean additive genetic liability of the proband** — a
 breeding-value-style score and a GWAS phenotype (the [BLUP framing](#connection-to-selection-index-and-blup)
 above). LT-FH++ and ADuLT share personalised age/onset/sex/cohort thresholds.
-LT-FH++ conditions on relatives; ADuLT uses only the index person. PA-FGRS adds
-its interval-case and censored-control-mixture encoding. Gibbs and
-Pearson–Aitken are the inference engines applied to those inputs.
+LT-FH++ conditions on relatives; ADuLT uses only the index person. Base PA-FGRS
+uses lifetime-threshold intervals for observed cases and an age-censored-control
+mixture with Pearson–Aitken. Gibbs and Pearson–Aitken can both be applied to the
+LT-FH/LT-FH++/ADuLT bounds; ltpred's PA-FGRS mixture has no Gibbs implementation.
 
 ## Thresholds: status, age, onset — and personalisation by sex and birth cohort
 
@@ -277,25 +293,36 @@ age and demographics map person `i` to an interval:
 - **control** at current age `c_i`:  `l_i ∈ (-inf, T_i(c_i)]` — the "lived-through-risk"
   bound: an older disease-free person has cleared a *lower* threshold, i.e. stronger
   evidence of low liability;
-- **case** with onset age `a_i`:  liability **pinned** at `T_i(a_i)` (`lower == upper`;
-  PA-FGRS instead uses the interval `[T_i(a_i), inf)`). Younger onset ⇒ lower CIP ⇒
-  higher threshold ⇒ more extreme liability. The map is invertible
+- **case** with onset age `a_i`: LT-FH++ and ADuLT **pin** liability at `T_i(a_i)`
+  (`lower == upper`). Younger onset ⇒ lower CIP ⇒ higher threshold ⇒ more extreme
+  liability. The map is invertible
   (`convert_liability_to_aoo` ↔ `convert_age_to_thresh`), so `T_i(a_i)` *equals* the
-  case's liability at onset.
+  case's liability at onset. Base PA-FGRS instead uses the lifetime interval
+  `[T_pop, inf)`, where `T_pop = Φ⁻¹(1 − K_pop)`. The current `pa_thresholds` and
+  `thresholds_from_cip(..., case_mode="interval")` helpers use
+  `[T_i(a_i), inf)` and therefore define an age-dependent PA-FGRS-style variant,
+  not the paper's base case encoding.
 
-Age, sex and birth cohort enter **only through `K(t; s, b)`** — i.e. only through the
-interval edge `T_i`, never the covariance `Sigma`. What ltpred ships:
+For **LT-FH++ and ADuLT**, age, sex and birth cohort enter **only through
+`K(t; s, b)` and its interval edge `T_i`**, never the covariance `Sigma`. In base
+PA-FGRS, a control's age/stratum instead enters the mixture through `K_i`; the case
+threshold remains the lifetime threshold. What ltpred ships:
 
 | helper | CIP model | strata | family context |
 |---|---|---|---|
 | `prevalence_thresholds` | one lifetime prevalence `K` → `T = Phi^-1(1-K)` | none | relatives: classic LT-FH |
 | `age_thresholds` | logistic `K / (1 + exp((mid_point - age)·slope))` | age only, single `K` | pinned tutorial encoding; model depends on rows |
-| `pa_thresholds` | same logistic demo CIP | age only, single `K` | PA-FGRS interval/mixture inputs; not the PA engine switch |
-| `thresholds_from_cip` | an **empirical** CIP curve you supply, **called once per stratum** | sex × birth year × ancestry | relatives: full LT-FH++; proband only: ADuLT |
+| `pa_thresholds` | same logistic demo CIP | age only, single `K` | age-dependent interval/mixture variant; not base PA-FGRS, exact PA-FGRS_ADT, or the PA engine switch |
+| `thresholds_from_cip` | an **empirical** CIP curve you supply, **called once per stratum** | sex × birth year × ancestry | `case_mode="pin"`: LT-FH++ with relatives or ADuLT without; `"interval"`: age-dependent PA-FGRS-style variant, not exact PA-FGRS_ADT |
 
 The same personalised CIP therefore feeds two models: relative observations make
 it LT-FH++; their absence makes it ADuLT. A threshold helper cannot decide that
 for you.
+
+For paper-faithful base PA-FGRS, use lifetime case/control bounds from
+`prevalence_thresholds`, attach the control-specific `K_i` and `K_pop` calculated
+from the appropriate CIP, and run PA with `use_mixture=True`. In that model age
+enters the control mixture weight; it does not change an observed case's threshold.
 
 **"Single-`K`"** is context-dependent in the benchmark labels. Classic LT-FH uses
 one lifetime threshold and ignores age. The cohort-blind ablation in
@@ -381,12 +408,20 @@ multivariate normal. Pearson–Aitken keeps only the updated first two moments a
 proceeds as if the remaining variables were Gaussian with those moments. Hence it
 is **exact for a single truncation** (and for exact Gaussian conditioning on
 point-pinned variables), but an approximation for multiple interval observations —
-the standard sequential-selection approximation, which matches the Gibbs posterior
-to corr ≥ 0.997 on realistic families while running 315–510× faster in the
-controlled 10-thread benchmark. Same grouping / `prange` structure as the Gibbs
-path.
+the standard sequential-selection approximation. Aitken's relevant source is his
+multivariate-normal selection note, not his generalized-least-squares paper
+([Aitken 1935](https://doi.org/10.1017/S0013091500008063)); Mendell & Elston
+applied this result sequentially to multifactorial threshold traits
+([1974, *Biometrics*](https://pubmed.ncbi.nlm.nih.gov/4813384/)). On ltpred's
+separately observed family-member intervals **without the censoring mixture**, PA
+and Gibbs posterior-mean estimates had correlation ≥ 0.997 while PA ran
+315–510× faster in the controlled 10-thread benchmark. The PA-only mixture was
+not part of this comparison. Same grouping / `prange` structure as the Gibbs path.
 
-### PA-FGRS censored-control mixture (optional)
+### Base PA-FGRS: lifetime cases and censored controls
+
+An observed case contributes the lifetime interval
+`[Φ⁻¹(1 − K_pop), inf)`. Age-specific incidence is used for censored controls:
 
 `tnorm_mixture_conditional` extends the truncated moments for **age-censored
 controls**: someone unaffected only up to their current follow-up is a mixture of
@@ -613,20 +648,50 @@ threshold — go back to Wright, Dempster & Lerner (1950), Falconer (1965) and
 Gianola (1982). Their continuous-trait analogue is **selection-index / BLUP**
 prediction of additive genetic value from relatives' phenotypes and a relationship
 matrix (Hazel 1943; Henderson 1975; the animal model, and its genomic-relationship
-extensions, VanRaden 2008). **LT-FH** (Hujoel 2020) adapts the threshold model to
-case-control GWAS by using the posterior mean genetic liability as the phenotype;
-**LT-FH++** (Pedersen 2022) adds personalised age-, birth-year- and sex-dependent
-prevalence to family-history liability; **ADuLT** (Pedersen 2023) uses the same
+extensions, VanRaden 2008). Liu et al. introduced **GWAX**, coding affected
+relatives through a binary proxy phenotype
+([2017, *Nat Genet*](https://doi.org/10.1038/ng.3766)).
+**LT-FH** ([Hujoel et al. 2020](https://doi.org/10.1038/s41588-020-0613-6))
+instead adapts the threshold model to case-control GWAS by using the posterior mean
+genetic liability as a configuration-specific phenotype. **LT-FH++**
+([Pedersen et al. 2022](https://doi.org/10.1016/j.ajhg.2022.01.009)) adds
+personalised age-, birth-year- and sex-dependent prevalence; **ADuLT**
+([Pedersen et al. 2023](https://doi.org/10.1038/s41467-023-41210-z)) uses the same
 personalised construction without family history as an alternative to time-to-event
-GWAS; and **PA-FGRS** (Krebs 2024) gives a deterministic
-Pearson–Aitken approximation for large, age-censored genealogies.
+GWAS; and **PA-FGRS**
+([Dybdahl Krebs et al. 2024](https://doi.org/10.1016/j.ajhg.2024.09.009)) gives a
+deterministic Pearson–Aitken approximation for large, age-censored genealogies.
 
 Core methods:
 
-- Hujoel et al. 2020, *Nat Genet* — LT-FH.
-- Pedersen et al. 2022, *AJHG* — LT-FH++ (flexible pedigrees, age, sex).
-- Pedersen et al. 2023, *Nat Commun* — ADuLT (family-free personalised threshold).
-- Krebs et al. 2024, *AJHG* — PA-FGRS (Pearson–Aitken family genetic risk scores).
+- [Hujoel et al. 2020, *Nat Genet*](https://doi.org/10.1038/s41588-020-0613-6) —
+  LT-FH.
+- [Pedersen et al. 2022, *AJHG*](https://doi.org/10.1016/j.ajhg.2022.01.009) —
+  LT-FH++ (personalised thresholds for first-degree relatives). The simulation
+  panels used parents plus zero to two siblings; that was a simulation design, not
+  a method limit. ltpred's arbitrary-pedigree path extends beyond the 2022 LT-FH++
+  publication.
+- [Pedersen et al. 2023, *Nat Commun*](https://doi.org/10.1038/s41467-023-41210-z)
+  — ADuLT (family-free personalised threshold).
+- [Dybdahl Krebs et al. 2024, *AJHG*](https://doi.org/10.1016/j.ajhg.2024.09.009)
+  — PA-FGRS (Pearson–Aitken family genetic risk scores).
+
+Related family-history methods and interpretation:
+
+- [Liu, Erlich & Pickrell 2017, *Nat Genet*](https://doi.org/10.1038/ng.3766) —
+  GWAX, the binary proxy-case precursor; it is a comparator, not implemented here.
+- [Kendler et al. 2021, *JAMA Psychiatry*](https://doi.org/10.1001/jamapsychiatry.2021.0336)
+  — a distinct register-standardised FGRS, also not implemented here.
+- [Hujoel et al. 2022, *Cell Genomics*](https://doi.org/10.1016/j.xgen.2022.100152)
+  — target-population risk prediction combining a PRS with family history; this is
+  downstream of, and separate from, ltpred liability estimation.
+- [Dybdahl Krebs et al. 2026, *AJHG*](https://doi.org/10.1016/j.ajhg.2025.11.016)
+  — across five psychiatric disorders, PA-FGRS and PGS were weakly correlated yet
+  complementary, consistent with both being noisy estimates of the same additive
+  genetic liability under the paper's model.
+- [Pedersen et al. 2025, *Front Genet*](https://doi.org/10.3389/fgene.2025.1708315)
+  — graph-based extraction of arbitrary-degree relatives and kinship matrices from
+  population trio records; relevant upstream preprocessing, not PA validation.
 
 Threshold-model background:
 
@@ -649,12 +714,27 @@ Liability-threshold risk models (Sham and colleagues):
 
 Numerics:
 
-- Pearson 1903 / Aitken 1935 — the selection formula for conditioning a Gaussian.
+- Pearson 1903 and
+  [Aitken 1935](https://doi.org/10.1017/S0013091500008063) — the selection formula
+  for a multivariate-normal population.
+- [Mendell & Elston 1974, *Biometrics*](https://pubmed.ncbi.nlm.nih.gov/4813384/) —
+  sequential application to multifactorial threshold traits.
 - Tallis 1961, *JRSS B* — moments of the truncated multivariate normal.
 - Kotecha & Djurić 1999 — Gibbs sampling for truncated multivariate normals.
 - Genz & Bretz 2009, *Springer* — computation of multivariate normal probabilities
   (the GHK simulator behind the MCEM log-likelihood).
 - Lee et al. 2011, *AJHG* — observed-to-liability-scale heritability.
+
+Association and phenotype-quality cautions:
+
+- [Zhuang et al. 2022, *Bioinformatics*](https://doi.org/10.1093/bioinformatics/btac459)
+  — related family-history phenotypes, case-control imbalance and tail calibration.
+- [Wu et al. 2024, *Nat Genet*](https://doi.org/10.1038/s41588-024-01963-9) —
+  survival and participation bias in parental-history Alzheimer GWAX; a
+  disease-specific warning, not a universal indictment of family-history models.
+- [Cai et al. 2026, *Nat Genet*](https://doi.org/10.1038/s41588-025-02465-y) —
+  a Perspective arguing that shallow phenotypes can introduce heritable
+  confounding in psychiatric genetics.
 
 Multi-trait / genetic factor structure:
 
