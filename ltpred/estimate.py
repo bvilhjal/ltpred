@@ -28,7 +28,8 @@ import numpy as np
 
 from .covariance import (construct_covmat_single, construct_covmat_multi,
                          construct_covmat_from_kinship, correct_positive_definite)
-from .gibbs import gibbs_params, gibbs_estimate_batched, as_bounds
+from .gibbs import (gibbs_params, gibbs_estimate_batched, as_bounds, _MAX_SEED,
+                    _validate_seed)
 from .pearson_aitken import pa_estimate_batched
 
 __all__ = ["LiabilityResult", "batch_means", "estimate_liability",
@@ -195,7 +196,9 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
     active = np.arange(F)
     rnd = 0
     while active.size and rnd < max_rounds:
-        seeds = np.where(base_seeds[active] < 0, -1, base_seeds[active] + rnd)
+        # wrap again: the per-round offset can carry a base seed past uint32
+        seeds = np.where(base_seeds[active] < 0, -1,
+                         (base_seeds[active] + rnd) % (_MAX_SEED + 1))
         ts, s1, s2 = gibbs_estimate_batched(P, sd, sd0, lowers[active], uppers[active],
                                             out_idx, n_sim, burn_in, b, nb, seeds)
         still = []
@@ -265,9 +268,17 @@ def _group_by_structure(families):
 
 
 def _base_seeds(seed, n, max_rounds):
+    """Per-family base seeds; family ``i`` owns the block starting at ``i*max_rounds``
+    so each round of :func:`_estimate_group` gets its own stream.
+
+    ``-1`` is the kernel's *unseeded* sentinel. It must stay reachable only from
+    ``seed=None``: validating here keeps a user's negative seed from silently
+    landing on it (which would leave family 0 non-reproducible), and wrapping keeps
+    the derived block inside the uint32 range the kernel's RNG accepts."""
     if seed is None:
         return np.full(n, -1, dtype=np.int64)
-    return (seed + np.arange(n, dtype=np.int64) * max_rounds)
+    seed = _validate_seed(seed)
+    return (seed + np.arange(n, dtype=np.int64) * int(max_rounds)) % (_MAX_SEED + 1)
 
 
 def estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01,
@@ -377,8 +388,11 @@ def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
     fam_ids = np.empty(n, dtype=object)
     pids = np.empty(n, dtype=object)
 
-    for _key, idx in _group_by_structure(families):
-        roles = [m.role for m in families[idx[0]].members]
+    for role_key, idx in _group_by_structure(families):
+        # PA is a sequential approximation, so its fold order must be a property
+        # of the family structure rather than whichever member/family happened
+        # to arrive first. Bounds below are realigned by role name.
+        roles = list(role_key)
         cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
         cov, _ = correct_positive_definite(cov_obj.matrix)
         cov_roles = cov_obj.roles
@@ -447,7 +461,12 @@ def estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
                                          genetic_corrmat=genetic_corrmat,
                                          full_corrmat=full_corrmat,
                                          h2_vec=h2_vec, phen_names=phen_names)
-        cov, _ = correct_positive_definite(cov_obj.matrix)
+        cov, n_corrections = correct_positive_definite(cov_obj.matrix)
+        if n_corrections:
+            warnings.warn(
+                "The coherent multi-trait covariance was singular or numerically "
+                "singular and was nudged to strict positive definiteness for Gibbs "
+                "sampling.", RuntimeWarning, stacklevel=2)
         k_roles = len(cov_obj.roles) // n_pheno
         fam_roles = cov_obj.roles[:k_roles]
         o_pos = fam_roles.index("o") if "o" in fam_roles else None
@@ -509,7 +528,9 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
     roles = list(roles)
     lower = as_bounds(lower)                # keeps float32 if given, else float64
     upper = as_bounds(upper)
-    cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
+    # The PA fold is sequential. Canonicalise its covariance order while retaining
+    # ``roles`` as the column labels used to realign every caller-supplied array.
+    cov_obj = construct_covmat_single(fam_vec=sorted(roles), add_ind=True, h2=h2)
     cov, _ = correct_positive_definite(cov_obj.matrix)
     cov_roles = cov_obj.roles
     target = cov_roles.index("g") if _single_out(out) == 0 else cov_roles.index("o")
@@ -558,6 +579,10 @@ def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="gene
     batch of families, and the per-individual truncation bounds. ``lower``/``upper``
     are ``(n_families, n)`` (one column per pedigree member, in ``A`` order); the
     genetic-liability row for ``target`` is added internally and left unbounded.
+    Inbred members are standardised to unit marginal full-liability variance, and
+    the target's genetic contribution is scaled by its raw liability SD. Thus the
+    supplied standard-normal bounds retain their prevalence interpretation when
+    diagonal entries of ``A`` exceed one.
 
     ``out`` selects ``"genetic"`` (the target's genetic liability — the usual
     family-history GWAS phenotype) or ``"full"`` (its full liability). ``method=None`` uses the
@@ -619,8 +644,10 @@ def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",),
     sampler for the multi-trait model, which PA does not support. Pass ``method``
     explicitly to override: ``"pearson-aitken"`` (aliases ``"pa"``, ``"aitken"``;
     single trait only, ``use_mixture`` enables the age-censored-control correction) or
-    ``"gibbs"`` (the truncated-MVN sampler; needed for multiple traits, or when you
-    want a Monte-Carlo SE or posterior draws). An explicit ``method="pearson-aitken"``
+    ``"gibbs"`` (the truncated-MVN sampler; needed for multiple traits or a
+    Monte-Carlo SE). The high-level result contains posterior means and MC SEs,
+    not retained draws; call :func:`~ltpred.gibbs.rtmvnorm_gibbs` directly when
+    draws are required. An explicit ``method="pearson-aitken"``
     with a multi-trait request raises.
 
     Scalar ``h2`` -> single trait; a vector ``h2`` with ``genetic_corrmat`` and

@@ -22,6 +22,7 @@ in family-free ADuLT) and are held constant rather than resampled.
 
 from __future__ import annotations
 
+import operator
 import threading
 
 import numpy as np
@@ -32,12 +33,6 @@ from ._mathfun import _norm_cdf, _norm_ppf
 __all__ = ["rtmvnorm_gibbs", "gibbs_params", "gibbs_estimate_batched",
            "gibbs_advance"]
 
-# U(Fa, Fb) draws are clamped this far off {0, 1} before the inverse-CDF step so
-# a boundary draw (np.random.random() can return exactly 0.0) cannot map to an
-# infinite liability. Statistically negligible; the R/Rcpp code omits it only
-# because R's runif never returns its endpoints.
-_U_EPS = 1e-15
-
 # Numba's ``np.random`` state is tied to worker threads, so seeding the calling
 # thread cannot make a ``prange`` kernel scheduler-independent. Generate trusted
 # float64 uniforms here instead and pass them into a random-free kernel. The RNG
@@ -45,6 +40,35 @@ _U_EPS = 1e-15
 _advance_rng_state = threading.local()
 _MAX_ADVANCE_UNIFORMS = 1 << 20       # 8 MiB of float64 temporary storage
 _MAX_SEED = (1 << 32) - 1
+
+
+@_jit
+def _std_tnorm_quantile(a, b, u):
+    """Quantile of ``N(0, 1)`` truncated to ``[a, b]``.
+
+    In a positive tail, interpolating between ``Phi(a)`` and ``Phi(b)`` loses
+    the interval when both CDFs round to one.  Work on survival probabilities
+    instead and use normal symmetry, ``isf(q) = -ppf(q)``.  Lower-tail and
+    central intervals are safe on the ordinary CDF scale.  The final clamp only
+    guards the last-bit error of the inverse approximation; it never moves a
+    draw across a truncation boundary.
+    """
+    if a >= 0.0:
+        sa = _norm_cdf(-a)
+        sb = _norm_cdf(-b)
+        q = (1.0 - u) * sa + u * sb
+        x = -_norm_ppf(q)
+    else:
+        fa = _norm_cdf(a)
+        fb = _norm_cdf(b)
+        p = (1.0 - u) * fa + u * fb
+        x = _norm_ppf(p)
+
+    if x < a:
+        return a
+    if x > b:
+        return b
+    return x
 
 
 def gibbs_params(covmat):
@@ -88,14 +112,14 @@ def _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, n_sim, burn_in, res):
                 for i in range(d):
                     mu_j += P[i, j] * x[i]
                 sd_j = sd[j]
-                fa = _norm_cdf((lower[j] - mu_j) / sd_j)
-                fb = _norm_cdf((upper[j] - mu_j) / sd_j)
-                u = fa + np.random.random() * (fb - fa)
-                if u < _U_EPS:
-                    u = _U_EPS
-                elif u > 1.0 - _U_EPS:
-                    u = 1.0 - _U_EPS
-                x[j] = mu_j + sd_j * _norm_ppf(u)
+                a = (lower[j] - mu_j) / sd_j
+                b = (upper[j] - mu_j) / sd_j
+                z = _std_tnorm_quantile(a, b, np.random.random())
+                x[j] = mu_j + sd_j * z
+                if x[j] < lower[j]:
+                    x[j] = lower[j]
+                elif x[j] > upper[j]:
+                    x[j] = upper[j]
             if k >= 0 and to_return[j] >= 0:
                 res[k, to_return[j]] = x[j]
     return res
@@ -132,8 +156,8 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
         fixed = np.empty(d, dtype=np.bool_)
         for j in range(d):
             fixed[j] = (upper[j] - lower[j]) < 1e-8
-            p0 = (_norm_cdf(lower[j] / sd0[j]) + _norm_cdf(upper[j] / sd0[j])) * 0.5
-            xj = _norm_ppf(p0) * sd0[j]
+            xj = _std_tnorm_quantile(lower[j] / sd0[j],
+                                     upper[j] / sd0[j], 0.5) * sd0[j]
             x[j] = xj if np.isfinite(xj) else 0.0
 
         tot = np.zeros(ncols)
@@ -150,14 +174,14 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                     for i in range(d):
                         mu_j += P[i, j] * x[i]
                     sd_j = sd[j]
-                    fa = _norm_cdf((lower[j] - mu_j) / sd_j)
-                    fb = _norm_cdf((upper[j] - mu_j) / sd_j)
-                    u = fa + np.random.random() * (fb - fa)
-                    if u < _U_EPS:
-                        u = _U_EPS
-                    elif u > 1.0 - _U_EPS:
-                        u = 1.0 - _U_EPS
-                    x[j] = mu_j + sd_j * _norm_ppf(u)
+                    a = (lower[j] - mu_j) / sd_j
+                    b = (upper[j] - mu_j) / sd_j
+                    z = _std_tnorm_quantile(a, b, np.random.random())
+                    x[j] = mu_j + sd_j * z
+                    if x[j] < lower[j]:
+                        x[j] = lower[j]
+                    elif x[j] > upper[j]:
+                        x[j] = upper[j]
             if k >= 0:
                 for c in range(ncols):
                     v = x[out_idx[c]]
@@ -228,14 +252,14 @@ def _gibbs_advance(P, sd, lowers, uppers, fixed, x, uniforms):
                     for i in range(d):
                         mu_j += P[i, j] * x[f, i]
                     sd_j = sd[j]
-                    fa = _norm_cdf((lowers[f, j] - mu_j) / sd_j)
-                    fb = _norm_cdf((uppers[f, j] - mu_j) / sd_j)
-                    u = fa + uniforms[f, sweep, j] * (fb - fa)
-                    if u < _U_EPS:
-                        u = _U_EPS
-                    elif u > 1.0 - _U_EPS:
-                        u = 1.0 - _U_EPS
-                    x[f, j] = mu_j + sd_j * _norm_ppf(u)
+                    a = (lowers[f, j] - mu_j) / sd_j
+                    b = (uppers[f, j] - mu_j) / sd_j
+                    z = _std_tnorm_quantile(a, b, uniforms[f, sweep, j])
+                    x[f, j] = mu_j + sd_j * z
+                    if x[f, j] < lowers[f, j]:
+                        x[f, j] = lowers[f, j]
+                    elif x[f, j] > uppers[f, j]:
+                        x[f, j] = uppers[f, j]
 
 
 @_jit
@@ -244,13 +268,31 @@ def _seed_numba_rng(seed):
     np.random.seed(seed)
 
 
-def _seed_rng(seed):
-    """Seed serial and parallel sampler streams for reproducibility."""
+def _validate_seed(seed):
+    """Return a user-supplied ``seed`` as a plain in-range int, or raise.
+
+    The single gate for every public ``seed=`` argument that reaches a sampler, so
+    the estimator and the fitters accept exactly the same values. ``bool`` is a
+    subclass of ``int`` and is rejected on purpose: ``seed=True`` is a mistake, not
+    a request for stream 1."""
     if isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer)):
         raise TypeError(f"seed must be an integer in [0, {_MAX_SEED}]")
     seed = int(seed)
     if seed < 0 or seed > _MAX_SEED:
         raise ValueError(f"seed must be in [0, {_MAX_SEED}]")
+    return seed
+
+
+def _offset_seed(seed, offset):
+    """Derive a deterministic uint32 seed without overflowing its public range."""
+    if seed is None:
+        return None
+    return (operator.index(seed) + int(offset)) % (_MAX_SEED + 1)
+
+
+def _seed_rng(seed):
+    """Seed serial and parallel sampler streams for reproducibility."""
+    seed = _validate_seed(seed)
 
     # Construct first, then mutate the serial and parallel states only after all
     # validation has succeeded.
@@ -358,8 +400,10 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
     # start each coordinate at the median of its *marginal* truncated normal
     # (LTFHPlus's init); fixed coords collapse to their pinned value.
     sd0 = np.sqrt(np.diag(cov))
-    p0 = (_vec_norm_cdf(lower / sd0) + _vec_norm_cdf(upper / sd0)) / 2.0
-    x = _vec_norm_ppf(p0) * sd0
+    x = np.empty(d, dtype=np.float64)
+    for j in range(d):
+        x[j] = _std_tnorm_quantile(lower[j] / sd0[j],
+                                   upper[j] / sd0[j], 0.5) * sd0[j]
     x = np.ascontiguousarray(np.where(np.isfinite(x), x, 0.0), dtype=np.float64)
 
     if seed is not None:

@@ -307,6 +307,45 @@ def test_genetic_factor_no_structure_flags_zero_explained():
     assert r.prop_explained == pytest.approx(0.0, abs=1e-6)
 
 
+def _assert_coherent_factor_result(r):
+    expected = r.loadings @ r.loadings.T + np.diag(r.uniqueness)
+    assert np.allclose(r.fitted, expected, atol=1e-10)
+    assert np.allclose(np.diag(r.fitted), 1.0, atol=1e-10)
+    assert np.allclose(r.communality, np.sum(r.loadings ** 2, axis=1), atol=1e-10)
+    assert np.allclose(r.uniqueness, 1.0 - r.communality, atol=1e-10)
+    assert np.all(r.communality >= 0.0) and np.all(r.communality <= 1.0 + 1e-12)
+    assert np.all(r.uniqueness >= -1e-12)
+
+
+def test_genetic_factor_three_trait_incompatible_signs_leave_misfit():
+    from ltpred import fit_genetic_factor
+    # This is a valid PSD correlation matrix, but one real factor cannot reproduce
+    # the sign pattern: r12*r13*r23 < 0. Nominal df=0 does not make it exactly fit.
+    R = np.array([[1.0, 0.5, 0.5],
+                  [0.5, 1.0, -0.5],
+                  [0.5, -0.5, 1.0]])
+    assert np.min(np.linalg.eigvalsh(R)) > -1e-12
+    r = fit_genetic_factor(R)
+    _assert_coherent_factor_result(r)
+    assert np.all(np.isfinite(r.loadings))
+    assert r.df == 0
+    assert r.srmr > 0.1
+
+
+def test_genetic_factor_constrains_heywood_solution():
+    from ltpred import fit_genetic_factor
+    # The unconstrained exact solution has lambda_1^2 = .5*.5/.1 = 2.5. The
+    # admissible fit must put that communality on its boundary and retain misfit.
+    R = np.array([[1.0, 0.5, 0.5],
+                  [0.5, 1.0, 0.1],
+                  [0.5, 0.1, 1.0]])
+    assert np.min(np.linalg.eigvalsh(R)) > 0.0
+    r = fit_genetic_factor(R)
+    _assert_coherent_factor_result(r)
+    assert np.max(r.communality) == pytest.approx(1.0, abs=1e-8)
+    assert r.srmr > 0.01
+
+
 def test_genetic_factor_from_gencorrresult():
     # accepts a GenCorrResult directly, pulling rg and phen_names off it
     from ltpred import fit_genetic_factor
@@ -336,6 +375,27 @@ def test_genetic_factor_validates_input():
         fit_genetic_factor(np.eye(4), 1, phen_names=["a", "b"])
     with pytest.raises(ValueError, match="weights"):             # wrong-shape weights
         fit_genetic_factor(np.eye(4), 1, weights=np.ones((3, 3)))
+    with pytest.raises(ValueError, match="finite"):
+        bad = np.eye(4)
+        bad[0, 1] = bad[1, 0] = np.nan
+        fit_genetic_factor(bad)
+    with pytest.raises(ValueError, match="symmetric"):
+        bad = np.eye(4)
+        bad[0, 1] = 0.2
+        fit_genetic_factor(bad)
+    with pytest.raises(ValueError, match="diagonal"):
+        bad = np.eye(4)
+        bad[0, 0] = 0.0
+        fit_genetic_factor(bad)
+    with pytest.raises(ValueError, match="positive-semidefinite"):
+        bad = np.full((4, 4), 0.9)
+        np.fill_diagonal(bad, 1.0)
+        bad[0, 1] = bad[1, 0] = -0.9
+        fit_genetic_factor(bad)
+    with pytest.raises(ValueError, match="finite, symmetric, and non-negative"):
+        bad_weights = np.ones((4, 4))
+        bad_weights[0, 1] = -1.0
+        fit_genetic_factor(np.eye(4), weights=bad_weights)
 
 
 def test_bootstrap_fit_scalar_and_calibration():
@@ -555,6 +615,30 @@ def test_component_test_validates_and_rejects_pinned():
     pinned = [_pin_cases(fam) for fam in base]
     with pytest.raises(NotImplementedError, match="case/control"):
         test_variance_component(pinned, "C", n_boot=3, n_iter=50, burn_in=10)
+
+
+def test_significance_tests_reject_unverified_individualized_thresholds():
+    import importlib
+    fit_mod = importlib.import_module("ltpred.fit")
+
+    scalar = [Family(0, [Member("o", 0.5, np.inf)]),
+              Family(1, [Member("o", -np.inf, 1.0)])]
+    with pytest.raises(ValueError, match="fixed independently of observed status"):
+        fit_mod.test_variance_component(scalar, "C", n_boot=1)
+    # The explicit assertion permits bounds made from external baseline covariates.
+    fit_mod._assert_case_control_bounds(
+        scalar, thresholds_are_status_independent=True)
+
+    multi = [Family(0, [Member("o", [0.5, -np.inf], [np.inf, 1.5])]),
+             Family(1, [Member("o", [-np.inf, 0.8], [1.0, np.inf])])]
+    with pytest.raises(ValueError, match="never age at onset"):
+        fit_mod.test_genetic_correlation(multi, n_boot=1)
+    fit_mod._assert_case_control_bounds(
+        multi, thresholds_are_status_independent=True)
+
+    malformed = [Family(0, [Member("o", np.inf, np.inf)])]
+    with pytest.raises(NotImplementedError, match="case/control"):
+        fit_mod._assert_case_control_bounds(malformed)
 
 
 def test_genetic_correlation_test_detects_rg():

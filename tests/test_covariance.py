@@ -86,6 +86,33 @@ def test_multi_covmat_blocks():
     assert m[1, 4] == pytest.approx(0.5)
 
 
+def test_multi_covmat_rejects_incoherent_genetic_environment_split():
+    # R_g and R_p are each valid correlation matrices, but together with h2 they
+    # imply E = R_p - D R_g D with a negative eigenvalue.
+    rg = np.array([[1.0, 0.9], [0.9, 1.0]])
+    rp = np.array([[1.0, 0.1], [0.1, 1.0]])
+    with pytest.raises(ValueError, match="incoherent"):
+        construct_covmat_multi(fam_vec=["m"], h2_vec=[0.8, 0.8],
+                               genetic_corrmat=rg, full_corrmat=rp)
+
+
+@pytest.mark.parametrize(
+    "name,matrix,match",
+    [
+        ("genetic_corrmat", np.array([[1.0, 0.2], [0.1, 1.0]]), "symmetric"),
+        ("full_corrmat", np.array([[0.9, 0.0], [0.0, 1.0]]), "unit diagonal"),
+        ("genetic_corrmat", np.array([[1.0, 1.2], [1.2, 1.0]]),
+         "positive semi-definite"),
+    ],
+)
+def test_multi_covmat_validates_correlation_matrices(name, matrix, match):
+    kwargs = dict(h2_vec=[0.2, 0.2], genetic_corrmat=np.eye(2),
+                  full_corrmat=np.eye(2))
+    kwargs[name] = matrix
+    with pytest.raises(ValueError, match=match):
+        construct_covmat_multi(fam_vec=["m"], **kwargs)
+
+
 def test_construct_covmat_dispatch():
     single = construct_covmat(fam_vec=["m"], h2=0.5)
     assert single.phen_names is None
@@ -207,10 +234,12 @@ def test_covmat_from_kinship_scales_inbred_target_genetic_variance():
 
     cov = construct_covmat_from_kinship(A, h2=h2, target=target).matrix
 
-    expected = h2 * A[target, target]
-    assert expected == pytest.approx(1.0)
+    raw_genetic_var = h2 * A[target, target]
+    raw_liability_var = 1.0 + h2 * (A[target, target] - 1.0)
+    expected = raw_genetic_var / raw_liability_var
     assert cov[0, 0] == pytest.approx(expected)
     assert cov[0, 1 + target] == pytest.approx(expected)
+    assert np.allclose(np.diag(cov)[1:], 1.0)
     assert np.min(np.linalg.eigvalsh(cov)) > 0.0
 
 

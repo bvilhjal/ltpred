@@ -47,7 +47,7 @@ import numpy as np
 
 from ._mathfun import norm_cdf, norm_ppf
 from .covariance import get_relatedness, correct_positive_definite
-from .gibbs import gibbs_params, gibbs_advance, _seed_rng
+from .gibbs import gibbs_params, gibbs_advance, _offset_seed, _seed_rng
 from .estimate import _group_by_structure, batch_means
 from .family import Family, Member
 
@@ -62,13 +62,6 @@ _PARENT = re.compile(r"[mf]")
 _AVUNC = re.compile(r"[mp]au\d*")
 _MAT_AVUNC = re.compile(r"mau\d*")         # mother's full sibs
 _PAT_AVUNC = re.compile(r"pau\d*")         # father's full sibs
-
-
-def _offset_seed(seed, offset):
-    """Derive a deterministic uint32 seed without overflowing its public range."""
-    if seed is None:
-        return None
-    return (operator.index(seed) + int(offset)) % (1 << 32)
 
 
 def _is_full_sib(a, b):
@@ -913,8 +906,8 @@ class FactorResult:
     ``loadings`` is the ``(P, n_factors)`` matrix ``Λ`` of standardised factor
     loadings (each trait's correlation with a latent genetic factor). ``communality``
     is the per-trait proportion of *genetic* variance explained by the common
-    factor(s) — the row sums of ``Λ²``, clipped to ``[0, 1]`` — and ``uniqueness = 1
-    − communality`` the trait-specific genetic residual. ``fitted`` is the
+    factor(s) — the row sums of ``Λ²``, constrained to ``[0, 1]`` — and
+    ``uniqueness = 1 − communality`` the trait-specific genetic residual. ``fitted`` is the
     model-implied correlation ``Λ Λ' + diag(Ψ)`` (diagonal 1) and ``residual`` the
     misfit ``r_g − fitted``, whose **off-diagonal** is what the fit targets.
 
@@ -923,9 +916,10 @@ class FactorResult:
     genetic correlations well, so one general genetic axis suffices.
     ``prop_explained`` is the fraction of the off-diagonal genetic-correlation
     structure the factor(s) capture. ``df = ½((P − m)² − (P + m))`` is the model
-    degrees of freedom; at ``df = 0`` (e.g. one factor on three traits) the model is
-    **just-identified** and ``srmr`` is ~0 by construction, so it cannot test fit —
-    need ``P ≥ 4`` for a one-factor test.
+    nominal degrees of freedom. At ``df = 0`` (e.g. one factor on three traits), an
+    admissible solution is just-identified, but incompatible correlation signs or a
+    Heywood solution can put the optimum on the communality boundary and leave
+    non-zero residual misfit. Use ``P ≥ 4`` for an over-identified one-factor test.
 
     For ``n_factors > 1`` the ``loadings`` are the unrotated (MINRES) orientation:
     ``communality``, ``fitted`` and ``srmr`` are rotation-invariant, but the
@@ -973,6 +967,43 @@ def _minres_loadings(R, m, W, max_iter, tol):
     res = minimize(obj_grad, L0.ravel(), jac=True, method="L-BFGS-B",
                    options=dict(maxiter=int(max_iter), gtol=float(tol), ftol=1e-14))
     L = res.x.reshape(P, m)
+    # Unconstrained MINRES can obtain an exact off-diagonal fit only by assigning a
+    # trait more than 100% common variance (a Heywood solution), or can run to
+    # enormous loadings for an incompatible-sign three-trait matrix. In that case,
+    # refit on the admissible set ||L_i||² <= 1. SLSQP handles the row-wise quadratic
+    # constraints; ordinary admissible fits keep the faster L-BFGS-B solution above.
+    if np.any(np.sum(L * L, axis=1) > 1.0 + max(float(tol), 1e-8)):
+        def constraints(vec):
+            rows = vec.reshape(P, m)
+            return 1.0 - np.sum(rows * rows, axis=1)
+
+        def constraints_jac(vec):
+            rows = vec.reshape(P, m)
+            jac = np.zeros((P, P * m))
+            for i in range(P):
+                jac[i, i * m:(i + 1) * m] = -2.0 * rows[i]
+            return jac
+
+        start = np.array(L, copy=True)
+        norms = np.sqrt(np.sum(start * start, axis=1))
+        outside = norms > 1.0
+        start[outside] /= norms[outside, None]
+        constrained = minimize(
+            obj_grad, start.ravel(), jac=True, method="SLSQP",
+            bounds=[(-1.0, 1.0)] * (P * m),
+            constraints={"type": "ineq", "fun": constraints,
+                         "jac": constraints_jac},
+            options=dict(maxiter=int(max_iter), ftol=float(tol)))
+        if not constrained.success:
+            raise RuntimeError("constrained MINRES factor fit did not converge: "
+                               f"{constrained.message}")
+        L = constrained.x.reshape(P, m)
+
+    # Remove tiny feasibility violations left by the numerical optimizer. This is
+    # only a round-off projection; substantive inadmissibility was handled above.
+    norms = np.sqrt(np.sum(L * L, axis=1))
+    outside = norms > 1.0
+    L[outside] /= norms[outside, None]
     for k in range(m):                             # deterministic sign per factor
         if L[np.argmax(np.abs(L[:, k])), k] < 0:
             L[:, k] *= -1.0
@@ -1023,6 +1054,16 @@ def fit_genetic_factor(genetic, n_factors=1, *, phen_names=None, weights=None,
         M = np.asarray(genetic, dtype=float)
     if M.ndim != 2 or M.shape[0] != M.shape[1]:
         raise ValueError("genetic must be a square (P, P) matrix or a GenCorrResult")
+    if not np.all(np.isfinite(M)):
+        raise ValueError("genetic matrix must contain only finite values")
+    if not np.allclose(M, M.T, rtol=1e-7, atol=1e-10):
+        raise ValueError("genetic matrix must be symmetric")
+    if np.any(np.diag(M) <= 0.0):
+        raise ValueError("genetic matrix diagonal must be strictly positive")
+    eig = np.linalg.eigvalsh(M)
+    psd_tol = 1e-8 * max(1.0, float(np.max(np.abs(eig))))
+    if eig[0] < -psd_tol:
+        raise ValueError("genetic matrix must be positive-semidefinite")
     P = M.shape[0]
     m = int(n_factors)
     if m < 1:
@@ -1042,19 +1083,23 @@ def fit_genetic_factor(genetic, n_factors=1, *, phen_names=None, weights=None,
         weights = np.asarray(weights, dtype=float)
         if weights.shape != (P, P):
             raise ValueError("weights must be a (P, P) matrix")
+        if (not np.all(np.isfinite(weights)) or
+                not np.allclose(weights, weights.T, rtol=1e-7, atol=1e-10) or
+                np.any(weights < 0.0)):
+            raise ValueError("weights must be finite, symmetric, and non-negative")
 
     M = 0.5 * (M + M.T)                             # symmetrise, then standardise
     input_correlation = bool(np.allclose(np.diag(M), 1.0, atol=1e-6))
-    d = np.sqrt(np.clip(np.diag(M), 1e-12, None))
+    d = np.sqrt(np.diag(M))
     R = M / np.outer(d, d)
     np.fill_diagonal(R, 1.0)
+    if np.linalg.eigvalsh(R)[0] < -1e-8:
+        raise ValueError("standardised genetic matrix must be positive-semidefinite")
 
     L = _minres_loadings(R, m, weights, max_iter, tol)
-    comm_raw = np.sum(L * L, axis=1)               # row sums of Λ²
-    communality = np.clip(comm_raw, 0.0, 1.0)      # Heywood-guarded proportion
+    communality = np.sum(L * L, axis=1)            # admissible row sums of Λ²
     uniqueness = 1.0 - communality
-    fitted = L @ L.T + np.diag(1.0 - comm_raw)     # diagonal reproduces R exactly
-    np.fill_diagonal(fitted, 1.0)
+    fitted = L @ L.T + np.diag(uniqueness)
     residual = R - fitted
     iu = np.triu_indices(P, 1)
     off = residual[iu]
@@ -1141,10 +1186,10 @@ class SignificanceTest:
     ``estimate`` is the observed statistic (a component's variance proportion, or a
     genetic correlation); ``p_value`` is the Monte-Carlo p-value from refitting the
     full model on ``n_boot`` datasets simulated under the null; ``null`` is that
-    null distribution of the statistic. ``label`` names the hypothesis. Because the
-    null is *simulated and refit the same way*, the moment estimator's boundary bias
-    cancels — the observed statistic is compared against a null carrying the same
-    bias — so the test stays calibrated where a Wald/normal test would not."""
+    conditional plug-in null distribution of the statistic. ``label`` names the
+    hypothesis. Validity depends on the fitted null model, independent family
+    clusters, and thresholds determined independently of the observed outcome; the
+    result is not a general guarantee of finite-sample calibration."""
     estimate: float
     p_value: float
     null: np.ndarray
@@ -1160,11 +1205,9 @@ def _recover_thresholds(lo, hi):
     have to re-encode. ``lo``/``hi`` broadcast to any shape; returns ``(T, informative)``."""
     lo = np.asarray(lo, dtype=float)
     hi = np.asarray(hi, dtype=float)
-    lo_inf = ~np.isfinite(lo)
-    hi_inf = ~np.isfinite(hi)
-    both_inf = lo_inf & hi_inf
-    control = lo_inf & ~hi_inf
-    case = ~lo_inf & hi_inf
+    both_inf = np.isneginf(lo) & np.isposinf(hi)
+    control = np.isneginf(lo) & np.isfinite(hi)
+    case = np.isfinite(lo) & np.isposinf(hi)
     if not np.all(both_inf | control | case):
         raise NotImplementedError(
             "significance test supports case/control-style bounds only — cases "
@@ -1174,13 +1217,36 @@ def _recover_thresholds(lo, hi):
     return T, ~both_inf
 
 
-def _assert_case_control_bounds(families):
-    """Raise early (before any fitting) if any family's bounds are not the
-    case/control style the parametric bootstrap can re-simulate."""
+def _assert_case_control_bounds(families, thresholds_are_status_independent=False):
+    """Validate bounds that the parametric bootstrap can coherently re-simulate.
+
+    A common threshold for each trait is unambiguously reusable after status is
+    simulated. Individualised thresholds are accepted only after the caller
+    explicitly confirms that they came from baseline variables independent of the
+    observed outcome (for example sex or birth cohort), never age at onset."""
+    if not isinstance(thresholds_are_status_independent, (bool, np.bool_)):
+        raise TypeError("thresholds_are_status_independent must be bool")
+    if not families:
+        return
+    P = int(np.size(families[0].members[0].lower))
+    thresholds = [[] for _ in range(P)]
     for fam in families:
         for m in fam.members:
-            _recover_thresholds(np.asarray(m.lower, dtype=float),
-                                np.asarray(m.upper, dtype=float))
+            lo = np.broadcast_to(np.asarray(m.lower, dtype=float), (P,))
+            hi = np.broadcast_to(np.asarray(m.upper, dtype=float), (P,))
+            T, informative = _recover_thresholds(lo, hi)
+            for p in range(P):
+                if informative[p]:
+                    thresholds[p].append(float(T[p]))
+    varying = any(values and not np.allclose(values, values[0], rtol=1e-10,
+                                              atol=1e-12)
+                  for values in thresholds)
+    if varying and not thresholds_are_status_independent:
+        raise ValueError(
+            "individualised thresholds cannot be reused under the null unless "
+            "they were fixed independently of observed status; pass "
+            "thresholds_are_status_independent=True only for thresholds derived "
+            "from baseline covariates, never age at onset")
 
 
 def _threshold_status(members, L_kP, k, P, fam_id):
@@ -1224,7 +1290,7 @@ def _simulate_null(families, h2_vec, G, rp, rng):
 
 
 def test_variance_component(families, component="C", *, n_boot=200, seed=None,
-                            **fit_kwargs):
+                            thresholds_are_status_independent=False, **fit_kwargs):
     """Test whether a variance component is needed (its proportion > 0).
 
     The frequentist analog of the SEM likelihood-ratio test "is `C` in the model?"
@@ -1238,12 +1304,15 @@ def test_variance_component(families, component="C", *, n_boot=200, seed=None,
     ``A + component`` and the null is ``A``-only (``"A"`` itself and the unsupported
     ``"D"`` are rejected). Extra keyword args pass through to
     :func:`fit_variance_components` (use a smaller ``n_iter`` to keep the ``n_boot``
-    refits affordable). Needs case/control-style bounds. Returns a
-    :class:`SignificanceTest`."""
+    refits affordable). Bounds must be case/control-style. A threshold that varies
+    across people is rejected unless ``thresholds_are_status_independent=True``;
+    make that assertion only for externally determined baseline thresholds, never
+    thresholds derived from age at onset. This is a conditional plug-in bootstrap,
+    not a universal calibration guarantee. Returns a :class:`SignificanceTest`."""
     if component == "A" or component not in _COMPONENT_OFFDIAG:
         avail = ", ".join(c for c in _COMPONENT_OFFDIAG if c != "A")
         raise ValueError(f"component must be a non-additive component ({avail})")
-    _assert_case_control_bounds(families)
+    _assert_case_control_bounds(families, thresholds_are_status_independent)
     comps = ("A", component)
     obs = fit_variance_components(families, comps, seed=seed, **fit_kwargs).components[component]
     h2A = float(fit_variance_components(families, ("A",), seed=seed, **fit_kwargs).components["A"])
@@ -1262,7 +1331,7 @@ def test_variance_component(families, component="C", *, n_boot=200, seed=None,
 
 
 def test_genetic_correlation(families, i=0, j=1, *, n_boot=200, seed=None,
-                             **fit_kwargs):
+                             thresholds_are_status_independent=False, **fit_kwargs):
     """Test whether the genetic correlation between two traits is non-zero.
 
     Parametric-bootstrap analog of the SEM test "is the cross-trait genetic path
@@ -1271,10 +1340,13 @@ def test_genetic_correlation(families, i=0, j=1, *, n_boot=200, seed=None,
     trait's ``h2``, the environmental covariance, and all nuisance genetic
     correlations compatible with a coherent PSD null — on the same pedigrees and
     thresholds, refits, and returns the two-sided p-value
-    ``P(|rg| >= |observed| | H0)``. In simulation it controls the false-positive
-    rate (slightly conservative) and has good power for moderate ``|r_g|``. Extra
-    keyword args pass to :func:`fit_genetic_correlation`. Needs case/control-style
-    bounds. Returns a :class:`SignificanceTest`."""
+    ``P(|rg| >= |observed| | H0)``. Extra keyword args pass to
+    :func:`fit_genetic_correlation`. Bounds must be case/control-style. A threshold
+    that varies across people is rejected unless
+    ``thresholds_are_status_independent=True``; make that assertion only for
+    externally determined baseline thresholds, never thresholds derived from age at
+    onset. This is a conditional plug-in bootstrap, not a universal calibration
+    guarantee. Returns a :class:`SignificanceTest`."""
     def trait_index(value, name):
         if isinstance(value, (bool, np.bool_)):
             raise TypeError(f"{name} must be an integer trait index, not bool")
@@ -1290,7 +1362,7 @@ def test_genetic_correlation(families, i=0, j=1, *, n_boot=200, seed=None,
     P = int(np.size(families[0].members[0].lower))
     if not (0 <= i < P and 0 <= j < P) or i == j:
         raise ValueError(f"i and j must be distinct trait indices in [0, {P})")
-    _assert_case_control_bounds(families)
+    _assert_case_control_bounds(families, thresholds_are_status_independent)
     full = fit_genetic_correlation(families, seed=seed, **fit_kwargs)
     obs = float(full.rg[i, j])
     h2_vec = np.asarray(full.h2, dtype=float)

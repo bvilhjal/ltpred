@@ -8,7 +8,7 @@ from scipy import stats
 
 from ltpred.family import Family, Member, families_from_columns
 from ltpred.estimate import (batch_means, estimate_liability,
-                             estimate_liability_multi)
+                             estimate_liability_multi, _base_seeds)
 from ltpred.thresholds import age_thresholds
 
 
@@ -41,6 +41,15 @@ def test_single_proband_case_only():
     assert res.est["full"][0] == pytest.approx(_imr(t), abs=0.05)
     assert res.est["genetic"][0] == pytest.approx(h2 * _imr(t), abs=0.05)
     assert res.se["genetic"][0] <= 0.02
+
+
+def test_high_level_gibbs_handles_nine_sigma_case_bound():
+    fam = Family("tail", [Member("o", lower=9.0, upper=np.inf)])
+    res = estimate_liability([fam], h2=0.5, method="gibbs", out="full",
+                             tol=1e9, n_sim=10_000, burn_in=100,
+                             max_rounds=1, seed=7)
+
+    assert 9.0 <= res.est["full"][0] < 9.3
 
 
 def test_adult_is_personalized_bounds_without_family_history():
@@ -79,6 +88,39 @@ def test_family_history_raises_genetic_estimate():
                              n_sim=40_000, burn_in=800, seed=2)
     g_affected, g_healthy = res.est["genetic"]
     assert g_affected > g_healthy + 0.1
+
+
+def test_pa_is_invariant_to_member_and_first_family_order():
+    t = float(stats.norm.isf(0.1))
+    bounds = {
+        "a": {"o": (t, np.inf), "m": (t, np.inf),
+              "f": (-np.inf, t), "s1": (t, np.inf)},
+        "b": {"o": (-np.inf, t), "m": (t, np.inf),
+              "f": (t, np.inf), "s1": (-np.inf, t)},
+    }
+
+    def family(fid, roles):
+        return Family(fid, [Member(role, *bounds[fid][role], pid=f"{fid}-{role}")
+                            for role in roles])
+
+    original = [family("a", ["o", "m", "f", "s1"]),
+                family("b", ["s1", "f", "m", "o"])]
+    reordered = [family("b", ["o", "m", "f", "s1"]),
+                 family("a", ["s1", "f", "m", "o"])]
+    expected = estimate_liability(original, h2=0.5, method="pa",
+                                  out=("genetic", "full"))
+    actual = estimate_liability(reordered, h2=0.5, method="pa",
+                                out=("genetic", "full"))
+
+    for name in ("genetic", "full"):
+        expected_est = dict(zip(expected.fam_ids, expected.est[name]))
+        actual_est = dict(zip(actual.fam_ids, actual.est[name]))
+        expected_var = dict(zip(expected.fam_ids, expected.var[name]))
+        actual_var = dict(zip(actual.fam_ids, actual.var[name]))
+        assert actual_est == expected_est
+        assert actual_var == expected_var
+    assert dict(zip(actual.fam_ids, actual.pids)) == dict(zip(expected.fam_ids,
+                                                             expected.pids))
 
 
 def test_families_from_columns_round_trip():
@@ -142,6 +184,31 @@ def test_multi_trait_runs_and_shapes():
     assert res.est["genetic_A"].shape == (1,)
     # proband is a case for A but not B -> higher genetic liability for A
     assert res.est["genetic_A"][0] > res.est["genetic_B"][0]
+
+
+def test_multi_trait_rejects_incoherent_genetic_and_full_correlations():
+    t = float(stats.norm.isf(0.05))
+    fam = Family("f1", [Member("o", [t, t], [np.inf, np.inf])])
+    genetic_corr = np.array([[1.0, 0.9], [0.9, 1.0]])
+    full_corr = np.array([[1.0, 0.1], [0.1, 1.0]])
+
+    with pytest.raises(ValueError, match="incoherent"):
+        estimate_liability_multi([fam], h2_vec=[0.8, 0.8],
+                                 genetic_corrmat=genetic_corr,
+                                 full_corrmat=full_corr)
+
+
+def test_inbred_kinship_covariance_stays_on_unit_liability_scale():
+    from ltpred.covariance import construct_covmat_from_kinship
+
+    h2 = 0.5
+    A = np.array([[1.25, 0.5], [0.5, 1.0]])
+    cov = construct_covmat_from_kinship(A, h2=h2, target=0).matrix
+    raw_target_var = h2 * A[0, 0] + (1.0 - h2)
+
+    assert np.array_equal(np.diag(cov)[1:], np.ones(2))
+    assert cov[0, 0] == pytest.approx(h2 * A[0, 0] / raw_target_var)
+    assert cov[0, 1] == pytest.approx(h2 * A[0, 0] / raw_target_var)
 
 
 def test_estimate_from_kinship_matches_role_based():
@@ -291,3 +358,49 @@ def test_use_mixture_without_K_raises():
     fam = Family("f", [Member("o", -np.inf, t), Member("m", -np.inf, t)])  # no K_i
     with pytest.raises(ValueError, match="K_i/K_pop"):
         estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
+
+
+def _seed_probe_families(n=4):
+    t = float(stats.norm.isf(0.05))
+    return [Family(str(i), [Member("o", -np.inf, t), Member("m", t, np.inf),
+                            Member("f", -np.inf, t)]) for i in range(n)]
+
+
+def _seed_probe(seed):
+    return estimate_liability(_seed_probe_families(), h2=0.5, method="gibbs",
+                              n_sim=2000, burn_in=100, tol=1e9,
+                              seed=seed).est["genetic"]
+
+
+@pytest.mark.parametrize("seed", [True, np.bool_(False), 1.0, np.float64(2), "3"])
+def test_estimator_seed_rejects_non_integer_types(seed):
+    # the estimator gates seed exactly as the fitters do, rather than truncating
+    with pytest.raises(TypeError, match="seed must be an integer"):
+        _seed_probe(seed)
+
+
+@pytest.mark.parametrize("seed", [-1, np.int64(-1), 1 << 32])
+def test_estimator_seed_rejects_values_outside_uint32(seed):
+    # -1 used to slip through and land on the kernel's *unseeded* sentinel,
+    # silently leaving family 0 non-reproducible while the rest stayed seeded
+    with pytest.raises(ValueError, match="seed must be in"):
+        _seed_probe(seed)
+
+
+def test_base_seeds_sentinel_only_from_none():
+    assert np.array_equal(_base_seeds(None, 3, 100), [-1, -1, -1])
+    assert (_base_seeds(0, 3, 100) >= 0).all()
+
+
+def test_base_seeds_stay_in_uint32_range():
+    # seed=2**32-1 is a value the fitters accept, so the derived per-family block
+    # must wrap rather than run past what the kernel's RNG accepts
+    seeds = _base_seeds((1 << 32) - 1, 5, 100)
+    assert seeds.min() >= 0 and seeds.max() <= (1 << 32) - 1
+    assert len(set(seeds.tolist())) == 5           # still distinct per family
+
+
+def test_max_seed_is_reproducible_and_distinct_from_other_seeds():
+    top = (1 << 32) - 1
+    assert np.allclose(_seed_probe(top), _seed_probe(top))
+    assert not np.allclose(_seed_probe(top), _seed_probe(1))

@@ -292,18 +292,44 @@ def construct_covmat_multi(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
     scale relatedness by the genetic covariance
     ``rho_g[p, q] * sqrt(h2_p h2_q)``; on the diagonal, the same individual's
     genetic liabilities across traits correlate by that genetic covariance while
-    their full liabilities correlate by ``full_corrmat[p, q]``. Rows are
+    their full liabilities correlate by ``full_corrmat[p, q]``. The three inputs
+    must describe one coherent decomposition: with ``D = diag(sqrt(h2_vec))``,
+    both ``G = D @ genetic_corrmat @ D`` and
+    ``E = full_corrmat - G`` must be positive semi-definite. Rows are
     phenotype-major (all roles of trait 1, then trait 2, ...). Port of
     LTFHPlus::construct_covmat_multi."""
     h2_vec = np.asarray(h2_vec, dtype=float)
     genetic_corrmat = np.asarray(genetic_corrmat, dtype=float)
     full_corrmat = np.asarray(full_corrmat, dtype=float)
+    if h2_vec.ndim != 1 or h2_vec.size == 0 or not np.all(np.isfinite(h2_vec)):
+        raise ValueError("h2_vec must be a non-empty finite one-dimensional array")
     n_pheno = len(h2_vec)
     if np.any((h2_vec < 0) | (h2_vec > 1)):
         raise ValueError("all h2 must be in [0, 1]")
-    for m in (genetic_corrmat, full_corrmat):
+    for name, m in (("genetic_corrmat", genetic_corrmat),
+                    ("full_corrmat", full_corrmat)):
         if m.shape != (n_pheno, n_pheno):
             raise ValueError("correlation matrices must be n_pheno x n_pheno")
+        if not np.all(np.isfinite(m)):
+            raise ValueError(f"{name} must contain only finite values")
+        if not np.allclose(m, m.T, atol=1e-8, rtol=0.0):
+            raise ValueError(f"{name} must be symmetric")
+        if not np.allclose(np.diag(m), 1.0, atol=1e-8, rtol=0.0):
+            raise ValueError(f"{name} must have a unit diagonal")
+        min_eig = float(np.min(np.linalg.eigvalsh(0.5 * (m + m.T))))
+        if min_eig < -1e-8:
+            raise ValueError(
+                f"{name} must be positive semi-definite (minimum eigenvalue "
+                f"{min_eig:.3g})")
+
+    genetic_cov = genetic_corrmat * np.sqrt(np.outer(h2_vec, h2_vec))
+    env_cov = full_corrmat - genetic_cov
+    min_env_eig = float(np.min(np.linalg.eigvalsh(0.5 * (env_cov + env_cov.T))))
+    if min_env_eig < -1e-8:
+        raise ValueError(
+            "genetic_corrmat, full_corrmat and h2_vec are incoherent: "
+            "full_corrmat - D @ genetic_corrmat @ D must be positive "
+            f"semi-definite (minimum eigenvalue {min_env_eig:.3g})")
     if phen_names is None:
         phen_names = [f"phenotype{p + 1}" for p in range(n_pheno)]
     elif len(phen_names) != n_pheno:
@@ -319,7 +345,7 @@ def construct_covmat_multi(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
 
     for p1 in range(n_pheno):
         for p2 in range(n_pheno):
-            gcov = genetic_corrmat[p1, p2] * np.sqrt(h2_vec[p1] * h2_vec[p2])
+            gcov = genetic_cov[p1, p2]
             for a, ra in enumerate(fam_roles):
                 for b, rb in enumerate(fam_roles):
                     if p1 == p2:
@@ -430,12 +456,12 @@ def construct_covmat_from_kinship(A, h2=0.5, target=0, add_ind=True):
     """Liability-scale covariance from an additive relationship matrix ``A``.
 
     The kinship-based counterpart of :func:`construct_covmat_single`: given ``A``
-    (``n×n``, e.g. from :func:`kinship_from_pedigree`) it builds the covariance of
-    the ``n`` individuals' **full liabilities** ``o`` under the liability-threshold
-    model — ``h2 * A + (1 - h2) * I`` (diagonal 1 for non-inbred individuals) — and, when
-    ``add_ind``, prepends the **genetic liability** ``g`` of the ``target``
-    individual (variance ``h2 * A[target, target]`` and
-    ``Cov(g, o_i) = h2 * A[target, i]``). Row order is
+    (``n×n``, e.g. from :func:`kinship_from_pedigree`) it first builds the raw
+    covariance ``V = h2 * A + (1 - h2) * I`` and then divides row/column ``i`` by
+    ``sqrt(V[i, i])``. This keeps every **full liability** ``o`` on the unit-variance
+    threshold scale when inbreeding gives ``A[i, i] = 1 + F_i``; it is a no-op for
+    non-inbred pedigrees. When ``add_ind``, the similarly standardised **genetic
+    liability contribution** ``g`` of the ``target`` is prepended. Row order is
     ``[g, o_0, …, o_{n-1}]``; the ``target``'s own full-liability row is labelled
     ``o`` and the rest ``rel<i>``. Returns a :class:`Covmat`.
 
@@ -450,14 +476,33 @@ def construct_covmat_from_kinship(A, h2=0.5, target=0, add_ind=True):
         raise ValueError("h2 must be in [0, 1]")
     if not (0 <= target < n):
         raise ValueError(f"target {target} out of range for {n} individuals")
-    o_block = h2 * A + (1.0 - h2) * np.eye(n)
+    if not np.all(np.isfinite(A)):
+        raise ValueError("A must contain only finite values")
+    if not np.allclose(A, A.T, atol=1e-8, rtol=0.0):
+        raise ValueError("A must be symmetric")
+    min_a_eig = float(np.min(np.linalg.eigvalsh(0.5 * (A + A.T))))
+    if min_a_eig < -1e-8:
+        raise ValueError(
+            f"A must be positive semi-definite (minimum eigenvalue {min_a_eig:.3g})")
+
+    # Inbreeding makes diag(h2*A + (1-h2)I) exceed one. Standardise each
+    # member's full liability so the ordinary N(0, 1) prevalence thresholds remain
+    # valid; this is exactly a no-op when every A[i, i] == 1.
+    raw = h2 * A + (1.0 - h2) * np.eye(n)
+    variances = np.diag(raw)
+    if np.any(variances <= 0.0):
+        raise ValueError("A and h2 must imply positive liability variances")
+    scale = np.sqrt(variances)
+    o_block = raw / np.outer(scale, scale)
+    np.fill_diagonal(o_block, 1.0)
     o_roles = ["o" if i == target else f"rel{i}" for i in range(n)]
     if not add_ind:
         return Covmat(o_block, o_roles, h2=h2)
     d = n + 1
     cov = np.empty((d, d), dtype=np.float64)
-    cov[0, 0] = h2 * A[target, target]
-    cov[0, 1:] = cov[1:, 0] = h2 * A[target]
+    target_scale = scale[target]
+    cov[0, 0] = h2 * A[target, target] / (target_scale * target_scale)
+    cov[0, 1:] = cov[1:, 0] = h2 * A[target] / (target_scale * scale)
     cov[1:, 1:] = o_block
     return Covmat(cov, ["g"] + o_roles, h2=h2)
 

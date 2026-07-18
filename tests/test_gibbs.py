@@ -56,6 +56,42 @@ def test_univariate_truncated_mean_and_var():
     assert s.std() == pytest.approx(ref.std(), abs=0.01)
 
 
+@pytest.mark.parametrize("lower,upper", [
+    (8.0, np.inf),
+    (9.0, 10.0),
+    (-np.inf, -8.0),
+    (-10.0, -9.0),
+])
+def test_univariate_extreme_tail_draws_are_stable_and_in_bounds(lower, upper):
+    # Direct CDF interpolation collapses Phi(9) and Phi(10) to the same float.
+    # The sampler must use the survival scale in the right tail (and symmetry in
+    # the left tail), not clip the resulting draw back near 7.94 sigma.
+    draws = rtmvnorm_gibbs(np.eye(1), lower=[lower], upper=[upper], out=(0,),
+                            n_sim=30_000, burn_in=100, seed=19)[:, 0]
+    ref = stats.truncnorm(lower, upper)
+
+    assert np.isfinite(draws).all()
+    assert np.all(draws >= lower)
+    assert np.all(draws <= upper)
+    assert draws.mean() == pytest.approx(ref.mean(), abs=0.005)
+    assert draws.std() == pytest.approx(ref.std(), abs=0.005)
+
+
+def test_parallel_advance_keeps_extreme_tail_draws_in_bounds():
+    n_families = 16
+    x = np.full((n_families, 2), 9.1)
+    lower = np.tile([9.0, 8.0], (n_families, 1))
+    upper = np.tile([np.inf, 10.0], (n_families, 1))
+    fixed = np.zeros_like(x, dtype=bool)
+
+    _seed_rng(23)
+    gibbs_advance(np.zeros((2, 2)), np.ones(2), lower, upper, fixed, x, 20)
+
+    assert np.isfinite(x).all()
+    assert np.all(x >= lower)
+    assert np.all(x <= upper)
+
+
 def test_bivariate_case_posterior_genetic_liability():
     # (g, o) with cov [[h2,h2],[h2,1]]; proband is a case: o in (T, inf).
     # E[o | o>T] = IMR(T); E[g | .] = h2 * E[o | .]  since E[g|o] = h2 * o.
