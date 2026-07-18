@@ -267,6 +267,24 @@ def test_genetic_correlation_validates_input():
                                 50, [0.1, 0.1], seed=1), n_iter=50)
 
 
+def test_memberless_families_raise_clear_fit_errors():
+    import importlib
+
+    fit_mod = importlib.import_module("ltpred.fit")
+    families = [Family("observed", [
+        Member("m", [-np.inf, -np.inf], [1.0, 1.0])]),
+        Family("empty")]
+
+    calls = (
+        lambda: fit_genetic_correlation(families, n_iter=2, burn_in=1),
+        lambda: fit_mod.test_genetic_correlation(families, n_boot=1),
+        lambda: fit_mod.test_variance_component(families, "C", n_boot=1),
+    )
+    for call in calls:
+        with pytest.raises(ValueError, match="family 'empty' has no members"):
+            call()
+
+
 @pytest.mark.parametrize("attribute", ["lower", "upper"])
 @pytest.mark.parametrize("bad_bound", [0.0, [0.0], [0.0, 0.0, 0.0]])
 def test_genetic_correlation_rejects_scalar_and_wrong_length_bounds(attribute,

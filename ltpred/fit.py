@@ -500,7 +500,7 @@ def _mstep_reml(h2, stats, eps):
     return x
 
 
-def _reml_observed_se(groups, comps, h2, eps, rng, n_score=60, sweeps=1):
+def _reml_observed_se(groups, comps, h2, eps, n_score=60, sweeps=1):
     """Model-based SE from the **observed information** (outer product of per-family
     observed-data scores; Fisher's identity + BHHH). At the estimate, draw liability
     samples per family, average each family's complete-data score over them to get
@@ -615,7 +615,7 @@ def _fit_vc_reml(families, comps, *, n_iter, burn_in, inner_sweeps, damp, seed, 
     samples = trace[int(burn_in):]
     est = samples.mean(axis=0)
     rng = np.random.default_rng(_offset_seed(seed, 999))
-    se = _reml_observed_se(groups, comps, est, eps, rng)
+    se = _reml_observed_se(groups, comps, est, eps)
     ll = _reml_loglik(groups, comps, est, eps, rng)
     aic = None if ll is None else 2.0 * C - 2.0 * ll
     return VarCompResult(
@@ -774,6 +774,14 @@ def _prepare_group_multi(families, idx, n_pheno):
                 fixed=fixed, x=np.ascontiguousarray(x))
 
 
+def _require_member_rows(families, *, context):
+    """Reject memberless families where a fit needs observed phenotype rows."""
+    for family in families:
+        if not family.members:
+            raise ValueError(
+                f"{context}: family {family.fam_id!r} has no members")
+
+
 def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=5,
                             damp=0.2, seed=None, eps=1e-4, phen_names=None):
     """Estimate the **genetic correlation** between traits from family data.
@@ -806,6 +814,7 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
     ``[0, 2**32 - 1]`` or ``None``."""
     if not families:
         raise ValueError("no families provided")
+    _require_member_rows(families, context="genetic-correlation fit")
     first_lower = np.asarray(families[0].members[0].lower)
     P = int(first_lower.size)
     if P < 2:
@@ -1268,6 +1277,7 @@ def _assert_case_control_bounds(families, thresholds_are_status_independent=Fals
         raise TypeError("thresholds_are_status_independent must be bool")
     if not families:
         return
+    _require_member_rows(families, context="significance test")
     P = int(np.size(families[0].members[0].lower))
     thresholds = [[] for _ in range(P)]
     for fam in families:
@@ -1399,6 +1409,7 @@ def test_genetic_correlation(families, i=0, j=1, *, n_boot=200, seed=None,
     j = trait_index(j, "j")
     if not families:
         raise ValueError("no families provided")
+    _require_member_rows(families, context="genetic-correlation test")
     P = int(np.size(families[0].members[0].lower))
     if not (0 <= i < P and 0 <= j < P) or i == j:
         raise ValueError(f"i and j must be distinct trait indices in [0, {P})")

@@ -435,13 +435,3 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
     _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, int(n_sim),
                  int(burn_in), res)
     return res
-
-
-def _vec_norm_cdf(x):
-    from ._mathfun import norm_cdf
-    return norm_cdf(x)
-
-
-def _vec_norm_ppf(p):
-    from ._mathfun import norm_ppf
-    return norm_ppf(p)

@@ -143,6 +143,20 @@ def _single_out(out):
     return _resolve_out_entry(entries[0])
 
 
+def _validate_mc_se_n_sim(n_sim):
+    """Return an integer draw count large enough for the Gibbs MC-SE rule."""
+    if isinstance(n_sim, (bool, np.bool_)):
+        raise TypeError("n_sim must be an integer >= 4, not bool")
+    try:
+        n_sim = operator.index(n_sim)
+    except TypeError:
+        raise TypeError("n_sim must be an integer >= 4") from None
+    if n_sim < 4:
+        raise ValueError(
+            "n_sim must be at least 4 to form two batches for the Monte-Carlo SE")
+    return n_sim
+
+
 def batch_means(samples):
     """Batch-means estimate and Monte-Carlo SE of column means (Jones et al. 2006).
 
@@ -210,6 +224,7 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
     rounds; each round runs the parallel kernel over the still-unconverged
     families and pools their batch means (fixed batch size ``b``) so earlier draws
     are not wasted. Returns ``(est, se)`` of shape ``(F, ncols)``."""
+    n_sim = _validate_mc_se_n_sim(n_sim)
     F = lowers.shape[0]
     ncols = len(out_idx)
     out_idx = np.asarray(out_idx, dtype=np.int64)

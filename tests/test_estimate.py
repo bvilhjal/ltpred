@@ -31,6 +31,26 @@ def test_batch_means_se_shrinks_with_n():
     assert big < small
 
 
+@pytest.mark.parametrize("n_sim", [0, 1, 2, 3])
+def test_gibbs_estimation_rejects_draw_counts_without_two_batches(n_sim):
+    fam = Family("f", [Member("o", -np.inf, 0.0)])
+    with pytest.raises(ValueError, match="n_sim must be at least 4"):
+        estimate_liability(
+            [fam], method="gibbs", n_sim=n_sim, burn_in=0, max_rounds=1,
+        )
+
+
+def test_gibbs_minimum_draw_boundary_has_finite_mc_se():
+    from ltpred.estimate import estimate_liability_gibbs_arrays
+
+    est, se = estimate_liability_gibbs_arrays(
+        ["o"], np.array([[-np.inf]]), np.array([[0.0]]),
+        n_sim=4, burn_in=0, max_rounds=1, tol=1e9, seed=1,
+    )
+    assert np.isfinite(est[0])
+    assert np.isfinite(se[0])
+
+
 def test_single_proband_case_only():
     # a lone case with no relatives -> E[g] = h2 * IMR(T)
     h2, prev = 0.5, 0.05
