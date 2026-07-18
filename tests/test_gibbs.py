@@ -147,6 +147,14 @@ def test_reversed_bounds_raise_instead_of_changing_the_model():
                        n_sim=1, burn_in=0)
 
 
+@pytest.mark.parametrize("lower,upper", [([np.nan], [np.inf]),
+                                          ([-np.inf], [np.nan])])
+def test_nan_bounds_raise_instead_of_reaching_the_sampler(lower, upper):
+    with pytest.raises(ValueError, match="must not contain NaN"):
+        rtmvnorm_gibbs(np.eye(1), lower=lower, upper=upper,
+                       n_sim=1, burn_in=0)
+
+
 @pytest.mark.parametrize("out,exc,match", [
     ((), ValueError, "at least one"),
     ((-1,), ValueError, "valid range"),

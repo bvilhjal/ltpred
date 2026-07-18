@@ -46,6 +46,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from ._mathfun import norm_cdf, norm_ppf
+from ._validation import validate_bounds
 from .covariance import get_relatedness, correct_positive_definite
 from .gibbs import gibbs_params, gibbs_advance, _offset_seed, _seed_rng
 from .estimate import (_group_by_structure, _validate_multitrait_bounds,
@@ -152,6 +153,7 @@ def _prepare_group(families, idx):
         for c, m in enumerate(members):
             lowers[slot, c] = float(m.lower)
             uppers[slot, c] = float(m.upper)
+    validate_bounds(lowers, uppers, context="heritability fit bounds")
     fixed = np.ascontiguousarray((uppers - lowers) < 1e-8)
     x = np.empty((F, k))
     for slot in range(F):
@@ -311,6 +313,7 @@ def _prepare_group_vc(families, idx, comps):
         for c, m in enumerate(members):
             lowers[slot, c] = float(m.lower)
             uppers[slot, c] = float(m.upper)
+    validate_bounds(lowers, uppers, context="variance-component fit bounds")
     fixed = np.ascontiguousarray((uppers - lowers) < 1e-8)
     x = np.empty((F, k))
     for slot in range(F):
@@ -755,6 +758,7 @@ def _prepare_group_multi(families, idx, n_pheno):
     # phenotype-major: coordinate p*k + a
     lo_pm = np.ascontiguousarray(lo.transpose(0, 2, 1).reshape(F, k * n_pheno))
     hi_pm = np.ascontiguousarray(hi.transpose(0, 2, 1).reshape(F, k * n_pheno))
+    validate_bounds(lo_pm, hi_pm, context="genetic-correlation fit bounds")
     fixed = np.ascontiguousarray((hi_pm - lo_pm) < 1e-8)
     x = np.empty((F, k * n_pheno))
     for slot in range(F):
@@ -1162,21 +1166,34 @@ def bootstrap_fit(families, estimator, *, n_boot=100, seed=None, ci_level=0.95):
     n = len(families)
     if n < 2:
         raise ValueError("need at least 2 families to bootstrap")
+    if isinstance(n_boot, (bool, np.bool_)):
+        raise TypeError("n_boot must be an integer >= 2, not bool")
+    try:
+        n_boot = operator.index(n_boot)
+    except TypeError:
+        raise TypeError("n_boot must be an integer >= 2") from None
+    if n_boot < 2:
+        raise ValueError("n_boot must be >= 2")
     if not 0.0 < ci_level < 1.0:
         raise ValueError("ci_level must be in (0, 1)")
     rng = np.random.default_rng(seed)
     point = np.asarray(estimator(families), dtype=float)
-    samples = np.empty((int(n_boot),) + point.shape, dtype=float)
-    for b in range(int(n_boot)):
+    samples = np.empty((n_boot,) + point.shape, dtype=float)
+    for b in range(n_boot):
         idx = rng.integers(0, n, size=n)
-        samples[b] = np.asarray(estimator([families[i] for i in idx]), dtype=float)
+        sample = np.asarray(estimator([families[i] for i in idx]), dtype=float)
+        if sample.shape != point.shape:
+            raise ValueError(
+                f"estimator returned shape {sample.shape} for bootstrap resample "
+                f"{b}; expected stable shape {point.shape}")
+        samples[b] = sample
     alpha = (1.0 - ci_level) / 2.0
     return BootstrapResult(
         estimate=point,
         se=samples.std(axis=0, ddof=1),
         ci_low=np.quantile(samples, alpha, axis=0),
         ci_high=np.quantile(samples, 1.0 - alpha, axis=0),
-        ci_level=float(ci_level), n_boot=int(n_boot), samples=samples)
+        ci_level=float(ci_level), n_boot=n_boot, samples=samples)
 
 
 # --------------------------------------------------------------------------- #

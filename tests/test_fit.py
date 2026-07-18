@@ -86,6 +86,23 @@ def test_fit_preparers_align_bounds_by_role():
                         [0.2, -0.8, 0.6, -0.4]])
 
 
+def test_fit_preparers_reject_nan_and_reversed_bounds():
+    import importlib
+    fit_mod = importlib.import_module("ltpred.fit")
+
+    scalar = [Family(0, [Member("m", np.nan, np.inf),
+                         Member("f", -np.inf, np.inf)])]
+    for prepare in (lambda: fit_mod._prepare_group(scalar, [0]),
+                    lambda: fit_mod._prepare_group_vc(scalar, [0], ["A"])):
+        with pytest.raises(ValueError, match="NaN"):
+            prepare()
+
+    multi = [Family(0, [Member("m", [0.0, 2.0], [1.0, 1.0]),
+                        Member("f", [-np.inf, -np.inf], [np.inf, np.inf])])]
+    with pytest.raises(ValueError, match="reversed bounds"):
+        fit_mod._prepare_group_multi(multi, [0], 2)
+
+
 def test_lone_probands_raise():
     # no relatives -> no related pairs -> h2 not identified
     t = 1.64
@@ -446,6 +463,30 @@ def test_bootstrap_fit_vector_and_errors():
         bootstrap_fit(sim.families[:1], lambda f: 0.0, n_boot=3)
     with pytest.raises(ValueError, match="ci_level"):
         bootstrap_fit(sim.families, lambda f: 0.0, n_boot=3, ci_level=1.5)
+
+
+@pytest.mark.parametrize("n_boot", [0, 1])
+def test_bootstrap_fit_requires_at_least_two_resamples(n_boot):
+    from ltpred import bootstrap_fit
+
+    families = [Family(0), Family(1)]
+    with pytest.raises(ValueError, match="n_boot must be >= 2"):
+        bootstrap_fit(families, lambda f: 0.0, n_boot=n_boot)
+
+
+def test_bootstrap_fit_rejects_changing_statistic_shape():
+    from ltpred import bootstrap_fit
+
+    families = [Family(0), Family(1)]
+    calls = 0
+
+    def changing_shape(_families):
+        nonlocal calls
+        calls += 1
+        return np.zeros(2 if calls == 1 else 3)
+
+    with pytest.raises(ValueError, match="expected stable shape"):
+        bootstrap_fit(families, changing_shape, n_boot=2, seed=0)
 
 
 def _sim_ac(fam, a2, c2, n, seed, prev=0.1):

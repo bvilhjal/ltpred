@@ -21,6 +21,7 @@ rule). :func:`estimate_liability_single` handles one trait,
 
 from __future__ import annotations
 
+import operator
 import warnings
 from dataclasses import dataclass
 
@@ -31,6 +32,7 @@ from .covariance import (construct_covmat_single, construct_covmat_multi,
 from .gibbs import (gibbs_params, gibbs_estimate_batched, as_bounds, _MAX_SEED,
                     _validate_seed)
 from .pearson_aitken import pa_estimate_batched
+from ._validation import validate_bounds
 
 __all__ = ["LiabilityResult", "batch_means", "estimate_liability",
            "estimate_liability_single", "estimate_liability_multi",
@@ -50,6 +52,43 @@ def _bounds_dtype(dtype):
     if dt not in (np.dtype(np.float32), np.dtype(np.float64)):
         raise ValueError("dtype must be float32 or float64")
     return dt
+
+
+def _out_entries(out):
+    """Return a non-empty list of requested estimator output aliases."""
+    if np.isscalar(out):
+        entries = [out]
+    elif isinstance(out, np.ndarray) and out.ndim == 0:
+        entries = [out.item()]
+    else:
+        try:
+            entries = list(out)
+        except TypeError:
+            raise TypeError(
+                "out must be an alias or a non-empty sequence of aliases") from None
+    if not entries:
+        raise ValueError("out must contain at least one output alias")
+    return entries
+
+
+def _resolve_out_entry(value):
+    """Resolve one documented string or integer output alias."""
+    allowed = "genetic/full/g/o/0/1"
+    if isinstance(value, (bool, np.bool_)):
+        raise TypeError(f"out entry {value!r} must be one of {allowed}, not bool")
+    if isinstance(value, str):
+        if value not in _OUT_ALIASES:
+            raise ValueError(f"out entry {value!r} must be one of {allowed}")
+        return _OUT_ALIASES[value]
+    try:
+        index = operator.index(value)
+    except TypeError:
+        raise TypeError(
+            f"out entry {value!r} must be one of {allowed}; numeric aliases must "
+            "be integers") from None
+    if index not in (0, 1):
+        raise ValueError(f"out entry {value!r} must be one of {allowed}")
+    return index
 
 
 @dataclass
@@ -84,15 +123,8 @@ class LiabilityResult:
 
 
 def _normalise_out(out):
-    if np.isscalar(out):                 # a bare "genetic"/"full"/0/1 -> single column
-        out = (out,)
-    coords = []
-    for o in out:
-        if o not in _OUT_ALIASES:
-            raise ValueError(f"out entry {o!r} must be one of genetic/full/g/o/0/1")
-        coords.append(_OUT_ALIASES[o])
-    coords = sorted(set(coords))
-    return coords or [0]
+    coords = [_resolve_out_entry(value) for value in _out_entries(out)]
+    return sorted(set(coords))
 
 
 def _single_out(out):
@@ -100,15 +132,11 @@ def _single_out(out):
 
     Accepts a scalar (``"genetic"``/``"full"``/``0``/``1``) or a length-1 sequence, so
     every estimator takes the same spellings as :func:`estimate_liability`."""
-    if not np.isscalar(out):
-        seq = list(out)
-        if len(seq) != 1:
-            raise ValueError("this API returns a single column; out must be one of "
-                             "genetic/full (or a length-1 sequence)")
-        out = seq[0]
-    if out not in _OUT_ALIASES:
-        raise ValueError(f"out {out!r} must be one of genetic/full/g/o/0/1")
-    return _OUT_ALIASES[out]
+    entries = _out_entries(out)
+    if len(entries) != 1:
+        raise ValueError("this API returns a single column; out must be one of "
+                         "genetic/full (or a length-1 sequence)")
+    return _resolve_out_entry(entries[0])
 
 
 def batch_means(samples):
@@ -162,7 +190,10 @@ def _ordered_thresholds(family, cov_roles):
         lower.append(lo)
         upper.append(hi)
         pids.append(pid)
-    return np.array(lower), np.array(upper), pids
+    lower = np.array(lower)
+    upper = np.array(upper)
+    validate_bounds(lower, upper, context=f"family {family.fam_id!r} bounds")
+    return lower, upper, pids
 
 
 def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
@@ -372,8 +403,10 @@ def _ordered_bounds_pa(family, cov_roles):
             lower.append(float(m.lower)); upper.append(float(m.upper)); pids.append(m.pid)
             K_i.append(np.nan if m.K_i is None else float(m.K_i))
             K_pop.append(np.nan if m.K_pop is None else float(m.K_pop))
-    return (np.array(lower), np.array(upper), pids,
-            np.array(K_i), np.array(K_pop))
+    lower = np.array(lower)
+    upper = np.array(upper)
+    validate_bounds(lower, upper, context=f"family {family.fam_id!r} bounds")
+    return lower, upper, pids, np.array(K_i), np.array(K_pop)
 
 
 def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
@@ -552,6 +585,7 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
                          "identify a different family member")
     lower = as_bounds(lower)                # keeps float32 if given, else float64
     upper = as_bounds(upper)
+    validate_bounds(lower, upper, context="array estimator bounds")
     # The PA fold is sequential. Canonicalise its covariance order while retaining
     # ``roles`` as the column labels used to realign every caller-supplied array.
     cov_obj = construct_covmat_single(fam_vec=sorted(roles), add_ind=True, h2=h2)
@@ -583,6 +617,7 @@ def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic",
                          "identify a different family member")
     lower = as_bounds(lower)
     upper = as_bounds(upper)
+    validate_bounds(lower, upper, context="array estimator bounds")
     cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
     cov, _ = correct_positive_definite(cov_obj.matrix)
     cov_roles = cov_obj.roles
@@ -628,6 +663,7 @@ def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="gene
         raise ValueError("A must be a square (n, n) relationship matrix")
     lower = np.atleast_2d(as_bounds(lower))
     upper = np.atleast_2d(as_bounds(upper))
+    validate_bounds(lower, upper, context="kinship estimator bounds")
     if lower.shape[1] != n or upper.shape[1] != n:
         raise ValueError(f"lower/upper must have {n} columns (one per pedigree member)")
     out_coord = _single_out(out)

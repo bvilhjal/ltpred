@@ -29,6 +29,7 @@ import numpy as np
 
 from ._numba import _jit, _jit_parallel, prange
 from ._mathfun import _norm_cdf, _norm_ppf
+from ._validation import validate_bounds
 
 __all__ = ["rtmvnorm_gibbs", "gibbs_params", "gibbs_estimate_batched",
            "gibbs_advance"]
@@ -380,11 +381,7 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
 
     lower = np.broadcast_to(np.asarray(lower, dtype=np.float64), (d,)).copy()
     upper = np.broadcast_to(np.asarray(upper, dtype=np.float64), (d,)).copy()
-    swap = upper < lower
-    if np.any(swap):
-        bad = np.flatnonzero(swap).tolist()
-        raise ValueError(f"upper must be >= lower at every coordinate; reversed "
-                         f"bounds at indices {bad}")
+    validate_bounds(lower, upper, context="rtmvnorm_gibbs bounds")
 
     if fixed is None:
         fixed = (upper - lower) < 1e-8

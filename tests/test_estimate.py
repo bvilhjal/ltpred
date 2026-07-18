@@ -308,7 +308,7 @@ def test_liability_sensitivity_validation():
         liability_sensitivity(sim.families, [0.5, 1.5], method="pa")
 
 
-@pytest.mark.parametrize("spelling", ["genetic", ("genetic",), "g", 0])
+@pytest.mark.parametrize("spelling", ["genetic", ("genetic",), "g", 0, np.int64(0)])
 def test_out_accepts_scalar_and_sequence(spelling):
     # a bare "genetic" (documented) must work everywhere, not just the tuple form
     from ltpred import (simulate_under_LTM_single, liability_sensitivity,
@@ -345,6 +345,56 @@ def test_out_invalid_and_multicolumn_errors():
     lo = np.array([[-9.0, 1.2, -9.0, 1.2]]); hi = np.array([[9.0, 9.0, 1.2, 9.0]])
     with pytest.raises(ValueError, match="single column"):
         estimate_liability_pa_arrays(roles, lo, hi, out=("genetic", "full"))
+
+
+@pytest.mark.parametrize(
+    "invalid,error",
+    [([], ValueError), ((), ValueError), (True, TypeError), (False, TypeError),
+     (0.0, TypeError), (1.0, TypeError)],
+)
+def test_out_rejects_empty_bool_and_float_aliases(invalid, error):
+    from ltpred.estimate import estimate_liability_pa_arrays
+
+    fam = Family("f1", [Member("o", -np.inf, 1.0)])
+    with pytest.raises(error):
+        estimate_liability([fam], h2=0.5, method="pa", out=invalid)
+
+    with pytest.raises(error):
+        estimate_liability_pa_arrays(
+            ["o"], np.array([[-np.inf]]), np.array([[1.0]]), out=invalid)
+
+
+def test_shared_bounds_validation_allows_infinities_and_point_pins():
+    from ltpred._validation import validate_bounds
+
+    validate_bounds(
+        np.array([[-np.inf, 1.25]]),
+        np.array([[np.inf, 1.25]]),
+    )
+
+
+@pytest.mark.parametrize(
+    "lower,upper,match",
+    [(np.nan, np.inf, "NaN"), (1.0, 0.0, "reversed bounds")],
+)
+def test_public_estimators_reject_invalid_bounds(lower, upper, match):
+    from ltpred import estimate_liability_from_kinship
+    from ltpred.estimate import (estimate_liability_gibbs_arrays,
+                                 estimate_liability_pa_arrays)
+
+    fam = Family("bad", [Member("o", lower, upper)])
+    for method in ("pa", "gibbs"):
+        with pytest.raises(ValueError, match=match):
+            estimate_liability([fam], h2=0.5, method=method, n_sim=20, burn_in=0)
+
+    lo = np.array([[lower]])
+    hi = np.array([[upper]])
+    with pytest.raises(ValueError, match=match):
+        estimate_liability_pa_arrays(["o"], lo, hi)
+    with pytest.raises(ValueError, match=match):
+        estimate_liability_gibbs_arrays(["o"], lo, hi, n_sim=20, burn_in=0)
+    with pytest.raises(ValueError, match=match):
+        estimate_liability_from_kinship(np.eye(1), lo, hi)
 
 
 def test_default_method_is_pa_and_multitrait_falls_back_to_gibbs():
