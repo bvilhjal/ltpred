@@ -629,6 +629,33 @@ remarriages and cousin links):
 Kinship here is the exact tabular method (inbreeding-aware), not the 2025
 paper's path-counting approximation.
 
+## 21. End-to-end register pipeline (`bench_register_pipeline.py`)
+
+`ltpred.pipeline.estimate_liabilities` chains trio records -> pedigree
+discovery -> per-stratum CIP thresholds -> per-proband scores. On a synthetic
+register (3-generation population of 2,683 with remarriages; one CONSISTENT
+liability field `G ~ N(0, h2 A)`, `L = G + E` -- an earlier per-pedigree draw
+silently decorrelates probands' g from relatives' statuses; the crossing
+model with a logistic CIP, lifetime prevalence 0.10):
+
+- **Accuracy / which relatives matter:** corr(est, true g) is 0.364 at
+  degree 3 (first cousins) vs 0.340 at degree 1 (first-degree only), with
+  calibration slopes near 1 (0.93 / 0.96). The degree-3 advantage is modest
+  at this ~3% effective case rate -- the LT-FGRS effect, in the realistic
+  direction. (corr ~0.36 is itself the honest accuracy at this case rate and
+  age structure; the pedigree benchmark's 0.62 used a 10% rate with a uniform
+  threshold.)
+- **CIP estimated from the register itself:** 0.3648 vs 0.3640 with the
+  oracle curve -- estimating the CIP from follow-up records costs nothing at
+  this register size (consistent with section 19).
+- **Prospective prediction** (diagnosis after index age 40): the honest
+  familywise-censored score reaches corr 0.090 with the future outcome;
+  leaking relatives' post-index events adds +0.04 (0.132), and leaking the
+  proband's own future outcome inflates to 0.357 -- a clean demonstration of
+  both the cost of honest censoring and what leakage buys.
+- **Throughput:** ~160 probands/s (400 in 2.5 s), per-proband extraction plus
+  a small dense kinship covariance each.
+
 ## What changed in this rerun
 
 - Replicated the accuracy and calibration grids across five independent

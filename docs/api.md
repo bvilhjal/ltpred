@@ -57,6 +57,10 @@ follow NumPy's `default_rng` contract.
 
 ::: ltpred.estimate
 
+## Register pipeline — `ltpred.pipeline`
+
+::: ltpred.pipeline
+
 ## CIP estimation — `ltpred.cip`
 
 ::: ltpred.cip

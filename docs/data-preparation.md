@@ -52,9 +52,10 @@ mother)` indexes the records and `extract_pedigree(graph, proband,
 max_degree=3)` returns each proband's relatives up to third degree (parents,
 siblings, grandparents, half-sibs, aunts/uncles, cousins) with all their
 ancestors closed in, so the sub-pedigree's kinship is exact (see
-`benchmarks/bench_pedigree_inference.py`).
-
-### Beyond the role grammar: arbitrary pedigrees
+`benchmarks/bench_pedigree_inference.py`). For the full chain --
+trio records -> pedigrees -> per-stratum CIP thresholds -> per-proband
+scores, with familywise censoring for prospective prediction -- use
+`ltpred.pipeline.estimate_liabilities`.
 
 When your relatives don't fit the fixed roles — deeper pedigrees, cousins,
 multiple marriages, inbreeding — describe the pedigree by **who each person's

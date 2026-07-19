@@ -71,6 +71,13 @@ to the full-population values restricted to the members (benchmarked at
 (2025) graph-extraction niche, with exact tabular kinship in place of the
 paper's path-counting approximation.
 
+**Register pipeline.** `ltpred.pipeline.estimate_liabilities` chains the
+pieces end to end: trio records -> per-proband pedigree extraction ->
+per-stratum CIP thresholds -> kinship-estimated genetic-liability scores,
+with an LT-FGRS-style familywise-censoring option (`index_age`) for
+prospective prediction (relatives' post-index events censored; the proband's
+own bound uninformative).
+
 **Benchmarks** (`benchmarks/`, `RESULTS.md`) cover accuracy, runtime scaling,
 age-of-onset, replicated classic LT-FH GWAS power (Gibbs and PA both
 1.47 ± 0.04× causal-SNP NCP ratio over case/control at λ_GC ≈ 1), and an integrated
