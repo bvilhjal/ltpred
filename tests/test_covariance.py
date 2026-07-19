@@ -257,3 +257,36 @@ def test_kinship_input_validation():
         construct_covmat_from_kinship(A, h2=1.5)
     with pytest.raises(ValueError, match="target"):
         construct_covmat_from_kinship(A, target=5)
+
+
+def test_multi_covmat_add_ind_false_same_person_cross_trait_uses_full_corr():
+    # add_ind=False strips g/o, so row 0 is a *relative*: its same-person
+    # cross-trait covariance is the full correlation, not the genetic one
+    # (regression: the code keyed on row index 0 instead of the "g" role label)
+    gcorr = np.array([[1.0, 0.4], [0.4, 1.0]])
+    fcorr = np.array([[1.0, 0.7], [0.7, 1.0]])
+    h2 = np.array([0.5, 0.3])
+    cov = construct_covmat_multi(fam_vec=["m", "f"], add_ind=False,
+                                 genetic_corrmat=gcorr, full_corrmat=fcorr,
+                                 h2_vec=h2)
+    assert cov.roles == ["m", "f", "m", "f"]
+    k = 2
+    for a in range(k):
+        assert cov.matrix[a, k + a] == pytest.approx(0.7)
+        assert cov.matrix[k + a, a] == pytest.approx(0.7)
+
+
+def test_multi_covmat_add_ind_true_same_person_cross_trait_by_role():
+    # g gets the genetic covariance; o and every relative the full correlation
+    gcorr = np.array([[1.0, 0.4], [0.4, 1.0]])
+    fcorr = np.array([[1.0, 0.7], [0.7, 1.0]])
+    h2 = np.array([0.5, 0.3])
+    cov = construct_covmat_multi(fam_vec=["m"], add_ind=True,
+                                 genetic_corrmat=gcorr, full_corrmat=fcorr,
+                                 h2_vec=h2)
+    assert cov.roles == ["g", "o", "m", "g", "o", "m"]
+    gcov = 0.4 * np.sqrt(0.5 * 0.3)
+    m = cov.matrix
+    assert m[0, 3] == pytest.approx(gcov)   # g <-> g: genetic covariance
+    assert m[1, 4] == pytest.approx(0.7)    # o <-> o: full correlation
+    assert m[2, 5] == pytest.approx(0.7)    # m <-> m: full correlation

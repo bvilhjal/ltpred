@@ -855,3 +855,43 @@ def test_variance_components_reml_loglik_aic():
     # the HE fit has no likelihood
     he = fit_variance_components(fams, ("A", "C"), method="he", n_iter=100, burn_in=30, seed=1)
     assert he.loglik is None and he.aic is None
+
+
+def test_init_x_holds_extreme_pin_at_its_value():
+    # regression: a pinned coordinate at |z| >~ 8.2 saturated the CDF-average
+    # init and fell back to 0.0 -- and fixed coordinates are never resampled,
+    # so the family was conditioned on 0.0 forever
+    import importlib
+    fit_mod = importlib.import_module("ltpred.fit")
+    lowers = np.array([9.0, -np.inf])
+    uppers = np.array([9.0, 0.0])
+    fixed = (uppers - lowers) < 1e-8
+    x = fit_mod._init_x(lowers, uppers, fixed)
+    assert x[0] == 9.0                     # the pin, not the old 0.0 fallback
+    assert np.isfinite(x).all()
+    # a free coordinate far into the tail starts inside its interval
+    x = fit_mod._init_x(np.array([9.0]), np.array([np.inf]), np.array([False]))
+    assert 9.0 <= x[0] < np.inf
+
+
+def test_prepare_group_starts_pinned_member_at_pin():
+    import importlib
+    fit_mod = importlib.import_module("ltpred.fit")
+    fams = [Family(0, [Member("m", 9.0, 9.0), Member("f", -np.inf, 0.0)])]
+    group = fit_mod._prepare_group(fams, [0])
+    assert group["x"][0, group["roles"].index("m")] == 9.0
+
+
+def test_fit_heritability_validates_burn_in_and_h2_init():
+    sim = simulate_under_LTM_single(fam_vec=["m", "s1"], h2=0.5, n_sim=30,
+                                    pop_prev=0.1, seed=1)
+    with pytest.raises(ValueError, match="burn_in"):
+        fit_heritability(sim.families, n_iter=10, burn_in=10)
+    with pytest.raises(ValueError, match="h2_init"):
+        fit_heritability(sim.families, h2_init=1.5, n_iter=10, burn_in=6)
+    with pytest.raises(ValueError, match="h2_init"):
+        fit_heritability(sim.families, h2_init=-0.1, n_iter=10, burn_in=6)
+    # valid inputs still run (4 post-burn-in samples is the batch_means minimum)
+    res = fit_heritability(sim.families, h2_init=0.5, n_iter=10, burn_in=6,
+                           inner_sweeps=1, seed=1)
+    assert np.isfinite(res.h2)

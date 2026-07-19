@@ -11,6 +11,9 @@ dist/
 .ruff_cache/
 .mypy_cache/
 
+# Docs site build (`mkdocs build`)
+site/
+
 # Environments
 .venv/
 venv/

@@ -1,8 +1,10 @@
 # ltpred benchmarks
 
 Benchmarks for the two ltpred inference engines — the **Gibbs sampler** and
-deterministic **Pearson–Aitken (PA)** — across LT-FH, LT-FH++, ADuLT and PA-FGRS
-inputs. Bounds define the observation encoding; relative rows distinguish
+deterministic **Pearson–Aitken (PA)** — across LT-FH, LT-FH++ and ADuLT inputs.
+The PA-FGRS censoring mixture is implemented and unit-tested but has no
+benchmark coverage yet; a dedicated mixture benchmark is being added separately.
+Bounds define the observation encoding; relative rows distinguish
 LT-FH++ from family-free ADuLT. Everything simulates
 its own data, so the true genetic liability is known and the benchmarks run
 locally with no downloads (the one exception, real-LD genotypes, is an opt-in

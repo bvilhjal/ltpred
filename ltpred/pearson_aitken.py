@@ -379,7 +379,8 @@ def tnorm_moments(mu=0.0, var=1.0, lower=-np.inf, upper=np.inf):
 def tnorm_mixture_conditional(mu, var, lower, upper, K_i=np.nan, K_pop=np.nan):
     """Public scalar helper for the censored-control mixture; returns ``(mean, var)``."""
     K_i, K_pop = validate_mixture_inputs(
-        K_i, K_pop, expected_shape=(), context="scalar mixture inputs")
+        K_i, K_pop, expected_shape=(), lower=lower, upper=upper,
+        context="scalar mixture inputs")
     return _tnorm_mixture(mu, var, lower, upper, float(K_i), float(K_pop))
 
 
@@ -402,7 +403,8 @@ def pa_algorithm(covmat, lower, upper, target=0, K_i=None, K_pop=None):
     if K_i is None and K_pop is None:          # no-mixture fast path
         return _pa_family_nomix(cov, lo, hi)
     K_i, K_pop = validate_mixture_inputs(
-        K_i, K_pop, expected_shape=(d,), context="pa_algorithm mixture inputs")
+        K_i, K_pop, expected_shape=(d,), lower=lower, upper=upper,
+        context="pa_algorithm mixture inputs")
     K_i = as_bounds(K_i)
     K_pop = as_bounds(K_pop)
     return _pa_family(cov, lo, hi, K_i[order], K_pop[order])
@@ -430,7 +432,7 @@ def pa_estimate_batched(covmat, lowers, uppers, target=0, K_is=None, K_pops=None
         _pa_batched_nomix(cov, lo, hi, est, var)
         return est, var
     K_is, K_pops = validate_mixture_inputs(
-        K_is, K_pops, expected_shape=(F, d),
+        K_is, K_pops, expected_shape=(F, d), lower=lowers, upper=uppers,
         context="batched PA mixture inputs")
     K_is = as_bounds(K_is)
     K_pops = as_bounds(K_pops)

@@ -220,9 +220,12 @@ likelihood-based inference) to the pedigree/registry setting.
    LT-FH++ family-history increment. Its prespecified
    sex-isolation panel shows a clear stratum-calibration benefit but no resolved
    adjusted-power increment, rather than conflating those two claims. **Mixture validation**
-   remains deferred: the implementation now correctly splits at the lifetime
-   threshold (the age-specific upper bound only flags censoring), but a dedicated
-   generative benchmark against the PA-FGRS censoring model is still needed.
+   is now done (`bench_pafgrs_mixture.py`, RESULTS.md section 16): generative
+   validation under both the threshold-crossing and the stochastic-onset
+   observation models. The mixture is implemented correctly and never costs
+   correlation, but its censoring correction is small at the tested settings;
+   the case encoding (pinned vs lifetime vs interval) dominates calibration
+   there.
 
 6. **Censoring-aware CIPs.** Helpers and guidance for `1 − Kaplan–Meier` under
    independent censoring without competing events, and Aalen–Johansen cumulative

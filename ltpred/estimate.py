@@ -165,11 +165,16 @@ def batch_means(samples):
     1-D or 2-D ``(n, ncols)`` array and returns ``(est, se)`` arrays over columns.
     Port of R ``batchmeans::bmmat`` -- the rule LTFHPlus uses to decide the Gibbs
     sampler has converged. (The estimator computes the same quantity online inside
-    the kernel; this stays for direct use and tests.)"""
+    the kernel; this stays for direct use and tests.) Requires at least 4
+    samples (two batches), the same minimum the estimator enforces on ``n_sim``."""
     x = np.asarray(samples, dtype=float)
     if x.ndim == 1:
         x = x[:, None]
     n = x.shape[0]
+    if n < 4:
+        raise ValueError(
+            "batch_means needs at least 4 samples to form two batches for the "
+            "Monte-Carlo SE")
     b = int(np.floor(np.sqrt(n)))
     a = n // b
     used = x[:a * b].reshape(a, b, x.shape[1])
@@ -318,6 +323,20 @@ def _warn_unconverged(se, names, tol, max_rounds, n):
             "increase max_rounds or n_sim, or inspect res.se.", stacklevel=3)
 
 
+def _warn_if_corrected(n_corrections, engine):
+    """Warn when the family covariance needed nudging to strict PD.
+
+    Reported by every estimator path (the multi-trait Gibbs path has always
+    warned): a (numerically) singular covariance usually marks a degenerate
+    model -- e.g. ``h2 = 1`` makes ``g`` and ``o`` perfectly correlated -- and
+    silently repairing it would hide that from the user."""
+    if n_corrections:
+        warnings.warn(
+            "The covariance was singular or numerically singular and was nudged "
+            f"to strict positive definiteness for {engine}.",
+            RuntimeWarning, stacklevel=3)
+
+
 def _group_by_structure(families):
     """Bucket families by their role *set* so a bucket shares one covariance.
 
@@ -378,13 +397,20 @@ def estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01,
     for _key, idx in _group_by_structure(families):
         roles = [m.role for m in families[idx[0]].members]
         cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
-        cov, _ = correct_positive_definite(cov_obj.matrix)
+        cov, n_corrections = correct_positive_definite(cov_obj.matrix)
+        _warn_if_corrected(n_corrections, "Gibbs sampling")
         cov_roles = cov_obj.roles
         o_pos = cov_roles.index("o") if "o" in cov_roles else None
 
         lowers, uppers, group_pids = [], [], []
         for f in idx:
             lo, hi, mpids = _ordered_thresholds(families[f], cov_roles)
+            if lo.shape[1] != 1:
+                raise ValueError(
+                    f"family {families[f].fam_id!r} has length-{lo.shape[1]} "
+                    "bounds; the single-trait estimator needs scalar bounds per "
+                    "member -- use estimate_liability_multi for the multi-trait "
+                    "model")
             lowers.append(lo[:, 0])
             uppers.append(hi[:, 0])
             group_pids.append(mpids[o_pos] if o_pos is not None and mpids[o_pos] is not None
@@ -452,6 +478,8 @@ def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
         K_pop = [np.nan if member.K_pop is None else member.K_pop for member in members]
         validate_mixture_inputs(
             K_i, K_pop, expected_shape=(len(members),), require_pair=True,
+            lower=[float(member.lower) for member in members],
+            upper=[float(member.upper) for member in members],
             context="family mixture inputs")
     dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
@@ -469,7 +497,8 @@ def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
         # to arrive first. Bounds below are realigned by role name.
         roles = list(role_key)
         cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
-        cov, _ = correct_positive_definite(cov_obj.matrix)
+        cov, n_corrections = correct_positive_definite(cov_obj.matrix)
+        _warn_if_corrected(n_corrections, "Pearson-Aitken estimation")
         cov_roles = cov_obj.roles
         o_pos = cov_roles.index("o") if "o" in cov_roles else None
 
@@ -612,7 +641,8 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
     # The PA fold is sequential. Canonicalise its covariance order while retaining
     # ``roles`` as the column labels used to realign every caller-supplied array.
     cov_obj = construct_covmat_single(fam_vec=sorted(roles), add_ind=True, h2=h2)
-    cov, _ = correct_positive_definite(cov_obj.matrix)
+    cov, n_corrections = correct_positive_definite(cov_obj.matrix)
+    _warn_if_corrected(n_corrections, "Pearson-Aitken estimation")
     cov_roles = cov_obj.roles
     target = cov_roles.index("g") if _single_out(out) == 0 else cov_roles.index("o")
 
@@ -620,6 +650,7 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
     if use_mixture:
         K_i, K_pop = validate_mixture_inputs(
             K_i, K_pop, expected_shape=lower.shape, require_pair=True,
+            lower=lower, upper=upper,
             context="array estimator mixture inputs")
         K_i = as_bounds(K_i)
         K_pop = as_bounds(K_pop)
@@ -646,7 +677,8 @@ def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic",
     upper = as_bounds(upper)
     validate_bounds(lower, upper, context="array estimator bounds")
     cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
-    cov, _ = correct_positive_definite(cov_obj.matrix)
+    cov, n_corrections = correct_positive_definite(cov_obj.matrix)
+    _warn_if_corrected(n_corrections, "Gibbs sampling")
     cov_roles = cov_obj.roles
     target = cov_roles.index("g") if _single_out(out) == 0 else cov_roles.index("o")
 
@@ -699,7 +731,8 @@ def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="gene
     out_coord = _single_out(out)
 
     cov_obj = construct_covmat_from_kinship(A, h2=h2, target=target, add_ind=True)
-    cov, _ = correct_positive_definite(cov_obj.matrix)
+    cov, n_corrections = correct_positive_definite(cov_obj.matrix)
+    _warn_if_corrected(n_corrections, "liability estimation")
     # prepend the unbounded genetic-liability (g) coordinate
     F = lower.shape[0]
     neg = np.full((F, 1), -np.inf, dtype=lower.dtype)

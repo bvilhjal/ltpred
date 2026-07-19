@@ -309,3 +309,23 @@ def test_gibbs_advance_python_fallback_is_random_free(monkeypatch):
     monkeypatch.setattr(np.random, "seed", unexpected_reseed)
     actual = _advance_from_zero()
     assert np.array_equal(actual, expected)
+
+
+def test_gibbs_params_rejects_non_symmetric_and_indefinite_covmat():
+    # a merely invertible but indefinite covmat used to silently give NaN sd
+    nonsym = np.array([[1.0, 0.9], [0.1, 1.0]])
+    with pytest.raises(ValueError, match="symmetric"):
+        gibbs_params(nonsym)
+    indefinite = np.array([[1.0, 2.0], [2.0, 1.0]])  # invertible, eigvals 3, -1
+    assert np.linalg.det(indefinite) != 0.0
+    with pytest.raises(ValueError, match="positive-definite"):
+        gibbs_params(indefinite)
+    with pytest.raises(ValueError, match="finite"):
+        gibbs_params(np.array([[np.nan, 0.0], [0.0, 1.0]]))
+    # rtmvnorm_gibbs goes through gibbs_params, so it rejects them too
+    with pytest.raises(ValueError, match="symmetric"):
+        rtmvnorm_gibbs(nonsym, n_sim=10, burn_in=0)
+    with pytest.raises(ValueError, match="positive-definite"):
+        rtmvnorm_gibbs(indefinite, n_sim=10, burn_in=0)
+    # a legitimate PD matrix still works
+    gibbs_params(np.array([[1.0, 0.5], [0.5, 1.0]]))

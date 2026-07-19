@@ -368,3 +368,42 @@ def test_method_dispatch_and_multi_trait_error():
                            genetic_corrmat=np.eye(2), full_corrmat=np.eye(2))
     with pytest.raises(ValueError):
         estimate_liability([fam], h2=0.5, method="bogus")
+
+
+def test_mixture_rejects_K_on_pinned_rows():
+    # a pinned observation needs no censoring mixture; K's there can invert
+    # the mixture interval and produce NaN moments
+    t = float(stats.norm.isf(0.10))
+    pin = 1.3
+    cov = np.array([[0.5, 0.5], [0.5, 1.0]])
+    with pytest.raises(ValueError, match="pinned"):
+        tnorm_mixture_conditional(0.0, 1.0, pin, pin, K_i=0.02, K_pop=0.10)
+    with pytest.raises(ValueError, match="pinned"):
+        pa_algorithm(cov, [-np.inf, pin], [np.inf, pin], target=0,
+                     K_i=[np.nan, 0.02], K_pop=[np.nan, 0.10])
+    with pytest.raises(ValueError, match="pinned"):
+        pa_estimate_batched(cov, np.array([[-np.inf, pin]]),
+                            np.array([[np.inf, pin]]), target=0,
+                            K_is=np.array([[np.nan, 0.02]]),
+                            K_pops=np.array([[np.nan, 0.10]]))
+    fam = Family("f", [Member("o", t, np.inf),
+                       Member("m", pin, pin, K_i=0.02, K_pop=0.10)])
+    with pytest.raises(ValueError, match="pinned"):
+        estimate_liability_pa([fam], h2=0.5, use_mixture=True)
+    from ltpred.estimate import estimate_liability_pa_arrays
+    with pytest.raises(ValueError, match="pinned"):
+        estimate_liability_pa_arrays(
+            ["o", "m"], np.array([[-np.inf, pin]]), np.array([[np.inf, pin]]),
+            K_i=np.array([[np.nan, 0.02]]), K_pop=np.array([[np.nan, 0.10]]),
+            use_mixture=True)
+
+
+def test_mixture_allows_pinned_rows_with_nan_K():
+    # the legitimate case: an onset-pinned case (NaN/NaN) alongside a
+    # genuinely censored control still runs
+    t = float(stats.norm.isf(0.10))
+    pin = 1.3
+    fam = Family("f", [Member("o", pin, pin),
+                       Member("s1", -np.inf, t, K_i=0.02, K_pop=0.10)])
+    res = estimate_liability_pa([fam], h2=0.5, use_mixture=True)
+    assert np.isfinite(res.est["genetic"][0])

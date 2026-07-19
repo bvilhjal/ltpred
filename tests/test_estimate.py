@@ -531,3 +531,59 @@ def test_max_seed_is_reproducible_and_distinct_from_other_seeds():
     top = (1 << 32) - 1
     assert np.allclose(_seed_probe(top), _seed_probe(top))
     assert not np.allclose(_seed_probe(top), _seed_probe(1))
+
+
+@pytest.mark.parametrize("n", [0, 1, 2, 3])
+def test_batch_means_requires_at_least_four_samples(n):
+    # below two batches the estimator's rule is undefined; the public helper
+    # now guards it exactly like the estimator guards n_sim
+    with pytest.raises(ValueError, match="at least 4"):
+        batch_means(np.arange(n, dtype=float))
+
+
+def test_batch_means_accepts_four_samples():
+    est, se = batch_means(np.arange(4, dtype=float))
+    assert est[0] == pytest.approx(1.5)
+    assert np.isfinite(se[0])
+
+
+def test_single_trait_gibbs_rejects_multitrait_shaped_bounds():
+    # a length-2 (per-phenotype) bound used to be silently collapsed to its
+    # first column; the single-trait Gibbs path now points at the multi-trait
+    # estimator instead (the PA path already rejects it)
+    fam = Family("f1", [Member("o", [1.0, -np.inf], [np.inf, 1.0])])
+    with pytest.raises(ValueError, match="multi-trait"):
+        estimate_liability([fam], h2=0.5, method="gibbs", n_sim=20, burn_in=0)
+    # scalar bounds still pass
+    fam_ok = Family("f1", [Member("o", 1.0, np.inf)])
+    res = estimate_liability([fam_ok], h2=0.5, method="gibbs", n_sim=20,
+                             burn_in=0, tol=1e9, max_rounds=1, seed=1)
+    assert np.isfinite(res.est["genetic"][0])
+
+
+def test_estimators_warn_when_covariance_is_corrected():
+    # h2 = 1 makes g and o perfectly correlated, so the assembled covariance is
+    # singular and correct_positive_definite fires; every path must report the
+    # nudge, not just the multi-trait Gibbs one
+    fam = Family("f1", [Member("o", 1.0, np.inf), Member("m", -np.inf, 1.0)])
+    with pytest.warns(RuntimeWarning, match="nudged to strict positive definiteness"):
+        estimate_liability([fam], h2=1.0, method="pa")
+    with pytest.warns(RuntimeWarning, match="nudged to strict positive definiteness"):
+        estimate_liability([fam], h2=1.0, method="gibbs", n_sim=20, burn_in=0,
+                           tol=1e9, max_rounds=1)
+
+
+def test_array_and_kinship_estimators_warn_when_covariance_is_corrected():
+    from ltpred import estimate_liability_from_kinship
+    from ltpred.estimate import (estimate_liability_pa_arrays,
+                                 estimate_liability_gibbs_arrays)
+    lo = np.array([[1.0, -np.inf]])
+    hi = np.array([[np.inf, 1.0]])
+    with pytest.warns(RuntimeWarning, match="nudged to strict positive definiteness"):
+        estimate_liability_pa_arrays(["o", "m"], lo, hi, h2=1.0)
+    with pytest.warns(RuntimeWarning, match="nudged to strict positive definiteness"):
+        estimate_liability_gibbs_arrays(["o", "m"], lo, hi, h2=1.0, n_sim=20,
+                                        burn_in=0, tol=1e9, max_rounds=1)
+    with pytest.warns(RuntimeWarning, match="nudged to strict positive definiteness"):
+        estimate_liability_from_kinship(np.ones((2, 2)), np.array([[1.0, -np.inf]]),
+                                        np.array([[np.inf, 1.0]]), h2=1.0)

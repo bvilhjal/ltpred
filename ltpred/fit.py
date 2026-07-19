@@ -50,7 +50,8 @@ import numpy as np
 from ._mathfun import norm_cdf, norm_ppf
 from ._validation import validate_bounds
 from .covariance import get_relatedness, correct_positive_definite
-from .gibbs import gibbs_params, gibbs_advance, _offset_seed, _seed_rng
+from .gibbs import (gibbs_params, gibbs_advance, _std_tnorm_quantile,
+                    _offset_seed, _seed_rng)
 from .estimate import (_group_by_structure, _validate_multitrait_bounds,
                        batch_means)
 from .family import Family, Member
@@ -131,12 +132,25 @@ class FitResult:
     burn_in: int
 
 
-def _init_x(lowers, uppers):
-    """Start each coordinate at the median of its marginal truncated normal
-    (sd = 1); pinned coords collapse to their value, unbounded ones to 0."""
-    p0 = (norm_cdf(lowers) + norm_cdf(uppers)) / 2.0
-    x = norm_ppf(p0)
-    return np.where(np.isfinite(x), x, 0.0)
+def _init_x(lowers, uppers, fixed):
+    """Initial chain state for the fit paths (unit marginal SD).
+
+    Pinned coordinates start at their exact pin value -- they are never
+    resampled, so their start is permanent. Free coordinates start at the
+    median of their marginal truncated normal, computed with the sampler's
+    tail-stable :func:`ltpred.gibbs._std_tnorm_quantile` rather than
+    ``norm_ppf((Phi(lo) + Phi(hi)) / 2)``: beyond |z| ~ 8.2 the plain CDF
+    average saturates to 0/1 and the ppf returns +-inf, and a finite-or-0
+    fallback then started even an *extreme pinned* coordinate at 0.0 --
+    conditioning the whole family on a wrong value forever."""
+    x = np.empty(lowers.shape[0], dtype=np.float64)
+    for j in range(lowers.shape[0]):
+        if fixed[j]:
+            x[j] = lowers[j]                    # lower == upper: the exact pin
+        else:
+            xj = _std_tnorm_quantile(lowers[j], uppers[j], 0.5)
+            x[j] = xj if np.isfinite(xj) else 0.0
+    return x
 
 
 def _prepare_group(families, idx):
@@ -160,7 +174,7 @@ def _prepare_group(families, idx):
     fixed = np.ascontiguousarray((uppers - lowers) < 1e-8)
     x = np.empty((F, k))
     for slot in range(F):
-        x[slot] = _init_x(lowers[slot], uppers[slot])
+        x[slot] = _init_x(lowers[slot], uppers[slot], fixed[slot])
     return dict(roles=roles, A=np.ascontiguousarray(A), pairs=pairs, k=k, F=F,
                 lowers=np.ascontiguousarray(lowers),
                 uppers=np.ascontiguousarray(uppers), fixed=fixed,
@@ -181,7 +195,13 @@ def fit_heritability(families, *, h2_init=0.5, n_iter=1500, burn_in=500,
 
     Needs relatives (at least one related pair); a set of lone probands carries no
     information about ``h2`` and raises. ``seed`` must be a non-boolean integer in
-    ``[0, 2**32 - 1]`` or ``None``."""
+    ``[0, 2**32 - 1]`` or ``None``, ``h2_init`` must lie in [0, 1], and ``burn_in``
+    must be smaller than ``n_iter``."""
+    if int(burn_in) >= int(n_iter):
+        raise ValueError(f"burn_in ({burn_in}) must be < n_iter ({n_iter})")
+    if not 0.0 <= float(h2_init) <= 1.0:
+        raise ValueError("h2_init must be in [0, 1]")
+
     groups = [_prepare_group(families, idx) for _key, idx in _group_by_structure(families)]
     sxx = sum(sum(aij * aij for (_i, _j, aij) in g["pairs"]) * g["F"] for g in groups)
     if sxx <= 0:
@@ -322,7 +342,7 @@ def _prepare_group_vc(families, idx, comps):
     fixed = np.ascontiguousarray((uppers - lowers) < 1e-8)
     x = np.empty((F, k))
     for slot in range(F):
-        x[slot] = _init_x(lowers[slot], uppers[slot])
+        x[slot] = _init_x(lowers[slot], uppers[slot], fixed[slot])
     return dict(roles=roles, k=k, F=F, K=K, pairs=pairs,
                 lowers=np.ascontiguousarray(lowers),
                 uppers=np.ascontiguousarray(uppers), fixed=fixed,
@@ -768,7 +788,7 @@ def _prepare_group_multi(families, idx, n_pheno):
     fixed = np.ascontiguousarray((hi_pm - lo_pm) < 1e-8)
     x = np.empty((F, k * n_pheno))
     for slot in range(F):
-        x[slot] = _init_x(lo_pm[slot], hi_pm[slot])
+        x[slot] = _init_x(lo_pm[slot], hi_pm[slot], fixed[slot])
     return dict(roles=roles, k=k, F=F, A=A, W=W, sA2=sA2,
                 lowers=lo_pm, uppers=hi_pm,
                 fixed=fixed, x=np.ascontiguousarray(x))

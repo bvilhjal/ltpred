@@ -454,6 +454,58 @@ On the first two 300-family, no-mixture main-panel cross-checks, PA/Gibbs agreem
 MCSE 0.0090 at tolerance 0.03); PA-vs-Gibbs normalized RMSE is 0.0174 score SD,
 the Gibbs-on-PA slope is 0.990, and the mean difference is -0.0019.
 
+## 16. PA-FGRS censoring-mixture validation (`bench_pafgrs_mixture.py`)
+
+The PA-FGRS age-censored-control mixture previously had unit tests but no
+generative benchmark. This one simulates families (proband + parents + sib)
+under the liability-threshold model with a logistic CIP (h2 = 0.5, lifetime
+prevalence 0.10, mid-point 60), censors honestly (a case is observed only if
+its onset precedes the current age), and scores the estimate against the true
+genetic liability over 5 replicates of 20,000 families. Two censoring regimes
+(mid-life, heavy; old, light) and two observation models: the LT-FH++
+threshold-crossing convention, and a stochastic-onset model in which onset age
+is drawn from the CIP independent of liability (the mixture's native model).
+Slope = regress(true on estimate); 1.0 is a calibrated posterior mean.
+
+Threshold-crossing observation model:
+
+| arm | corr MID | slope MID | corr OLD | slope OLD |
+|---|---|---|---|---|
+| base (lifetime case) + no-mixture | 0.3281 | 1.1992 | 0.4693 | 1.0293 |
+| base + mixture | 0.3277 | 1.1738 | 0.4691 | 1.0209 |
+| interval case + mixture | 0.3334 | 0.8444 | 0.4766 | 0.8263 |
+| pinned case + no-mixture | 0.3337 | 0.9977 | 0.4770 | 0.9885 |
+| pinned case + mixture | 0.3337 | 0.9766 | 0.4769 | 0.9811 |
+
+(Gibbs cross-check on base + no-mixture: corr(PA, Gibbs) 0.9992 / 0.9998,
+matching slopes 1.2192 / 1.0217 -- the MID slope > 1 is the case encoding's
+information loss, not a PA artifact.)
+
+Stochastic-onset observation model:
+
+| arm | corr MID | slope MID | corr OLD | slope OLD |
+|---|---|---|---|---|
+| base + no-mixture | 0.2757 | 1.0184 | 0.4528 | 0.9957 |
+| base + mixture | 0.2758 | 0.9974 | 0.4528 | 0.9878 |
+
+### Verdict: implemented correctly; small censoring effect; case encoding dominates
+
+- **The mixture is implemented correctly**: it moves calibration toward 1 for
+  the under-conditioned lifetime-case encoding and is near-exact under its
+  native stochastic-onset model; it never costs correlation (<= 0.0005).
+- **Its effect at these settings is small** (calibration slope shifts of
+  0.01-0.03, correlation unchanged). Under the threshold-crossing model the
+  plain age truncation is already exact for censored controls, so the mixture
+  has no work to do; under the stochastic-onset model the naive encoding is
+  already nearly calibrated at these settings.
+- **Case encoding dominates calibration**: pinned (LT-FH++-exact) cases give
+  slope 0.98-1.00 in every cell; the lifetime case interval loses onset-age
+  information (slope up to 1.20 under heavy censoring); the age-specific
+  interval over-disperses (slope 0.83, consistent with the unit guard's
+  documented 0.84). Guidance: pin cases at their onset threshold where the
+  crossing model is believed; use the lifetime interval only when onset ages
+  are unreliable.
+
 ## What changed in this rerun
 
 - Added independent-replicate SEs to GWAS power, age-onset, family-history,
@@ -484,8 +536,9 @@ the Gibbs-on-PA slope is 0.990, and the mean difference is -0.0019.
   score contrasts.
 - Component boundary means do not establish Type-I error or interval coverage.
   Use the package's parametric-bootstrap tests and family bootstrap intervals.
-- The HAPNEST path was not executed here, and a dedicated PA-FGRS censoring-
-  mixture benchmark remains outstanding.
+- The HAPNEST path was not executed here. The PA-FGRS censoring-mixture
+  benchmark now exists (section 16); its censoring correction is small at
+  the tested settings, and case encoding dominates calibration there.
 - The lightweight GWAS helper uses the large-sample `n * r²` score statistic.
   A finite-sample regression test would use residual degrees of freedom and the
   `r² / (1-r²)` correction; the matched NCP ratios are robust to this

@@ -356,8 +356,10 @@ def construct_covmat_multi(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
             if p1 != p2:
                 # same individual across traits: genetic liab -> genetic cov,
                 # everything else (full liab / relatives) -> full correlation
+                # (keyed on the role label: with add_ind=False row 0 is a relative)
                 for a in range(k):
-                    cov[p1 * k + a, p2 * k + a] = gcov if a == 0 else full_corrmat[p1, p2]
+                    cov[p1 * k + a, p2 * k + a] = (gcov if fam_roles[a] == "g"
+                                                   else full_corrmat[p1, p2])
 
     roles = fam_roles * n_pheno
     return Covmat(cov, roles, phen_names=list(phen_names), h2=h2_vec)

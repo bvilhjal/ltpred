@@ -82,11 +82,27 @@ def gibbs_params(covmat):
     (``O(d^4)``) -- a few-fold speed-up that matters for multi-trait / large
     pedigrees. Computed once and reused across the convergence loop in
     :mod:`ltpred.estimate`. Mathematically identical to the conditional-regression
-    form; ``Sigma`` is strictly PD (see :func:`correct_positive_definite`)."""
+    form; ``Sigma`` is strictly PD (see :func:`correct_positive_definite`).
+
+    ``covmat`` must be finite, symmetric (rtol=1e-10, atol=1e-12) and
+    positive-definite (smallest eigenvalue above -1e-12, tolerating roundoff);
+    a merely invertible but indefinite covariance would otherwise silently
+    yield NaN conditional SDs and garbage draws, so it raises ``ValueError``.
+    """
     cov = np.ascontiguousarray(covmat, dtype=np.float64)
     d = cov.shape[0]
     if cov.shape != (d, d):
         raise ValueError("covmat must be square")
+    if not np.all(np.isfinite(cov)):
+        raise ValueError("covmat must contain only finite values")
+    if not np.allclose(cov, cov.T, rtol=1e-10, atol=1e-12):
+        raise ValueError("covmat must be symmetric (rtol=1e-10, atol=1e-12)")
+    min_eig = float(np.min(np.linalg.eigvalsh(cov))) if d else 1.0
+    if min_eig <= -1e-12:
+        raise ValueError(
+            "covmat must be positive-definite (minimum eigenvalue "
+            f"{min_eig:.3g}); an indefinite covariance yields NaN conditional "
+            "SDs -- see correct_positive_definite")
     Q = np.linalg.inv(cov)
     qdiag = np.diag(Q).copy()
     P = -Q / qdiag[np.newaxis, :]              # P[i,j] = -Q[i,j] / Q[j,j]
