@@ -30,7 +30,8 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
 ## Headline findings
 
 - **PA is the right default for the tested single-trait, no-mixture work.** Across the 27-cell accuracy
-  grid, corr(PA, Gibbs) is 0.9972–0.9999. The stressful-pedigree benchmark remains
+  grid (five seeds per cell), mean corr(PA, Gibbs) is 0.9977–0.9999. The
+  stressful-pedigree benchmark remains
   at least 0.9984. PA and Gibbs also give indistinguishable downstream GWAS
   results. In the isolated 10-thread timing run, the PA object path is
   **315–510× faster** than grouped Gibbs across the tested sizes and pedigrees.
@@ -60,18 +61,24 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
 
 ## 1. PA versus Gibbs accuracy (`bench_accuracy.py`)
 
-Single simulated cohorts, 1,500 families per cell. At h²=0.5 and K=0.05:
+Five independent simulated cohorts (seeds 1–5) per cell, 1,500 families
+each. Values are across-seed means ± SE (sd/sqrt(5)); per-cell settings are
+unchanged from the former single-seed grid. At h²=0.5 and K=0.05:
 
 | Family structure | corr Gibbs | corr PA | PA squared-correlation eff-N proxy / case-control | corr(PA, Gibbs) |
 |---|---:|---:|---:|---:|
-| parents | 0.394 | 0.394 | 1.29× | 0.9997 |
-| parents + 2 siblings | 0.440 | 0.440 | 1.78× | 0.9997 |
-| extended | 0.412 | 0.412 | 1.81× | 0.9997 |
+| parents | 0.382 ± 0.009 | 0.382 ± 0.009 | 1.36 ± 0.03× | 0.9997 |
+| parents + 2 siblings | 0.437 ± 0.009 | 0.437 ± 0.009 | 1.66 ± 0.07× | 0.9997 |
+| extended | 0.424 ± 0.012 | 0.424 ± 0.012 | 1.69 ± 0.15× | 0.9997 |
 
-Across all 27 cells, agreement is 0.9972–0.9999. Absolute accuracy increases
-with prevalence, heritability, and informative relatives. Relative gain over a
-case/control label is often largest for rarer disease; the largest current grid
-value is 2.67× (parents + siblings, h²=0.2, K=0.05).
+Across all 27 cells, the mean PA–Gibbs agreement is 0.9977–0.9999 with
+across-seed SEs of at most 0.0001 (bare means shown). Absolute accuracy
+increases with prevalence, heritability, and informative relatives.
+Relative gain over a case/control label is often largest for rarer
+disease; the largest grid mean is 2.47 ± 0.67× (extended, h²=0.2, K=0.01).
+The extreme low-prevalence cells are themselves noisy — the former
+single-seed maximum, 2.67× at parents + siblings, h²=0.2, K=0.05,
+replicates as 2.11 ± 0.15× — so treat their ordering as descriptive.
 
 ## 2. Controlled runtime scaling (`bench_scaling.py`)
 
@@ -318,34 +325,42 @@ Bootstrap the whole correlation-to-factor pipeline for uncertainty.
 
 ## 12. Score calibration (`bench_calibration.py`)
 
-These are single-seed, 3,000-family diagnostic cells. Correctly specified PA:
+Five independent 3,000-family cohorts per cell (seeds 1–5); values are
+across-seed means ± SE. Correctly specified PA:
 
 | structure | K | slope | corr | top-decile realised/predicted |
 |---|---:|---:|---:|---:|
-| parents + siblings | 0.01 | 1.006 | 0.265 | 1.033 |
-| parents + siblings | 0.05 | 1.014 | 0.421 | 1.010 |
-| parents + siblings | 0.20 | 0.996 | 0.589 | 0.999 |
-| extended | 0.01 | 0.916 | 0.215 | 0.896 |
-| extended | 0.05 | 1.017 | 0.428 | 1.009 |
-| extended | 0.20 | 1.015 | 0.608 | 0.987 |
+| parents + siblings | 0.01 | 1.004 ± 0.024 | 0.259 ± 0.003 | 0.978 ± 0.089 |
+| parents + siblings | 0.05 | 1.006 ± 0.008 | 0.431 ± 0.004 | 1.002 ± 0.027 |
+| parents + siblings | 0.20 | 1.006 ± 0.005 | 0.593 ± 0.003 | 1.002 ± 0.006 |
+| extended | 0.01 | 0.954 ± 0.036 | 0.243 ± 0.007 | 0.878 ± 0.041 |
+| extended | 0.05 | 1.011 ± 0.013 | 0.431 ± 0.005 | 1.000 ± 0.015 |
+| extended | 0.20 | 0.998 ± 0.010 | 0.595 ± 0.006 | 0.997 ± 0.016 |
 
-Most cells are near slope 1; rare disease with the extended pedigree is an
-outlier in this single seed, so the benchmark does not justify a universal
-calibration claim.
+Every slope mean is within 1.3 SE of 1 and every PA intercept within 0.01
+of 0; Gibbs and PA slope means agree within 0.01 cell for cell. The former
+single-seed outlier (extended pedigree, K=0.01, slope 0.916) replicates as
+0.954 ± 0.036 — mostly cohort noise. One departure does replicate: at
+K=0.01 with the extended pedigree the top-decile realised/predicted ratio
+is 0.878 ± 0.041, about 3 SE below 1, so the top of that score is
+over-stated by roughly 12%. Calibration is good in every tested cell, but
+the rare-disease top decile still blocks a universal calibration claim.
 
 Misspecified h², with true h²=0.5 and K=0.05:
 
 | assumed h² | slope | corr | top realised/predicted | calibration RMSE |
-|---:|---:|---:|---:|---:|
-| 0.2 | 2.249 | 0.419 | 2.272 | 0.160 |
-| 0.4 | 1.224 | 0.421 | 1.224 | 0.059 |
-| 0.5 | 1.014 | 0.421 | 1.010 | 0.026 |
-| 0.6 | 0.870 | 0.421 | 0.866 | 0.046 |
-| 0.8 | 0.684 | 0.420 | 0.681 | 0.124 |
+|---|---:|---:|---:|---:|
+| 0.2 | 2.240 ± 0.015 | 0.429 ± 0.004 | 2.253 ± 0.060 | 0.165 ± 0.003 |
+| 0.4 | 1.216 ± 0.009 | 0.431 ± 0.004 | 1.214 ± 0.033 | 0.068 ± 0.004 |
+| 0.5 | 1.006 ± 0.008 | 0.431 ± 0.004 | 1.002 ± 0.027 | 0.043 ± 0.006 |
+| 0.6 | 0.864 ± 0.007 | 0.430 ± 0.004 | 0.859 ± 0.024 | 0.062 ± 0.006 |
+| 0.8 | 0.678 ± 0.006 | 0.429 ± 0.004 | 0.675 ± 0.019 | 0.137 ± 0.006 |
 
-Ranking barely changes, while scale changes sharply. A realised/predicted ratio
-above 1 means the score under-predicted the realised top decile; it does not mean
-the score overstated it.
+Ranking barely changes — corr spans 0.429–0.431 with SE ≤ 0.004 — while
+the slope sweeps from 2.240 ± 0.015 down to 0.678 ± 0.006: the
+ranking-robust, scale-fragile contrast is now replicated, not single-seed.
+A realised/predicted ratio above 1 means the score under-predicted the
+realised top decile; it does not mean the score overstated it.
 
 ## 13. Cohort confounding (`bench_confounding.py`)
 
@@ -506,8 +521,61 @@ Stochastic-onset observation model:
   crossing model is believed; use the lifetime interval only when onset ages
   are unreliable.
 
+## 17. Inference-machinery calibration (`bench_inference_calibration.py`)
+
+The inferential layer (as opposed to point-estimate bias) validated over R = 25
+independent A-only datasets (400 families, proband + parents + sib, prevalence
+0.1, true h2 = 0.5, C = 0; n_boot = 50, reduced fit iterations):
+
+- **Type-I of `test_variance_component("C")`:** 0/25 rejections at 0.05
+  (rule-of-three upper bound ~0.11); p-values mean 0.428, median 0.392, min
+  0.059 -- no anti-conservatism; if anything mildly conservative at this
+  resolution (a uniform null would give mean 0.5, min ~0.04).
+- **`bootstrap_fit` interval coverage:** 24/25 = 96% coverage of the true
+  h2 = 0.5 at nominal 95% (binomial 95% CI 0.88-1.00). The bootstrap SE is
+  mildly conservative: mean 0.168 vs across-dataset SD 0.132 (ratio 1.27),
+  consistent with the slight over-coverage -- and, per the ROADMAP, the
+  internal `h2_se` understates that sampling SD by >20x, so the bootstrap
+  remains the right route.
+- **MCEM OPG SE:** mean reported SE 0.127 vs across-dataset SD 0.136 (ratio
+  0.93); point estimate mean A = 0.502 (truth 0.5). The approximate
+  information SE is close to the sampling SD at this design, slightly narrow.
+
+Resolution note: R = 25 bounds what these can resolve (a true 10% Type-I rate
+would have ~7% chance of showing 0/25). The read is "no gross
+miscalibration", not proof of exact calibration.
+
+## 18. Model-misspecification stress (`bench_misspecification.py`)
+
+Every other benchmark simulates under exactly the assumed model. This one
+violates one assumption at a time (8,000 families, 5 replicates, PA estimator,
+classic case/control bounds, h2 = 0.5, true prevalence 0.10):
+
+| arm | corr | slope |
+|---|---|---|
+| control | 0.4983 | 1.0002 |
+| heavy-tail env (t_5) | 0.4820 | 0.9898 |
+| assortative mating (phenotypic rho ~ 0.3) | 0.4915 | 0.9741 |
+| sibship shared env (c2 = 0.15, unmodeled) | 0.4934 | 0.9776 |
+| wrong prevalence 0.05 (true 0.10) | 0.4982 | 0.8886 |
+| wrong prevalence 0.20 (true 0.10) | 0.4980 | 1.1328 |
+
+### Verdict: structurally robust; prevalence is the calibration hazard
+
+The score is robust to structural misspecification at these strengths: heavy
+tails, generative assortative mating, and an unmodeled sibship environment
+each move the calibration slope by only 0.01-0.03 (direction as theory says --
+familial resemblance over-credited to genes) and cost almost no ranking
+(<= 0.007 corr). The dominant calibration risk is a wrong prevalence/
+threshold model (slope 0.89-1.13 for a factor-2 error) -- exactly what the
+personalised CIPs of LT-FH++ exist to remove, and the reason threshold
+provenance matters more than model refinement here.
+
 ## What changed in this rerun
 
+- Replicated the accuracy and calibration grids across five independent
+  seeds (every cell now reports an across-seed mean and SE), replacing the
+  single-seed diagnostic values.
 - Added independent-replicate SEs to GWAS power, age-onset, family-history,
   confounding, and cohort-span panels.
 - Corrected genotype-GWAS NCP ratios to use chi-square noncentrality rather than
@@ -528,14 +596,17 @@ Stochastic-onset observation model:
 
 ## Remaining limitations
 
-- Accuracy, calibration, and PA stress grids still contain single-seed diagnostic
-  cells. Treat small differences there as descriptive.
+- The accuracy and calibration grids (sections 1 and 12) are now replicated
+  across five independent seeds; every cell reports an across-seed mean and
+  SE. The PA stress grid (section 14) remains single-seed — treat small
+  differences there as descriptive.
 - Three- or four-replicate panels give useful SEs but still estimate tail
   uncertainty coarsely. The integrated main panel now uses ten replicates and
   its sex isolation uses five; tail calibration remains noisier than paired
   score contrasts.
-- Component boundary means do not establish Type-I error or interval coverage.
-  Use the package's parametric-bootstrap tests and family bootstrap intervals.
+- Component test Type-I error, bootstrap coverage, and MCEM SEs are now
+  calibrated at coarse resolution (section 17; R = 25 bounds the
+  resolution -- read as 'no gross miscalibration').
 - The HAPNEST path was not executed here. The PA-FGRS censoring-mixture
   benchmark now exists (section 16); its censoring correction is small at
   the tested settings, and case encoding dominates calibration there.

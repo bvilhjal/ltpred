@@ -20,13 +20,23 @@ standardised anyway). Truth ``g`` is known from the simulation, so it reports:
   (c) **decile curves under that misspecification** — the calibration curve tilting
       off the diagonal as the assumed h² moves.
 
+Each cell is replicated on ``--reps`` independent seeds (default 5); replicate
+``r`` uses ``--seed + r`` for both the cohort simulation and the Gibbs sampler,
+so the historical single-seed configuration is replicate 0. Reported values are
+across-seed means with standard errors (sd/sqrt(reps)); the decile curves are
+averaged across seeds. Per-cell settings are unchanged (3,000 families, 25,000
+Gibbs draws), so the means are directly comparable to the former single-seed
+numbers.
+
     python benchmarks/bench_calibration.py
-    python benchmarks/bench_calibration.py --n-fam 5000 --true-h2 0.5
-Writes bench_calibration.csv (+ .png if matplotlib is present).
+    python benchmarks/bench_calibration.py --n-fam 5000 --true-h2 0.5 --reps 3
+Writes bench_calibration.csv (+ .png if matplotlib is present). Metric columns
+are across-seed means with matching ``se_`` columns.
 """
 
 import os
 import csv
+import time
 import argparse
 
 import numpy as np
@@ -66,57 +76,98 @@ def calib(est, true_g, n_bins=10):
                 cal_rmse=cal_rmse, top_ratio=top_ratio)
 
 
-def panel_correct(n_fam, h2, prevs, n_sim, seed):
+KEYS = ("slope", "intercept", "corr", "cal_rmse", "top_ratio")
+
+
+def _mean_se(values):
+    """Across-seed mean and standard error (sd/sqrt(R)) of one metric."""
+    v = np.asarray(values, dtype=float)
+    se = v.std(ddof=1) / np.sqrt(v.size) if v.size > 1 else np.nan
+    return float(v.mean()), float(se)
+
+
+def _fill(row, eng, pairs, idx):
+    """Aggregate metric ``idx`` of paired (Gibbs, PA) calib dicts into ``row``."""
+    for key in KEYS:
+        row[f"{key}_{eng}"], row[f"se_{key}_{eng}"] = _mean_se(
+            [p[idx][key] for p in pairs])
+
+
+def panel_correct(n_fam, h2, prevs, n_sim, seed, reps):
     """(a) Calibration of the correctly-specified estimate (Gibbs and PA)."""
-    print("== (a) calibration when correctly specified (h2=%.2f) ==" % h2)
+    print("== (a) calibration when correctly specified (h2=%.2f, %d seeds) =="
+          % (h2, reps))
+    acc = {(s, p): [] for s in STRUCTURES for p in prevs}
+    for rep in range(reps):
+        print("  replicate %d/%d (seed %d)" % (rep + 1, reps, seed + rep))
+        for sname, fam_vec in STRUCTURES.items():
+            for prev in prevs:
+                sim = simulate_families(fam_vec, h2, prev, n_fam, seed + rep)
+                g = sim.genetic
+                gib, _ = estimate(sim.families, h2, "gibbs", n_sim=n_sim,
+                                  seed=seed + rep)
+                pa, _ = estimate(sim.families, h2, "pearson-aitken")
+                acc[(sname, prev)].append((calib(gib, g), calib(pa, g)))
     rows = []
-    for sname, fam_vec in STRUCTURES.items():
-        for prev in prevs:
-            sim = simulate_families(fam_vec, h2, prev, n_fam, seed)
-            g = sim.genetic
-            gib, _ = estimate(sim.families, h2, "gibbs", n_sim=n_sim, seed=seed)
-            pa, _ = estimate(sim.families, h2, "pearson-aitken")
-            cg, cp = calib(gib, g), calib(pa, g)
-            print("  %-13s K=%.2f | slope Gibbs=%.3f PA=%.3f | intercept=%+.3f | "
-                  "corr=%.3f | top-decile realised/pred=%.3f"
-                  % (sname, prev, cg["slope"], cp["slope"], cg["intercept"],
-                     cg["corr"], cg["top_ratio"]))
-            rows.append(dict(panel="correct", structure=sname, prevalence=prev,
-                             assumed_h2=h2, true_h2=h2,
-                             slope_gibbs=cg["slope"], slope_pa=cp["slope"],
-                             intercept_gibbs=cg["intercept"],
-                             intercept_pa=cp["intercept"],
-                             corr_gibbs=cg["corr"], corr_pa=cp["corr"],
-                             cal_rmse_gibbs=cg["cal_rmse"],
-                             cal_rmse_pa=cp["cal_rmse"],
-                             top_ratio_gibbs=cg["top_ratio"],
-                             top_ratio_pa=cp["top_ratio"]))
+    for (sname, prev), pairs in acc.items():
+        row = dict(panel="correct", structure=sname, prevalence=prev,
+                   assumed_h2=h2, true_h2=h2, reps=reps)
+        _fill(row, "gibbs", pairs, 0)
+        _fill(row, "pa", pairs, 1)
+        print("  %-13s K=%.2f | slope Gibbs=%.3f±%.3f PA=%.3f±%.3f | "
+              "intercept=%+.3f±%.3f | corr=%.3f±%.3f | "
+              "top-decile realised/pred=%.3f±%.3f"
+              % (sname, prev, row["slope_gibbs"], row["se_slope_gibbs"],
+                 row["slope_pa"], row["se_slope_pa"], row["intercept_gibbs"],
+                 row["se_intercept_gibbs"], row["corr_gibbs"],
+                 row["se_corr_gibbs"], row["top_ratio_gibbs"],
+                 row["se_top_ratio_gibbs"]))
+        rows.append(row)
     return rows
 
 
-def panel_misspec(n_fam, true_h2, assumed_grid, prev, seed):
+def panel_misspec(n_fam, true_h2, assumed_grid, prev, seed, reps):
     """(b) Calibration vs a wrong assumed h2 (PA; Gibbs agrees). Ranking robust,
-    scale not."""
-    print("== (b) calibration vs assumed h2 (true h2=%.2f, K=%.2f, parents+2 sibs) =="
-          % (true_h2, prev))
+    scale not. Also returns the (c) decile curves at the grid extremes and the
+    truth, averaged across seeds."""
+    print("== (b) calibration vs assumed h2 (true h2=%.2f, K=%.2f, parents+2 sibs"
+          ", %d seeds) ==" % (true_h2, prev, reps))
     fam_vec = STRUCTURES["parents+sibs"]
-    sim = simulate_families(fam_vec, true_h2, prev, n_fam, seed)
-    g = sim.genetic
+    curve_h2s = list(dict.fromkeys((min(assumed_grid), true_h2,
+                                    max(assumed_grid))))
+    acc = {a: [] for a in assumed_grid}
+    curves = {a: [] for a in curve_h2s}
+    for rep in range(reps):
+        sim = simulate_families(fam_vec, true_h2, prev, n_fam, seed + rep)
+        g = sim.genetic
+        for a_h2 in assumed_grid:
+            est, _ = estimate(sim.families, a_h2, "pearson-aitken")
+            acc[a_h2].append(calib(est, g))
+        for a_h2 in curve_h2s:
+            est, _ = estimate(sim.families, a_h2, "pearson-aitken")
+            curves[a_h2].append(decile_curve(est, g))
     rows = []
     for a_h2 in assumed_grid:
-        est, _ = estimate(sim.families, a_h2, "pearson-aitken")
-        c = calib(est, g)
+        row = dict(panel="misspec", structure="parents+sibs", prevalence=prev,
+                   assumed_h2=a_h2, true_h2=true_h2, reps=reps,
+                   slope_gibbs="", se_slope_gibbs="", intercept_gibbs="",
+                   se_intercept_gibbs="", corr_gibbs="", se_corr_gibbs="",
+                   cal_rmse_gibbs="", se_cal_rmse_gibbs="", top_ratio_gibbs="",
+                   se_top_ratio_gibbs="")
+        for key in KEYS:
+            row[f"{key}_pa"], row[f"se_{key}_pa"] = _mean_se(
+                [c[key] for c in acc[a_h2]])
         flag = "  <- true" if abs(a_h2 - true_h2) < 1e-9 else ""
-        print("  assumed h2=%.2f | slope=%.3f  corr=%.3f  top-decile r/p=%.3f%s"
-              % (a_h2, c["slope"], c["corr"], c["top_ratio"], flag))
-        rows.append(dict(panel="misspec", structure="parents+sibs", prevalence=prev,
-                         assumed_h2=a_h2, true_h2=true_h2, slope_gibbs="",
-                         slope_pa=c["slope"], intercept_gibbs="",
-                         intercept_pa=c["intercept"], corr_gibbs="",
-                         corr_pa=c["corr"], cal_rmse_gibbs="",
-                         cal_rmse_pa=c["cal_rmse"], top_ratio_gibbs="",
-                         top_ratio_pa=c["top_ratio"]))
-    return rows, sim, g
+        print("  assumed h2=%.2f | slope=%.3f±%.3f  corr=%.3f±%.3f  "
+              "top-decile r/p=%.3f±%.3f%s"
+              % (a_h2, row["slope_pa"], row["se_slope_pa"], row["corr_pa"],
+                 row["se_corr_pa"], row["top_ratio_pa"], row["se_top_ratio_pa"],
+                 flag))
+        rows.append(row)
+    mean_curves = {a: (np.mean([c[0] for c in cs], axis=0),
+                       np.mean([c[1] for c in cs], axis=0))
+                   for a, cs in curves.items()}
+    return rows, mean_curves
 
 
 def main():
@@ -128,33 +179,40 @@ def main():
                     default=[0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
     ap.add_argument("--misspec-prev", type=float, default=0.05)
     ap.add_argument("--n-sim", type=int, default=25_000)
+    ap.add_argument("--reps", type=int, default=5,
+                    help="independent seeds per cell (seed, seed+1, ...)")
     ap.add_argument("--seed", type=int, default=1)
     args = ap.parse_args()
+    if args.reps < 1:
+        ap.error("--reps must be at least 1")
 
+    t_start = time.perf_counter()
     estimate(simulate_families(["m", "f", "s1"], 0.5, 0.1, 40, 0).families, 0.5,
              "gibbs", n_sim=500, seed=0)                 # warm JIT
 
-    rows = panel_correct(args.n_fam, args.true_h2, args.prev, args.n_sim, args.seed)
-    mrows, sim, g = panel_misspec(args.n_fam, args.true_h2, args.assumed,
-                                  args.misspec_prev, args.seed)
+    rows = panel_correct(args.n_fam, args.true_h2, args.prev, args.n_sim,
+                         args.seed, args.reps)
+    mrows, curves = panel_misspec(args.n_fam, args.true_h2, args.assumed,
+                                  args.misspec_prev, args.seed, args.reps)
     rows += mrows
-
-    # (c) decile calibration curves under misspecification
-    curves = {}
-    for a_h2 in (min(args.assumed), args.true_h2, max(args.assumed)):
-        est, _ = estimate(sim.families, a_h2, "pearson-aitken")
-        curves[a_h2] = decile_curve(est, g)
 
     write_csv(rows)
     plot(rows, args.true_h2, curves)
     print("\nwrote bench_calibration.csv and bench_calibration.png")
+    print("total runtime: %.1f min" % ((time.perf_counter() - t_start) / 60))
 
 
 def write_csv(rows):
     fields = ["panel", "structure", "prevalence", "assumed_h2", "true_h2",
-              "slope_gibbs", "slope_pa", "intercept_gibbs", "intercept_pa",
-              "corr_gibbs", "corr_pa", "cal_rmse_gibbs", "cal_rmse_pa",
-              "top_ratio_gibbs", "top_ratio_pa"]
+              "reps",
+              "slope_gibbs", "se_slope_gibbs", "slope_pa", "se_slope_pa",
+              "intercept_gibbs", "se_intercept_gibbs",
+              "intercept_pa", "se_intercept_pa",
+              "corr_gibbs", "se_corr_gibbs", "corr_pa", "se_corr_pa",
+              "cal_rmse_gibbs", "se_cal_rmse_gibbs",
+              "cal_rmse_pa", "se_cal_rmse_pa",
+              "top_ratio_gibbs", "se_top_ratio_gibbs",
+              "top_ratio_pa", "se_top_ratio_pa"]
     path = os.path.join(HERE, "bench_calibration.csv")
     with open(path, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
@@ -168,7 +226,7 @@ def plot(rows, true_h2, curves):
         return
     fig, ax = plt.subplots(1, 3, figsize=(15, 4.4))
 
-    # (a) well-specified decile curve for the true-h2 misspec cell (Gibbs≈PA)
+    # (a) well-specified decile curve at the true h2, averaged across seeds
     me, mg = curves[true_h2]
     lim = [min(me.min(), mg.min()) - 0.03, max(me.max(), mg.max()) + 0.03]
     ax[0].plot(lim, lim, "k--", lw=1, label="calibrated (y=x)")
@@ -178,14 +236,16 @@ def plot(rows, true_h2, curves):
     ax[0].set_title("(a) correctly specified: on the diagonal")
     ax[0].legend(fontsize=8)
 
-    # (b) slope & corr vs assumed h2
+    # (b) slope & corr vs assumed h2 (seed means; bars = across-seed SE)
     ms = [r for r in rows if r["panel"] == "misspec"]
     ms.sort(key=lambda r: r["assumed_h2"])
     a = [r["assumed_h2"] for r in ms]
-    slope = [r["slope_pa"] for r in ms]
-    corr = [r["corr_pa"] for r in ms]
-    ax[1].plot(a, slope, "-o", color="#B95C3C", label="calibration slope")
-    ax[1].plot(a, corr, "-s", color="#3B4A9C", label="corr(est, true g)")
+    ax[1].errorbar(a, [r["slope_pa"] for r in ms],
+                   yerr=[r["se_slope_pa"] for r in ms], fmt="-o", capsize=3,
+                   color="#B95C3C", label="calibration slope")
+    ax[1].errorbar(a, [r["corr_pa"] for r in ms],
+                   yerr=[r["se_corr_pa"] for r in ms], fmt="-s", capsize=3,
+                   color="#3B4A9C", label="corr(est, true g)")
     ax[1].axhline(1.0, color="k", ls=":", lw=1)
     ax[1].axvline(true_h2, color="gray", ls=":", lw=1)
     ax[1].set_xlabel("assumed h² handed to the estimator")
