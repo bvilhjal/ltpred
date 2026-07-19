@@ -46,6 +46,16 @@ bounds uninformative; otherwise the outcome leaks directly into the predictor.
 
 ### Beyond the role grammar: arbitrary pedigrees
 
+If the pedigree itself must be *discovered* from population parent-offspring
+records, `ltpred.pedigree` does that first: `build_parent_graph(ids, father,
+mother)` indexes the records and `extract_pedigree(graph, proband,
+max_degree=3)` returns each proband's relatives up to third degree (parents,
+siblings, grandparents, half-sibs, aunts/uncles, cousins) with all their
+ancestors closed in, so the sub-pedigree's kinship is exact (see
+`benchmarks/bench_pedigree_inference.py`).
+
+### Beyond the role grammar: arbitrary pedigrees
+
 When your relatives don't fit the fixed roles — deeper pedigrees, cousins,
 multiple marriages, inbreeding — describe the pedigree by **who each person's
 parents are** instead. `kinship_from_pedigree` turns `(ids, father, mother)` columns

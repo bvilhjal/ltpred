@@ -38,6 +38,8 @@ _EXPORTS = {
                    "construct_covmat_multi", "correct_positive_definite", "Covmat",
                    "kinship_from_pedigree", "construct_covmat_from_kinship"],
     "cip": ["CipCurve", "kaplan_meier_cip", "aalen_johansen_cip"],
+    "pedigree": ["ParentGraph", "Pedigree", "build_parent_graph",
+                 "extract_pedigree", "extract_pedigrees"],
     "thresholds": ["convert_age_to_cir", "convert_age_to_thresh",
                    "convert_liability_to_aoo",
                    "convert_observed_to_liability_scale", "prevalence_thresholds",

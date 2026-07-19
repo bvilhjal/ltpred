@@ -600,6 +600,35 @@ closes ROADMAP item 6. The AJ SE is the closed-form Aalen (1978) variance
 (cmprsk::cuminc convention), agreeing with Greenwood to ~4 decimal places in
 non-degenerate risk sets; a person-level bootstrap remains as an option.
 
+## 20. Pedigree inference from trio records (`bench_pedigree_inference.py`)
+
+`ltpred.pedigree` discovers a proband's relatives from population
+parent-offspring records (the Pedersen et al. 2025 graph-extraction niche,
+with full-sibling edges giving the standard relationship-degree scale:
+parents/siblings degree 1, grandparents/half-sibs/aunts degree 2, first
+cousins degree 3). On a simulated 3-generation population (2,683 persons,
+remarriages and cousin links):
+
+- **Exactness:** with a full ancestral closure (every recorded ancestor of the
+  extracted set included), the extracted sub-pedigree's kinship equals the
+  full-population kinship restricted to the members -- max abs diff **0.0**
+  over 300 probands. (Without the closure, boundary members who are actually
+  siblings were split into unrelated founders, diff 0.5; the closure is what
+  makes the extracted pedigree safe to estimate from. The degree limit
+  truncates only *which relatives* are included, never the kinship among
+  them.)
+- **Payoff (the LT-FGRS point):** estimating genetic liability on 300
+  probands, corr(est, truth) is 0.618 using all relatives up to third degree
+  vs 0.559 with only the first-degree role subset the grammar encodes
+  (+10.6%); the two scores correlate 0.89 -- which relatives you include
+  matters, consistent with Pedersen et al. (2026, LT-FGRS).
+- **Scale:** 3,000 extractions at degree 3 in 0.29 s (~0.1 ms per proband);
+  per-proband neighborhoods stay small (tens of nodes), so per-proband
+  extraction plus a small dense kinship covariance is the right architecture.
+
+Kinship here is the exact tabular method (inbreeding-aware), not the 2025
+paper's path-counting approximation.
+
 ## What changed in this rerun
 
 - Replicated the accuracy and calibration grids across five independent

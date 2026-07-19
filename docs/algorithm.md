@@ -62,10 +62,16 @@ additionally covers half-sibs of any degree, cousins and inbred pedigrees;
 `estimate_liability_from_kinship` runs PA by default or Gibbs on request.
 That high-level kinship API accepts only `lower`/`upper`; it has no `K_i`, `K_pop`
 or `use_mixture` arguments and therefore does not implement PA-FGRS censoring.
-For upstream graph-based extraction of arbitrary-degree relatives from population
-trio records, see [Pedersen et al. (2025)](https://doi.org/10.3389/fgene.2025.1708315);
-ltpred starts from the resulting specified pedigree rather than discovering the
-relatives itself.
+For discovering the relatives from population trio records, `ltpred.pedigree`
+implements graph-based relative extraction in the style of [Pedersen et al.
+(2025)](https://doi.org/10.3389/fgene.2025.1708315): `build_parent_graph`
+indexes the records, `extract_pedigree` visits every person within
+`max_degree` relationship-degrees of a proband (full-sibling edges make the
+distance equal the standard relationship degree) and closes on all recorded
+ancestors, so the extracted pedigree's kinship is exact for every member pair.
+Its kinship is the exact tabular one (inbreeding-aware), not the paper's
+path-counting approximation. The LT-FGRS pipeline (Pedersen et al. 2026)
+consumes the same extraction downstream.
 
 This is an **additive-genetic** model: familial resemblance is entirely genetic
 sharing. Shared environment, household/cultural transmission, assortative mating

@@ -61,6 +61,10 @@ follow NumPy's `default_rng` contract.
 
 ::: ltpred.cip
 
+## Pedigree discovery — `ltpred.pedigree`
+
+::: ltpred.pedigree
+
 ## Thresholds — `ltpred.thresholds`
 
 ::: ltpred.thresholds

@@ -62,6 +62,15 @@ at large `|r_g|` in the repository benchmarks. On top of that `r_g` matrix,
 latent genetic factor explain the correlations among the traits? — with `srmr` as
 an in-sample misfit diagnostic, not a calibrated factor-number test.
 
+**Pedigree discovery.** `ltpred.pedigree` goes from population trio records
+(ids, father, mother) to per-proband pedigrees: BFS ego-extraction within
+`max_degree` relationship-degrees (full-sib edges give the standard degree
+scale) plus a full ancestral closure, making extracted kinship exactly equal
+to the full-population values restricted to the members (benchmarked at
+0.0 max abs diff; extraction ~0.1 ms/proband). This is the Pedersen et al.
+(2025) graph-extraction niche, with exact tabular kinship in place of the
+paper's path-counting approximation.
+
 **Benchmarks** (`benchmarks/`, `RESULTS.md`) cover accuracy, runtime scaling,
 age-of-onset, replicated classic LT-FH GWAS power (Gibbs and PA both
 1.47 ± 0.04× causal-SNP NCP ratio over case/control at λ_GC ≈ 1), and an integrated
