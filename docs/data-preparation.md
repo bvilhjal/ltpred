@@ -322,4 +322,19 @@ but better aligned with a downstream molecular GWAS. Neither is uniquely "correc
 so run a **sensitivity analysis** over plausible `h²` values (and prevalence/CIP)
 and check how much the score and downstream results move — see
 [Inference](inference.md#sensitivity-to-the-assumed-heritability). Don't have any external
-value? [Fit `h²` from the families themselves](inference.md#fitting-heritability-from-the-family-data).
+value? [Fit `h²` from the families themselves](inference.md#fitting-heritability-from-the-family-data),
+or get a fast, fitting-free cross-check from **tetrachoric correlations**
+(`ltpred.tetrachoric`): the tetrachoric correlation between two relatives'
+case/control statuses estimates their latent liability correlation directly
+from the 2x2 table, and first-degree relatives give `h² / 2` under the model
+(the classic Falconer route):
+
+```python
+from ltpred import tetrachoric
+r = tetrachoric(proband_status, mother_status)   # -> r.rho, r.se
+h2_falconer = 2 * r.rho
+```
+
+Pairwise tetrachorics are also a useful model *diagnostic*: compare them with
+the `h² × A` the fitted covariance implies (benchmarked in
+`benchmarks/bench_tetrachoric.py`).

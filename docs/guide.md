@@ -57,7 +57,10 @@ Use ltpred when you have, per proband:
 - for LT-FH/LT-FH++, the same for some **relatives** of known relationship
   (parents, siblings, grandparents, half-sibs, aunts/uncles, children), and
 - a **population prevalence** and a **liability-scale heritability** `h²` for the
-  disease.
+  disease — external, fitted from the families themselves
+  (`fit_heritability`), or cross-checked with tetrachoric correlations
+  (`ltpred.tetrachoric`, the Falconer route `h² ~ 2 ×` first-degree
+  tetrachoric).
 
 The output targets the posterior mean genetic liability of each proband (Gibbs by
 Monte Carlo; PA by a sequential-moment approximation). Feeding it to a

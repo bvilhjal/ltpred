@@ -160,7 +160,9 @@ single- and multi-trait
 genetic correlation (`fit_genetic_correlation`) and its common-factor model
 (`fit_genetic_factor`), approximate iid-family cluster percentile intervals
 (`bootstrap_fit`) and h² sensitivity
-(`liability_sensitivity`).
+(`liability_sensitivity`), and tetrachoric-correlation diagnostics
+(`ltpred.tetrachoric`) for liability correlations straight from 2x2
+case/control tables.
 
 The high-level arbitrary-kinship estimator accepts `A` plus `lower`/`upper` only;
 it does not accept `K_i`, `K_pop`, or `use_mixture`. Use the role/object estimator

@@ -57,6 +57,10 @@ follow NumPy's `default_rng` contract.
 
 ::: ltpred.estimate
 
+## Tetrachoric correlation — `ltpred.tetrachoric`
+
+::: ltpred.tetrachoric
+
 ## Register pipeline — `ltpred.pipeline`
 
 ::: ltpred.pipeline
