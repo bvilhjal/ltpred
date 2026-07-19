@@ -194,6 +194,33 @@ uninformative).
 > appropriate only when the curve reaches the intended lifetime horizon. Pass a
 > separately justified lifetime prevalence otherwise.
 
+#### Estimating the CIP from follow-up records
+
+If the CIP itself must be estimated from health data, `ltpred.cip` provides the
+two standard estimators, following the LT-FH++ construction (Pedersen et al.
+2022: Aalen-Johansen with death and emigration as competing events, one curve
+per sex x birth-year stratum). The full methodology -- input format, risk
+sets, formulas, variance estimators, estimand choice, stratification, worked
+example, edge cases -- is in [CIP estimation](cip-estimation.md):
+
+```python
+from ltpred import aalen_johansen_cip, kaplan_meier_cip
+
+# per person: age at entry into follow-up (0, register start, or immigration),
+# age at exit, and what happened at exit (0 censoring, 1 diagnosis, 2 death)
+curve = aalen_johansen_cip(age_entry, age_exit, event_type)   # competing risks
+# curve.ages / curve.values feed thresholds_from_cip; curve.se is the
+# closed-form Aalen (1978) SE (bootstrap optional: n_boot=200)
+```
+
+Use `aalen_johansen_cip` whenever death before diagnosis is common (elderly
+onsets): treating death as censoring (plain Kaplan-Meier) overestimates the
+diagnosed proportion (quantified in `benchmarks/bench_cip_estimation.py`).
+`kaplan_meier_cip` is the right choice only when censoring -- including death --
+is independent of the event process. Both handle left truncation (delayed
+entry). Stratify by calling the estimator once per stratum (sex, birth-year
+band) and passing each group of relatives the curve of their stratum.
+
 #### A real register-data recipe
 
 The end-to-end path for register data uses your **own** cumulative-incidence curve

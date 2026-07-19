@@ -42,7 +42,8 @@ classification, omit the proband's role `o` or give it uninformative
 ## Documentation
 
 - **User guide** — the [quickstart](docs/quickstart.md) (a complete run), then
-  [data preparation](docs/data-preparation.md), [estimation](docs/estimation.md),
+  [data preparation](docs/data-preparation.md), [CIP estimation](docs/cip-estimation.md),
+  [estimation](docs/estimation.md),
   [inference](docs/inference.md), [assumptions & checklist](docs/assumptions.md),
   and the [API reference](docs/api.md). ([Overview & when-to-use](docs/guide.md).)
 - **[Algorithm & model](docs/algorithm.md)** — the liability-threshold model, both
@@ -151,7 +152,9 @@ choosing between the methods, and using the score in a GWAS, see the
 
 ltpred covers the core prediction and fitting APIs: role-based *and* arbitrary-
 pedigree (`kinship_from_pedigree`) covariance construction, the threshold/age/CIP
-conversions, both inference engines (Gibbs and PA), single- and multi-trait
+conversions plus CIP estimation from follow-up records (Kaplan-Meier and
+Aalen-Johansen, `ltpred.cip`), both inference engines (Gibbs and PA),
+single- and multi-trait
 `estimate_liability`, simulation, and **model fitting** — heritability
 (`fit_heritability`), variance components A + C + M (`fit_variance_components`),
 genetic correlation (`fit_genetic_correlation`) and its common-factor model

@@ -26,6 +26,7 @@ nav:
   - Overview: guide.md
   - Quickstart: quickstart.md
   - Data preparation: data-preparation.md
+  - CIP estimation: cip-estimation.md
   - Estimation: estimation.md
   - Inference: inference.md
   - Assumptions & checklist: assumptions.md

@@ -57,6 +57,10 @@ follow NumPy's `default_rng` contract.
 
 ::: ltpred.estimate
 
+## CIP estimation — `ltpred.cip`
+
+::: ltpred.cip
+
 ## Thresholds — `ltpred.thresholds`
 
 ::: ltpred.thresholds

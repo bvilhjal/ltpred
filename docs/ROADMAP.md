@@ -227,9 +227,18 @@ likelihood-based inference) to the pedigree/registry setting.
    the case encoding (pinned vs lifetime vs interval) dominates calibration
    there.
 
-6. **Censoring-aware CIPs.** Helpers and guidance for `1 − Kaplan–Meier` under
-   independent censoring without competing events, and Aalen–Johansen cumulative
-   incidence when competing death or diagnoses are present.
+6. ~~**Censoring-aware CIPs.**~~ **Done.** `ltpred/cip.py` estimates the
+   cumulative-incidence curve from registry-style follow-up records (entry age,
+   exit age, event code): `kaplan_meier_cip` (left-truncated product-limit,
+   Greenwood SEs) for the no-competing-risks case, and `aalen_johansen_cip`
+   (delayed entry, right censoring, death/emigration as competing events --
+   the LT-FH++ construction, Pedersen et al. 2022) with the closed-form Aalen
+   (1978) variance and an optional person-level bootstrap cross-check. Output
+   feeds `thresholds_from_cip` directly. Validated in
+   `bench_cip_estimation.py`: exact recovery of a known curve (max err ~0.002),
+   the competing-risks overestimation of KM quantified (~0.022 at 42% death
+   share), delayed entry handled, and end-to-end the estimated curve costs
+   ~0.005 of calibration slope vs the oracle CIP.
 
 7. ~~**Sensitivity utility.**~~ **Done.** `liability_sensitivity(families,
    h2_values)` re-estimates over an h² grid and reports the cross-setting

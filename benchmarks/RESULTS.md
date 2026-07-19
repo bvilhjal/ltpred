@@ -571,6 +571,35 @@ threshold model (slope 0.89-1.13 for a factor-2 error) -- exactly what the
 personalised CIPs of LT-FH++ exist to remove, and the reason threshold
 provenance matters more than model refinement here.
 
+## 19. CIP estimation from follow-up records (`bench_cip_estimation.py`)
+
+`ltpred.cip` estimates the cumulative-incidence curve that `thresholds_from_cip`
+consumes, from registry-style follow-up records (entry age, exit age, event
+code), with left truncation and competing risks. Simulated registry cohort
+(N = 50,000; known logistic CIP, lifetime prevalence 0.10; Gompertz mortality;
+administrative censoring; one arm with a 1995 register start):
+
+- **No mortality:** Kaplan-Meier recovers the true curve to max abs error
+  0.0013; Greenwood 2xSE coverage 1.00 (slightly conservative).
+- **With mortality (42% death share):** Aalen-Johansen recovers its estimand
+  (the crude cumulative incidence in the presence of death) to 0.0017;
+  Kaplan-Meier treating death as censoring overestimates it by up to 0.0218
+  (the classic competing-risks bias) while remaining consistent for its own,
+  different estimand (the marginal no-death-world curve, 0.0019). Estimand
+  choice is the user's call; for LT-FH++ thresholds the crude curve is the
+  right one (the dead cannot be diagnosed).
+- **Delayed entry (register starts 1995):** AJ still accurate to 0.0019.
+- **End-to-end:** the estimated curve -> `thresholds_from_cip` ->
+  `estimate_liability` on a family cohort gives calibration slope 0.9969 vs
+  1.0015 with the oracle curve, with identical correlation (0.3861) -- at this
+  registry size, CIP estimation error is negligible for the score.
+
+This matches the LT-FH++ construction (Pedersen et al. 2022: Aalen-Johansen
+with death and emigration as competing events, sex x birth-year strata) and
+closes ROADMAP item 6. The AJ SE is the closed-form Aalen (1978) variance
+(cmprsk::cuminc convention), agreeing with Greenwood to ~4 decimal places in
+non-degenerate risk sets; a person-level bootstrap remains as an option.
+
 ## What changed in this rerun
 
 - Replicated the accuracy and calibration grids across five independent
