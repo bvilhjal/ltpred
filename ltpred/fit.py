@@ -42,14 +42,14 @@ richer relationship design; it is not offered.
 from __future__ import annotations
 
 import operator
-import re
 from dataclasses import dataclass
 
 import numpy as np
 
 from ._mathfun import norm_cdf, norm_ppf
 from ._validation import validate_bounds
-from .covariance import get_relatedness, correct_positive_definite
+from .covariance import (get_relatedness, correct_positive_definite,
+                        _is_full_sib, _is_mates)
 from .gibbs import (gibbs_params, gibbs_advance, _std_tnorm_quantile,
                     _offset_seed, _seed_rng)
 from .estimate import (_group_by_structure, _validate_multitrait_bounds,
@@ -61,52 +61,6 @@ __all__ = ["FitResult", "fit_heritability", "VarCompResult",
            "FactorResult", "fit_genetic_factor",
            "BootstrapResult", "bootstrap_fit", "SignificanceTest",
            "test_variance_component", "test_genetic_correlation"]
-
-_SIBSHIP = re.compile(r"o|s\d*")           # proband + full sibs (one sib-ship)
-_PARENT = re.compile(r"[mf]")
-_AVUNC = re.compile(r"[mp]au\d*")
-_MAT_AVUNC = re.compile(r"mau\d*")         # mother's full sibs
-_PAT_AVUNC = re.compile(r"pau\d*")         # father's full sibs
-
-
-def _is_full_sib(a, b):
-    """Whether roles ``a`` and ``b`` are **full siblings** — the pairs the common-
-    environment component ``C`` loads on. Three cases: both in one sib-ship (proband
-    ``o`` and its sibs ``s1``, ``s2``, …); a parent and their own sib (an
-    aunt/uncle); or two aunts/uncles on the **same** side (``mau1``/``mau2`` or
-    ``pau1``/``pau2``), who are full sibs of that parent and of each other. Including
-    that last case is what makes ``C`` form a complete sibship block ``{m, mau1,
-    mau2, …}`` (a valid PSD component) rather than a non-PSD chain. The relatedness
-    guard rejects unrelated look-alikes (e.g. a mother and a *paternal* aunt/uncle),
-    which would otherwise match the parent/avuncular test."""
-    if get_relatedness(a, b, 1.0) <= 0:
-        return False
-
-    def full(p, x):
-        return p.fullmatch(x) is not None
-
-    both_sibship = full(_SIBSHIP, a) and full(_SIBSHIP, b)
-    parent_and_their_sib = ((full(_PARENT, a) and full(_AVUNC, b))
-                            or (full(_PARENT, b) and full(_AVUNC, a)))
-    same_side_avunc = ((full(_MAT_AVUNC, a) and full(_MAT_AVUNC, b))
-                       or (full(_PAT_AVUNC, a) and full(_PAT_AVUNC, b)))
-    return both_sibship or parent_and_their_sib or same_side_avunc
-
-
-# genetically-unrelated cohabiting couples in the role grammar; each is a mate
-# pair that may share a couple/spousal environment (the ``M`` component).
-_MATES = frozenset({frozenset({"m", "f"}), frozenset({"mgm", "mgf"}),
-                    frozenset({"pgm", "pgf"})})
-
-
-def _is_mates(a, b):
-    """Whether roles ``a`` and ``b`` are a **mate pair** — the genetically-unrelated
-    couples the couple-environment component ``M`` loads on: the proband's parents
-    (``m``, ``f``) and the maternal/paternal grandparents (``mgm``/``mgf``,
-    ``pgm``/``pgf``). Because mates share no DNA (``A_ab = 0``), their liability
-    resemblance is not attributed to ``A`` — ``M`` captures it instead."""
-    return frozenset({a, b}) in _MATES
-
 
 @dataclass
 class FitResult:

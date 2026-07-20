@@ -110,25 +110,20 @@ The genetic target `g` still couples to relatives only through `h2 * A`, so it
 remains a *genetic* liability; the environmental terms only change how the
 relatives' liabilities are conditioned.
 
-This is a **low-level covariance interface, not yet a high-level
-`estimate_liability(..., c2=...)` option**: `construct_covmat` builds only the
-additive-genetic `h2 * A` table, and there is no user-facing shared-environment
-argument. To use environmental components today, assemble the covariance yourself
-(add `c2 * C`, `m2 * M`, etc.) and pass it to a covariance-level entry point —
-`rtmvnorm_gibbs`, `pa_algorithm`, or `pa_estimate_batched` — which accept an
-arbitrary covariance directly. (Note this is separate from `fit_variance_components`,
-which *estimates* an `A + C + M` decomposition but does not yet feed fitted `C` or
-`M` back into the liability estimator.)
-
-### Relationship-specific environments and identifiability
-
-The environmental term can be *several* components, one per relationship-specific
-sharing pattern — a full-sib rearing environment, a couple/household environment
-shared by mates, mother– or father–offspring environments, a cousin environment:
-
-```text
-Cov(l_i, l_j) = h2 A_ij + sum_c c2_c K_c[i,j] ,   K_c = K_c' >= 0,
-Var(l_i) = h2 + sum_c c2_c + e2 = 1               (K_c[i,i] = 1).
+The sibship (`C`) and couple (`M`) components are **wired into the
+estimator**: `construct_covmat_single(..., c2=..., m2=...)` adds them to the
+relatives' covariance (off-diagonals only; the residual environmental variance
+absorbs them, so full liabilities keep unit variance and the genetic target
+stays coupled through `h2 * A` only), and every front door accepts them --
+`estimate_liability`, `estimate_liability_single`, `estimate_liability_pa`,
+`estimate_liability_pa_arrays` and `estimate_liability_gibbs_arrays` all take
+`c2`/`m2` arguments, so the `A + C + M` decomposition fitted by
+`fit_variance_components` can be fed straight back into liability estimation.
+Validated in `benchmarks/bench_env_components.py`: wiring recalibrates the
+genetic estimate (slope 0.93 -> 0.99) and sharpens the full-liability
+prediction. Arbitrary user-supplied kernels still go through the covariance-
+level entry points (`rtmvnorm_gibbs`, `pa_algorithm`, `pa_estimate_batched`),
+which accept an arbitrary covariance directly.
 ```
 
 `fit_variance_components` estimates a set of components **jointly** (multiple HE

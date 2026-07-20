@@ -49,6 +49,8 @@ res = estimate_liability(families, h2=0.5, out=("genetic",))
   (the proband's `o`), or both.
 - `use_mixture` — PA only: turn on the age-censored-control mixture (needs
   `K_i`/`K_pop`).
+- `c2`, `m2` — optional sibship (`C`) and couple (`M`) shared-environment
+  variance components; see below.
 
 ## Reading `LiabilityResult`
 
@@ -121,6 +123,46 @@ correlated but complementary; their theory explains this as two noisy estimates 
 the same additive genetic liability, not necessarily two different constructs
 ([2026, *AJHG*](https://doi.org/10.1016/j.ajhg.2025.11.016)). Fit and validate any
 combination in the target population rather than adding the two scores uncalibrated.
+
+## Shared-environment components (`C` and `M`)
+
+The default family covariance is additive-genetic only. When families cluster
+for environmental reasons — a shared sibship environment (`C`, loading on
+full-sib pairs) or a couple/spousal environment (`M`, loading on mate pairs
+such as `m`/`f` or `mgm`/`mgf`) — modelling those components improves the
+estimate in two ways: the genetic liability `g` is not inflated by
+environmental resemblance (better calibration), and full-liability prediction
+`E[l_o | family]` sharpens (see [algorithm.md](algorithm.md#adding-environmental-covariance-to-improve-prediction)).
+The components enter the relatives' covariance as
+
+```text
+Cov(l_i, l_j) = h2 * A_ij + c2 * C_ij + m2 * M_ij   (i != j)
+Var(l_i)      = h2 + c2 + m2 + e2 = 1               (residual e2 absorbs)
+```
+
+so `h2 + c2 + m2 <= 1` must hold. The genetic target still couples to
+relatives only through `h2 * A` — `g` remains a *genetic* liability.
+
+Fit the components from the same families and wire them straight back in:
+
+```python
+from ltpred import estimate_liability, fit_variance_components
+
+fit = fit_variance_components(families, ("A", "C", "M"))
+res = estimate_liability(families, h2=fit.components["A"],
+                         c2=fit.components.get("C", 0.0),
+                         m2=fit.components.get("M", 0.0))
+```
+
+Or pass known values directly: `estimate_liability(families, h2=0.4, c2=0.15,
+m2=0.1)`. The `c2`/`m2` arguments exist on every estimator entry point
+(`estimate_liability`, `estimate_liability_single`, `estimate_liability_pa`,
+`estimate_liability_pa_arrays`, `estimate_liability_gibbs_arrays`); the
+kinship/arbitrary-pedigree path does not take them yet — assemble its
+covariance yourself. Validated in
+[benchmarks/RESULTS.md](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md) (section 24): wiring
+recalibrates the genetic estimate (slope 0.93 -> 0.99) and sharpens
+full-liability prediction on environmentally clustered families.
 
 ## Choosing Gibbs vs Pearson–Aitken
 
@@ -283,6 +325,7 @@ misspecification.
 | `h2` | `0.5` | liability-scale heritability (scalar, or vector for multi-trait) |
 | `out` | `("genetic",)` | `"genetic"`, `"full"`, or both |
 | `use_mixture` | `False` | PA age-censored-control mixture (needs `K_i`/`K_pop`) |
+| `c2`, `m2` | `None` (0) | sibship (`C`) / couple (`M`) shared-environment components; `h2 + c2 + m2 <= 1` |
 | `tol` | `0.01` | Gibbs: batch-means SE convergence target |
 | `n_sim`, `burn_in` | `100_000`, `1000` | Gibbs: draws kept / discarded per round |
 | `max_rounds` | `100` | Gibbs: cap on convergence rounds |

@@ -156,7 +156,8 @@ conversions plus CIP estimation from follow-up records (Kaplan-Meier and
 Aalen-Johansen, `ltpred.cip`), both inference engines (Gibbs and PA),
 single- and multi-trait
 `estimate_liability`, simulation, and **model fitting** — heritability
-(`fit_heritability`), variance components A + C + M (`fit_variance_components`),
+(`fit_heritability`), variance components A + C + M (`fit_variance_components`) — feedable back
+into estimation via `c2`/`m2` on every estimator entry point,
 genetic correlation (`fit_genetic_correlation`) and its common-factor model
 (`fit_genetic_factor`), approximate iid-family cluster percentile intervals
 (`bootstrap_fit`) and h² sensitivity

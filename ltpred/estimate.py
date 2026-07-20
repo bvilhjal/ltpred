@@ -370,9 +370,7 @@ def _base_seeds(seed, n, max_rounds):
     return (seed + np.arange(n, dtype=np.int64) * int(max_rounds)) % (_MAX_SEED + 1)
 
 
-def estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01,
-                              n_sim=100_000, burn_in=1000, seed=None,
-                              max_rounds=100, dtype=np.float64):
+def estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01, n_sim=100_000, burn_in=1000, seed=None, max_rounds=100, dtype=np.float64, c2=None, m2=None):
     """Estimate genetic/full liabilities for one trait, family by family.
 
     ``families`` is a list of :class:`~ltpred.family.Family` (build one from flat
@@ -396,7 +394,8 @@ def estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01,
 
     for _key, idx in _group_by_structure(families):
         roles = [m.role for m in families[idx[0]].members]
-        cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
+        cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2,
+                                          c2=c2, m2=m2)
         cov, n_corrections = correct_positive_definite(cov_obj.matrix)
         _warn_if_corrected(n_corrections, "Gibbs sampling")
         cov_roles = cov_obj.roles
@@ -456,8 +455,11 @@ def _ordered_bounds_pa(family, cov_roles):
 
 
 def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
-                          dtype=np.float64):
+                          dtype=np.float64, c2=None, m2=None):
     """Deterministic Pearson-Aitken liability inference for one trait.
+
+    ``c2``/``m2`` wire sibship (``C``) and couple (``M``) shared-environment
+    components into the family covariance (``h2 + c2 + m2 <= 1`` required).
 
     A deterministic sequential-moment alternative to
     :func:`estimate_liability_single`: no sampling, tolerance, or Monte-Carlo
@@ -496,7 +498,8 @@ def estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
         # of the family structure rather than whichever member/family happened
         # to arrive first. Bounds below are realigned by role name.
         roles = list(role_key)
-        cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
+        cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2,
+                                          c2=c2, m2=m2)
         cov, n_corrections = correct_positive_definite(cov_obj.matrix)
         _warn_if_corrected(n_corrections, "Pearson-Aitken estimation")
         cov_roles = cov_obj.roles
@@ -619,15 +622,16 @@ def _align_to_cov(roles, cov_roles, columns, defaults):
     return out
 
 
-def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
-                                 K_i=None, K_pop=None, use_mixture=False):
+def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic", K_i=None, K_pop=None, use_mixture=False, c2=None, m2=None):
     """Array-level Pearson-Aitken estimator — skips ``Family``/``Member`` objects.
 
     The production fast path for many same-structure probands: ``roles`` is the
     shared list of member roles (``o`` and relatives; ``g`` is added), and ``lower``
     / ``upper`` are ``(n_families, len(roles))`` bounds aligned to ``roles`` (build
-    them straight from your columns, e.g. with a threshold helper). The covariance
-    is built once. ``out`` is ``"genetic"`` (target ``g``) or ``"full"`` (target
+        them straight from your columns, e.g. with a threshold helper). The covariance
+    is built once (with the ``c2``/``m2`` sibship and couple shared-environment
+    components, ``h2 + c2 + m2 <= 1``). ``out`` is ``"genetic"`` (target ``g``) or
+    ``"full"`` (target
     ``o``). ``use_mixture`` with ``K_i``/``K_pop`` (same shape) enables the
     censored-control mixture. Returns PA sequential-moment approximations
     ``(est, var)`` of length ``n_families``."""
@@ -640,7 +644,8 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
     validate_bounds(lower, upper, context="array estimator bounds")
     # The PA fold is sequential. Canonicalise its covariance order while retaining
     # ``roles`` as the column labels used to realign every caller-supplied array.
-    cov_obj = construct_covmat_single(fam_vec=sorted(roles), add_ind=True, h2=h2)
+    cov_obj = construct_covmat_single(fam_vec=sorted(roles), add_ind=True, h2=h2,
+                                      c2=c2, m2=m2)
     cov, n_corrections = correct_positive_definite(cov_obj.matrix)
     _warn_if_corrected(n_corrections, "Pearson-Aitken estimation")
     cov_roles = cov_obj.roles
@@ -659,13 +664,12 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic",
     return pa_estimate_batched(cov, lo, hi, target=target)
 
 
-def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic",
-                                    tol=0.01, n_sim=100_000, burn_in=1000,
-                                    seed=None, max_rounds=100):
+def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic", tol=0.01, n_sim=100_000, burn_in=1000, seed=None, max_rounds=100, c2=None, m2=None):
     """Array-level Gibbs inference — skips ``Family``/``Member`` objects.
 
-    Same array inputs as :func:`estimate_liability_pa_arrays` (float32 ``lower``/
-    ``upper`` halve their memory). Returns ``(est, se)`` (posterior mean and
+        Same array inputs as :func:`estimate_liability_pa_arrays` (float32 ``lower``/
+    ``upper`` halve their memory); the covariance takes the same ``c2``/``m2``
+    shared-environment components. Returns ``(est, se)`` (posterior mean and
     batch-means Monte-Carlo SE) of length ``n_families`` for the single target
     selected by ``out``. ``seed`` must be a non-boolean integer in
     ``[0, 2**32 - 1]`` or ``None``."""
@@ -673,10 +677,11 @@ def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic",
     if len(roles) != len(set(roles)):
         raise ValueError("roles contains duplicate role labels; each column must "
                          "identify a different family member")
-    lower = as_bounds(lower)
+        lower = as_bounds(lower)
     upper = as_bounds(upper)
     validate_bounds(lower, upper, context="array estimator bounds")
-    cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2)
+    cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2,
+                                      c2=c2, m2=m2)
     cov, n_corrections = correct_positive_definite(cov_obj.matrix)
     _warn_if_corrected(n_corrections, "Gibbs sampling")
     cov_roles = cov_obj.roles
@@ -754,10 +759,7 @@ def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="gene
     return est[:, 0], se[:, 0]
 
 
-def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",),
-                       tol=0.01, use_mixture=False, genetic_corrmat=None,
-                       full_corrmat=None, phen_names=None, n_sim=100_000,
-                       burn_in=1000, seed=None, max_rounds=100, dtype=np.float64):
+def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",), tol=0.01, use_mixture=False, genetic_corrmat=None, full_corrmat=None, phen_names=None, n_sim=100_000, burn_in=1000, seed=None, max_rounds=100, dtype=np.float64, c2=None, m2=None):
     """Estimate conditional liabilities, dispatching on method and trait count.
 
     Bounds and relative rows distinguish LT-FH, LT-FH++ and ADuLT. PA-FGRS also
@@ -780,8 +782,11 @@ def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",),
     draws are required. An explicit ``method="pearson-aitken"``
     with a multi-trait request raises.
 
-    Scalar ``h2`` -> single trait; a vector ``h2`` with ``genetic_corrmat`` and
-    ``full_corrmat`` -> multi-trait. ``dtype=np.float32`` stores the per-family
+        Scalar ``h2`` -> single trait; a vector ``h2`` with ``genetic_corrmat`` and
+    ``full_corrmat`` -> multi-trait. ``c2``/``m2`` wire sibship (``C``) and
+    couple (``M``) shared-environment components into the family covariance
+    (see :func:`ltpred.covariance.construct_covmat_single`;
+    ``h2 + c2 + m2 <= 1`` required). ``dtype=np.float32`` stores the per-family
     liability bounds in single precision (half the memory) — useful at biobank
     scale. For Gibbs, ``seed`` must be a non-boolean integer in
     ``[0, 2**32 - 1]`` or ``None``; PA ignores it."""
@@ -797,7 +802,8 @@ def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",),
                 "Pearson-Aitken estimation is single-trait; use method='gibbs' "
                 "for the multi-trait model.")
         return estimate_liability_pa(families, h2=h2, out=out,
-                                     use_mixture=use_mixture, dtype=dtype)
+                                     use_mixture=use_mixture, dtype=dtype,
+                                     c2=c2, m2=m2)
 
     if method_name != "gibbs":
         raise ValueError(f"unknown method {method!r}; use 'gibbs' or 'pearson-aitken'")
@@ -809,7 +815,8 @@ def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",),
     if not is_multi:
         return estimate_liability_single(families, h2=h2, out=out, tol=tol,
                                          n_sim=n_sim, burn_in=burn_in, seed=seed,
-                                         max_rounds=max_rounds, dtype=dtype)
+                                         max_rounds=max_rounds, dtype=dtype,
+                                         c2=c2, m2=m2)
     if genetic_corrmat is None or full_corrmat is None:
         raise ValueError("multi-trait estimation needs genetic_corrmat and full_corrmat")
     return estimate_liability_multi(families, h2_vec=h2,

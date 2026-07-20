@@ -717,6 +717,32 @@ Paper-fixture checks in the tests: the Lee 2011 Discussion factors (observed
 fixture (0.61 -> 0.22), the LDSC SCZ-BIP gencov fixture (0.3644 -> 0.2011),
 and r_g scale invariance (0.656 both scales).
 
+## 24. Environment components in estimation (`bench_env_components.py`)
+
+The sibship (C) and couple (M) shared-environment components fitted by
+`fit_variance_components` are now wired into liability estimation:
+`construct_covmat_single(..., c2=..., m2=...)` and every estimator front
+door (`estimate_liability`, `estimate_liability_single`, `estimate_liability_pa`,
+the two array APIs) accept them. The genetic target stays coupled to relatives
+only through h2 * A (it shares no environment); the components only change how
+relatives are conditioned. On families simulated with true h2 = 0.4, sibship
+c2 = 0.15 and couple m2 = 0.15 (5 replicates of 4,000 families):
+
+| arm | corr(g) | slope(g) | corr(o) |
+|---|---|---|---|
+| additive-only (misspecified) | 0.454 | 0.927 | 0.284 |
+| oracle-wired (c2/m2 at truth) | 0.455 | 0.986 | 0.297 |
+| fitted-wired (fit then wire) | 0.455 | 0.983 | 0.296 |
+
+- **Calibration restored**: the additive-only model over-credits environmental
+  clustering to genetics (slope 0.93, over-dispersed); wiring recalibrates to
+  0.99 -- the algorithm doc's "sharper genetic estimate" promise, measured.
+- **Full-liability prediction sharpens**: corr(E[l_o | family], truth) rises
+  0.284 -> 0.297 when the environment is modelled.
+- **The fit->wire loop works end to end**: fitted components (A 0.45, C 0.13,
+  M 0.17 vs truth 0.4/0.15/0.15) give the same calibration as the oracle.
+- Ranking is untouched (corr(g) flat), consistent with every other benchmark.
+
 ## What changed in this rerun
 
 - Replicated the accuracy and calibration grids across five independent

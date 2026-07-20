@@ -259,14 +259,99 @@ def _expand_family(fam_vec, n_fam, add_ind):
     return (["g", "o"] + list(fam_vec)) if add_ind else list(fam_vec)
 
 
+_SIBSHIP = re.compile(r"o|s\d*")           # proband + full sibs (one sib-ship)
+_PARENT = re.compile(r"[mf]")
+_AVUNC = re.compile(r"[mp]au\d*")
+_MAT_AVUNC = re.compile(r"mau\d*")         # mother's full sibs
+_PAT_AVUNC = re.compile(r"pau\d*")         # father's full sibs
+
+
+def _is_full_sib(a, b):
+    """Whether roles ``a`` and ``b`` are **full siblings** — the pairs the common-
+    environment component ``C`` loads on. Three cases: both in one sib-ship (proband
+    ``o`` and its sibs ``s1``, ``s2``, …); a parent and their own sib (an
+    aunt/uncle); or two aunts/uncles on the **same** side (``mau1``/``mau2`` or
+    ``pau1``/``pau2``), who are full sibs of that parent and of each other. Including
+    that last case is what makes ``C`` form a complete sibship block ``{m, mau1,
+    mau2, …}`` (a valid PSD component) rather than a non-PSD chain. The relatedness
+    guard rejects unrelated look-alikes (e.g. a mother and a *paternal* aunt/uncle),
+    which would otherwise match the parent/avuncular test."""
+    if get_relatedness(a, b, 1.0) <= 0:
+        return False
+
+    def full(p, x):
+        return p.fullmatch(x) is not None
+
+    both_sibship = full(_SIBSHIP, a) and full(_SIBSHIP, b)
+    parent_and_their_sib = ((full(_PARENT, a) and full(_AVUNC, b))
+                            or (full(_PARENT, b) and full(_AVUNC, a)))
+    same_side_avunc = ((full(_MAT_AVUNC, a) and full(_MAT_AVUNC, b))
+                       or (full(_PAT_AVUNC, a) and full(_PAT_AVUNC, b)))
+    return both_sibship or parent_and_their_sib or same_side_avunc
+
+
+# genetically-unrelated cohabiting couples in the role grammar; each is a mate
+# pair that may share a couple/spousal environment (the ``M`` component).
+_MATES = frozenset({frozenset({"m", "f"}), frozenset({"mgm", "mgf"}),
+                    frozenset({"pgm", "pgf"})})
+
+
+def _is_mates(a, b):
+    """Whether roles ``a`` and ``b`` are a **mate pair** — the genetically-unrelated
+    couples the couple-environment component ``M`` loads on: the proband's parents
+    (``m``, ``f``) and the maternal/paternal grandparents (``mgm``/``mgf``,
+    ``pgm``/``pgf``). Because mates share no DNA (``A_ab = 0``), their liability
+    resemblance is not attributed to ``A`` — ``M`` captures it instead."""
+    return frozenset({a, b}) in _MATES
+
+
+def _apply_env_components(cov, fam_roles, c2, m2, h2):
+    """Add sibship (``C``) and couple (``M``) shared-environment components to a
+    liability covariance, in place.
+
+    Only off-diagonal entries between non-``g`` rows change: a full-sib pair
+    gets ``+ c2``, a mate pair ``+ m2``. The diagonal is untouched -- the
+    residual environmental variance absorbs the components
+    (``e2 = 1 - h2 - c2 - m2``), so every full liability keeps unit variance
+    and the thresholds keep their prevalence meaning. The genetic target ``g``
+    still couples to relatives only through ``h2 * A`` (it shares no
+    environment), so its row is unchanged. ``h2 + c2 + m2 <= 1`` is required.
+    """
+    c2 = 0.0 if c2 is None else float(c2)
+    m2 = 0.0 if m2 is None else float(m2)
+    if c2 < 0 or m2 < 0:
+        raise ValueError("c2 and m2 must be nonnegative")
+    if h2 + c2 + m2 > 1.0:
+        raise ValueError(
+            "h2 + c2 + m2 must not exceed 1 (the residual environmental "
+            f"variance would be negative: {h2} + {c2} + {m2})")
+    d = len(fam_roles)
+    for i in range(d):
+        if fam_roles[i] == "g":
+            continue
+        for j in range(i + 1, d):
+            if fam_roles[j] == "g":
+                continue
+            add = c2 * (_is_full_sib(fam_roles[i], fam_roles[j])) +                 m2 * (_is_mates(fam_roles[i], fam_roles[j]))
+            if add:
+                cov[i, j] += add
+                cov[j, i] += add
+    return cov
+
+
 def construct_covmat_single(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
-                            n_fam=None, add_ind=True, h2=0.5):
+                            n_fam=None, add_ind=True, h2=0.5, c2=None, m2=None):
     """Covariance matrix for one trait: proband ``g``/``o`` plus relatives.
 
     Entry ``(i, j)`` is ``get_relatedness(role_i, role_j, h2)``. With the defaults
     the matrix covers a proband and both parents, a sibling and all four
     grandparents. Returns a :class:`Covmat`; ``.roles`` gives the row ordering the
-    Gibbs sampler expects (``g``, ``o`` first when ``add_ind``)."""
+    Gibbs sampler expects (``g``, ``o`` first when ``add_ind``). ``c2``/``m2`` add
+    the sibship (``C``) and couple (``M``) shared-environment components of
+    ``docs/algorithm.md`` to the relatives' covariance (off-diagonals only; the
+    residual environmental variance absorbs them, so full liabilities keep unit
+    variance and the genetic target stays coupled through ``h2 * A`` only).
+    Requires ``h2 + c2 + m2 <= 1``."""
     if not (0.0 <= h2 <= 1.0):
         raise ValueError("h2 must be in [0, 1]")
     roles = _expand_family(list(fam_vec) if fam_vec is not None else None,
@@ -280,6 +365,8 @@ def construct_covmat_single(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf")
             val = get_relatedness(ri, roles[j], h2=h2)
             cov[i, j] = val
             cov[j, i] = val
+    if c2 is not None or m2 is not None:
+        cov = _apply_env_components(cov, roles, c2, m2, h2)
     return Covmat(cov, roles, h2=h2)
 
 
