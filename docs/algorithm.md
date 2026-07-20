@@ -277,6 +277,85 @@ uses lifetime-threshold intervals for observed cases and an age-censored-control
 mixture with Pearson–Aitken. Gibbs and Pearson–Aitken can both be applied to the
 LT-FH/LT-FH++/ADuLT bounds; ltpred's PA-FGRS mixture has no Gibbs implementation.
 
+## Expected correlation between a PGS and the family-history score
+
+When a polygenic score (PGS) and the family-history (LT-FH) score are trained
+on **independent data**, their expected correlation is pinned by three
+quantities: the two prediction accuracies and the heritability decomposition.
+
+**Setup.** Let `g` be the proband's additive genetic liability, standardised
+to `Var(g) = 1` (everything below is a correlation, hence scale-free), and
+split it into the SNP-captured part and the rest:
+
+```text
+g = s + u,   s ⊥ u,   Var(s) = p := h²_SNP / h²_total,   Var(u) = 1 − p,
+```
+
+so `Corr(s, g) = √p`. The PGS has prediction accuracy `a = Corr(PGS, s) =
+√R²_pgs` against the SNP-captured part; the family-history score has
+`b = Corr(FH, g) = √R²_fh` against the full genetic value (for LT-FH the
+prediction R² comes from [bench_accuracy](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)). Both
+scores are taken as standardised and jointly Gaussian, so
+`E[PGS | g] = a√p · g` and `E[FH | g] = b · g`.
+
+**Key assumption (conditional independence).** Given `g`, the two scores'
+errors are independent: PGS ⊥ FH | `g`. This holds when the GWAS training
+sample and the family data are independent cohorts, and the PGS uses proband
+genotypes while FH uses relatives' phenotypes — no shared noise source.
+
+**Derivation** (law of total covariance):
+
+```text
+Cov(PGS, FH) = E[Cov(PGS, FH | g)] + Cov(E[PGS | g], E[FH | g])
+             = 0                     + Cov(a√p · g, b · g)
+             = a · b · √p.
+```
+
+All variables standardised, so
+
+```text
+E[Corr(PGS, FH)] = a · b · √p = √( R²_pgs · R²_fh · h²_SNP / h²_total ).
+```
+
+Limits: `h²_SNP = h²_total` gives `√(R²_pgs · R²_fh)`; a perfect family proxy
+(`b → 1`) gives `√(R²_pgs · h²_SNP / h²_total)`. The correlation is bounded
+above by each `√R²` and by `√(h²_SNP / h²_total)`.
+
+**Why "weakly correlated yet complementary".** Two scores can each be
+genuinely predictive of `g` while correlating weakly with *each other*,
+because each is mostly noise relative to `g` — e.g. `R²_pgs = 0.05`,
+`R²_fh = 0.15`, `h²_SNP/h²_total = 0.7` gives `Corr ≈ 0.07`. And since the
+errors are independent, combining them pays: with
+`c_g = Corr(PGS, g) = a√p` and `ρ = a · b · √p`, the joint multiple
+correlation is
+
+```text
+R²_joint = (c_g² + b² − 2 c_g b ρ) / (1 − ρ²)   >   max(c_g², b²)
+```
+
+whenever the second score carries independent signal (at `p = 1` this reduces
+to `(a² + b² − 2a²b²)/(1 − a²b²)`). This is exactly the empirical picture of
+Hujoel et al. (2022, *Cell Genomics*) — PGS and family history combine with
+large gains despite a small mutual correlation — and of Dybdahl Krebs et al.
+(2026, *AJHG*), who report PA-FGRS and PGS weakly correlated yet
+complementary, "consistent with both being noisy estimates of the same
+additive genetic liability" — i.e. the formula above.
+
+**Caveats.** Shared data breaks it: if the GWAS includes the probands'
+relatives, or the FH score is computed on the GWAS cohort,
+`E[Cov(PGS, FH | g)] ≠ 0` and the true correlation is *larger* than the
+formula (an overlap term to add, not a re-derivation). Conditioning the FH
+score on the proband's own diagnosis (the GWAS-phenotype design) does **not**
+violate the assumption — that error is environmental and independent of the
+SNP error — but training the PGS on the same cohort's phenotypes does. Large
+non-Gaussian effects weaken the Gaussian conditioning step, though the moment
+identity survives for scores linear in `s`/`g` with independent errors.
+
+Both identities above are verified numerically to Monte-Carlo precision
+(simulated `s`, two noisy linear predictors, four
+`(h²_SNP/h²_total, R²_pgs, R²_fh)` settings; correlation and joint `R²`
+recovered to ~1e-3).
+
 ## Thresholds: status, age, onset — and personalisation by sex and birth cohort
 
 Each observed person `i` contributes a truncation of their full liability `l_i` to an
