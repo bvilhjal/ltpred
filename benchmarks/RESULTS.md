@@ -686,6 +686,37 @@ block for multi-variable status matrices.
 Use it as a fast diagnostic and cross-check of the family model: liability
 correlations straight from relative-pair statuses, before any fitting.
 
+## 23. Liability-scale transformations (`bench_liability_scale.py`)
+
+`ltpred.liability_scale` implements the observed/liability bridges (Lee et
+al. 2011 h²; Lee et al. 2012 genetic covariance, with the genetic correlation
+scale-invariant by cancellation) and probit estimation of incremental
+liability r² (the probit model IS the liability-threshold model: per-SNP
+variance explained is the identity 2 f (1-f) beta²; the z-statistic route is
+Lee & Wray 2013 with the master factor). On a polygenic disease simulated on
+the probit convention (liab = X beta + eps, Var(X beta) = 0.5, prevalence
+0.1):
+
+| route | estimate | target |
+|---|---|---|
+| (a) joint probit fit -> sum 2f(1-f)beta² | 0.510 +/- 0.014 | 0.500 (exact) |
+| (a') marginal probit fits (GWAS practice) | 0.352 +/- 0.006 | ~1/(1+V_bg) attenuated |
+| (b) probit z, Lee & Wray 2013 factor | 0.335 +/- 0.020 | matches (a') |
+| (c) OLS observed-scale total | 0.119 +/- 0.009 | (observed scale) |
+| (c) Lee-2011 bridged to liability | 0.349 +/- 0.026 | 1/3 (Lee fraction) |
+
+The conventions are reconciled explicitly: the joint probit fit recovers the
+probit residual-scale total (0.5) exactly; marginal per-SNP fits attenuate by
+the polygenic background in their residuals (~1/(1+V_bg), material at h²=0.5);
+and the OLS/Lee-2011 route recovers the *fraction-of-total-liability* form
+(1/3), which is the McKelvey-Zavoina R² of Lee et al. 2012 (Genet Epidemiol,
+eq. 9) -- implemented as `probit_liability_r2(..., fraction=True)`.
+
+Paper-fixture checks in the tests: the Lee 2011 Discussion factors (observed
+0.18/0.54/0.91 -> liability 0.1/0.3/0.5 at K=0.01, P=0.5), the Crohn's Table 3
+fixture (0.61 -> 0.22), the LDSC SCZ-BIP gencov fixture (0.3644 -> 0.2011),
+and r_g scale invariance (0.656 both scales).
+
 ## What changed in this rerun
 
 - Replicated the accuracy and calibration grids across five independent

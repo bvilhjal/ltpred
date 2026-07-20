@@ -312,6 +312,15 @@ from ltpred import convert_observed_to_liability_scale
 h2_liab = convert_observed_to_liability_scale(obs_h2=0.15, pop_prev=0.05, prop_cases=0.5)
 ```
 
+The full transformation toolkit lives in `ltpred.liability_scale`: both
+directions of the Lee et al. (2011) h² bridge
+(`observed_to_liability_h2` / `liability_to_observed_h2`), the Lee et al.
+(2012) genetic-covariance bridge (`observed_to_liability_gencov`; the genetic
+correlation itself is scale-invariant), and probit estimation of incremental
+liability r² (`probit_liability_r2`, `liability_r2_from_z` -- the probit
+model IS the liability-threshold model, so per-SNP liability variance
+explained is the identity `2 f (1-f) beta²`).
+
 **Which `h²`?** The right value is the additive genetic variance component you want
 the family covariance to represent — the model is additive-genetic only (see
 [algorithm.md](algorithm.md#connection-to-selection-index-and-blup)). A pedigree /

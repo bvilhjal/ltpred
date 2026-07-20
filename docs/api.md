@@ -57,6 +57,10 @@ follow NumPy's `default_rng` contract.
 
 ::: ltpred.estimate
 
+## Liability-scale transformations — `ltpred.liability_scale`
+
+::: ltpred.liability_scale
+
 ## Tetrachoric correlation — `ltpred.tetrachoric`
 
 ::: ltpred.tetrachoric
