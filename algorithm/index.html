@@ -1,0 +1,1879 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+      
+      
+      
+      
+        <link rel="prev" href="../assumptions/">
+      
+      
+        <link rel="next" href="../api/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Algorithm & model - ltpred</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#algorithm-and-model" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ltpred" class="md-header__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ltpred
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Algorithm & model
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ltpred" class="md-nav__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ltpred
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-preparation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data preparation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cip-estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CIP estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assumptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assumptions & checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm & model
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm & model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-liability-threshold-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The liability-threshold model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#family-covariance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Family covariance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Family covariance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adding-environmental-covariance-to-improve-prediction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding environmental covariance to improve prediction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connection-to-selection-index-and-blup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection to selection index and BLUP
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connection-to-shams-liability-threshold-risk-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection to Sham's liability-threshold risk models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#expected-correlation-between-a-pgs-and-the-family-history-score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expected correlation between a PGS and the family-history score
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thresholds-status-age-onset-and-personalisation-by-sex-and-birth-cohort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thresholds: status, age, onset — and personalisation by sex and birth cohort
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inference-engine-1-gibbs-sampler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inference engine 1: Gibbs sampler
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inference-engine-2-pearsonaitken" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inference engine 2: Pearson–Aitken
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inference engine 2: Pearson–Aitken">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#base-pa-fgrs-lifetime-cases-and-censored-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Base PA-FGRS: lifetime cases and censored controls
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fitting-the-covariance-heritability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fitting the covariance (heritability)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multiple-traits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multiple traits
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Multiple traits">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fitting-the-genetic-correlation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fitting the genetic correlation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#onset-age-structured-genetic-correlation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Onset-age-structured genetic correlation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genetic-factor-structure-common-factor-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Genetic factor structure (common-factor model)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#background-and-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background and references
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ROADMAP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-liability-threshold-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The liability-threshold model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#family-covariance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Family covariance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Family covariance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adding-environmental-covariance-to-improve-prediction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding environmental covariance to improve prediction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connection-to-selection-index-and-blup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection to selection index and BLUP
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connection-to-shams-liability-threshold-risk-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection to Sham's liability-threshold risk models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#expected-correlation-between-a-pgs-and-the-family-history-score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expected correlation between a PGS and the family-history score
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thresholds-status-age-onset-and-personalisation-by-sex-and-birth-cohort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thresholds: status, age, onset — and personalisation by sex and birth cohort
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inference-engine-1-gibbs-sampler" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inference engine 1: Gibbs sampler
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inference-engine-2-pearsonaitken" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inference engine 2: Pearson–Aitken
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inference engine 2: Pearson–Aitken">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#base-pa-fgrs-lifetime-cases-and-censored-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Base PA-FGRS: lifetime cases and censored controls
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fitting-the-covariance-heritability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fitting the covariance (heritability)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multiple-traits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multiple traits
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Multiple traits">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fitting-the-genetic-correlation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fitting the genetic correlation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#onset-age-structured-genetic-correlation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Onset-age-structured genetic correlation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genetic-factor-structure-common-factor-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Genetic factor structure (common-factor model)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#background-and-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background and references
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="algorithm-and-model">Algorithm and model<a class="headerlink" href="#algorithm-and-model" title="Permanent link">&para;</a></h1>
+<p>ltpred implements classic LT-FH, personalised LT-FH++ with family history,
+family-free ADuLT, and the PA-FGRS lifetime-case/censored-control model. Its
+convenience helpers also expose an age-specific interval-case variant. Gibbs and
+deterministic Pearson–Aitken are alternative inference engines for LT-FH,
+LT-FH++ and ADuLT; PA-FGRS is PA-specific by definition and implementation.
+This page describes the models and engines. See <a href="../guide/">guide.md</a> for usage.</p>
+<h2 id="the-liability-threshold-model">The liability-threshold model<a class="headerlink" href="#the-liability-threshold-model" title="Permanent link">&para;</a></h2>
+<p>Each person has an unobserved normally-distributed <strong>liability</strong>. It splits into a
+heritable genetic part and an independent environmental part:</p>
+<div class="highlight"><pre><span></span><code>l_o = l_g + l_e ,   l_g ~ N(0, h2) ,   l_e ~ N(0, 1 - h2) ,   l_o ~ N(0, 1)
+</code></pre></div>
+<p><code>l_g</code> is the <strong>genetic liability</strong> (variance <code>h2</code>, the liability-scale
+heritability); <code>l_o</code> is the <strong>full liability</strong> (variance 1). A person is a case
+when <code>l_o</code> exceeds a threshold <code>T</code>. With a single population prevalence <code>K</code>,
+<code>T = Phi^-1(1 - K)</code>.</p>
+<p>The goal is <code>E[l_g | data]</code> for a proband — a graded genetic score — where <code>data</code>
+contains selected case/control statuses (and ages) from the proband and/or their
+relatives. The proband's own status is optional conditioning information.</p>
+<h2 id="family-covariance">Family covariance<a class="headerlink" href="#family-covariance" title="Permanent link">&para;</a></h2>
+<p>Relatives' additive genetic liabilities are correlated by the <strong>additive genetic
+relationship</strong> <code>A_ij = 2 * phi_ij</code> (twice the kinship coefficient): <code>A = 1</code> for
+self, <code>0.5</code> for parent/offspring and full sibs, <code>0.25</code> for grandparents /
+half-sibs / aunts-uncles, etc. Writing <code>a</code> for additive genetic liability and <code>l</code>
+for full liability, the model is the animal-model form</p>
+<div class="highlight"><pre><span></span><code>Cov(a_i, a_j) = h2 * A_ij
+Cov(l_i, l_j) = h2 * A_ij   (i != j)
+Var(l_i)      = 1 ,   Var(a_i) = h2
+</code></pre></div>
+<p>For the target proband, <code>a_0</code> is written <code>g</code> (variance <code>h2</code>) and its own full
+liability <code>l_0</code> is written <code>o</code> (variance 1); <code>Cov(g, o) = h2</code>.
+<code>get_relatedness(a, b, h2)</code> returns <code>A_ab * h2</code>, and <code>construct_covmat(...)</code>
+assembles this small fixed-pedigree relationship matrix, ordering <code>g</code>, <code>o</code> first
+followed by the relatives (<code>correct_positive_definite</code> nudges a rounding-singular
+matrix back to strict PD).</p>
+<p>The role grammar is just a compact way to build <code>A</code> for common family shapes. For
+<strong>arbitrary pedigrees</strong>, <code>kinship_from_pedigree(ids, father, mother)</code> builds <code>A</code>
+directly from the pedigree by the recursive tabular method (Henderson 1976) —
+<code>A_ii = 1 + F_i</code> (with <code>F_i</code> the inbreeding coefficient) and
+<code>A_ij = 0.5 (A_i,sire_j + A_i,dam_j)</code> — and <code>construct_covmat_from_kinship(A, h2,
+target)</code> first assembles the raw covariance <code>V = h2 A + (1-h2) I</code>, then divides
+<code>V_ij</code> by <code>sqrt(V_ii V_jj)</code>. The target genetic contribution and its covariances
+are put on the same standardised full-liability scale, so its variance is
+<code>h2 A_tt / (1 + h2 (A_tt - 1))</code>. Thus every observed full
+liability retains variance 1, and <code>Phi^-1(1-K)</code> retains its prevalence meaning,
+even when <code>A_ii &gt; 1</code>; for non-inbred pedigrees the scaling is a no-op. This
+reproduces the role-grammar covariance entry-for-entry where they overlap and
+additionally covers half-sibs of any degree, cousins and inbred pedigrees;
+<code>estimate_liability_from_kinship</code> runs PA by default or Gibbs on request.
+That high-level kinship API accepts only <code>lower</code>/<code>upper</code>; it has no <code>K_i</code>, <code>K_pop</code>
+or <code>use_mixture</code> arguments and therefore does not implement PA-FGRS censoring.
+For discovering the relatives from population trio records, <code>ltpred.pedigree</code>
+implements graph-based relative extraction in the style of <a href="https://doi.org/10.3389/fgene.2025.1708315">Pedersen et al.
+(2025)</a>: <code>build_parent_graph</code>
+indexes the records, <code>extract_pedigree</code> visits every person within
+<code>max_degree</code> relationship-degrees of a proband (full-sibling edges make the
+distance equal the standard relationship degree) and closes on all recorded
+ancestors, so the extracted pedigree's kinship is exact for every member pair.
+Its kinship is the exact tabular one (inbreeding-aware), not the paper's
+path-counting approximation. The LT-FGRS pipeline (Pedersen et al. 2026)
+consumes the same extraction downstream.</p>
+<p>This is an <strong>additive-genetic</strong> model: familial resemblance is entirely genetic
+sharing. Shared environment, household/cultural transmission, assortative mating
+(parents are taken to be genetically unrelated, <code>A_mf = 0</code>), dominance/epistasis
+and indirect genetic effects are not represented. Where those contribute, the
+estimated "genetic liability" is best read as the additive-model projection of the
+family history rather than a pure causal genetic value.</p>
+<h3 id="adding-environmental-covariance-to-improve-prediction">Adding environmental covariance to improve prediction<a class="headerlink" href="#adding-environmental-covariance-to-improve-prediction" title="Permanent link">&para;</a></h3>
+<p>The covariance is <strong>modular</strong>, and adding non-genetic components to the
+between-relative covariance can improve prediction. Following the classic
+variance-components (ACE-type) decomposition, extend the full-liability covariance
+with valid shared-environment kernels:</p>
+<div class="highlight"><pre><span></span><code>Cov(l_i, l_j) = h2 A_ij + c2 C_ij + m2 M_ij + sum_q u2_q K_q[i,j]
+Var(l_i)      = h2 + c2 + m2 + sum_q u2_q + e2 = 1
+</code></pre></div>
+<p>Here <code>C</code> is the shipped sibship kernel, <code>M</code> is reserved for the shipped
+mate/couple kernel, and each optional <code>K_q</code> is another symmetric
+positive-semidefinite (PSD) sharing kernel. A directional maternal effect is not
+<code>M</code> and is not generally representable by one symmetric covariance kernel. Each
+kernel has unit diagonal in the fitted model, so its variance fraction reduces the
+individual residual <code>e2</code>; the kernels are not off-diagonal adjustments alone. Two payoffs:</p>
+<ul>
+<li><strong>A sharper genetic estimate.</strong> Modelling shared-environment resemblance lets
+  the estimator attribute it to environment rather than genetics, so the genetic
+  liability <code>g</code> is not <em>inflated</em> by families that cluster for environmental
+  reasons — better calibration of the score used for GWAS.</li>
+<li><strong>Better full-liability / risk prediction.</strong> The extra covariance captures real
+  familial resemblance the additive model misses, tightening <code>E[l_o | family]</code>.</li>
+</ul>
+<p>The genetic target <code>g</code> still couples to relatives only through <code>h2 * A</code>, so it
+remains a <em>genetic</em> liability; the environmental terms only change how the
+relatives' liabilities are conditioned.</p>
+<p>The sibship (<code>C</code>) and couple (<code>M</code>) components are <strong>wired into the
+estimator</strong>: <code>construct_covmat_single(..., c2=..., m2=...)</code> adds them to the
+relatives' covariance (off-diagonals only; the residual environmental variance
+absorbs them, so full liabilities keep unit variance and the genetic target
+stays coupled through <code>h2 * A</code> only), and every front door accepts them --
+<code>estimate_liability</code>, <code>estimate_liability_single</code>, <code>estimate_liability_pa</code>,
+<code>estimate_liability_pa_arrays</code> and <code>estimate_liability_gibbs_arrays</code> all take
+<code>c2</code>/<code>m2</code> arguments, so the <code>A + C + M</code> decomposition fitted by
+<code>fit_variance_components</code> can be fed straight back into liability estimation.
+Validated in <code>benchmarks/bench_env_components.py</code>: wiring recalibrates the
+genetic estimate (slope 0.93 -&gt; 0.99) and sharpens the full-liability
+prediction. Arbitrary user-supplied kernels still go through the covariance-
+level entry points (<code>rtmvnorm_gibbs</code>, <code>pa_algorithm</code>, <code>pa_estimate_batched</code>),
+which accept an arbitrary covariance directly.</p>
+<p><code>fit_variance_components</code> estimates a set of components <strong>jointly</strong> (multiple HE
+regression, or ML with <code>method="mcem"</code>); a joint fit partials out the overlap
+between components, whereas fitting each alone double-counts. The shipped bank is
+<code>A</code> (additive genetic), <code>C</code> (full-sib / sibship environment, identified from the
+full-sib excess) and <code>M</code> (couple / spousal environment, identified from the <code>A = 0</code>
+mate pairs — the parents and the grandparent couples); <code>M</code> captures spousal
+resemblance from shared environment <em>or</em> assortative mating (Robinson et al. 2017),
+which parent data alone cannot separate — it is a descriptive spousal-resemblance
+component, not a generative model of assortative mating. The shipped <code>C</code> and <code>M</code>
+components are <strong>equivalence-class partitions</strong> (groups fully sharing one
+deviation), which is a convenient sufficient construction for a PSD <code>K_c</code>, not a
+necessary one. Any component must be symmetric and PSD; the fitter rejects a
+kernel that is not (e.g. the naive vertical parent-offspring indicator — see
+caution (i)). Adding a valid component is adding a column to the design; e.g.
+<code>fit_variance_components(fams, ("A", "C", "M"))</code> fits all three at once given a
+3-generation pedigree.</p>
+<p><strong>The binding constraint is identifiability, not the estimator.</strong> Each relative
+<em>type</em> yields a single covariance <code>h2 A_ij + sum_c c2_c K_c[i,j]</code>, so the data
+constrain the components only through the distinct relationship <em>contrasts</em> present:</p>
+<blockquote>
+<p>the number of jointly-identifiable components = rank of the pair design matrix
+(columns <code>A, K_1, …</code>) ≤ the number of distinct relationship types in the pedigrees.</p>
+</blockquote>
+<p>A component is identified only when its sharing pattern is linearly independent of
+<code>A</code> and of the others: <code>C</code> (sib) separates from <code>h2</code> via the sib-vs-parent-offspring
+contrast — both are <code>A = 0.5</code>, but only sibs share <code>C</code>, hence the need for full-sib
+pairs; a couple term comes from the <code>A = 0</code> mate pair; separating maternal from
+paternal environment needs the <code>o–m</code> and <code>o–f</code> covariances to actually differ.
+Nuclear families give only ~3 contrasts (sib–sib, parent–offspring, spouse), so at
+most <code>A</code> plus one or two environments; a <em>bank</em> of relationship-specific
+environments needs the many relative types (grandparents by lineage, half-sibs,
+avuncular, cousins, spouses) that <strong>extended registry pedigrees</strong> provide — the
+pedigree-scale analogue of why extended-family designs out-identify the MZ/DZ twin
+ACE model. <code>fit_variance_components</code> raises on a rank-deficient design; near-collinear
+components (e.g. <code>C</code> vs dominance) also inflate the SEs even when formally identified.</p>
+<p>Two cautions. <strong>(i)</strong> A <em>symmetric</em> mother–offspring shared-environment matrix is
+not a <strong>maternal effect</strong> in the causal sense (the mother's phenotype/genotype
+shaping the offspring's environment); that is a directional path which propagates
+through the pedigree and couples to genetic transmission, needing a
+structural/latent-variable parameterisation rather than one symmetric matrix.
+<strong>(ii)</strong> An environment shared <em>in proportion to relatedness</em> is a multiple of <code>A</code>
+and is absorbed into <code>h2</code>; only environments whose pattern <strong>differs</strong> from <code>A</code> are
+estimable, and the couple term is further confounded with assortative mating.
+Extending <code>_COMPONENT_OFFDIAG</code> past the shipped <code>A</code>/<code>C</code>/<code>M</code> bank with valid PSD
+kernels is the natural next step; the rank-deficiency guard already generalises.</p>
+<h2 id="connection-to-selection-index-and-blup">Connection to selection index and BLUP<a class="headerlink" href="#connection-to-selection-index-and-blup" title="Permanent link">&para;</a></h2>
+<p><code>ltpred</code> is a liability-threshold generalisation of the classical <strong>selection
+index / BLUP</strong> problem from quantitative genetics and animal breeding (Hazel 1943;
+Henderson 1975): predict an individual's additive genetic value from relatives'
+phenotypes and a relationship matrix.</p>
+<p>If the relatives' <strong>continuous</strong> liabilities <code>l_F</code> were observed, the optimal
+(Gaussian) predictor of the proband's additive genetic liability would be the
+selection-index / BLUP conditional mean,</p>
+<div class="highlight"><pre><span></span><code>E[g | l_F] = Cov(g, l_F) Var(l_F)^-1 l_F ,
+</code></pre></div>
+<p>which weights each relative by its relationship to the proband and its information
+content, discounting shared covariance among the relatives so they are not
+double-counted. The one-relative case makes the weighting transparent: for a
+single relative with relationship <code>r</code> and observed liability <code>l_r</code>,</p>
+<div class="highlight"><pre><span></span><code>Cov(g, l_r) = r * h2 ,   Var(l_r) = 1   =&gt;   E[g | l_r] = r * h2 * l_r ,
+</code></pre></div>
+<p>so a parent or full sib (<code>r = 0.5</code>) contributes <code>0.5 h2 l_r</code> and a grandparent or
+half-sib (<code>r = 0.25</code>) contributes <code>0.25 h2 l_r</code>.</p>
+<p>In disease data the liabilities are <strong>not</strong> observed — we only know each lies in
+an interval <code>C_F</code> (a case above a threshold, a control below one, an age-of-onset
+case pinned at an age-specific threshold, a censored relative right-truncated).
+The target is therefore</p>
+<div class="highlight"><pre><span></span><code>E[g | l_F in C_F] = Cov(g, l_F) Var(l_F)^-1 E[l_F | l_F in C_F] ,
+</code></pre></div>
+<p>by Gaussian conditioning: <strong>first</strong> infer the latent liabilities implied by
+status/age/censoring (<code>E[l_F | intervals]</code>), <strong>then</strong> project them onto the
+proband's additive genetic liability with the same BLUP weights. The pipeline:</p>
+<div class="highlight"><pre><span></span><code>family statuses + ages
+     |  thresholds / CIPs
+latent liability intervals  C_F
+     |  truncated MVN
+E[l_F | l_F in C_F]
+     |  BLUP / selection-index projection
+E[g | family data]
+</code></pre></div>
+<p>Here <code>C_F</code> may include the proband's own interval when the score is deliberately a
+GWAS phenotype derived from that diagnosis. It must exclude, or leave unbounded,
+the proband's interval when the same diagnosis is the outcome of a prospective
+prediction/classification evaluation; otherwise the conditioning set contains the
+answer.</p>
+<p>So the method is <strong>BLUP-like only after conditioning on latent liabilities</strong>.
+Classical BLUP is linear in observed continuous phenotypes; here the binary /
+censored observations define truncation intervals, so the exact posterior mean is
+<strong>nonlinear</strong> in the data. It reduces exactly to selection-index / BLUP when the
+liabilities are observed continuously (or pinned to points). The Gibbs backend
+estimates the truncated-normal expectation directly; Pearson–Aitken approximates
+the same moment updates deterministically. Viewed this way, <code>ltpred</code> is a
+fixed-variance <strong>probit / threshold liability model with a pedigree random
+effect</strong>, used primarily for <em>prediction</em> (of <code>g</code>) — the liability estimators
+condition on an assumed <code>h2</code>, CIP/prevalence model and relationship matrix. The
+heritability itself can optionally be <strong>fit</strong> from the same family data by
+data augmentation (see <a href="#fitting-the-covariance-heritability">Fitting the covariance</a>
+below); the CIP/prevalence model is always supplied.</p>
+<h2 id="connection-to-shams-liability-threshold-risk-models">Connection to Sham's liability-threshold risk models<a class="headerlink" href="#connection-to-shams-liability-threshold-risk-models" title="Permanent link">&para;</a></h2>
+<p>The multivariate liability-threshold model on which <code>ltpred</code> rests — relatives'
+liabilities jointly multivariate normal with covariance set by the relationship
+matrix, and affection status <em>truncating</em> those liabilities — is the framework
+Pak Sham and the genetic-epidemiology tradition formalised (Sham, <em>Statistical
+Methods in Genetic Epidemiology</em>, 1998). Evaluating the joint distribution of a
+family's liabilities under an observed affection pattern is exactly the
+truncated-multivariate-normal problem the two backends address: the Gibbs sampler
+draws it, Pearson–Aitken approximates its moments.</p>
+<p>The tightest link is <strong>So, Kwan, Cherny &amp; Sham (2011)</strong>, a risk-prediction
+framework that combines an individual's <strong>family history</strong> — through the
+liability-threshold multivariate normal over relatives — with <strong>known
+susceptibility loci</strong>, and already handled the ingredients <code>ltpred</code> centres on:
+each relative's <strong>current age and follow-up period</strong>, and even <strong>competing risks
+of mortality</strong>. That is the same pairing the LT-FH family exploits — (a) a
+liability under the threshold model, optionally conditioned on family history,
+and (b) personalised age/censoring information — and the same downstream idea of fusing the
+family-history liability with molecular predictors (a polygenic score). On the
+parameter side, So &amp; Sham's liability-scale heritability work is the tradition
+<code>convert_observed_to_liability_scale</code> (Lee et al. 2011) belongs to.</p>
+<p>The difference is the <strong>estimand and the scale of computation</strong>. So &amp; Sham (2011)
+target an individual's <strong>absolute disease risk</strong> for screening; <code>ltpred</code> targets
+the <strong>posterior mean additive genetic liability of the proband</strong> — a
+breeding-value-style score and a GWAS phenotype (the <a href="#connection-to-selection-index-and-blup">BLUP framing</a>
+above). LT-FH++ and ADuLT share personalised age/onset/sex/cohort thresholds.
+LT-FH++ conditions on relatives; ADuLT uses only the index person. Base PA-FGRS
+uses lifetime-threshold intervals for observed cases and an age-censored-control
+mixture with Pearson–Aitken. Gibbs and Pearson–Aitken can both be applied to the
+LT-FH/LT-FH++/ADuLT bounds; ltpred's PA-FGRS mixture has no Gibbs implementation.</p>
+<h2 id="expected-correlation-between-a-pgs-and-the-family-history-score">Expected correlation between a PGS and the family-history score<a class="headerlink" href="#expected-correlation-between-a-pgs-and-the-family-history-score" title="Permanent link">&para;</a></h2>
+<p>When a polygenic score (PGS) and the family-history (LT-FH) score are trained
+on <strong>independent data</strong>, their expected correlation is pinned by three
+quantities: the two prediction accuracies and the heritability decomposition.</p>
+<p><strong>Setup.</strong> Let <code>g</code> be the proband's additive genetic liability, standardised
+to <code>Var(g) = 1</code> (everything below is a correlation, hence scale-free), and
+split it into the SNP-captured part and the rest:</p>
+<div class="highlight"><pre><span></span><code>g = s + u,   s ⊥ u,   Var(s) = p := h²_SNP / h²_total,   Var(u) = 1 − p,
+</code></pre></div>
+<p>so <code>Corr(s, g) = √p</code>. The PGS has prediction accuracy <code>a = Corr(PGS, s) =
+√R²_pgs</code> against the SNP-captured part; the family-history score has
+<code>b = Corr(FH, g) = √R²_fh</code> against the full genetic value (for LT-FH the
+prediction R² comes from <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">bench_accuracy</a>). Both
+scores are taken as standardised and jointly Gaussian, so
+<code>E[PGS | g] = a√p · g</code> and <code>E[FH | g] = b · g</code>.</p>
+<p><strong>Key assumption (conditional independence).</strong> Given <code>g</code>, the two scores'
+errors are independent: PGS ⊥ FH | <code>g</code>. This holds when the GWAS training
+sample and the family data are independent cohorts, and the PGS uses proband
+genotypes while FH uses relatives' phenotypes — no shared noise source.</p>
+<p><strong>Derivation</strong> (law of total covariance):</p>
+<div class="highlight"><pre><span></span><code>Cov(PGS, FH) = E[Cov(PGS, FH | g)] + Cov(E[PGS | g], E[FH | g])
+             = 0                     + Cov(a√p · g, b · g)
+             = a · b · √p.
+</code></pre></div>
+<p>All variables standardised, so</p>
+<div class="highlight"><pre><span></span><code>E[Corr(PGS, FH)] = a · b · √p = √( R²_pgs · R²_fh · h²_SNP / h²_total ).
+</code></pre></div>
+<p>Limits: <code>h²_SNP = h²_total</code> gives <code>√(R²_pgs · R²_fh)</code>; a perfect family proxy
+(<code>b → 1</code>) gives <code>√(R²_pgs · h²_SNP / h²_total)</code>. The correlation is bounded
+above by each <code>√R²</code> and by <code>√(h²_SNP / h²_total)</code>.</p>
+<p><strong>Why "weakly correlated yet complementary".</strong> Two scores can each be
+genuinely predictive of <code>g</code> while correlating weakly with <em>each other</em>,
+because each is mostly noise relative to <code>g</code> — e.g. <code>R²_pgs = 0.05</code>,
+<code>R²_fh = 0.15</code>, <code>h²_SNP/h²_total = 0.7</code> gives <code>Corr ≈ 0.07</code>. And since the
+errors are independent, combining them pays: with
+<code>c_g = Corr(PGS, g) = a√p</code> and <code>ρ = a · b · √p</code>, the joint multiple
+correlation is</p>
+<div class="highlight"><pre><span></span><code>R²_joint = (c_g² + b² − 2 c_g b ρ) / (1 − ρ²)   &gt;   max(c_g², b²)
+</code></pre></div>
+<p>whenever the second score carries independent signal (at <code>p = 1</code> this reduces
+to <code>(a² + b² − 2a²b²)/(1 − a²b²)</code>). This is exactly the empirical picture of
+Hujoel et al. (2022, <em>Cell Genomics</em>) — PGS and family history combine with
+large gains despite a small mutual correlation — and of Dybdahl Krebs et al.
+(2026, <em>AJHG</em>), who report PA-FGRS and PGS weakly correlated yet
+complementary, "consistent with both being noisy estimates of the same
+additive genetic liability" — i.e. the formula above.</p>
+<p><strong>Caveats.</strong> Shared data breaks it: if the GWAS includes the probands'
+relatives, or the FH score is computed on the GWAS cohort,
+<code>E[Cov(PGS, FH | g)] ≠ 0</code> and the true correlation is <em>larger</em> than the
+formula (an overlap term to add, not a re-derivation). Conditioning the FH
+score on the proband's own diagnosis (the GWAS-phenotype design) does <strong>not</strong>
+violate the assumption — that error is environmental and independent of the
+SNP error — but training the PGS on the same cohort's phenotypes does. Large
+non-Gaussian effects weaken the Gaussian conditioning step, though the moment
+identity survives for scores linear in <code>s</code>/<code>g</code> with independent errors.</p>
+<p>Both identities above are verified numerically to Monte-Carlo precision
+(simulated <code>s</code>, two noisy linear predictors, four
+<code>(h²_SNP/h²_total, R²_pgs, R²_fh)</code> settings; correlation and joint <code>R²</code>
+recovered to ~1e-3).</p>
+<h2 id="thresholds-status-age-onset-and-personalisation-by-sex-and-birth-cohort">Thresholds: status, age, onset — and personalisation by sex and birth cohort<a class="headerlink" href="#thresholds-status-age-onset-and-personalisation-by-sex-and-birth-cohort" title="Permanent link">&para;</a></h2>
+<p>Each observed person <code>i</code> contributes a truncation of their full liability <code>l_i</code> to an
+interval whose edge is a <strong>personalised threshold</strong> shared by LT-FH++ and ADuLT
+(Pedersen 2022/2023):</p>
+<div class="highlight"><pre><span></span><code>T_i = Phi^-1( 1 - K(t ; s_i, b_i) )
+</code></pre></div>
+<p>where <code>K(t; s, b)</code> is the population <strong>cumulative incidence proportion (CIP)</strong> — the
+fraction of people of sex <code>s</code> born in year <code>b</code> who are diagnosed by age <code>t</code>. Status,
+age and demographics map person <code>i</code> to an interval:</p>
+<ul>
+<li><strong>control</strong> at current age <code>c_i</code>:  <code>l_i ∈ (-inf, T_i(c_i)]</code> — the "lived-through-risk"
+  bound: an older disease-free person has cleared a <em>lower</em> threshold, i.e. stronger
+  evidence of low liability;</li>
+<li><strong>case</strong> with onset age <code>a_i</code>: LT-FH++ and ADuLT <strong>pin</strong> liability at <code>T_i(a_i)</code>
+  (<code>lower == upper</code>). Younger onset ⇒ lower CIP ⇒ higher threshold ⇒ more extreme
+  liability. The map is invertible
+  (<code>convert_liability_to_aoo</code> ↔ <code>convert_age_to_thresh</code>), so <code>T_i(a_i)</code> <em>equals</em> the
+  case's liability at onset. Base PA-FGRS instead uses the lifetime interval
+  <code>[T_pop, inf)</code>, where <code>T_pop = Φ⁻¹(1 − K_pop)</code>. The current <code>pa_thresholds</code> and
+  <code>thresholds_from_cip(..., case_mode="interval")</code> helpers use
+  <code>[T_i(a_i), inf)</code> and therefore define an age-dependent PA-FGRS-style variant,
+  not the paper's base case encoding.</li>
+</ul>
+<p>For <strong>LT-FH++ and ADuLT</strong>, age, sex and birth cohort enter <strong>only through
+<code>K(t; s, b)</code> and its interval edge <code>T_i</code></strong>, never the covariance <code>Sigma</code>. In base
+PA-FGRS, a control's age/stratum instead enters the mixture through <code>K_i</code>; the case
+threshold remains the lifetime threshold. What ltpred ships:</p>
+<table>
+<thead>
+<tr>
+<th>helper</th>
+<th>CIP model</th>
+<th>strata</th>
+<th>family context</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prevalence_thresholds</code></td>
+<td>one lifetime prevalence <code>K</code> → <code>T = Phi^-1(1-K)</code></td>
+<td>none</td>
+<td>relatives: classic LT-FH</td>
+</tr>
+<tr>
+<td><code>age_thresholds</code></td>
+<td>logistic <code>K / (1 + exp((mid_point - age)·slope))</code></td>
+<td>age only, single <code>K</code></td>
+<td>pinned tutorial encoding; model depends on rows</td>
+</tr>
+<tr>
+<td><code>pa_thresholds</code></td>
+<td>same logistic demo CIP</td>
+<td>age only, single <code>K</code></td>
+<td>age-dependent interval/mixture variant; not base PA-FGRS, exact PA-FGRS_ADT, or the PA engine switch</td>
+</tr>
+<tr>
+<td><code>thresholds_from_cip</code></td>
+<td>an <strong>empirical</strong> CIP curve you supply, <strong>called once per stratum</strong></td>
+<td>sex × birth year × ancestry</td>
+<td><code>case_mode="pin"</code>: LT-FH++ with relatives or ADuLT without; <code>"interval"</code>: age-dependent PA-FGRS-style variant, not exact PA-FGRS_ADT</td>
+</tr>
+</tbody>
+</table>
+<p>The same personalised CIP therefore feeds two models: relative observations make
+it LT-FH++; their absence makes it ADuLT. A threshold helper cannot decide that
+for you.</p>
+<p>For paper-faithful base PA-FGRS, use lifetime case/control bounds from
+<code>prevalence_thresholds</code>, attach the control-specific <code>K_i</code> and <code>K_pop</code> calculated
+from the appropriate CIP, and run PA with <code>use_mixture=True</code>. In that model age
+enters the control mixture weight; it does not change an observed case's threshold.</p>
+<p><strong>"Single-<code>K</code>"</strong> is context-dependent in the benchmark labels. Classic LT-FH uses
+one lifetime threshold and ignores age. The cohort-blind ablation in
+<code>bench_fh_prediction</code> instead uses one lifetime-<code>K</code> <em>anchor</em> for everyone while
+still letting the logistic threshold vary with age; it is not classic LT-FH.
+Full LT-FH++ uses stratified <code>K(t; s, b)</code> so each person receives their own
+age-, birth-year- and sex-specific threshold.</p>
+<p><strong>Why personalisation can affect calibration and power.</strong> From the BLUP
+decomposition above, <code>E[g | family] = Cov(g, l_F) Var(l_F)^-1 · E[l_F | intervals]</code>, the
+thresholds <code>T_i</code> enter <strong>only</strong> the truncated means <code>E[l_F | intervals]</code> — never the BLUP
+weights <code>Cov(g,l_F)Var(l_F)^-1</code>. Hence:</p>
+<ul>
+<li>changing one common threshold often behaves mainly like a score-scale or
+  calibration change in the tested structures, but upper- and lower-truncated
+  means respond nonlinearly and need not shift identically;</li>
+<li>stratum-specific threshold errors can also change score ordering because
+  different observations receive different conditional means. Two cases with the
+  same onset age but different population CIPs need not imply the same liability.</li>
+</ul>
+<p>These are empirical tendencies, not an algebraic separation between calibration
+and ranking. <code>bench_fh_prediction</code> shows both effects in its simulation: on the pedigree it is mostly a mean-score
+shift (and a truth-referenced single-<code>K</code> error) because the high-weight proband spans
+a narrow living cohort, while the replicated own-onset panel isolates the ranking
+gain — about 1.66× in the squared-correlation effective-N proxy at the widest
+tested cohort span. This is a prediction proxy, not a causal-SNP noncentrality
+ratio. Both pedigree variants in that benchmark use PA; the change is in their
+bounds, not their inference engine. Pinning (a point mass) is handled exactly by
+both estimators.</p>
+<h2 id="inference-engine-1-gibbs-sampler">Inference engine 1: Gibbs sampler<a class="headerlink" href="#inference-engine-1-gibbs-sampler" title="Permanent link">&para;</a></h2>
+<p><code>E[l_g | data]</code> is the mean of the family covariance's multivariate normal
+truncated to the per-person intervals — a truncated MVN with no closed form for
+more than a couple of members. <code>rtmvnorm_gibbs</code> samples it by sweeping one
+coordinate at a time, drawing each from its <strong>conditional</strong> normal restricted to
+its interval (inverse-CDF sampling; Kotecha &amp; Djurić 1999):</p>
+<div class="highlight"><pre><span></span><code>x_j  &lt;-  mu_j + sd_j * Phi^-1( U( Phi((a_j - mu_j)/sd_j), Phi((b_j - mu_j)/sd_j) ) )
+mu_j  =  P[:, j] . x         (conditional mean)
+</code></pre></div>
+<p><code>P[:, j] = Sigma[-j,-j]^-1 Sigma[-j, j]</code> (conditional-regression coefficients)
+and <code>sd_j = sqrt(Sigma[jj] - P[:,j].Sigma[:,j])</code> depend only on <code>Sigma</code>, so they
+are precomputed once. Pinned coordinates (<code>a_j == b_j</code>) are held fixed. The
+posterior means of <code>g</code> (and <code>o</code>) are the sample averages.</p>
+<p><strong>Convergence.</strong> The sampler is re-run, accumulating draws, until the
+<strong>batch-means</strong> Monte-Carlo standard error of every requested estimate falls
+below <code>tol</code> (<code>batch_means</code>, R's <code>batchmeans::bmmat</code>).</p>
+<p><strong>Performance.</strong> The inner sweep is Numba-JIT'd. Families with the same role
+sequence share one covariance, so the estimator groups them and runs the group in
+one <code>prange</code>-parallel kernel that accumulates the mean and the batch-means SE
+<strong>online</strong> from streaming batch summaries (running sums and sums-of-squares) — no
+full <code>(n_sim × n_out)</code> sample array, so the Monte-Carlo-SE memory is <code>O(families)</code>
+regardless of <code>n_sim</code>, and each family seeds its own RNG so results are
+deterministic regardless of thread scheduling. Without Numba the identical code
+runs serially in pure Python.</p>
+<h2 id="inference-engine-2-pearsonaitken">Inference engine 2: Pearson–Aitken<a class="headerlink" href="#inference-engine-2-pearsonaitken" title="Permanent link">&para;</a></h2>
+<p>The <strong>Pearson–Aitken selection formula</strong> gives, in closed form, how a
+jointly-Gaussian vector's mean and covariance change when one component's marginal
+is <em>selected</em> (truncated). If component <code>i</code> moves from <code>N(m_i, v_i)</code> to a selected
+mean/variance <code>(m*, v*)</code>, every component updates by a rank-1 correction:</p>
+<div class="highlight"><pre><span></span><code>mean_j  +=  (Sigma_ji / v_i) * (m* - m_i)
+cov_jk  +=  (Sigma_ji Sigma_ik / v_i^2) * (v* - v_i)
+</code></pre></div>
+<p><code>pa_algorithm</code> places the target genetic liability first and folds the observed
+members in one at a time (last to first). For each, <code>(m*, v*)</code> are the
+truncated-normal moments on its interval (<code>tnorm_moments</code>: <code>_tnorm_mean</code> /
+<code>_tnorm_var</code>, with <code>v* = 0</code> for a pinned point mass — exact conditioning). Reading
+the target's updated mean gives <code>E[l_g | data]</code> and its variance the posterior
+variance — <strong>deterministically, with no Monte-Carlo error</strong>.</p>
+<p>After one truncation the selected distribution is no longer, in general,
+multivariate normal. Pearson–Aitken keeps only the updated first two moments and
+proceeds as if the remaining variables were Gaussian with those moments. Hence it
+is <strong>exact for a single truncation</strong> (and for exact Gaussian conditioning on
+point-pinned variables), but an approximation for multiple interval observations —
+the standard sequential-selection approximation. Aitken's relevant source is his
+multivariate-normal selection note, not his generalized-least-squares paper
+(<a href="https://doi.org/10.1017/S0013091500008063">Aitken 1935</a>); Mendell &amp; Elston
+applied this result sequentially to multifactorial threshold traits
+(<a href="https://pubmed.ncbi.nlm.nih.gov/4813384/">1974, <em>Biometrics</em></a>). On ltpred's
+separately observed family-member intervals <strong>without the censoring mixture</strong>, PA
+and Gibbs posterior-mean estimates had correlation ≥ 0.997 while PA ran
+315–510× faster in the controlled 10-thread benchmark. The PA-only mixture was
+not part of this comparison. Same grouping / <code>prange</code> structure as the Gibbs path.</p>
+<h3 id="base-pa-fgrs-lifetime-cases-and-censored-controls">Base PA-FGRS: lifetime cases and censored controls<a class="headerlink" href="#base-pa-fgrs-lifetime-cases-and-censored-controls" title="Permanent link">&para;</a></h3>
+<p>An observed case contributes the lifetime interval
+<code>[Φ⁻¹(1 − K_pop), inf)</code>. Age-specific incidence is used for censored controls:</p>
+<p><code>tnorm_mixture_conditional</code> extends the truncated moments for <strong>age-censored
+controls</strong>: someone unaffected only up to their current follow-up is a mixture of
+a true control and a not-yet-onset future case. With the individual cumulative
+incidence <code>K_i</code> and lifetime prevalence <code>K_pop</code>, the selected moments become</p>
+<div class="highlight"><pre><span></span><code>thr_pop   = Phi^-1(1 - K_pop)          # lifetime threshold
+Phi_below = Phi((thr_pop - mu) / sd)
+mix       = Phi_below / (Phi_below + (1 - Phi_below) * (K_pop - K_i) / K_pop)
+mean*     = mix * mean(below thr_pop) + (1 - mix) * mean(above thr_pop)
+</code></pre></div>
+<p>(with the matching two-component variance), following PA-FGRS supp. eqs. S3–S5.
+The split is the <strong>lifetime</strong> threshold, not the passed <code>upper</code>: age enters only
+through the mixture weight via <code>K_i</code>, and <code>upper</code> merely flags a censored control
+(finite) versus an observed case (<code>+inf</code>), so passing either the lifetime bound or
+an age-specific <code>Phi^-1(1 - K_i)</code> gives the same result.
+Enabled via <code>use_mixture=True</code>; off, PA reduces to the plain truncated-moment
+sweep.</p>
+<h2 id="fitting-the-covariance-heritability">Fitting the covariance (heritability)<a class="headerlink" href="#fitting-the-covariance-heritability" title="Permanent link">&para;</a></h2>
+<p>Both estimators above <em>condition</em> on a known <code>h2</code>. <code>fit_heritability</code> instead
+<strong>fits</strong> it — estimating the liability-scale heritability from the case/control
+(and age-of-onset) statuses of relatives — with a Gibbs sampler modelled on
+bipred's joint effect/parameter loop (sample the latents, then re-estimate the
+covariance parameters each sweep). It treats the latent liabilities as missing
+data and alternates:</p>
+<ol>
+<li><strong>Augment</strong> — one persistent truncated-MVN sweep per family under the current
+   covariance <code>Sigma(h2) = (1-h2) I + h2 A</code> (<code>A</code> the additive relationship matrix
+   over the observed relatives), holding pinned cases (<code>gibbs_advance</code>).</li>
+<li><strong>Update</strong> — a damped moment step for <code>h2</code>: a Haseman–Elston regression of the
+   sampled liability cross-products on relatedness, pooled over all related pairs
+   in all families,</li>
+</ol>
+<div class="highlight"><pre><span></span><code>h2_hat = sum_pairs A_ij * l_i l_j / sum_pairs A_ij^2 ,
+h2     &lt;- (1 - damp) * h2 + damp * h2_hat .
+</code></pre></div>
+<p>Because the liabilities are drawn conditional on each family's observed intervals,
+pooling their cross-products reconstructs the model covariance, so the chain
+settles at the <code>h2</code> consistent with the observed familial resemblance — a
+threshold-model variance-component estimate from pedigree affection data (in the
+Sorensen–Gianola / Bayesian animal-model tradition; the moment-with-damping update
+is the bipred-style analogue of a full conjugate step). In the repository simulation
+benchmark, bias across <code>h2 = 0.3–0.8</code> was small relative to the across-dataset SD,
+but larger than the within-fit Monte-Carlo error in some settings. The reported <code>h2_se</code> is the
+<em>within-dataset</em> Monte-Carlo error; sampling variability across datasets is larger
+and depends on the number and informativeness of the families (bootstrap over
+families for that). Identifiability comes entirely from the <em>between-relative</em>
+covariance, so relatives are required (lone probands carry no information).</p>
+<p><strong>Seeding.</strong> Unlike the estimator's kernel, where each family seeds its own RNG,
+the augmentation kernel is a single <code>prange</code> over families, and Numba's random
+state belongs to whichever worker thread picks a family up — so seeding the calling
+thread could not by itself pin the result. <code>gibbs_advance</code> instead draws its
+uniforms from a seeded NumPy generator <em>before</em> entering the kernel and passes them
+in, so a seeded fit reproduces exactly whatever the thread count and scheduling.
+The generator is thread-local (concurrent seeded fits do not disturb each other)
+and the uniforms are chunked, capping the temporary at a few MiB no matter how many
+families or sweeps. <code>seed</code> must be an integer in <code>[0, 2^32 - 1]</code>; anything else
+raises rather than being silently coerced.</p>
+<p><code>fit_variance_components</code> extends the same augment-then-regress machinery to
+several components at once — a <strong>multiple</strong> Haseman–Elston regression. Each sweep
+draws the liabilities from the full family truncated-MVN under
+<code>Sigma = sum_c h2_c K_c + e2 I</code> and updates all proportions jointly,</p>
+<div class="highlight"><pre><span></span><code>[h2_c] = (X&#39;X)^-1 X&#39;y ,   X[pair, c] = K_c[i,j] ,   y[pair] = l_i l_j ,
+</code></pre></div>
+<p>with the same cross-sweep damping. Fitting additive <code>A</code> together with the
+environment components works because they load on <em>different</em> relationship
+contrasts — <code>A</code> is pinned by the parent-offspring / grandparent / avuncular
+relatednesses, <code>C</code> by the full-sib excess, <code>M</code> by the resemblance between the
+genetically-unrelated mates — so each needs its identifying pairs (<code>C</code> full-sib
+pairs, <code>M</code> mate pairs); the design is otherwise rank-deficient and the fit raises.
+Simulation benchmarks recover <code>A</code>, <code>A+C</code> and <code>A+M</code> with small bias relative to
+their across-dataset SD. Note the two
+shared-environment components differ in how they bias <code>A</code> if omitted: ignoring a
+real <code>C</code> inflates <code>A</code> (sibs share both, so sib resemblance is over-credited to
+genes), whereas ignoring <code>M</code> biases <code>A</code> <strong>much less</strong> — mates have <code>A = 0</code>, so
+they carry little direct weight in the additive regression (a residual can remain
+from imputing under the misspecified model). In <code>bench_couple_env</code> (3000
+families, true <code>a² = 0.4</code>) the same shared-environment variance biases the
+additive-only <code>Â</code> by +0.04, +0.11, +0.16 as <code>s²</code> runs 0.1 → 0.2 → 0.3 when it is
+<code>C</code>, but only +0.00, +0.01, +0.04 when it is <code>M</code>. So <code>M</code> is worth fitting for its
+own sake (quantifying/testing spousal resemblance) rather than to de-bias <code>h²</code>. A
+<strong>dominance</strong> component is deliberately not offered: in the current role-based
+design its sharing pattern is not separated reliably from additive and sibship
+components. Identification would require an explicit dominance relationship
+kernel and relationship contrasts linearly independent of <code>A</code> and <code>C</code>. MZ/DZ
+twin observations can contribute such contrasts within a richer design, but MZ/DZ
+pairs alone cannot identify <code>A</code>, <code>C</code>, and <code>D</code> simultaneously.</p>
+<p>With <code>method="mcem"</code>, the M-step instead optimises the Gaussian likelihood of the
+imputed liabilities. This implementation is an <strong>approximate finite-iteration
+Monte-Carlo EM-style procedure</strong>: it uses a fixed damping coefficient, averages
+post-burn-in iterates, and does not stop on an observed-likelihood convergence
+criterion. Its OPG/BHHH information SE and GHK log-likelihood/AIC therefore retain
+both Monte-Carlo and finite-iteration error. Check stability across seeds and
+iteration settings and use family resampling for sampling uncertainty when the
+independent-cluster assumptions hold.</p>
+<h2 id="multiple-traits">Multiple traits<a class="headerlink" href="#multiple-traits" title="Permanent link">&para;</a></h2>
+<p>For <code>n</code> genetically/environmentally correlated traits the covariance is
+phenotype-major: same-trait blocks use <code>A_ij * h2_p</code>; cross-trait blocks scale the
+relationship <code>A_ij</code> by the genetic covariance <code>rho_g[p,q] * sqrt(h2_p h2_q)</code>, and
+the same individual's full liabilities across traits correlate by
+<code>full_corrmat[p,q]</code>. The Gibbs sampler then returns the genetic/full liability of
+each trait (<code>estimate_liability_multi</code>). This lets a well-powered trait sharpen
+the estimate for a correlated, under-powered one.</p>
+<p>These inputs are jointly constrained. Let <code>D = diag(sqrt(h2))</code>,
+<code>G = D genetic_corrmat D</code>, and <code>E = full_corrmat - G</code>. Both <code>G</code> and <code>E</code> must be
+positive semi-definite, while the two supplied correlation matrices must be
+symmetric with unit diagonal. The full pedigree covariance is
+<code>G ⊗ A + E ⊗ I</code>. The constructor rejects an incoherent decomposition rather than
+silently applying a positive-definite correction to a different model.</p>
+<h3 id="fitting-the-genetic-correlation">Fitting the genetic correlation<a class="headerlink" href="#fitting-the-genetic-correlation" title="Permanent link">&para;</a></h3>
+<p><code>fit_genetic_correlation</code> estimates <code>rho_g</code> between traits from family data — the
+multi-trait analogue of <code>fit_heritability</code>, a <strong>cross-trait</strong> Haseman–Elston
+regression. Each member carries one case/control interval per trait. Each sweep
+draws the members' <code>P</code>-trait liabilities from the full truncated-MVN under the
+current parameters, then regresses the sampled cross-products on the additive
+relationship <code>A</code>:</p>
+<div class="highlight"><pre><span></span><code>same trait, diff relatives:  h2_p    = sum A_ij l_ip l_jp / sum A_ij^2
+diff trait, diff relatives:  G[p,q]  = sum A_ij (l_ip l_jq + l_iq l_jp) / (2 sum A_ij^2)
+same individual, diff trait: rp[p,q] = mean_i l_ip l_iq              (phenotypic corr)
+</code></pre></div>
+<p>so the genetic correlation is <code>rg[p,q] = G[p,q] / sqrt(h2_p h2_q)</code>. The
+cross-relative, cross-trait resemblance carries the genetic covariance because only
+the genetic part transmits by relatedness, so <code>E[l_ip l_jq] = A_ij G[p,q]</code> for
+<code>i != j</code> — the within-individual environmental covariance drops out. The phenotypic
+correlation then splits into genetic and environmental covariances, <code>rp = G + E</code>,
+so the <strong>environmental correlation</strong> <code>re[p,q] = (rp[p,q] - G[p,q]) / sqrt(e2_p e2_q)</code>
+(<code>e2 = 1 - h2</code>) is returned alongside <code>rg</code>.</p>
+<p>The moment step is unconstrained, so its raw <code>G</code> and <code>E = rp - G</code> need not be
+positive semi-definite — especially with few families or a large <code>|rg|</code>. Each sweep
+therefore projects both onto the convex set of correlation matrices (the PSD cone
+intersected with the unit-diagonal constraint) with the fitted variances held
+fixed (an eigenvalue projection, then a shrink towards the identity
+that leaves the diagonal alone), and the chain carries the two projected
+<em>covariance</em> states rather than ratios. The reported estimates are the post-burn-in
+averages of those states — averaging covariances is convex, so <code>G_est</code> and <code>E_est</code>
+are PSD too — with <code>rg</code>, <code>re</code> and <code>rp</code> all derived from that same pair. So the
+returned object is one coherent model: <code>rp == genetic_cov + env_cov</code> exactly, and
+every correlation it reports comes from a single PSD fit rather than from
+separately averaged ratios. In the repository benchmarks it was approximately
+unbiased near the null (no
+spurious <code>rg</code> when traits are genetically independent but
+phenotypically correlated), with mild attenuation at large <code>|rg|</code> (the bounded
+ratio estimator); use an iid-family cluster bootstrap for sampling uncertainty when
+its assumptions hold. This is the pedigree-scale analogue
+of bivariate GREML / cross-trait LD-score regression.</p>
+<h3 id="onset-age-structured-genetic-correlation">Onset-age-structured genetic correlation<a class="headerlink" href="#onset-age-structured-genetic-correlation" title="Permanent link">&para;</a></h3>
+<p><code>fit_genetic_correlation_decay</code> generalises <code>fit_genetic_correlation</code> to a genetic
+correlation that <strong>decays with the difference in age at onset</strong> between two
+relatives (or between two traits). The motivating idea is that genetic liability
+need not be one static quantity: the genes driving early- and late-onset forms of
+the same trait may overlap only partly, and two traits diagnosed at very different
+ages may share fewer genetic drivers than their lifetime correlation suggests. The
+genetic covariance between relative <code>i</code>'s trait <code>p</code> (onset age <code>a_ip</code>) and relative
+<code>j</code>'s trait <code>q</code> (onset age <code>a_jq</code>) is</p>
+<div class="highlight"><pre><span></span><code>Cov(g_i^p, g_j^q) = A_ij * sqrt(h2_p h2_q) * rho_g * K(|a_ip - a_jq| ; lam)
+</code></pre></div>
+<p>where <code>A_ij</code> is the additive relationship, <code>rho_g</code> the headline genetic
+correlation at equal onset age, and <code>K</code> a decay kernel with rate scalar <code>lam</code> --
+the age-difference importance parameter. <code>lam = 0</code> gives <code>K = 1</code> and recovers the
+scalar <code>fit_genetic_correlation</code> model exactly (the structured covariance reduces
+to the scalar one); larger <code>lam</code> makes the shared genetic signal die faster with
+onset-age distance. Three kernels are offered: <strong>OU / exponential</strong>
+<code>K(d) = exp(-lam |d|)</code> (the default), <strong>Gaussian</strong> <code>K(d) = exp(-(lam d)^2 / 2)</code>,
+and <strong>tent</strong> <code>K(d) = (1 - lam |d|)+</code>. The exponential is preferred: it is the
+Markovian (Ornstein-Uhlenbeck) covariance, positive-definite for any configuration
+of ages, and has the deepest precedent for age/time-varying genetic correlation
+(random-regression and character-process models in quantitative genetics, e.g.
+Pletcher &amp; Geyer 1999; Jaffrezic &amp; Pletcher 2000; genetic "simplex" models; the
+phylogenetic OU model). Within a trait (<code>p == q</code>) the same structure models
+genetic heterogeneity by onset age; across traits it is the <code>rho_g</code> decay above.
+With a single shared rate across blocks the covariance is positive-definite by
+construction (a Schur/Kronecker sum of PSD terms).</p>
+<p><strong>Estimation is by Monte-Carlo EM, not moments.</strong> The natural cross-trait
+Haseman-Elston step (regressing the augmented cross-products <code>l_ip l_jq</code> on
+<code>A_ij K</code>) fails here, for a reason worth understanding: case/control ascertainment
+truncates the liabilities, and the resulting inflation of <code>E[l_ip l_jq]</code> is itself
+age-dependent -- closely related, similar-onset pairs are more often jointly
+affected, so their cross-products are inflated most, and that extra, steeply
+age-decaying signal is indistinguishable from fast genetic decay. A moment
+regression therefore drives <code>lam</code> to its bound. The fit instead maximises the
+expected complete-data Gaussian log-likelihood: the E-step imputes each family's
+liability second moment <code>M_f = E[x_f x_f' | status, ages, params]</code> with a
+truncated-MVN Gibbs sampler (averaged over <code>n_draw</code> draws), and the M-step
+maximises <code>Q = -1/2 sum_f [ log|Sig_f| + tr(Sig_f^-1 M_f) ]</code> over the
+heritabilities, the genetic/environmental covariances and the decay rates by
+L-BFGS with the analytic score. Each family's covariance <code>Sig_f</code> depends on its
+own onset ages, so the E-step loops over families; the M-step is batched.</p>
+<p><strong>Identifiability is the limiting factor, and it is worth being honest about.</strong>
+The amplitude (<code>rho_g</code>) and the rate (<code>lam</code>) trade off along a likelihood ridge --
+a strong correlation that decays fast can mimic a weak one that decays slowly --
+and the cross-trait genetic signal competes with the environmental correlation.
+The model is identifiable <em>in principle</em> (the cross-relative cross-trait
+covariance <code>A G K</code> is purely genetic here, since environment is not shared across
+relatives), but only <strong>data-rich</strong> designs pin it down: the repository kill-test
+(<code>benchmarks/bench_aod_decay.py</code>) recovers both <code>rho_g</code> and <code>lam</code> well at
+<code>n_fam ~ 2500</code> (<code>r_g ~ 0.51-0.53</code>, <code>lam ~ 0.041</code> vs true 0.5 / 0.04; <code>lam ~ 0.001</code>
+under the scalar null, and <code>r_g ~ 0.005</code> at the <code>r_g = 0</code> null), but at
+<code>n_fam ~ 1200</code> both run high (<code>~0.62</code> / <code>~0.064</code>) -- the ridge makes the model
+<strong>data-hungry</strong>, converging only as <code>n</code> grows into the thousands with several
+dozen EM iterations, and the across-replicate SD of <code>r_g</code> is ~0.11-0.18 even at
+<code>n_fam = 2500</code>, so single estimates carry wide intervals. With few families or
+little onset-age spread within relative pairs the estimates are noisy and
+ridge-dominated; use the scalar model there.</p>
+<p>Two robustness caveats matter for application (<code>benchmarks/bench_aod_decay_robustness.py</code>).
+The fitted amplitude is <strong>robust to the kernel shape</strong> (fitting OU to Gaussian-decay
+data still gives <code>r_g ~ 0.55</code> vs true 0.5), so the OU default is not a fragile
+choice. But the model is <strong>fragile to unmodelled shared family environment</strong>: it
+has no cross-relative environmental component, so a family-level environmental
+correlation is attributed to genetics -- inflating <code>h2</code> and thereby <em>attenuating</em>
+<code>r_g = G / sqrt(h2_0 h2_1)</code> (<code>r_g ~ 0.33</code> vs true 0.5 at <code>c2 = 0.10</code>). For traits
+with real household effects this is the binding limitation.</p>
+<p><strong>Options that address these limits.</strong> <code>shared_lambda</code> ties every block's decay
+rate to a single scalar -- fewer parameters, a guaranteed-PSD covariance, and less
+amplitude-decay ridge; it is the recommended default unless there is reason to let
+the rates differ. <code>shared_env</code> adds the shared-family environmental component <code>C</code>
+directly to the model (an onset-age <strong>ACE decomposition</strong>: genetics <code>A</code>, shared
+environment <code>C</code>, unique environment <code>E</code>), so household environment is estimated
+rather than absorbed into genetics -- it recovers <code>c2</code> and stops the <code>h2</code>
+inflation. But note the honest caveat: the <em>cross-trait</em> genetic-vs-shared-env
+separation is itself hard (both produce cross-trait familial covariance, one
+scaling with relatedness and age, the other constant), so <code>shared_env</code> can
+overestimate <code>r_g</code> at moderate <code>n</code>; it is a variance-attribution tool, not a free
+<code>r_g</code> fix. <code>n_starts</code> re-runs the EM from perturbed inits and keeps the best
+objective (the likelihood is multi-modal at small <code>n</code>), and the result carries a
+<code>converged</code> flag plus the <code>negq</code> objective trace. The analytic gradient of every
+block (genetic, environmental, decay, shared-environment) is pinned against
+finite differences in <code>tests/test_decay.py</code>.</p>
+<h3 id="genetic-factor-structure-common-factor-model">Genetic factor structure (common-factor model)<a class="headerlink" href="#genetic-factor-structure-common-factor-model" title="Permanent link">&para;</a></h3>
+<p>With more than a handful of traits, the genetic correlation matrix <code>r_g</code> is itself a
+structured object worth summarising. <code>fit_genetic_factor</code> fits a <strong>common-factor
+model</strong> to it,</p>
+<div class="highlight"><pre><span></span><code>r_g ≈ Λ Λ&#39; + Ψ ,     Ψ = diag(uniquenesses),
+</code></pre></div>
+<p>where <code>Λ</code> is a <code>P × m</code> matrix of factor loadings and <code>Ψ</code> the trait-specific genetic
+residuals — the pedigree-scale analogue of the <strong>Genomic SEM</strong> common-factor model
+(Grotzinger et al. 2019), which fits the same structure to an LD-score-regression
+genetic covariance. For <code>m = 1</code> it answers a concrete question: does a <em>single</em>
+latent genetic factor — one general axis of shared genetic liability — reproduce all
+the pairwise <code>r_g</code>, or do the traits split into several genetic dimensions?</p>
+<p>The fit is <strong>MINRES</strong> (minimum-residual) factor analysis: choose <code>Λ</code> to minimise the
+sum of squared <strong>off-diagonal</strong> residuals of <code>r_g − Λ Λ'</code>,</p>
+<div class="highlight"><pre><span></span><code>minimise  sum_{p≠q} w_pq (r_g[p,q] − (Λ Λ&#39;)[p,q])^2 ,   then  Ψ_p = 1 − (Λ Λ&#39;)_pp .
+</code></pre></div>
+<p>The diagonal is <em>excluded</em> from the objective and absorbed afterwards by the
+uniquenesses, so the factors are pinned by the <strong>cross-trait correlations</strong> — the
+shared signal — not by each trait's own heritable variance. (This is the factor-
+analytic counterpart of what the <code>C</code>/<code>M</code> environment components do in the
+variance-component fit: model the off-diagonal resemblance, leave the diagonal to a
+residual.) Loadings come back on the correlation scale — a covariance input is
+standardised first — so <code>communality_p = sum_k Λ_pk^2</code> is the fraction of trait <code>p</code>'s
+<em>genetic</em> variance explained by the common factor(s). The optimisation is warm-started
+from the top-<code>m</code> eigenvectors of <code>r_g</code> (principal factors) and polished by L-BFGS-B
+with the analytic gradient <code>−2 (W∘R_res) Λ</code>; an optional weight matrix <code>W</code> (e.g.
+<code>1/se²</code> of each <code>r_g</code>) gives a diagonally-weighted (DWLS) fit.</p>
+<p>Fit is read off the <strong>off-diagonal residuals</strong>: <code>srmr</code> is their standardised
+root-mean-square, and <code>prop_explained</code> is the fraction of off-diagonal structure
+captured. Values around 0.05–0.08 are informal descriptive heuristics, not a
+calibrated factor-number test. The optimizer constrains each communality
+<code>sum_k Λ_pk²</code> to <code>[0, 1]</code>; a value at 1 is a Heywood boundary. A single factor
+requires <code>P ≥ 3</code> traits, and in
+general the usual parameter count requires
+<code>df = ½((P − m)² − (P + m)) ≥ 0</code>. At <code>P = 3, m = 1</code>, <code>df = 0</code>, but sign and
+communality constraints can still prevent an exact representation. As with the
+<code>r_g</code> estimate itself the loadings carry no inference of their own — bootstrap the whole
+<code>fit_genetic_correlation → fit_genetic_factor</code> pipeline over families for uncertainty,
+since the within-dataset <code>se</code> understates it. <code>benchmarks/bench_genetic_factor.py</code>
+recovers planted loadings end-to-end and shows <code>srmr</code> rising when a one-factor model
+is fit to two-factor data.</p>
+<h2 id="background-and-references">Background and references<a class="headerlink" href="#background-and-references" title="Permanent link">&para;</a></h2>
+<p>The method sits in a long quantitative-genetics lineage. <strong>Threshold models</strong> for
+binary/categorical traits — mapping a continuous latent liability through a
+threshold — go back to Wright, Dempster &amp; Lerner (1950), Falconer (1965) and
+Gianola (1982). Their continuous-trait analogue is <strong>selection-index / BLUP</strong>
+prediction of additive genetic value from relatives' phenotypes and a relationship
+matrix (Hazel 1943; Henderson 1975; the animal model, and its genomic-relationship
+extensions, VanRaden 2008). Liu et al. introduced <strong>GWAX</strong>, coding affected
+relatives through a binary proxy phenotype
+(<a href="https://doi.org/10.1038/ng.3766">2017, <em>Nat Genet</em></a>).
+<strong>LT-FH</strong> (<a href="https://doi.org/10.1038/s41588-020-0613-6">Hujoel et al. 2020</a>)
+instead adapts the threshold model to case-control GWAS by using the posterior mean
+genetic liability as a configuration-specific phenotype. <strong>LT-FH++</strong>
+(<a href="https://doi.org/10.1016/j.ajhg.2022.01.009">Pedersen et al. 2022</a>) adds
+personalised age-, birth-year- and sex-dependent prevalence; <strong>ADuLT</strong>
+(<a href="https://doi.org/10.1038/s41467-023-41210-z">Pedersen et al. 2023</a>) uses the same
+personalised construction without family history as an alternative to time-to-event
+GWAS; and <strong>PA-FGRS</strong>
+(<a href="https://doi.org/10.1016/j.ajhg.2024.09.009">Dybdahl Krebs et al. 2024</a>) gives a
+deterministic Pearson–Aitken approximation for large, age-censored genealogies.</p>
+<p>Core methods:</p>
+<ul>
+<li><a href="https://doi.org/10.1038/s41588-020-0613-6">Hujoel et al. 2020, <em>Nat Genet</em></a> —
+  LT-FH.</li>
+<li><a href="https://doi.org/10.1016/j.ajhg.2022.01.009">Pedersen et al. 2022, <em>AJHG</em></a> —
+  LT-FH++ (personalised thresholds for first-degree relatives). The simulation
+  panels used parents plus zero to two siblings; that was a simulation design, not
+  a method limit. ltpred's arbitrary-pedigree path extends beyond the 2022 LT-FH++
+  publication.</li>
+<li><a href="https://doi.org/10.1038/s41467-023-41210-z">Pedersen et al. 2023, <em>Nat Commun</em></a>
+  — ADuLT (family-free personalised threshold).</li>
+<li><a href="https://doi.org/10.1016/j.ajhg.2024.09.009">Dybdahl Krebs et al. 2024, <em>AJHG</em></a>
+  — PA-FGRS (Pearson–Aitken family genetic risk scores).</li>
+</ul>
+<p>Related family-history methods and interpretation:</p>
+<ul>
+<li><a href="https://doi.org/10.1038/ng.3766">Liu, Erlich &amp; Pickrell 2017, <em>Nat Genet</em></a> —
+  GWAX, the binary proxy-case precursor; it is a comparator, not implemented here.</li>
+<li><a href="https://doi.org/10.1001/jamapsychiatry.2021.0336">Kendler et al. 2021, <em>JAMA Psychiatry</em></a>
+  — a distinct register-standardised FGRS, also not implemented here.</li>
+<li><a href="https://doi.org/10.1016/j.xgen.2022.100152">Hujoel et al. 2022, <em>Cell Genomics</em></a>
+  — target-population risk prediction combining a PRS with family history; this is
+  downstream of, and separate from, ltpred liability estimation.</li>
+<li><a href="https://doi.org/10.1016/j.ajhg.2025.11.016">Dybdahl Krebs et al. 2026, <em>AJHG</em></a>
+  — across five psychiatric disorders, PA-FGRS and PGS were weakly correlated yet
+  complementary, consistent with both being noisy estimates of the same additive
+  genetic liability under the paper's model.</li>
+<li><a href="https://doi.org/10.3389/fgene.2025.1708315">Pedersen et al. 2025, <em>Front Genet</em></a>
+  — graph-based extraction of arbitrary-degree relatives and kinship matrices from
+  population trio records; relevant upstream preprocessing, not PA validation.</li>
+</ul>
+<p>Threshold-model background:</p>
+<ul>
+<li>Dempster &amp; Lerner 1950, <em>Genetics</em> — heritability of threshold characters.</li>
+<li>Falconer 1965, <em>Ann. Hum. Genet.</em> — liability to disease from incidence in relatives.</li>
+<li>Gianola 1982, <em>J. Anim. Sci.</em> — threshold characters in animal breeding.</li>
+</ul>
+<p>Selection index / BLUP background:</p>
+<ul>
+<li>Hazel 1943, <em>Genetics</em> — the genetic basis for constructing selection indexes.</li>
+<li>Henderson 1975, <em>Biometrics</em> — best linear unbiased estimation/prediction (BLUP).</li>
+<li>VanRaden 2008, <em>J. Dairy Sci.</em> — genomic relationship matrices for prediction.</li>
+</ul>
+<p>Liability-threshold risk models (Sham and colleagues):</p>
+<ul>
+<li>Sham 1998, <em>Statistical Methods in Genetic Epidemiology</em> (Oxford) — the
+  multivariate liability-threshold model in genetic epidemiology.</li>
+<li>So, Kwan, Cherny &amp; Sham 2011, <em>AJHG</em> — risk prediction from family history and
+  known susceptibility loci, with age, follow-up and competing mortality risks.</li>
+</ul>
+<p>Numerics:</p>
+<ul>
+<li>Pearson 1903 and
+  <a href="https://doi.org/10.1017/S0013091500008063">Aitken 1935</a> — the selection formula
+  for a multivariate-normal population.</li>
+<li><a href="https://pubmed.ncbi.nlm.nih.gov/4813384/">Mendell &amp; Elston 1974, <em>Biometrics</em></a> —
+  sequential application to multifactorial threshold traits.</li>
+<li>Tallis 1961, <em>JRSS B</em> — moments of the truncated multivariate normal.</li>
+<li>Kotecha &amp; Djurić 1999 — Gibbs sampling for truncated multivariate normals.</li>
+<li>Genz &amp; Bretz 2009, <em>Springer</em> — computation of multivariate normal probabilities
+  (the GHK simulator behind the MCEM log-likelihood).</li>
+<li>Lee et al. 2011, <em>AJHG</em> — observed-to-liability-scale heritability.</li>
+</ul>
+<p>Association and phenotype-quality cautions:</p>
+<ul>
+<li><a href="https://doi.org/10.1093/bioinformatics/btac459">Zhuang et al. 2022, <em>Bioinformatics</em></a>
+  — related family-history phenotypes, case-control imbalance and tail calibration.</li>
+<li><a href="https://doi.org/10.1038/s41588-024-01963-9">Wu et al. 2024, <em>Nat Genet</em></a> —
+  survival and participation bias in parental-history Alzheimer GWAX; a
+  disease-specific warning, not a universal indictment of family-history models.</li>
+<li><a href="https://doi.org/10.1038/s41588-025-02465-y">Cai et al. 2026, <em>Nat Genet</em></a> —
+  a Perspective arguing that shallow phenotypes can introduce heritable
+  confounding in psychiatric genetics.</li>
+</ul>
+<p>Multi-trait / genetic factor structure:</p>
+<ul>
+<li>Grotzinger et al. 2019, <em>Nat. Hum. Behav.</em> — Genomic SEM: structural equation
+  models (including the common-factor model) fit to a multi-trait genetic
+  covariance — the model <code>fit_genetic_factor</code> ports to the pedigree scale.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
