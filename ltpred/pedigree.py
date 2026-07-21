@@ -175,12 +175,18 @@ def extract_pedigree(graph, proband, max_degree=2):
     # founders. The degree limit thus truncates only *lateral/descendant*
     # links (which relatives are included), never the kinship among those
     # included.
+    # Relax rather than first-write: an ancestor reachable by two routes (say a
+    # grandparent who is also a more distant ancestor on the other side) must
+    # keep the SHORTEST meiotic distance, which is what ``degree`` documents and
+    # what ``PopulationScores.degree_max`` summarises. Assigning on first visit
+    # instead recorded whichever route the traversal happened to reach first.
     queue = list(degree)
     while queue:
         i = queue.pop()
+        step = degree[i] + 1
         for j in (graph.sire[i], graph.dam[i]):
-            if j != -1 and j not in degree:
-                degree[j] = degree[i] + 1
+            if j != -1 and (j not in degree or step < degree[j]):
+                degree[j] = step
                 queue.append(j)
 
     members = sorted(degree, key=lambda j: (degree[j], str(graph.ids[j])))

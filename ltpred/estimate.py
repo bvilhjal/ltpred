@@ -609,11 +609,15 @@ def _align_to_cov(roles, cov_roles, columns, defaults):
 
     ``roles`` labels the columns of each array in ``columns``; a ``cov_role`` absent
     from ``roles`` (e.g. the auto-added ``g``) is filled with the matching entry of
-    ``defaults``. Returns a list of ``(F, d)`` arrays in ``cov_roles`` order."""
+    ``defaults``. Returns a list of ``(F, d)`` arrays in ``cov_roles`` order.
+
+    Each output keeps **its own** column's dtype, so a float32 ``lower`` paired
+    with a float64 ``upper`` does not silently demote the latter."""
     role_to_col = {r: i for i, r in enumerate(roles)}
     F = columns[0].shape[0]
     d = len(cov_roles)
-    out = [np.full((F, d), dv, dtype=columns[0].dtype) for dv in defaults]  # keep input dtype
+    out = [np.full((F, d), dv, dtype=col.dtype)          # keep each input's dtype
+           for col, dv in zip(columns, defaults)]
     for p, cr in enumerate(cov_roles):
         j = role_to_col.get(cr)
         if j is not None:
@@ -677,7 +681,7 @@ def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic", 
     if len(roles) != len(set(roles)):
         raise ValueError("roles contains duplicate role labels; each column must "
                          "identify a different family member")
-        lower = as_bounds(lower)
+    lower = as_bounds(lower)                # keeps float32 if given, else float64
     upper = as_bounds(upper)
     validate_bounds(lower, upper, context="array estimator bounds")
     cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2,
@@ -870,8 +874,10 @@ def liability_sensitivity(families, h2_values, *, method=None, out="genetic",
     h2_values = np.asarray(list(h2_values), dtype=float)
     if h2_values.ndim != 1 or h2_values.size < 2:
         raise ValueError("h2_values must be a 1-D grid of at least 2 values")
-    if np.any((h2_values < 0) | (h2_values > 1)):
-        raise ValueError("all h2 values must be in [0, 1]")
+    if np.any((h2_values <= 0) | (h2_values > 1)):
+        raise ValueError(
+            "all h2 values must be in (0, 1] -- a zero h2 makes the genetic "
+            "liability identically zero, leaving a degenerate covariance")
     if isinstance(out, (list, tuple)):
         out = out[0]
     name = _OUT_NAMES[_single_out(out)]

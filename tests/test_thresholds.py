@@ -136,3 +136,18 @@ def test_age_thresholds_case_pinned_control_open():
     # case pinned (lower == upper), control open below its age threshold
     assert lower[0] == upper[0]
     assert lower[1] == -np.inf and np.isfinite(upper[1])
+
+
+def test_normal_age_to_thresh_clamps_outside_its_window():
+    # `max_age` is a span, not an endpoint: the map covers
+    # [min_age, min_age + max_age]. Outside it the raw fraction left [0, 1] and
+    # norm_ppf returned a silent NaN.
+    from ltpred.thresholds import convert_age_to_thresh
+    assert np.isposinf(convert_age_to_thresh(5.0, dist="normal"))     # below
+    assert np.isposinf(convert_age_to_thresh(10.0, dist="normal"))    # min_age
+    inside = convert_age_to_thresh(50.0, dist="normal")
+    assert np.isfinite(inside)
+    end = convert_age_to_thresh(100.0, dist="normal")                 # min+max
+    assert convert_age_to_thresh(120.0, dist="normal") == pytest.approx(end)
+    assert not np.isnan(convert_age_to_thresh([5.0, 50.0, 120.0],
+                                              dist="normal")).any()

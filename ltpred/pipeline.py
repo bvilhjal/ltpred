@@ -48,9 +48,12 @@ class PopulationScores:
     ``probands`` are the proband ids (input order); ``est`` the posterior mean
     genetic-liability estimates; ``var`` the PA conditional-variance
     approximations; ``n_relatives`` the number of pedigree members beyond the
-    proband per proband (0 = no recorded relatives within ``max_degree`` --
-    the estimate is then the prior mean 0); ``degree_max`` the largest
-    extracted relationship degree per proband."""
+    proband per proband (0 = no recorded relatives within ``max_degree``, so the
+    estimate rests on the proband's own interval alone -- an ADuLT-style
+    family-free score, **not** the prior mean 0, since their own status is still
+    conditioning information; it is the prior mean only when the proband's own
+    bounds are uninformative too, as under ``index_age``); ``degree_max`` the
+    largest extracted relationship degree per proband."""
     probands: list
     est: np.ndarray
     var: np.ndarray

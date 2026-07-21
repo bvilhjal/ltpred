@@ -265,7 +265,7 @@
       <div class="card">
         <div class="k">Fit</div>
         <h3>Variance components &amp; factors</h3>
-        <p>Estimate h² and shared-environment components (A + sibship C + couple M) by multiple Haseman–Elston or a finite-iteration Monte-Carlo EM-style fit. MCEM SE and AIC outputs are approximate diagnostics; family-cluster bootstrap intervals and parametric-bootstrap tests are available under their sampling assumptions. Fitted C/M are not yet inputs to the high-level liability predictor. Fit genetic correlations and a descriptive common-factor model over them.</p>
+        <p>Estimate h² and shared-environment components (A + sibship C + couple M) by multiple Haseman–Elston or a finite-iteration Monte-Carlo EM-style fit. MCEM SE and AIC outputs are approximate diagnostics; family-cluster bootstrap intervals and parametric-bootstrap tests are available under their sampling assumptions. Fitted C/M feed back into the high-level liability predictor via the <code>c2</code>/<code>m2</code> arguments. Fit genetic correlations and a descriptive common-factor model over them.</p>
         <div class="fns"><span class="fn">fit_heritability</span><span class="fn">fit_variance_components</span><span class="fn">fit_genetic_correlation</span><span class="fn">fit_genetic_factor</span><span class="fn">bootstrap_fit</span></div>
       </div>
       <div class="card">

@@ -324,7 +324,7 @@ def test_liability_sensitivity_validation():
                                     n_sim=100, pop_prev=0.1, seed=1)
     with pytest.raises(ValueError, match="at least 2"):
         liability_sensitivity(sim.families, [0.5], method="pa")
-    with pytest.raises(ValueError, match="in \\[0, 1\\]"):
+    with pytest.raises(ValueError, match="in \\(0, 1\\]"):
         liability_sensitivity(sim.families, [0.5, 1.5], method="pa")
 
 

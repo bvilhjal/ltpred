@@ -290,3 +290,31 @@ def test_multi_covmat_add_ind_true_same_person_cross_trait_by_role():
     assert m[0, 3] == pytest.approx(gcov)   # g <-> g: genetic covariance
     assert m[1, 4] == pytest.approx(0.7)    # o <-> o: full correlation
     assert m[2, 5] == pytest.approx(0.7)    # m <-> m: full correlation
+
+
+def test_zero_h2_is_rejected_with_an_explanation():
+    # h2 = 0 makes the `g` row identically zero, so the covariance is singular
+    # in a way correct_positive_definite cannot repair. It used to be accepted
+    # here and then failed downstream with an opaque "unable to enforce a
+    # positive-definite covariance matrix".
+    from ltpred.covariance import construct_covmat_from_kinship
+    with pytest.raises(ValueError, match=r"h2 must be in \(0, 1\]"):
+        construct_covmat_single(fam_vec=["m", "f"], h2=0.0)
+    with pytest.raises(ValueError, match=r"all h2 must be in \(0, 1\]"):
+        construct_covmat_multi(fam_vec=["m"], h2_vec=[0.5, 0.0],
+                               genetic_corrmat=np.eye(2),
+                               full_corrmat=np.eye(2))
+    with pytest.raises(ValueError, match=r"h2 must be in \(0, 1\]"):
+        construct_covmat_from_kinship(np.eye(2), h2=0.0)
+    # the open end of the interval is still fine
+    construct_covmat_single(fam_vec=["m", "f"], h2=1.0)
+    construct_covmat_single(fam_vec=["m", "f"], h2=1e-6)
+
+
+def test_liability_sensitivity_rejects_a_zero_h2_grid_point():
+    from ltpred.estimate import liability_sensitivity
+    from ltpred.simulate import simulate_under_LTM_single
+    sim = simulate_under_LTM_single(fam_vec=["m", "f"], h2=0.4, pop_prev=0.1,
+                                    n_sim=20, seed=3)
+    with pytest.raises(ValueError, match=r"h2 values must be in \(0, 1\]"):
+        liability_sensitivity(sim.families, [0.0, 0.2, 0.5])

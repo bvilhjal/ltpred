@@ -218,15 +218,17 @@ not spuriously recovered as genetic correlation on average.
 ## 8. Shared environment and prediction (`bench_shared_env.py`)
 
 Four independent 3,000-family cohorts per cell, h²=0.5, parents + three full
-sibs. The paired gain is fitted A+C minus fitted additive-only prediction;
-uncertainty shown here is a t-based 95% CI half-width.
+sibs. The first two columns are prediction accuracy `corr(estimate, true g)`
+under the two fitted models; the paired gain is fitted A+C minus fitted
+additive-only prediction; uncertainty shown here is a t-based 95% CI half-width.
+The last two columns are the fitted parameters behind those predictions.
 
-| true c² | ignore C, fitted h² | fit A+C | paired gain ± 95% CI |
-|---:|---:|---:|---:|
-| 0.0 | 0.53356 | 0.53351 | -0.00005 ± 0.00034 |
-| 0.1 | 0.50160 | 0.50291 | +0.00131 ± 0.00019 |
-| 0.2 | 0.48912 | 0.49319 | +0.00407 ± 0.00199 |
-| 0.3 | 0.47151 | 0.47805 | +0.00654 ± 0.00204 |
+| true c² | accuracy, ignore C | accuracy, fit A+C | paired gain ± 95% CI | fitted h², ignore C | fitted h², fit A+C |
+|---:|---:|---:|---:|---:|---:|
+| 0.0 | 0.53356 | 0.53351 | -0.00005 ± 0.00034 | 0.487 | 0.484 |
+| 0.1 | 0.50160 | 0.50291 | +0.00131 ± 0.00019 | 0.531 | 0.448 |
+| 0.2 | 0.48912 | 0.49319 | +0.00407 ± 0.00199 | 0.638 | 0.453 |
+| 0.3 | 0.47151 | 0.47805 | +0.00654 ± 0.00204 | 0.748 | 0.483 |
 
 At c²=0.3, the paired gains with 2, 4, and 6 full siblings are respectively
 +0.00480 ± 0.00472, +0.00668 ± 0.00127, and +0.00601 ± 0.00229 (95% CI

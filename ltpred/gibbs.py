@@ -44,6 +44,39 @@ _MAX_SEED = (1 << 32) - 1
 
 
 @_jit
+def _far_right_std_tnorm_quantile(a, b, u):
+    """Quantile on ``[a, b]`` with ``a`` so far right that ``Phi(-a)`` underflows.
+
+    Beyond ``a ~ 38.5`` the survival probability is below the smallest positive
+    double, so *every* quantity on the probability scale is exactly 0 and the
+    ordinary route returns ``+inf`` -- which then poisons the whole sweep with
+    NaN.  Work on the log scale instead, via the Gaussian tail ratio
+    ``S(a + t) / S(a) ~ exp(-a t - t^2 / 2)``.  That inverts in closed form,
+    ``t = -a + sqrt(a^2 - 2 log(1 - u'))``, which is the exponential/Rayleigh
+    tail sampler underlying Devroye's and Robert's rejection schemes.  ``u'``
+    rescales ``u`` by the interval's share of the tail so a finite ``b`` is
+    honoured.  This mirrors the PA engine's ``_far_right_std_tnorm_moments``.
+    """
+    span = b - a
+    if span <= 0.0:
+        return a
+    if np.isinf(span):
+        share = 1.0
+    else:
+        share = 1.0 - np.exp(-a * span - 0.5 * span * span)
+    p = u * share
+    if p > 1.0 - 1e-16:
+        p = 1.0 - 1e-16
+    t = -a + np.sqrt(a * a - 2.0 * np.log(1.0 - p))
+    x = a + t
+    if x < a:
+        return a
+    if x > b:
+        return b
+    return x
+
+
+@_jit
 def _std_tnorm_quantile(a, b, u):
     """Quantile of ``N(0, 1)`` truncated to ``[a, b]``.
 
@@ -53,17 +86,30 @@ def _std_tnorm_quantile(a, b, u):
     central intervals are safe on the ordinary CDF scale.  The final clamp only
     guards the last-bit error of the inverse approximation; it never moves a
     draw across a truncation boundary.
+
+    Past ``|z| ~ 38.5`` even the survival scale underflows to exactly 0 and the
+    inverse returns an infinity that no clamp can catch (the opposite bound is
+    typically infinite too).  Those intervals hand off to
+    :func:`_far_right_std_tnorm_quantile`, mirrored for the left tail.
     """
     if a >= 0.0:
         sa = _norm_cdf(-a)
+        if sa <= 0.0:                       # right tail underflowed to zero
+            return _far_right_std_tnorm_quantile(a, b, u)
         sb = _norm_cdf(-b)
         q = (1.0 - u) * sa + u * sb
         x = -_norm_ppf(q)
+        if not np.isfinite(x):
+            return _far_right_std_tnorm_quantile(a, b, u)
     else:
-        fa = _norm_cdf(a)
         fb = _norm_cdf(b)
+        if fb <= 0.0:                       # far left tail: reflect to the right
+            return -_far_right_std_tnorm_quantile(-b, -a, 1.0 - u)
+        fa = _norm_cdf(a)
         p = (1.0 - u) * fa + u * fb
         x = _norm_ppf(p)
+        if not np.isfinite(x):
+            return -_far_right_std_tnorm_quantile(-b, -a, 1.0 - u)
 
     if x < a:
         return a

@@ -115,6 +115,19 @@ class KinshipIntegrationTests(unittest.TestCase):
         np.testing.assert_allclose(A_sub, A_full[np.ix_(sub_idx_full, sub_idx_full)],
                                    rtol=0, atol=1e-12)
 
+    def test_degree_is_the_shortest_route_not_the_first_found(self):
+        # A is P's paternal grandfather (degree 2) but is also reachable as
+        # B's father via the maternal-uncle route; assigning on first visit
+        # recorded whichever the traversal hit first, overstating the degree.
+        g = build_parent_graph(ids=["P", "F", "M", "B", "A"],
+                               father=["F", "A", "B", "A", None],
+                               mother=["M", None, None, None, None])
+        ped = extract_pedigree(g, "P", max_degree=1)
+        degrees = dict(zip(ped.ids, ped.degree.tolist()))
+        self.assertEqual(degrees["A"], 2)
+        self.assertEqual(max(ped.degree), 2)
+
+
     def test_batch_extraction_matches_single(self):
         g = make_graph()
         singles = [extract_pedigree(g, p, max_degree=2) for p in ("o", "s1", "m")]

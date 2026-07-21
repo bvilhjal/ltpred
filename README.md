@@ -170,9 +170,10 @@ it does not accept `K_i`, `K_pop`, or `use_mixture`. Use the role/object estimat
 for the PA-FGRS censoring mixture (or a covariance-level PA API if you assemble all
 arrays yourself).
 
-The high-level predictor currently uses the additive `A` covariance only. Fitted
-`C`/`M` components can be studied and tested, but are not yet wired back into
-`estimate_liability`; low-level covariance APIs are required for that extension.
+Beyond the additive `A` covariance, the fitted sibship (`C`) and couple (`M`)
+components feed back into prediction through the `c2`/`m2` arguments on every
+estimator entry point (`estimate_liability` included). Arbitrary user-supplied
+kernels still require the covariance-level APIs.
 
 Not included: an igraph-style pedigree-object interface, plotting utilities, and
 the xgboost heritability helpers from LTFHPlus; and ltpred does not build LD or run

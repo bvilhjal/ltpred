@@ -128,3 +128,29 @@ class ThresholdIntegrationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AalenJohansenGuardTests(unittest.TestCase):
+    def test_empty_risk_set_raises_like_kaplan_meier(self):
+        # entry == exit at an event age leaves nobody at risk; this used to
+        # return values=[0.0] with se=1.3e154 instead of failing.
+        entry, exit_ = [50, 50], [50, 80]
+        with self.assertRaisesRegex(ValueError, "empty risk set"):
+            aalen_johansen_cip(entry, exit_, np.array([1, 0]))
+        with self.assertRaisesRegex(ValueError, "empty risk set"):
+            kaplan_meier_cip(entry, exit_, np.array([True, False]))
+
+    def test_closed_form_and_bootstrap_se_agree_on_clean_data(self):
+        rng = np.random.default_rng(0)
+        n = 400
+        entry = np.zeros(n)
+        t, ct, cens = (rng.exponential(s, n) for s in (40.0, 60.0, 80.0))
+        exit_ = np.minimum(np.minimum(t, ct), cens)
+        ev = np.where((t <= ct) & (t <= cens), 1,
+                      np.where((ct < t) & (ct <= cens), 2, 0)).astype(int)
+        closed = aalen_johansen_cip(entry, exit_, ev)
+        boot = aalen_johansen_cip(entry, exit_, ev, n_boot=200, seed=1)
+        self.assertTrue(np.all(np.isfinite(closed.se)))
+        self.assertTrue(np.all(np.isfinite(boot.se)))
+        k = len(closed.ages) // 2
+        self.assertLess(abs(closed.se[k] - boot.se[k]), 0.01)

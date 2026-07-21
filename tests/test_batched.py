@@ -182,3 +182,41 @@ def test_multi_round_convergence_tightens_se():
     res = estimate_liability([fam], h2=0.5, method="gibbs", out=("genetic",),
                              tol=0.005, n_sim=20_000, burn_in=500, seed=1, max_rounds=20)
     assert res.se["genetic"][0] <= 0.005
+
+
+def test_gibbs_arrays_coerces_integer_and_list_bounds():
+    # The `lower = as_bounds(lower)` line sat inside the duplicate-role `raise`
+    # block, so it never ran: integer bounds failed when the auto-added genetic
+    # row needed a -inf default, and list-of-lists raised AttributeError.
+    from ltpred.estimate import (estimate_liability_gibbs_arrays,
+                                 estimate_liability_pa_arrays)
+    roles = ["o", "m"]
+    lo_int = np.array([[-2, 1], [1, -2]])
+    lo = lo_int.astype(float)
+    hi = np.array([[1.0, np.inf], [np.inf, 1.0]])
+    est, _ = estimate_liability_gibbs_arrays(roles, lo_int, hi, h2=0.5,
+                                             tol=0.05, n_sim=20_000,
+                                             burn_in=400, seed=1)
+    est_float, _ = estimate_liability_gibbs_arrays(
+        roles, lo, hi, h2=0.5, tol=0.05, n_sim=20_000, burn_in=400, seed=1)
+    pa_est, _ = estimate_liability_pa_arrays(roles, lo, hi, h2=0.5)
+    assert np.all(np.isfinite(est)) and np.all(np.abs(est) < 5.0)
+    np.testing.assert_allclose(est, est_float, atol=1e-12)
+    np.testing.assert_allclose(est, pa_est, atol=0.05)
+    # list-of-lists must work too, as the docstring promises
+    est_list, _ = estimate_liability_gibbs_arrays(
+        roles, lo.tolist(), hi.tolist(), h2=0.5, tol=0.05, n_sim=20_000,
+        burn_in=400, seed=1)
+    np.testing.assert_allclose(est_list, est, atol=1e-12)
+
+
+def test_mixed_precision_bounds_keep_their_own_dtype():
+    # _align_to_cov used columns[0].dtype for every output, silently demoting a
+    # float64 `upper` to float32 whenever `lower` was float32.
+    from ltpred.estimate import _align_to_cov
+    lo = np.zeros((2, 2), dtype=np.float32)
+    hi = np.zeros((2, 2), dtype=np.float64)
+    out_lo, out_hi = _align_to_cov(["o", "m"], ["g", "o", "m"], (lo, hi),
+                                   (-np.inf, np.inf))
+    assert out_lo.dtype == np.float32
+    assert out_hi.dtype == np.float64

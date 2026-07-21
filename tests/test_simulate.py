@@ -60,3 +60,15 @@ def test_age_flavour_runs_and_is_finite():
     res = estimate_liability(sim.families, h2=0.5, out=("genetic",),
                              tol=0.1, n_sim=10_000, burn_in=300, seed=4)
     assert np.all(np.isfinite(res.est["genetic"]))
+
+
+def test_child_roles_get_the_child_age_range():
+    # "c1.2".rstrip("0123456789") stops at the dot and yields "c1.", so the
+    # _AGE_RANGES["c"] entry was unreachable and children drew adult ages.
+    from ltpred.simulate import _age_range
+    assert _age_range("c1.1") == (0, 30)
+    assert _age_range("c2.10") == (0, 30)
+    assert _age_range("o") == (10, 60)
+    assert _age_range("s12") == (10, 60)
+    assert _age_range("mgm") == (65, 95)
+    assert _age_range("mau3") == (40, 80)

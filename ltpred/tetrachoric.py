@@ -56,7 +56,8 @@ class TetrachoricResult:
     """One tetrachoric estimate.
 
     ``rho`` the MLE; ``se`` the observed-information standard error;
-    ``thresholds`` the two marginal thresholds; ``n`` the pair count;
+    ``thresholds`` the two marginal thresholds; ``n`` the observed pair count
+    (the raw table total, never inflated by the continuity correction);
     ``corrected`` whether the 0.5 continuity correction was applied to a
     zero cell."""
     rho: float
@@ -168,6 +169,7 @@ def tetrachoric_table(a, b, c, d, *, continuity_correction=True):
     if not (0.0 < p1_raw < 1.0) or not (0.0 < p2_raw < 1.0):
         raise ValueError("monomorphic variable: a tetrachoric correlation "
                          "needs both levels of both variables present")
+    n_pairs = int(round(n_raw))
     corrected = False
     if min(a, b, c, d) == 0.0:
         if not continuity_correction:
@@ -192,7 +194,7 @@ def tetrachoric_table(a, b, c, d, *, continuity_correction=True):
     hess = (f(rho + delta) - 2.0 * fmin + f(rho - delta)) / (delta * delta)
     se = math.sqrt(1.0 / hess) if hess > 0 else math.nan
     return TetrachoricResult(rho=float(rho), se=float(se),
-                             thresholds=(t1, t2), n=int(n), corrected=corrected)
+                             thresholds=(t1, t2), n=n_pairs, corrected=corrected)
 
 
 def tetrachoric(x, y, *, continuity_correction=True):

@@ -27,8 +27,10 @@ case/control studies, the sample case proportion ``P``) with
 The existing helper :func:`ltpred.thresholds.convert_observed_to_liability_scale`
 is the forward h² bridge; :func:`observed_to_liability_h2` here matches it and
 :func:`liability_to_observed_h2` is its inverse. The Lee et al. (2012) genetic-
-correlation bridges are :func:`observed_to_liability_rg` and
-:func:`liability_to_observed_rg`.
+*covariance* bridges are :func:`observed_to_liability_gencov` and
+:func:`liability_to_observed_gencov`; the genetic *correlation* needs no bridge
+(the factors cancel in the ratio), so :func:`observed_to_liability_rg` is the
+identity and has no inverse counterpart.
 """
 from __future__ import annotations
 

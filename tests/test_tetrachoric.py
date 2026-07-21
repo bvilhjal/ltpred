@@ -65,6 +65,9 @@ class MleRecoveryTests(unittest.TestCase):
         r = tetrachoric_table(50, 0, 0, 50)
         self.assertTrue(r.corrected)
         self.assertGreater(r.rho, 0.9)
+        # `n` reports the observed pairs, not the +2 the correction adds
+        self.assertEqual(r.n, 100)
+        self.assertEqual(tetrachoric_table(30, 20, 25, 25).n, 100)
 
     def test_se_shrinks_with_n(self):
         rng = np.random.default_rng(4)

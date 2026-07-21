@@ -56,6 +56,23 @@ class EstimationBehaviorTests(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(e_wired)))
         self.assertFalse(np.allclose(e_base, e_wired))
 
+    def test_c_covers_the_probands_children_sibship(self):
+        # c1.1/c1.2 are full sibs in one partner group; the sibship regex used
+        # to match only o/s*, so C silently skipped them and a family described
+        # from the children's side got a different C structure than from the
+        # parents' side.
+        m = construct_covmat_single(fam_vec=["c1.1", "c1.2", "c2.1", "s1"],
+                                    h2=0.4, c2=0.2)
+        r = {role: i for i, role in enumerate(m.roles)}
+        cov = m.matrix
+        self.assertAlmostEqual(cov[r["c1.1"], r["c1.2"]], 0.2 + 0.2, places=12)
+        self.assertAlmostEqual(cov[r["o"], r["s1"]], 0.2 + 0.2, places=12)
+        # cross-group children are only half sibs -> no C, like mhs/phs
+        self.assertAlmostEqual(cov[r["c1.1"], r["c2.1"]], 0.1, places=12)
+        # the kernel stays a disjoint partition, so the matrix stays PD
+        self.assertGreater(np.linalg.eigvalsh(cov).min(), 0.0)
+
+
     def test_backward_compatible_defaults(self):
         sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.4,
                                         pop_prev=0.1, n_sim=30, seed=2)

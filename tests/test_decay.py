@@ -15,7 +15,7 @@ from ltpred.thresholds import liability_threshold
 from ltpred.family import Family, Member
 from ltpred.fit import (fit_genetic_correlation_decay, _decay_kernel,
                         _decay_kernel_deriv, _decay_cov, _decay_cov_batch,
-                        _decay_negq_grad, _multi_cov)
+                        _decay_negq_grad, _multi_cov, _project_covariance)
 from ltpred.estimate import _group_by_structure
 from ltpred.fit import _prepare_group_decay
 
@@ -105,6 +105,17 @@ class KernelTests(unittest.TestCase):
 
 
 class CovarianceTests(unittest.TestCase):
+    def test_projection_keeps_capped_and_zero_variances_psd(self):
+        raw = np.array([[0.8, 0.7, 0.2],
+                        [0.7, 0.8, -0.2],
+                        [0.2, -0.2, 0.1]])
+        variances = np.array([0.4, 0.4, 0.0])
+        cov, _ = _project_covariance(raw, variances)
+        np.testing.assert_allclose(np.diag(cov), variances)
+        np.testing.assert_array_equal(cov[2], 0.0)
+        np.testing.assert_array_equal(cov[:, 2], 0.0)
+        self.assertGreaterEqual(np.linalg.eigvalsh(cov).min(), -1e-12)
+
     def test_batch_matches_per_family(self):
         rng = np.random.default_rng(3)
         A = _A()
@@ -178,6 +189,11 @@ class ErrorPathTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             fit_genetic_correlation_decay(_simulate(20, seed=3), n_em=5)
 
+    def test_n_starts_must_be_positive(self):
+        with self.assertRaisesRegex(ValueError, "n_starts .* must be >= 1"):
+            fit_genetic_correlation_decay(_simulate(20, seed=3), n_em=8,
+                                          n_starts=0)
+
     def test_phen_names_mismatch_raises(self):
         with self.assertRaises(ValueError):
             fit_genetic_correlation_decay(_simulate(20, seed=4),
@@ -246,6 +262,10 @@ class NewOptionsTests(unittest.TestCase):
         np.testing.assert_allclose(res.rp, res.genetic_cov + res.env_cov,
                                    atol=1e-8)
         self.assertEqual(res.shared_env_cov.shape, (P, P))
+        self.assertGreaterEqual(
+            np.linalg.eigvalsh(res.shared_env_cov).min(), -1e-10)
+        self.assertTrue(np.all(np.diag(res.shared_env_cov) <=
+                               1.0 - res.h2 + 1e-10))
         # no true shared env in the DGP -> c2 should stay small
         self.assertLess(float(np.diag(res.shared_env_cov).mean()), 0.2)
 

@@ -124,7 +124,6 @@ genetic estimate (slope 0.93 -> 0.99) and sharpens the full-liability
 prediction. Arbitrary user-supplied kernels still go through the covariance-
 level entry points (`rtmvnorm_gibbs`, `pa_algorithm`, `pa_estimate_batched`),
 which accept an arbitrary covariance directly.
-```
 
 `fit_variance_components` estimates a set of components **jointly** (multiple HE
 regression, or ML with `method="mcem"`); a joint fit partials out the overlap

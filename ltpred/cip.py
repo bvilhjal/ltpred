@@ -208,7 +208,8 @@ def aalen_johansen_cip(age_entry, age_exit, event_type, cause=1, *,
         raise ValueError(f"no events of cause {cause} in the data")
 
     grid = np.unique(age_exit[event_type > 0])
-    F, pieces = _aj_on_grid(age_entry, age_exit, event_type, cause, grid)
+    F, pieces = _aj_on_grid(age_entry, age_exit, event_type, cause, grid,
+                            strict=True)
 
     if n_boot is None:
         se = np.sqrt(np.clip(_aalen_variance(F, pieces), 0.0, None))
@@ -219,9 +220,22 @@ def aalen_johansen_cip(age_entry, age_exit, event_type, cause=1, *,
         idx_all = np.arange(n)
         for b in range(int(n_boot)):
             idx = rng.choice(idx_all, size=n, replace=True)
+            # A resample can empty the risk set at one of the observed grid
+            # ages; the CIF is undefined there for that resample. Carry NaN and
+            # exclude it, rather than scoring it as "no event" -- the latter
+            # biases the bootstrap SE downward, which left truncation makes a
+            # realistic occurrence.
             boot[b] = _aj_on_grid(age_entry[idx], age_exit[idx],
                                   event_type[idx], cause, grid)[0]
-        se = boot.std(axis=0, ddof=1)
+        n_valid = np.sum(~np.isnan(boot), axis=0)
+        if np.any(n_valid < 2):
+            raise ValueError(
+                "bootstrap could not estimate the cumulative incidence at every "
+                f"event age: {int(np.sum(n_valid < 2))} of {grid.size} ages had "
+                "fewer than 2 usable resamples (the risk set kept coming up "
+                "empty). Raise n_boot, widen the follow-up, or use the "
+                "closed-form variance (n_boot=None).")
+        se = np.nanstd(boot, axis=0, ddof=1)
     else:
         se = np.full(grid.size, np.nan)
     return CipCurve(ages=grid, values=F, se=se,
@@ -230,16 +244,28 @@ def aalen_johansen_cip(age_entry, age_exit, event_type, cause=1, *,
                     estimator="aalen-johansen")
 
 
-def _aj_on_grid(age_entry, age_exit, event_type, cause, grid):
-    """Aalen-Johansen CIF for ``cause`` on a fixed grid, plus variance pieces."""
+def _aj_on_grid(age_entry, age_exit, event_type, cause, grid, *, strict=False):
+    """Aalen-Johansen CIF for ``cause`` on a fixed grid, plus variance pieces.
+
+    An empty risk set (``Y == 0``) at a grid age leaves the increment undefined:
+    there is no one left to have had the event, yet the grid says one did.
+    ``strict`` (the observed-data call) raises, matching
+    :func:`kaplan_meier_cip`; otherwise -- the bootstrap, where a resample may
+    legitimately miss an age -- the affected entries and everything after them
+    come back NaN so the caller can exclude them. Treating them as zero would
+    silently drop real events and shrink the reported uncertainty."""
     Y = _risk_sets(age_entry, age_exit, grid).astype(float)
     d_all = _count_at(np.sort(age_exit[event_type > 0]), grid).astype(float)
     d_cause = _count_at(np.sort(age_exit[event_type == cause]), grid).astype(float)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        surv = np.cumprod(1.0 - np.where(Y > 0, d_all / Y, 0.0))
+    empty = Y <= 0
+    if np.any(empty):
+        if strict:
+            raise ValueError(
+                "empty risk set at an event age (check follow-up data)")
+        Y = np.where(empty, np.nan, Y)
+    surv = np.cumprod(1.0 - d_all / Y)
     surv_prev = np.concatenate(([1.0], surv[:-1]))       # S(t-)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        incr = np.where(Y > 0, surv_prev * d_cause / Y, 0.0)
+    incr = surv_prev * d_cause / Y
     pieces = (surv_prev, d_cause, d_all, Y)
     return np.cumsum(incr), pieces
 
@@ -247,13 +273,12 @@ def _aj_on_grid(age_entry, age_exit, event_type, cause, grid):
 def _aalen_variance(F, pieces):
     """Aalen (1978) variance of the CIF (ABGK 1993, sec. IV.4)."""
     surv_prev, d_cause, d_all, Y = pieces
-    with np.errstate(divide="ignore", invalid="ignore"):
-        a = surv_prev ** 2 * d_cause / Y ** 2
-        b = d_all / Y ** 2
-        c = surv_prev * d_cause / Y ** 2
-    a = np.nan_to_num(a)
-    b = np.nan_to_num(b)
-    c = np.nan_to_num(c)
+    # ``_aj_on_grid(strict=True)`` guarantees Y > 0 here, so these divisions are
+    # finite. Deliberately no nan_to_num: it used to map an inf from an empty
+    # risk set to 1.8e308 and report that as a standard error.
+    a = surv_prev ** 2 * d_cause / Y ** 2
+    b = d_all / Y ** 2
+    c = surv_prev * d_cause / Y ** 2
     # Var_i = sum_{j<=i} [ a_j + (F_i - F_j)^2 b_j - 2 (F_i - F_j) c_j ]
     dF = F[:, None] - F[None, :]                      # (i, j): F_i - F_j
     tri = np.tril(np.ones_like(dF, dtype=bool))       # j <= i

@@ -260,6 +260,7 @@ def _expand_family(fam_vec, n_fam, add_ind):
 
 
 _SIBSHIP = re.compile(r"o|s\d*")           # proband + full sibs (one sib-ship)
+_CHILD = re.compile(r"c\d*\.\d*")          # the proband's children, by partner group
 _PARENT = re.compile(r"[mf]")
 _AVUNC = re.compile(r"[mp]au\d*")
 _MAT_AVUNC = re.compile(r"mau\d*")         # mother's full sibs
@@ -268,14 +269,20 @@ _PAT_AVUNC = re.compile(r"pau\d*")         # father's full sibs
 
 def _is_full_sib(a, b):
     """Whether roles ``a`` and ``b`` are **full siblings** — the pairs the common-
-    environment component ``C`` loads on. Three cases: both in one sib-ship (proband
+    environment component ``C`` loads on. Four cases: both in one sib-ship (proband
     ``o`` and its sibs ``s1``, ``s2``, …); a parent and their own sib (an
-    aunt/uncle); or two aunts/uncles on the **same** side (``mau1``/``mau2`` or
-    ``pau1``/``pau2``), who are full sibs of that parent and of each other. Including
-    that last case is what makes ``C`` form a complete sibship block ``{m, mau1,
-    mau2, …}`` (a valid PSD component) rather than a non-PSD chain. The relatedness
-    guard rejects unrelated look-alikes (e.g. a mother and a *paternal* aunt/uncle),
-    which would otherwise match the parent/avuncular test."""
+    aunt/uncle); two aunts/uncles on the **same** side (``mau1``/``mau2`` or
+    ``pau1``/``pau2``), who are full sibs of that parent and of each other; or two
+    of the proband's children in the **same partner group** (``c1.1``/``c1.2``),
+    who are full sibs of each other. Including the avuncular case is what makes
+    ``C`` form a complete sibship block ``{m, mau1, mau2, …}`` (a valid PSD
+    component) rather than a non-PSD chain; the child case keeps ``C``'s structure
+    the same whether a family is described from the parents' or the children's
+    side. Cross-group children are only half sibs (``c1.1``/``c2.1``), so like
+    ``mhs``/``phs`` they stay out of ``C``, and every block remains a disjoint
+    equivalence class. The relatedness guard rejects unrelated look-alikes (e.g. a
+    mother and a *paternal* aunt/uncle), which would otherwise match the
+    parent/avuncular test."""
     if get_relatedness(a, b, 1.0) <= 0:
         return False
 
@@ -287,7 +294,10 @@ def _is_full_sib(a, b):
                             or (full(_PARENT, b) and full(_AVUNC, a)))
     same_side_avunc = ((full(_MAT_AVUNC, a) and full(_MAT_AVUNC, b))
                        or (full(_PAT_AVUNC, a) and full(_PAT_AVUNC, b)))
-    return both_sibship or parent_and_their_sib or same_side_avunc
+    same_group_children = (full(_CHILD, a) and full(_CHILD, b)
+                           and _child_group(a) == _child_group(b))
+    return (both_sibship or parent_and_their_sib or same_side_avunc
+            or same_group_children)
 
 
 # genetically-unrelated cohabiting couples in the role grammar; each is a mate
@@ -352,8 +362,11 @@ def construct_covmat_single(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf")
     residual environmental variance absorbs them, so full liabilities keep unit
     variance and the genetic target stays coupled through ``h2 * A`` only).
     Requires ``h2 + c2 + m2 <= 1``."""
-    if not (0.0 <= h2 <= 1.0):
-        raise ValueError("h2 must be in [0, 1]")
+    if not (0.0 < h2 <= 1.0):
+        raise ValueError(
+            "h2 must be in (0, 1] -- a zero h2 makes the genetic liability "
+            "identically zero, so its row of the covariance is degenerate "
+            "and no positive-definite correction can recover it")
     roles = _expand_family(list(fam_vec) if fam_vec is not None else None,
                            n_fam, add_ind)
     if not roles:
@@ -391,8 +404,11 @@ def construct_covmat_multi(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
     if h2_vec.ndim != 1 or h2_vec.size == 0 or not np.all(np.isfinite(h2_vec)):
         raise ValueError("h2_vec must be a non-empty finite one-dimensional array")
     n_pheno = len(h2_vec)
-    if np.any((h2_vec < 0) | (h2_vec > 1)):
-        raise ValueError("all h2 must be in [0, 1]")
+    if np.any((h2_vec <= 0) | (h2_vec > 1)):
+        raise ValueError(
+            "all h2 must be in (0, 1] -- a zero h2 makes the genetic liability "
+            "identically zero, so its row of the covariance is degenerate "
+            "and no positive-definite correction can recover it")
     for name, m in (("genetic_corrmat", genetic_corrmat),
                     ("full_corrmat", full_corrmat)):
         if m.shape != (n_pheno, n_pheno):
@@ -561,8 +577,11 @@ def construct_covmat_from_kinship(A, h2=0.5, target=0, add_ind=True):
     n = A.shape[0]
     if A.shape != (n, n):
         raise ValueError("A must be square")
-    if not (0.0 <= h2 <= 1.0):
-        raise ValueError("h2 must be in [0, 1]")
+    if not (0.0 < h2 <= 1.0):
+        raise ValueError(
+            "h2 must be in (0, 1] -- a zero h2 makes the genetic liability "
+            "identically zero, so its row of the covariance is degenerate "
+            "and no positive-definite correction can recover it")
     if not (0 <= target < n):
         raise ValueError(f"target {target} out of range for {n} individuals")
     if not np.all(np.isfinite(A)):

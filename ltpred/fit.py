@@ -952,9 +952,10 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
     household environment is wrongly attributed to genetics and attenuates
     ``r_g``. ``C`` is only identifiable with enough related pairs and onset-age
     spread, so enable it on data-rich, extended-pedigree designs. ``n_starts``
-    re-runs the EM from that many perturbed initialisations and keeps the
-    best-fitting (lowest final objective) -- a guard against the multi-modal
-    likelihood at small samples (each start costs a full EM run).
+    must be at least 1; it re-runs the EM from that many perturbed
+    initialisations and keeps the best-fitting (lowest final objective) -- a
+    guard against the multi-modal likelihood at small samples (each start costs
+    a full EM run).
 
     **Why a likelihood M-step, not moments.** A Haseman-Elston regression of the
     augmented cross-products on ``A * K`` (the natural analogue of
@@ -1002,6 +1003,8 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
     if int(n_em) < 8:
         raise ValueError(f"n_em ({n_em}) must be >= 8 so the converged tail has "
                          "enough points for a Monte-Carlo SE")
+    if int(n_starts) < 1:
+        raise ValueError(f"n_starts ({n_starts}) must be >= 1")
     if phen_names is None:
         phen_names = [f"phenotype{p + 1}" for p in range(P)]
     elif len(phen_names) != P:
@@ -1097,8 +1100,11 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
                 lxi[p, q] = lxi[q, p] = (0.0 if rng is None
                                          else rng.uniform(0.0, 0.5 * lam_max))
             if shared_env:
-                Ci[p, p] = 0.0 if rng is None else rng.uniform(0.0, 0.2)
                 Ci[p, q] = Ci[q, p] = 0.0 if rng is None else rng.uniform(-0.1, 0.1)
+        if shared_env and rng is not None:
+            # per trait, not per pair -- inside the pair loop the last trait's
+            # c2 never gets a random start (and for P = 1 there are no pairs)
+            np.fill_diagonal(Ci, rng.uniform(0.0, 0.2, P))
         if rng is not None:
             lwi[:] = rng.uniform(0.0, 0.5 * lam_max, P)
         return pack(h2i, lwi, Gi, lxi, Ei, Ci)
@@ -1127,9 +1133,10 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
                                        eps=eps)
             h2 = np.clip(np.diag(G), eps, 1.0 - eps)
             if shared_env:
-                C, _ = _project_covariance(C, np.maximum(np.diag(C), 0.0), eps=eps)
                 c2 = np.clip(np.diag(C), 0.0, 1.0 - eps - h2)
-                np.fill_diagonal(C, c2)
+                # Project with the capped variances. Projecting first and then
+                # shrinking only the diagonal can make C indefinite again.
+                C, _ = _project_covariance(C, c2, eps=eps)
             else:
                 C = np.zeros((P, P))
                 c2 = np.zeros(P)
@@ -1304,8 +1311,15 @@ def _project_correlation(matrix, *, zero_pairs=(), eps=1e-8):
 def _project_covariance(matrix, variances, *, zero_pairs=(), eps=1e-8):
     """Return a PSD covariance with fixed ``variances`` and its correlation."""
     variances = np.asarray(variances, dtype=float)
-    sd = np.sqrt(np.clip(variances, eps, None))
-    raw_corr = np.asarray(matrix, dtype=float) / np.outer(sd, sd)
+    if np.any(variances < 0.0):
+        raise ValueError("variances must be non-negative")
+    sd = np.sqrt(variances)
+    active = variances > 0.0
+    safe_sd = np.where(active, sd, 1.0)
+    raw_corr = np.asarray(matrix, dtype=float) / np.outer(safe_sd, safe_sd)
+    raw_corr[~active, :] = 0.0
+    raw_corr[:, ~active] = 0.0
+    np.fill_diagonal(raw_corr, 1.0)
     corr = _project_correlation(raw_corr, zero_pairs=zero_pairs, eps=eps)
     cov = corr * np.outer(sd, sd)
     np.fill_diagonal(cov, variances)

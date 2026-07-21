@@ -42,7 +42,11 @@ _AGE_RANGES = {
 
 
 def _age_range(role):
-    stem = role.rstrip("0123456789")
+    # Strip the numbering to get the role stem. Children carry a two-part index
+    # (``c1.2``), so the dot has to go too -- ``"c1.2".rstrip("0123456789")``
+    # stops at the dot and yields ``"c1."``, which never matched the ``"c"`` key
+    # and silently gave simulated children the 10-60 default.
+    stem = role.rstrip("0123456789").rstrip(".").rstrip("0123456789")
     return _AGE_RANGES.get(stem, (10, 60))
 
 

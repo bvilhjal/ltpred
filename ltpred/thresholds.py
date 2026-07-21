@@ -64,7 +64,14 @@ def convert_age_to_thresh(age, dist="logistic", pop_prev=0.1, mid_point=60.0,
     gives a higher threshold, i.e. a more extreme liability. With ``dist="normal"``
     the threshold instead interpolates linearly in age between the truncated-normal
     bounds ``lower``/``upper``. Vectorised over ``age``. Port of
-    LTFHPlus::convert_age_to_thresh."""
+    LTFHPlus::convert_age_to_thresh.
+
+    Note that in the ``"normal"`` branch ``max_age`` is a **span**, not an
+    endpoint: the map covers ``[min_age, min_age + max_age]``, mirroring
+    :func:`convert_liability_to_aoo`'s ``[min_aoo, min_aoo + max_aoo]`` (both keep
+    LTFHPlus's parameterisation). Ages outside that window are clamped to the
+    endpoint threshold -- ``upper`` below it, ``lower`` above -- rather than
+    silently returning NaN, which is what the unclamped fraction produced."""
     age = np.asarray(age, dtype=float)
     if lower is None:
         lower = norm_ppf(0.95)
@@ -73,7 +80,7 @@ def convert_age_to_thresh(age, dist="logistic", pop_prev=0.1, mid_point=60.0,
                                  slope=slope)
         return norm_ppf(1.0 - cir)
     if dist == "normal":
-        frac = (1.0 - (age - min_age) / max_age)
+        frac = np.clip(1.0 - (age - min_age) / max_age, 0.0, 1.0)
         return norm_ppf(frac * (norm_cdf(upper) - norm_cdf(lower)) + norm_cdf(lower))
     raise ValueError("dist must be 'logistic' or 'normal'")
 

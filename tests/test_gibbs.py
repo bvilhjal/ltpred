@@ -329,3 +329,36 @@ def test_gibbs_params_rejects_non_symmetric_and_indefinite_covmat():
         rtmvnorm_gibbs(indefinite, n_sim=10, burn_in=0)
     # a legitimate PD matrix still works
     gibbs_params(np.array([[1.0, 0.5], [0.5, 1.0]]))
+
+
+@pytest.mark.parametrize("bound", [38.0, 40.0, 50.0, 100.0])
+def test_far_tail_bounds_do_not_produce_nan(bound):
+    # Beyond |z| ~ 38.5 the survival scale underflows to 0, the inverse returned
+    # +-inf, and NaN then propagated through every later conditional mean.
+    from ltpred.pearson_aitken import tnorm_moments
+    right = rtmvnorm_gibbs([[1.0]], lower=bound, out=(0,), n_sim=40_000,
+                           burn_in=200, seed=1).mean()
+    assert np.isfinite(right)
+    np.testing.assert_allclose(right, tnorm_moments(0.0, 1.0, bound, np.inf)[0],
+                               rtol=1e-3)
+    left = rtmvnorm_gibbs([[1.0]], upper=-bound, out=(0,), n_sim=40_000,
+                          burn_in=200, seed=1).mean()
+    assert np.isfinite(left)
+    np.testing.assert_allclose(left, tnorm_moments(0.0, 1.0, -np.inf, -bound)[0],
+                               rtol=1e-3)
+
+
+def test_far_tail_honours_a_finite_upper_bound():
+    from ltpred.pearson_aitken import tnorm_moments
+    draws = rtmvnorm_gibbs([[1.0]], lower=40.0, upper=40.02, out=(0,),
+                           n_sim=40_000, burn_in=200, seed=1)
+    assert np.all((draws >= 40.0) & (draws <= 40.02))
+    np.testing.assert_allclose(draws.mean(),
+                               tnorm_moments(0.0, 1.0, 40.0, 40.02)[0], rtol=1e-3)
+
+
+def test_far_tail_member_does_not_poison_its_relatives():
+    cov = np.array([[1.0, 0.5], [0.5, 1.0]])
+    draws = rtmvnorm_gibbs(cov, lower=[40.0, -np.inf], upper=[np.inf, 0.0],
+                           out=(0, 1), n_sim=20_000, burn_in=500, seed=2)
+    assert not np.isnan(draws).any()
