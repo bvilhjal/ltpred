@@ -363,6 +363,69 @@ def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
                            fixed[start:stop], x[start:stop], uniforms)
 
 
+@_jit_parallel
+def _gibbs_advance_m2(P, sd, lowers, uppers, fixed, x, uniforms, out_m):
+    """Random-free kernel: advance and accumulate ``sum_sweep outer(x, x)``.
+
+    Same in-place advance as :func:`_gibbs_advance`, but after each full sweep it
+    adds the current state's outer product into ``out_m`` (the caller divides by
+    the sweep count). Used by moment-accumulating variance-component fits that
+    need the average second moment ``E[x x']`` over the chain, not just draws."""
+    F = x.shape[0]
+    d = x.shape[1]
+    for f in prange(F):
+        for sweep in range(uniforms.shape[1]):
+            for j in range(d):
+                if not fixed[f, j]:
+                    mu_j = 0.0
+                    for i in range(d):
+                        mu_j += P[i, j] * x[f, i]
+                    sd_j = sd[j]
+                    a = (lowers[f, j] - mu_j) / sd_j
+                    b = (uppers[f, j] - mu_j) / sd_j
+                    z = _std_tnorm_quantile(a, b, uniforms[f, sweep, j])
+                    x[f, j] = mu_j + sd_j * z
+                    if x[f, j] < lowers[f, j]:
+                        x[f, j] = lowers[f, j]
+                    elif x[f, j] > uppers[f, j]:
+                        x[f, j] = uppers[f, j]
+            for a in range(d):
+                xa = x[f, a]
+                for b in range(d):
+                    out_m[f, a, b] += xa * x[f, b]
+
+
+def gibbs_advance_moment(P, sd, lowers, uppers, fixed, x, n_sweeps):
+    """Advance chains in place by ``n_sweeps`` and return the mean outer product.
+
+    Returns ``out_m[f] = (1/n_sweeps) * sum_sweep outer(x_f, x_f)`` -- the average
+    second moment over the chain, the sufficient statistic a moment/EM
+    variance-component M-step needs. Far cheaper than calling
+    :func:`gibbs_advance` once per draw and accumulating in Python (one RNG /
+    dispatch instead of ``n_sweeps``). ``x`` is carried across calls exactly as
+    for :func:`gibbs_advance`."""
+    n_sweeps = int(n_sweeps)
+    n_families, d = x.shape
+    out_m = np.zeros((n_families, d, d))
+    if n_sweeps <= 0 or n_families == 0 or d == 0:
+        return out_m
+
+    generator = _advance_rng()
+    family_chunk = max(1, min(n_families, _MAX_ADVANCE_UNIFORMS // d))
+    for start in range(0, n_families, family_chunk):
+        stop = min(start + family_chunk, n_families)
+        block_size = stop - start
+        sweep_chunk = max(1, _MAX_ADVANCE_UNIFORMS // (block_size * d))
+        for first_sweep in range(0, n_sweeps, sweep_chunk):
+            this_sweeps = min(sweep_chunk, n_sweeps - first_sweep)
+            uniforms = generator.random((block_size, this_sweeps, d))
+            _gibbs_advance_m2(P, sd, lowers[start:stop], uppers[start:stop],
+                              fixed[start:stop], x[start:stop], uniforms,
+                              out_m[start:stop])
+    out_m /= n_sweeps
+    return out_m
+
+
 def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
                    out=(0,), n_sim=100_000, burn_in=1000, seed=None,
                    params=None):

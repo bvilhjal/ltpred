@@ -39,13 +39,18 @@ class Member:
     ``K_i``/``K_pop`` are only used by the Pearson-Aitken estimator's censored
     -control mixture: ``K_i`` is the individual's (age/sex-stratified) cumulative
     incidence and ``K_pop`` the lifetime population prevalence. Leave them ``None``
-    (the default) for cases and for the non-mixture model."""
+    (the default) for cases and for the non-mixture model.
+
+    ``aod`` is the member's age at diagnosis (cases) or age at last follow-up
+    (controls) -- only used by the onset-age-structured genetic-correlation fit
+    (:func:`ltpred.fit.fit_genetic_correlation_decay`)."""
     role: str
     lower: object
     upper: object
     pid: Optional[object] = None
     K_i: Optional[object] = None
     K_pop: Optional[object] = None
+    aod: Optional[object] = None
 
 
 @dataclass
@@ -59,7 +64,8 @@ class Family:
     members: list = field(default_factory=list)
 
 
-def families_from_columns(fam_id, role, lower, upper, pid=None, K_i=None, K_pop=None):
+def families_from_columns(fam_id, role, lower, upper, pid=None, K_i=None,
+                        K_pop=None, aod=None):
     """Group flat, column-oriented threshold data into a list of families.
 
     Mirrors the R ``.tbl`` input (columns ``fam_id``, ``role``, ``lower``,
@@ -74,6 +80,7 @@ def families_from_columns(fam_id, role, lower, upper, pid=None, K_i=None, K_pop=
     pid = np.asarray(pid, dtype=object) if pid is not None else None
     K_i = np.asarray(K_i, dtype=float) if K_i is not None else None
     K_pop = np.asarray(K_pop, dtype=float) if K_pop is not None else None
+    aod = np.asarray(aod, dtype=float) if aod is not None else None
 
     n = len(fam_id)
     if not (len(role) == n == lower.shape[0] == upper.shape[0]):
@@ -95,6 +102,7 @@ def families_from_columns(fam_id, role, lower, upper, pid=None, K_i=None, K_pop=
             members.append(Member(role=str(role[i]), lower=lower[i], upper=upper[i],
                                    pid=(None if pid is None else pid[i]),
                                    K_i=(None if K_i is None else K_i[i]),
-                                   K_pop=(None if K_pop is None else K_pop[i])))
+                                   K_pop=(None if K_pop is None else K_pop[i]),
+                                   aod=(None if aod is None else aod[i])))
         families.append(Family(fam_id=key, members=members))
     return families

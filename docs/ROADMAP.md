@@ -204,6 +204,25 @@ likelihood-based inference) to the pedigree/registry setting.
   symmetric shared-environment ≠ directional maternal effect, and an environment
   `∝ A` is confounded with `h2`.
 
+- **Onset-age-structured genetic correlation.** *Done, with a hard identifiability
+  caveat.* `fit_genetic_correlation_decay` fits
+  `Cov(g_i^p, g_j^q) = A_ij sqrt(h2_p h2_q) rho_g K(|a_ip - a_jq|; lam)` -- a
+  genetic correlation that decays with the onset-age difference between relatives,
+  with a rate scalar `lam` (`lam = 0` is the scalar model; OU default kernel,
+  Gaussian/tent options). Estimation had to be **Monte-Carlo EM with a full L-BFGS
+  M-step**, not the usual Haseman-Elston moment step: case/control truncation
+  inflates cross-products in an age-dependent way that masquerades as fast genetic
+  decay and drives a moment fit's `lam` to its bound. The headline `r_g` is
+  recovered well, as is `lam` (`r_g ~ 0.51-0.53`, `lam ~ 0.041` vs true 0.5 /
+  0.04 at `n_fam = 2500`; `lam ~ 0.001` under the scalar null; `r_g ~ 0.005` at
+  the `r_g = 0` null). The amplitude-decay ridge plus environmental competition
+  make the model **data-hungry**: at `n_fam ~ 1200` both `r_g` and `lam` come
+  out high (`~0.62` / `~0.064`) and they converge to the truth only as `n`
+  grows into the thousands, with many EM iterations. It is fragile to
+  unmodelled shared family environment (`r_g` attenuates ~a third at `c2 = 0.10`). A research tool for data-rich registry pedigrees, not small
+  nuclear-family case/control panels; it also lacks a shared-family environmental
+  component across relatives.
+
 ## Medium-term — rigor and real data
 
 4. ~~**Pedigree/kinship-matrix input.**~~ **Done.** `kinship_from_pedigree(ids,

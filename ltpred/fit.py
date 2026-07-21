@@ -50,7 +50,8 @@ from ._mathfun import norm_cdf, norm_ppf
 from ._validation import validate_bounds
 from .covariance import (get_relatedness, correct_positive_definite,
                         _is_full_sib, _is_mates)
-from .gibbs import (gibbs_params, gibbs_advance, _std_tnorm_quantile,
+from .gibbs import (gibbs_params, gibbs_advance, gibbs_advance_moment,
+                    _std_tnorm_quantile,
                     _offset_seed, _seed_rng)
 from .estimate import (_group_by_structure, _validate_multitrait_bounds,
                        batch_means)
@@ -58,6 +59,7 @@ from .family import Family, Member
 
 __all__ = ["FitResult", "fit_heritability", "VarCompResult",
            "fit_variance_components", "GenCorrResult", "fit_genetic_correlation",
+           "DecayGenCorrResult", "fit_genetic_correlation_decay",
            "FactorResult", "fit_genetic_factor",
            "BootstrapResult", "bootstrap_fit", "SignificanceTest",
            "test_variance_component", "test_genetic_correlation"]
@@ -627,6 +629,434 @@ class GenCorrResult:
     traces: dict
     n_iter: int
     burn_in: int
+
+
+@dataclass
+class DecayGenCorrResult(GenCorrResult):
+    """Result of :func:`fit_genetic_correlation_decay` — a GenCorrResult plus
+    onset-age decay-rate estimates.
+
+    ``lambda_within`` is the ``(P,)`` vector of within-trait decay rates (how
+    fast the same trait's genetic covariance decays with onset-age
+    difference); ``lambda_cross`` the ``(P, P)`` matrix of cross-trait decay
+    rates (0 on the diagonal). ``kernel`` records the kernel used. A rate of 0
+    means no onset-age dependence (the scalar :func:`fit_genetic_correlation`
+    model); larger means correlation dies faster with onset-age distance."""
+    lambda_within: np.ndarray
+    lambda_cross: np.ndarray
+    kernel: str
+
+
+def _decay_kernel(delta, lam, kernel):
+    """Decay kernel ``rho(|delta|; lam)``: ``ou`` = ``exp(-lam |d|)``,
+    ``gauss`` = ``exp(-0.5 (lam d)^2)``, ``tent`` = ``(1 - lam |d|)+``."""
+    delta = np.abs(delta)
+    if kernel == "ou":
+        return np.exp(-lam * delta)
+    if kernel == "gauss":
+        return np.exp(-0.5 * (lam * delta) ** 2)
+    if kernel == "tent":
+        return np.clip(1.0 - lam * delta, 0.0, None)
+    raise ValueError(f"unknown decay kernel {kernel!r} (use 'ou', 'gauss', or 'tent')")
+
+
+def _prepare_group_decay(families, idx, n_pheno):
+    """Like :func:`_prepare_group_multi` but also gathers per-member onset ages."""
+    roles = sorted(m.role for m in families[idx[0]].members)
+    k = len(roles)
+    F = len(idx)
+    A = np.array([[get_relatedness(ri, rj, 1.0) for rj in roles] for ri in roles])
+    A, _ = correct_positive_definite(A)
+    W = np.triu(A, 1)                                 # a<b relatedness weights
+    sA2 = float(np.sum(W * W)) * F
+    lo = np.empty((F, k, n_pheno))
+    hi = np.empty((F, k, n_pheno))
+    aod = np.empty((F, k, n_pheno))
+    for slot, f in enumerate(idx):
+        members = sorted(families[f].members, key=lambda member: member.role)
+        for c, m in enumerate(members):
+            lo[slot, c] = np.broadcast_to(np.asarray(m.lower, float), (n_pheno,))
+            hi[slot, c] = np.broadcast_to(np.asarray(m.upper, float), (n_pheno,))
+            if m.aod is None:
+                raise ValueError(
+                    f"member {m.role!r} of family {families[f].fam_id!r} has no "
+                    "aod -- fit_genetic_correlation_decay needs an onset age "
+                    "(cases) or censoring age (controls) per member per trait")
+            aod[slot, c] = np.broadcast_to(np.asarray(m.aod, float), (n_pheno,))
+    if not np.all(np.isfinite(aod)):
+        raise ValueError("aod must be finite for every member and trait")
+    lo_pm = np.ascontiguousarray(lo.transpose(0, 2, 1).reshape(F, k * n_pheno))
+    hi_pm = np.ascontiguousarray(hi.transpose(0, 2, 1).reshape(F, k * n_pheno))
+    validate_bounds(lo_pm, hi_pm, context="decay genetic-correlation fit bounds")
+    fixed = np.ascontiguousarray((hi_pm - lo_pm) < 1e-8)
+    x = np.empty((F, k * n_pheno))
+    for slot in range(F):
+        x[slot] = _init_x(lo_pm[slot], hi_pm[slot], fixed[slot])
+    return dict(roles=roles, k=k, F=F, A=A, W=W, sA2=sA2,
+                lowers=lo_pm, uppers=hi_pm, fixed=fixed,
+                x=np.ascontiguousarray(x), aod=aod)
+
+
+def _decay_cov(A, h2, G, rp, E, aod_f, lam_w, lam_x, kernel):
+    """Per-family ``(kP, kP)`` liability covariance with the onset-age kernel.
+
+    Block ``(p, q)``, element ``(i, j)``: ``A_ij * (h2[p] if p==q else G[p,q]) *
+    K(|aod_i,p - aod_j,q|)``. Same-trait diagonal is 1; cross-trait same-person
+    covariance is ``G[p,q] * K(|aod_i,p - aod_i,q|) + E[p,q]`` (the genetic part
+    decays with the person's two onset ages, the environmental part does not).
+    """
+    P = len(h2)
+    k = A.shape[0]
+    S = np.empty((k * P, k * P))
+    for p in range(P):
+        for q in range(P):
+            if p == q:
+                K = _decay_kernel(aod_f[:, p, None] - aod_f[None, :, q],
+                                  lam_w[p], kernel)
+                block = A * h2[p] * K
+                np.fill_diagonal(block, 1.0)
+            else:
+                K = _decay_kernel(aod_f[:, p, None] - aod_f[None, :, q],
+                                  lam_x[p, q], kernel)
+                block = A * G[p, q] * K
+                k_self = _decay_kernel(aod_f[:, p] - aod_f[:, q],
+                                       lam_x[p, q], kernel)
+                np.fill_diagonal(block, G[p, q] * k_self + E[p, q])
+            S[p * k:(p + 1) * k, q * k:(q + 1) * k] = block
+    return S
+
+
+def _decay_kernel_deriv(delta, lam, kernel):
+    """``d/d lam`` of the decay kernel (see :func:`_decay_kernel`)."""
+    delta = np.abs(delta)
+    if kernel == "ou":
+        return -delta * np.exp(-lam * delta)
+    if kernel == "gauss":
+        return -lam * delta ** 2 * np.exp(-0.5 * (lam * delta) ** 2)
+    if kernel == "tent":
+        return -delta * ((1.0 - lam * delta) > 0.0)
+    raise ValueError(f"unknown decay kernel {kernel!r} (use 'ou', 'gauss', or 'tent')")
+
+
+def _decay_cov_batch(A, dself, dcross, h2, G, E, lam_w, lam_x, pairs, kernel):
+    """Vectorised :func:`_decay_cov` over ``F`` families sharing structure ``A``.
+
+    ``dself`` is the ``(F, k, k, P)`` same-trait age-difference tensor and
+    ``dcross`` a list of ``(F, k, k)`` cross-trait age-difference matrices (one
+    per pair); both are precomputed once since ages are fixed. Returns the
+    ``(F, kP, kP)`` liability covariances. Identical to looping
+    :func:`_decay_cov` per family, but the linear-algebra-heavy fit paths
+    (inverse, determinant, score) can then be batched rather than Python-looped.
+    """
+    P = len(h2)
+    k = A.shape[0]
+    F = dself.shape[0]
+    kP = k * P
+    idx = np.arange(k)
+    Sig = np.zeros((F, kP, kP))
+    for p in range(P):
+        K = _decay_kernel(dself[..., p], lam_w[p], kernel)
+        block = A[None] * h2[p] * K
+        block[:, idx, idx] = 1.0
+        Sig[:, p * k:(p + 1) * k, p * k:(p + 1) * k] = block
+    for i, (p, q) in enumerate(pairs):
+        KX = _decay_kernel(dcross[i], lam_x[p, q], kernel)
+        block = A[None] * G[p, q] * KX
+        block[:, idx, idx] = G[p, q] * KX[:, idx, idx] + E[p, q]
+        Sig[:, p * k:(p + 1) * k, q * k:(q + 1) * k] = block
+        Sig[:, q * k:(q + 1) * k, p * k:(p + 1) * k] = block.transpose(0, 2, 1)
+    return Sig
+
+
+def _decay_unpack(theta, P, pairs, lam_max, eps):
+    """Split the decay-fit parameter vector into named covariance pieces.
+
+    ``theta`` packs ``[h2 (P), lam_within (P), G pairs, lam_cross pairs, E pairs]``;
+    returns ``(h2, lam_w, G, lam_x, E, rp)`` with ``G``/``E``/``lam_x`` symmetrised
+    and ``rp = G + E`` (diagonal 1). Clips ``h2`` to ``(eps, 1-eps)`` and the rates
+    to ``[0, lam_max]`` so the covariance stays meaningful."""
+    theta = np.asarray(theta, float)
+    h2 = np.clip(theta[:P], eps, 1.0 - eps)
+    lam_w = np.clip(theta[P:2 * P], 0.0, lam_max)
+    npairs = len(pairs)
+    G = np.diag(h2).astype(float)
+    E = np.diag(1.0 - h2)
+    lam_x = np.zeros((P, P))
+    for i, (p, q) in enumerate(pairs):
+        G[p, q] = G[q, p] = theta[2 * P + i]
+        lam_x[p, q] = lam_x[q, p] = np.clip(theta[2 * P + npairs + i],
+                                            0.0, lam_max)
+        E[p, q] = E[q, p] = theta[2 * P + 2 * npairs + i]
+    rp = G + E
+    np.fill_diagonal(rp, 1.0)
+    return h2, lam_w, G, lam_x, E, rp
+
+
+def _decay_negq_grad(theta, P, M_groups, groups, pairs, lam_max, kernel, eps):
+    """Negative expected complete-data log-likelihood and its analytic gradient.
+
+    ``negQ = 1/2 sum_f [ log|Sig_f| + tr(Sig_f^-1 M_f) ]`` over every family's
+    age-structured covariance (``M_f`` the imputed second moment), plus
+    ``d negQ / d theta``. This is the L-BFGS objective for the decay M-step. It
+    is module-level (not a closure) so the gradient can be unit-tested against
+    finite differences -- a wrongly symmetrised cross-trait block once corrupted
+    it, which only a finite-difference test catches."""
+    h2, lam_w, G, lam_x, E, rp = _decay_unpack(theta, P, pairs, lam_max, eps)
+    npairs = len(pairs)
+    npar = 2 * P + 3 * npairs
+    negQ = 0.0
+    grad = np.zeros(npar)
+    for g, M in zip(groups, M_groups):
+        k, F = g["k"], g["F"]
+        Sig = _decay_cov_batch(g["A"], g["dself"], g["dcross"], h2, G, E,
+                               lam_w, lam_x, pairs, kernel)
+        minev = float(np.linalg.eigvalsh(Sig).min())
+        if minev <= 1e-9:
+            return 1e9 + 1e9 * abs(minev), np.zeros(npar)
+        Si = np.linalg.inv(Sig)
+        logdet = np.linalg.slogdet(Sig)[1]
+        negQ += 0.5 * float(np.sum(logdet) + np.einsum("fii->", Si @ M))
+        Psi = Si - Si @ M @ Si
+        mask = 1.0 - np.eye(k)
+        for p in range(P):
+            Pp = Psi[:, p * k:(p + 1) * k, p * k:(p + 1) * k]
+            KW = _decay_kernel(g["dself"][..., p], lam_w[p], kernel)
+            grad[p] += 0.5 * float(
+                np.einsum("fij,fji->", Pp, g["A"] * KW * mask))
+            dKW = _decay_kernel_deriv(g["dself"][..., p], lam_w[p], kernel)
+            grad[P + p] += 0.5 * float(
+                np.einsum("fij,fji->", Pp, h2[p] * g["A"] * dKW * mask))
+        for i, (p, q) in enumerate(pairs):
+            Pq = Psi[:, p * k:(p + 1) * k, q * k:(q + 1) * k]
+            KX = _decay_kernel(g["dcross"][i], lam_x[p, q], kernel)
+            # 0.5 * tr(Psi D); the (p,q) and (q,p) blocks contribute equally
+            # (both einsum(Pq, blk)), so this is einsum(Pq, blk) -- NOT
+            # einsum(Pq, blk + blk^T): blk = A*KX is asymmetric, and
+            # symmetrising it corrupts the cross-trait gradient.
+            blk = g["A"] * KX
+            grad[2 * P + i] += float(np.einsum("fij,fij->", Pq, blk))
+            dKX = _decay_kernel_deriv(g["dcross"][i], lam_x[p, q], kernel)
+            blk = G[p, q] * g["A"] * dKX
+            grad[2 * P + npairs + i] += float(np.einsum("fij,fij->", Pq, blk))
+            grad[2 * P + 2 * npairs + i] += float(
+                np.einsum("fij,fij->", Pq,
+                          np.broadcast_to(np.eye(k), (F, k, k))))
+    return negQ, grad
+
+
+def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
+                                  n_em=40, n_draw=100, burn=40, m_iter=100,
+                                  seed=None, eps=1e-4, phen_names=None):
+    """Genetic correlation with an onset-age decay (structured ``r_g``).
+
+    Estimates the two-trait (or multi-trait) genetic correlation when the
+    genetic covariance between relatives diagnosed at ages ``a1`` and ``a2``
+    decays with their onset-age difference:
+
+    ``Cov(g_i^p(a1), g_j^q(a2)) = A_ij * sqrt(h2_p h2_q) * rho_g * K(|a1-a2|; lam)``
+
+    with a decay-rate scalar ``lam`` (the age-difference importance parameter):
+    ``lam = 0`` recovers the scalar :func:`fit_genetic_correlation` model and
+    larger ``lam`` means correlation dies faster with onset-age distance.
+    ``kernel`` selects ``K``: ``"ou"`` (``exp(-lam |d|)``, the default),
+    ``"gauss"`` (``exp(-0.5 (lam d)^2)``), or ``"tent"`` (``(1 - lam |d|)+``).
+    Each member must carry ``aod`` (onset age for cases, censoring age for
+    controls), per trait for the multi-trait model. ``lam_max`` bounds the rate;
+    by default it is derived from the observed onset-age span.
+
+    **Why a likelihood M-step, not moments.** A Haseman-Elston regression of the
+    augmented cross-products on ``A * K`` (the natural analogue of
+    :func:`fit_genetic_correlation`) is *confounded* here: case/control
+    ascertainment truncates the liabilities, and the truncation inflation is
+    itself age-dependent (closely related, similar-onset pairs are more often
+    jointly affected), so it masquerades as a steeply decaying genetic signal
+    and drives ``lam`` to its bound. This fit therefore uses a Monte-Carlo **EM**
+    whose M-step fully maximises the expected complete-data Gaussian
+    log-likelihood ``Q = -1/2 sum_f [ log|Sig_f| + tr(Sig_f^-1 M_f) ]`` (``M_f``
+    the imputed second moment, averaged over ``n_draw`` Gibbs draws) by L-BFGS
+    with the analytic score. The likelihood separates the genetic decay from the
+    ascertainment geometry; the moment regression cannot.
+
+    **Identifiability (read this).** The amplitude (``rho_g``) and the decay
+    rate (``lam``) trade off along a likelihood ridge, and the cross-trait
+    genetic signal competes with the environmental correlation ``re``: at small
+    samples the fit can collapse ``rho_g`` toward 0 or inflate it. The model is
+    *identifiable in principle* — the cross-relative cross-trait covariance
+    ``A * G * K`` is purely genetic in this model (environment is not shared
+    across relatives) — but only **data-rich** designs pin it down: the
+    repository kill-test needs on the order of **thousands of families** and
+    several dozen EM iterations before ``rho_g`` and ``lam`` climb to their true
+    values, with residual attenuation of ``rho_g`` (environment absorbing
+    genetic correlation). With few families or little onset-age spread, expect
+    noisy, ridge-dominated estimates; prefer the scalar model there. ``n_em``,
+    ``n_draw`` and ``m_iter`` control the EM iterations, the per-E-step Gibbs
+    draws and the L-BFGS work per M-step.
+
+    Returns a :class:`DecayGenCorrResult`: the usual ``rg``/``re``/``rp``/
+    ``h2``/covariances plus ``lambda_within`` (per-trait decay rates) and
+    ``lambda_cross`` (cross-trait rates), averaged over the converged tail of
+    the EM run. ``seed`` must be a non-boolean integer in ``[0, 2**32 - 1]`` or
+    ``None``."""
+    from scipy.optimize import minimize
+
+    if not families:
+        raise ValueError("no families provided")
+    _require_member_rows(families, context="decay genetic-correlation fit")
+    first_lower = np.asarray(families[0].members[0].lower)
+    P = int(first_lower.size) if first_lower.ndim else 1
+    if P < 1:
+        raise ValueError("need at least one trait")
+    _validate_multitrait_bounds(families, P)
+    if int(n_em) < 8:
+        raise ValueError(f"n_em ({n_em}) must be >= 8 so the converged tail has "
+                         "enough points for a Monte-Carlo SE")
+    if phen_names is None:
+        phen_names = [f"phenotype{p + 1}" for p in range(P)]
+    elif len(phen_names) != P:
+        raise ValueError("phen_names length must match number of traits")
+
+    groups = [_prepare_group_decay(families, idx, P)
+              for _key, idx in _group_by_structure(families)]
+    sA2 = sum(g["sA2"] for g in groups)
+    if sA2 <= 0:
+        raise ValueError("no related pairs in the families -- cannot fit the "
+                         "decay model (need relatives with onset ages).")
+    all_aod = np.concatenate([g["aod"].ravel() for g in groups])
+    if lam_max is None:
+        span = max(float(all_aod.max() - all_aod.min()), 1.0)
+        lam_max = 4.0 / span
+    lam_max = float(lam_max)
+
+    if seed is not None:
+        _seed_rng(seed)
+
+    pairs = [(p, q) for p in range(P) for q in range(p + 1, P)]
+    npairs = len(pairs)
+    # theta layout: [h2 (P), lam_within (P), G pairs, lam_cross pairs, E pairs]
+    for g in groups:
+        aod = g["aod"]                                        # (F, k, P)
+        g["dself"] = np.abs(aod[:, :, None, :] - aod[:, None, :, :])   # (F,k,k,P)
+        g["dcross"] = [np.abs(aod[:, :, None, p] - aod[:, None, :, q])
+                       for (p, q) in pairs]                            # list (F,k,k)
+
+    def pack(h2, lam_w, G, lam_x, E):
+        return np.concatenate([h2, lam_w,
+                               [G[p, q] for (p, q) in pairs],
+                               [lam_x[p, q] for (p, q) in pairs],
+                               [E[p, q] for (p, q) in pairs]])
+
+    def unpack(theta):
+        return _decay_unpack(theta, P, pairs, lam_max, eps)
+
+    def compute_M(h2, lam_w, G, lam_x, E, rp):
+        M_groups = []
+        for g in groups:
+            k, F = g["k"], g["F"]
+            kP = k * P
+            M = np.empty((F, kP, kP))
+            for slot in range(F):
+                S = _decay_cov(g["A"], h2, G, rp, E, g["aod"][slot],
+                               lam_w, lam_x, kernel)
+                S, _ = correct_positive_definite(S)
+                Pm, sd = gibbs_params(S)
+                lo_s = g["lowers"][slot:slot + 1]
+                up_s = g["uppers"][slot:slot + 1]
+                fx_s = g["fixed"][slot:slot + 1]
+                x_s = g["x"][slot:slot + 1]
+                gibbs_advance(Pm, sd, lo_s, up_s, fx_s, x_s, int(burn))
+                M[slot] = gibbs_advance_moment(Pm, sd, lo_s, up_s, fx_s, x_s,
+                                               int(n_draw))[0]
+            M_groups.append(M)
+        return M_groups
+
+    def qgrad(theta, M_groups):
+        return _decay_negq_grad(theta, P, M_groups, groups, pairs, lam_max,
+                                kernel, eps)
+
+    bounds = ([(eps, 1.0 - eps)] * P + [(0.0, lam_max)] * P
+              + [(-0.99, 0.99)] * npairs + [(0.0, lam_max)] * npairs
+              + [(-0.99, 0.99)] * npairs)
+
+    h2 = np.full(P, 0.4)
+    G = np.diag(h2).astype(float)
+    E = np.diag(1.0 - h2)
+    lam_w = np.zeros(P)
+    lam_x = np.zeros((P, P))
+    for (p, q) in pairs:
+        G[p, q] = G[q, p] = 0.1
+        E[p, q] = E[q, p] = 0.1
+    theta = pack(h2, lam_w, G, lam_x, E)
+
+    tr_h2 = np.empty((int(n_em), P))
+    tr_lamw = np.empty((int(n_em), P))
+    tr_lamx = np.empty((int(n_em), P, P))
+    tr_rg = np.empty((int(n_em), P, P))
+    tr_re = np.empty((int(n_em), P, P))
+    tr_rp = np.empty((int(n_em), P, P))
+    tr_G = np.empty((int(n_em), P, P))
+    tr_E = np.empty((int(n_em), P, P))
+
+    for it in range(int(n_em)):
+        h2, lam_w, G, lam_x, E, rp = unpack(theta)
+        M_groups = compute_M(h2, lam_w, G, lam_x, E, rp)
+        res = minimize(qgrad, theta, args=(M_groups,), jac=True,
+                       method="L-BFGS-B", bounds=bounds,
+                       options={"maxiter": int(m_iter)})
+        theta = res.x
+        # coherent PSD split (safety net; L-BFGS is bounded but not PD-aware)
+        h2, lam_w, G, lam_x, E, rp = unpack(theta)
+        G, _ = _project_covariance(np.where(np.eye(P, dtype=bool), h2, G), h2,
+                                   eps=eps)
+        h2 = np.clip(np.diag(G), eps, 1.0 - eps)
+        e2 = 1.0 - h2
+        E, _ = _project_covariance(np.where(np.eye(P, dtype=bool), e2, E), e2,
+                                   eps=eps)
+        np.fill_diagonal(E, e2)
+        rp = G + E
+        np.fill_diagonal(rp, 1.0)
+        theta = pack(h2, lam_w, G, lam_x, E)
+
+        rg = _cov_to_corr(G, h2, eps)
+        re = _cov_to_corr(E, 1.0 - h2, eps)
+        tr_h2[it] = h2
+        tr_lamw[it] = lam_w
+        tr_lamx[it] = lam_x
+        tr_rg[it] = rg
+        tr_re[it] = re
+        tr_rp[it] = rp
+        tr_G[it] = G
+        tr_E[it] = E
+
+    # average the converged tail (second half) to damp MC-EM jitter
+    tail = slice(int(n_em) // 2, int(n_em))
+    G_est = tr_G[tail].mean(axis=0)
+    E_est = tr_E[tail].mean(axis=0)
+    lamw_est = tr_lamw[tail].mean(axis=0)
+    lamx_est = tr_lamx[tail].mean(axis=0)
+    h2_est = np.diag(G_est).copy()
+    rg = _cov_to_corr(G_est, h2_est, eps)
+    re = _cov_to_corr(E_est, 1.0 - h2_est, eps)
+    rp = G_est + E_est
+    np.fill_diagonal(rp, 1.0)
+    _, h2_se = batch_means(tr_h2[tail])
+    _, rg_se = batch_means(tr_rg[tail].reshape(-1, P * P))
+    _, re_se = batch_means(tr_re[tail].reshape(-1, P * P))
+    _, rp_se = batch_means(tr_rp[tail].reshape(-1, P * P))
+
+    return DecayGenCorrResult(h2=h2_est, rg=rg, re=re, rp=rp,
+                              genetic_cov=G_est, env_cov=E_est,
+                              se={"h2": h2_se, "rg": rg_se, "re": re_se,
+                                  "rp": rp_se},
+                              phen_names=list(phen_names),
+                              traces={"h2": tr_h2[tail], "rg": tr_rg[tail],
+                                      "re": tr_re[tail], "rp": tr_rp[tail],
+                                      "lambda_within": tr_lamw[tail],
+                                      "lambda_cross": tr_lamx[tail]},
+                              n_iter=int(n_em), burn_in=int(n_em) // 2,
+                              lambda_within=lamw_est,
+                              lambda_cross=lamx_est,
+                              kernel=kernel)
+
 
 
 def _multi_cov(A, h2, G, rp):

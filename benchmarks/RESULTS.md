@@ -743,6 +743,60 @@ c2 = 0.15 and couple m2 = 0.15 (5 replicates of 4,000 families):
   M 0.17 vs truth 0.4/0.15/0.15) give the same calibration as the oracle.
 - Ranking is untouched (corr(g) flat), consistent with every other benchmark.
 
+## 25. Onset-age-structured genetic correlation (`bench_aod_decay.py`)
+
+`fit_genetic_correlation_decay` fits a genetic correlation that **decays with the
+onset-age difference** between relatives,
+`Cov(g_i^p, g_j^q) = A_ij sqrt(h2_p h2_q) rho_g K(|a_ip - a_jq|; lam)`, by a
+Monte-Carlo EM (a likelihood M-step -- a Haseman-Elston moment step is confounded
+by age-dependent ascertainment truncation; see the algorithm notes). Two-trait
+nuclear families (h2 = 0.5/0.5, r_p = 0.3, prevalence 0.2, onset ages iid
+U(15, 65) -- a pessimistic choice that maximises the amplitude-decay ridge),
+fitted with `n_em = 45`, `n_draw = 100`, 3 replicates per cell:
+
+| panel | truth | fitted r_g | fitted lam_cross |
+|---|---|---|---|
+| scalar null | r_g = 0.5, lam = 0 | 0.506 +/- 0.049 | 0.001 +/- 0.002 |
+| decay | r_g = 0.5, lam = 0.04 | 0.515 +/- 0.178 | 0.041 +/- 0.009 |
+| data req (n = 1200) | r_g = 0.5, lam = 0.04 | 0.618 +/- 0.128 | 0.064 +/- 0.027 |
+| data req (n = 2500) | r_g = 0.5, lam = 0.04 | 0.530 +/- 0.110 | 0.045 +/- 0.021 |
+| r_g null | r_g = 0, lam = 0.04 | 0.005 +/- 0.087 | (unidentified) |
+
+- **The headline r_g is recovered** (0.51-0.53 at `n_fam = 2500`), and the decay
+  rate is identified in the right place (`lam_cross ~ 0.041`, `lam_within ~ 0.039`
+  vs true 0.04).
+- **The scalar null is clean**: `lam = 0` refits give `r_g ~ 0.51` and
+  `lam ~ 0.001` -- no manufactured decay, exactly the scalar-model limit.
+- **No spurious correlation at the `r_g = 0` null** (`0.005 +/- 0.087`).
+- **The model is data-hungry**: at `n_fam = 1200` both `r_g` and `lam` run high
+  (0.62 / 0.064) along the amplitude-decay ridge, converging to the truth as `n`
+  grows into the thousands. Below that, estimates are ridge-dominated; prefer the
+  scalar `fit_genetic_correlation`.
+- *Estimator correctness*: the analytic cross-trait gradient of the M-step is
+  pinned against finite differences (`tests/test_decay.py::GradientTests`);
+  a symmetrisation bug in it was found and fixed in review, and the numbers
+  above are from the corrected estimator.
+- **Sampling variability is large**: even at `n_fam = 2500` the across-replicate
+  SD of `r_g` is ~0.11-0.18, so any single estimate carries a wide interval;
+  use `bootstrap_fit` for sampling uncertainty.
+
+### Robustness (adversarial probes, `bench_aod_decay_robustness.py`)
+
+The main grid is *circular* (the simulator draws from exactly the fitted
+covariance), so it cannot reveal misspecification. Two adversarial arms probe it
+(`n_fam = 2000`, `n_em = 35`, 2 reps):
+
+- **Wrong kernel is benign**: truth = Gaussian decay, fit = OU gives
+  `r_g ~ 0.55` (true 0.5) -- the amplitude is robust to the kernel shape.
+- **Unmodelled shared family environment biases r_g DOWN**: adding a
+  cross-relative environmental correlation (`c2 = 0.10`) the model cannot
+  represent drops `r_g` from `0.50` to `~0.33`. The extra same-trait familial
+  covariance is attributed to genetics, inflating `h2`, and since
+  `r_g = G / sqrt(h2_0 h2_1)` the inflated denominator attenuates `r_g`. The
+  model has **no shared-family environmental component across relatives**, so
+  traits with household effects will be mis-estimated -- the most important
+  caveat for application.
+
 ## What changed in this rerun
 
 - Replicated the accuracy and calibration grids across five independent

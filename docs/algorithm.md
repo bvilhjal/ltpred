@@ -669,6 +669,80 @@ ratio estimator); use an iid-family cluster bootstrap for sampling uncertainty w
 its assumptions hold. This is the pedigree-scale analogue
 of bivariate GREML / cross-trait LD-score regression.
 
+### Onset-age-structured genetic correlation
+
+`fit_genetic_correlation_decay` generalises `fit_genetic_correlation` to a genetic
+correlation that **decays with the difference in age at onset** between two
+relatives (or between two traits). The motivating idea is that genetic liability
+need not be one static quantity: the genes driving early- and late-onset forms of
+the same trait may overlap only partly, and two traits diagnosed at very different
+ages may share fewer genetic drivers than their lifetime correlation suggests. The
+genetic covariance between relative `i`'s trait `p` (onset age `a_ip`) and relative
+`j`'s trait `q` (onset age `a_jq`) is
+
+```text
+Cov(g_i^p, g_j^q) = A_ij * sqrt(h2_p h2_q) * rho_g * K(|a_ip - a_jq| ; lam)
+```
+
+where `A_ij` is the additive relationship, `rho_g` the headline genetic
+correlation at equal onset age, and `K` a decay kernel with rate scalar `lam` --
+the age-difference importance parameter. `lam = 0` gives `K = 1` and recovers the
+scalar `fit_genetic_correlation` model exactly (the structured covariance reduces
+to the scalar one); larger `lam` makes the shared genetic signal die faster with
+onset-age distance. Three kernels are offered: **OU / exponential**
+`K(d) = exp(-lam |d|)` (the default), **Gaussian** `K(d) = exp(-(lam d)^2 / 2)`,
+and **tent** `K(d) = (1 - lam |d|)+`. The exponential is preferred: it is the
+Markovian (Ornstein-Uhlenbeck) covariance, positive-definite for any configuration
+of ages, and has the deepest precedent for age/time-varying genetic correlation
+(random-regression and character-process models in quantitative genetics, e.g.
+Pletcher & Geyer 1999; Jaffrezic & Pletcher 2000; genetic "simplex" models; the
+phylogenetic OU model). Within a trait (`p == q`) the same structure models
+genetic heterogeneity by onset age; across traits it is the `rho_g` decay above.
+With a single shared rate across blocks the covariance is positive-definite by
+construction (a Schur/Kronecker sum of PSD terms).
+
+**Estimation is by Monte-Carlo EM, not moments.** The natural cross-trait
+Haseman-Elston step (regressing the augmented cross-products `l_ip l_jq` on
+`A_ij K`) fails here, for a reason worth understanding: case/control ascertainment
+truncates the liabilities, and the resulting inflation of `E[l_ip l_jq]` is itself
+age-dependent -- closely related, similar-onset pairs are more often jointly
+affected, so their cross-products are inflated most, and that extra, steeply
+age-decaying signal is indistinguishable from fast genetic decay. A moment
+regression therefore drives `lam` to its bound. The fit instead maximises the
+expected complete-data Gaussian log-likelihood: the E-step imputes each family's
+liability second moment `M_f = E[x_f x_f' | status, ages, params]` with a
+truncated-MVN Gibbs sampler (averaged over `n_draw` draws), and the M-step
+maximises `Q = -1/2 sum_f [ log|Sig_f| + tr(Sig_f^-1 M_f) ]` over the
+heritabilities, the genetic/environmental covariances and the decay rates by
+L-BFGS with the analytic score. Each family's covariance `Sig_f` depends on its
+own onset ages, so the E-step loops over families; the M-step is batched.
+
+**Identifiability is the limiting factor, and it is worth being honest about.**
+The amplitude (`rho_g`) and the rate (`lam`) trade off along a likelihood ridge --
+a strong correlation that decays fast can mimic a weak one that decays slowly --
+and the cross-trait genetic signal competes with the environmental correlation.
+The model is identifiable *in principle* (the cross-relative cross-trait
+covariance `A G K` is purely genetic here, since environment is not shared across
+relatives), but only **data-rich** designs pin it down: the repository kill-test
+(`benchmarks/bench_aod_decay.py`) recovers both `rho_g` and `lam` well at
+`n_fam ~ 2500` (`r_g ~ 0.51-0.53`, `lam ~ 0.041` vs true 0.5 / 0.04; `lam ~ 0.001`
+under the scalar null, and `r_g ~ 0.005` at the `r_g = 0` null), but at
+`n_fam ~ 1200` both run high (`~0.62` / `~0.064`) -- the ridge makes the model
+**data-hungry**, converging only as `n` grows into the thousands with several
+dozen EM iterations, and the across-replicate SD of `r_g` is ~0.11-0.18 even at
+`n_fam = 2500`, so single estimates carry wide intervals. With few families or
+little onset-age spread within relative pairs the estimates are noisy and
+ridge-dominated; use the scalar model there.
+
+Two robustness caveats matter for application (`benchmarks/bench_aod_decay_robustness.py`).
+The fitted amplitude is **robust to the kernel shape** (fitting OU to Gaussian-decay
+data still gives `r_g ~ 0.55` vs true 0.5), so the OU default is not a fragile
+choice. But the model is **fragile to unmodelled shared family environment**: it
+has no cross-relative environmental component, so a family-level environmental
+correlation is attributed to genetics -- inflating `h2` and thereby *attenuating*
+`r_g = G / sqrt(h2_0 h2_1)` (`r_g ~ 0.33` vs true 0.5 at `c2 = 0.10`). For traits
+with real household effects this is the binding limitation.
+
 ### Genetic factor structure (common-factor model)
 
 With more than a handful of traits, the genetic correlation matrix `r_g` is itself a

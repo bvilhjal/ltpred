@@ -99,6 +99,30 @@ vc.components["A"], vc.components["C"], vc.residual   # proportions of liability
 
 `C` is identified only from **full-sib pairs**, so the families must contain them
 (otherwise the fit raises). The same `h2_se` caveat applies — use `bootstrap_fit` for a CI.
+
+### Onset-age decay
+
+If the genetic correlation should **decay with the difference in age at onset**
+between relatives (early- vs late-onset heterogeneity), use
+`fit_genetic_correlation_decay` instead. Each member additionally carries `aod`
+(onset age for cases, censoring age for controls), per trait:
+
+```python
+from ltpred import fit_genetic_correlation_decay
+gd = fit_genetic_correlation_decay(families, phen_names=["adhd", "depression"])
+gd.rg             # genetic correlation at equal onset age
+gd.lambda_cross   # cross-trait decay rate lam (0 = the scalar model)
+gd.lambda_within  # per-trait decay rates
+```
+
+The fit is a Monte-Carlo **EM** (likelihood, not the moment regression), because
+ascertainment truncation is itself age-dependent and confounds a moment estimator
+-- see [the algorithm notes](algorithm.md#onset-age-structured-genetic-correlation).
+It is **data-hungry**: the amplitude and the decay rate trade off along a
+likelihood ridge, so it needs on the order of thousands of families and several
+dozen EM iterations to recover `r_g` and `lam` (see
+`benchmarks/bench_aod_decay.py`); with few families or little onset-age spread,
+prefer the scalar `fit_genetic_correlation`.
 Dominance is intentionally not offered. It requires a dominance relationship
 kernel with contrasts linearly independent of `A` and `C`. MZ/DZ twin observations
 can contribute useful contrasts within a richer design, but MZ/DZ pairs alone
