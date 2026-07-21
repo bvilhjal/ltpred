@@ -895,3 +895,57 @@ def test_fit_heritability_validates_burn_in_and_h2_init():
     res = fit_heritability(sim.families, h2_init=0.5, n_iter=10, burn_in=6,
                            inner_sweeps=1, seed=1)
     assert np.isfinite(res.h2)
+
+
+def _personalised(n_fam=120, seed=1):
+    """Coherent LT-FH++ families: age-specific thresholds, onset-pinned cases."""
+    return simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
+                                     pop_prev=0.05, n_sim=n_fam,
+                                     use_age=True, seed=seed).families
+
+
+def test_moment_fitters_refuse_personalised_bounds():
+    # The pooled HE fixed point assumes ONE threshold per trait. On personalised
+    # LT-FH++ bounds it ran away to its ceiling -- a simulated h2 of 0.5 came
+    # back as 0.9999, and fit_variance_components invented C = 0.29 out of
+    # nothing. Returning those silently is worse than refusing.
+    fams = _personalised()
+    for call in (
+        lambda: fit_heritability(fams, n_iter=20, burn_in=8, seed=1),
+        lambda: fit_variance_components(fams, ("A", "C"), n_iter=20, burn_in=8, seed=1),
+        lambda: fit_variance_components(fams, ("A",), method="mcem",
+                                        n_iter=20, burn_in=8, seed=1),
+    ):
+        with pytest.raises(ValueError, match="single case/control threshold"):
+            call()
+
+
+def test_guard_names_what_it_found():
+    with pytest.raises(ValueError) as excinfo:
+        fit_heritability(_personalised(), n_iter=20, burn_in=8, seed=1)
+    message = str(excinfo.value)
+    assert "onset-pinned" in message
+    assert "differ between individuals" in message
+    # and points at the supported routes rather than dead-ending
+    assert "prevalence_thresholds" in message
+    assert "fit_genetic_correlation_decay" in message
+
+
+def test_guard_lets_common_threshold_bounds_through():
+    # the ordinary case/control encoding is unaffected
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
+                                    pop_prev=0.1, n_sim=120, seed=1)
+    assert np.isfinite(fit_heritability(sim.families, n_iter=20, burn_in=8,
+                                        seed=1).h2)
+    vc = fit_variance_components(sim.families, ("A", "C"), n_iter=20, burn_in=8,
+                                 seed=1)
+    assert np.isfinite(vc.components["A"])
+
+
+def test_varying_thresholds_alone_are_enough_to_refuse():
+    # no pins at all -- only person-specific control thresholds
+    fams = [Family(i, [Member("o", -np.inf, 1.0 + 0.01 * i),
+                       Member("m", -np.inf, 1.5),
+                       Member("s1", -np.inf, 1.5)]) for i in range(20)]
+    with pytest.raises(ValueError, match="differ between individuals"):
+        fit_heritability(fams, n_iter=20, burn_in=8, seed=1)
