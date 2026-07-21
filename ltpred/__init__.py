@@ -30,7 +30,7 @@ accelerates the Gibbs sweep. Names are imported lazily (PEP 562) so
 
 import importlib
 
-__version__ = "0.1.0.dev0"
+__version__ = "0.1.0"
 
 # public name -> submodule it lives in
 _EXPORTS = {

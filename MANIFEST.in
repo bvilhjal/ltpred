@@ -1,0 +1,4 @@
+# setuptools' default sdist carries the package, README, LICENSE and tests.
+# A release sdist should also carry its own provenance.
+include CHANGELOG.md
+include CITATION.cff

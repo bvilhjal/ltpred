@@ -11,6 +11,21 @@ requires-python = ">=3.9"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Bjarni Vilhjálmsson" }]
+keywords = ["genetics", "heritability", "liability-threshold model", "LT-FH",
+            "LT-FH++", "ADuLT", "PA-FGRS", "GWAS", "family history", "biobank"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    # no "License ::" classifier: PEP 639 forbids one alongside `license = "MIT"`
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
 # NumPy and SciPy are required runtime dependencies; SciPy supplies the
 # vectorised normal CDF/PPF used by the helpers.
 dependencies = ["numpy>=1.20", "scipy>=1.6"]
