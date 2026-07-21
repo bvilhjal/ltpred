@@ -37,3 +37,8 @@ jobs:
         run: pip install -e ".[docs]"
       - name: Build documentation (strict)
         run: mkdocs build --strict
+      # `--strict` leaves link/anchor resolution at INFO, so it exits 0 on a
+      # broken cross-reference. This also catches an unmatched code fence, which
+      # silently renders following prose -- headings included -- as a code block.
+      - name: Check documentation integrity (fences, anchors)
+        run: python scripts/check_docs.py
