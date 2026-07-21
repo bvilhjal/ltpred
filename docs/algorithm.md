@@ -743,6 +743,23 @@ correlation is attributed to genetics -- inflating `h2` and thereby *attenuating
 `r_g = G / sqrt(h2_0 h2_1)` (`r_g ~ 0.33` vs true 0.5 at `c2 = 0.10`). For traits
 with real household effects this is the binding limitation.
 
+**Options that address these limits.** `shared_lambda` ties every block's decay
+rate to a single scalar -- fewer parameters, a guaranteed-PSD covariance, and less
+amplitude-decay ridge; it is the recommended default unless there is reason to let
+the rates differ. `shared_env` adds the shared-family environmental component `C`
+directly to the model (an onset-age **ACE decomposition**: genetics `A`, shared
+environment `C`, unique environment `E`), so household environment is estimated
+rather than absorbed into genetics -- it recovers `c2` and stops the `h2`
+inflation. But note the honest caveat: the *cross-trait* genetic-vs-shared-env
+separation is itself hard (both produce cross-trait familial covariance, one
+scaling with relatedness and age, the other constant), so `shared_env` can
+overestimate `r_g` at moderate `n`; it is a variance-attribution tool, not a free
+`r_g` fix. `n_starts` re-runs the EM from perturbed inits and keeps the best
+objective (the likelihood is multi-modal at small `n`), and the result carries a
+`converged` flag plus the `negq` objective trace. The analytic gradient of every
+block (genetic, environmental, decay, shared-environment) is pinned against
+finite differences in `tests/test_decay.py`.
+
 ### Genetic factor structure (common-factor model)
 
 With more than a handful of traits, the genetic correlation matrix `r_g` is itself a

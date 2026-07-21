@@ -113,7 +113,15 @@ gd = fit_genetic_correlation_decay(families, phen_names=["adhd", "depression"])
 gd.rg             # genetic correlation at equal onset age
 gd.lambda_cross   # cross-trait decay rate lam (0 = the scalar model)
 gd.lambda_within  # per-trait decay rates
+gd.converged      # did the EM stabilise? (False -> raise n_em)
 ```
+
+Useful options: `shared_lambda=True` ties all decay rates to one scalar
+(fewer parameters, guaranteed PSD, less ridge -- the recommended default);
+`shared_env=True` adds a shared-family environmental component `C` (a proper
+onset-age ACE decomposition, so household environment isn't mistaken for
+genetics); `n_starts` re-runs the EM from perturbed inits against the
+multi-modal likelihood.
 
 The fit is a Monte-Carlo **EM** (likelihood, not the moment regression), because
 ascertainment truncation is itself age-dependent and confounds a moment estimator

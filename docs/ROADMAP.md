@@ -218,10 +218,19 @@ likelihood-based inference) to the pedigree/registry setting.
   the `r_g = 0` null). The amplitude-decay ridge plus environmental competition
   make the model **data-hungry**: at `n_fam ~ 1200` both `r_g` and `lam` come
   out high (`~0.62` / `~0.064`) and they converge to the truth only as `n`
-  grows into the thousands, with many EM iterations. It is fragile to
-  unmodelled shared family environment (`r_g` attenuates ~a third at `c2 = 0.10`). A research tool for data-rich registry pedigrees, not small
-  nuclear-family case/control panels; it also lacks a shared-family environmental
-  component across relatives.
+  grows into the thousands, with many EM iterations. A research tool for
+  data-rich registry pedigrees, not small nuclear-family case/control panels.
+  Follow-on options now address the main limitations: `shared_lambda` ties the
+  decay rates to one scalar (fewer parameters, guaranteed PSD, less ridge);
+  `shared_env` adds a shared-family environmental component `C` (a proper
+  onset-age ACE decomposition) so household environment is no longer
+  attributed to genetics -- it recovers `c2` and stops the `h2` inflation, but
+  the *cross-trait* genetic-vs-shared-environment separation is itself hard
+  (it can overestimate `r_g` at moderate `n`), so it is not a free `r_g` fix;
+  `n_starts` runs the EM from perturbed inits to guard the multi-modal
+  likelihood; and a `converged` flag plus the `negq` trace report
+  convergence. The analytic gradient is pinned by finite-difference tests
+  (`tests/test_decay.py::GradientTests`).
 
 ## Medium-term — rigor and real data
 

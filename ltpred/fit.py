@@ -641,10 +641,21 @@ class DecayGenCorrResult(GenCorrResult):
     difference); ``lambda_cross`` the ``(P, P)`` matrix of cross-trait decay
     rates (0 on the diagonal). ``kernel`` records the kernel used. A rate of 0
     means no onset-age dependence (the scalar :func:`fit_genetic_correlation`
-    model); larger means correlation dies faster with onset-age distance."""
+    model); larger means correlation dies faster with onset-age distance.
+    ``negq`` is the per-EM-iteration trace of the negative expected
+    complete-data log-likelihood (the M-step objective; it should fall and
+    plateau as the EM converges), and ``converged`` reports whether it
+    stabilised over the run -- treat estimates with ``converged == False``
+    as under-iterated (raise ``n_em``). ``shared_env_cov`` is the fitted
+    shared-family environmental covariance ``C`` (zeros unless ``shared_env``
+    was enabled); ``env_cov`` is the *total* environment ``C + E``, so
+    ``rp == genetic_cov + env_cov`` still holds."""
     lambda_within: np.ndarray
     lambda_cross: np.ndarray
     kernel: str
+    converged: bool
+    negq: np.ndarray
+    shared_env_cov: np.ndarray = None
 
 
 def _decay_kernel(delta, lam, kernel):
@@ -697,16 +708,20 @@ def _prepare_group_decay(families, idx, n_pheno):
                 x=np.ascontiguousarray(x), aod=aod)
 
 
-def _decay_cov(A, h2, G, rp, E, aod_f, lam_w, lam_x, kernel):
+def _decay_cov(A, h2, G, rp, E, aod_f, lam_w, lam_x, kernel, C=None):
     """Per-family ``(kP, kP)`` liability covariance with the onset-age kernel.
 
     Block ``(p, q)``, element ``(i, j)``: ``A_ij * (h2[p] if p==q else G[p,q]) *
     K(|aod_i,p - aod_j,q|)``. Same-trait diagonal is 1; cross-trait same-person
     covariance is ``G[p,q] * K(|aod_i,p - aod_i,q|) + E[p,q]`` (the genetic part
     decays with the person's two onset ages, the environmental part does not).
+    ``C`` is the optional shared-family environmental covariance: ``C[p,p]``
+    adds to every cross-relative same-trait pair, ``C[p,q]`` to every
+    cross-trait pair (including same-person).
     """
     P = len(h2)
     k = A.shape[0]
+    Joff = 1.0 - np.eye(k)
     S = np.empty((k * P, k * P))
     for p in range(P):
         for q in range(P):
@@ -714,6 +729,8 @@ def _decay_cov(A, h2, G, rp, E, aod_f, lam_w, lam_x, kernel):
                 K = _decay_kernel(aod_f[:, p, None] - aod_f[None, :, q],
                                   lam_w[p], kernel)
                 block = A * h2[p] * K
+                if C is not None:
+                    block = block + C[p, p] * Joff
                 np.fill_diagonal(block, 1.0)
             else:
                 K = _decay_kernel(aod_f[:, p, None] - aod_f[None, :, q],
@@ -721,7 +738,9 @@ def _decay_cov(A, h2, G, rp, E, aod_f, lam_w, lam_x, kernel):
                 block = A * G[p, q] * K
                 k_self = _decay_kernel(aod_f[:, p] - aod_f[:, q],
                                        lam_x[p, q], kernel)
-                np.fill_diagonal(block, G[p, q] * k_self + E[p, q])
+                cq = C[p, q] if C is not None else 0.0
+                block = block + cq
+                np.fill_diagonal(block, G[p, q] * k_self + cq + E[p, q])
             S[p * k:(p + 1) * k, q * k:(q + 1) * k] = block
     return S
 
@@ -738,7 +757,8 @@ def _decay_kernel_deriv(delta, lam, kernel):
     raise ValueError(f"unknown decay kernel {kernel!r} (use 'ou', 'gauss', or 'tent')")
 
 
-def _decay_cov_batch(A, dself, dcross, h2, G, E, lam_w, lam_x, pairs, kernel):
+def _decay_cov_batch(A, dself, dcross, h2, G, E, lam_w, lam_x, pairs, kernel,
+                     C=None):
     """Vectorised :func:`_decay_cov` over ``F`` families sharing structure ``A``.
 
     ``dself`` is the ``(F, k, k, P)`` same-trait age-difference tensor and
@@ -747,52 +767,90 @@ def _decay_cov_batch(A, dself, dcross, h2, G, E, lam_w, lam_x, pairs, kernel):
     ``(F, kP, kP)`` liability covariances. Identical to looping
     :func:`_decay_cov` per family, but the linear-algebra-heavy fit paths
     (inverse, determinant, score) can then be batched rather than Python-looped.
+
+    ``C`` is the optional shared-family environmental covariance (a family-level
+    random effect, constant across relatives): ``C[p,p]`` adds to every
+    cross-relative pair of trait ``p`` and ``C[p,q]`` to every pair (including
+    same-person) of traits ``p,q``. The same-trait diagonal stays 1 (the unique
+    environment absorbs it, ``E[p,p] = 1 - h2 - C[p,p]``).
     """
     P = len(h2)
     k = A.shape[0]
     F = dself.shape[0]
     kP = k * P
     idx = np.arange(k)
+    Joff = 1.0 - np.eye(k)
     Sig = np.zeros((F, kP, kP))
     for p in range(P):
         K = _decay_kernel(dself[..., p], lam_w[p], kernel)
         block = A[None] * h2[p] * K
+        if C is not None:
+            block = block + C[p, p] * Joff[None]
         block[:, idx, idx] = 1.0
         Sig[:, p * k:(p + 1) * k, p * k:(p + 1) * k] = block
     for i, (p, q) in enumerate(pairs):
         KX = _decay_kernel(dcross[i], lam_x[p, q], kernel)
         block = A[None] * G[p, q] * KX
-        block[:, idx, idx] = G[p, q] * KX[:, idx, idx] + E[p, q]
+        cq = C[p, q] if C is not None else 0.0
+        block = block + cq
+        block[:, idx, idx] = G[p, q] * KX[:, idx, idx] + cq + E[p, q]
         Sig[:, p * k:(p + 1) * k, q * k:(q + 1) * k] = block
         Sig[:, q * k:(q + 1) * k, p * k:(p + 1) * k] = block.transpose(0, 2, 1)
     return Sig
 
 
-def _decay_unpack(theta, P, pairs, lam_max, eps):
+def _decay_unpack(theta, P, pairs, lam_max, eps, shared_lambda=False,
+                  shared_env=False):
     """Split the decay-fit parameter vector into named covariance pieces.
 
-    ``theta`` packs ``[h2 (P), lam_within (P), G pairs, lam_cross pairs, E pairs]``;
-    returns ``(h2, lam_w, G, lam_x, E, rp)`` with ``G``/``E``/``lam_x`` symmetrised
-    and ``rp = G + E`` (diagonal 1). Clips ``h2`` to ``(eps, 1-eps)`` and the rates
-    to ``[0, lam_max]`` so the covariance stays meaningful."""
+    Default layout: ``[h2 (P), lam_within (P), G pairs, lam_cross pairs, E pairs]``.
+    With ``shared_lambda`` a single decay rate governs every block, so the layout
+    is ``[h2 (P), lam (1), G pairs, E pairs]`` and ``lam_w``/``lam_x`` are that one
+    rate broadcast -- fewer parameters, always PSD, and less amplitude-decay ridge.
+    With ``shared_env`` the vector continues ``[..., c2 (P), C pairs]``: a
+    shared-family environmental variance per trait (``c2``) and cross-trait
+    covariance (``C``), constant across relatives. ``E`` is then the *unique*
+    (within-person) environment with diagonal ``1 - h2 - c2``, and the reported
+    total environment is ``C + E``. Returns ``(h2, lam_w, G, lam_x, E, rp, C)``;
+    ``rp = G + C + E`` (diagonal 1), ``C is None`` when ``shared_env`` is False.
+    Clips ``h2`` to ``(eps, 1-eps)`` and the rates to ``[0, lam_max]``."""
     theta = np.asarray(theta, float)
     h2 = np.clip(theta[:P], eps, 1.0 - eps)
-    lam_w = np.clip(theta[P:2 * P], 0.0, lam_max)
     npairs = len(pairs)
     G = np.diag(h2).astype(float)
-    E = np.diag(1.0 - h2)
+    E = np.zeros((P, P))
     lam_x = np.zeros((P, P))
+    if shared_lambda:
+        lam_w = np.full(P, float(np.clip(theta[P], 0.0, lam_max)))
+        lam_x[:] = lam_w[0]
+        g0 = P + 1           # layout [h2, lam, G, E]: E is npairs past G
+        e_off = npairs
+    else:
+        lam_w = np.clip(theta[P:2 * P], 0.0, lam_max)
+        for i, (p, q) in enumerate(pairs):
+            lam_x[p, q] = lam_x[q, p] = np.clip(theta[2 * P + npairs + i],
+                                                0.0, lam_max)
+        g0 = 2 * P           # layout [h2, lam_w, G, lam_x, E]: E is 2*npairs past G
+        e_off = 2 * npairs
     for i, (p, q) in enumerate(pairs):
-        G[p, q] = G[q, p] = theta[2 * P + i]
-        lam_x[p, q] = lam_x[q, p] = np.clip(theta[2 * P + npairs + i],
-                                            0.0, lam_max)
-        E[p, q] = E[q, p] = theta[2 * P + 2 * npairs + i]
-    rp = G + E
+        G[p, q] = G[q, p] = theta[g0 + i]
+        E[p, q] = E[q, p] = theta[g0 + e_off + i]
+    if shared_env:
+        c0 = g0 + e_off + npairs
+        C = np.diag(np.clip(theta[c0:c0 + P], 0.0, 1.0))
+        for i, (p, q) in enumerate(pairs):
+            C[p, q] = C[q, p] = theta[c0 + P + i]
+        np.fill_diagonal(E, 1.0 - h2 - np.diag(C))
+    else:
+        C = None
+        np.fill_diagonal(E, 1.0 - h2)
+    rp = G + E + (C if C is not None else 0.0)
     np.fill_diagonal(rp, 1.0)
-    return h2, lam_w, G, lam_x, E, rp
+    return h2, lam_w, G, lam_x, E, rp, C
 
 
-def _decay_negq_grad(theta, P, M_groups, groups, pairs, lam_max, kernel, eps):
+def _decay_negq_grad(theta, P, M_groups, groups, pairs, lam_max, kernel, eps,
+                     shared_lambda=False, shared_env=False):
     """Negative expected complete-data log-likelihood and its analytic gradient.
 
     ``negQ = 1/2 sum_f [ log|Sig_f| + tr(Sig_f^-1 M_f) ]`` over every family's
@@ -800,19 +858,23 @@ def _decay_negq_grad(theta, P, M_groups, groups, pairs, lam_max, kernel, eps):
     ``d negQ / d theta``. This is the L-BFGS objective for the decay M-step. It
     is module-level (not a closure) so the gradient can be unit-tested against
     finite differences -- a wrongly symmetrised cross-trait block once corrupted
-    it, which only a finite-difference test catches."""
-    h2, lam_w, G, lam_x, E, rp = _decay_unpack(theta, P, pairs, lam_max, eps)
+    it, which only a finite-difference test catches. With ``shared_lambda`` the
+    gradient is summed over the tied decay rates; with ``shared_env`` the
+    shared-family environmental variance (``c2``) and cross-trait covariance
+    (``C``) gradients are appended."""
+    h2, lam_w, G, lam_x, E, rp, C = _decay_unpack(theta, P, pairs, lam_max, eps,
+                                                  shared_lambda, shared_env)
     npairs = len(pairs)
-    npar = 2 * P + 3 * npairs
+    npar = 2 * P + 3 * npairs + (P + npairs if shared_env else 0)
     negQ = 0.0
     grad = np.zeros(npar)
     for g, M in zip(groups, M_groups):
         k, F = g["k"], g["F"]
         Sig = _decay_cov_batch(g["A"], g["dself"], g["dcross"], h2, G, E,
-                               lam_w, lam_x, pairs, kernel)
+                               lam_w, lam_x, pairs, kernel, C)
         minev = float(np.linalg.eigvalsh(Sig).min())
         if minev <= 1e-9:
-            return 1e9 + 1e9 * abs(minev), np.zeros(npar)
+            return 1e9 + 1e9 * abs(minev), np.zeros(len(theta))
         Si = np.linalg.inv(Sig)
         logdet = np.linalg.slogdet(Sig)[1]
         negQ += 0.5 * float(np.sum(logdet) + np.einsum("fii->", Si @ M))
@@ -826,6 +888,10 @@ def _decay_negq_grad(theta, P, M_groups, groups, pairs, lam_max, kernel, eps):
             dKW = _decay_kernel_deriv(g["dself"][..., p], lam_w[p], kernel)
             grad[P + p] += 0.5 * float(
                 np.einsum("fij,fji->", Pp, h2[p] * g["A"] * dKW * mask))
+            if shared_env:
+                # d Sigma / d c2[p] = off-diagonal ones on block (p,p) == mask
+                grad[2 * P + 3 * npairs + p] += 0.5 * float(
+                    np.einsum("fij,fji->", Pp, np.broadcast_to(mask, (F, k, k))))
         for i, (p, q) in enumerate(pairs):
             Pq = Psi[:, p * k:(p + 1) * k, q * k:(q + 1) * k]
             KX = _decay_kernel(g["dcross"][i], lam_x[p, q], kernel)
@@ -841,12 +907,25 @@ def _decay_negq_grad(theta, P, M_groups, groups, pairs, lam_max, kernel, eps):
             grad[2 * P + 2 * npairs + i] += float(
                 np.einsum("fij,fij->", Pq,
                           np.broadcast_to(np.eye(k), (F, k, k))))
+            if shared_env:
+                # d Sigma / d C[p,q] = all-ones on blocks (p,q),(q,p), so the
+                # (two equal) block contributions give grad = sum of Pq.
+                grad[2 * P + 3 * npairs + P + i] += float(Pq.sum())
+    if shared_lambda:
+        # map per-block gradient to the shared layout [h2 (P), lam (1), G, E]:
+        # the single rate's gradient is the sum of all tied-rate gradients.
+        lam_grad = grad[P:2 * P].sum() + grad[2 * P + npairs:2 * P + 2 * npairs].sum()
+        grad = np.concatenate([grad[:P], [lam_grad],
+                               grad[2 * P:2 * P + npairs],
+                               grad[2 * P + 2 * npairs:]])
     return negQ, grad
 
 
 def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
+                                  shared_lambda=False, shared_env=False,
                                   n_em=40, n_draw=100, burn=40, m_iter=100,
-                                  seed=None, eps=1e-4, phen_names=None):
+                                  n_starts=1, seed=None, eps=1e-4,
+                                  phen_names=None):
     """Genetic correlation with an onset-age decay (structured ``r_g``).
 
     Estimates the two-trait (or multi-trait) genetic correlation when the
@@ -862,7 +941,20 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
     ``"gauss"`` (``exp(-0.5 (lam d)^2)``), or ``"tent"`` (``(1 - lam |d|)+``).
     Each member must carry ``aod`` (onset age for cases, censoring age for
     controls), per trait for the multi-trait model. ``lam_max`` bounds the rate;
-    by default it is derived from the observed onset-age span.
+    by default it is derived from the observed onset-age span. ``shared_lambda``
+    ties every block's decay rate to a single scalar (the user's original
+    one-parameter form): fewer parameters, a guaranteed positive-definite
+    covariance, and less amplitude-decay ridge -- the recommended setting unless
+    there is a specific reason to let the rates differ. ``shared_env`` adds a
+    shared-family environmental component ``C`` (a family-level random effect,
+    constant across relatives) so the model is an onset-age ACE decomposition
+    rather than genetics + within-person environment only; without it, real
+    household environment is wrongly attributed to genetics and attenuates
+    ``r_g``. ``C`` is only identifiable with enough related pairs and onset-age
+    spread, so enable it on data-rich, extended-pedigree designs. ``n_starts``
+    re-runs the EM from that many perturbed initialisations and keeps the
+    best-fitting (lowest final objective) -- a guard against the multi-modal
+    likelihood at small samples (each start costs a full EM run).
 
     **Why a likelihood M-step, not moments.** A Haseman-Elston regression of the
     augmented cross-products on ``A * K`` (the natural analogue of
@@ -939,16 +1031,23 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
         g["dcross"] = [np.abs(aod[:, :, None, p] - aod[:, None, :, q])
                        for (p, q) in pairs]                            # list (F,k,k)
 
-    def pack(h2, lam_w, G, lam_x, E):
-        return np.concatenate([h2, lam_w,
-                               [G[p, q] for (p, q) in pairs],
-                               [lam_x[p, q] for (p, q) in pairs],
-                               [E[p, q] for (p, q) in pairs]])
+    def pack(h2, lam_w, G, lam_x, E, C):
+        parts = [np.asarray(h2, float).ravel(),
+                 np.atleast_1d(lam_w[0] if shared_lambda else lam_w).ravel(),
+                 np.array([G[p, q] for (p, q) in pairs])]
+        if not shared_lambda:
+            parts.append(np.array([lam_x[p, q] for (p, q) in pairs]))
+        parts.append(np.array([E[p, q] for (p, q) in pairs]))
+        if shared_env:
+            parts.append(np.diag(C).ravel())
+            parts.append(np.array([C[p, q] for (p, q) in pairs]))
+        return np.concatenate(parts)
 
     def unpack(theta):
-        return _decay_unpack(theta, P, pairs, lam_max, eps)
+        return _decay_unpack(theta, P, pairs, lam_max, eps, shared_lambda,
+                             shared_env)
 
-    def compute_M(h2, lam_w, G, lam_x, E, rp):
+    def compute_M(h2, lam_w, G, lam_x, E, rp, C):
         M_groups = []
         for g in groups:
             k, F = g["k"], g["F"]
@@ -956,7 +1055,7 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
             M = np.empty((F, kP, kP))
             for slot in range(F):
                 S = _decay_cov(g["A"], h2, G, rp, E, g["aod"][slot],
-                               lam_w, lam_x, kernel)
+                               lam_w, lam_x, kernel, C)
                 S, _ = correct_positive_definite(S)
                 Pm, sd = gibbs_params(S)
                 lo_s = g["lowers"][slot:slot + 1]
@@ -971,91 +1070,165 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
 
     def qgrad(theta, M_groups):
         return _decay_negq_grad(theta, P, M_groups, groups, pairs, lam_max,
-                                kernel, eps)
+                                kernel, eps, shared_lambda, shared_env)
 
-    bounds = ([(eps, 1.0 - eps)] * P + [(0.0, lam_max)] * P
-              + [(-0.99, 0.99)] * npairs + [(0.0, lam_max)] * npairs
-              + [(-0.99, 0.99)] * npairs)
+    c_bounds = ([(0.0, 1.0 - eps)] * P + [(-0.99, 0.99)] * npairs
+                if shared_env else [])
+    if shared_lambda:
+        bounds = ([(eps, 1.0 - eps)] * P + [(0.0, lam_max)]
+                  + [(-0.99, 0.99)] * npairs + [(-0.99, 0.99)] * npairs
+                  + c_bounds)
+    else:
+        bounds = ([(eps, 1.0 - eps)] * P + [(0.0, lam_max)] * P
+                  + [(-0.99, 0.99)] * npairs + [(0.0, lam_max)] * npairs
+                  + [(-0.99, 0.99)] * npairs + c_bounds)
 
-    h2 = np.full(P, 0.4)
-    G = np.diag(h2).astype(float)
-    E = np.diag(1.0 - h2)
-    lam_w = np.zeros(P)
-    lam_x = np.zeros((P, P))
-    for (p, q) in pairs:
-        G[p, q] = G[q, p] = 0.1
-        E[p, q] = E[q, p] = 0.1
-    theta = pack(h2, lam_w, G, lam_x, E)
+    def _init_theta(rng):
+        h2i = np.full(P, 0.4) if rng is None else rng.uniform(0.2, 0.6, P)
+        Gi = np.diag(h2i).astype(float)
+        Ei = np.diag(1.0 - h2i)
+        Ci = np.zeros((P, P))
+        lwi = np.zeros(P)
+        lxi = np.zeros((P, P))
+        for (p, q) in pairs:
+            Gi[p, q] = Gi[q, p] = 0.1 if rng is None else rng.uniform(-0.3, 0.3)
+            Ei[p, q] = Ei[q, p] = 0.1 if rng is None else rng.uniform(-0.2, 0.2)
+            if not shared_lambda:
+                lxi[p, q] = lxi[q, p] = (0.0 if rng is None
+                                         else rng.uniform(0.0, 0.5 * lam_max))
+            if shared_env:
+                Ci[p, p] = 0.0 if rng is None else rng.uniform(0.0, 0.2)
+                Ci[p, q] = Ci[q, p] = 0.0 if rng is None else rng.uniform(-0.1, 0.1)
+        if rng is not None:
+            lwi[:] = rng.uniform(0.0, 0.5 * lam_max, P)
+        return pack(h2i, lwi, Gi, lxi, Ei, Ci)
 
-    tr_h2 = np.empty((int(n_em), P))
-    tr_lamw = np.empty((int(n_em), P))
-    tr_lamx = np.empty((int(n_em), P, P))
-    tr_rg = np.empty((int(n_em), P, P))
-    tr_re = np.empty((int(n_em), P, P))
-    tr_rp = np.empty((int(n_em), P, P))
-    tr_G = np.empty((int(n_em), P, P))
-    tr_E = np.empty((int(n_em), P, P))
+    def _run_em(theta):
+        tr_h2 = np.empty((int(n_em), P))
+        tr_lamw = np.empty((int(n_em), P))
+        tr_lamx = np.empty((int(n_em), P, P))
+        tr_rg = np.empty((int(n_em), P, P))
+        tr_re = np.empty((int(n_em), P, P))
+        tr_rp = np.empty((int(n_em), P, P))
+        tr_G = np.empty((int(n_em), P, P))
+        tr_E = np.empty((int(n_em), P, P))
+        tr_C = np.empty((int(n_em), P, P))
+        tr_negq = np.empty(int(n_em))
+        for it in range(int(n_em)):
+            h2, lam_w, G, lam_x, E, rp, C = unpack(theta)
+            M_groups = compute_M(h2, lam_w, G, lam_x, E, rp, C)
+            res = minimize(qgrad, theta, args=(M_groups,), jac=True,
+                           method="L-BFGS-B", bounds=bounds,
+                           options={"maxiter": int(m_iter)})
+            theta = res.x
+            # coherent PSD split (safety net; L-BFGS is bounded but not PD-aware)
+            h2, lam_w, G, lam_x, E, rp, C = unpack(theta)
+            G, _ = _project_covariance(np.where(np.eye(P, dtype=bool), h2, G), h2,
+                                       eps=eps)
+            h2 = np.clip(np.diag(G), eps, 1.0 - eps)
+            if shared_env:
+                C, _ = _project_covariance(C, np.maximum(np.diag(C), 0.0), eps=eps)
+                c2 = np.clip(np.diag(C), 0.0, 1.0 - eps - h2)
+                np.fill_diagonal(C, c2)
+            else:
+                C = np.zeros((P, P))
+                c2 = np.zeros(P)
+            e2 = np.clip(1.0 - h2 - c2, eps, None)
+            E, _ = _project_covariance(np.where(np.eye(P, dtype=bool), e2, E), e2,
+                                       eps=eps)
+            np.fill_diagonal(E, e2)
+            env_total = C + E
+            rp = G + env_total
+            np.fill_diagonal(rp, 1.0)
+            theta = pack(h2, lam_w, G, lam_x, E, C)
 
-    for it in range(int(n_em)):
-        h2, lam_w, G, lam_x, E, rp = unpack(theta)
-        M_groups = compute_M(h2, lam_w, G, lam_x, E, rp)
-        res = minimize(qgrad, theta, args=(M_groups,), jac=True,
-                       method="L-BFGS-B", bounds=bounds,
-                       options={"maxiter": int(m_iter)})
-        theta = res.x
-        # coherent PSD split (safety net; L-BFGS is bounded but not PD-aware)
-        h2, lam_w, G, lam_x, E, rp = unpack(theta)
-        G, _ = _project_covariance(np.where(np.eye(P, dtype=bool), h2, G), h2,
-                                   eps=eps)
-        h2 = np.clip(np.diag(G), eps, 1.0 - eps)
-        e2 = 1.0 - h2
-        E, _ = _project_covariance(np.where(np.eye(P, dtype=bool), e2, E), e2,
-                                   eps=eps)
-        np.fill_diagonal(E, e2)
-        rp = G + E
-        np.fill_diagonal(rp, 1.0)
-        theta = pack(h2, lam_w, G, lam_x, E)
+            rg = _cov_to_corr(G, h2, eps)
+            re = _cov_to_corr(env_total, 1.0 - h2, eps)
+            tr_h2[it] = h2
+            tr_lamw[it] = lam_w
+            tr_lamx[it] = lam_x
+            tr_rg[it] = rg
+            tr_re[it] = re
+            tr_rp[it] = rp
+            tr_G[it] = G
+            tr_E[it] = E
+            tr_C[it] = C
+            tr_negq[it] = float(res.fun)
+        return theta, dict(h2=tr_h2, lamw=tr_lamw, lamx=tr_lamx, rg=tr_rg,
+                           re=tr_re, rp=tr_rp, G=tr_G, E=tr_E, C=tr_C,
+                           negq=tr_negq)
 
-        rg = _cov_to_corr(G, h2, eps)
-        re = _cov_to_corr(E, 1.0 - h2, eps)
-        tr_h2[it] = h2
-        tr_lamw[it] = lam_w
-        tr_lamx[it] = lam_x
-        tr_rg[it] = rg
-        tr_re[it] = re
-        tr_rp[it] = rp
-        tr_G[it] = G
-        tr_E[it] = E
+    best = None
+    for start in range(int(n_starts)):
+        rng_start = (None if start == 0 else np.random.default_rng(
+            None if seed is None else int(seed) + 7919 * start))
+        theta, traces = _run_em(_init_theta(rng_start))
+        negq_sel = float(traces["negq"][int(n_em) // 2:].mean())
+        if best is None or negq_sel < best[0]:
+            best = (negq_sel, traces)
+    _sel, traces = best
+    tr_h2 = traces["h2"]
+    tr_lamw = traces["lamw"]
+    tr_lamx = traces["lamx"]
+    tr_rg = traces["rg"]
+    tr_re = traces["re"]
+    tr_rp = traces["rp"]
+    tr_G = traces["G"]
+    tr_E = traces["E"]
+    tr_C = traces["C"]
+    tr_negq = traces["negq"]
 
     # average the converged tail (second half) to damp MC-EM jitter
     tail = slice(int(n_em) // 2, int(n_em))
     G_est = tr_G[tail].mean(axis=0)
-    E_est = tr_E[tail].mean(axis=0)
+    E_est = tr_E[tail].mean(axis=0)      # unique (within-person) environment
+    C_est = tr_C[tail].mean(axis=0)      # shared-family environment
+    env_est = E_est + C_est              # total environment (env_cov)
     lamw_est = tr_lamw[tail].mean(axis=0)
     lamx_est = tr_lamx[tail].mean(axis=0)
     h2_est = np.diag(G_est).copy()
     rg = _cov_to_corr(G_est, h2_est, eps)
-    re = _cov_to_corr(E_est, 1.0 - h2_est, eps)
-    rp = G_est + E_est
+    re = _cov_to_corr(env_est, 1.0 - h2_est, eps)
+    rp = G_est + env_est
     np.fill_diagonal(rp, 1.0)
     _, h2_se = batch_means(tr_h2[tail])
     _, rg_se = batch_means(tr_rg[tail].reshape(-1, P * P))
     _, re_se = batch_means(tr_re[tail].reshape(-1, P * P))
     _, rp_se = batch_means(tr_rp[tail].reshape(-1, P * P))
 
+    # convergence: the parameter estimates should stop drifting over the
+    # converged tail (the negQ trace is shown in traces but is not monotone in
+    # MC-EM, so it is a poor criterion). Compare the 3rd vs 4th quarter means.
+    q3 = slice(int(n_em) // 2, 3 * int(n_em) // 4)
+    q4 = slice(3 * int(n_em) // 4, int(n_em))
+
+    def _drift(tr, tol):
+        a = tr[q3].mean(axis=0)
+        b = tr[q4].mean(axis=0)
+        return float(np.max(np.abs(b - a))) < tol
+
+    converged = bool(_drift(tr_rg, 0.05) and _drift(tr_re, 0.05)
+                     and _drift(tr_h2, 0.03) and _drift(tr_lamw, 0.01)
+                     and _drift(tr_lamx, 0.01))
+
     return DecayGenCorrResult(h2=h2_est, rg=rg, re=re, rp=rp,
-                              genetic_cov=G_est, env_cov=E_est,
+                              genetic_cov=G_est, env_cov=env_est,
                               se={"h2": h2_se, "rg": rg_se, "re": re_se,
                                   "rp": rp_se},
                               phen_names=list(phen_names),
                               traces={"h2": tr_h2[tail], "rg": tr_rg[tail],
                                       "re": tr_re[tail], "rp": tr_rp[tail],
                                       "lambda_within": tr_lamw[tail],
-                                      "lambda_cross": tr_lamx[tail]},
+                                      "lambda_cross": tr_lamx[tail],
+                                      "shared_env": tr_C[tail],
+                                      "negq": tr_negq},
                               n_iter=int(n_em), burn_in=int(n_em) // 2,
                               lambda_within=lamw_est,
                               lambda_cross=lamx_est,
-                              kernel=kernel)
+                              kernel=kernel,
+                              converged=converged,
+                              negq=tr_negq,
+                              shared_env_cov=C_est)
 
 
 

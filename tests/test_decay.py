@@ -226,6 +226,44 @@ class FitCoherenceTests(unittest.TestCase):
         self.assertLessEqual(res.lambda_cross[0, 1], lam_max + 1e-9)
 
 
+class NewOptionsTests(unittest.TestCase):
+    """Coherence of the shared_lambda / shared_env / converged / n_starts options."""
+
+    def test_shared_lambda_returns_single_rate(self):
+        res = fit_genetic_correlation_decay(_simulate(400, seed=3),
+                                            shared_lambda=True, n_em=8,
+                                            n_draw=30, burn=15, m_iter=40,
+                                            seed=2)
+        # one rate governs every block: within == cross (broadcast)
+        self.assertAlmostEqual(res.lambda_within[0], res.lambda_within[1])
+        self.assertAlmostEqual(res.lambda_within[0], res.lambda_cross[0, 1])
+
+    def test_shared_env_coherent_and_returns_cov(self):
+        res = fit_genetic_correlation_decay(_simulate(400, seed=4),
+                                            shared_env=True, n_em=8, n_draw=30,
+                                            burn=15, m_iter=40, seed=6)
+        # coherence preserved: rp == genetic_cov + env_cov (env = C + E)
+        np.testing.assert_allclose(res.rp, res.genetic_cov + res.env_cov,
+                                   atol=1e-8)
+        self.assertEqual(res.shared_env_cov.shape, (P, P))
+        # no true shared env in the DGP -> c2 should stay small
+        self.assertLess(float(np.diag(res.shared_env_cov).mean()), 0.2)
+
+    def test_converged_and_negq_present(self):
+        res = fit_genetic_correlation_decay(_simulate(300, seed=5), n_em=8,
+                                            n_draw=30, burn=15, m_iter=40,
+                                            seed=7)
+        self.assertIsInstance(bool(res.converged), bool)
+        self.assertEqual(len(res.negq), res.n_iter)
+        self.assertIn("negq", res.traces)
+
+    def test_n_starts_runs(self):
+        res = fit_genetic_correlation_decay(_simulate(200, seed=6), n_em=8,
+                                            n_draw=20, burn=10, m_iter=30,
+                                            n_starts=2, seed=8)
+        self.assertTrue(np.isfinite(res.rg[0, 1]))
+
+
 class GradientTests(unittest.TestCase):
     """Finite-difference check of the analytic M-step gradient.
 
@@ -244,7 +282,7 @@ class GradientTests(unittest.TestCase):
                        for (p, q) in [(0, 1)]]
         return g
 
-    def test_score_matches_finite_difference(self):
+    def _check(self, theta, shared_lambda, shared_env=False):
         rng = np.random.default_rng(1)
         g = self._group()
         k, F = g["k"], g["F"]
@@ -252,15 +290,13 @@ class GradientTests(unittest.TestCase):
         lam_max = 0.08
         eps = 1e-4
         pairs = [(0, 1)]
-        # an interior parameter point (not at any bound, Sigma PD)
-        theta = np.array([0.45, 0.5, 0.02, 0.03, 0.15, 0.04, 0.05])
         # valid PD "second moments" M_f, distinct from Sigma(theta)
         M = np.empty((F, kP, kP))
         for f in range(F):
             R = rng.normal(size=(kP, kP))
             M[f] = R @ R.T / kP + 0.5 * np.eye(kP)
         negQ, grad = _decay_negq_grad(theta, P, [M], [g], pairs, lam_max,
-                                      "ou", eps)
+                                      "ou", eps, shared_lambda, shared_env)
         self.assertTrue(np.isfinite(negQ))
         self.assertEqual(grad.shape, theta.shape)
         d = 1e-6
@@ -268,13 +304,36 @@ class GradientTests(unittest.TestCase):
             step = np.zeros_like(theta)
             step[a] = d
             qp, _ = _decay_negq_grad(theta + step, P, [M], [g], pairs,
-                                     lam_max, "ou", eps)
+                                     lam_max, "ou", eps, shared_lambda,
+                                     shared_env)
             qm, _ = _decay_negq_grad(theta - step, P, [M], [g], pairs,
-                                     lam_max, "ou", eps)
+                                     lam_max, "ou", eps, shared_lambda,
+                                     shared_env)
             fd = (qp - qm) / (2 * d)
             self.assertAlmostEqual(grad[a], fd, places=4,
-                                   msg=f"grad[{a}]: analytic {grad[a]:.5f} "
-                                       f"vs finite-diff {fd:.5f}")
+                                   msg=f"lam={shared_lambda},env={shared_env} "
+                                       f"grad[{a}]: {grad[a]:.5f} vs fd {fd:.5f}")
+
+    def test_score_matches_finite_difference(self):
+        # per-block rates: [h2(2), lam_w(2), G01, lam_x01, E01]
+        self._check(np.array([0.45, 0.5, 0.02, 0.03, 0.15, 0.04, 0.05]),
+                    shared_lambda=False)
+
+    def test_score_matches_finite_difference_shared_lambda(self):
+        # shared rate: [h2(2), lam(1), G01, E01]
+        self._check(np.array([0.45, 0.5, 0.04, 0.15, 0.05]),
+                    shared_lambda=True)
+
+    def test_score_matches_finite_difference_shared_env(self):
+        # per-block + shared env: [h2(2), lam_w(2), G01, lam_x01, E01, c2(2), C01]
+        self._check(np.array([0.45, 0.5, 0.02, 0.03, 0.15, 0.04, 0.05,
+                              0.08, 0.09, 0.02]),
+                    shared_lambda=False, shared_env=True)
+
+    def test_score_matches_finite_difference_shared_lambda_env(self):
+        # shared rate + shared env: [h2(2), lam(1), G01, E01, c2(2), C01]
+        self._check(np.array([0.45, 0.5, 0.04, 0.15, 0.05, 0.08, 0.09, 0.02]),
+                    shared_lambda=True, shared_env=True)
 
 
 if __name__ == "__main__":
