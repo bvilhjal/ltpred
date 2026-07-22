@@ -897,55 +897,101 @@ def test_fit_heritability_validates_burn_in_and_h2_init():
     assert np.isfinite(res.h2)
 
 
-def _personalised(n_fam=120, seed=1):
-    """Coherent LT-FH++ families: age-specific thresholds, onset-pinned cases."""
-    return simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
-                                     pop_prev=0.05, n_sim=n_fam,
-                                     use_age=True, seed=seed).families
-
-
-def test_moment_fitters_refuse_personalised_bounds():
-    # The pooled HE fixed point assumes ONE threshold per trait. On personalised
-    # LT-FH++ bounds it ran away to its ceiling -- a simulated h2 of 0.5 came
-    # back as 0.9999, and fit_variance_components invented C = 0.29 out of
-    # nothing. Returning those silently is worse than refusing.
-    fams = _personalised()
-    for call in (
-        lambda: fit_heritability(fams, n_iter=20, burn_in=8, seed=1),
-        lambda: fit_variance_components(fams, ("A", "C"), n_iter=20, burn_in=8, seed=1),
-        lambda: fit_variance_components(fams, ("A",), method="mcem",
-                                        n_iter=20, burn_in=8, seed=1),
-    ):
-        with pytest.raises(ValueError, match="single case/control threshold"):
-            call()
-
-
-def test_guard_names_what_it_found():
-    with pytest.raises(ValueError) as excinfo:
-        fit_heritability(_personalised(), n_iter=20, burn_in=8, seed=1)
-    message = str(excinfo.value)
-    assert "onset-pinned" in message
-    assert "differ between individuals" in message
-    # and points at the supported routes rather than dead-ending
-    assert "prevalence_thresholds" in message
-    assert "fit_genetic_correlation_decay" in message
-
-
-def test_guard_lets_common_threshold_bounds_through():
-    # the ordinary case/control encoding is unaffected
+def _coherent_varying_bounds(n_fam=30, seed=1, *, mixed_geometry=False):
+    """Simulated liabilities observed through exogenous person-specific bounds."""
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
-                                    pop_prev=0.1, n_sim=120, seed=1)
-    assert np.isfinite(fit_heritability(sim.families, n_iter=20, burn_in=8,
-                                        seed=1).h2)
-    vc = fit_variance_components(sim.families, ("A", "C"), n_iter=20, burn_in=8,
-                                 seed=1)
-    assert np.isfinite(vc.components["A"])
+                                    pop_prev=0.1, n_sim=n_fam, seed=seed)
+    roles = [role for role in sim.roles if role != "g"]
+    families = []
+    for i in range(n_fam):
+        members = []
+        for j, role in enumerate(roles):
+            value = float(sim.liabilities[i, sim.roles.index(role)])
+            geometry = (i + 3 * j) % 17
+            if mixed_geometry and geometry == 0:
+                lower = upper = value
+            elif mixed_geometry and geometry == 1:
+                lower, upper = value - 0.05, value + 0.05
+            else:
+                # Deterministic in family/member identity, not in the latent value.
+                threshold = -0.4 + 0.15 * ((i + 2 * j) % 9)
+                lower, upper = ((threshold, np.inf) if value > threshold
+                                else (-np.inf, threshold))
+            members.append(Member(role, lower, upper))
+        families.append(Family(i, members))
+    return families
 
 
-def test_varying_thresholds_alone_are_enough_to_refuse():
-    # no pins at all -- only person-specific control thresholds
-    fams = [Family(i, [Member("o", -np.inf, 1.0 + 0.01 * i),
-                       Member("m", -np.inf, 1.5),
-                       Member("s1", -np.inf, 1.5)]) for i in range(20)]
-    with pytest.raises(ValueError, match="differ between individuals"):
+def test_moment_fitters_accept_coherent_person_specific_rectangles():
+    fams = _coherent_varying_bounds(mixed_geometry=True)
+    assert any(m.lower == m.upper for f in fams for m in f.members)
+    assert any(np.isfinite(m.lower) and np.isfinite(m.upper) and m.lower < m.upper
+               for f in fams for m in f.members)
+
+    h2 = fit_heritability(fams, n_iter=20, burn_in=8, inner_sweeps=1, seed=1)
+    vc = fit_variance_components(fams, ("A", "C"), n_iter=20, burn_in=8,
+                                 inner_sweeps=1, seed=1)
+    assert np.isfinite(h2.h2)
+    assert all(np.isfinite(value) for value in vc.components.values())
+
+
+def test_general_rectangles_still_receive_standard_bounds_validation():
+    fams = _coherent_varying_bounds()
+    fams[0].members[0].lower = 1.0
+    fams[0].members[0].upper = 0.0
+    with pytest.raises(ValueError, match="reversed bounds"):
         fit_heritability(fams, n_iter=20, burn_in=8, seed=1)
+
+
+def test_common_threshold_accepts_mixed_float32_float64_endpoints():
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
+                                    pop_prev=0.1, n_sim=30, seed=1)
+    threshold = next(float(endpoint)
+                     for member in sim.families[0].members
+                     for endpoint in (member.lower, member.upper)
+                     if np.isfinite(endpoint))
+    assert float(np.float32(threshold)) != float(np.float64(threshold))
+    for i, family in enumerate(sim.families):
+        endpoint = np.float32(threshold) if i % 2 else np.float64(threshold)
+        for member in family.members:
+            if np.isfinite(member.lower):
+                member.lower = endpoint
+            if np.isfinite(member.upper):
+                member.upper = endpoint
+
+    result = fit_heritability(sim.families, n_iter=20, burn_in=8,
+                              inner_sweeps=1, seed=1)
+    assert np.isfinite(result.h2)
+
+
+@pytest.mark.parametrize("method", ["mcem", "ml", "reml"])
+def test_likelihood_methods_accept_person_specific_thresholds(method):
+    fams = _coherent_varying_bounds(n_fam=20)
+    result = fit_variance_components(fams, ("A",), method=method,
+                                     n_iter=12, burn_in=6, inner_sweeps=1, seed=1)
+    assert np.isfinite(result.components["A"])
+    assert result.loglik is not None and np.isfinite(result.loglik)
+
+
+def test_genetic_correlation_accepts_person_specific_rectangles():
+    fams = _simulate_two_trait(
+        ["m", "s1"], [0.4, 0.4], np.eye(2), np.eye(2),
+        n_fam=20, prev=[0.1, 0.2], seed=3,
+    )
+    for i, family in enumerate(fams):
+        for j, member in enumerate(family.members):
+            delta = 0.01 * (i + 2 * j)
+            lower = np.asarray(member.lower, dtype=float).copy()
+            upper = np.asarray(member.upper, dtype=float).copy()
+            lower[np.isfinite(lower)] += delta
+            upper[np.isfinite(upper)] += delta
+            member.lower, member.upper = lower, upper
+
+    # Exercise valid geometry the old blanket guard rejected.
+    fams[0].members[0].lower = np.array([0.0, -0.2])
+    fams[0].members[0].upper = np.array([0.0, 0.2])
+    result = fit_genetic_correlation(
+        fams, n_iter=12, burn_in=6, inner_sweeps=1, seed=1,
+    )
+    assert np.isfinite(result.h2).all()
+    assert np.isfinite(result.rg).all()

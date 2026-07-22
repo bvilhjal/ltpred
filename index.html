@@ -204,7 +204,7 @@
     <p class="lede">A from-scratch Python implementation of LT-FH, LT-FH++, ADuLT and PA-FGRS. It turns a family's case/control status and ages of onset into a continuous, GWAS-ready estimate of each person's genetic liability; separate APIs fit variance-component models from family data.</p>
 
     <div class="meta">
-      <span class="chip">v<b>0.1.0.dev0</b></span>
+      <span class="chip">v<b>0.1.0</b></span>
       <span class="chip"><b>NumPy + SciPy</b> · Numba optional</span>
       <span class="chip">Python <b>≥3.9</b></span>
       <span class="chip">MIT</span>
@@ -265,7 +265,7 @@
       <div class="card">
         <div class="k">Fit</div>
         <h3>Variance components &amp; factors</h3>
-        <p>Estimate h² and shared-environment components (A + sibship C + couple M) by multiple Haseman–Elston or a finite-iteration Monte-Carlo EM-style fit. MCEM SE and AIC outputs are approximate diagnostics; family-cluster bootstrap intervals and parametric-bootstrap tests are available under their sampling assumptions. Fitted C/M feed back into the high-level liability predictor via the <code>c2</code>/<code>m2</code> arguments. Fit genetic correlations and a descriptive common-factor model over them.</p>
+        <p>Estimate h² and shared-environment components (A + sibship C + couple M) by multiple Haseman–Elston or a finite-iteration Monte-Carlo EM-style fit. MCEM SE and AIC outputs are approximate diagnostics; family-cluster bootstrap intervals and parametric-bootstrap tests are available under their sampling assumptions. Fitted C/M feed back into single-trait role/object and array predictors via the <code>c2</code>/<code>m2</code> arguments; the high-level multi-trait route rejects them until a cross-trait component covariance is defined. Fit genetic correlations and a descriptive common-factor model over them.</p>
         <div class="fns"><span class="fn">fit_heritability</span><span class="fn">fit_variance_components</span><span class="fn">fit_genetic_correlation</span><span class="fn">fit_genetic_factor</span><span class="fn">bootstrap_fit</span></div>
       </div>
       <div class="card">
@@ -428,7 +428,7 @@
     <div class="tier">
       <div class="tier-head"><h3>Close the loop</h3><span class="when">Near-term</span></div>
       <div class="items">
-        <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Feed fitted C / M back into prediction.</strong> <code>fit_variance_components</code> estimates the shared- and couple-environment components, but <code>estimate_liability</code> has no <code>c2=</code> / <code>m2=</code> argument yet — wiring the fitted covariance end-to-end.</div></div>
+        <div class="item"><span class="status s-part">shipped</span><div class="body"><strong>Feed fitted C / M back into prediction.</strong> Single-trait role/object and array estimators accept fitted shared- and couple-environment components through <code>c2=</code> / <code>m2=</code>. Multi-trait use awaits an explicit cross-trait component covariance and is rejected rather than ignored.</div></div>
         <div class="item"><span class="status s-part">shipped</span><div class="body"><strong>A λ<sub>GC</sub> / false-positive panel.</strong> <code>bench_confounding</code> pairs a secular prevalence trend with birth-cohort-correlated null SNPs: cohort-blind (single-K) thresholds inflate genomic control up to ~15× (worse than raw case/control) while cohort-aware LT-FH++ holds λ<sub>GC</sub> ≈ 1 — the confounding side of the cohort story.</div></div>
         <div class="item"><span class="status s-part">shipped</span><div class="body"><strong>Calibration diagnostics.</strong> <code>bench_calibration</code> reports calibration slope / intercept and decile calibration alongside correlation. In the tested model, a wrong assumed h² primarily tilted the scale while score correlation changed little; this is not guaranteed under other misspecification.</div></div>
       </div>
@@ -449,7 +449,7 @@
       <div class="items">
         <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Sparse, streamed covariance.</strong> A chunked driver for single giant pedigrees and biobank runs that can't hold every family in memory at once.</div></div>
         <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>End-to-end GWAS example.</strong> Real-LD HAPNEST genotypes → liability score → mixed-model GWAS, with covariate / residualization helpers.</div></div>
-        <div class="item"><span class="status s-prog">in progress</span><div class="body"><strong>Packaging &amp; a docs site.</strong> The docs are now a task-focused set — quickstart, data-prep, estimation, inference, assumptions — with a <strong>MkDocs + mkdocstrings</strong> site (auto-generated API reference) that builds, and CI runs the tests and lint gate on Python 3.9 / 3.12. Remaining: a tagged PyPI release beyond <code>0.1.0.dev0</code> and deploying the site.</div></div>
+        <div class="item"><span class="status s-prog">in progress</span><div class="body"><strong>Packaging &amp; a docs site.</strong> The task-focused <strong>MkDocs + mkdocstrings</strong> source now has a real root page and builds with its auto-generated API reference; CI runs the tests and lint gate on Python 3.9 / 3.12. Remaining: redeploying the site and publishing the tagged release to PyPI.</div></div>
       </div>
     </div>
   </section>

@@ -2,3 +2,4 @@
 # A release sdist should also carry its own provenance.
 include CHANGELOG.md
 include CITATION.cff
+include benchmarks/bench_liability_scale.py

@@ -114,11 +114,14 @@ The sibship (`C`) and couple (`M`) components are **wired into the
 estimator**: `construct_covmat_single(..., c2=..., m2=...)` adds them to the
 relatives' covariance (off-diagonals only; the residual environmental variance
 absorbs them, so full liabilities keep unit variance and the genetic target
-stays coupled through `h2 * A` only), and every front door accepts them --
-`estimate_liability`, `estimate_liability_single`, `estimate_liability_pa`,
+stays coupled through `h2 * A` only). The single-trait role/object and array
+front doors accept them: `estimate_liability` with scalar `h2`,
+`estimate_liability_single`, `estimate_liability_pa`,
 `estimate_liability_pa_arrays` and `estimate_liability_gibbs_arrays` all take
 `c2`/`m2` arguments, so the `A + C + M` decomposition fitted by
-`fit_variance_components` can be fed straight back into liability estimation.
+`fit_variance_components` can be fed straight back into single-trait liability
+estimation. The high-level multi-trait route rejects nonzero `c2`/`m2` until an
+explicit cross-trait component covariance is defined.
 Validated in `benchmarks/bench_env_components.py`: wiring recalibrates the
 genetic estimate (slope 0.93 -> 0.99) and sharpens the full-liability
 prediction. Arbitrary user-supplied kernels still go through the covariance-
