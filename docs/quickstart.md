@@ -65,10 +65,14 @@ For full LT-FH++, replace the logistic helper with age-, birth-year- and
 sex-stratified empirical CIPs. To run ADuLT instead, build the same personalised
 bounds for role `o` only and omit every relative row.
 
-`h2` is the **liability-scale** heritability. Don't have one? Estimate it from the
-families with [`fit_heritability`](inference.md#fitting-heritability-from-the-family-data), or
+`h2` is the **liability-scale** heritability. Prefer an external estimate, or
 convert an observed-scale value — see
 [getting `h²`](data-preparation.md#getting-heritability-on-the-liability-scale).
+You can instead use
+[`fit_heritability`](inference.md#fitting-heritability-from-the-family-data) on
+these families; it accepts the person-specific and pinned rectangles above. That
+fit treats the tutorial's onset/threshold construction as its observation model,
+so use separate fitting bounds if your scientific model differs.
 
 ## 5. Use the score
 

@@ -4,6 +4,21 @@ All notable changes to ltpred are recorded here. This project follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html); while the major
 version is 0 the public API may still change between minor releases.
 
+## Unreleased
+
+### Fixed
+
+- The high-level multi-trait dispatcher now rejects nonzero `c2`/`m2` instead
+  of silently dropping them; defining their cross-trait covariance remains
+  future work.
+- The covariance fitters again accept valid person-specific one-sided,
+  two-sided, and pinned rectangles. Geometry-only filtering no longer blocks
+  those observations or the `mcem`/`ml`/`reml` likelihood routes; callers remain
+  responsible for supplying a coherent fitting observation model.
+- The MkDocs site has a real root page, the sdist includes the benchmark helper
+  imported by its shipped tests, and documentation fence validation now matches
+  delimiter type and opening length.
+
 ## 0.1.0 — 2026-07-22
 
 First tagged release. A from-scratch Python implementation of the
@@ -30,7 +45,9 @@ package [LTFHPlus](https://github.com/EmilMiP/LTFHPlus).
 - Role-based covariance over the LTFHPlus relative grammar, and arbitrary
   pedigrees via `kinship_from_pedigree` / `estimate_liability_from_kinship`.
 - Sibship (`C`) and couple (`M`) shared-environment components, accepted as
-  `c2`/`m2` on every estimator entry point.
+  `c2`/`m2` by the single-trait role/object and array estimators. The tagged
+  high-level multi-trait dispatcher exposed these arguments but did not apply
+  them; this is fixed under Unreleased above.
 - Threshold builders (`prevalence_thresholds`, `age_thresholds`, `pa_thresholds`,
   `thresholds_from_cip`), CIP estimation from follow-up records
   (Kaplan–Meier and Aalen–Johansen, `ltpred.cip`), pedigree discovery from trio
@@ -50,33 +67,25 @@ package [LTFHPlus](https://github.com/EmilMiP/LTFHPlus).
 
 ### Notes for users
 
-**The moment fitters require a common case/control threshold per trait.**
-`fit_heritability`, `fit_variance_components` and `fit_genetic_correlation` pool
-cross-products across families and read them as estimates of `h2 * A_ij`, which
-holds only when every augmented liability is a draw from the same `N(0, 1)`
-population. Personalised LT-FH++ bounds — an age-/CIP-specific threshold per
-person, plus an onset pin for cases — break that: each draw carries its own
-conditional mean and the fixed point runs away to its ceiling. On coherent
-simulated data with a true `h2 = 0.5`, `fit_heritability` returned 0.9999 and
-`fit_variance_components` reported `A = 0.71` with a spurious `C = 0.29`. These
-inputs are now **rejected with an explanatory error** rather than silently
-producing those numbers. Fit from common-threshold bounds (e.g.
-`prevalence_thresholds`), or use `fit_genetic_correlation_decay`, whose
-likelihood M-step models onset-age structure explicitly.
+**The tagged 0.1.0 fitters enforce a common case/control threshold per trait.**
+`fit_heritability`, `fit_variance_components`, and
+`fit_genetic_correlation` reject person-specific, two-sided, or pinned bounds;
+the guard also precedes the variance-component likelihood aliases. The
+Unreleased changes above remove that geometry-only restriction while retaining
+ordinary bounds validation and documenting the caller's observation-model
+responsibility.
 
-This limits only *fitting*. The prediction estimators (`estimate_liability` and
-friends) condition on a supplied `h2` rather than fitting it, and personalised
-bounds are exactly what they are built for.
-
-Reported `se` values from the fitters are **within-dataset Monte-Carlo
-diagnostics**, not sampling standard errors — use `bootstrap_fit` when its
-independent-cluster assumptions hold. The PA-FGRS censoring mixture and the
-inference machinery (bootstrap intervals, MCEM SEs, parametric-bootstrap tests)
-have not been calibration-benchmarked; see `docs/assumptions.md` and
-`benchmarks/RESULTS.md` for what is and is not validated. The `fit_heritability`
-benchmark grid covers prevalence 0.1 with parents + 2 sibs at 3,000 families;
-rarer disease or sparser families are outside it and show noticeably more
-spread.
+For the Haseman–Elston and genetic-correlation fits, reported `se` values are
+**within-dataset Monte-Carlo diagnostics**, not sampling standard errors. The
+MCEM variance-component fit instead reports an approximate OPG/BHHH
+observed-information SE, still subject to Monte-Carlo, finite-iteration, and
+model-correctness assumptions. Use `bootstrap_fit` when its independent-cluster
+assumptions hold. The PA-FGRS censoring mixture and the inference machinery
+(bootstrap intervals, MCEM SEs, parametric-bootstrap tests) have not been
+calibration-benchmarked; see `docs/assumptions.md` and `benchmarks/RESULTS.md`
+for what is and is not validated. The `fit_heritability` benchmark grid covers
+prevalence 0.1 with parents + 2 sibs at 3,000 families; rarer disease or sparser
+families are outside it and show noticeably more spread.
 
 `h2` must lie in `(0, 1]`: a zero heritability makes the genetic liability
 identically zero, leaving a covariance no positive-definite correction can

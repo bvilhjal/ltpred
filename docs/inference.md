@@ -15,18 +15,25 @@ approximate family-cluster sampling interval when families are independent.
 
 ## Fitting heritability from the family data
 
-If you don't have an external `h²`, you can **estimate it from the families
-themselves** — `fit_heritability` estimates the liability-scale heritability from
-the relatives' case/control (and age-of-onset) statuses. It alternates a Gibbs
-augmentation of the latent liabilities with a damped Haseman–Elston update of `h²`,
-converging to the value consistent with the observed familial resemblance (see
+If you don't have an external `h²`, you can **estimate it from family data** when
+the bounds encode a coherent fitting observation model. `fit_heritability`
+alternates a Gibbs augmentation of the latent liabilities with a damped
+Haseman–Elston update of `h²`, converging to the value consistent with the observed
+familial resemblance (see
 [algorithm.md](algorithm.md#fitting-the-covariance-heritability)). This is a
 **stochastic-approximation fixed point**, not posterior sampling of `h²`: the trace
 is not a posterior draw and its mean is not a posterior mean.
 
+The fitter accepts common or person-specific one-sided, two-sided, and pinned
+rectangles: their geometry alone cannot reveal how they were constructed. That
+flexibility makes provenance the caller's responsibility. The onset-pinned bounds
+from the quickstart are accepted, but using them makes that onset/threshold
+construction part of the fitted observation model. If that is not the model you
+intend, use an external estimate or construct separate fitting bounds.
+
 ```python
 from ltpred import fit_heritability
-fit = fit_heritability(families)     # families with member bounds (from a threshold builder)
+fit = fit_heritability(fitting_families)  # bounds from the fitting observation model
 fit.h2, fit.h2_se                    # fitted liability-scale heritability (+ MC diagnostic)
 ```
 

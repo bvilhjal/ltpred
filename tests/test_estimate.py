@@ -441,6 +441,19 @@ def test_default_method_is_pa_and_multitrait_falls_back_to_gibbs():
         estimate_liability(sim.families, h2=0.5, method="pa-fgrs")
 
 
+@pytest.mark.parametrize("component", [
+    {"c2": 0.1}, {"m2": 0.1}, {"c2": [0.1, 0.0]},
+])
+def test_multitrait_rejects_unsupported_shared_environment_components(component):
+    fam = Family("f", [Member("o", [-np.inf, -np.inf], [0.0, 0.0])])
+
+    with pytest.raises(NotImplementedError, match="not supported.*multi-trait"):
+        estimate_liability(
+            [fam], h2=[0.5, 0.4], genetic_corrmat=np.eye(2),
+            full_corrmat=np.eye(2), **component,
+        )
+
+
 def test_use_mixture_without_K_raises():
     from ltpred.estimate import estimate_liability_pa_arrays
 

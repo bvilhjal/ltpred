@@ -157,7 +157,7 @@ Aalen-Johansen, `ltpred.cip`), both inference engines (Gibbs and PA),
 single- and multi-trait
 `estimate_liability`, simulation, and **model fitting** — heritability
 (`fit_heritability`), variance components A + C + M (`fit_variance_components`) — feedable back
-into estimation via `c2`/`m2` on every estimator entry point,
+into single-trait role-based estimation via `c2`/`m2`,
 genetic correlation (`fit_genetic_correlation`) and its common-factor model
 (`fit_genetic_factor`), approximate iid-family cluster percentile intervals
 (`bootstrap_fit`) and h² sensitivity
@@ -171,9 +171,12 @@ for the PA-FGRS censoring mixture (or a covariance-level PA API if you assemble 
 arrays yourself).
 
 Beyond the additive `A` covariance, the fitted sibship (`C`) and couple (`M`)
-components feed back into prediction through the `c2`/`m2` arguments on every
-estimator entry point (`estimate_liability` included). Arbitrary user-supplied
-kernels still require the covariance-level APIs.
+components feed back into prediction through the `c2`/`m2` arguments on the
+single-trait role/object and array estimators (`estimate_liability` with scalar
+`h2` included). Multi-trait and arbitrary-kinship analyses require an explicitly
+assembled covariance; the high-level multi-trait route rejects `c2`/`m2` rather
+than silently ignoring them. Arbitrary user-supplied kernels still require the
+covariance-level APIs.
 
 Not included: an igraph-style pedigree-object interface, plotting utilities, and
 the xgboost heritability helpers from LTFHPlus; and ltpred does not build LD or run

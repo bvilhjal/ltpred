@@ -787,10 +787,12 @@ def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",), tol=0
     with a multi-trait request raises.
 
         Scalar ``h2`` -> single trait; a vector ``h2`` with ``genetic_corrmat`` and
-    ``full_corrmat`` -> multi-trait. ``c2``/``m2`` wire sibship (``C``) and
-    couple (``M``) shared-environment components into the family covariance
-    (see :func:`ltpred.covariance.construct_covmat_single`;
-    ``h2 + c2 + m2 <= 1`` required). ``dtype=np.float32`` stores the per-family
+    ``full_corrmat`` -> multi-trait. For single-trait estimation, ``c2``/``m2``
+    wire sibship (``C``) and couple (``M``) shared-environment components into
+    the family covariance (see
+    :func:`ltpred.covariance.construct_covmat_single`; ``h2 + c2 + m2 <= 1``
+    required). Nonzero ``c2``/``m2`` are not supported for multi-trait
+    estimation. ``dtype=np.float32`` stores the per-family
     liability bounds in single precision (half the memory) — useful at biobank
     scale. For Gibbs, ``seed`` must be a non-boolean integer in
     ``[0, 2**32 - 1]`` or ``None``; PA ignores it."""
@@ -823,6 +825,11 @@ def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",), tol=0
                                          c2=c2, m2=m2)
     if genetic_corrmat is None or full_corrmat is None:
         raise ValueError("multi-trait estimation needs genetic_corrmat and full_corrmat")
+    if ((c2 is not None and np.any(np.asarray(c2, dtype=float) != 0.0))
+            or (m2 is not None and np.any(np.asarray(m2, dtype=float) != 0.0))):
+        raise NotImplementedError(
+            "c2/m2 shared-environment components are not supported for "
+            "multi-trait liability estimation")
     return estimate_liability_multi(families, h2_vec=h2,
                                     genetic_corrmat=genetic_corrmat,
                                     full_corrmat=full_corrmat, phen_names=phen_names,

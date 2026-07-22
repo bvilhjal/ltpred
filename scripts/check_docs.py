@@ -10,9 +10,9 @@ stayed green for as long as the bug existed.
 
 Two checks, both cheap:
 
-1. **Fence parity** -- an odd number of ``` lines in a markdown file means one
-   fence is unmatched, and everything after it renders as code until the next
-   one. This is the deterministic root-cause check.
+1. **Fence matching** -- track each opening fence until a closing fence uses the
+   same marker and at least the same run length. This catches unmatched fences
+   without mistaking marker-like text inside a code block for a delimiter.
 2. **Anchor resolution** -- run the strict build and fail on the ``anchor``
    diagnostics mkdocs only whispers. Defence in depth: it catches a heading that
    was renamed or removed without updating the links into it.
@@ -30,7 +30,7 @@ import re
 import subprocess
 import sys
 
-FENCE = re.compile(r"^\s{0,3}(```|~~~)")
+FENCE = re.compile(r"^ {0,3}(?P<run>`{3,}|~{3,})(?P<rest>.*)$")
 # mkdocs phrases these as "... contains a link '...', but there is no such
 # anchor on this page" / "... the doc '...' does not contain an anchor '...'".
 ANCHOR_HINT = re.compile(r"anchor", re.IGNORECASE)
@@ -43,19 +43,40 @@ def markdown_files(root: pathlib.Path):
             yield path
 
 
-def check_fence_parity(root: pathlib.Path) -> list:
-    """Report markdown files whose code fences do not pair up."""
+def check_fences(root: pathlib.Path) -> list:
+    """Report markdown files with an unmatched fenced code block."""
     problems = []
     for path in markdown_files(root):
         text = path.read_text(encoding="utf-8", errors="replace")
-        opens = [i + 1 for i, line in enumerate(text.splitlines())
-                 if FENCE.match(line)]
-        if len(opens) % 2:
+        opener = None
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            match = FENCE.match(line)
+            if match is None:
+                continue
+
+            run = match.group("run")
+            marker = run[0]
+            rest = match.group("rest")
+            if opener is None:
+                # CommonMark does not allow a backtick in a backtick fence's
+                # info string; such a line is ordinary text, not an opener.
+                if marker == "`" and "`" in rest:
+                    continue
+                opener = (marker, len(run), line_number)
+                continue
+
+            open_marker, open_length, _ = opener
+            if (marker == open_marker and len(run) >= open_length
+                    and not rest.strip()):
+                opener = None
+
+        if opener is not None:
+            marker, length, line_number = opener
             rel = path.relative_to(root).as_posix()
             problems.append(
-                f"{rel}: {len(opens)} code-fence lines (odd -- one is unmatched, "
-                f"so prose after line {opens[-1]} renders as code). "
-                f"Fence lines: {opens}")
+                f"{rel}: unmatched {marker * length} code fence opened at "
+                f"line {line_number}; its closer must use at least {length} "
+                f"{marker} characters")
     return problems
 
 
@@ -76,8 +97,8 @@ def main() -> int:
     root = pathlib.Path(__file__).resolve().parent.parent
     failures = []
 
-    fences = check_fence_parity(root)
-    print(f"fence parity : {'FAIL' if fences else 'ok'}", flush=True)
+    fences = check_fences(root)
+    print(f"fences       : {'FAIL' if fences else 'ok'}", flush=True)
     failures += fences
 
     anchors = check_anchors(root)

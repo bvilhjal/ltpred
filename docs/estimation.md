@@ -155,11 +155,13 @@ res = estimate_liability(families, h2=fit.components["A"],
 ```
 
 Or pass known values directly: `estimate_liability(families, h2=0.4, c2=0.15,
-m2=0.1)`. The `c2`/`m2` arguments exist on every estimator entry point
-(`estimate_liability`, `estimate_liability_single`, `estimate_liability_pa`,
-`estimate_liability_pa_arrays`, `estimate_liability_gibbs_arrays`); the
-kinship/arbitrary-pedigree path does not take them yet — assemble its
-covariance yourself. Validated in
+m2=0.1)`. The `c2`/`m2` arguments are supported by the single-trait role/object
+and array entry points (`estimate_liability` with scalar `h2`,
+`estimate_liability_single`, `estimate_liability_pa`,
+`estimate_liability_pa_arrays`, `estimate_liability_gibbs_arrays`). The
+high-level multi-trait route rejects nonzero components until their cross-trait
+covariance is defined; the kinship/arbitrary-pedigree path likewise requires
+you to assemble its covariance explicitly. Validated in
 [benchmarks/RESULTS.md](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md) (section 24): wiring
 recalibrates the genetic estimate (slope 0.93 -> 0.99) and sharpens
 full-liability prediction on environmentally clustered families.
@@ -325,7 +327,7 @@ misspecification.
 | `h2` | `0.5` | liability-scale heritability (scalar, or vector for multi-trait) |
 | `out` | `("genetic",)` | `"genetic"`, `"full"`, or both |
 | `use_mixture` | `False` | PA age-censored-control mixture (needs `K_i`/`K_pop`) |
-| `c2`, `m2` | `None` (0) | sibship (`C`) / couple (`M`) shared-environment components; `h2 + c2 + m2 <= 1` |
+| `c2`, `m2` | `None` (0) | single-trait only: sibship (`C`) / couple (`M`) shared-environment components; `h2 + c2 + m2 <= 1` |
 | `tol` | `0.01` | Gibbs: batch-means SE convergence target |
 | `n_sim`, `burn_in` | `100_000`, `1000` | Gibbs: draws kept / discarded per round |
 | `max_rounds` | `100` | Gibbs: cap on convergence rounds |

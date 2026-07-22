@@ -154,15 +154,15 @@ def fit_heritability(families, *, h2_init=0.5, n_iter=1500, burn_in=500,
     ``[0, 2**32 - 1]`` or ``None``, ``h2_init`` must lie in [0, 1], and ``burn_in``
     must be smaller than ``n_iter``.
 
-    Requires a **common case/control threshold per trait**: personalised LT-FH++
-    bounds (age-/CIP-specific thresholds, onset-pinned cases) bias the pooled
-    moment fixed point badly and are rejected -- see :func:`_assert_common_thresholds`."""
+    Common and person-specific one-sided, two-sided, and pinned rectangles are
+    accepted. Their geometry cannot establish whether the observation model is
+    scientifically coherent, so callers must ensure the supplied bounds represent
+    the observation process intended for fitting. Standard NaN and interval-order
+    validation still applies."""
     if int(burn_in) >= int(n_iter):
         raise ValueError(f"burn_in ({burn_in}) must be < n_iter ({n_iter})")
     if not 0.0 <= float(h2_init) <= 1.0:
         raise ValueError("h2_init must be in [0, 1]")
-    _assert_common_thresholds(families, 1, context="heritability fit")
-
     groups = [_prepare_group(families, idx) for _key, idx in _group_by_structure(families)]
     sxx = sum(sum(aij * aij for (_i, _j, aij) in g["pairs"]) * g["F"] for g in groups)
     if sxx <= 0:
@@ -368,9 +368,11 @@ def fit_variance_components(families, components=("A", "C"), *, method="he",
     independent and representative. ``seed`` must be a non-boolean integer in
     ``[0, 2**32 - 1]`` or ``None``.
 
-    Requires a **common case/control threshold per trait**: personalised LT-FH++
-    bounds (age-/CIP-specific thresholds, onset-pinned cases) bias the pooled
-    moment fixed point badly and are rejected -- see :func:`_assert_common_thresholds`."""
+    Common and person-specific one-sided, two-sided, and pinned rectangles are
+    accepted. Their geometry cannot establish whether the observation model is
+    scientifically coherent, so callers must ensure the supplied bounds represent
+    the observation process intended for fitting. Standard NaN and interval-order
+    validation still applies."""
     comps = list(components)
     for c in comps:
         if c not in _COMPONENT_OFFDIAG:
@@ -384,8 +386,6 @@ def fit_variance_components(families, components=("A", "C"), *, method="he",
     if method not in ("he", "mcem", "ml", "reml"):
         raise ValueError(f"unknown method {method!r}; use 'he' or 'mcem' "
                          "('ml'/'reml' are aliases)")
-    # both methods share the truncated-MVN augmentation, so both are affected
-    _assert_common_thresholds(families, 1, context="variance-component fit")
     if method in ("mcem", "ml", "reml"):
         return _fit_vc_reml(families, comps, n_iter=n_iter, burn_in=burn_in,
                             inner_sweeps=inner_sweeps, damp=damp, seed=seed, eps=eps)
@@ -1384,67 +1384,6 @@ def _require_member_rows(families, *, context):
                 f"{context}: family {family.fam_id!r} has no members")
 
 
-def _assert_common_thresholds(families, n_pheno, *, context):
-    """Reject person-specific liability bounds in the pooled-moment fitters.
-
-    The Haseman-Elston fixed point pools cross-products across families and reads
-    them as estimates of ``h2 * A_ij``, which holds only when every augmented
-    liability is a draw from the *same* ``N(0, 1)`` population -- i.e. when one
-    threshold per trait separates cases from controls. **Personalised LT-FH++
-    bounds break that assumption**: an age-/CIP-specific threshold per person
-    (and an onset pin for cases) gives each augmented draw its own conditional
-    mean, the pooled cross-products stop estimating ``h2 * A``, and the fixed
-    point runs away to its ``1 - eps`` ceiling.
-
-    This is not a small bias. On coherent simulated LT-FH++ data with a true
-    ``h2 = 0.5``, :func:`fit_heritability` returns 0.9999 and
-    :func:`fit_variance_components` reports ``A = 0.71`` with a wholly spurious
-    ``C = 0.29``. Returning those numbers silently is worse than refusing, so
-    this raises.
-
-    The prediction estimators (:func:`~ltpred.estimate.estimate_liability` and
-    friends) are unaffected -- they *condition* on a supplied ``h2`` rather than
-    fitting it, and personalised bounds are exactly what they are designed for.
-    """
-    pinned = interval = 0
-    thresholds = [[] for _ in range(n_pheno)]
-    for family in families:
-        for member in family.members:
-            lo = np.broadcast_to(np.asarray(member.lower, dtype=float), (n_pheno,))
-            hi = np.broadcast_to(np.asarray(member.upper, dtype=float), (n_pheno,))
-            for p in range(n_pheno):
-                if hi[p] - lo[p] < 1e-8:
-                    pinned += 1
-                elif np.isneginf(lo[p]) and np.isfinite(hi[p]):
-                    thresholds[p].append(float(hi[p]))
-                elif np.isfinite(lo[p]) and np.isposinf(hi[p]):
-                    thresholds[p].append(float(lo[p]))
-                elif np.isfinite(lo[p]) and np.isfinite(hi[p]):
-                    interval += 1
-    varying = any(v and not np.allclose(v, v[0], rtol=1e-9, atol=1e-12)
-                  for v in thresholds)
-    if not (pinned or interval or varying):
-        return
-    seen = []
-    if pinned:
-        seen.append(f"{pinned} onset-pinned bound(s)")
-    if interval:
-        seen.append(f"{interval} two-sided interval bound(s)")
-    if varying:
-        seen.append("thresholds that differ between individuals")
-    raise ValueError(
-        f"{context}: found {', '.join(seen)}. The pooled Haseman-Elston fixed "
-        "point assumes a single case/control threshold per trait, so "
-        "personalised (age-/CIP-specific) LT-FH++ bounds bias it badly -- on "
-        "simulated data with h2 = 0.5 it returns ~1.0 and invents a "
-        "shared-environment component. Refusing rather than returning that. "
-        "Fit from common-threshold bounds (e.g. prevalence_thresholds) instead; "
-        "to model onset-age structure explicitly use "
-        "fit_genetic_correlation_decay, whose likelihood M-step is built for it. "
-        "Personalised bounds remain correct for estimate_liability, which "
-        "conditions on h2 rather than fitting it.")
-
-
 def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=5,
                             damp=0.2, seed=None, eps=1e-4, phen_names=None):
     """Estimate the **genetic correlation** between traits from family data.
@@ -1476,9 +1415,11 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
     representative. ``seed`` must be a non-boolean integer in
     ``[0, 2**32 - 1]`` or ``None``.
 
-    Requires a **common case/control threshold per trait**: personalised LT-FH++
-    bounds (age-/CIP-specific thresholds, onset-pinned cases) bias the pooled
-    moment fixed point badly and are rejected -- see :func:`_assert_common_thresholds`."""
+    Common and person-specific one-sided, two-sided, and pinned rectangles are
+    accepted. Their geometry cannot establish whether the observation model is
+    scientifically coherent, so callers must ensure the supplied bounds represent
+    the observation process intended for fitting. Standard shape, NaN, and
+    interval-order validation still applies."""
     if not families:
         raise ValueError("no families provided")
     _require_member_rows(families, context="genetic-correlation fit")
@@ -1494,8 +1435,6 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
         phen_names = [f"phenotype{p + 1}" for p in range(P)]
     elif len(phen_names) != P:
         raise ValueError("phen_names length must match number of traits")
-    _assert_common_thresholds(families, P, context="genetic-correlation fit")
-
     groups = [_prepare_group_multi(families, idx, P)
               for _key, idx in _group_by_structure(families)]
     sA2 = sum(g["sA2"] for g in groups)

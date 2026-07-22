@@ -23,7 +23,7 @@ theme:
         name: Switch to light mode
 
 nav:
-  - Overview: guide.md
+  - Overview: index.md
   - Quickstart: quickstart.md
   - Data preparation: data-preparation.md
   - CIP estimation: cip-estimation.md
