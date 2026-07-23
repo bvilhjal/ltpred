@@ -202,6 +202,25 @@ def test_mixture_raises_young_control_liability():
     assert mix > nomix
 
 
+def test_mixture_weight_stable_when_no_future_cases_and_extreme_mean():
+    # K_i == K_pop is a legal input (0 <= K_i <= K_pop): the individual is old
+    # enough that no future cases remain, so the "eventual case not yet onset"
+    # component has weight (K_pop - K_i)/K_pop == 0. Combined with a conditional
+    # mean so extreme that P(control) underflows to exactly 0.0, the mixture-weight
+    # denominator becomes 0 and the ratio an unguarded 0/0 -> NaN that would then
+    # poison the whole PA fold. The guard resolves that limit to a certain genuine
+    # control (mixture_prob = 1), i.e. the plain truncated normal on the lifetime
+    # interval (-inf, thr_pop).
+    K = 0.10
+    thr_pop = float(stats.norm.isf(K))          # split = Phi^-1(1 - K_pop)
+    mean, var = tnorm_mixture_conditional(50.0, 1.0, -np.inf, thr_pop,
+                                          K_i=K, K_pop=K)
+    assert np.isfinite(mean) and np.isfinite(var)
+    ref_mean, ref_var = tnorm_moments(50.0, 1.0, -np.inf, thr_pop)
+    assert mean == pytest.approx(ref_mean)
+    assert var == pytest.approx(ref_var)
+
+
 @pytest.mark.parametrize(
     "K_i,K_pop,match",
     [(0.01, np.nan, "finite K_i and K_pop"),

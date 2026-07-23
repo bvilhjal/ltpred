@@ -276,7 +276,13 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     if use_mix:
         split = _norm_ppf(1.0 - K_pop)          # lifetime threshold thr_pop
         cdf_pop = _norm_cdf((split - mu) / sd)
-        mixture_prob = cdf_pop / (cdf_pop + (1.0 - cdf_pop) * (K_pop - K_i) / K_pop)
+        # denom = P(control) + P(eventual case not yet onset); both terms >= 0, so
+        # denom == 0 requires cdf_pop underflowing to 0 (extreme conditional mean)
+        # *and* K_i == K_pop (a legal input: no future cases remain). That 0/0 has a
+        # defensible limit -- with no future cases a censored control is certainly a
+        # genuine lifetime control -- so pin mixture_prob to 1.0 instead of NaN.
+        denom = cdf_pop + (1.0 - cdf_pop) * (K_pop - K_i) / K_pop
+        mixture_prob = cdf_pop / denom if denom > 0.0 else 1.0
     else:
         split = upper                            # plain truncated normal on (lower, upper)
         mixture_prob = 1.0

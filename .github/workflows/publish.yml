@@ -1,0 +1,59 @@
+name: Publish to PyPI
+
+# Build the sdist + wheel, validate their metadata, and (on a GitHub Release)
+# publish to PyPI via Trusted Publishing (OIDC) -- no API token is stored in the
+# repository. `workflow_dispatch` builds and checks the artifacts without
+# publishing, so the release path can be exercised on demand.
+#
+# One-time setup on PyPI (project owner, not automatable here): register this
+# repository + the `publish.yml` workflow + the `pypi` environment as a trusted
+# publisher for the `ltpred` project at
+# https://pypi.org/manage/account/publishing/. See docs/RELEASING.md.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+      - name: Validate distribution metadata
+        # twine >= 6.1 and packaging >= 24.2 understand the PEP 639
+        # `License-Expression` / `License-File` fields this package emits
+        # (Metadata-Version 2.4); older packaging rejects them.
+        run: |
+          python -m pip install --upgrade "twine>=6.1" "packaging>=24.2"
+          python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/ltpred
+    permissions:
+      id-token: write        # OIDC token for PyPI Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
