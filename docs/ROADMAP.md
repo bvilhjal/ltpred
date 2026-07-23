@@ -305,7 +305,12 @@ likelihood-based inference) to the pedigree/registry setting.
     The independent-SNP integrated LT-FH++ benchmark and covariate residualisation
     are now present; real-LD orchestration remains opt-in work.
 
-11. **PyPI packaging.** The MkDocs API/user-guide site and strict CI build are in place.
+11. **PyPI packaging.** The MkDocs API/user-guide site and strict CI build are in
+    place, the sdist/wheel build cleanly and pass `twine check`, and a
+    Trusted-Publishing release workflow (`.github/workflows/publish.yml`,
+    documented in [RELEASING.md](RELEASING.md)) publishes on a tagged GitHub
+    Release. The remaining step is the one-time PyPI trusted-publisher
+    registration and the first tagged release.
 
 12. **Multi-trait PA approximation**, if it can be made accurate, for scalable
     multi-trait analysis.
