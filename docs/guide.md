@@ -86,8 +86,10 @@ The role grammar is fastest and simplest; the kinship path is the general case.
 The high-level kinship estimator currently accepts ordinary `lower`/`upper` bounds
 only, not `K_i`/`K_pop` or `use_mixture`; it therefore does not run the PA-FGRS
 censoring mixture.
-ltpred does not yet include an igraph-style pedigree-object interface or the
-LTFHPlus plotting utilities.
+Pedigrees can be discovered from trio records with `ltpred.pedigree`
+(`extract_pedigrees`, `ParentGraph`, `Pedigree`), which feeds
+`kinship_from_pedigree`. ltpred does not wrap igraph the way LTFHPlus does, and
+ships no plotting utilities.
 
 **Which path to run:**
 

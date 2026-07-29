@@ -48,8 +48,11 @@ family history**, not a pure causal genetic value.
 The low-level covariance entry points (`rtmvnorm_gibbs`, `pa_algorithm`,
 `pa_estimate_batched`) accept a symmetric positive-semidefinite covariance, so a
 valid shared-environment kernel can be added deliberately. The fitters ship
-descriptive sibship `C` and mate/couple `M` kernels, but the high-level predictor
-does not yet accept fitted `C` or `M`; see
+descriptive sibship `C` and mate/couple `M` kernels, and the single-trait
+high-level predictor accepts them as `c2`/`m2` on both the role/object and the
+array paths. The high-level multi-trait dispatcher rejects nonzero `c2`/`m2`
+rather than silently dropping them, pending a defined cross-trait component
+covariance; see
 [algorithm.md](algorithm.md#adding-environmental-covariance-to-improve-prediction)
 and [Inference](inference.md#variance-components-a-c-m).
 
