@@ -49,6 +49,7 @@ follow NumPy's `default_rng` contract.
 | `pa_algorithm` / `pa_estimate_batched` | Pearson–Aitken selection updates |
 | `tnorm_moments` / `tnorm_mixture_conditional` | truncated-normal moments (+ censoring mixture) |
 | `construct_covmat` / `_single` / `_multi` | family covariance from relatedness |
+| `construct_covmat_sex_limited` | sex-specific `h²` and cross-sex `r_g` in the covariance |
 | `get_relatedness` | shared-DNA × `h²` for a pair of roles |
 | `construct_covmat_from_kinship` | liability covariance from a kinship/`A` matrix |
 | `rtmvnorm_gibbs` | truncated-MVN Gibbs sampler |

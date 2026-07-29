@@ -35,7 +35,8 @@ __version__ = "0.1.0"
 # public name -> submodule it lives in
 _EXPORTS = {
     "covariance": ["get_relatedness", "construct_covmat", "construct_covmat_single",
-                   "construct_covmat_multi", "correct_positive_definite", "Covmat",
+                   "construct_covmat_multi", "construct_covmat_sex_limited",
+                   "correct_positive_definite", "Covmat",
                    "kinship_from_pedigree", "construct_covmat_from_kinship"],
     "cip": ["CipCurve", "kaplan_meier_cip", "aalen_johansen_cip"],
     "pedigree": ["ParentGraph", "Pedigree", "build_parent_graph",
