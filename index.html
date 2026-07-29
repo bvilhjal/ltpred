@@ -283,7 +283,7 @@
       <div class="card">
         <div class="k">Validate</div>
         <h3>Fifteen reproducible benchmarks</h3>
-        <p>The simulation suite covers PA accuracy and speed, calibration, genomic control, scaling, power and model-fitting recovery. A dedicated generative validation of the optional PA-FGRS censoring mixture remains outstanding.</p>
+        <p>The simulation suite covers PA accuracy and speed, calibration, genomic control, scaling, power and model-fitting recovery, alongside unit regression tests pinning the degenerate cases of the PA-FGRS mixture weight. A dedicated generative validation of the optional PA-FGRS censoring mixture remains outstanding.</p>
         <div class="fns"><span class="fn">benchmarks/</span><span class="fn">RESULTS.md</span></div>
       </div>
     </div>
@@ -449,7 +449,7 @@
       <div class="items">
         <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Sparse, streamed covariance.</strong> A chunked driver for single giant pedigrees and biobank runs that can't hold every family in memory at once.</div></div>
         <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>End-to-end GWAS example.</strong> Real-LD HAPNEST genotypes → liability score → mixed-model GWAS, with covariate / residualization helpers.</div></div>
-        <div class="item"><span class="status s-prog">in progress</span><div class="body"><strong>Packaging &amp; a docs site.</strong> The task-focused <strong>MkDocs + mkdocstrings</strong> source now has a real root page and builds with its auto-generated API reference; CI runs the tests and lint gate on Python 3.9 / 3.12. Remaining: redeploying the site and publishing the tagged release to PyPI.</div></div>
+        <div class="item"><span class="status s-prog">in progress</span><div class="body"><strong>Packaging &amp; a docs site.</strong> The task-focused <strong>MkDocs + mkdocstrings</strong> source now has a real root page and builds with its auto-generated API reference; CI runs the tests and lint gate on Python 3.9 / 3.12. The sdist and wheel build cleanly and pass <code>twine check</code>, and a PyPI <strong>Trusted-Publishing</strong> workflow (<code>publish.yml</code>, documented in <code>RELEASING.md</code>) uploads on a tagged GitHub Release with no stored API token. Remaining: the one-time PyPI trusted-publisher registration, the first tagged upload, and deploying the site.</div></div>
       </div>
     </div>
   </section>
