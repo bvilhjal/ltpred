@@ -799,6 +799,106 @@ covariance), so it cannot reveal misspecification. Two adversarial arms probe it
   traits with household effects will be mis-estimated -- the most important
   caveat for application.
 
+## 26. Sex in the covariance vs sex in the thresholds (`bench_sex_limitation.py`)
+
+`construct_covmat_sex_limited` lets sex enter `Sigma` (sex-specific `h2`, a
+cross-sex genetic correlation `rg`) rather than only the thresholds. The algebra
+guarantees the BLUP weights change; it does not guarantee the score improves.
+This benchmark measures it against a known truth.
+
+Families (proband + both parents + one sibling) are drawn from the **true**
+sex-limited covariance, so the proband's genetic liability is known exactly.
+Proband and sibling sexes are balanced across the four cells. `K_female = 0.05`,
+`K_male = 0.10`; 5 replicates of 2,000 families. Four arms, all scored by
+`corr(estimate, true g)` and the calibration slope `regress(true on estimate)`:
+
+| arm | thresholds | covariance |
+|---|---|---|
+| pooled | one pooled `K` | scalar pooled `h2` |
+| sex thresholds | sex-specific `K` | scalar pooled `h2` |
+| sex in Sigma (true) | sex-specific `K` | true `(h2_F, h2_M, rg)` |
+| sex in Sigma (rg=1) | sex-specific `K` | true `h2` pair, `rg` wrongly 1 |
+
+**(a) Sweeping the true `rg`** at `h2_F = 0.6`, `h2_M = 0.2`. `eff-N` is the
+squared-correlation effective-N proxy for the covariance fix, thresholds held
+fixed:
+
+| true rg | sex thresholds | sex in Sigma | gain | eff-N proxy |
+|---:|---:|---:|---:|---:|
+| 1.0 | 0.3663 | 0.4100 | +0.0437 ± 0.0035 | 1.255x ± 0.036 |
+| 0.8 | 0.3703 | 0.4115 | +0.0412 ± 0.0073 | 1.238x ± 0.053 |
+| 0.6 | 0.3573 | 0.4055 | +0.0482 ± 0.0060 | 1.290x ± 0.044 |
+| 0.4 | 0.3430 | 0.3978 | +0.0548 ± 0.0048 | 1.349x ± 0.047 |
+| 0.2 | 0.3430 | 0.4030 | +0.0601 ± 0.0056 | 1.384x ± 0.057 |
+
+**(b) Sweeping the heritability gap** at `rg = 1`, mean `h2 = 0.4`:
+
+| gap | sex thresholds | sex in Sigma | gain | eff-N proxy |
+|---:|---:|---:|---:|---:|
+| 0.0 | 0.4100 | 0.4100 | +0.0000 ± 0.0000 | 1.000x ± 0.000 |
+| 0.2 | 0.3929 | 0.4056 | +0.0127 ± 0.0030 | 1.066x ± 0.016 |
+| 0.4 | 0.3657 | 0.4042 | +0.0385 ± 0.0052 | 1.222x ± 0.032 |
+| 0.6 | 0.3402 | 0.4365 | +0.0963 ± 0.0087 | 1.651x ± 0.093 |
+
+At gap 0 with `rg = 1` the sex-limited covariance **is** the scalar covariance,
+so the arms are bit-identical and the gain is exactly zero -- the benchmark's
+own sanity check.
+
+The gain is real but conditional, and modest until the sex difference is large:
+`1.07x` at a heritability gap of 0.2, `1.22x` at 0.4, `1.65x` at 0.6.
+**A sex-limited model with no sex difference to find buys nothing**, which is
+the case a practitioner should expect by default. Mis-specifying `rg` as 1 when
+it is truly 0.2 costs about a quarter of the gain: worth getting approximately
+right, not catastrophic to get wrong.
+
+**(c) Mechanism.** `rg` discounts cross-sex pairs and nothing else, so its
+effect must vanish in an all-same-sex family and concentrate in an all-cross-sex
+one. Two matched compositions -- proband + mother + sister, versus proband +
+father + brother -- give the proband exactly two first-degree relatives each,
+so they are matched on relatedness and differ *only* in sex configuration.
+Heritability is equal for both sexes here (`h2 = 0.5`), so scalar limitation
+cannot contribute and every bit of any gain is attributable to `rg`:
+
+| true rg | composition | sex thresholds | sex in Sigma | gain |
+|---:|---|---:|---:|---:|
+| 1.0 | same-sex | 0.3993 | 0.3993 | +0.0000 ± 0.0000 |
+| 0.6 | same-sex | 0.3993 | 0.3993 | +0.0000 ± 0.0000 |
+| 0.2 | same-sex | 0.3993 | 0.3993 | +0.0000 ± 0.0000 |
+| 1.0 | cross-sex | 0.4276 | 0.4276 | +0.0000 ± 0.0000 |
+| 0.6 | cross-sex | 0.3741 | 0.3843 | +0.0102 ± 0.0052 |
+| 0.2 | cross-sex | 0.3046 | 0.3503 | +0.0457 ± 0.0113 |
+
+The effect appears in exactly the cells the model predicts and nowhere else:
+identically zero across every same-sex row regardless of `rg`, zero in the
+cross-sex family when `rg = 1`, and monotone in the remaining two. This is a
+mechanistic confirmation rather than an association -- the parameter acts on
+the pairs it is defined to act on. It also shows where the model is worth
+reaching for: pedigrees rich in opposite-sex relatives, not same-sex ones.
+
+**Calibration is the cleaner signal.** Only the sex-limited covariance is
+calibrated; the slope sits at `0.981-1.034` across every cell. The
+threshold-only arm degrades as the gap grows (`0.9814` at gap 0 down to
+`0.8272` at gap 0.6), and the pooled arm sits between them.
+
+**An unexpected result worth stating plainly.** When the architecture is
+genuinely sex-limited but the covariance is left sex-blind, personalising the
+*thresholds* by sex made the score **worse** than ignoring sex entirely --
+`0.3402` vs `0.3849` in correlation at gap 0.6, and worse on calibration too
+(`0.8272` vs `0.9241`). This is not an argument for sex-blind thresholds. It is
+consistent with the factorisation: thresholds set `mu`, but the estimate is
+`w' mu`, and sharpening `mu` for a subgroup whose weights `w` are wrong need not
+improve the product. Two mis-specifications partially cancel in the pooled arm.
+The reading is that sex-specific thresholds and a sex-specific covariance are
+not substitutes -- under true sex limitation, only fixing `Sigma` fixed both
+ranking and calibration. Verified as a real effect rather than noise: at gap 0
+the pooled/threshold difference is `-0.0011` over 6 replicates of 4,000
+families, within the CI, and it appears only once the gap is nonzero.
+
+Caveats: one pedigree shape, a balanced sex design, PA inference, and supplied
+rather than fitted parameters. Nothing here estimates `h2_F`, `h2_M` or `rg`,
+so the "sex in Sigma (true)" arm is a ceiling that a real analysis reaches only
+as well as its parameter estimates allow.
+
 ## What changed in this rerun
 
 - Replicated the accuracy and calibration grids across five independent
