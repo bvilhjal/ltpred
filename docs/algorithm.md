@@ -176,6 +176,64 @@ estimable, and the couple term is further confounded with assortative mating.
 Extending `_COMPONENT_OFFDIAG` past the shipped `A`/`C`/`M` bank with valid PSD
 kernels is the natural next step; the rank-deficiency guard already generalises.
 
+### Sex-limited genetic architecture
+
+Everywhere else in ltpred, sex enters through the **threshold**: a sex-specific
+CIP gives each person their own `T`. That is where it belongs for calibration,
+but recall the factorisation `g0 = w' mu` with `w = V^-1 c`. The weights `w`
+depend on heritability and kinship only — they are threshold-free. So a
+sex-specific threshold moves `mu` and can reorder scores through the truncated
+means, but it never changes how much weight a relative carries.
+
+`construct_covmat_sex_limited` puts sex in `V` instead:
+
+```text
+Cov(g_i, g_j) = 2*phi_ij * sqrt(h2_i * h2_j) * rg_cross^[sex_i != sex_j]
+```
+
+with `h2_i` the heritability of person `i`'s sex. This is the standard
+sex-limitation model of the twin/family literature, in two parts:
+
+- **Scalar (quantitative) sex limitation** — `h2_female != h2_male`. The same
+  genes act in both sexes, with different variance. A relative of the
+  higher-heritability sex is more informative and gets more weight.
+- **Qualitative sex limitation** — `rg_cross < 1`. Partly *different* genetic
+  architectures between the sexes, so an opposite-sex relative tells you less
+  about the proband than a same-sex relative at the same kinship.
+
+Full liabilities keep unit variance, so thresholds retain their prevalence
+meaning; only the genetic scale differs by sex. Setting `h2_female == h2_male`
+and `rg_cross == 1` reproduces `construct_covmat_single` exactly.
+
+The matrix is positive semi-definite for any `|rg_cross| <= 1`. Writing it as
+`D^(1/2) (A o Rg) D^(1/2)`, where `o` is the Hadamard product, `D` holds the
+per-person heritabilities and `Rg` has `1` within a sex and `rg_cross` between,
+both `A` and `Rg` are PSD, so their Schur product is PSD and the symmetric
+scaling preserves it.
+
+The role grammar fixes the sex of parents and grandparents (`m`, `f`, `mgm`,
+`mgf`, `pgm`, `pgf`). Siblings, children, half-sibs and aunts/uncles are
+ambiguous — `mau`/`pau` covers both aunts and uncles — and must be declared in
+`sex=`; the constructor raises rather than defaulting, since a silent default
+would impose one sex's heritability on the other. The genetic row `g` follows
+the proband `o`.
+
+Two cautions. **(i)** These are *inputs*, not fitted quantities: the constructor
+takes `h2_female`, `h2_male` and `rg_cross` and builds the covariance. Nothing
+here estimates them, and the identification requirements are real — separating
+`rg_cross` from a scalar difference needs opposite-sex relative pairs
+(brother–sister, and opposite-sex avuncular or half-sib links) contrasted
+against same-sex pairs at matched kinship, which nuclear families supply
+sparsely. **(ii)** A sex difference in *observed* prevalence is not by itself
+evidence of sex-limited genetics; it is exactly what a sex-specific threshold
+already absorbs. Reach for this model when same- and opposite-sex relative
+correlations differ **after** the thresholds are personalised.
+
+Because the result is an ordinary `Covmat`, it feeds the covariance-level
+entry points (`pa_algorithm`, `rtmvnorm_gibbs`, `pa_estimate_batched`)
+directly, the same route documented for any user-supplied kernel. The
+role-based `estimate_liability` still takes a scalar `h2`.
+
 ## Connection to selection index and BLUP
 
 `ltpred` is a liability-threshold generalisation of the classical **selection

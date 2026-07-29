@@ -86,12 +86,13 @@ standardised so every full liability has unit marginal variance; standard-normal
 prevalence thresholds therefore retain their usual meaning. Build the covariance
 alone with `construct_covmat_from_kinship(A, h2, target)`.
 
-ltpred starts from an already specified pedigree; it does not discover relatives
-from population registers. For upstream graph-based extraction of arbitrary-degree
-relatives from population trio records, see
-[Pedersen et al. (2025)](https://doi.org/10.3389/fgene.2025.1708315). Its graph
-utilities are implemented in the R package LTFHPlus: translate `graph_to_trio`
-output into `ids`, `father` and `mother`, then call ltpred's
+Discovery from population registers is handled by `ltpred.pedigree` above, with
+`max_degree` setting how far the traversal reaches. The graph-based extraction
+approach is described in
+[Pedersen et al. (2025)](https://doi.org/10.3389/fgene.2025.1708315), whose graph
+utilities are implemented in the R package LTFHPlus. If you take that route
+instead, translate `graph_to_trio` output into `ids`, `father` and `mother`, then
+call ltpred's
 `kinship_from_pedigree`. Do **not** pass LTFHPlus `get_kinship` output straight to
 ltpred: it can already contain heritability scaling and target augmentation, while
 ltpred's kinship-matrix API expects the unscaled additive relationship matrix

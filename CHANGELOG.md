@@ -6,6 +6,19 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Added
+
+- `construct_covmat_sex_limited` puts sex into the covariance rather than only
+  the thresholds: sex-specific heritabilities and a cross-sex genetic
+  correlation, `Cov(g_i, g_j) = 2*phi_ij * sqrt(h2_i * h2_j) *
+  rg_cross^[sex_i != sex_j]`. Equal heritabilities with `rg_cross = 1`
+  reproduce `construct_covmat_single` exactly, and the result is positive
+  semi-definite for any `|rg_cross| <= 1`. Because the BLUP weights are
+  threshold-free, this is what makes sex a ranking lever rather than only a
+  calibration correction. The parameters are inputs, not fitted;
+  see the sex-limitation section of `docs/algorithm.md` for the identification
+  requirements.
+
 ### Fixed
 
 - The high-level multi-trait dispatcher now rejects nonzero `c2`/`m2` instead
