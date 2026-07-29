@@ -2040,3 +2040,91 @@ def test_genetic_correlation(families, i=0, j=1, *, n_boot=200, seed=None,
     p = (1 + int(np.sum(np.abs(null) >= abs(obs)))) / (1 + int(n_boot))
     return SignificanceTest(estimate=obs, p_value=float(p), null=null,
                             n_boot=int(n_boot), label=f"r_g[{i},{j}] != 0")
+
+
+@dataclass
+class NurtureFit:
+    """Result of :func:`fit_nurture`.
+
+    ``h2`` is the **direct** additive heritability and ``nurture`` the indirect
+    (genetic-nurture) coefficient of
+    :func:`~ltpred.covariance.construct_covmat_nurture`.
+
+    ``h2_additive_po`` and ``h2_additive_sib`` are what a *nurture-blind*
+    additive model would report from each relative type on its own, i.e.
+    ``2 * cov``. Their **disagreement is the diagnostic**: under a purely
+    additive model both estimate the same ``h2``, so a gap means the two
+    relative types cannot be reconciled without an indirect path.
+    ``disagreement`` is ``h2_additive_sib - h2_additive_po``, which is zero
+    exactly when ``nurture`` is zero.
+    """
+    h2: float
+    nurture: float
+    h2_additive_po: float
+    h2_additive_sib: float
+    disagreement: float
+
+
+def fit_nurture(cov_parent_offspring, cov_sib_sib):
+    """Closed-form method-of-moments fit of the direct/indirect model.
+
+    The nurture covariance of
+    :func:`~ltpred.covariance.construct_covmat_nurture` implies
+
+    .. code-block:: text
+
+        cov_parent_offspring = h2*(1 + 2n)/2
+        cov_sib_sib          = h2*(1 + 2n)^2/2
+
+    Two equations in two unknowns, so the ratio isolates the indirect path and
+    the estimates are exact rather than iterative::
+
+        1 + 2n = cov_sib_sib / cov_parent_offspring
+        n      = (cov_sib_sib / cov_parent_offspring - 1) / 2
+        h2     = 2 * cov_parent_offspring^2 / cov_sib_sib
+
+    Both inputs are **liability-scale** covariances between the two relative
+    types. From binary case/control data, obtain them with
+    :mod:`ltpred.tetrachoric` rather than from observed-scale correlations.
+
+    This is what makes ``nurture`` a fitted quantity rather than a supplied one.
+    It is a moment estimator: no standard errors, and it inherits whatever bias
+    the input covariances carry. Wrap it in
+    :func:`~ltpred.fit.bootstrap_fit`-style family-cluster resampling of those
+    covariances if sampling uncertainty is needed.
+
+    A sibling covariance *below* the parent-offspring one implies a negative
+    ``nurture`` (a contrast effect); that is returned rather than clipped, since
+    silently flooring it at zero would hide a real signal. What is rejected is a
+    fit that no valid model can produce -- see the raised errors.
+    """
+    po = float(cov_parent_offspring)
+    ss = float(cov_sib_sib)
+    if po <= 0.0:
+        raise ValueError(
+            "cov_parent_offspring must be positive; a non-positive "
+            "parent-offspring liability covariance is incompatible with a "
+            f"heritable trait (got {po})")
+    if ss <= 0.0:
+        raise ValueError(
+            f"cov_sib_sib must be positive (got {ss})")
+
+    nurture = (ss / po - 1.0) / 2.0
+    h2 = 2.0 * po * po / ss
+    if not (0.0 < h2 <= 1.0):
+        raise ValueError(
+            f"the implied direct h2 is {h2:.4f}, outside (0, 1]. These two "
+            "covariances are not jointly reproducible by the direct/indirect "
+            "model; check that both are liability-scale and estimated on the "
+            "same population")
+    resid = 1.0 - h2 - 2.0 * nurture * nurture * h2 - 2.0 * nurture * h2
+    if resid < -1e-12:
+        raise ValueError(
+            f"the implied (h2={h2:.4f}, nurture={nurture:.4f}) leave a negative "
+            f"residual variance ({resid:.4f}), so no standardised liability "
+            "model reproduces these covariances")
+
+    h2_po = 2.0 * po                      # what an additive model reads off each
+    h2_ss = 2.0 * ss                      # relative type, taken alone
+    return NurtureFit(h2=h2, nurture=nurture, h2_additive_po=h2_po,
+                      h2_additive_sib=h2_ss, disagreement=h2_ss - h2_po)

@@ -899,6 +899,72 @@ rather than fitted parameters. Nothing here estimates `h2_F`, `h2_M` or `rg`,
 so the "sex in Sigma (true)" arm is a ceiling that a real analysis reaches only
 as well as its parameter estimates allow.
 
+## 27. Ignoring genetic nurture (`bench_nurture.py`)
+
+`construct_covmat_nurture` separates a proband's **direct** additive value from
+the **indirect** path by which the parents' genotypes shape the rearing
+environment. This benchmark asks what a nurture-blind analysis costs.
+
+Families (proband + both parents + one full sib) are drawn from the **true**
+path model, so the direct value `A_o` is known exactly. `h2 = 0.4` (direct),
+`K = 0.05`; 5 replicates of 3,000 families. Four estimators are scored against
+`A_o`:
+
+| arm | covariance |
+|---|---|
+| additive, true h2 | ordinary, at the true *direct* `h2` |
+| additive, moment h2 | ordinary, at the `h2` a moment fitter reads off parent-offspring pairs |
+| A + C matched to sibs | `c2` chosen to reproduce the nurture sib-sib covariance exactly |
+| nurture | the true path model -- the ceiling |
+
+**(a) Ranking barely moves.**
+
+| true n | additive (moment h2) | A + C matched | nurture | cost |
+|---:|---:|---:|---:|---:|
+| 0.0 | 0.3690 | 0.3690 | 0.3690 | +0.0000 ± 0.0000 |
+| 0.1 | 0.3952 | 0.3949 | 0.3958 | +0.0006 ± 0.0006 |
+| 0.2 | 0.4237 | 0.4221 | 0.4253 | +0.0017 ± 0.0007 |
+| 0.3 | 0.4602 | 0.4550 | 0.4645 | +0.0043 ± 0.0017 |
+
+At `n = 0` every arm is identical and the cost is exactly zero -- the sanity
+check. Correlation *rises* with `n` in all arms, because a stronger shared
+parental contribution makes the relatives more informative about the parental
+genetic values, which are themselves correlated with `A_o`. The **relative**
+cost of ignoring nurture stays small throughout.
+
+**(b) Calibration and heritability are where it bites.**
+
+| true n | c2 matched | h2 from parent-offspring | h2 from sibs | A+C slope | nurture slope |
+|---:|---:|---:|---:|---:|---:|
+| 0.0 | 0.0000 | 0.4000 | 0.4000 | 1.0012 | 1.0012 |
+| 0.1 | 0.0880 | 0.4800 | 0.5760 | 1.0693 | 1.0000 |
+| 0.2 | 0.1920 | 0.5600 | 0.7840 | 1.1458 | 1.0077 |
+| 0.3 | 0.3120 | 0.6400 | 1.0000 | 1.1957 | 1.0005 |
+
+The nurture model is calibrated at every setting (slope `1.000-1.008`). The
+A+C model -- which reproduces the sibling covariance **exactly** -- drifts to
+`1.196`, under-predicting the true direct effect by about a fifth.
+
+The heritability column is the more alarming one. The true *direct* `h2` is
+`0.4` throughout, but a nurture-blind moment fitter returns `0.64` from
+parent-offspring pairs and `1.000` from sibs at `n = 0.3` -- the latter pinned
+at the boundary, an impossible heritability. **The two estimates disagree by up
+to 0.36, and that disagreement is the diagnostic**: no single additive `h2` can
+satisfy both relative types when an indirect path is present.
+
+**Reading.** In this setting genetic nurture is not primarily a threat to the
+score's *ranking*; a nurture-blind score still orders probands almost as well.
+It is a threat to the **scale** of the score and, far more seriously, to any
+heritability estimated from the same families. An analyst who sees
+parent-offspring and sibling heritabilities disagree should suspect an indirect
+path rather than average them.
+
+Caveats: one pedigree shape, PA inference, supplied rather than fitted `n`, and
+the moment heritabilities are computed analytically from the true covariance
+rather than by running `fit_heritability`, so they show what a moment estimator
+targets without its finite-sample noise. Nuclear families only, as the
+constructor requires.
+
 ## What changed in this rerun
 
 - Replicated the accuracy and calibration grids across five independent

@@ -36,6 +36,7 @@ __version__ = "0.2.0"
 _EXPORTS = {
     "covariance": ["get_relatedness", "construct_covmat", "construct_covmat_single",
                    "construct_covmat_multi", "construct_covmat_sex_limited",
+                   "construct_covmat_nurture",
                    "correct_positive_definite", "Covmat",
                    "kinship_from_pedigree", "construct_covmat_from_kinship"],
     "cip": ["CipCurve", "kaplan_meier_cip", "aalen_johansen_cip"],
@@ -68,7 +69,8 @@ _EXPORTS = {
             "fit_genetic_correlation_decay", "DecayGenCorrResult",
             "fit_genetic_factor", "FactorResult",
             "bootstrap_fit", "BootstrapResult", "test_variance_component",
-            "test_genetic_correlation", "SignificanceTest"],
+            "test_genetic_correlation", "SignificanceTest",
+            "fit_nurture", "NurtureFit"],
     "_numba": ["set_num_threads"],
 }
 

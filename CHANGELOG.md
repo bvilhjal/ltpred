@@ -6,6 +6,31 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Added
+
+- `construct_covmat_nurture` separates a proband's **direct** genetic effect
+  from parental **indirect** (genetic-nurture) effects, building the covariance
+  from the path model rather than from kinship. Parent-offspring covariance
+  becomes `h2/2 + n*h2` and sib-sib `h2/2 + 2*n*h2 + 2*n^2*h2` -- inflated by
+  different amounts, which is what identifies `n` -- while `Cov(A_o, l_parent)`
+  stays at `h2/2`, since nurture changes how a parent's liability relates to the
+  child, not how their genotype relates to the child's own genetic value. That
+  asymmetry is what a single symmetric kinship-scaled matrix cannot express.
+  `nurture = 0` reproduces `construct_covmat_single` exactly. Nuclear roles
+  only; the closed form was verified against a 4,000,000-family Monte-Carlo
+  simulation of the path model. Note that on sibling covariance alone nurture is
+  indistinguishable from a sibship `C`; parent-offspring covariance is what
+  separates them.
+- `fit_nurture` makes the indirect coefficient a **fitted** quantity rather than
+  a supplied one. The parent-offspring and sib-sib moments are two equations in
+  two unknowns, so the ratio isolates the indirect path and the estimates are
+  closed-form and exact: `1 + 2n = cov_sib / cov_parent_offspring`,
+  `h2 = 2*cov_parent_offspring^2 / cov_sib`. It also reports what a
+  nurture-blind additive model would claim from each relative type alone, whose
+  disagreement is the diagnostic for an indirect path and is zero exactly when
+  `n` is zero. A moment estimator: no standard errors, and inputs must be
+  liability-scale (use `ltpred.tetrachoric` on binary data).
+
 ## 0.2.0 — 2026-07-29
 
 ### Added

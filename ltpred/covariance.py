@@ -491,6 +491,114 @@ def construct_covmat_sex_limited(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "
     return Covmat(cov, roles, h2=(float(h2_female), float(h2_male)))
 
 
+_NURTURE_ROLES = re.compile(r"^(g|o|m|f|s\d*)$")
+
+
+def construct_covmat_nurture(fam_vec=("m", "f", "s1"), n_fam=None, add_ind=True,
+                             *, h2, nurture):
+    """Covariance separating a proband's **direct** genetic effect from parental
+    **indirect** (genetic-nurture) effects.
+
+    Everywhere else in ltpred an entry is ``2*phi * h2``: a function of
+    relatedness alone. Genetic nurture is a *directional* path -- the parents'
+    genotypes shape the offspring's environment, not the reverse -- so the
+    covariance is built from the path model instead:
+
+    .. code-block:: text
+
+        A_o = (A_m + A_f)/2 + w_o          # transmission + Mendelian sampling
+        l_o = A_o + nurture*(A_m + A_f) + e_o
+        l_m = A_m + e_m                    # parents are founders here
+
+    The target row ``g`` is the proband's **own** additive value ``A_o``, which
+    is what a GWAS phenotype should predict; the indirect path contributes to
+    the proband's *liability* without being part of their direct effect.
+
+    The resulting entries are no longer a function of kinship. Writing ``h`` for
+    ``h2`` and ``n`` for ``nurture``, parent-offspring covariance becomes
+    ``h/2 + n*h`` while sib-sib becomes ``h/2 + 2*n*h + 2*n^2*h`` -- inflated by
+    *different* amounts, which is what makes ``n`` identifiable from a nuclear
+    family. Meanwhile ``Cov(A_o, l_m)`` stays at ``h/2``: nurture changes how the
+    mother's liability relates to the child, not how her genotype relates to the
+    child's own genetic value. That asymmetry between the ``g`` row and the ``o``
+    row is precisely what a single symmetric kinship-scaled matrix cannot
+    express.
+
+    ``nurture = 0`` reproduces :func:`construct_covmat_single` exactly.
+
+    Only nuclear roles are accepted (``m``, ``f``, ``s...``). Grandparents and
+    lateral relatives would require propagating the path model up the pedigree,
+    which changes the parents from founders into offspring of their own parents;
+    that recursion is not implemented, and silently treating them as founders
+    would understate the covariance.
+
+    Offspring liabilities are standardised to unit variance, so thresholds keep
+    their prevalence meaning. This requires
+    ``1 - h2 - 2*n^2*h2 - 2*n*h2 >= 0``; the shared nurture term is variance the
+    residual has to give up.
+
+    .. note::
+       The sib-sib inflation ``2*n*h + 2*n^2*h`` is shared by all offspring of
+       the couple, so on sibling covariance alone genetic nurture is
+       indistinguishable from a sibship environment ``C``. Parent-offspring
+       covariance is what separates them: ``C`` leaves it untouched, nurture
+       raises it by ``n*h``. Fitting both from sibs only is not identified.
+    """
+    if not (0.0 < h2 <= 1.0):
+        raise ValueError(
+            "h2 must be in (0, 1] -- a zero direct heritability makes the "
+            "genetic target identically zero, leaving its row degenerate")
+    n = float(nurture)
+    resid = 1.0 - h2 - 2.0 * n * n * h2 - 2.0 * n * h2
+    if resid < -1e-12:
+        raise ValueError(
+            "the offspring residual variance would be negative "
+            f"(1 - h2 - 2*nurture^2*h2 - 2*nurture*h2 = {resid:.4f}); the "
+            "shared nurture term takes variance the residual must give up, so "
+            "reduce h2 or |nurture|")
+
+    roles = _expand_family(list(fam_vec) if fam_vec is not None else None,
+                           n_fam, add_ind)
+    bad = sorted({r for r in roles if not _NURTURE_ROLES.match(r)})
+    if bad:
+        raise ValueError(
+            f"the genetic-nurture covariance is nuclear-only; got {bad}. "
+            "Grandparents and lateral relatives need the path model propagated "
+            "up the pedigree, which stops the parents being founders; that "
+            "recursion is not implemented.")
+    if not roles:
+        return Covmat(np.empty((0, 0)), [], h2=h2)
+
+    po = h2 / 2.0 + n * h2                       # parent - offspring liability
+    ss = h2 / 2.0 + 2.0 * n * h2 + 2.0 * n * n * h2   # sib - sib liability
+
+    def entry(a, b):
+        pair = {a, b}
+        if a == b:
+            return h2 if a == "g" else 1.0       # g carries the direct variance
+        if "g" in pair:
+            other = b if a == "g" else a
+            if other == "o":
+                return h2 * (1.0 + n)            # own value plus the nurture it shares
+            if other in ("m", "f"):
+                return h2 / 2.0                  # transmission only: nurture-free
+            return h2 / 2.0 + n * h2             # sib: shares the parental nurture
+        if pair == {"m", "f"}:
+            return 0.0                           # random mating
+        if "o" in pair or all(r.startswith("s") for r in pair):
+            return po if pair & {"m", "f"} else ss
+        return po                                # parent with a sib
+
+    d = len(roles)
+    cov = np.empty((d, d), dtype=np.float64)
+    for i, ri in enumerate(roles):               # symmetric: fill upper, mirror
+        for j in range(i, d):
+            val = entry(ri, roles[j])
+            cov[i, j] = val
+            cov[j, i] = val
+    return Covmat(cov, roles, h2=h2)
+
+
 def construct_covmat_multi(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
                            n_fam=None, add_ind=True, *, genetic_corrmat,
                            full_corrmat, h2_vec, phen_names=None):

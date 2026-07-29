@@ -32,6 +32,7 @@ is also a top-level export.
 | `estimate_liability_pa_arrays` / `_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
 | `fit_variance_components` | **fit** additive `A` + shared-environment `C` (sibship) / `M` (couple) as proportions |
 | `fit_genetic_correlation` | **fit** the genetic correlation `r_g` between traits (cross-trait HE regression) |
+| `fit_nurture` | **fit** direct `h²` and the indirect (genetic-nurture) coefficient, closed-form from two liability covariances |
 | `fit_genetic_correlation_decay` | **fit** an onset-age-decaying `r_g` + decay rate `λ` (Monte-Carlo EM; data-hungry) |
 | `fit_genetic_factor` | **fit** a common-factor model `r_g ≈ ΛΛ' + Ψ` (Genomic-SEM-lite) |
 | `bootstrap_fit` | iid-family cluster bootstrap SD / percentile interval for a stable-shape statistic |
@@ -50,6 +51,7 @@ follow NumPy's `default_rng` contract.
 | `tnorm_moments` / `tnorm_mixture_conditional` | truncated-normal moments (+ censoring mixture) |
 | `construct_covmat` / `_single` / `_multi` | family covariance from relatedness |
 | `construct_covmat_sex_limited` | sex-specific `h²` and cross-sex `r_g` in the covariance |
+| `construct_covmat_nurture` | direct vs indirect (genetic-nurture) path model |
 | `get_relatedness` | shared-DNA × `h²` for a pair of roles |
 | `construct_covmat_from_kinship` | liability covariance from a kinship/`A` matrix |
 | `rtmvnorm_gibbs` | truncated-MVN Gibbs sampler |
