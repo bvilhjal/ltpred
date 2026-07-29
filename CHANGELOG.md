@@ -6,6 +6,8 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.2.0 — 2026-07-29
+
 ### Added
 
 - `construct_covmat_sex_limited` puts sex into the covariance rather than only
