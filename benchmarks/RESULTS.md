@@ -819,37 +819,61 @@ Proband and sibling sexes are balanced across the four cells. `K_female = 0.05`,
 | sex in Sigma (true) | sex-specific `K` | true `(h2_F, h2_M, rg)` |
 | sex in Sigma (rg=1) | sex-specific `K` | true `h2` pair, `rg` wrongly 1 |
 
-**(a) Sweeping the true `rg`** at `h2_F = 0.6`, `h2_M = 0.2`:
+**(a) Sweeping the true `rg`** at `h2_F = 0.6`, `h2_M = 0.2`. `eff-N` is the
+squared-correlation effective-N proxy for the covariance fix, thresholds held
+fixed:
 
-| true rg | sex thresholds | sex in Sigma | Sigma with rg=1 | gain (Sigma − thresholds) |
+| true rg | sex thresholds | sex in Sigma | gain | eff-N proxy |
 |---:|---:|---:|---:|---:|
-| 1.0 | 0.3663 | 0.4100 | 0.4100 | +0.0437 ± 0.0035 |
-| 0.8 | 0.3703 | 0.4115 | 0.4108 | +0.0412 ± 0.0073 |
-| 0.6 | 0.3573 | 0.4055 | 0.4018 | +0.0482 ± 0.0060 |
-| 0.4 | 0.3430 | 0.3978 | 0.3885 | +0.0548 ± 0.0048 |
-| 0.2 | 0.3430 | 0.4030 | 0.3890 | +0.0601 ± 0.0056 |
+| 1.0 | 0.3663 | 0.4100 | +0.0437 ± 0.0035 | 1.255x ± 0.036 |
+| 0.8 | 0.3703 | 0.4115 | +0.0412 ± 0.0073 | 1.238x ± 0.053 |
+| 0.6 | 0.3573 | 0.4055 | +0.0482 ± 0.0060 | 1.290x ± 0.044 |
+| 0.4 | 0.3430 | 0.3978 | +0.0548 ± 0.0048 | 1.349x ± 0.047 |
+| 0.2 | 0.3430 | 0.4030 | +0.0601 ± 0.0056 | 1.384x ± 0.057 |
 
 **(b) Sweeping the heritability gap** at `rg = 1`, mean `h2 = 0.4`:
 
-| gap | sex thresholds | sex in Sigma | gain |
-|---:|---:|---:|---:|
-| 0.0 | 0.4100 | 0.4100 | +0.0000 ± 0.0000 |
-| 0.2 | 0.3929 | 0.4056 | +0.0127 ± 0.0030 |
-| 0.4 | 0.3657 | 0.4042 | +0.0385 ± 0.0052 |
-| 0.6 | 0.3402 | 0.4365 | +0.0963 ± 0.0087 |
+| gap | sex thresholds | sex in Sigma | gain | eff-N proxy |
+|---:|---:|---:|---:|---:|
+| 0.0 | 0.4100 | 0.4100 | +0.0000 ± 0.0000 | 1.000x ± 0.000 |
+| 0.2 | 0.3929 | 0.4056 | +0.0127 ± 0.0030 | 1.066x ± 0.016 |
+| 0.4 | 0.3657 | 0.4042 | +0.0385 ± 0.0052 | 1.222x ± 0.032 |
+| 0.6 | 0.3402 | 0.4365 | +0.0963 ± 0.0087 | 1.651x ± 0.093 |
 
 At gap 0 with `rg = 1` the sex-limited covariance **is** the scalar covariance,
 so the arms are bit-identical and the gain is exactly zero -- the benchmark's
 own sanity check.
 
-The gain is real but conditional. It grows with the heritability gap
-(`+0.013` at 0.2, `+0.096` at 0.6) and with departure of `rg` from 1
-(`+0.044` at `rg = 1` rising to `+0.060` at `rg = 0.2`, on top of the gap
-already present there). Mis-specifying `rg` as 1 when it is truly 0.2 costs
-`0.4030 -> 0.3890`, about a quarter of the gain: worth getting approximately
-right, not catastrophic to get wrong. **A sex-limited model with no sex
-difference to find buys nothing**, which is the case a practitioner should
-expect by default.
+The gain is real but conditional, and modest until the sex difference is large:
+`1.07x` at a heritability gap of 0.2, `1.22x` at 0.4, `1.65x` at 0.6.
+**A sex-limited model with no sex difference to find buys nothing**, which is
+the case a practitioner should expect by default. Mis-specifying `rg` as 1 when
+it is truly 0.2 costs about a quarter of the gain: worth getting approximately
+right, not catastrophic to get wrong.
+
+**(c) Mechanism.** `rg` discounts cross-sex pairs and nothing else, so its
+effect must vanish in an all-same-sex family and concentrate in an all-cross-sex
+one. Two matched compositions -- proband + mother + sister, versus proband +
+father + brother -- give the proband exactly two first-degree relatives each,
+so they are matched on relatedness and differ *only* in sex configuration.
+Heritability is equal for both sexes here (`h2 = 0.5`), so scalar limitation
+cannot contribute and every bit of any gain is attributable to `rg`:
+
+| true rg | composition | sex thresholds | sex in Sigma | gain |
+|---:|---|---:|---:|---:|
+| 1.0 | same-sex | 0.3993 | 0.3993 | +0.0000 ± 0.0000 |
+| 0.6 | same-sex | 0.3993 | 0.3993 | +0.0000 ± 0.0000 |
+| 0.2 | same-sex | 0.3993 | 0.3993 | +0.0000 ± 0.0000 |
+| 1.0 | cross-sex | 0.4276 | 0.4276 | +0.0000 ± 0.0000 |
+| 0.6 | cross-sex | 0.3741 | 0.3843 | +0.0102 ± 0.0052 |
+| 0.2 | cross-sex | 0.3046 | 0.3503 | +0.0457 ± 0.0113 |
+
+The effect appears in exactly the cells the model predicts and nowhere else:
+identically zero across every same-sex row regardless of `rg`, zero in the
+cross-sex family when `rg = 1`, and monotone in the remaining two. This is a
+mechanistic confirmation rather than an association -- the parameter acts on
+the pairs it is defined to act on. It also shows where the model is worth
+reaching for: pedigrees rich in opposite-sex relatives, not same-sex ones.
 
 **Calibration is the cleaner signal.** Only the sex-limited covariance is
 calibrated; the slope sits at `0.981-1.034` across every cell. The
