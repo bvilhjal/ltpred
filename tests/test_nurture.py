@@ -157,3 +157,71 @@ def test_negative_nurture_is_allowed():
     i = _index(cov)
     assert cov.matrix[i["o"], i["m"]] < 0.5 / 2 + 1e-12
     assert np.linalg.eigvalsh(cov.matrix).min() > 1e-10
+
+
+# --- fitting: recovering (h2, nurture) rather than supplying them -------------
+
+@pytest.mark.parametrize("h2,n", [(0.4, 0.3), (0.5, 0.1), (0.2, 0.25),
+                                  (0.7, -0.15), (0.6, 0.0)])
+def test_fit_nurture_inverts_the_constructor_exactly(h2, n):
+    """The moment estimator is a closed-form inverse, not an approximation."""
+    from ltpred.fit import fit_nurture
+    cov = construct_covmat_nurture(NUCLEAR, h2=h2, nurture=n)
+    i = _index(cov)
+    fit = fit_nurture(cov.matrix[i["o"], i["m"]], cov.matrix[i["o"], i["s1"]])
+    assert fit.h2 == pytest.approx(h2, abs=1e-12)
+    assert fit.nurture == pytest.approx(n, abs=1e-12)
+
+
+def test_fit_nurture_disagreement_is_zero_exactly_when_no_indirect_path():
+    """The diagnostic must not fire on a purely additive trait."""
+    from ltpred.fit import fit_nurture
+    cov = construct_covmat_nurture(NUCLEAR, h2=0.6, nurture=0.0)
+    i = _index(cov)
+    fit = fit_nurture(cov.matrix[i["o"], i["m"]], cov.matrix[i["o"], i["s1"]])
+    assert fit.disagreement == pytest.approx(0.0, abs=1e-12)
+    assert fit.h2_additive_po == pytest.approx(fit.h2_additive_sib)
+    # and both agree with the direct h2, as an additive model should
+    assert fit.h2_additive_po == pytest.approx(0.6)
+
+
+def test_fit_nurture_recovers_truth_from_simulated_liabilities():
+    """Sampling, not algebra: covariances estimated from draws."""
+    from ltpred.fit import fit_nurture
+    h2, n = 0.4, 0.25
+    cov = construct_covmat_nurture(NUCLEAR, h2=h2, nurture=n)
+    i = _index(cov)
+    rng = np.random.default_rng(11)
+    d = rng.multivariate_normal(np.zeros(len(cov.roles)), cov.matrix,
+                                size=80_000, method="eigh")
+    po = 0.5 * (np.cov(d[:, i["o"]], d[:, i["m"]])[0, 1]
+                + np.cov(d[:, i["o"]], d[:, i["f"]])[0, 1])
+    ss = np.cov(d[:, i["o"]], d[:, i["s1"]])[0, 1]
+    fit = fit_nurture(po, ss)
+    assert fit.h2 == pytest.approx(h2, abs=0.03)
+    assert fit.nurture == pytest.approx(n, abs=0.03)
+
+
+def test_fit_nurture_reports_a_contrast_effect_rather_than_clipping_it():
+    """Sib covariance below parent-offspring means negative nurture."""
+    from ltpred.fit import fit_nurture
+    cov = construct_covmat_nurture(NUCLEAR, h2=0.7, nurture=-0.15)
+    i = _index(cov)
+    fit = fit_nurture(cov.matrix[i["o"], i["m"]], cov.matrix[i["o"], i["s1"]])
+    assert fit.nurture < 0
+    assert fit.disagreement < 0
+
+
+@pytest.mark.parametrize("po,ss", [(0.0, 0.5), (-0.1, 0.5), (0.3, 0.0), (0.3, -0.2)])
+def test_fit_nurture_rejects_non_positive_covariances(po, ss):
+    from ltpred.fit import fit_nurture
+    with pytest.raises(ValueError, match="must be positive"):
+        fit_nurture(po, ss)
+
+
+def test_fit_nurture_rejects_covariances_no_valid_model_produces():
+    from ltpred.fit import fit_nurture
+    with pytest.raises(ValueError, match="outside \\(0, 1\\]"):
+        fit_nurture(0.9, 0.5)          # implied h2 = 3.24
+    with pytest.raises(ValueError, match="negative residual variance"):
+        fit_nurture(0.45, 0.9)         # implied h2 = 0.45, n = 0.5

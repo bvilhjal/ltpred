@@ -69,7 +69,8 @@ _EXPORTS = {
             "fit_genetic_correlation_decay", "DecayGenCorrResult",
             "fit_genetic_factor", "FactorResult",
             "bootstrap_fit", "BootstrapResult", "test_variance_component",
-            "test_genetic_correlation", "SignificanceTest"],
+            "test_genetic_correlation", "SignificanceTest",
+            "fit_nurture", "NurtureFit"],
     "_numba": ["set_num_threads"],
 }
 

@@ -225,6 +225,32 @@ Offspring liabilities are standardised to unit variance, so thresholds keep
 their prevalence meaning; this requires `1 - h - 2*n^2*h - 2*n*h >= 0`, since
 the shared nurture term takes variance the residual must give up.
 
+**Fitting `n`.** Unlike the sex-limitation parameters, `n` need not be
+supplied. The two moment equations
+
+```text
+cov_parent_offspring = h*(1 + 2n)/2
+cov_sib_sib          = h*(1 + 2n)^2/2
+```
+
+are two equations in two unknowns, and the ratio isolates the indirect path, so
+`fit_nurture` inverts them in closed form rather than iteratively:
+
+```text
+1 + 2n = cov_sib_sib / cov_parent_offspring
+h      = 2 * cov_parent_offspring^2 / cov_sib_sib
+```
+
+Both inputs are liability-scale covariances between the two relative types; from
+binary data obtain them with `ltpred.tetrachoric` rather than from
+observed-scale correlations. It is a moment estimator, so it carries no standard
+errors and inherits whatever bias the input covariances have. It also reports
+`h2_additive_po` and `h2_additive_sib` -- what a nurture-blind additive model
+would claim from each relative type alone -- whose **disagreement is the
+diagnostic**, and which is zero exactly when `n` is zero. A sibling covariance
+*below* the parent-offspring one yields a negative `n` (a contrast effect),
+returned rather than clipped.
+
 **Scope.** Nuclear roles only (`m`, `f`, `s...`). Extending to grandparents
 means propagating the path model up the pedigree, which stops the parents being
 founders -- their liabilities would gain their own nurture terms from the
@@ -232,7 +258,7 @@ grandparents. That recursion is not implemented, and silently treating a
 grandparent as a founder would understate the covariance, so those roles are
 rejected. Like the other covariance constructors, the result is an ordinary
 `Covmat` and feeds `pa_algorithm` / `rtmvnorm_gibbs` / `pa_estimate_batched`
-directly; `n` is supplied, not fitted.
+directly.
 
 ### Sex-limited genetic architecture
 

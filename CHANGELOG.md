@@ -21,6 +21,15 @@ version is 0 the public API may still change between minor releases.
   simulation of the path model. Note that on sibling covariance alone nurture is
   indistinguishable from a sibship `C`; parent-offspring covariance is what
   separates them.
+- `fit_nurture` makes the indirect coefficient a **fitted** quantity rather than
+  a supplied one. The parent-offspring and sib-sib moments are two equations in
+  two unknowns, so the ratio isolates the indirect path and the estimates are
+  closed-form and exact: `1 + 2n = cov_sib / cov_parent_offspring`,
+  `h2 = 2*cov_parent_offspring^2 / cov_sib`. It also reports what a
+  nurture-blind additive model would claim from each relative type alone, whose
+  disagreement is the diagnostic for an indirect path and is zero exactly when
+  `n` is zero. A moment estimator: no standard errors, and inputs must be
+  liability-scale (use `ltpred.tetrachoric` on binary data).
 
 ## 0.2.0 — 2026-07-29
 
