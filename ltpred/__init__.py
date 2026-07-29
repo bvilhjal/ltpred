@@ -36,6 +36,7 @@ __version__ = "0.2.0"
 _EXPORTS = {
     "covariance": ["get_relatedness", "construct_covmat", "construct_covmat_single",
                    "construct_covmat_multi", "construct_covmat_sex_limited",
+                   "construct_covmat_nurture",
                    "correct_positive_definite", "Covmat",
                    "kinship_from_pedigree", "construct_covmat_from_kinship"],
     "cip": ["CipCurve", "kaplan_meier_cip", "aalen_johansen_cip"],

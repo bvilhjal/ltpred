@@ -176,6 +176,64 @@ estimable, and the couple term is further confounded with assortative mating.
 Extending `_COMPONENT_OFFDIAG` past the shipped `A`/`C`/`M` bank with valid PSD
 kernels is the natural next step; the rank-deficiency guard already generalises.
 
+### Direct and indirect (genetic-nurture) effects
+
+Caution (i) above says a symmetric shared-environment matrix is not a maternal
+effect, because that is a *directional* path. `construct_covmat_nurture` builds
+the directional model instead, from the path structure rather than from
+kinship:
+
+```text
+A_o = (A_m + A_f)/2 + w_o              # transmission + Mendelian sampling
+l_o = A_o + n*(A_m + A_f) + e_o        # own genes, plus parental nurture
+l_m = A_m + e_m                        # parents are founders here
+```
+
+`n` (`nurture`) scales the **indirect** path: the parents' genotypes shaping the
+offspring's environment. The target row `g` remains the proband's **own**
+additive value `A_o` -- what a GWAS phenotype should predict -- while the
+indirect path contributes to their *liability* without being part of their
+direct effect.
+
+Writing `h` for `h2`, the entries are no longer `2*phi * h`:
+
+| pair | additive model | with nurture |
+|---|---|---|
+| parent - offspring liability | `h/2` | `h/2 + n*h` |
+| sib - sib liability | `h/2` | `h/2 + 2*n*h + 2*n^2*h` |
+| `Cov(A_o, l_parent)` | `h/2` | `h/2` (unchanged) |
+| `Cov(A_o, l_o)` | `h` | `h*(1 + n)` |
+
+Three things follow. **The two familial covariances inflate by different
+amounts**, which is what makes `n` identifiable from a nuclear family at all.
+**The `g` row does not inflate**: nurture changes how a parent's *liability*
+relates to the child, not how their *genotype* relates to the child's own
+genetic value. That asymmetry between the `g` row and the `o` row is exactly
+what one symmetric kinship-scaled matrix cannot express, and it is why this
+needed a separate constructor rather than another entry in the `A`/`C`/`M`
+component bank. **`n = 0` reproduces `construct_covmat_single` exactly.**
+
+**The identifiability trap.** The sib-sib inflation `2*n*h + 2*n^2*h` is shared
+by every offspring of the couple, so *on sibling covariance alone genetic
+nurture is indistinguishable from a sibship environment `C`*. What separates
+them is the parent-offspring covariance: `C` leaves it untouched, nurture
+raises it by `n*h`. Fitting both from sibs only is not identified, and a study
+with no parental phenotypes cannot tell the two apart at all -- it will load
+whichever one it is offered.
+
+Offspring liabilities are standardised to unit variance, so thresholds keep
+their prevalence meaning; this requires `1 - h - 2*n^2*h - 2*n*h >= 0`, since
+the shared nurture term takes variance the residual must give up.
+
+**Scope.** Nuclear roles only (`m`, `f`, `s...`). Extending to grandparents
+means propagating the path model up the pedigree, which stops the parents being
+founders -- their liabilities would gain their own nurture terms from the
+grandparents. That recursion is not implemented, and silently treating a
+grandparent as a founder would understate the covariance, so those roles are
+rejected. Like the other covariance constructors, the result is an ordinary
+`Covmat` and feeds `pa_algorithm` / `rtmvnorm_gibbs` / `pa_estimate_batched`
+directly; `n` is supplied, not fitted.
+
 ### Sex-limited genetic architecture
 
 Everywhere else in ltpred, sex enters through the **threshold**: a sex-specific

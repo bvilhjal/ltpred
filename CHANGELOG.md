@@ -6,6 +6,22 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Added
+
+- `construct_covmat_nurture` separates a proband's **direct** genetic effect
+  from parental **indirect** (genetic-nurture) effects, building the covariance
+  from the path model rather than from kinship. Parent-offspring covariance
+  becomes `h2/2 + n*h2` and sib-sib `h2/2 + 2*n*h2 + 2*n^2*h2` -- inflated by
+  different amounts, which is what identifies `n` -- while `Cov(A_o, l_parent)`
+  stays at `h2/2`, since nurture changes how a parent's liability relates to the
+  child, not how their genotype relates to the child's own genetic value. That
+  asymmetry is what a single symmetric kinship-scaled matrix cannot express.
+  `nurture = 0` reproduces `construct_covmat_single` exactly. Nuclear roles
+  only; the closed form was verified against a 4,000,000-family Monte-Carlo
+  simulation of the path model. Note that on sibling covariance alone nurture is
+  indistinguishable from a sibship `C`; parent-offspring covariance is what
+  separates them.
+
 ## 0.2.0 — 2026-07-29
 
 ### Added
