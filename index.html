@@ -282,7 +282,7 @@
       </div>
       <div class="card">
         <div class="k">Validate</div>
-        <h3>Twenty-six reproducible benchmarks</h3>
+        <h3>Twenty-seven reproducible benchmarks</h3>
         <p>The simulation suite covers PA accuracy and speed, calibration, genomic control, scaling, power, model-fitting recovery, CIP estimation, pedigree inference and the end-to-end register pipeline. The PA-FGRS censoring mixture now has a generative validation too: correctly implemented and never costly to correlation, though its censoring correction is small at the tested settings — case encoding dominates calibration there.</p>
         <div class="fns"><span class="fn">benchmarks/</span><span class="fn">RESULTS.md</span></div>
       </div>
@@ -349,9 +349,9 @@
       <div class="stat"><div class="v">≥ 0.997</div><div class="l">correlation of PA and Gibbs posterior means across tested ordinary-PA cells</div></div>
       <div class="stat"><div class="v">315–510<small>×</small></div><div class="l">ordinary-PA speed-up over Gibbs on matched bounds</div></div>
       <div class="stat"><div class="v">1.1–2.5<small>×</small></div><div class="l">squared-correlation effective-N proxy over case/control, across tested cells</div></div>
-      <div class="stat"><div class="v">26</div><div class="l">simulation benchmarks, truth known in each</div></div>
+      <div class="stat"><div class="v">27</div><div class="l">simulation benchmarks, truth known in each</div></div>
     </div>
-    <p class="benchlist"><code>bench_accuracy</code>, <code>bench_calibration</code>, <code>bench_confounding</code>, <code>bench_pa_robustness</code>, <code>bench_scaling</code>, <code>bench_age_onset</code>, <code>bench_gwas_power</code>, <code>bench_fit_heritability</code>, <code>bench_variance_components</code>, <code>bench_genetic_correlation</code>, <code>bench_genetic_factor</code>, <code>bench_shared_env</code>, <code>bench_couple_env</code>, <code>bench_fh_prediction</code>, and the integrated <code>bench_ltfhpp_personalization</code> (age-, sex-, and cohort-dependent CIP, coherent onset/censoring, ascertainment, and a matched family-free ADuLT arm) cover ascertainment, calibration, genomic-control confounding, birth-cohort and competing-risk mortality. Ten more follow: <code>bench_pafgrs_mixture</code>, <code>bench_inference_calibration</code>, <code>bench_misspecification</code>, <code>bench_cip_estimation</code>, <code>bench_pedigree_inference</code>, <code>bench_register_pipeline</code>, <code>bench_tetrachoric</code>, <code>bench_liability_scale</code>, <code>bench_env_components</code>, <code>bench_aod_decay</code> and <code>bench_sex_limitation</code>. Each is written up with tables in <code>RESULTS.md</code>.</p>
+    <p class="benchlist"><code>bench_accuracy</code>, <code>bench_calibration</code>, <code>bench_confounding</code>, <code>bench_pa_robustness</code>, <code>bench_scaling</code>, <code>bench_age_onset</code>, <code>bench_gwas_power</code>, <code>bench_fit_heritability</code>, <code>bench_variance_components</code>, <code>bench_genetic_correlation</code>, <code>bench_genetic_factor</code>, <code>bench_shared_env</code>, <code>bench_couple_env</code>, <code>bench_fh_prediction</code>, and the integrated <code>bench_ltfhpp_personalization</code> (age-, sex-, and cohort-dependent CIP, coherent onset/censoring, ascertainment, and a matched family-free ADuLT arm) cover ascertainment, calibration, genomic-control confounding, birth-cohort and competing-risk mortality. Ten more follow: <code>bench_pafgrs_mixture</code>, <code>bench_inference_calibration</code>, <code>bench_misspecification</code>, <code>bench_cip_estimation</code>, <code>bench_pedigree_inference</code>, <code>bench_register_pipeline</code>, <code>bench_tetrachoric</code>, <code>bench_liability_scale</code>, <code>bench_env_components</code>, <code>bench_aod_decay</code>, <code>bench_sex_limitation</code> and <code>bench_nurture</code>. Each is written up with tables in <code>RESULTS.md</code>.</p>
 
     <div class="charts2">
       <div class="chart">
