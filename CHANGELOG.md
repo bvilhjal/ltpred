@@ -6,6 +6,8 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.2.0 — 2026-07-29
+
 ### Added
 
 - `construct_covmat_nurture` separates a proband's **direct** genetic effect
@@ -30,11 +32,6 @@ version is 0 the public API may still change between minor releases.
   disagreement is the diagnostic for an indirect path and is zero exactly when
   `n` is zero. A moment estimator: no standard errors, and inputs must be
   liability-scale (use `ltpred.tetrachoric` on binary data).
-
-## 0.2.0 — 2026-07-29
-
-### Added
-
 - `construct_covmat_sex_limited` puts sex into the covariance rather than only
   the thresholds: sex-specific heritabilities and a cross-sex genetic
   correlation, `Cov(g_i, g_j) = 2*phi_ij * sqrt(h2_i * h2_j) *
@@ -87,7 +84,7 @@ package [LTFHPlus](https://github.com/EmilMiP/LTFHPlus).
 - Sibship (`C`) and couple (`M`) shared-environment components, accepted as
   `c2`/`m2` by the single-trait role/object and array estimators. The tagged
   high-level multi-trait dispatcher exposed these arguments but did not apply
-  them; this is fixed under Unreleased above.
+  them; this is fixed under 0.2.0 above.
 - Threshold builders (`prevalence_thresholds`, `age_thresholds`, `pa_thresholds`,
   `thresholds_from_cip`), CIP estimation from follow-up records
   (Kaplan–Meier and Aalen–Johansen, `ltpred.cip`), pedigree discovery from trio
@@ -111,7 +108,7 @@ package [LTFHPlus](https://github.com/EmilMiP/LTFHPlus).
 `fit_heritability`, `fit_variance_components`, and
 `fit_genetic_correlation` reject person-specific, two-sided, or pinned bounds;
 the guard also precedes the variance-component likelihood aliases. The
-Unreleased changes above remove that geometry-only restriction while retaining
+0.2.0 changes above remove that geometry-only restriction while retaining
 ordinary bounds validation and documenting the caller's observation-model
 responsibility.
 
