@@ -36,6 +36,12 @@ python benchmarks/run_benchmark.py bench_accuracy.py -- --reps 5
 The wrapper appends one JSON object to `benchmarks/run_manifest.jsonl` with the
 exact command, UTC times, exit status, Git commit, tracked-diff hash, content
 hashes for untracked source files, package versions, and thread settings. It
+also records the machine the run happened on — architecture, CPU model, logical
+and physical core counts — and the thread count Numba actually resolved to, so
+timings taken on different hardware or a different Numba can be told apart
+rather than compared blind. The `ltpred` version comes from the checkout the
+benchmarks import, not from installed distribution metadata, which can be a
+stale `egg-info` left over from an earlier build. It
 captures stdout and stderr in run-specific logs and records their SHA-256
 hashes alongside hashes of changed top-level `bench_*.{csv,png}` artifacts.
 Custom output paths are not discovered automatically. The manifest is

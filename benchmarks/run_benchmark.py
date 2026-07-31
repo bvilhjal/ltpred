@@ -18,6 +18,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -92,7 +93,95 @@ def _package_versions():
             versions[package] = metadata.version(package)
         except metadata.PackageNotFoundError:
             versions[package] = None
+    # The benchmarks put ROOT on `sys.path` and import the checkout, so record
+    # that version rather than installed distribution metadata: a leftover
+    # `ltpred.egg-info` reports whatever was last built, which silently
+    # disagrees with the code actually under test after a version bump.
+    # `__version__` is the declared source of truth (see docs/RELEASING.md).
+    checkout = _checkout_version()
+    if checkout is not None:
+        versions["ltpred"] = checkout
     return versions
+
+
+def _checkout_version():
+    try:
+        text = (ROOT / "ltpred" / "__init__.py").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    match = re.search(r"""^__version__\s*=\s*["']([^"']+)["']""", text, re.M)
+    return match.group(1) if match else None
+
+
+def _sysctl(name):
+    try:
+        out = subprocess.run(
+            ["sysctl", "-n", name], capture_output=True, text=True, timeout=5
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.stdout.strip() or None if out.returncode == 0 else None
+
+
+def _cpu_model():
+    if sys.platform == "darwin":
+        return _sysctl("machdep.cpu.brand_string")
+    if sys.platform.startswith("linux"):
+        try:
+            with open("/proc/cpuinfo", encoding="utf-8") as fh:
+                for line in fh:
+                    if line.startswith("model name"):
+                        return line.split(":", 1)[1].strip()
+        except OSError:
+            return None
+    return None
+
+
+def _physical_cpus():
+    if sys.platform == "darwin":
+        count = _sysctl("hw.physicalcpu")
+        return int(count) if count and count.isdigit() else None
+    return None
+
+
+def _machine_profile():
+    # Runtimes are only comparable across machines when the architecture and
+    # core count travel with them; `platform.platform()` alone does not carry
+    # the CPU model or how many cores the run actually had.
+    try:
+        available = len(os.sched_getaffinity(0))
+    except AttributeError:  # not on macOS
+        available = os.cpu_count()
+    return {
+        "system": platform.system(),
+        "release": platform.release(),
+        "arch": platform.machine(),
+        "processor": platform.processor() or None,
+        "cpu_model": _cpu_model(),
+        "logical_cpus": os.cpu_count(),
+        "physical_cpus": _physical_cpus(),
+        "available_cpus": available,
+        "python_implementation": platform.python_implementation(),
+    }
+
+
+def _numba_runtime():
+    # `thread_settings` records what was *requested*; this records what Numba
+    # resolved to, which is what the timing benchmarks actually depend on.
+    try:
+        import numba
+    except ImportError:
+        return {"available": False}
+    try:
+        num_threads = numba.get_num_threads()
+    except Exception:  # threading layer may not initialise on every host
+        num_threads = None
+    return {
+        "available": True,
+        "num_threads": num_threads,
+        "config_num_threads": getattr(numba.config, "NUMBA_NUM_THREADS", None),
+        "threading_layer": getattr(numba.config, "THREADING_LAYER", None),
+    }
 
 
 def _artifact_state():
@@ -192,7 +281,7 @@ def main():
     sys.stderr.flush()
 
     record = {
-        "schema_version": 1,
+        "schema_version": 2,
         "script": str(script.relative_to(ROOT)),
         "command": command,
         "started_at_utc": started.isoformat(),
@@ -203,6 +292,8 @@ def main():
         "environment": {
             "python": sys.version,
             "platform": platform.platform(),
+            "machine": _machine_profile(),
+            "numba_runtime": _numba_runtime(),
             "packages": _package_versions(),
             "thread_settings": {
                 name: os.environ.get(name)

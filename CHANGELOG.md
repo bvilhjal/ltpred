@@ -4,7 +4,7 @@ All notable changes to ltpred are recorded here. This project follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html); while the major
 version is 0 the public API may still change between minor releases.
 
-## Unreleased
+## 0.3.0 — 2026-07-31
 
 ### Changed (breaking)
 
