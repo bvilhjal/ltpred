@@ -249,11 +249,12 @@
 
   <section>
     <div class="sec-head"><span class="n">02</span><h2>What the package does</h2></div>
+    <div class="prose" style="margin-bottom:28px"><p>The supported surface is deliberately small: a lean estimation core, benchmarked and covered by the compatibility policy. Heavier prototypes — the MCEM likelihood fit, genetic-correlation and common-factor models, the sex-limited and genetic-nurture covariances, the register pipeline — live in an unsupported <code>research/</code> package that ships with the repository but is not installed with the distribution. A capability rejoins <code>ltpred</code> proper only once it is wired into the core estimation path and benchmarked.</p></div>
     <div class="cards">
       <div class="card">
         <div class="k">Estimate</div>
         <h3>Posterior genetic liability</h3>
-        <p>The core score. A truncated-MVN Gibbs sampler for single- or multi-trait analysis, plus a deterministic single-trait Pearson–Aitken back-end and array fast paths. The curated package root re-exports the single-trait workflow; multi-trait estimation is imported from <code>ltpred.estimate</code>.</p>
+        <p>The core score. One entry point covers both regimes: deterministic Pearson–Aitken by default for a single trait, and the truncated-MVN Gibbs sampler once a correlation matrix makes the request multi-trait — PA is single-trait only. The array fast paths, which take already-aligned bounds instead of <code>Family</code> objects, are imported from <code>ltpred.estimate</code>.</p>
         <div class="fns"><span class="fn">estimate_liability</span><span class="fn">…_pa_arrays</span><span class="fn">…_gibbs_arrays</span></div>
       </div>
       <div class="card">
@@ -265,7 +266,7 @@
       <div class="card">
         <div class="k">Fit</div>
         <h3>Variance components &amp; factors</h3>
-        <p>Estimate h² and shared-environment components (A + sibship C + couple M) by multiple Haseman–Elston, with family-cluster bootstrap intervals under their sampling assumptions. Fitted C/M feed back into single-trait role/object and array predictors via the <code>c2</code>/<code>m2</code> arguments; the high-level multi-trait route rejects them until a cross-trait component covariance is defined. The MCEM likelihood fit, genetic-correlation and common-factor fits, and parametric-bootstrap tests live in the unsupported <code>research/</code> package (<code>research.advanced_fitting</code>).</p>
+        <p>Estimate h² and shared-environment components (A + sibship C + couple M) by multiple Haseman–Elston, with family-cluster bootstrap intervals under their sampling assumptions. Both core fitters model independent, non-overlapping population-sampled families only, and now require <code>sampling="population"</code> as an explicit acknowledgement rather than assuming it silently; no ascertained-sample mode is implemented. Fitted C/M feed back into single-trait role/object and array predictors via the <code>c2</code>/<code>m2</code> arguments; the high-level multi-trait route rejects them until a cross-trait component covariance is defined. The MCEM likelihood fit, genetic-correlation and common-factor fits, and parametric-bootstrap tests live in the unsupported <code>research/</code> package (<code>research.advanced_fitting</code>).</p>
         <div class="fns"><span class="fn">fit_heritability</span><span class="fn">fit_variance_components</span><span class="fn">bootstrap_fit</span></div>
       </div>
       <div class="card">
@@ -277,14 +278,14 @@
       <div class="card">
         <div class="k">Scale</div>
         <h3>Biobank-ready performance</h3>
-        <p>Numba-JIT, <code>prange</code>-parallel kernels; families grouped by structure; streaming batch-means standard errors at O(F) memory; optional float32 bounds. <code>gibbs_estimate_batched</code> is imported from <code>ltpred.gibbs</code>. The ordinary PA engine ran ~150k–310k families/second (object path), millions/s through the array API.</p>
+        <p>Numba-JIT, <code>prange</code>-parallel kernels; families grouped by structure; streaming batch-means standard errors at O(F) memory; optional float32 bounds. <code>gibbs_estimate_batched</code> is imported from <code>ltpred.gibbs</code>. The ordinary PA engine ran ~150k–310k families/second on the object path, which includes bounds assembly and grouping; the array path reached 1.6–8.6 M families/s on already-aligned, repeatedly reused inputs — a hot-kernel rate, not end-to-end preparation.</p>
         <div class="fns"><span class="fn">pa_estimate_batched</span><span class="fn">gibbs_estimate_batched</span></div>
       </div>
       <div class="card">
         <div class="k">Validate</div>
         <h3>Twenty-seven reproducible benchmarks</h3>
-        <p>The simulation suite covers PA accuracy and speed, calibration, genomic control, scaling, power, model-fitting recovery, CIP estimation, pedigree inference and the end-to-end register pipeline. The PA-FGRS censoring mixture now has a generative validation too: correctly implemented and never costly to correlation, though its censoring correction is small at the tested settings — case encoding dominates calibration there.</p>
-        <div class="fns"><span class="fn">benchmarks/</span><span class="fn">RESULTS.md</span></div>
+        <p>The simulation suite covers PA accuracy and speed, calibration, genomic control, scaling, power, model-fitting recovery, CIP estimation, pedigree inference and the end-to-end register pipeline. The PA-FGRS censoring mixture has a generative validation too: it behaves as intended in the tested designs, with mean correlations differing by at most 0.0005 — but paired uncertainty was not retained, so that is not a non-inferiority result. Its censoring correction is small at these settings; case encoding dominates calibration there. Runs go through a provenance wrapper that records the commit, tracked-diff hash and output hashes to a manifest.</p>
+        <div class="fns"><span class="fn">benchmarks/</span><span class="fn">RESULTS.md</span><span class="fn">run_benchmark</span></div>
       </div>
     </div>
   </section>
@@ -351,7 +352,7 @@
       <div class="stat"><div class="v">1.1–2.5<small>×</small></div><div class="l">squared-correlation effective-N proxy over case/control, across tested cells</div></div>
       <div class="stat"><div class="v">27</div><div class="l">simulation benchmarks, truth known in each</div></div>
     </div>
-    <p class="benchlist"><code>bench_accuracy</code>, <code>bench_calibration</code>, <code>bench_confounding</code>, <code>bench_pa_robustness</code>, <code>bench_scaling</code>, <code>bench_age_onset</code>, <code>bench_gwas_power</code>, <code>bench_fit_heritability</code>, <code>bench_variance_components</code>, <code>bench_genetic_correlation</code>, <code>bench_genetic_factor</code>, <code>bench_shared_env</code>, <code>bench_couple_env</code>, <code>bench_fh_prediction</code>, and the integrated <code>bench_ltfhpp_personalization</code> (age-, sex-, and cohort-dependent CIP, coherent onset/censoring, ascertainment, and a matched family-free ADuLT arm) cover ascertainment, calibration, genomic-control confounding, birth-cohort and competing-risk mortality. Ten more follow: <code>bench_pafgrs_mixture</code>, <code>bench_inference_calibration</code>, <code>bench_misspecification</code>, <code>bench_cip_estimation</code>, <code>bench_pedigree_inference</code>, <code>bench_register_pipeline</code>, <code>bench_tetrachoric</code>, <code>bench_liability_scale</code>, <code>bench_env_components</code>, <code>bench_aod_decay</code>, <code>bench_sex_limitation</code> and <code>bench_nurture</code>. Each is written up with tables in <code>RESULTS.md</code>.</p>
+    <p class="benchlist"><code>bench_accuracy</code>, <code>bench_calibration</code>, <code>bench_confounding</code>, <code>bench_pa_robustness</code>, <code>bench_scaling</code>, <code>bench_age_onset</code>, <code>bench_gwas_power</code>, <code>bench_fit_heritability</code>, <code>bench_variance_components</code>, <code>bench_genetic_correlation</code>, <code>bench_genetic_factor</code>, <code>bench_shared_env</code>, <code>bench_couple_env</code>, <code>bench_fh_prediction</code>, and the integrated <code>bench_ltfhpp_personalization</code> (age-, sex-, and cohort-dependent CIP, coherent onset/censoring, ascertainment, and a matched family-free ADuLT arm) cover ascertainment, calibration, genomic-control confounding, birth-cohort and competing-risk mortality. Twelve more follow: <code>bench_pafgrs_mixture</code>, <code>bench_inference_calibration</code>, <code>bench_misspecification</code>, <code>bench_cip_estimation</code>, <code>bench_pedigree_inference</code>, <code>bench_register_pipeline</code>, <code>bench_tetrachoric</code>, <code>bench_liability_scale</code>, <code>bench_env_components</code>, <code>bench_aod_decay</code> (with an adversarial <code>bench_aod_decay_robustness</code> companion, since the main grid draws from exactly the fitted covariance and so cannot expose misspecification), <code>bench_sex_limitation</code> and <code>bench_nurture</code>. Each is written up with tables in <code>RESULTS.md</code>.</p>
 
     <div class="charts2">
       <div class="chart">
@@ -449,6 +450,7 @@
       <div class="items">
         <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>Sparse, streamed covariance.</strong> A chunked driver for single giant pedigrees and biobank runs that can't hold every family in memory at once.</div></div>
         <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>End-to-end GWAS example.</strong> Real-LD HAPNEST genotypes → liability score → mixed-model GWAS, with covariate / residualization helpers.</div></div>
+        <div class="item"><span class="status s-plan">planned</span><div class="body"><strong>A multi-trait PA approximation.</strong> Multi-trait estimation is Gibbs-only today, so the deterministic engine's 315–510× advantage stops at one trait. A multi-trait sequential-moment sweep would carry it across — if it can be made accurate enough to be worth having.</div></div>
         <div class="item"><span class="status s-prog">in progress</span><div class="body"><strong>Packaging &amp; a docs site.</strong> The task-focused <strong>MkDocs + mkdocstrings</strong> source now has a real root page and builds with its auto-generated API reference; CI runs the tests and lint gate on Python 3.9 / 3.12. The sdist and wheel build cleanly and pass <code>twine check</code>, and a PyPI <strong>Trusted-Publishing</strong> workflow (<code>publish.yml</code>, documented in <code>RELEASING.md</code>) uploads on a tagged GitHub Release with no stored API token. Remaining: the one-time PyPI trusted-publisher registration, the first tagged upload, and deploying the site.</div></div>
       </div>
     </div>
