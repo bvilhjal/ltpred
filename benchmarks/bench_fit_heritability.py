@@ -14,8 +14,9 @@ the fitted values estimates sampling variability. It reports:
       one dataset, NOT the sampling SD, so it under-states the real uncertainty;
       this panel quantifies the gap (bootstrap families for a genuine CI).
 
-Ground truth is known (the simulator's `h2`), so this is a clean characterisation
-of the estimator, not a comparison of methods.
+Ground truth is known (the simulator's `h2`) and families are unascertained
+population draws, so this characterises the estimator only under its supported
+`sampling="population"` contract, not under case/control ascertainment.
 
     python benchmarks/bench_fit_heritability.py
     python benchmarks/bench_fit_heritability.py --reps 40 --n-fam 5000
@@ -57,7 +58,8 @@ def fit_replicates(fam_vec, h2_true, n_fam, prev, reps, seed0, n_iter, burn_in,
     for r in range(reps):
         sim = simulate_under_LTM_single(fam_vec=fam_vec, h2=h2_true, n_sim=n_fam,
                                         pop_prev=prev, seed=seed0 + r)
-        res = fit_heritability(sim.families, n_iter=n_iter, burn_in=burn_in,
+        res = fit_heritability(sim.families, sampling="population",
+                               n_iter=n_iter, burn_in=burn_in,
                                inner_sweeps=inner_sweeps,
                                seed=seed0 + 100_000 + r)
         fitted[r] = res.h2
@@ -82,7 +84,8 @@ def main():
     fam_a = STRUCTURES["parents+2 sibs"]
     simulate_under_LTM_single(fam_vec=fam_a, h2=0.5, n_sim=50, pop_prev=args.prev, seed=0)
     fit_heritability(simulate_under_LTM_single(fam_vec=fam_a, h2=0.5, n_sim=50,
-                     pop_prev=args.prev, seed=0).families, n_iter=20, burn_in=5)  # warm JIT
+                     pop_prev=args.prev, seed=0).families, sampling="population",
+                     n_iter=20, burn_in=5)  # warm JIT
 
     rows = []
 

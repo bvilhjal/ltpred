@@ -41,6 +41,9 @@ __all__ = ["rtmvnorm_gibbs", "gibbs_params", "gibbs_estimate_batched",
 _advance_rng_state = threading.local()
 _MAX_ADVANCE_UNIFORMS = 1 << 20       # 8 MiB of float64 temporary storage
 _MAX_SEED = (1 << 32) - 1
+# Coordinates whose bounds span less than this are held fixed (a pinned point
+# mass, e.g. an onset-pinned case in LT-FH++) rather than resampled.
+_FIXED_TOL = 1e-8
 
 
 @_jit
@@ -118,6 +121,78 @@ def _std_tnorm_quantile(a, b, u):
     return x
 
 
+@_jit
+def _gibbs_conditional_draw(P, sd, x, j, lower_j, upper_j, u):
+    """One coordinate update: conditional mean -> truncated-normal draw -> clamp.
+
+    The shared body of every sweep kernel: the conditional mean
+    ``mu_j = P[:, j] . x`` with conditional SD ``sd_j``, inverse-CDF sampling of
+    the conditional normal restricted to ``(lower_j, upper_j)`` (Kotecha &
+    Djuric 1999), then a clamp that only guards the last-bit error of the
+    inverse approximation -- it never moves a draw across a truncation boundary.
+    ``u`` is the coordinate's uniform deviate: drawn from the kernel RNG in the
+    seeded samplers, caller-supplied in the random-free advance kernels."""
+    d = sd.shape[0]
+    mu_j = 0.0
+    for i in range(d):
+        mu_j += P[i, j] * x[i]
+    sd_j = sd[j]
+    a = (lower_j - mu_j) / sd_j
+    b = (upper_j - mu_j) / sd_j
+    z = _std_tnorm_quantile(a, b, u)
+    xj = mu_j + sd_j * z
+    if xj < lower_j:
+        return lower_j
+    if xj > upper_j:
+        return upper_j
+    return xj
+
+
+@_jit
+def _init_chain(lower, upper, sd0):
+    """Initial chain state: each coordinate's marginal truncated median.
+
+    LTFHPlus's init -- the median of the *marginal* truncated normal (the bounds
+    standardised by the marginal SD ``sd0``), so fixed coordinates collapse to
+    their pinned value; a non-finite quantile falls back to 0. Works on one
+    chain's ``(d,)`` arrays, so the fit paths can share it with a unit ``sd0``."""
+    d = sd0.shape[0]
+    x = np.empty(d, dtype=np.float64)
+    for j in range(d):
+        xj = _std_tnorm_quantile(lower[j] / sd0[j],
+                                 upper[j] / sd0[j], 0.5) * sd0[j]
+        x[j] = xj if np.isfinite(xj) else 0.0
+    return x
+
+
+def _validate_covmat(covmat):
+    """Return ``covmat`` as float64 after validating the Gibbs covariance."""
+    cov = np.ascontiguousarray(covmat, dtype=np.float64)
+    if cov.ndim != 2 or cov.shape[0] != cov.shape[1]:
+        raise ValueError("covmat must be square")
+    if not np.all(np.isfinite(cov)):
+        raise ValueError("covmat must contain only finite values")
+    matrix_scale = float(np.max(np.abs(cov))) if cov.size else 1.0
+    symmetry_tolerance = 1e-10 * matrix_scale
+    asymmetry = float(np.max(np.abs(cov - cov.T))) if cov.size else 0.0
+    if asymmetry > symmetry_tolerance:
+        raise ValueError(
+            "covmat must be symmetric (maximum asymmetry "
+            f"{asymmetry:.3g}, relative tolerance {symmetry_tolerance:.3g})")
+    d = cov.shape[0]
+    eigvals = np.linalg.eigvalsh(cov) if d else np.array([1.0])
+    min_eig = float(np.min(eigvals))
+    scale = float(np.max(np.abs(eigvals)))
+    tolerance = 1e-12 * scale
+    if min_eig <= tolerance:
+        raise ValueError(
+            "covmat must be positive-definite (minimum eigenvalue "
+            f"{min_eig:.3g}, relative tolerance {tolerance:.3g}); singular, "
+            "indefinite, or numerically rank-deficient covariance cannot define "
+            "Gibbs conditionals -- see correct_positive_definite")
+    return cov
+
+
 def gibbs_params(covmat):
     """Precompute the sweep's conditional-regression matrix ``P`` and SDs ``sd``.
 
@@ -130,25 +205,14 @@ def gibbs_params(covmat):
     :mod:`ltpred.estimate`. Mathematically identical to the conditional-regression
     form; ``Sigma`` is strictly PD (see :func:`correct_positive_definite`).
 
-    ``covmat`` must be finite, symmetric (rtol=1e-10, atol=1e-12) and
-    positive-definite (smallest eigenvalue above -1e-12, tolerating roundoff);
+    ``covmat`` must be finite, symmetric to ``1e-10`` relative to its largest
+    absolute entry, and
+    strictly positive-definite (smallest eigenvalue greater than ``1e-12``
+    times the covariance's spectral scale);
     a merely invertible but indefinite covariance would otherwise silently
     yield NaN conditional SDs and garbage draws, so it raises ``ValueError``.
     """
-    cov = np.ascontiguousarray(covmat, dtype=np.float64)
-    d = cov.shape[0]
-    if cov.shape != (d, d):
-        raise ValueError("covmat must be square")
-    if not np.all(np.isfinite(cov)):
-        raise ValueError("covmat must contain only finite values")
-    if not np.allclose(cov, cov.T, rtol=1e-10, atol=1e-12):
-        raise ValueError("covmat must be symmetric (rtol=1e-10, atol=1e-12)")
-    min_eig = float(np.min(np.linalg.eigvalsh(cov))) if d else 1.0
-    if min_eig <= -1e-12:
-        raise ValueError(
-            "covmat must be positive-definite (minimum eigenvalue "
-            f"{min_eig:.3g}); an indefinite covariance yields NaN conditional "
-            "SDs -- see correct_positive_definite")
+    cov = _validate_covmat(covmat)
     Q = np.linalg.inv(cov)
     qdiag = np.diag(Q).copy()
     P = -Q / qdiag[np.newaxis, :]              # P[i,j] = -Q[i,j] / Q[j,j]
@@ -171,18 +235,8 @@ def _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, n_sim, burn_in, res):
     for k in range(-burn_in, n_sim):
         for j in range(d):
             if not fixed[j]:
-                mu_j = 0.0
-                for i in range(d):
-                    mu_j += P[i, j] * x[i]
-                sd_j = sd[j]
-                a = (lower[j] - mu_j) / sd_j
-                b = (upper[j] - mu_j) / sd_j
-                z = _std_tnorm_quantile(a, b, np.random.random())
-                x[j] = mu_j + sd_j * z
-                if x[j] < lower[j]:
-                    x[j] = lower[j]
-                elif x[j] > upper[j]:
-                    x[j] = upper[j]
+                x[j] = _gibbs_conditional_draw(P, sd, x, j, lower[j], upper[j],
+                                               np.random.random())
             if k >= 0 and to_return[j] >= 0:
                 res[k, to_return[j]] = x[j]
     return res
@@ -216,13 +270,10 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
             np.random.seed(seeds[f])
 
         # per-family working state (thread-local)
-        x = np.empty(d)
         fixed = np.empty(d, dtype=np.bool_)
         for j in range(d):
-            fixed[j] = (upper[j] - lower[j]) < 1e-8
-            xj = _std_tnorm_quantile(lower[j] / sd0[j],
-                                     upper[j] / sd0[j], 0.5) * sd0[j]
-            x[j] = xj if np.isfinite(xj) else 0.0
+            fixed[j] = (upper[j] - lower[j]) < _FIXED_TOL
+        x = _init_chain(lower, upper, sd0)
 
         tot = np.zeros(ncols)
         batch_sum = np.zeros(ncols)
@@ -234,18 +285,9 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
         for k in range(-burn_in, n_sim):
             for j in range(d):
                 if not fixed[j]:
-                    mu_j = 0.0
-                    for i in range(d):
-                        mu_j += P[i, j] * x[i]
-                    sd_j = sd[j]
-                    a = (lower[j] - mu_j) / sd_j
-                    b = (upper[j] - mu_j) / sd_j
-                    z = _std_tnorm_quantile(a, b, np.random.random())
-                    x[j] = mu_j + sd_j * z
-                    if x[j] < lower[j]:
-                        x[j] = lower[j]
-                    elif x[j] > upper[j]:
-                        x[j] = upper[j]
+                    x[j] = _gibbs_conditional_draw(P, sd, x, j, lower[j],
+                                                   upper[j],
+                                                   np.random.random())
             if k >= 0:
                 for c in range(ncols):
                     v = x[out_idx[c]]
@@ -309,21 +351,13 @@ def _gibbs_advance(P, sd, lowers, uppers, fixed, x, uniforms):
     F = x.shape[0]
     d = x.shape[1]
     for f in prange(F):
+        xf = x[f]
         for sweep in range(uniforms.shape[1]):
             for j in range(d):
                 if not fixed[f, j]:
-                    mu_j = 0.0
-                    for i in range(d):
-                        mu_j += P[i, j] * x[f, i]
-                    sd_j = sd[j]
-                    a = (lowers[f, j] - mu_j) / sd_j
-                    b = (uppers[f, j] - mu_j) / sd_j
-                    z = _std_tnorm_quantile(a, b, uniforms[f, sweep, j])
-                    x[f, j] = mu_j + sd_j * z
-                    if x[f, j] < lowers[f, j]:
-                        x[f, j] = lowers[f, j]
-                    elif x[f, j] > uppers[f, j]:
-                        x[f, j] = uppers[f, j]
+                    xf[j] = _gibbs_conditional_draw(P, sd, xf, j, lowers[f, j],
+                                                    uppers[f, j],
+                                                    uniforms[f, sweep, j])
 
 
 @_jit
@@ -420,25 +454,17 @@ def _gibbs_advance_m2(P, sd, lowers, uppers, fixed, x, uniforms, out_m):
     F = x.shape[0]
     d = x.shape[1]
     for f in prange(F):
+        xf = x[f]
         for sweep in range(uniforms.shape[1]):
             for j in range(d):
                 if not fixed[f, j]:
-                    mu_j = 0.0
-                    for i in range(d):
-                        mu_j += P[i, j] * x[f, i]
-                    sd_j = sd[j]
-                    a = (lowers[f, j] - mu_j) / sd_j
-                    b = (uppers[f, j] - mu_j) / sd_j
-                    z = _std_tnorm_quantile(a, b, uniforms[f, sweep, j])
-                    x[f, j] = mu_j + sd_j * z
-                    if x[f, j] < lowers[f, j]:
-                        x[f, j] = lowers[f, j]
-                    elif x[f, j] > uppers[f, j]:
-                        x[f, j] = uppers[f, j]
+                    xf[j] = _gibbs_conditional_draw(P, sd, xf, j, lowers[f, j],
+                                                    uppers[f, j],
+                                                    uniforms[f, sweep, j])
             for a in range(d):
-                xa = x[f, a]
+                xa = xf[a]
                 for b in range(d):
-                    out_m[f, a, b] += xa * x[f, b]
+                    out_m[f, a, b] += xa * xf[b]
 
 
 def gibbs_advance_moment(P, sd, lowers, uppers, fixed, x, n_sweeps):
@@ -500,14 +526,20 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
         Non-boolean integer in ``[0, 2**32 - 1]`` for reproducibility, or ``None``.
     params : (P, sd), optional
         Precomputed :func:`gibbs_params` output; recomputed from ``covmat`` when
-        omitted.
+        omitted. The supplied ``covmat`` is still validated because it defines
+        the marginal initialisation; ``params`` must have been computed from
+        that same matrix.
 
     Returns
     -------
     (n_sim, len(out)) ndarray
         Samples, columns in the sorted order of ``out``.
     """
-    cov = np.ascontiguousarray(covmat, dtype=np.float64)
+    cov = (np.ascontiguousarray(covmat, dtype=np.float64)
+           if params is None else _validate_covmat(covmat))
+    if params is None:
+        # ``gibbs_params`` performs the covariance validation in this path.
+        params = gibbs_params(cov)
     d = cov.shape[0]
 
     lower = np.broadcast_to(np.asarray(lower, dtype=np.float64), (d,)).copy()
@@ -515,7 +547,7 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
     validate_bounds(lower, upper, context="rtmvnorm_gibbs bounds")
 
     if fixed is None:
-        fixed = (upper - lower) < 1e-8
+        fixed = (upper - lower) < _FIXED_TOL
     fixed = np.broadcast_to(np.asarray(fixed, dtype=bool), (d,)).copy()
 
     try:
@@ -540,18 +572,12 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
     for col, o in enumerate(out):
         to_return[o] = col
 
-    if params is None:
-        params = gibbs_params(cov)
     P, sd = params
 
     # start each coordinate at the median of its *marginal* truncated normal
     # (LTFHPlus's init); fixed coords collapse to their pinned value.
     sd0 = np.sqrt(np.diag(cov))
-    x = np.empty(d, dtype=np.float64)
-    for j in range(d):
-        x[j] = _std_tnorm_quantile(lower[j] / sd0[j],
-                                   upper[j] / sd0[j], 0.5) * sd0[j]
-    x = np.ascontiguousarray(np.where(np.isfinite(x), x, 0.0), dtype=np.float64)
+    x = _init_chain(lower, upper, sd0)
 
     if seed is not None:
         _seed_rng(seed)

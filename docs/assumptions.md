@@ -45,24 +45,25 @@ by a symmetric shared-environment matrix. When omitted processes contribute to
 familial aggregation, read the output as the **additive-model projection of the
 family history**, not a pure causal genetic value.
 
-The low-level covariance entry points (`rtmvnorm_gibbs`, `pa_algorithm`,
-`pa_estimate_batched`) accept a symmetric positive-semidefinite covariance, so a
-valid shared-environment kernel can be added deliberately. The fitters ship
-descriptive sibship `C` and mate/couple `M` kernels, and the single-trait
-high-level predictor accepts them as `c2`/`m2` on both the role/object and the
-array paths. The high-level multi-trait dispatcher rejects nonzero `c2`/`m2`
-rather than silently dropping them, pending a defined cross-trait component
-covariance; see
+PA can operate on a symmetric positive-semidefinite covariance, but
+`gibbs_params` and `rtmvnorm_gibbs` require a **strictly positive-definite**
+covariance so their conditional variances exist. The high-level estimators nudge
+a numerically singular assembled covariance to strict positive-definiteness and
+warn when they do so. The fitters ship descriptive sibship `C` and mate/couple
+`M` kernels, and the single-trait high-level predictor accepts them as `c2`/`m2`
+on both the role/object and array paths. The high-level multi-trait dispatcher
+rejects nonzero `c2`/`m2` rather than silently dropping them, pending a defined
+cross-trait component covariance; see
 [algorithm.md](algorithm.md#adding-environmental-covariance-to-improve-prediction)
 and [Inference](inference.md#variance-components-a-c-m).
 
-The family-data fitters target population variance components only when families
-are independent sampling clusters and ascertainment is absent or correctly
-represented by the fitted observation model. Overlapping pedigrees, case/control
-sampling, or selection on family history invalidate the ordinary iid-family
-moments, information estimates and bootstrap unless the design is handled
-explicitly. In those settings, treat fitted values as design-dependent model
-projections and validate them under the actual sampling scheme.
+The family-data fitters support **only independent, non-overlapping,
+unascertained population-sampled families**. Pass `sampling="population"` only
+to acknowledge a design that satisfies this contract. The fitters have no
+ascertainment likelihood or sampling weights: overlapping pedigrees,
+case/control sampling, or selection on family history invalidate their ordinary
+iid-family moments, and bootstrap does not correct the resulting bias. In those
+settings use an estimator that models the sampling design.
 
 ## Real-data checklist
 
@@ -80,9 +81,9 @@ Before running a production analysis:
 4. Make each CIP age grid cover the analysed onset/follow-up ages and supply
    `k_pop` explicitly unless its final value is a defensible lifetime prevalence;
    the helper holds endpoint values constant outside the grid.
-5. Convert `h²` to the **liability scale** (`convert_observed_to_liability_scale`),
-   passing the actual study case fraction; its `sample_prev=0.5` default represents
-   a balanced case/control design only.
+5. Convert `h²` to the **liability scale** (`observed_to_liability_h2`),
+   passing the actual study case fraction as `prop_cases` — the ascertainment
+   correction matters for anything but a representative sample.
 6. Check **sensitivity** of the score to `h²` and to prevalence/CIP choices,
    especially for rare traits and dense pedigrees.
 7. **Validate roles**: valid abbreviations, no duplicate roles within a family
@@ -100,8 +101,10 @@ Before running a production analysis:
      association method that handles their relatedness, shared family-history
      phenotype, case-control imbalance, and tail behaviour
      ([Zhuang et al. 2022](https://doi.org/10.1093/bioinformatics/btac459)).
-12. For family-data **fitting or bootstrap inference**, verify that sampled family
-     clusters do not overlap and either avoid ascertainment or model it explicitly.
+12. For built-in family-data **fitting or bootstrap inference**, require
+    independent, non-overlapping, unascertained population-sampled families and
+    pass `sampling="population"` to the core fitter. Otherwise use a method that
+    models the sampling design.
 
 ## Pitfalls
 

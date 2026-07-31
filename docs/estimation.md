@@ -143,12 +143,15 @@ Var(l_i)      = h2 + c2 + m2 + e2 = 1               (residual e2 absorbs)
 so `h2 + c2 + m2 <= 1` must hold. The genetic target still couples to
 relatives only through `h2 * A` — `g` remains a *genetic* liability.
 
-Fit the components from the same families and wire them straight back in:
+Only if the families are independent, non-overlapping and unascertained
+population samples, fit the components and wire them back in:
 
 ```python
 from ltpred import estimate_liability, fit_variance_components
 
-fit = fit_variance_components(families, ("A", "C", "M"))
+fit = fit_variance_components(
+    families, ("A", "C", "M"), sampling="population"
+)
 res = estimate_liability(families, h2=fit.components["A"],
                          c2=fit.components.get("C", 0.0),
                          m2=fit.components.get("M", 0.0))
@@ -157,7 +160,6 @@ res = estimate_liability(families, h2=fit.components["A"],
 Or pass known values directly: `estimate_liability(families, h2=0.4, c2=0.15,
 m2=0.1)`. The `c2`/`m2` arguments are supported by the single-trait role/object
 and array entry points (`estimate_liability` with scalar `h2`,
-`estimate_liability_single`, `estimate_liability_pa`,
 `estimate_liability_pa_arrays`, `estimate_liability_gibbs_arrays`). The
 high-level multi-trait route rejects nonzero components until their cross-trait
 covariance is defined; the kinship/arbitrary-pedigree path likewise requires
@@ -165,6 +167,10 @@ you to assemble its covariance explicitly. Validated in
 [benchmarks/RESULTS.md](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md) (section 24): wiring
 recalibrates the genetic estimate (slope 0.93 -> 0.99) and sharpens
 full-liability prediction on environmentally clustered families.
+
+For case/control-enriched or family-history-selected samples, use externally
+estimated components or a fitter that models the sampling design; the built-in
+moment fitter and family bootstrap do not correct ascertainment bias.
 
 ## Choosing Gibbs vs Pearson–Aitken
 
@@ -244,9 +250,9 @@ lower[i, 2], upper[i, 2] = -np.inf, np.inf     # family i's father unobserved
 **Memory: `dtype=np.float32`.** The memory that scales at biobank size is the
 per-family `(n_families, len(roles))` bounds (`lower`/`upper`, and `K_i`/`K_pop`),
 not the tiny per-structure covariance. Store them in single precision to halve
-that footprint — pass `dtype=np.float32` to `estimate_liability` (and the
-`_single`/`_multi`/`_pa` variants), or simply hand the array API `float32` bound
-arrays; it keeps them float32. The covariance, conditional-regression factors and
+that footprint — pass `dtype=np.float32` to `estimate_liability`, or hand either
+array API `float32` bound arrays; they remain float32. The covariance,
+conditional-regression factors and
 Monte-Carlo accumulators stay float64, so the estimates match the float64 result
 to ~1e-5 (float32 rounding of the thresholds only). Quantising the *covariance*
 itself (à la ldpred3's int8 LD) would not help here — it is a small `d×d` matrix
@@ -278,8 +284,10 @@ diagonal. Incoherent inputs now raise instead of being silently changed.
 
 Multi-trait borrows strength across genetically correlated diseases. It is
 Gibbs-only — the default picks Gibbs automatically for multiple traits, and an
-explicit `method="pearson-aitken"` here raises `NotImplementedError`. To estimate
-the genetic correlation itself, see [Inference](inference.md#genetic-correlation-between-traits).
+explicit `method="pearson-aitken"` here raises `NotImplementedError`.
+Experimental genetic-correlation fitting is available only in the checkout's
+unsupported `research/` package; see
+[Inference](inference.md#unsupported-research-prototypes).
 
 ## Using the estimate in a GWAS
 

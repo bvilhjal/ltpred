@@ -1,5 +1,14 @@
 # ltpred — independent review and future developments
 
+!!! warning "Historical snapshot — superseded"
+
+    This review describes commit `673bb99` on 2026-07-19. Test counts, APIs,
+    benchmark coverage and open findings have changed since then. It is retained
+    as a historical record, not as current release status; use the
+    [user guide](guide.md), [assumptions](assumptions.md), [API reference](api.md)
+    and current [benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
+    for the present contract and evidence.
+
 Date: 2026-07-19
 Reviewer: independent review (requested by the project owner), of the working
 tree at commit `673bb99`. Method: full read of README, ROADMAP, algorithm.md and

@@ -14,7 +14,7 @@ standardised anyway). Truth ``g`` is known from the simulation, so it reports:
       both should sit on the diagonal;
   (b) **calibration vs an assumed-h² that is wrong** — sweep the ``h²`` handed to the
       estimator away from the truth. The headline: ``corr`` barely moves (ranking is
-      robust, as ``liability_sensitivity`` shows) while the **slope tilts** — assume
+      robust) while the **slope tilts** — assume
       too much h² and the estimate over-spreads (slope < 1), too little and it
       under-spreads (slope > 1). Ranking is robust; *scale is not*;
   (c) **decile curves under that misspecification** — the calibration curve tilting

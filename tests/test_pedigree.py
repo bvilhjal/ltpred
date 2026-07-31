@@ -3,8 +3,7 @@ import unittest
 import numpy as np
 
 from ltpred.covariance import get_relatedness, kinship_from_pedigree
-from ltpred.pedigree import (build_parent_graph, extract_pedigree,
-                             extract_pedigrees)
+from ltpred.pedigree import build_parent_graph, extract_pedigree
 
 # Toy population: two grandparent couples, their children m and f, proband o
 # and full sib s1, f's remarriage (half-sib hs1 with f2), m's brother au and
@@ -126,14 +125,6 @@ class KinshipIntegrationTests(unittest.TestCase):
         degrees = dict(zip(ped.ids, ped.degree.tolist()))
         self.assertEqual(degrees["A"], 2)
         self.assertEqual(max(ped.degree), 2)
-
-
-    def test_batch_extraction_matches_single(self):
-        g = make_graph()
-        singles = [extract_pedigree(g, p, max_degree=2) for p in ("o", "s1", "m")]
-        batched = list(extract_pedigrees(g, ("o", "s1", "m"), max_degree=2))
-        for a, b in zip(singles, batched):
-            self.assertEqual(a.ids, b.ids)
 
 
 if __name__ == "__main__":

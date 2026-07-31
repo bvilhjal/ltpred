@@ -1,14 +1,16 @@
 """Pearson-Aitken inference: exactness, agreement with Gibbs, and PA-FGRS mixture."""
 
+import math
+
 import numpy as np
 import pytest
 from scipy import stats
 
 from ltpred.family import Family, Member
 from ltpred.pearson_aitken import (pa_algorithm, pa_estimate_batched,
-                                   tnorm_moments, tnorm_mixture_conditional)
+                                   _std_tnorm_moments, _tnorm_mixture)
 from ltpred.thresholds import pa_thresholds
-from ltpred.estimate import estimate_liability, estimate_liability_pa
+from ltpred.estimate import estimate_liability, _estimate_liability_pa
 from ltpred.simulate import simulate_under_LTM_single
 
 
@@ -16,10 +18,27 @@ def _imr(t):
     return stats.norm.pdf(t) / stats.norm.sf(t)
 
 
+def _tnorm_moments(mu=0.0, var=1.0, lower=-np.inf, upper=np.inf):
+    """Mean and variance of ``N(mu, var)`` truncated to ``(lower, upper)``.
+
+    Test-local stand-in for the removed public ``tnorm_moments`` wrapper,
+    exercising the private standardized kernel directly. Mirrors the module's
+    own ``_tnorm_mean``/``_tnorm_var`` guards: the degenerate point-mass and
+    unbounded intervals never reach ``_std_tnorm_moments`` (the narrow-interval
+    quadrature divides by the zero width)."""
+    if lower == -np.inf and upper == np.inf:
+        return mu, var
+    if lower == upper:
+        return lower, 0.0
+    sd = math.sqrt(var)
+    m, v = _std_tnorm_moments((lower - mu) / sd, (upper - mu) / sd)
+    return mu + sd * m, var * v
+
+
 @pytest.mark.parametrize("lo,hi", [(-np.inf, np.inf), (0.5, 2.0), (-1.0, 1.0),
                                    (1.5, np.inf), (-np.inf, -0.5)])
 def test_tnorm_moments_match_scipy(lo, hi):
-    m, v = tnorm_moments(0.3, 1.7, lo, hi)
+    m, v = _tnorm_moments(0.3, 1.7, lo, hi)
     ref = stats.truncnorm((lo - 0.3) / np.sqrt(1.7), (hi - 0.3) / np.sqrt(1.7),
                           loc=0.3, scale=np.sqrt(1.7))
     assert m == pytest.approx(ref.mean(), abs=1e-9)
@@ -27,15 +46,15 @@ def test_tnorm_moments_match_scipy(lo, hi):
 
 
 def test_tnorm_moments_point_mass_and_infinite():
-    assert tnorm_moments(0.0, 1.0, 1.3, 1.3) == (1.3, 0.0)
-    m, v = tnorm_moments(0.7, 2.0, -np.inf, np.inf)
+    assert _tnorm_moments(0.0, 1.0, 1.3, 1.3) == (1.3, 0.0)
+    m, v = _tnorm_moments(0.7, 2.0, -np.inf, np.inf)
     assert m == pytest.approx(0.7) and v == pytest.approx(2.0)
 
 
 @pytest.mark.parametrize("threshold", [8.0, 9.0])
 def test_tnorm_moments_are_stable_in_extreme_tails(threshold):
     expected = stats.truncnorm(threshold, np.inf)
-    mean, var = tnorm_moments(lower=threshold)
+    mean, var = _tnorm_moments(lower=threshold)
     assert mean == pytest.approx(expected.mean(), abs=2e-10)
     assert var == pytest.approx(expected.var(), abs=2e-10)
     assert mean > threshold
@@ -45,7 +64,7 @@ def test_tnorm_moments_are_stable_in_extreme_tails(threshold):
 @pytest.mark.parametrize("lower,upper", [(8.0, 9.0), (9.0, 10.0)])
 def test_tnorm_moments_are_stable_in_finite_tail_intervals(lower, upper):
     expected = stats.truncnorm(lower, upper)
-    mean, var = tnorm_moments(lower=lower, upper=upper)
+    mean, var = _tnorm_moments(lower=lower, upper=upper)
     assert mean == pytest.approx(expected.mean(), abs=2e-10)
     assert var == pytest.approx(expected.var(), abs=2e-10)
 
@@ -60,15 +79,15 @@ def test_tnorm_moments_are_stable_in_narrow_tail_intervals(width):
     # These leading centered-series terms have errors far below the tolerances.
     expected_mean = center - center * actual_width ** 2 / 12.0
     expected_var = actual_width ** 2 / 12.0
-    mean, var = tnorm_moments(lower=lower, upper=upper)
+    mean, var = _tnorm_moments(lower=lower, upper=upper)
     assert mean == pytest.approx(expected_mean, abs=1e-12)
     assert var == pytest.approx(expected_var, rel=1e-6)
 
 
 @pytest.mark.parametrize("threshold", [8.0, 9.0])
 def test_tnorm_moments_extreme_tail_symmetry(threshold):
-    right_mean, right_var = tnorm_moments(lower=threshold)
-    left_mean, left_var = tnorm_moments(upper=-threshold)
+    right_mean, right_var = _tnorm_moments(lower=threshold)
+    left_mean, left_var = _tnorm_moments(upper=-threshold)
     assert left_mean == pytest.approx(-right_mean, abs=1e-12)
     assert left_var == pytest.approx(right_var, abs=1e-12)
 
@@ -82,8 +101,8 @@ def test_tnorm_moments_are_stable_in_far_one_sided_tails(threshold):
     expected_mean = threshold + inv - 2.0 * inv ** 3 + 10.0 * inv ** 5
     expected_var = inv ** 2 - 6.0 * inv ** 4 + 50.0 * inv ** 6
 
-    right_mean, right_var = tnorm_moments(lower=threshold)
-    left_mean, left_var = tnorm_moments(upper=-threshold)
+    right_mean, right_var = _tnorm_moments(lower=threshold)
+    left_mean, left_var = _tnorm_moments(upper=-threshold)
 
     assert right_mean == pytest.approx(expected_mean,
                                        abs=2.0 * np.spacing(expected_mean))
@@ -99,9 +118,9 @@ def test_tnorm_moments_are_stable_in_far_one_sided_tails(threshold):
     (100_000.0, 100_000.0005),
 ])
 def test_tnorm_moments_are_stable_in_far_finite_tail_intervals(lower, upper):
-    one_sided_mean, one_sided_var = tnorm_moments(lower=lower)
-    right_mean, right_var = tnorm_moments(lower=lower, upper=upper)
-    left_mean, left_var = tnorm_moments(lower=-upper, upper=-lower)
+    one_sided_mean, one_sided_var = _tnorm_moments(lower=lower)
+    right_mean, right_var = _tnorm_moments(lower=lower, upper=upper)
+    left_mean, left_var = _tnorm_moments(lower=-upper, upper=-lower)
 
     # The excluded upper-tail mass is below double precision in both cases, so
     # these finite-interval moments equal the one-sided result numerically.  The
@@ -126,7 +145,7 @@ def test_pa_single_case_is_exact():
 def test_pa_single_extreme_case_propagates_stable_tail_moments():
     h2, threshold = 0.5, 9.0
     cov = np.array([[h2, h2], [h2, 1.0]])
-    mean, selected_var = tnorm_moments(lower=threshold)
+    mean, selected_var = _tnorm_moments(lower=threshold)
     est, var = pa_algorithm(cov, lower=[-np.inf, threshold],
                             upper=[np.inf, np.inf], target=0)
     assert est == pytest.approx(h2 * mean, abs=1e-10)
@@ -168,7 +187,7 @@ def test_pa_family_history_raises_estimate():
         lo, hi = (t, np.inf) if rel_case else (-np.inf, t)
         return Family(fid, [Member("o", t, np.inf)] +
                       [Member(r, lo, hi) for r in ("m", "f", "s1")])
-    res = estimate_liability_pa([fam(True, "aff"), fam(False, "healthy")],
+    res = _estimate_liability_pa([fam(True, "aff"), fam(False, "healthy")],
                                 h2=0.5, out=("genetic",))
     assert res.est["genetic"][0] > res.est["genetic"][1] + 0.1
 
@@ -176,7 +195,7 @@ def test_pa_family_history_raises_estimate():
 def test_pa_result_has_zero_se_and_variance():
     t = float(stats.norm.isf(0.05))
     fam = Family("f", [Member("o", t, np.inf), Member("m", -np.inf, t)])
-    res = estimate_liability_pa([fam], h2=0.5, out=("genetic", "full"))
+    res = _estimate_liability_pa([fam], h2=0.5, out=("genetic", "full"))
     assert np.all(res.se["genetic"] == 0)
     assert res.var is not None and res.var["genetic"][0] > 0
 
@@ -197,8 +216,8 @@ def test_mixture_raises_young_control_liability():
     # a young control (K_i << K_pop) is weaker evidence of low liability
     K_i, K_pop = 0.01, 0.15
     t_i = float(stats.norm.isf(K_i))
-    nomix, _ = tnorm_moments(0.0, 1.0, -np.inf, t_i)
-    mix, _ = tnorm_mixture_conditional(0.0, 1.0, -np.inf, t_i, K_i=K_i, K_pop=K_pop)
+    nomix, _ = _tnorm_moments(0.0, 1.0, -np.inf, t_i)
+    mix, _ = _tnorm_mixture(0.0, 1.0, -np.inf, t_i, K_i=K_i, K_pop=K_pop)
     assert mix > nomix
 
 
@@ -213,10 +232,10 @@ def test_mixture_weight_stable_when_no_future_cases_and_extreme_mean():
     # interval (-inf, thr_pop).
     K = 0.10
     thr_pop = float(stats.norm.isf(K))          # split = Phi^-1(1 - K_pop)
-    mean, var = tnorm_mixture_conditional(50.0, 1.0, -np.inf, thr_pop,
-                                          K_i=K, K_pop=K)
+    mean, var = _tnorm_mixture(50.0, 1.0, -np.inf, thr_pop,
+                               K_i=K, K_pop=K)
     assert np.isfinite(mean) and np.isfinite(var)
-    ref_mean, ref_var = tnorm_moments(50.0, 1.0, -np.inf, thr_pop)
+    ref_mean, ref_var = _tnorm_moments(50.0, 1.0, -np.inf, thr_pop)
     assert mean == pytest.approx(ref_mean)
     assert var == pytest.approx(ref_var)
 
@@ -230,12 +249,8 @@ def test_mixture_weight_stable_when_no_future_cases_and_extreme_mean():
      (0.00, 0.00, "K_pop > 0"),
      (0.10, 1.00, "K_pop > 0")],
 )
-def test_public_scalar_and_family_pa_validate_mixture_pairs(K_i, K_pop, match):
+def test_family_pa_validate_mixture_pairs(K_i, K_pop, match):
     t = float(stats.norm.isf(0.10))
-    with pytest.raises(ValueError, match=match):
-        tnorm_mixture_conditional(
-            0.0, 1.0, -np.inf, t, K_i=K_i, K_pop=K_pop)
-
     cov = np.array([[0.5, 0.5], [0.5, 1.0]])
     with pytest.raises(ValueError, match=match):
         pa_algorithm(
@@ -245,8 +260,8 @@ def test_public_scalar_and_family_pa_validate_mixture_pairs(K_i, K_pop, match):
 
 def test_public_pa_allows_nan_nan_at_unused_coordinates():
     t = float(stats.norm.isf(0.10))
-    plain = tnorm_moments(0.0, 1.0, -np.inf, t)
-    assert tnorm_mixture_conditional(
+    plain = _tnorm_moments(0.0, 1.0, -np.inf, t)
+    assert _tnorm_mixture(
         0.0, 1.0, -np.inf, t, K_i=np.nan, K_pop=np.nan) == pytest.approx(plain)
 
     cov = np.array([[0.5, 0.5, 0.25],
@@ -280,8 +295,8 @@ def test_mixture_changes_genetic_estimate():
     lo, hi, ki, kp = pa_thresholds(status, age, pop_prev=0.1)
     fam = Family("f", [Member("o", lo[0], hi[0]),
                        Member("s1", lo[1], hi[1], K_i=ki[1], K_pop=kp[1])])
-    with_mix = estimate_liability_pa([fam], h2=0.5, out=("genetic",), use_mixture=True)
-    no_mix = estimate_liability_pa([fam], h2=0.5, out=("genetic",), use_mixture=False)
+    with_mix = _estimate_liability_pa([fam], h2=0.5, out=("genetic",), use_mixture=True)
+    no_mix = _estimate_liability_pa([fam], h2=0.5, out=("genetic",), use_mixture=False)
     assert with_mix.est["genetic"][0] >= no_mix.est["genetic"][0] - 1e-9
     assert with_mix.est["genetic"][0] != no_mix.est["genetic"][0]
 
@@ -297,10 +312,10 @@ def test_mixture_split_is_lifetime_threshold_not_passed_upper():
     thr_age = float(stats.norm.isf(K_i))          # Phi^-1(1 - K_i), age-specific
     thr_life = float(stats.norm.isf(K_pop))       # Phi^-1(1 - K_pop), lifetime
 
-    m_age, v_age = tnorm_mixture_conditional(0.3, 0.8, -np.inf, thr_age,
-                                             K_i=K_i, K_pop=K_pop)
-    m_life, v_life = tnorm_mixture_conditional(0.3, 0.8, -np.inf, thr_life,
-                                               K_i=K_i, K_pop=K_pop)
+    m_age, v_age = _tnorm_mixture(0.3, 0.8, -np.inf, thr_age,
+                                  K_i=K_i, K_pop=K_pop)
+    m_life, v_life = _tnorm_mixture(0.3, 0.8, -np.inf, thr_life,
+                                    K_i=K_i, K_pop=K_pop)
     assert m_age == pytest.approx(m_life)
     assert v_age == pytest.approx(v_life)
 
@@ -309,8 +324,8 @@ def test_mixture_split_is_lifetime_threshold_not_passed_upper():
                            Member("s1", -np.inf, thr_age, K_i=K_i, K_pop=K_pop)])
     fam_life = Family("f", [Member("o", thr_life, np.inf),
                             Member("s1", -np.inf, thr_life, K_i=K_i, K_pop=K_pop)])
-    e_age = estimate_liability_pa([fam_age], h2=0.5, use_mixture=True).est["genetic"][0]
-    e_life = estimate_liability_pa([fam_life], h2=0.5, use_mixture=True).est["genetic"][0]
+    e_age = _estimate_liability_pa([fam_age], h2=0.5, use_mixture=True).est["genetic"][0]
+    e_life = _estimate_liability_pa([fam_life], h2=0.5, use_mixture=True).est["genetic"][0]
     assert e_age == pytest.approx(e_life)
 
 
@@ -396,8 +411,6 @@ def test_mixture_rejects_K_on_pinned_rows():
     pin = 1.3
     cov = np.array([[0.5, 0.5], [0.5, 1.0]])
     with pytest.raises(ValueError, match="pinned"):
-        tnorm_mixture_conditional(0.0, 1.0, pin, pin, K_i=0.02, K_pop=0.10)
-    with pytest.raises(ValueError, match="pinned"):
         pa_algorithm(cov, [-np.inf, pin], [np.inf, pin], target=0,
                      K_i=[np.nan, 0.02], K_pop=[np.nan, 0.10])
     with pytest.raises(ValueError, match="pinned"):
@@ -408,7 +421,7 @@ def test_mixture_rejects_K_on_pinned_rows():
     fam = Family("f", [Member("o", t, np.inf),
                        Member("m", pin, pin, K_i=0.02, K_pop=0.10)])
     with pytest.raises(ValueError, match="pinned"):
-        estimate_liability_pa([fam], h2=0.5, use_mixture=True)
+        _estimate_liability_pa([fam], h2=0.5, use_mixture=True)
     from ltpred.estimate import estimate_liability_pa_arrays
     with pytest.raises(ValueError, match="pinned"):
         estimate_liability_pa_arrays(
@@ -424,5 +437,5 @@ def test_mixture_allows_pinned_rows_with_nan_K():
     pin = 1.3
     fam = Family("f", [Member("o", pin, pin),
                        Member("s1", -np.inf, t, K_i=0.02, K_pop=0.10)])
-    res = estimate_liability_pa([fam], h2=0.5, use_mixture=True)
+    res = _estimate_liability_pa([fam], h2=0.5, use_mixture=True)
     assert np.isfinite(res.est["genetic"][0])

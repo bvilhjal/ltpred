@@ -4,10 +4,8 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from ltpred.thresholds import (convert_age_to_cir, convert_cir_to_age,
+from ltpred.thresholds import (convert_age_to_cir, _convert_cir_to_age,
                                convert_age_to_thresh, convert_liability_to_aoo,
-                               truncated_normal_cdf,
-                               convert_observed_to_liability_scale,
                                prevalence_thresholds, age_thresholds,
                                liability_threshold, thresholds_from_cip)
 
@@ -24,12 +22,12 @@ def test_cir_monotone_and_bounded():
 def test_cir_age_round_trip():
     ages = np.array([30.0, 45.0, 60.0, 75.0])
     cir = convert_age_to_cir(ages, pop_prev=0.1)
-    back = convert_cir_to_age(cir, pop_prev=0.1)
+    back = _convert_cir_to_age(cir, pop_prev=0.1)
     assert np.allclose(back, ages, atol=1e-8)
 
 
 def test_cir_to_age_nan_above_prevalence():
-    assert np.isnan(convert_cir_to_age(0.2, pop_prev=0.1))
+    assert np.isnan(_convert_cir_to_age(0.2, pop_prev=0.1))
 
 
 def test_age_to_thresh_logistic_formula():
@@ -45,27 +43,6 @@ def test_thresh_of_aoo_recovers_liability():
     aoo = convert_liability_to_aoo(liab, pop_prev=0.1)
     recovered = convert_age_to_thresh(aoo, pop_prev=0.1)
     assert np.allclose(recovered, liab, atol=1e-8)
-
-
-def test_truncated_normal_cdf_at_bounds():
-    lo = stats.norm.isf(0.05)
-    assert truncated_normal_cdf(lo, lower=lo, upper=np.inf) == pytest.approx(0.0)
-    hi = 3.0
-    assert truncated_normal_cdf(hi, lower=lo, upper=hi) == pytest.approx(1.0)
-
-
-def test_observed_to_liability_matches_lee():
-    obs_h2, k, p = 0.2, 0.01, 0.5
-    z = stats.norm.pdf(stats.norm.isf(k))
-    expected = obs_h2 * (k * (1 - k) / z ** 2) * (k * (1 - k)) / (p * (1 - p))
-    assert convert_observed_to_liability_scale(obs_h2, k, p) == pytest.approx(expected)
-
-
-def test_observed_to_liability_no_ascertainment():
-    obs_h2, k = 0.2, 0.05
-    z = stats.norm.pdf(stats.norm.isf(k))
-    expected = obs_h2 * (k * (1 - k) / z ** 2)
-    assert convert_observed_to_liability_scale(obs_h2, k, None) == pytest.approx(expected)
 
 
 def test_prevalence_thresholds():
@@ -136,18 +113,3 @@ def test_age_thresholds_case_pinned_control_open():
     # case pinned (lower == upper), control open below its age threshold
     assert lower[0] == upper[0]
     assert lower[1] == -np.inf and np.isfinite(upper[1])
-
-
-def test_normal_age_to_thresh_clamps_outside_its_window():
-    # `max_age` is a span, not an endpoint: the map covers
-    # [min_age, min_age + max_age]. Outside it the raw fraction left [0, 1] and
-    # norm_ppf returned a silent NaN.
-    from ltpred.thresholds import convert_age_to_thresh
-    assert np.isposinf(convert_age_to_thresh(5.0, dist="normal"))     # below
-    assert np.isposinf(convert_age_to_thresh(10.0, dist="normal"))    # min_age
-    inside = convert_age_to_thresh(50.0, dist="normal")
-    assert np.isfinite(inside)
-    end = convert_age_to_thresh(100.0, dist="normal")                 # min+max
-    assert convert_age_to_thresh(120.0, dist="normal") == pytest.approx(end)
-    assert not np.isnan(convert_age_to_thresh([5.0, 50.0, 120.0],
-                                              dist="normal")).any()

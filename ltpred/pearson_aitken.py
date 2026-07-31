@@ -43,8 +43,7 @@ from ._mathfun import _norm_cdf, _norm_ppf
 from .gibbs import as_bounds
 from ._validation import validate_mixture_inputs
 
-__all__ = ["pa_algorithm", "pa_estimate_batched", "tnorm_moments",
-           "tnorm_mixture_conditional"]
+__all__ = ["pa_algorithm", "pa_estimate_batched"]
 
 _SQRT_2 = 1.4142135623730951
 _LOG_SQRT_2PI = 0.9189385332046727
@@ -374,20 +373,6 @@ def _pa_batched_nomix(cov, lowers, uppers, est, var):
         e, v = _pa_family_nomix(c, lowers[f], uppers[f])
         est[f] = e
         var[f] = v
-
-
-def tnorm_moments(mu=0.0, var=1.0, lower=-np.inf, upper=np.inf):
-    """Public scalar helper: mean and variance of a truncated normal ``(mean, var)``."""
-    sd = math.sqrt(var)
-    return _tnorm_mean(mu, sd, lower, upper), _tnorm_var(mu, sd, lower, upper)
-
-
-def tnorm_mixture_conditional(mu, var, lower, upper, K_i=np.nan, K_pop=np.nan):
-    """Public scalar helper for the censored-control mixture; returns ``(mean, var)``."""
-    K_i, K_pop = validate_mixture_inputs(
-        K_i, K_pop, expected_shape=(), lower=lower, upper=upper,
-        context="scalar mixture inputs")
-    return _tnorm_mixture(mu, var, lower, upper, float(K_i), float(K_pop))
 
 
 def pa_algorithm(covmat, lower, upper, target=0, K_i=None, K_pop=None):

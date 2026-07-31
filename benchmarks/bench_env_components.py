@@ -87,7 +87,9 @@ def main():
         out["additive-only"].append(est_metrics(fams, true_g, true_o))
         out["oracle-wired"].append(est_metrics(fams, true_g, true_o,
                                                c2=C2, m2=M2))
-        fit = fit_variance_components(fams, ("A", "C", "M"), seed=rep, **FIT_KW)
+        fit = fit_variance_components(
+            fams, ("A", "C", "M"), sampling="population", seed=rep, **FIT_KW
+        )
         c2_hat = float(fit.components.get("C", 0.0))
         m2_hat = float(fit.components.get("M", 0.0))
         a_hat = float(fit.components["A"])

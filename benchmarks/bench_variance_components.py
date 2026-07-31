@@ -16,8 +16,9 @@ variability. It reports:
   (c) **precision vs #families** — the across-replicate SD of C as N grows.
 
 Ground truth is set by the simulator (liabilities drawn from
-`a2 A + c2 C + e2 I`, thresholded), so this is a clean characterisation of the
-estimator.
+`a2 A + c2 C + e2 I`, thresholded). Families are unascertained population
+draws, so this characterises the estimator only under its supported
+`sampling="population"` contract.
 
     python benchmarks/bench_variance_components.py
     python benchmarks/bench_variance_components.py --reps 40 --n-fam 4000
@@ -32,11 +33,8 @@ import argparse
 import numpy as np
 from scipy.stats import chi2
 
-from _common import get_plt
-from ltpred.covariance import correct_positive_definite
-from ltpred.thresholds import liability_threshold
-from ltpred.family import Family, Member
-from ltpred.fit import _component_matrix, fit_variance_components
+from _common import get_plt, simulate_families_components
+from ltpred.fit import fit_variance_components
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -51,34 +49,16 @@ def _sd_ci(sd, reps, alpha=0.05):
             sd * np.sqrt(df / chi2.ppf(alpha / 2.0, df)))
 
 
-def simulate_ac(fam_vec, a2, c2, n_fam, prev, seed):
-    """Families with liabilities ~ N(0, a2 A + c2 C + e2 I), thresholded at prev."""
-    roles = list(fam_vec)
-    e2 = 1.0 - a2 - c2
-    Sig = e2 * np.eye(len(roles)) + a2 * _component_matrix(roles, "A")
-    if c2 > 0:
-        Sig = Sig + c2 * _component_matrix(roles, "C")
-    Sig, _ = correct_positive_definite(Sig)
-    rng = np.random.default_rng(seed)
-    liab = rng.multivariate_normal(np.zeros(len(roles)), Sig, size=n_fam)
-    t = float(liability_threshold(prev))
-    fams = []
-    for i in range(n_fam):
-        members = [Member(role=r, lower=(t if liab[i, c] > t else -np.inf),
-                          upper=(np.inf if liab[i, c] > t else t))
-                   for c, r in enumerate(roles)]
-        fams.append(Family(fam_id=i, members=members))
-    return fams
-
-
 def fit_replicates(fam_vec, a2, c2, n_fam, prev, reps, seed0, n_iter, burn_in):
     """Fit `reps` independent A+C cohorts; return fitted A[] and C[]."""
     fa = np.empty(reps)
     fc = np.empty(reps)
     for r in range(reps):
-        fams = simulate_ac(fam_vec, a2, c2, n_fam, prev, seed0 + r)
+        fams = simulate_families_components(fam_vec, {"A": a2, "C": c2}, n_fam,
+                                            prev, seed0 + r)
         res = fit_variance_components(fams, ("A", "C"), n_iter=n_iter,
                                       burn_in=burn_in,
+                                      sampling="population",
                                       seed=seed0 + 100_000 + r)
         fa[r], fc[r] = res.components["A"], res.components["C"]
     return fa, fc
@@ -97,8 +77,9 @@ def main():
     args = ap.parse_args()
 
     # warm the JIT
-    fit_variance_components(simulate_ac(STRUCT, 0.4, 0.2, 60, args.prev, 0),
-                            ("A", "C"), n_iter=20, burn_in=5)
+    fit_variance_components(
+        simulate_families_components(STRUCT, {"A": 0.4, "C": 0.2}, 60, args.prev, 0),
+        ("A", "C"), sampling="population", n_iter=20, burn_in=5)
 
     rows = []
 

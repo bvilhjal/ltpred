@@ -21,17 +21,18 @@ Writes bench_genetic_correlation.csv (+ .png if matplotlib is present).
 
 import os
 import csv
+import sys
 import time
 import argparse
+from pathlib import Path
 
 import numpy as np
 from scipy.stats import chi2
 
-from _common import get_plt
-from ltpred.covariance import construct_covmat_multi, correct_positive_definite
-from ltpred.thresholds import liability_threshold
-from ltpred.family import Family, Member
-from ltpred.fit import fit_genetic_correlation
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root: `research`
+
+from _common import get_plt, simulate_families_multi
+from research.advanced_fitting import fit_genetic_correlation
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -47,40 +48,11 @@ def _sd_ci(sd, reps, alpha=0.05):
             sd * np.sqrt(df / chi2.ppf(alpha / 2.0, df)))
 
 
-def simulate_two_trait(fam_vec, h2_vec, rg_val, rp_val, n_fam, prev, seed):
-    """Two-trait families under the LTM; each member gets one interval per trait."""
-    P = len(h2_vec)
-    rg = np.array([[1.0, rg_val], [rg_val, 1.0]])
-    rp = np.array([[1.0, rp_val], [rp_val, 1.0]])
-    cov = construct_covmat_multi(fam_vec=fam_vec, add_ind=True, genetic_corrmat=rg,
-                                 full_corrmat=rp, h2_vec=np.asarray(h2_vec, float))
-    roles = cov.roles
-    k = len(roles) // P
-    fam_roles = roles[:k]
-    Sig, _ = correct_positive_definite(cov.matrix)
-    rng = np.random.default_rng(seed)
-    liab = rng.multivariate_normal(np.zeros(len(roles)), Sig, size=n_fam)
-    t = [float(liability_threshold(prev[p])) for p in range(P)]
-    obs = [r for r in fam_roles if r != "g"]
-    fams = []
-    for i in range(n_fam):
-        members = []
-        for r in obs:
-            lo, hi = [], []
-            for p in range(P):
-                case = liab[i, p * k + fam_roles.index(r)] > t[p]
-                lo.append(t[p] if case else -np.inf)
-                hi.append(np.inf if case else t[p])
-            members.append(Member(role=r, lower=lo, upper=hi))
-        fams.append(Family(fam_id=i, members=members))
-    return fams
-
-
 def fit_replicates(rg_val, n_fam, prev, reps, seed0, n_iter, burn_in):
     fitted = np.empty(reps)
     for r in range(reps):
-        fams = simulate_two_trait(FAM, H2, rg_val, RP_OFFDIAG, n_fam, (prev, prev),
-                                  seed0 + r)
+        fams = simulate_families_multi(FAM, H2, rg_val, RP_OFFDIAG, n_fam,
+                                       (prev, prev), seed0 + r)
         res = fit_genetic_correlation(fams, n_iter=n_iter, burn_in=burn_in,
                                       seed=seed0 + 100_000 + r)
         fitted[r] = res.rg[0, 1]
@@ -100,7 +72,8 @@ def main():
     ap.add_argument("--seed", type=int, default=200)
     args = ap.parse_args()
 
-    fit_genetic_correlation(simulate_two_trait(FAM, H2, 0.5, 0.2, 60, (0.1, 0.1), 0),
+    fit_genetic_correlation(simulate_families_multi(FAM, H2, 0.5, 0.2, 60,
+                                                    (0.1, 0.1), 0),
                             n_iter=20, burn_in=5)   # warm JIT
 
     rows = []

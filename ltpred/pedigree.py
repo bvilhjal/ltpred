@@ -6,10 +6,10 @@ parent-offspring records (``id, father, mother`` per person), and the pedigree
 must be *discovered*: which people are this proband's relatives, and how are
 they connected? This module builds the parent-child graph once
 (:func:`build_parent_graph`) and then extracts each proband's pedigree by
-breadth-first traversal (:func:`extract_pedigree`,
-:func:`extract_pedigrees`) — the graph-based relative extraction of Pedersen
+breadth-first traversal (:func:`extract_pedigree`) — the graph-based relative
+extraction of Pedersen
 et al. (2025, *Front Genet*): a relative is anyone within ``max_degree``
-meiotic steps of the proband, where one step is a parent-offspring link.
+relationship degrees of the proband.
 
 Degree conventions follow the standard relationship-degree scale (and
 Pedersen et al. 2025): **first-degree** relatives (parents, children, full
@@ -40,7 +40,7 @@ from dataclasses import dataclass
 import numpy as np
 
 __all__ = ["ParentGraph", "Pedigree", "build_parent_graph",
-           "extract_pedigree", "extract_pedigrees"]
+           "extract_pedigree"]
 
 
 @dataclass
@@ -67,8 +67,8 @@ class Pedigree:
 
     ``ids``/``father``/``mother`` feed
     :func:`~ltpred.covariance.kinship_from_pedigree` directly (parents outside
-    the extracted set are founders). ``degree[i]`` is the meiotic distance of
-    member ``i`` from the proband (0 = proband). Ordering is deterministic:
+    the extracted set are founders). ``degree[i]`` is the relationship-degree
+    distance of member ``i`` from the proband (0 = proband). Ordering is deterministic:
     proband first, then by (degree, id)."""
     proband: object
     ids: list
@@ -177,8 +177,8 @@ def extract_pedigree(graph, proband, max_degree=2):
     # included.
     # Relax rather than first-write: an ancestor reachable by two routes (say a
     # grandparent who is also a more distant ancestor on the other side) must
-    # keep the SHORTEST meiotic distance, which is what ``degree`` documents and
-    # what ``PopulationScores.degree_max`` summarises. Assigning on first visit
+    # keep the shortest relationship-degree distance, which is what ``degree`` documents and
+    # what ``research.pipeline.PopulationScores.degree_max`` summarises. Assigning on first visit
     # instead recorded whichever route the traversal happened to reach first.
     queue = list(degree)
     while queue:
@@ -202,9 +202,3 @@ def extract_pedigree(graph, proband, max_degree=2):
     mother = [_parent(graph.dam[j]) for j in members]
     return Pedigree(proband=proband, ids=id_at, father=father, mother=mother,
                     degree=np.array([degree[j] for j in members]))
-
-
-def extract_pedigrees(graph, probands, max_degree=2):
-    """Iterate :func:`extract_pedigree` over a sequence of proband ids."""
-    for proband in probands:
-        yield extract_pedigree(graph, proband, max_degree=max_degree)

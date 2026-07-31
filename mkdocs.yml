@@ -26,15 +26,19 @@ theme:
 
 nav:
   - Overview: index.md
+  - Choose a method: guide.md
   - Quickstart: quickstart.md
-  - Data preparation: data-preparation.md
-  - CIP estimation: cip-estimation.md
-  - Estimation: estimation.md
-  - Inference: inference.md
-  - Assumptions & checklist: assumptions.md
-  - Algorithm & model: algorithm.md
-  - API reference: api.md
-  - Roadmap: ROADMAP.md
+  - Workflow:
+      - Data preparation: data-preparation.md
+      - CIP estimation: cip-estimation.md
+      - Estimation: estimation.md
+      - Population-sampled fitting: inference.md
+      - Assumptions & checklist: assumptions.md
+  - Reference:
+      - Algorithm & model: algorithm.md
+      - API reference: api.md
+  - Project:
+      - Roadmap: ROADMAP.md
 
 markdown_extensions:
   - admonition

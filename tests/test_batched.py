@@ -37,7 +37,7 @@ def test_batched_kernel_matches_batch_means_single_round():
 
 
 def test_pa_arrays_match_object_api():
-    from ltpred.estimate import estimate_liability_pa_arrays, estimate_liability_pa
+    from ltpred.estimate import estimate_liability_pa_arrays, _estimate_liability_pa
     t = float(stats.norm.isf(0.05))
     roles = ["o", "m", "f", "s1"]
     rng = np.random.default_rng(1)
@@ -47,7 +47,7 @@ def test_pa_arrays_match_object_api():
     est_a, var_a = estimate_liability_pa_arrays(roles, lower, upper, h2=0.5)
     fams = [Family(i, [Member(r, lower[i, k], upper[i, k]) for k, r in enumerate(roles)])
             for i in range(50)]
-    obj = estimate_liability_pa(fams, h2=0.5, out=("genetic",))
+    obj = _estimate_liability_pa(fams, h2=0.5, out=("genetic",))
     assert np.allclose(est_a, obj.est["genetic"])
     assert np.allclose(var_a, obj.var["genetic"])
 

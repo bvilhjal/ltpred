@@ -9,8 +9,8 @@ generative model rather than to itself.
 import numpy as np
 import pytest
 
-from ltpred.covariance import (construct_covmat_nurture,
-                               construct_covmat_single)
+from ltpred.covariance import construct_covmat_single
+from research.covariance_extensions import construct_covmat_nurture
 
 NUCLEAR = ("m", "f", "s1")
 
@@ -66,16 +66,16 @@ def test_parent_offspring_and_sib_sib_inflate_by_different_amounts():
     assert (ss - h2 / 2) > (po - h2 / 2)
 
 
-def test_genetic_target_row_is_not_inflated_by_nurture():
-    """Nurture changes how a parent's *liability* relates to the child, not how
-    their *genotype* relates to the child's own genetic value."""
+def test_genetic_target_row_changes_selectively_under_nurture():
+    """Parent entries stay transmission-only; own and sibling entries change."""
     h2, n = 0.5, 0.3
     cov = construct_covmat_nurture(NUCLEAR, h2=h2, nurture=n)
     i = _index(cov)
     assert cov.matrix[i["g"], i["m"]] == pytest.approx(h2 / 2)
     assert cov.matrix[i["g"], i["f"]] == pytest.approx(h2 / 2)
-    # while the proband's own liability does absorb the shared nurture
+    # The proband and sibling liabilities absorb the correlated nurture path.
     assert cov.matrix[i["g"], i["o"]] == pytest.approx(h2 * (1 + n))
+    assert cov.matrix[i["g"], i["s1"]] == pytest.approx(h2 / 2 + n * h2)
     assert cov.matrix[i["g"], i["o"]] > cov.matrix[i["g"], i["g"]]
 
 
@@ -165,7 +165,7 @@ def test_negative_nurture_is_allowed():
                                   (0.7, -0.15), (0.6, 0.0)])
 def test_fit_nurture_inverts_the_constructor_exactly(h2, n):
     """The moment estimator is a closed-form inverse, not an approximation."""
-    from ltpred.fit import fit_nurture
+    from research.advanced_fitting import fit_nurture
     cov = construct_covmat_nurture(NUCLEAR, h2=h2, nurture=n)
     i = _index(cov)
     fit = fit_nurture(cov.matrix[i["o"], i["m"]], cov.matrix[i["o"], i["s1"]])
@@ -175,7 +175,7 @@ def test_fit_nurture_inverts_the_constructor_exactly(h2, n):
 
 def test_fit_nurture_disagreement_is_zero_exactly_when_no_indirect_path():
     """The diagnostic must not fire on a purely additive trait."""
-    from ltpred.fit import fit_nurture
+    from research.advanced_fitting import fit_nurture
     cov = construct_covmat_nurture(NUCLEAR, h2=0.6, nurture=0.0)
     i = _index(cov)
     fit = fit_nurture(cov.matrix[i["o"], i["m"]], cov.matrix[i["o"], i["s1"]])
@@ -187,7 +187,7 @@ def test_fit_nurture_disagreement_is_zero_exactly_when_no_indirect_path():
 
 def test_fit_nurture_recovers_truth_from_simulated_liabilities():
     """Sampling, not algebra: covariances estimated from draws."""
-    from ltpred.fit import fit_nurture
+    from research.advanced_fitting import fit_nurture
     h2, n = 0.4, 0.25
     cov = construct_covmat_nurture(NUCLEAR, h2=h2, nurture=n)
     i = _index(cov)
@@ -204,7 +204,7 @@ def test_fit_nurture_recovers_truth_from_simulated_liabilities():
 
 def test_fit_nurture_reports_a_contrast_effect_rather_than_clipping_it():
     """Sib covariance below parent-offspring means negative nurture."""
-    from ltpred.fit import fit_nurture
+    from research.advanced_fitting import fit_nurture
     cov = construct_covmat_nurture(NUCLEAR, h2=0.7, nurture=-0.15)
     i = _index(cov)
     fit = fit_nurture(cov.matrix[i["o"], i["m"]], cov.matrix[i["o"], i["s1"]])
@@ -214,13 +214,13 @@ def test_fit_nurture_reports_a_contrast_effect_rather_than_clipping_it():
 
 @pytest.mark.parametrize("po,ss", [(0.0, 0.5), (-0.1, 0.5), (0.3, 0.0), (0.3, -0.2)])
 def test_fit_nurture_rejects_non_positive_covariances(po, ss):
-    from ltpred.fit import fit_nurture
+    from research.advanced_fitting import fit_nurture
     with pytest.raises(ValueError, match="must be positive"):
         fit_nurture(po, ss)
 
 
 def test_fit_nurture_rejects_covariances_no_valid_model_produces():
-    from ltpred.fit import fit_nurture
+    from research.advanced_fitting import fit_nurture
     with pytest.raises(ValueError, match="outside \\(0, 1\\]"):
         fit_nurture(0.9, 0.5)          # implied h2 = 3.24
     with pytest.raises(ValueError, match="negative residual variance"):

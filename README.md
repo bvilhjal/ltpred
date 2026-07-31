@@ -157,13 +157,21 @@ Aalen-Johansen, `ltpred.cip`), both inference engines (Gibbs and PA),
 single- and multi-trait
 `estimate_liability`, simulation, and **model fitting** — heritability
 (`fit_heritability`), variance components A + C + M (`fit_variance_components`) — feedable back
-into single-trait role-based estimation via `c2`/`m2`,
-genetic correlation (`fit_genetic_correlation`) and its common-factor model
-(`fit_genetic_factor`), approximate iid-family cluster percentile intervals
-(`bootstrap_fit`) and h² sensitivity
-(`liability_sensitivity`), and tetrachoric-correlation diagnostics
+into single-trait role-based estimation via `c2`/`m2`, approximate iid-family
+cluster percentile intervals
+(`bootstrap_fit`), liability-scale transformations (`ltpred.liability_scale`),
+and tetrachoric-correlation diagnostics
 (`ltpred.tetrachoric`) for liability correlations straight from 2x2
 case/control tables.
+
+Demoted research machinery lives in the unsupported **`research/` package** at
+the repository root (importable as `research.<module>` from a checkout; it is
+not part of the installed distribution): the end-to-end register pipeline
+(`research.pipeline`), and in `research.advanced_fitting` the genetic-correlation,
+onset-age-decay, common-factor and genetic-nurture fits, the MCEM
+variance-component fit, and the parametric-bootstrap significance tests, plus
+the sex-limited and genetic-nurture covariance constructors in
+`research.covariance_extensions`.
 
 The high-level arbitrary-kinship estimator accepts `A` plus `lower`/`upper` only;
 it does not accept `K_i`, `K_pop`, or `use_mixture`. Use the role/object estimator
@@ -186,7 +194,10 @@ one).
 ## Benchmarks
 
 [`benchmarks/`](benchmarks/) compares model encodings and inference engines on
-simulated data. The integrated LT-FH++ benchmark includes age-, sex-, and
+simulated data. Its checked-in results are a historical snapshot, not an
+automatic validation of later source changes; see the provenance header and
+rerun instructions in [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md). The
+integrated LT-FH++ benchmark includes age-, sex-, and
 cohort-dependent CIP, coherent onset/censoring, ascertainment, and a genotype
 GWAS. A matched ADuLT arm keeps the same personalised proband bounds but removes
 relatives: it reaches a 1.049 ± 0.004× adjusted causal-SNP NCP ratio, versus

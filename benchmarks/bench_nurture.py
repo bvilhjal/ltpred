@@ -39,14 +39,17 @@ Writes bench_nurture.csv (+ .png if matplotlib is present).
 """
 
 import os
+import sys
 import csv
 import argparse
+from pathlib import Path
 
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import norm, t as student_t
 
-from ltpred.covariance import (construct_covmat_nurture,
-                               construct_covmat_single)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from research.covariance_extensions import construct_covmat_nurture
+from ltpred.covariance import construct_covmat_single
 from ltpred.pearson_aitken import pa_algorithm
 
 from _common import get_plt
@@ -150,9 +153,12 @@ def run_cell(h2, n, *, n_fam, prevalence, reps, seed0):
 
     def summarise(v):
         v = np.asarray(v, dtype=float)
-        mean = float(np.nanmean(v))
-        se = float(np.nanstd(v, ddof=1) / np.sqrt(len(v))) if len(v) > 1 else 0.0
-        return mean, 1.96 * se
+        v = v[np.isfinite(v)]
+        mean = float(np.mean(v))
+        if len(v) <= 1:
+            return mean, 0.0
+        se = float(np.std(v, ddof=1) / np.sqrt(len(v)))
+        return mean, float(student_t.ppf(0.975, len(v) - 1) * se)
 
     out = dict(reps=reps, h2=h2, nurture=n, h2_moment_po=h2_po,
                h2_moment_sib=h2_ss, c2_matched=c2)
@@ -182,7 +188,7 @@ def main():
     print(f"(a) cost of ignoring nurture   [h2 = {args.h2}, K = {args.prevalence}, "
           f"{args.reps} reps x {args.n_fam} fam]")
     print(f"{'n':>5} | {'add(true)':>9} {'add(moment)':>11} {'A+C sibs':>9} "
-          f"{'nurture':>8} | {'cost':>17}")
+          f"{'nurture':>8} | {'cost ± 95% t CI':>20}")
     rows = []
     for n in args.nurture:
         m = run_cell(args.h2, n, seed0=args.seed, **kw)
@@ -194,7 +200,7 @@ def main():
     print("\n(b) the identifiability trap: A+C reproduces sib-sib covariance exactly")
     print(f"{'n':>5} | {'c2 matched':>10} | {'h2 from par-off':>15} "
           f"{'h2 from sibs':>12} | {'A+C slope':>9} {'nurture slope':>13} | "
-          f"{'trap':>17}")
+          f"{'trap ± 95% t CI':>20}")
     for m in rows:
         print(f"{m['nurture']:5.2f} | {m['c2_matched']:10.4f} | "
               f"{m['h2_moment_po']:15.4f} {m['h2_moment_sib']:12.4f} | "

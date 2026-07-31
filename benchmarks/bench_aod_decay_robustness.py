@@ -19,15 +19,17 @@ Writes bench_aod_decay_robustness.csv.
 
 import os
 import csv
+import sys
 import time
 import argparse
+from pathlib import Path
 
 import numpy as np
 
-from ltpred.covariance import get_relatedness, correct_positive_definite
-from ltpred.thresholds import liability_threshold
-from ltpred.family import Family, Member
-from ltpred.fit import fit_genetic_correlation_decay, _decay_cov
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root: `research`
+
+from _common import simulate_families_multi
+from research.advanced_fitting import fit_genetic_correlation_decay
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -39,45 +41,10 @@ PREV = [0.2, 0.2]
 AGE_LO, AGE_HI = 15.0, 65.0
 
 
-def simulate(n_fam, lam, seed, true_kernel="ou", c2=0.0):
-    """Two-trait families; optionally wrong-form decay and/or shared-family env."""
-    rng = np.random.default_rng(seed)
-    A = np.array([[get_relatedness(a, b, 1.0) for b in FAM] for a in FAM])
-    k = len(FAM)
-    h2 = np.array(H2)
-    g01 = RG * np.sqrt(H2[0] * H2[1])
-    G = np.array([[H2[0], g01], [g01, H2[1]]])
-    E = np.array([[1 - H2[0], RP - g01], [RP - g01, 1 - H2[1]]])
-    R = G + E
-    np.fill_diagonal(R, 1.0)
-    lam_w = np.full(2, lam)
-    lam_x = np.full((2, 2), lam)
-    t = [float(liability_threshold(p)) for p in PREV]
-    J = np.ones((k, k)) - np.eye(k)          # shared family environmental effect
-    fams = []
-    for i in range(n_fam):
-        aod = rng.uniform(AGE_LO, AGE_HI, size=(k, 2))
-        Sig = _decay_cov(A, h2, G, R, E, aod, lam_w, lam_x, true_kernel)
-        if c2 > 0.0:
-            for p in range(2):               # cross-relative env correlation
-                Sig[p * k:(p + 1) * k, p * k:(p + 1) * k] += c2 * J
-        Sig, _ = correct_positive_definite(Sig)
-        x = rng.multivariate_normal(np.zeros(k * 2), Sig)
-        members = []
-        for c, r in enumerate(FAM):
-            lo, hi = [], []
-            for p in range(2):
-                case = x[p * k + c] > t[p]
-                lo.append(t[p] if case else -np.inf)
-                hi.append(np.inf if case else t[p])
-            members.append(Member(role=r, lower=lo, upper=hi, aod=list(aod[c])))
-        fams.append(Family(fam_id=i, members=members))
-    return fams
-
-
 def fit_rep(kw, n_fam, rep, args):
-    fams = simulate(n_fam, kw["lam"], seed=args.seed + rep,
-                    true_kernel=kw["true_kernel"], c2=kw["c2"])
+    fams = simulate_families_multi(FAM, H2, RG, RP, n_fam, PREV, args.seed + rep,
+                                   aod=(AGE_LO, AGE_HI), lam=kw["lam"],
+                                   kernel=kw["true_kernel"], c2=kw["c2"])
     r = fit_genetic_correlation_decay(fams, kernel="ou", n_em=args.n_em,
                                       n_draw=args.n_draw, burn=args.burn,
                                       m_iter=args.m_iter,

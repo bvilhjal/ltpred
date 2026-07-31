@@ -52,13 +52,16 @@ Writes bench_sex_limitation.csv (+ .png if matplotlib is present).
 """
 
 import os
+import sys
 import csv
 import argparse
+from pathlib import Path
 
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import norm, t as student_t
 
-from ltpred.covariance import construct_covmat_sex_limited
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from research.covariance_extensions import construct_covmat_sex_limited
 from ltpred.pearson_aitken import pa_algorithm
 
 from _common import get_plt
@@ -192,9 +195,12 @@ def run_cell(h2f, h2m, rg, *, n_fam, k_female, k_male, reps, seed0, cells=None):
 
     def summarise(values):
         v = np.asarray(values, dtype=float)
+        v = v[np.isfinite(v)]
         mean = float(np.nanmean(v))
-        se = float(np.nanstd(v, ddof=1) / np.sqrt(len(v))) if len(v) > 1 else 0.0
-        return mean, 1.96 * se
+        if len(v) <= 1:
+            return mean, 0.0
+        se = float(np.std(v, ddof=1) / np.sqrt(len(v)))
+        return mean, float(student_t.ppf(0.975, len(v) - 1) * se)
 
     out = dict(reps=reps)
     for arm in arms:
@@ -233,8 +239,8 @@ def main():
 
     kw = dict(n_fam=args.n_fam, k_female=args.k_female, k_male=args.k_male,
               reps=args.reps)
-    hdr = (f"{'':>6} | {'sex thr':>8} {'Sigma':>8} | {'gain':>17} "
-           f"{'eff-N':>15} | {'slope thr':>9} {'slope Sig':>9}")
+    hdr = (f"{'':>6} | {'sex thr':>8} {'Sigma':>8} | {'gain ± 95% t CI':>17} "
+           f"{'eff-N ± 95% t CI':>19} | {'slope thr':>9} {'slope Sig':>9}")
 
     def show(label, m):
         print(f"{label:>6} | {m['sex_thr_corr']:8.4f} {m['sigma_true_corr']:8.4f} | "
@@ -267,7 +273,8 @@ def main():
     # are matched on relatedness and differ only in sex configuration.
     print("\n(c) mechanism: matched two-relative families, equal h2 both sexes")
     print(f"    [h2_F = h2_M = {args.h2_mech}, so *all* of any gain is rg]")
-    print(f"{'':>6} {'composition':>12} | {'sex thr':>8} {'Sigma':>8} | {'gain':>17}")
+    print(f"{'':>6} {'composition':>12} | {'sex thr':>8} {'Sigma':>8} | "
+          f"{'gain ± 95% t CI':>17}")
     for name, spec in COMPOSITIONS.items():
         cells = [(spec["fam_vec"], spec["sex_o"], spec["sex_s"])]
         for rg in args.rg_mech:

@@ -1,6 +1,12 @@
 """End-to-end register pipeline: trio records -> pedigrees -> CIP thresholds
 -> per-proband genetic-liability scores.
 
+**Unsupported research scaffolding.** This module was moved out of the
+``ltpred`` core package into ``research/``: it is not shipped in the wheel,
+its API may change without notice, and it is importable only from a
+repository checkout with the repo root on ``sys.path`` (as
+``research.pipeline``). See ``research/README.md``.
+
 The pieces exist separately -- :mod:`ltpred.pedigree` discovers relatives,
 :mod:`ltpred.cip` estimates the incidence curve,
 :func:`~ltpred.thresholds.thresholds_from_cip` turns it into bounds, and
@@ -33,10 +39,10 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .covariance import kinship_from_pedigree
-from .estimate import estimate_liability_from_kinship
-from .pedigree import build_parent_graph, extract_pedigree
-from .thresholds import thresholds_from_cip
+from ltpred.covariance import kinship_from_pedigree
+from ltpred.estimate import estimate_liability_from_kinship
+from ltpred.pedigree import build_parent_graph, extract_pedigree
+from ltpred.thresholds import thresholds_from_cip
 
 __all__ = ["PopulationScores", "estimate_liabilities"]
 

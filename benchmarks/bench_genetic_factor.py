@@ -25,16 +25,17 @@ Writes bench_genetic_factor.csv (+ .png if matplotlib is present).
 
 import os
 import csv
+import sys
 import time
 import argparse
+from pathlib import Path
 
 import numpy as np
 
-from _common import get_plt
-from ltpred.covariance import construct_covmat_multi, correct_positive_definite
-from ltpred.thresholds import liability_threshold
-from ltpred.family import Family, Member
-from ltpred.fit import fit_genetic_correlation, fit_genetic_factor
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root: `research`
+
+from _common import get_plt, simulate_families_multi
+from research.advanced_fitting import fit_genetic_correlation, fit_genetic_factor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -61,40 +62,8 @@ def rg_two_factor():
     return R
 
 
-def simulate_multi_trait(fam_vec, h2_vec, rg, n_fam, prev, seed):
-    """Multi-trait families under the LTM with genetic correlation `rg` and **no**
-    environmental cross-trait correlation, so the full-liability correlation is the
-    purely-genetic `rg[p,q] sqrt(h2_p h2_q)`. Each member gets one interval per trait."""
-    h2_vec = np.asarray(h2_vec, float)
-    P = len(h2_vec)
-    rp = rg * np.sqrt(np.outer(h2_vec, h2_vec))     # env corr = 0
-    np.fill_diagonal(rp, 1.0)
-    cov = construct_covmat_multi(fam_vec=fam_vec, add_ind=True, genetic_corrmat=rg,
-                                 full_corrmat=rp, h2_vec=h2_vec)
-    roles = cov.roles
-    k = len(roles) // P
-    fam_roles = roles[:k]
-    Sig, _ = correct_positive_definite(cov.matrix)
-    rng = np.random.default_rng(seed)
-    liab = rng.multivariate_normal(np.zeros(len(roles)), Sig, size=n_fam)
-    t = [float(liability_threshold(prev)) for _ in range(P)]
-    obs = [r for r in fam_roles if r != "g"]
-    fams = []
-    for i in range(n_fam):
-        members = []
-        for r in obs:
-            lo, hi = [], []
-            for p in range(P):
-                case = liab[i, p * k + fam_roles.index(r)] > t[p]
-                lo.append(t[p] if case else -np.inf)
-                hi.append(np.inf if case else t[p])
-            members.append(Member(role=r, lower=lo, upper=hi))
-        fams.append(Family(fam_id=i, members=members))
-    return fams
-
-
 def fit_pipeline(rg_true, n_fam, prev, seed, n_iter, burn_in, n_factors=1):
-    fams = simulate_multi_trait(FAM, H2, rg_true, n_fam, prev, seed)
+    fams = simulate_families_multi(FAM, H2, rg_true, None, n_fam, prev, seed)
     gc = fit_genetic_correlation(fams, n_iter=n_iter, burn_in=burn_in,
                                  seed=seed + 100_000)
     fac = fit_genetic_factor(gc, n_factors=n_factors)
@@ -151,8 +120,8 @@ def main():
     t0 = time.time()
     for r in range(args.reps):
         seed = args.seed + 1000 + r
-        fams = simulate_multi_trait(FAM, H2, rg_two_factor(), args.n_fam,
-                                    args.prev, seed)
+        fams = simulate_families_multi(FAM, H2, rg_two_factor(), None, args.n_fam,
+                                       args.prev, seed)
         gc = fit_genetic_correlation(fams, n_iter=args.n_iter,
                                      burn_in=args.burn_in,
                                      seed=seed + 100_000)

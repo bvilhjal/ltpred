@@ -6,16 +6,108 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Changed (breaking)
+
+Leanness refactor: the supported public API is now the lean estimation core.
+The advanced fitting and covariance machinery moved to an **unsupported
+`research/` package** at the repository root — importable as
+`research.<module>` from a checkout, not installed with the distribution and
+not covered by the compatibility policy. A capability (re)joins `ltpred`
+proper only when wired into the core estimation path and benchmarked.
+
+**Moved to `research/`** (same names unless noted):
+
+- `ltpred.pipeline` (`PopulationScores`, `estimate_liabilities`) →
+  `research/pipeline.py`.
+- `fit_genetic_correlation`, `fit_genetic_correlation_decay`,
+  `fit_genetic_factor`, `fit_nurture`, `test_variance_component`,
+  `test_genetic_correlation` and their result types →
+  `research/advanced_fitting.py`. The MCEM variance-component route is now
+  `fit_variance_components_mcem` there (was
+  `fit_variance_components(..., method="mcem")`, aliases `"ml"`/`"reml"`);
+  its `MCEMVarCompResult` keeps the `loglik`/`aic` fields.
+- `construct_covmat_sex_limited` and `construct_covmat_nurture` →
+  `research/covariance_extensions.py`.
+
+**Removed outright** (no replacement unless noted):
+
+- `liability_sensitivity` / `SensitivityResult` — re-estimate over an `h2`
+  grid and correlate the scores directly.
+- `convert_observed_to_liability_scale` — an exact duplicate of
+  `liability_scale.observed_to_liability_h2`; use that.
+- `observed_to_liability_gencov`, `liability_to_observed_gencov` and
+  `observed_to_liability_rg` from `ltpred.liability_scale`.
+- `tnorm_moments` and `tnorm_mixture_conditional` from
+  `ltpred.pearson_aitken` (internal helpers, no longer exported).
+- `truncated_normal_cdf` from `ltpred.thresholds`; `convert_cir_to_age` is
+  now private (`_convert_cir_to_age`).
+- `extract_pedigrees` — a trivial generator; iterate `extract_pedigree`.
+- The `construct_covmat` dispatcher — call `construct_covmat_single` /
+  `construct_covmat_multi` directly.
+- `estimate_liability_single` / `estimate_liability_pa` /
+  `estimate_liability_multi` are now private (`_estimate_liability_*`); use
+  `estimate_liability` or the array APIs.
+
+**Signature changes:**
+
+- `fit_heritability` and `fit_variance_components` add a transitional
+  `sampling=` contract. Pass `sampling="population"` to affirm independent,
+  non-overlapping population-sampled families; omission warns, and no
+  ascertained-sample mode is implemented.
+- `fit_variance_components` no longer takes `method=` — the Haseman–Elston
+  moment regression is the only core route (MCEM lives in `research/`).
+- `liability_r2_from_z` now subtracts the unit expected null contribution,
+  using `(z² - 1) / N` by default. Individual estimates may therefore be
+  negative; aggregate before interpretation. Pass `subtract_null=False` only
+  to reproduce the former raw `z² / N` second moment.
+- `VarCompResult` drops the `loglik`/`aic` fields.
+- `Covmat` drops the write-only `h2` dataclass field.
+- `LiabilityResult` drops the `column` attribute.
+- `estimate_liability`'s `out=` accepts only the exact strings `"genetic"` /
+  `"full"` (singly or as a tuple).
+- `aalen_johansen_cip` drops `n_boot`/`seed` — the closed-form Aalen (1978)
+  variance is the only standard error.
+- `gibbs_params` / `rtmvnorm_gibbs` now reject singular as well as indefinite
+  covariance matrices, including when precomputed Gibbs parameters are passed.
+- `tetrachoric_matrix` warns when independently fitted pairwise correlations
+  do not form a positive-semidefinite matrix; pass `check_psd=False` only after
+  making an explicit downstream handling choice.
+- `convert_age_to_thresh` and `convert_liability_to_aoo` drop `dist=` (and
+  the normal-branch min/max parameters) — they always use the logistic
+  mapping.
+
+### Fixed
+
+- Aalen-Johansen pointwise uncertainty now uses the finite-risk-set,
+  grouped-tie `cmprsk::cuminc` recurrence rather than a large-risk-set
+  approximation. Event-coded zero follow-up and censoring as `cause=0` are
+  rejected; `n_entered` counts records with positive follow-up.
+- Moment fitting preserves the exact theoretical `A`, `C`, and `M` kernels
+  instead of nudging singular-but-valid component matrices. Public update
+  controls are validated so the assembled covariance retains a numerical
+  positive residual floor.
+- The genetic-nurture covariance derivation now includes the changed proband
+  genetic row, and the PGS/family-history correlation identity states
+  conditional independence as an assumption rather than inferring it from
+  non-overlapping cohorts.
+- Benchmark reports now distinguish historical outputs from current-tree
+  validation, scope uncertainty claims to the evidence retained, and provide
+  a provenance runner with hashed source state, console logs, and canonical
+  artifacts.
+
 ### Added
 
-- `construct_covmat_nurture` separates a proband's **direct** genetic effect
+- The genetic-nurture additions below landed in `research/`
+  (`construct_covmat_nurture` in `research/covariance_extensions.py`,
+  `fit_nurture` in `research/advanced_fitting.py`), not in the core package.
+  `construct_covmat_nurture` separates a proband's **direct** genetic effect
   from parental **indirect** (genetic-nurture) effects, building the covariance
   from the path model rather than from kinship. Parent-offspring covariance
   becomes `h2/2 + n*h2` and sib-sib `h2/2 + 2*n*h2 + 2*n^2*h2` -- inflated by
   different amounts, which is what identifies `n` -- while `Cov(A_o, l_parent)`
-  stays at `h2/2`, since nurture changes how a parent's liability relates to the
-  child, not how their genotype relates to the child's own genetic value. That
-  asymmetry is what a single symmetric kinship-scaled matrix cannot express.
+  stays at `h2/2`, `Cov(A_o, l_o)` becomes `h2*(1+n)`, and
+  `Cov(A_o, l_sibling)` becomes `h2/2 + n*h2`. That selective, directional
+  pattern is what a single symmetric kinship-scaled matrix cannot express.
   `nurture = 0` reproduces `construct_covmat_single` exactly. Nuclear roles
   only; the closed form was verified against a 4,000,000-family Monte-Carlo
   simulation of the path model. Note that on sibling covariance alone nurture is
@@ -40,9 +132,11 @@ version is 0 the public API may still change between minor releases.
   correlation, `Cov(g_i, g_j) = 2*phi_ij * sqrt(h2_i * h2_j) *
   rg_cross^[sex_i != sex_j]`. Equal heritabilities with `rg_cross = 1`
   reproduce `construct_covmat_single` exactly, and the result is positive
-  semi-definite for any `|rg_cross| <= 1`. Because the BLUP weights are
-  threshold-free, this is what makes sex a ranking lever rather than only a
-  calibration correction. The parameters are inputs, not fitted;
+  semi-definite for any `|rg_cross| <= 1`. This changes the relative weights
+  carried by same- and opposite-sex relatives. Personalised thresholds already
+  affect calibration and can also change ordering through the truncated means;
+  the covariance model adds sex-specific genetic weighting. The parameters are
+  inputs, not fitted;
   see the sex-limitation section of `docs/algorithm.md` for the identification
   requirements.
 

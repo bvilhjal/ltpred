@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from ltpred.covariance import (get_relatedness, construct_covmat_single,
-                               construct_covmat_multi, construct_covmat,
+                               construct_covmat_multi,
                                correct_positive_definite)
 
 
@@ -111,14 +111,6 @@ def test_multi_covmat_validates_correlation_matrices(name, matrix, match):
     kwargs[name] = matrix
     with pytest.raises(ValueError, match=match):
         construct_covmat_multi(fam_vec=["m"], **kwargs)
-
-
-def test_construct_covmat_dispatch():
-    single = construct_covmat(fam_vec=["m"], h2=0.5)
-    assert single.phen_names is None
-    multi = construct_covmat(fam_vec=["m"], h2=[0.5, 0.5],
-                             genetic_corrmat=np.eye(2), full_corrmat=np.eye(2))
-    assert multi.phen_names is not None
 
 
 def test_correct_positive_definite_leaves_pd_alone():
@@ -309,12 +301,3 @@ def test_zero_h2_is_rejected_with_an_explanation():
     # the open end of the interval is still fine
     construct_covmat_single(fam_vec=["m", "f"], h2=1.0)
     construct_covmat_single(fam_vec=["m", "f"], h2=1e-6)
-
-
-def test_liability_sensitivity_rejects_a_zero_h2_grid_point():
-    from ltpred.estimate import liability_sensitivity
-    from ltpred.simulate import simulate_under_LTM_single
-    sim = simulate_under_LTM_single(fam_vec=["m", "f"], h2=0.4, pop_prev=0.1,
-                                    n_sim=20, seed=3)
-    with pytest.raises(ValueError, match=r"h2 values must be in \(0, 1\]"):
-        liability_sensitivity(sim.families, [0.0, 0.2, 0.5])

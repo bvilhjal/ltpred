@@ -7,7 +7,8 @@ mortality (a Gompertz hazard), administrative censoring, and -- in one arm --
 delayed entry (register starts mid-life). It then asks:
 
   Part 1 (no mortality): Kaplan-Meier recovers the true curve -- max abs
-         error and the coverage of the Greenwood SE bands (~95% expected).
+         error and pointwise containment on one prespecified age grid. This is
+         not a repeated-sample coverage experiment.
   Part 2 (mortality):  Aalen-Johansen recovers the true curve while
          Kaplan-Meier (death as independent censoring) OVERESTIMATES
          incidence -- the classic competing-risks bias, quantified.
@@ -120,16 +121,19 @@ def main():
     en, ex, ev = simulate_registry(rng, N, mortality=False)
     km = kaplan_meier_cip(en, ex, ev == 1)
     err, est, truth = curve_error(km, grid_eval)
-    cover = np.mean(np.abs(est - truth) < 2 * np.interp(grid_eval, km.ages, km.se))
+    containment = np.mean(
+        np.abs(est - truth) < 2 * np.interp(grid_eval, km.ages, km.se)
+    )
     print(f"\nPart 1 (no mortality, n={km.n_entered}, events={km.n_events}): "
-          f"max|est-true| {err:.4f}, Greenwood 2xSE coverage {cover:.2f}")
+          f"max|est-true| {err:.4f}, fraction of age-grid truths inside "
+          f"pointwise ±2SE bands {containment:.2f}")
 
     # ---- Part 2: AJ vs KM with mortality ------------------------------------
     # Two different estimands: the marginal no-death-world CIP (true_cip) and
     # the crude cumulative incidence in the presence of death (true_crude_cif).
     rng = np.random.default_rng(np.random.PCG64(SEED + 1))
     en, ex, ev = simulate_registry(rng, N, mortality=True)
-    aj = aalen_johansen_cip(en, ex, ev, n_boot=100, seed=1)
+    aj = aalen_johansen_cip(en, ex, ev)
     km_bad = kaplan_meier_cip(en, ex, ev == 1)
     crude_true = true_crude_cif(grid_eval)
     err_aj = np.max(np.abs(np.interp(grid_eval, aj.ages, aj.values) - crude_true))
@@ -149,7 +153,7 @@ def main():
     rng = np.random.default_rng(np.random.PCG64(SEED + 2))
     en, ex, ev = simulate_registry(rng, N, mortality=True,
                                    register_start_year=1995)
-    aj_lt = aalen_johansen_cip(en, ex, ev, n_boot=100, seed=1)
+    aj_lt = aalen_johansen_cip(en, ex, ev)
     err_lt = np.max(np.abs(np.interp(grid_eval, aj_lt.ages, aj_lt.values)
                            - crude_true))
     print(f"Part 3 (delayed entry from 1995, n={aj_lt.n_entered}): "

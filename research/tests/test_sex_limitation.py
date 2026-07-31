@@ -5,8 +5,8 @@ import itertools
 import numpy as np
 import pytest
 
-from ltpred.covariance import (construct_covmat_sex_limited,
-                               construct_covmat_single)
+from research.covariance_extensions import construct_covmat_sex_limited
+from ltpred.covariance import construct_covmat_single
 from ltpred.pearson_aitken import pa_algorithm
 
 FAM = ("m", "f", "s1", "mgm", "mgf", "pgm", "pgf")

@@ -43,7 +43,7 @@ class Member:
 
     ``aod`` is the member's age at diagnosis (cases) or age at last follow-up
     (controls) -- only used by the onset-age-structured genetic-correlation fit
-    (:func:`ltpred.fit.fit_genetic_correlation_decay`)."""
+    (``research.advanced_fitting.fit_genetic_correlation_decay``)."""
     role: str
     lower: object
     upper: object

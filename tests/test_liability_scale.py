@@ -3,13 +3,9 @@ import pytest
 from scipy import stats
 
 from ltpred.liability_scale import (liability_r2_from_z,
-                                    liability_to_observed_gencov,
                                     liability_to_observed_h2,
-                                    observed_to_liability_gencov,
                                     observed_to_liability_h2,
-                                    observed_to_liability_rg,
                                     probit_liability_r2)
-from ltpred.thresholds import convert_observed_to_liability_scale
 
 
 class TestH2Bridges:
@@ -23,11 +19,6 @@ class TestH2Bridges:
         # Table 3 (Crohn's): K=0.001, P=0.3924, factor 0.36925: 0.61 -> 0.22
         assert observed_to_liability_h2(0.61, 0.001, 0.3924) == \
             pytest.approx(0.2252, abs=5e-3)
-
-    def test_forward_matches_existing_lee2011(self):
-        obs_h2, k, p = 0.2, 0.01, 0.5
-        assert observed_to_liability_h2(obs_h2, k, p) == pytest.approx(
-            convert_observed_to_liability_scale(obs_h2, k, p))
 
     def test_inverse_roundtrip(self):
         liab = observed_to_liability_h2(0.15, 0.05, 0.3)
@@ -44,23 +35,6 @@ class TestH2Bridges:
             observed_to_liability_h2(0.1, 1.5)
         with pytest.raises(ValueError, match="prop_cases"):
             observed_to_liability_h2(0.1, 0.05, 0.0)
-
-
-class TestGencovBridges:
-    def test_ldsc_wiki_fixture(self):
-        # LDSC SCZ-BIP tutorial: observed gencov 0.3644, K1=K2=0.01, P=0.5
-        # (per-trait factor 0.55191) -> 0.3644 * 0.55191 = 0.2011
-        assert observed_to_liability_gencov(0.3644, 0.01, 0.01, 0.5, 0.5) == \
-            pytest.approx(0.2011, abs=1e-3)
-
-    def test_inverse_roundtrip(self):
-        gc = observed_to_liability_gencov(0.2, 0.01, 0.05, 0.5, 0.3)
-        assert liability_to_observed_gencov(gc, 0.01, 0.05, 0.5, 0.3) == \
-            pytest.approx(0.2)
-
-    def test_rg_is_scale_invariant(self):
-        assert observed_to_liability_rg(0.656, 0.01, 0.01, 0.5, 0.5) == \
-            pytest.approx(0.656)
 
 
 class TestProbitLiabilityR2:
@@ -82,20 +56,29 @@ class TestProbitLiabilityR2:
 
 class TestLiabilityR2FromZ:
     def test_lee_wray_form(self):
-        # r² = (z²/N) * [K(1-K)/z_K²] * [K(1-K)/(P(1-P))]
+        # signal = ((z²-1)/N) * [K(1-K)/z_K²] * [K(1-K)/(P(1-P))]
         z = np.array([2.0, 3.0])
         K, P = 0.01, 0.5
         z_k = stats.norm.pdf(stats.norm.isf(K))
         c = (K * (1 - K) / z_k ** 2) * (K * (1 - K) / (P * (1 - P)))
         assert liability_r2_from_z(z, 10_000, K, P) == \
-            pytest.approx(np.array([4.0, 9.0]) / 10_000 * c)
+            pytest.approx(np.array([3.0, 8.0]) / 10_000 * c)
 
     def test_no_ascertainment_uses_link_factor_only(self):
         z = np.array([2.0])
         K = 0.05
         z_k = stats.norm.pdf(stats.norm.isf(K))
         assert liability_r2_from_z(z, 10_000, K) == \
-            pytest.approx(4.0 / 10_000 * K * (1 - K) / z_k ** 2)
+            pytest.approx(3.0 / 10_000 * K * (1 - K) / z_k ** 2)
+
+    def test_null_subtraction_and_raw_compatibility(self):
+        K = 0.1
+        assert liability_r2_from_z(1.0, 1000, K) == pytest.approx(0.0)
+        assert liability_r2_from_z(0.5, 1000, K) < 0.0
+        raw = liability_r2_from_z(1.0, 1000, K, subtract_null=False)
+        assert raw > 0
+        with pytest.raises(TypeError, match="subtract_null"):
+            liability_r2_from_z(1.0, 1000, K, subtract_null="yes")
 
     def test_validation(self):
         with pytest.raises(ValueError, match="positive"):
@@ -120,7 +103,8 @@ class TestRecoverySimulation:
         b, se = probit_mle(xc, y)
         P = y.mean()
         # for an unascertained sample (P ~ K) the z route and the identity
-        # route agree: r² = z²/(N wbar) = z²/N * K(1-K)/z_K²
+        # route agree approximately at this signal strength after subtracting
+        # the unit expected null contribution: (z² - 1)/N.
         r2_z = liability_r2_from_z(b / se, n, P, P)
         r2_id = probit_liability_r2(b, f)
         assert r2_z == pytest.approx(r2_id, rel=0.3)

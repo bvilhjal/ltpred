@@ -41,7 +41,7 @@ Var(l_i)      = 1 ,   Var(a_i) = h2
 
 For the target proband, `a_0` is written `g` (variance `h2`) and its own full
 liability `l_0` is written `o` (variance 1); `Cov(g, o) = h2`.
-`get_relatedness(a, b, h2)` returns `A_ab * h2`, and `construct_covmat(...)`
+`get_relatedness(a, b, h2)` returns `A_ab * h2`, and `construct_covmat_single(...)`
 assembles this small fixed-pedigree relationship matrix, ordering `g`, `o` first
 followed by the relatives (`correct_positive_definite` nudges a rounding-singular
 matrix back to strict PD).
@@ -116,7 +116,6 @@ relatives' covariance (off-diagonals only; the residual environmental variance
 absorbs them, so full liabilities keep unit variance and the genetic target
 stays coupled through `h2 * A` only). The single-trait role/object and array
 front doors accept them: `estimate_liability` with scalar `h2`,
-`estimate_liability_single`, `estimate_liability_pa`,
 `estimate_liability_pa_arrays` and `estimate_liability_gibbs_arrays` all take
 `c2`/`m2` arguments, so the `A + C + M` decomposition fitted by
 `fit_variance_components` can be fed straight back into single-trait liability
@@ -129,7 +128,8 @@ level entry points (`rtmvnorm_gibbs`, `pa_algorithm`, `pa_estimate_batched`),
 which accept an arbitrary covariance directly.
 
 `fit_variance_components` estimates a set of components **jointly** (multiple HE
-regression, or ML with `method="mcem"`); a joint fit partials out the overlap
+regression; a Monte-Carlo EM likelihood route, `fit_variance_components_mcem`,
+lives in `research/advanced_fitting.py`); a joint fit partials out the overlap
 between components, whereas fitting each alone double-counts. The shipped bank is
 `A` (additive genetic), `C` (full-sib / sibship environment, identified from the
 full-sib excess) and `M` (couple / spousal environment, identified from the `A = 0`
@@ -142,8 +142,8 @@ deviation), which is a convenient sufficient construction for a PSD `K_c`, not a
 necessary one. Any component must be symmetric and PSD; the fitter rejects a
 kernel that is not (e.g. the naive vertical parent-offspring indicator — see
 caution (i)). Adding a valid component is adding a column to the design; e.g.
-`fit_variance_components(fams, ("A", "C", "M"))` fits all three at once given a
-3-generation pedigree.
+`fit_variance_components(fams, ("A", "C", "M"), sampling="population")` fits
+all three at once given a 3-generation pedigree.
 
 **The binding constraint is identifiability, not the estimator.** Each relative
 *type* yields a single covariance `h2 A_ij + sum_c c2_c K_c[i,j]`, so the data
@@ -179,7 +179,9 @@ kernels is the natural next step; the rank-deficiency guard already generalises.
 ### Direct and indirect (genetic-nurture) effects
 
 Caution (i) above says a symmetric shared-environment matrix is not a maternal
-effect, because that is a *directional* path. `construct_covmat_nurture` builds
+effect, because that is a *directional* path. `construct_covmat_nurture` (in
+`research/covariance_extensions.py` — research code, not the supported core)
+builds
 the directional model instead, from the path structure rather than from
 kinship:
 
@@ -203,15 +205,17 @@ Writing `h` for `h2`, the entries are no longer `2*phi * h`:
 | sib - sib liability | `h/2` | `h/2 + 2*n*h + 2*n^2*h` |
 | `Cov(A_o, l_parent)` | `h/2` | `h/2` (unchanged) |
 | `Cov(A_o, l_o)` | `h` | `h*(1 + n)` |
+| `Cov(A_o, l_sibling)` | `h/2` | `h/2 + n*h` |
 
 Three things follow. **The two familial covariances inflate by different
 amounts**, which is what makes `n` identifiable from a nuclear family at all.
-**The `g` row does not inflate**: nurture changes how a parent's *liability*
-relates to the child, not how their *genotype* relates to the child's own
-genetic value. That asymmetry between the `g` row and the `o` row is exactly
-what one symmetric kinship-scaled matrix cannot express, and it is why this
-needed a separate constructor rather than another entry in the `A`/`C`/`M`
-component bank. **`n = 0` reproduces `construct_covmat_single` exactly.**
+**The `g` row changes selectively**: `Cov(A_o, l_parent)` remains `h/2`, but
+`Cov(A_o, l_o)` and `Cov(A_o, l_sibling)` increase because the parental
+genotypes driving nurture are correlated with `A_o`. This directional,
+pair-specific pattern cannot be represented by one symmetric kinship-scaled
+component, which is why it needs a separate constructor rather than another
+entry in the `A`/`C`/`M` bank. **`n = 0` reproduces
+`construct_covmat_single` exactly.**
 
 **The identifiability trap.** The sib-sib inflation `2*n*h + 2*n^2*h` is shared
 by every offspring of the couple, so *on sibling covariance alone genetic
@@ -234,7 +238,8 @@ cov_sib_sib          = h*(1 + 2n)^2/2
 ```
 
 are two equations in two unknowns, and the ratio isolates the indirect path, so
-`fit_nurture` inverts them in closed form rather than iteratively:
+`fit_nurture` (in `research/advanced_fitting.py`) inverts them in closed form
+rather than iteratively:
 
 ```text
 1 + 2n = cov_sib_sib / cov_parent_offspring
@@ -269,7 +274,8 @@ depend on heritability and kinship only — they are threshold-free. So a
 sex-specific threshold moves `mu` and can reorder scores through the truncated
 means, but it never changes how much weight a relative carries.
 
-`construct_covmat_sex_limited` puts sex in `V` instead:
+`construct_covmat_sex_limited` (in `research/covariance_extensions.py`) puts
+sex in `V` instead:
 
 ```text
 Cov(g_i, g_j) = 2*phi_ij * sqrt(h2_i * h2_j) * rg_cross^[sex_i != sex_j]
@@ -385,8 +391,10 @@ fixed-variance **probit / threshold liability model with a pedigree random
 effect**, used primarily for *prediction* (of `g`) — the liability estimators
 condition on an assumed `h2`, CIP/prevalence model and relationship matrix. The
 heritability itself can optionally be **fit** from the same family data by
-data augmentation (see [Fitting the covariance](#fitting-the-covariance-heritability)
-below); the CIP/prevalence model is always supplied.
+data augmentation, but only for independent, non-overlapping families sampled
+from the population rather than through case or family-history ascertainment
+(see [Fitting the covariance](#fitting-the-covariance-heritability) below);
+the CIP/prevalence model is always supplied.
 
 ## Connection to Sham's liability-threshold risk models
 
@@ -409,7 +417,7 @@ liability under the threshold model, optionally conditioned on family history,
 and (b) personalised age/censoring information — and the same downstream idea of fusing the
 family-history liability with molecular predictors (a polygenic score). On the
 parameter side, So & Sham's liability-scale heritability work is the tradition
-`convert_observed_to_liability_scale` (Lee et al. 2011) belongs to.
+`observed_to_liability_h2` (Lee et al. 2011) belongs to.
 
 The difference is the **estimand and the scale of computation**. So & Sham (2011)
 target an individual's **absolute disease risk** for screening; `ltpred` targets
@@ -423,9 +431,10 @@ LT-FH/LT-FH++/ADuLT bounds; ltpred's PA-FGRS mixture has no Gibbs implementation
 
 ## Expected correlation between a PGS and the family-history score
 
-When a polygenic score (PGS) and the family-history (LT-FH) score are trained
-on **independent data**, their expected correlation is pinned by three
-quantities: the two prediction accuracies and the heritability decomposition.
+Under a **conditionally independent measurement model**, the expected
+correlation between a polygenic score (PGS) and the family-history (LT-FH)
+score is pinned by three quantities: the two prediction accuracies and the
+heritability decomposition.
 
 **Setup.** Let `g` be the proband's additive genetic liability, standardised
 to `Var(g) = 1` (everything below is a correlation, hence scale-free), and
@@ -443,9 +452,12 @@ scores are taken as standardised and jointly Gaussian, so
 `E[PGS | g] = a√p · g` and `E[FH | g] = b · g`.
 
 **Key assumption (conditional independence).** Given `g`, the two scores'
-errors are independent: PGS ⊥ FH | `g`. This holds when the GWAS training
-sample and the family data are independent cohorts, and the PGS uses proband
-genotypes while FH uses relatives' phenotypes — no shared noise source.
+errors are independent: PGS ⊥ FH | `g`. This is an additional measurement-model
+assumption, not a consequence of using independent cohorts. Non-overlapping
+training and family samples remove an obvious shared-sample noise source, but
+they do not rule out residual covariance after conditioning on the scalar `g`
+(for example from ancestry, assortative mating, indirect genetic effects,
+selection, or genetic structure not captured by that scalar).
 
 **Derivation** (law of total covariance):
 
@@ -485,15 +497,17 @@ large gains despite a small mutual correlation — and of Dybdahl Krebs et al.
 complementary, "consistent with both being noisy estimates of the same
 additive genetic liability" — i.e. the formula above.
 
-**Caveats.** Shared data breaks it: if the GWAS includes the probands'
-relatives, or the FH score is computed on the GWAS cohort,
-`E[Cov(PGS, FH | g)] ≠ 0` and the true correlation is *larger* than the
-formula (an overlap term to add, not a re-derivation). Conditioning the FH
-score on the proband's own diagnosis (the GWAS-phenotype design) does **not**
-violate the assumption — that error is environmental and independent of the
-SNP error — but training the PGS on the same cohort's phenotypes does. Large
-non-Gaussian effects weaken the Gaussian conditioning step, though the moment
-identity survives for scores linear in `s`/`g` with independent errors.
+**Caveats.** When conditional independence fails, the first term in the law of
+total covariance is a residual contribution:
+`delta = E[Cov(PGS, FH | g)]`. For standardised scores the correlation becomes
+`a*b*sqrt(p) + delta`; `delta` may be positive or negative. Sample or family
+overlap is one possible source, but neither overlap nor non-overlap determines
+its sign or proves it is zero. Conditioning FH on the proband's diagnosis can
+also induce residual dependence under selection, phenotype-informed training
+or gene-environment correlation, so it needs justification for the study at
+hand. Large non-Gaussian effects weaken the Gaussian conditioning step, though
+the moment identity survives for scores linear in `s`/`g` with independent
+errors.
 
 Both identities above are verified numerically to Monte-Carlo precision
 (simulated `s`, two noisy linear predictors, four
@@ -622,8 +636,8 @@ cov_jk  +=  (Sigma_ji Sigma_ik / v_i^2) * (v* - v_i)
 
 `pa_algorithm` places the target genetic liability first and folds the observed
 members in one at a time (last to first). For each, `(m*, v*)` are the
-truncated-normal moments on its interval (`tnorm_moments`: `_tnorm_mean` /
-`_tnorm_var`, with `v* = 0` for a pinned point mass — exact conditioning). Reading
+truncated-normal moments on its interval (`_std_tnorm_moments`, with
+`v* = 0` for a pinned point mass — exact conditioning). Reading
 the target's updated mean gives `E[l_g | data]` and its variance the posterior
 variance — **deterministically, with no Monte-Carlo error**.
 
@@ -647,7 +661,8 @@ not part of this comparison. Same grouping / `prange` structure as the Gibbs pat
 An observed case contributes the lifetime interval
 `[Φ⁻¹(1 − K_pop), inf)`. Age-specific incidence is used for censored controls:
 
-`tnorm_mixture_conditional` extends the truncated moments for **age-censored
+The censored-control mixture (`_tnorm_mixture` in `ltpred.pearson_aitken`)
+extends the truncated moments for **age-censored
 controls**: someone unaffected only up to their current follow-up is a mixture of
 a true control and a not-yet-onset future case. With the individual cumulative
 incidence `K_i` and lifetime prevalence `K_pop`, the selected moments become
@@ -676,6 +691,18 @@ bipred's joint effect/parameter loop (sample the latents, then re-estimate the
 covariance parameters each sweep). It treats the latent liabilities as missing
 data and alternates:
 
+**Sampling requirement.** The cross-product reconstruction below assumes
+independent, non-overlapping families sampled from the population observation
+model encoded by the bounds and prevalence. It does **not** model selection on
+the proband's or relatives' disease/family-history status. Case-control or
+family-history ascertainment therefore changes the latent cross-products and
+can severely bias the fit. Under such selection, supply an externally estimated
+population-scale `h2` or fit an explicit ascertainment model; neither more
+Gibbs iterations nor a different optimiser repairs a missing selection
+likelihood. Pass `sampling="population"` to `fit_heritability` or
+`fit_variance_components` to acknowledge this contract; omitting it currently
+warns, and no other sampling mode is accepted.
+
 1. **Augment** — one persistent truncated-MVN sweep per family under the current
    covariance `Sigma(h2) = (1-h2) I + h2 A` (`A` the additive relationship matrix
    over the observed relatives), holding pinned cases (`gibbs_advance`).
@@ -693,12 +720,15 @@ pooling their cross-products reconstructs the model covariance, so the chain
 settles at the `h2` consistent with the observed familial resemblance — a
 threshold-model variance-component estimate from pedigree affection data (in the
 Sorensen–Gianola / Bayesian animal-model tradition; the moment-with-damping update
-is the bipred-style analogue of a full conjugate step). In the repository simulation
-benchmark, bias across `h2 = 0.3–0.8` was small relative to the across-dataset SD,
-but larger than the within-fit Monte-Carlo error in some settings. The reported `h2_se` is the
-*within-dataset* Monte-Carlo error; sampling variability across datasets is larger
-and depends on the number and informativeness of the families (bootstrap over
-families for that). Identifiability comes entirely from the *between-relative*
+is the bipred-style analogue of a full conjugate step). In the repository
+benchmark of unascertained simulated families, bias across `h2 = 0.3–0.8` was
+small relative to the across-dataset SD, but larger than the within-fit
+Monte-Carlo error in some settings. The reported `h2_se` is the
+*within-dataset* Monte-Carlo error; sampling variability across datasets is
+larger and depends on the number and informativeness of the families. An
+iid-family cluster bootstrap can estimate that sampling variability when
+families are independent and population-sampled, but it does not remove
+ascertainment bias. Identifiability comes entirely from the *between-relative*
 covariance, so relatives are required (lone probands carry no information).
 
 **Seeding.** Unlike the estimator's kernel, where each family seeds its own RNG,
@@ -745,14 +775,19 @@ kernel and relationship contrasts linearly independent of `A` and `C`. MZ/DZ
 twin observations can contribute such contrasts within a richer design, but MZ/DZ
 pairs alone cannot identify `A`, `C`, and `D` simultaneously.
 
-With `method="mcem"`, the M-step instead optimises the Gaussian likelihood of the
+In `research/advanced_fitting.py`'s `fit_variance_components_mcem`, the M-step
+instead optimises the Gaussian likelihood of the
 imputed liabilities. This implementation is an **approximate finite-iteration
 Monte-Carlo EM-style procedure**: it uses a fixed damping coefficient, averages
 post-burn-in iterates, and does not stop on an observed-likelihood convergence
 criterion. Its OPG/BHHH information SE and GHK log-likelihood/AIC therefore retain
 both Monte-Carlo and finite-iteration error. Check stability across seeds and
 iteration settings and use family resampling for sampling uncertainty when the
-independent-cluster assumptions hold.
+independent-cluster assumptions hold. This research MCEM route uses the same
+unconditional population observation model: changing the fitting algorithm does
+not account for ascertainment. Likewise, a family bootstrap propagates sampling
+variation under the fitted design; it does not correct selection bias and is
+invalid when nominal family clusters overlap.
 
 ## Multiple traits
 
@@ -761,7 +796,8 @@ phenotype-major: same-trait blocks use `A_ij * h2_p`; cross-trait blocks scale t
 relationship `A_ij` by the genetic covariance `rho_g[p,q] * sqrt(h2_p h2_q)`, and
 the same individual's full liabilities across traits correlate by
 `full_corrmat[p,q]`. The Gibbs sampler then returns the genetic/full liability of
-each trait (`estimate_liability_multi`). This lets a well-powered trait sharpen
+each trait (the multi-trait path of `estimate_liability`). This lets a
+well-powered trait sharpen
 the estimate for a correlated, under-powered one.
 
 These inputs are jointly constrained. Let `D = diag(sqrt(h2))`,
@@ -773,7 +809,8 @@ silently applying a positive-definite correction to a different model.
 
 ### Fitting the genetic correlation
 
-`fit_genetic_correlation` estimates `rho_g` between traits from family data — the
+`fit_genetic_correlation` (in `research/advanced_fitting.py`) estimates `rho_g`
+between traits from family data — the
 multi-trait analogue of `fit_heritability`, a **cross-trait** Haseman–Elston
 regression. Each member carries one case/control interval per trait. Each sweep
 draws the members' `P`-trait liabilities from the full truncated-MVN under the
@@ -815,7 +852,8 @@ of bivariate GREML / cross-trait LD-score regression.
 
 ### Onset-age-structured genetic correlation
 
-`fit_genetic_correlation_decay` generalises `fit_genetic_correlation` to a genetic
+`fit_genetic_correlation_decay` (also `research/advanced_fitting.py`) generalises
+`fit_genetic_correlation` to a genetic
 correlation that **decays with the difference in age at onset** between two
 relatives (or between two traits). The motivating idea is that genetic liability
 need not be one static quantity: the genes driving early- and late-onset forms of
@@ -902,12 +940,13 @@ overestimate `r_g` at moderate `n`; it is a variance-attribution tool, not a fre
 objective (the likelihood is multi-modal at small `n`), and the result carries a
 `converged` flag plus the `negq` objective trace. The analytic gradient of every
 block (genetic, environmental, decay, shared-environment) is pinned against
-finite differences in `tests/test_decay.py`.
+finite differences in `research/tests/test_decay.py`.
 
 ### Genetic factor structure (common-factor model)
 
 With more than a handful of traits, the genetic correlation matrix `r_g` is itself a
-structured object worth summarising. `fit_genetic_factor` fits a **common-factor
+structured object worth summarising. `fit_genetic_factor` (in
+`research/advanced_fitting.py`) fits a **common-factor
 model** to it,
 
 ```text

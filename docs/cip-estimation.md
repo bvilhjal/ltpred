@@ -43,10 +43,15 @@ Keiding 1993, and of the Danish register papers):
 - A person is **at risk** at age `t` when `age_entry < t <= age_exit`.
   **Delayed entry** (left truncation — the register starts mid-life, or a
   person immigrates) is handled by `age_entry > 0`: they contribute risk only
-  from entry.
+  from entry. Identification requires entry to be independent of the event
+  process conditional on the modelled strata, with overlapping risk-set
+  support; risk-set bookkeeping cannot repair informative entry.
 - Events and censorings happen at `age_exit`; persons with
   `age_exit == age_entry` contribute no follow-up. Ties are grouped on unique
   exit ages.
+- Right censoring must be non-informative conditional on the modelled strata.
+  Coding an outcome-related loss process as ordinary censoring biases either
+  estimator.
 - Persons with `age_exit < age_entry` are rejected, as are non-finite ages.
 
 For `kaplan_meier_cip` the event array is boolean (`1` = event of interest,
@@ -69,17 +74,18 @@ with the Greenwood variance
 Var(S(t)) = S(t)^2 * sum_{t_j <= t} d_j / (Y_j (Y_j - d_j)) .
 ```
 
-**When it is appropriate:** when censoring is *independent* of the event
-process (administrative end of follow-up, emigration unrelated to disease).
-The curve it estimates is the *marginal* (net) incidence in a hypothetical
-world without the censoring process.
+**When it is appropriate:** when the target is **net risk** in a hypothetical
+world without the censoring process, and censoring is independent of the event
+process (for example, administrative end of follow-up).
 
-**When it is not:** when death before diagnosis is common. The dead are
-censored as if they could still be diagnosed later, so `1 - KM`
-**overestimates** the proportion actually diagnosed — increasingly at older
-ages (measured directly in `benchmarks/bench_cip_estimation.py`: an absolute
-overestimation of 0.022 at a 42% death share). Use Aalen-Johansen instead and
-put death in a competing event code.
+**When it is not:** when the target is the proportion actually diagnosed in
+the presence of death. Death then remains a competing event even if death and
+diagnosis times are statistically independent. Censoring the dead asks a
+different, hypothetical no-death question and `1 - KM` generally
+**overestimates** the crude diagnosed proportion — increasingly at older ages
+(measured directly in `benchmarks/bench_cip_estimation.py`: an absolute
+overestimation of 0.022 at a 42% death share). Use Aalen-Johansen and put death
+in a competing-event code.
 
 ## Aalen-Johansen (`aalen_johansen_cip`)
 
@@ -92,39 +98,59 @@ S(t) = prod_{t_j <= t} (1 - d_j / Y_j),
 F_k(t) = sum_{t_j <= t} S(t_j-) * d_kj / Y_j .
 ```
 
-`F_k` is the **crude** cumulative incidence: the probability of being
-diagnosed by age `t` *in the presence of* death and emigration. This is what
-LT-FH++ estimated for its CIPs ("the cumulative incidence function for each
-disorder was estimated with the Aalen-Johansen approach considering death and
-emigration as competing events", Pedersen et al. 2022, one curve per sex and
-birth year), and it is the right estimand for the threshold construction:
+`F_k` is the **crude (marginal) cumulative incidence**: the probability of
+being diagnosed by age `t` *in the presence of* death and emigration. This is
+what LT-FH++ estimated for its CIPs ("the cumulative incidence function for
+each disorder was estimated with the Aalen-Johansen approach considering death
+and emigration as competing events", Pedersen et al. 2022, one curve per sex
+and birth year), and it is the right estimand for the threshold construction:
 a person who died undiagnosed cannot be diagnosed later, and the population
 fraction *diagnosed* by an age is the crude one.
 
-Pointwise standard errors default to the closed-form **Aalen (1978) variance**
-(the estimator reported by `cmprsk::cuminc`):
+Pointwise standard errors use the finite-risk-set, tie-correct **Aalen (1978)
+variance** reported by `cmprsk::cuminc`. The implementation follows its grouped
+recurrence, because a closed form that collapses all causes into `d_j` is not
+equivalent when target and competing causes are tied at the same age.
 
-```
-Var F_k(t) =   sum_j [S(t_j-)]^2 d_kj / Y_j^2
-             + sum_j (F_k(t) - F_k(t_j))^2 d_j / Y_j^2
-             - 2 sum_j (F_k(t) - F_k(t_j)) S(t_j-) d_kj / Y_j^2 .
+At age `t_j`, let `d_rj` be the count for group `r` (target `k` or all other
+causes), `S_j+` the post-event survival, and define
+
+```text
+q_rj = 1                                   if d_rj = 1
+        1 - (d_rj - 1) / (Y_j - 1)         otherwise,       (Equation 1)
+
+a_rj = S(t_j-)^2 q_rj d_rj / Y_j^2 .                       (Equation 2)
 ```
 
-With a single event type this agrees with Greenwood to ~4 decimal places in
-non-degenerate risk sets (the two are asymptotically-equal estimators, not
-identical in finite samples, and they diverge legitimately in the sparse
-tail). A person-level nonparametric bootstrap (`n_boot=200, seed=...`) remains
-available as a cross-check; `n_boot=0` returns NaN SEs.
+Three running sums `(v1, v2, v3)` start at zero. For competing events use
+`u = F_k(t_j) / S_j+`, `w = 1 / S_j+`; for target events use
+`u = 1 + F_k(t_j) / S_j+`, `w = 1 / S_j+`. Each non-empty group updates
+
+```text
+v1 <- v1 + u^2 a_rj
+v2 <- v2 + w u a_rj
+v3 <- v3 + w^2 a_rj,                                      (Equation 3)
+
+Var F_k(t_j) = v1 + F_k(t_j)^2 v3 - 2 F_k(t_j) v2.         (Equation 4)
+```
+
+When `S_j+ = 0`, the competing-group update is skipped. If target events are
+present, their removable boundary uses `w = 0` and `u = 1`; this is the finite
+`cmprsk` convention. The separate target/other updates are essential for tied
+causes. Replacing them with `d_j / Y_j^2` gives only a large-risk-set
+approximation. With a single event type the Aalen and Greenwood variances are
+asymptotically equivalent, not finite-sample identities.
 
 ## The estimand choice (the most important decision on this page)
 
 Three quantities are easily confused:
 
-- **Marginal / net incidence** (`1 - Kaplan-Meier`): incidence in a world
-  without death. Almost never what a health registry wants.
-- **Crude cumulative incidence** (Aalen-Johansen): the probability of being
-  diagnosed by age `t` while death removes people. What LT-FH++ used, and
-  what `thresholds_from_cip` expects.
+- **Net incidence** (`1 - Kaplan-Meier`): incidence in a hypothetical world
+  without death. Almost never what a health registry means by the observed
+  diagnosed proportion.
+- **Crude / marginal cumulative incidence** (Aalen-Johansen): the
+  real-population probability of being diagnosed by age `t` while death
+  removes people. What LT-FH++ used, and what `thresholds_from_cip` expects.
 - **Plain proportions by age** (`#diagnosed / #people of that age`): only
   valid for a birth cohort with essentially complete follow-up past the
   target age. On modern, heavily right-censored cohorts it under-counts late
@@ -165,6 +191,9 @@ Practical guidance:
   which is only the lifetime prevalence if the curve reaches the lifetime
   horizon. On a heavily censored young cohort it does not — pass a separately
   justified `k_pop` (e.g. from an older stratum or the literature) instead.
+  An empirical terminal value of exactly one is valid when the risk set is
+  exhausted, but it cannot define a finite probit threshold; use a justified
+  non-degenerate horizon rather than clipping it silently.
 
 ## Worked example
 
@@ -207,12 +236,17 @@ At the horizon, `F_diag + F_death = 0.563 + 0.438 = 1 = 1 - S`, as required.
 - **Prevalent cases (washout).** If a person was diagnosed *before* their
   entry age, they are not an incident case: exclude them (the Danish
   practice), or left-truncate the whole analysis past a minimum onset age.
-- **Zero-length follow-up** (`exit == entry`): contributes nothing; kept for
-  bookkeeping, never in a risk set.
+- **Zero-length follow-up** (`exit == entry`): a censored row contributes
+  nothing and may be kept for bookkeeping; an event-coded row is rejected
+  because that person was never in the risk set.
 - **Curve does not reach 1 or the horizon:** normal under censoring; the
   curve simply stops at the last observed event age. `thresholds_from_cip`
   holds the last value constant beyond the grid (it does not extrapolate
   incidence).
+- **Curve reaches exactly 1:** also possible when the final target event
+  exhausts the risk set. The estimate is valid, but
+  `thresholds_from_cip` rejects it because prevalence one has no finite
+  probit threshold. Use an earlier or externally justified lifetime horizon.
 - **Emigration:** can be coded either as censoring (`0`) or as a competing
   event (its own code). The difference is small (emigrants are few percent);
   LT-FH++ treated it as competing. Death, however, must be a competing event
@@ -227,8 +261,9 @@ At the horizon, `F_diag + F_death = 0.563 + 0.438 = 1 = 1 - S`, as required.
 
 `tests/test_cip.py` reproduces hand-computed KM and AJ examples exactly
 (including left truncation and the identity `F_diag + F_death = 1 - S`),
-checks the Greenwood formula and the Aalen-vs-Greenwood agreement, and runs
-the curve into `thresholds_from_cip`. `benchmarks/bench_cip_estimation.py`
+checks Greenwood, checks the finite-risk Aalen variance for tied and untied
+events including an exhausted final risk set, and runs the curve into
+`thresholds_from_cip`. `benchmarks/bench_cip_estimation.py`
 (RESULTS.md section 19) simulates a 50,000-person registry with a known
 curve, mortality, administrative censoring and a register-start year, and
 shows exact recovery, the KM competing-risks bias, and the end-to-end cost of

@@ -1,4 +1,5 @@
 import unittest
+import warnings
 
 import numpy as np
 
@@ -103,6 +104,19 @@ class MatrixTests(unittest.TestCase):
     def test_matrix_validation(self):
         with self.assertRaisesRegex(ValueError, "2-D"):
             tetrachoric_matrix(np.zeros(5))
+        with self.assertRaisesRegex(TypeError, "check_psd"):
+            tetrachoric_matrix(np.zeros((5, 2)), check_psd="yes")
+
+    def test_pairwise_matrix_warns_when_not_psd(self):
+        rng = np.random.default_rng(10)
+        X = rng.binomial(1, rng.uniform(0.15, 0.85, 5), size=(20, 5))
+        with self.assertWarnsRegex(RuntimeWarning, "not positive-semidefinite"):
+            R = tetrachoric_matrix(X)
+        self.assertLess(np.linalg.eigvalsh(R).min(), -1e-3)
+        # The caller can suppress the diagnostic after making an explicit choice.
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            tetrachoric_matrix(X, check_psd=False)
 
 
 if __name__ == "__main__":

@@ -32,16 +32,17 @@ Writes bench_aod_decay.csv (+ .png if matplotlib is present).
 
 import os
 import csv
+import sys
 import time
 import argparse
+from pathlib import Path
 
 import numpy as np
 
-from _common import get_plt
-from ltpred.covariance import get_relatedness, correct_positive_definite
-from ltpred.thresholds import liability_threshold
-from ltpred.family import Family, Member
-from ltpred.fit import fit_genetic_correlation_decay
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root: `research`
+
+from _common import get_plt, simulate_families_multi
+from research.advanced_fitting import fit_genetic_correlation_decay
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -52,48 +53,16 @@ AGE_LO, AGE_HI = 15.0, 65.0
 KERNEL = "ou"
 
 
-def simulate_decay(fam_vec, h2_vec, rg_val, rp_val, lam, n_fam, prev, seed):
-    """Two-trait families under the onset-age decay model (DGP == fitted model)."""
-    P = len(h2_vec)
-    A = np.array([[get_relatedness(a, b, 1.0) for b in fam_vec] for a in fam_vec])
-    k = len(fam_vec)
-    h2 = np.asarray(h2_vec, float)
-    g01 = rg_val * np.sqrt(h2[0] * h2[1])
-    G = np.array([[h2[0], g01], [g01, h2[1]]])
-    E = np.array([[1 - h2[0], rp_val - g01], [rp_val - g01, 1 - h2[1]]])
-    R = G + E
-    np.fill_diagonal(R, 1.0)
-    lam_w = np.full(P, lam)
-    lam_x = np.full((P, P), lam)
-    t = [float(liability_threshold(prev[p])) for p in range(P)]
-    from ltpred.fit import _decay_cov
-    rng = np.random.default_rng(seed)
-    fams = []
-    for i in range(n_fam):
-        aod = rng.uniform(AGE_LO, AGE_HI, size=(k, P))
-        Sig = _decay_cov(A, h2, G, R, E, aod, lam_w, lam_x, KERNEL)
-        Sig, _ = correct_positive_definite(Sig)
-        x = rng.multivariate_normal(np.zeros(k * P), Sig)
-        members = []
-        for c, r in enumerate(fam_vec):
-            lo, hi = [], []
-            for p in range(P):
-                case = x[p * k + c] > t[p]
-                lo.append(t[p] if case else -np.inf)
-                hi.append(np.inf if case else t[p])
-            members.append(Member(role=r, lower=lo, upper=hi, aod=list(aod[c])))
-        fams.append(Family(fam_id=i, members=members))
-    return fams
-
-
 def fit_replicates(rg_val, lam, n_fam, prev, reps, seed0, n_em, n_draw, burn,
                    m_iter):
     rg_fit = np.empty(reps)
     lamx_fit = np.empty(reps)
     lamw_fit = np.empty((reps, 2))
     for r in range(reps):
-        fams = simulate_decay(FAM, H2, rg_val, RP_OFFDIAG, lam, n_fam,
-                              (prev, prev), seed0 + r)
+        fams = simulate_families_multi(FAM, H2, rg_val, RP_OFFDIAG, n_fam,
+                                       (prev, prev), seed0 + r,
+                                       aod=(AGE_LO, AGE_HI), lam=lam,
+                                       kernel=KERNEL)
         res = fit_genetic_correlation_decay(fams, kernel=KERNEL, n_em=n_em,
                                             n_draw=n_draw, burn=burn,
                                             m_iter=m_iter,
@@ -120,7 +89,8 @@ def main():
 
     # warm JIT / smoke on a tiny fit
     fit_genetic_correlation_decay(
-        simulate_decay(FAM, H2, 0.5, 0.3, 0.04, 40, (0.2, 0.2), 0),
+        simulate_families_multi(FAM, H2, 0.5, 0.3, 40, (0.2, 0.2), 0,
+                                aod=(AGE_LO, AGE_HI), lam=0.04, kernel=KERNEL),
         kernel=KERNEL, n_em=8, n_draw=20, burn=10, m_iter=20)
 
     rows = []

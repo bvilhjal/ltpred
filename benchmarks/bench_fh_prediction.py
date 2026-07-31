@@ -114,7 +114,7 @@ def _cohort_K(birth_year, K, trend_R):
 
 
 def _thr(age, prev, mid, slope):
-    return np.asarray(convert_age_to_thresh(age, dist="logistic", pop_prev=prev,
+    return np.asarray(convert_age_to_thresh(age, pop_prev=prev,
                                             mid_point=mid, slope=slope), dtype=float)
 
 

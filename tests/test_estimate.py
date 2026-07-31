@@ -8,7 +8,7 @@ from scipy import stats
 
 from ltpred.family import Family, Member, families_from_columns
 from ltpred.estimate import (batch_means, estimate_liability,
-                             estimate_liability_multi, _base_seeds)
+                             _estimate_liability_multi, _base_seeds)
 from ltpred.thresholds import age_thresholds
 
 
@@ -196,7 +196,7 @@ def test_multi_trait_runs_and_shapes():
         Member("o", lower=[t, -np.inf], upper=[np.inf, t]),  # case for A, control for B
         Member("m", lower=[-np.inf, t], upper=[t, np.inf]),  # control A, case B
     ])
-    res = estimate_liability_multi([fam], h2_vec=h2, genetic_corrmat=gcorr,
+    res = _estimate_liability_multi([fam], h2_vec=h2, genetic_corrmat=gcorr,
                                    full_corrmat=fcorr, phen_names=["A", "B"],
                                    out=("genetic",), tol=0.05,
                                    n_sim=20_000, burn_in=500, seed=3)
@@ -218,7 +218,7 @@ def test_multitrait_estimation_rejects_scalar_and_wrong_length_bounds(attribute,
     fam = Family("f1", [Member("o", bounds["lower"], bounds["upper"])])
 
     with pytest.raises(ValueError, match=r"must be a length-2 .*sequence"):
-        estimate_liability_multi(
+        _estimate_liability_multi(
             [fam], h2_vec=[0.5, 0.4], genetic_corrmat=np.eye(2),
             full_corrmat=np.eye(2), n_sim=10, burn_in=0,
         )
@@ -231,7 +231,7 @@ def test_multi_trait_rejects_incoherent_genetic_and_full_correlations():
     full_corr = np.array([[1.0, 0.1], [0.1, 1.0]])
 
     with pytest.raises(ValueError, match="incoherent"):
-        estimate_liability_multi([fam], h2_vec=[0.8, 0.8],
+        _estimate_liability_multi([fam], h2_vec=[0.8, 0.8],
                                  genetic_corrmat=genetic_corr,
                                  full_corrmat=full_corr)
 
@@ -253,11 +253,11 @@ def test_estimate_from_kinship_matches_role_based():
     # the kinship path reproduces the role-based estimator on the same data
     from ltpred import (simulate_under_LTM_single,
                         estimate_liability_from_kinship, kinship_from_pedigree)
-    from ltpred.estimate import estimate_liability_single
+    from ltpred.estimate import _estimate_liability_single
     h2 = 0.5
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=h2,
                                     n_sim=400, pop_prev=0.1, seed=11)
-    role = estimate_liability_single(sim.families, h2=h2, out=("genetic",),
+    role = _estimate_liability_single(sim.families, h2=h2, out=("genetic",),
                                      n_sim=20000, burn_in=500, seed=1)
     ids    = ["o", "m", "f", "s1", "s2"]
     father = ["f", None, None, "f", "f"]
@@ -299,40 +299,10 @@ def test_estimate_from_kinship_defaults_to_pa():
         estimate_liability_from_kinship(A, lower, upper, method="magic")
 
 
-def test_liability_sensitivity_h2_grid():
-    from ltpred import simulate_under_LTM_single, liability_sensitivity
-    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
-                                    n_sim=800, pop_prev=0.1, seed=9)
-    grid = [0.3, 0.4, 0.5, 0.6, 0.7]
-    r = liability_sensitivity(sim.families, grid, method="pa", out="genetic")
-    default = liability_sensitivity(sim.families, grid, out="genetic")
-    assert r.estimates.shape == (len(grid), 800)
-    assert r.corr.shape == (len(grid), len(grid))
-    assert np.allclose(np.diag(r.corr), 1.0)
-    assert r.mean.shape == r.sd.shape == (len(grid),)
-    assert r.out == "genetic"
-    assert np.array_equal(default.estimates, r.estimates)
-    # ranking is highly stable to the assumed h2 (the reassuring result)
-    assert r.min_corr > 0.9
-    # scale grows with h2 even though ranking does not
-    assert r.sd[-1] > r.sd[0]
-
-
-def test_liability_sensitivity_validation():
-    from ltpred import simulate_under_LTM_single, liability_sensitivity
-    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
-                                    n_sim=100, pop_prev=0.1, seed=1)
-    with pytest.raises(ValueError, match="at least 2"):
-        liability_sensitivity(sim.families, [0.5], method="pa")
-    with pytest.raises(ValueError, match="in \\(0, 1\\]"):
-        liability_sensitivity(sim.families, [0.5, 1.5], method="pa")
-
-
-@pytest.mark.parametrize("spelling", ["genetic", ("genetic",), "g", 0, np.int64(0)])
+@pytest.mark.parametrize("spelling", ["genetic", ("genetic",)])
 def test_out_accepts_scalar_and_sequence(spelling):
     # a bare "genetic" (documented) must work everywhere, not just the tuple form
-    from ltpred import (simulate_under_LTM_single, liability_sensitivity,
-                        estimate_liability_from_kinship)
+    from ltpred import simulate_under_LTM_single, estimate_liability_from_kinship
     from ltpred.estimate import (estimate_liability_pa_arrays,
                                  estimate_liability_gibbs_arrays)
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5, n_sim=80,
@@ -342,7 +312,7 @@ def test_out_accepts_scalar_and_sequence(spelling):
                                            out=spelling).est
     assert "genetic" in estimate_liability(sim.families, h2=0.5, method="gibbs",
                                            out=spelling, n_sim=2000, seed=1).est
-    # single-column APIs (array, kinship, sensitivity) take the same spellings
+    # single-column APIs (array, kinship) take the same spellings
     roles = ["g", "o", "m", "f"]
     lo = np.array([[-9.0, 1.2, -9.0, 1.2]]); hi = np.array([[9.0, 9.0, 1.2, 9.0]])
     estimate_liability_pa_arrays(roles, lo, hi, h2=0.5, out=spelling)
@@ -350,7 +320,6 @@ def test_out_accepts_scalar_and_sequence(spelling):
     A = np.array([[1.0, .5, .5], [.5, 1, 0], [.5, 0, 1]])
     klo = np.array([[-9.0, 1.2, 1.2]]); khi = np.array([[9.0, 9.0, 9.0]])
     estimate_liability_from_kinship(A, klo, khi, h2=0.5, out=spelling)
-    liability_sensitivity(sim.families, [0.3, 0.5], method="pa", out=spelling)
 
 
 def test_out_invalid_and_multicolumn_errors():
@@ -370,9 +339,11 @@ def test_out_invalid_and_multicolumn_errors():
 @pytest.mark.parametrize(
     "invalid,error",
     [([], ValueError), ((), ValueError), (True, TypeError), (False, TypeError),
-     (0.0, TypeError), (1.0, TypeError)],
+     (0.0, TypeError), (1.0, TypeError),
+     ("g", ValueError), ("o", ValueError), (0, TypeError), (1, TypeError),
+     ((0,), TypeError)],          # the dropped "g"/"o"/0/1 spellings
 )
-def test_out_rejects_empty_bool_and_float_aliases(invalid, error):
+def test_out_rejects_empty_bool_float_and_dropped_aliases(invalid, error):
     from ltpred.estimate import estimate_liability_pa_arrays
 
     fam = Family("f1", [Member("o", -np.inf, 1.0)])

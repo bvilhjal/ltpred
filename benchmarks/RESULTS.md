@@ -1,26 +1,46 @@
 # ltpred benchmark results
 
-Current results for the 15 local benchmark scripts in this directory. Bounds
+Historical results from the 28 local benchmark scripts in this directory
+(`bench_aod_decay_robustness.py` is reported as a subsection of section 25).
+Bounds
 distinguish non-personalised, personalised pinned and interval-case encodings;
 family-history inclusion distinguishes LT-FH++ (with relatives) from ADuLT
 (index person only). Gibbs and Pearson–Aitken (PA) are alternative inference
 engines for those bounds. PA-FGRS is a separate PA-specific specification; its
 censoring mixture is not included in the PA–Gibbs comparisons below.
 
-- **Generated:** 2026-07-14.
-- **Environment:** Python 3.13.5, NumPy 2.1.3, SciPy 1.15.3, Numba 0.61.0,
-  10 logical cores.
-- **Reproduce:** set `NUMBA_NUM_THREADS=10` (and optionally
-  `OMP_NUM_THREADS=10` for linked numerical libraries), then run the scripts
-  listed in [`README.md`](README.md).
-- **Coverage:** every default local benchmark was rerun. The HAPNEST real-LD path
-  was not run because it requires an external multi-GB dataset; it remains an
-  explicit opt-in workflow in [`hapnest/README.md`](hapnest/README.md).
+- **Snapshot:** assembled from focused runs through 2026-07-30; this was not one
+  atomic rerun of all 28 scripts. The first 14-section campaign was generated
+  on 2026-07-14.
+- **Recorded environment for that base campaign:** Python 3.13.5, NumPy 2.1.3,
+  SciPy 1.15.3, Numba 0.61.0, 10 logical cores. Later additions did not record a
+  complete machine-readable environment or source manifest.
+- **Provenance limit:** these checked-in values are historical artifacts. They
+  do not automatically validate later source changes, including a dirty working
+  tree. Claims should be refreshed after numerical or benchmark-source changes.
+- **Future runs:** use
+  `python benchmarks/run_benchmark.py SCRIPT -- [ARGS]`; it appends the exact
+  command, environment, exit status, Git commit, tracked-diff hash, content
+  hashes for untracked source files, captured stdout/stderr log hashes, and
+  hashes of changed top-level `bench_*.{csv,png}` artifacts to
+  `run_manifest.jsonl`. Custom output paths are not discovered automatically.
+  Set `NUMBA_NUM_THREADS` and, where needed, `OMP_NUM_THREADS` explicitly.
+- **External-data exception:** the HAPNEST real-LD path was not run because it
+  requires an external multi-GB dataset; it remains opt-in in
+  [`hapnest/README.md`](hapnest/README.md).
 
 Unless stated otherwise, `±` denotes the standard error of a mean across
 independent simulated cohorts. Tables labelled SD instead report the empirical
-across-cohort standard deviation. Some diagnostic grids remain single-seed
-illustrations; those are identified rather than dressed up as certainty.
+across-cohort standard deviation; tables labelled 95% CI report a half-width.
+Some diagnostic grids remain single-seed illustrations; those are identified
+rather than dressed up as certainty. The saved sex-limitation and nurture
+tables used normal `1.96 × SE` half-widths; their source scripts now use
+small-sample t half-widths and must be rerun before those interval fields are
+treated as current.
+
+All core fitter benchmarks use unascertained, population-sampled simulated
+families. They do not validate heritability or variance-component fitting under
+case/control or family-history ascertainment.
 
 Metric names matter here. **NCP ratio** means a ratio of causal-SNP chi-square
 noncentrality components. **Eff-N proxy** means a squared-correlation ratio to
@@ -161,8 +181,9 @@ null.
 
 ## 5. Heritability fitting (`bench_fit_heritability.py`)
 
-Twenty-five independent cohorts per recovery cell, K=0.10, 3,000 families with
-parents + two siblings. Fitter RNG seeds are distinct across cohorts.
+Twenty-five independent, unascertained population cohorts per recovery cell,
+K=0.10, 3,000 families with parents + two siblings. Fitter RNG seeds are
+distinct across cohorts.
 
 | true h² | fitted mean | bias | empirical SD | reported MC SE | SD / MC SE |
 |---:|---:|---:|---:|---:|---:|
@@ -181,8 +202,9 @@ standard error. Use `bootstrap_fit` for family-resampling intervals.
 
 ## 6. A+C variance components (`bench_variance_components.py`)
 
-Twenty-five independent 3,000-family cohorts per recovery cell, with distinct
-fitter seeds. Values are fitted means (empirical across-cohort SD):
+Twenty-five independent, unascertained population cohorts of 3,000 families per
+recovery cell, with distinct fitter seeds. Values are fitted means (empirical
+across-cohort SD):
 
 | true A | true C | fitted A (SD) | fitted C (SD) |
 |---:|---:|---:|---:|
@@ -505,11 +527,13 @@ Stochastic-onset observation model:
 | base + no-mixture | 0.2757 | 1.0184 | 0.4528 | 0.9957 |
 | base + mixture | 0.2758 | 0.9974 | 0.4528 | 0.9878 |
 
-### Verdict: implemented correctly; small censoring effect; case encoding dominates
+### Verdict: behaves as intended here; small censoring effect; case encoding dominates
 
-- **The mixture is implemented correctly**: it moves calibration toward 1 for
-  the under-conditioned lifetime-case encoding and is near-exact under its
-  native stochastic-onset model; it never costs correlation (<= 0.0005).
+- **The mixture behaves as intended in this design**: it moves calibration
+  toward 1 for the under-conditioned lifetime-case encoding and is near-exact
+  under its native stochastic-onset model. Mean correlations differ by at most
+  0.0005, but the report does not retain uncertainty for those paired
+  differences, so this does not establish non-inferiority or “no cost”.
 - **Its effect at these settings is small** (calibration slope shifts of
   0.01-0.03, correlation unchanged). Under the threshold-crossing model the
   plain age truncation is already exact for censored controls, so the mixture
@@ -530,11 +554,11 @@ independent A-only datasets (400 families, proband + parents + sib, prevalence
 0.1, true h2 = 0.5, C = 0; n_boot = 50, reduced fit iterations):
 
 - **Type-I of `test_variance_component("C")`:** 0/25 rejections at 0.05
-  (rule-of-three upper bound ~0.11); p-values mean 0.428, median 0.392, min
+  (Clopper–Pearson two-sided 95% CI 0.00–0.14); p-values mean 0.428, median 0.392, min
   0.059 -- no anti-conservatism; if anything mildly conservative at this
   resolution (a uniform null would give mean 0.5, min ~0.04).
 - **`bootstrap_fit` interval coverage:** 24/25 = 96% coverage of the true
-  h2 = 0.5 at nominal 95% (binomial 95% CI 0.88-1.00). The bootstrap SE is
+  h2 = 0.5 at nominal 95% (Clopper–Pearson 95% CI 0.796–0.999). The bootstrap SE is
   mildly conservative: mean 0.168 vs across-dataset SD 0.132 (ratio 1.27),
   consistent with the slight over-coverage -- and, per the ROADMAP, the
   internal `h2_se` understates that sampling SD by >20x, so the bootstrap
@@ -582,7 +606,8 @@ code), with left truncation and competing risks. Simulated registry cohort
 administrative censoring; one arm with a 1995 register start):
 
 - **No mortality:** Kaplan-Meier recovers the true curve to max abs error
-  0.0013; Greenwood 2xSE coverage 1.00 (slightly conservative).
+  0.0013; all 13 prespecified age-grid truths fall inside the pointwise ±2SE
+  bands. This is single-dataset grid containment, not repeated-sample coverage.
 - **With mortality (42% death share):** Aalen-Johansen recovers its estimand
   (the crude cumulative incidence in the presence of death) to 0.0017;
   Kaplan-Meier treating death as censoring overestimates it by up to 0.0218
@@ -593,14 +618,16 @@ administrative censoring; one arm with a 1995 register start):
 - **Delayed entry (register starts 1995):** AJ still accurate to 0.0019.
 - **End-to-end:** the estimated curve -> `thresholds_from_cip` ->
   `estimate_liability` on a family cohort gives calibration slope 0.9969 vs
-  1.0015 with the oracle curve, with identical correlation (0.3861) -- at this
-  registry size, CIP estimation error is negligible for the score.
+  1.0015 with the oracle curve, with identical correlation (0.3861). The
+  scores were nearly identical in this run; repeated-run uncertainty was not
+  retained.
 
 This matches the LT-FH++ construction (Pedersen et al. 2022: Aalen-Johansen
-with death and emigration as competing events, sex x birth-year strata) and
-closes ROADMAP item 6. The AJ SE is the closed-form Aalen (1978) variance
-(cmprsk::cuminc convention), agreeing with Greenwood to ~4 decimal places in
-non-degenerate risk sets; a person-level bootstrap remains as an option.
+with death and emigration as competing events, sex x birth-year strata).
+The saved curve point estimates remain informative, but this historical run
+predates the corrected finite-risk-set Aalen variance and therefore does not
+validate the current SE implementation; rerun it for uncertainty claims. A
+person-level bootstrap remains an option.
 
 ## 20. Pedigree inference from trio records (`bench_pedigree_inference.py`)
 
@@ -621,7 +648,8 @@ remarriages and cousin links):
   them.)
 - **Payoff (the LT-FGRS point):** estimating genetic liability on 300
   probands, corr(est, truth) is 0.618 using all relatives up to third degree
-  vs 0.559 with only the first-degree role subset the grammar encodes
+  vs 0.559 with the fixed named-role subset the grammar encodes (parents, full
+  siblings, and grandparents)
   (+10.6%); the two scores correlate 0.89 -- which relatives you include
   matters, consistent with Pedersen et al. (2026, LT-FGRS).
 - **Scale:** 3,000 extractions at degree 3 in 0.29 s (~0.1 ms per proband);
@@ -633,7 +661,7 @@ paper's path-counting approximation.
 
 ## 21. End-to-end register pipeline (`bench_register_pipeline.py`)
 
-`ltpred.pipeline.estimate_liabilities` chains trio records -> pedigree
+`research.pipeline.estimate_liabilities` chains trio records -> pedigree
 discovery -> per-stratum CIP thresholds -> per-proband scores. On a synthetic
 register (3-generation population of 2,683 with remarriages; one CONSISTENT
 liability field `G ~ N(0, h2 A)`, `L = G + E` -- an earlier per-pedigree draw
@@ -648,8 +676,9 @@ model with a logistic CIP, lifetime prevalence 0.10):
   age structure; the pedigree benchmark's 0.62 used a 10% rate with a uniform
   threshold.)
 - **CIP estimated from the register itself:** 0.3648 vs 0.3640 with the
-  oracle curve -- estimating the CIP from follow-up records costs nothing at
-  this register size (consistent with section 19).
+  oracle curve. This run detected no loss from estimating the CIP from
+  follow-up records at this register size; it does not establish zero cost
+  without repeated-run uncertainty (consistent with section 19).
 - **Prospective prediction** (diagnosis after index age 40): the honest
   familywise-censored score reaches corr 0.090 with the future outcome;
   leaking relatives' post-index events adds +0.04 (0.132), and leaking the
@@ -662,9 +691,10 @@ model with a logistic CIP, lifetime prevalence 0.10):
 
 `ltpred.tetrachoric` estimates the latent liability correlation from 2x2
 case/control tables by maximum likelihood (thresholds from the marginals,
-golden-section search over rho, bivariate-normal CDF by Gauss-Legendre
-quadrature accurate to ~1e-10 vs scipy's `multivariate_normal.cdf`; SEs from
-the observed information). On families simulated under the liability-threshold
+bounded scalar optimisation over rho, SciPy's bivariate-normal CDF with
+requested absolute and relative tolerances of `1e-10`, and SEs from the
+observed information). The requested integration tolerance is not a proven
+error bound. On families simulated under the liability-threshold
 model (h2 = 0.5, prevalence 0.1, 5 replicates of 20,000 families):
 
 | pair | expected h2*A | tetrachoric | latent corr |
@@ -677,9 +707,12 @@ model (h2 = 0.5, prevalence 0.1, 5 replicates of 20,000 families):
 | o-mau1 | 0.125 | 0.127 +/- 0.007 | 0.128 |
 | m-f (mates) | 0.000 | 0.016 +/- 0.005 | 0.000 |
 
-The pairwise tetrachorics recover h2 * A within ~1 SE everywhere and track
-the Pearson correlations on the latent liabilities -- the binary table really
-does recover the latent correlation. The Falconer heritability estimate
+The pairwise means broadly track h2 * A and the latent Pearson correlations,
+but several cells differ from the nominal target by more than one reported SE
+(notably mother-sibling and the mate pair). Five replicates are too few to turn
+that pattern into a calibrated equivalence claim. The checked-in SEs also used
+the population-SD convention; the source now uses sample SD (`ddof=1`) and
+requires a rerun for corrected numerical SEs. The Falconer heritability estimate
 h2 ~ 2 x tetrachoric(first-degree) gives 0.497 +/- 0.014 (truth 0.5) from
 binary relative pairs alone, agreeing with `fit_heritability` on the same
 families (0.515 +/- 0.028). `tetrachoric_matrix` produces the expected h2*A
@@ -690,12 +723,20 @@ correlations straight from relative-pair statuses, before any fitting.
 
 ## 23. Liability-scale transformations (`bench_liability_scale.py`)
 
-`ltpred.liability_scale` implements the observed/liability bridges (Lee et
-al. 2011 h²; Lee et al. 2012 genetic covariance, with the genetic correlation
-scale-invariant by cancellation) and probit estimation of incremental
-liability r² (the probit model IS the liability-threshold model: per-SNP
-variance explained is the identity 2 f (1-f) beta²; the z-statistic route is
-Lee & Wray 2013 with the master factor). On a polygenic disease simulated on
+`ltpred.liability_scale` implements the Lee et al. (2011) observed/liability
+heritability bridge and probit estimation of residual-scale genetic variance
+`q` (the probit model IS the liability-threshold model:
+per-SNP `q` is the identity 2 f (1-f) beta²; the z-statistic route is Lee &
+Wray 2013 with the master factor). The default `q` is not a total-liability
+fraction; aggregate it before applying `q / (1 + q)`.
+
+**Historical-default warning:** the table below was generated with raw `z²`
+second moments, equivalent to current `subtract_null=False`. The source
+benchmark now uses the null-adjusted default `(z² - 1) / N`; these saved numbers
+must not be presented as validation of that default. Point estimates below are
+retained only as a record of the prior run.
+
+On a polygenic disease simulated on
 the probit convention (liab = X beta + eps, Var(X beta) = 0.5, prevalence
 0.1):
 
@@ -703,32 +744,32 @@ the probit convention (liab = X beta + eps, Var(X beta) = 0.5, prevalence
 |---|---|---|
 | (a) joint probit fit -> sum 2f(1-f)beta² | 0.510 +/- 0.014 | 0.500 (exact) |
 | (a') marginal probit fits (GWAS practice) | 0.352 +/- 0.006 | ~1/(1+V_bg) attenuated |
-| (b) probit z, Lee & Wray 2013 factor | 0.335 +/- 0.020 | matches (a') |
+| (b) historical raw probit z², Lee & Wray 2013 factor | 0.335 +/- 0.020 | prior `subtract_null=False` |
 | (c) OLS observed-scale total | 0.119 +/- 0.009 | (observed scale) |
 | (c) Lee-2011 bridged to liability | 0.349 +/- 0.026 | 1/3 (Lee fraction) |
 
-The conventions are reconciled explicitly: the joint probit fit recovers the
+For the historical routes, the joint probit fit recovers the
 probit residual-scale total (0.5) exactly; marginal per-SNP fits attenuate by
 the polygenic background in their residuals (~1/(1+V_bg), material at h²=0.5);
 and the OLS/Lee-2011 route recovers the *fraction-of-total-liability* form
 (1/3), which is the McKelvey-Zavoina R² of Lee et al. 2012 (Genet Epidemiol,
 eq. 9) -- implemented as `probit_liability_r2(..., fraction=True)`.
 
-Paper-fixture checks in the tests: the Lee 2011 Discussion factors (observed
-0.18/0.54/0.91 -> liability 0.1/0.3/0.5 at K=0.01, P=0.5), the Crohn's Table 3
-fixture (0.61 -> 0.22), the LDSC SCZ-BIP gencov fixture (0.3644 -> 0.2011),
-and r_g scale invariance (0.656 both scales).
+Paper-fixture checks in the tests cover the Lee 2011 Discussion factors
+(observed 0.18/0.54/0.91 -> liability 0.1/0.3/0.5 at K=0.01, P=0.5) and the
+Crohn's Table 3 fixture (0.61 -> 0.22).
 
 ## 24. Environment components in estimation (`bench_env_components.py`)
 
 The sibship (C) and couple (M) shared-environment components fitted by
 `fit_variance_components` are now wired into liability estimation:
-`construct_covmat_single(..., c2=..., m2=...)` and every estimator front
-door (`estimate_liability`, `estimate_liability_single`, `estimate_liability_pa`,
-the two array APIs) accept them. The genetic target stays coupled to relatives
-only through h2 * A (it shares no environment); the components only change how
-relatives are conditioned. On families simulated with true h2 = 0.4, sibship
-c2 = 0.15 and couple m2 = 0.15 (5 replicates of 4,000 families):
+`construct_covmat_single(..., c2=..., m2=...)` and the supported estimator
+front doors (`estimate_liability`, `estimate_liability_pa_arrays`, and
+`estimate_liability_gibbs_arrays`) accept them. The genetic target stays
+coupled to relatives only through h2 * A (it shares no environment); the
+components only change how relatives are conditioned. On families simulated
+with true h2 = 0.4, sibship c2 = 0.15 and couple m2 = 0.15 (5 replicates of
+4,000 families):
 
 | arm | corr(g) | slope(g) | corr(o) |
 |---|---|---|---|
@@ -775,7 +816,8 @@ fitted with `n_em = 45`, `n_draw = 100`, 3 replicates per cell:
   grows into the thousands. Below that, estimates are ridge-dominated; prefer the
   scalar `fit_genetic_correlation`.
 - *Estimator correctness*: the analytic cross-trait gradient of the M-step is
-  pinned against finite differences (`tests/test_decay.py::GradientTests`);
+  pinned against finite differences
+  (`research/tests/test_decay.py::GradientTests`);
   a symmetrisation bug in it was found and fixed in review, and the numbers
   above are from the corrected estimator.
 - **Sampling variability is large**: even at `n_fam = 2500` the across-replicate
@@ -811,6 +853,8 @@ sex-limited covariance, so the proband's genetic liability is known exactly.
 Proband and sibling sexes are balanced across the four cells. `K_female = 0.05`,
 `K_male = 0.10`; 5 replicates of 2,000 families. Four arms, all scored by
 `corr(estimate, true g)` and the calibration slope `regress(true on estimate)`:
+the stored `±` values are the original normal 95% half-widths. The script now
+uses t half-widths; rerun it before quoting its intervals as current.
 
 | arm | thresholds | covariance |
 |---|---|---|
@@ -907,8 +951,9 @@ environment. This benchmark asks what a nurture-blind analysis costs.
 
 Families (proband + both parents + one full sib) are drawn from the **true**
 path model, so the direct value `A_o` is known exactly. `h2 = 0.4` (direct),
-`K = 0.05`; 5 replicates of 3,000 families. Four estimators are scored against
-`A_o`:
+`K = 0.05`; 5 replicates of 3,000 families. The stored `±` values are the
+original normal 95% half-widths; the script now uses t half-widths and requires
+a rerun for current intervals. Four estimators are scored against `A_o`:
 
 | arm | covariance |
 |---|---|
@@ -965,7 +1010,7 @@ rather than by running `fit_heritability`, so they show what a moment estimator
 targets without its finite-sample noise. Nuclear families only, as the
 constructor requires.
 
-## What changed in this rerun
+## Historical report changes
 
 - Replicated the accuracy and calibration grids across five independent
   seeds (every cell now reports an across-seed mean and SE), replacing the
@@ -998,7 +1043,7 @@ constructor requires.
   uncertainty coarsely. The integrated main panel now uses ten replicates and
   its sex isolation uses five; tail calibration remains noisier than paired
   score contrasts.
-- Component test Type-I error, bootstrap coverage, and MCEM SEs are now
+- Component test Type-I error, bootstrap coverage, and MCEM SEs were
   calibrated at coarse resolution (section 17; R = 25 bounds the
   resolution -- read as 'no gross miscalibration').
 - The HAPNEST path was not executed here. The PA-FGRS censoring-mixture
@@ -1009,5 +1054,8 @@ constructor requires.
   `r² / (1-r²)` correction; the matched NCP ratios are robust to this
   small approximation, but genome-wide discovery counts are only illustrative.
 - Most benchmark scripts still write canonical artifacts unconditionally. The
-  integrated-personalization script now accepts `--output-prefix` and writes a
-  self-describing CSV, but a common runner and run manifest remain outstanding.
+  integrated-personalization script accepts `--output-prefix`, and the common
+  `run_benchmark.py` wrapper now records source/environment provenance and
+  hashes changed top-level `bench_*.{csv,png}` artifacts. Custom-path outputs
+  must be preserved and hashed separately. Historical artifacts predating that
+  wrapper remain incompletely attributable.

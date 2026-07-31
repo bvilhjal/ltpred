@@ -36,6 +36,10 @@ why int8-quantising the covariance, ldpred3-style, is the wrong lever here.)
 fixed point (Gibbs augmentation + damped Haseman–Elston update, not posterior
 sampling of h²). Across h² 0.2–0.8, current simulations show small bias relative
 to the across-dataset SD rather than exact unbiasedness.
+Both core family-data fitters support only independent, non-overlapping,
+unascertained population-sampled families and require
+`sampling="population"` as an explicit acknowledgement; they do not model
+case/control or family-history ascertainment.
 `fit_variance_components` fits additive `A` and a **bank of relationship-specific
 shared-environment components** — `C` (sibship, from the full-sib excess) and `M`
 (couple, from the `A = 0` mate pairs) — together by a **multiple Haseman–Elston
@@ -43,7 +47,8 @@ regression** on the same well-mixing collapsed data-augmentation. Repository
 benchmarks found small bias relative to sampling variability for `A`, `A+C` and
 `A+M` across the tested family structures. At a
 zero component, the constrained estimates show a small positive boundary floor;
-formal false-positive control comes from the parametric-bootstrap component test.
+formal false-positive control comes from the parametric-bootstrap component test
+(in `research/advanced_fitting.py`).
 The shipped environment components are equivalence-class partitions, a sufficient
 construction for PSD kernels; any future kernel must likewise be symmetric and
 PSD. A non-PSD vertical parent-offspring "environment" is rejected. Each fitted
@@ -53,14 +58,14 @@ proportion.
 poorly and showed structure-dependent bias. Dominance `D` is intentionally not
 offered: it needs an explicit dominance kernel and independent relationship
 contrasts. MZ/DZ observations can contribute within a richer design, but MZ/DZ
-pairs alone cannot identify `A`, `C`, and `D` simultaneously.) `fit_genetic_correlation` estimates
-the **genetic correlation `r_g`** between traits by the cross-trait analogue of
-the same regression — approximately unbiased near the null with mild attenuation
-at large `|r_g|` in the repository benchmarks. On top of that `r_g` matrix,
-`fit_genetic_factor` fits a
-**common-factor model `r_g ≈ ΛΛ' + Ψ`** (Genomic-SEM-lite, by MINRES): does one
-latent genetic factor explain the correlations among the traits? — with `srmr` as
-an in-sample misfit diagnostic, not a calibrated factor-number test.
+pairs alone cannot identify `A`, `C`, and `D` simultaneously.)
+
+**Research package.** Unsupported prototypes live in the repository-root
+[`research/` directory](https://github.com/bvilhjal/ltpred/tree/main/research).
+They are importable from a checkout but are not installed with ltpred. Its README
+is the inventory for experimental fitting, covariance extensions and the register
+pipeline; a capability joins the supported package only after integration and
+validation.
 
 **Pedigree discovery.** `ltpred.pedigree` goes from population trio records
 (ids, father, mother) to per-proband pedigrees: BFS ego-extraction within
@@ -71,7 +76,8 @@ to the full-population values restricted to the members (benchmarked at
 (2025) graph-extraction niche, with exact tabular kinship in place of the
 paper's path-counting approximation.
 
-**Register pipeline.** `ltpred.pipeline.estimate_liabilities` chains the
+**Register pipeline.** `research.pipeline.estimate_liabilities` (in the
+`research/` package) chains the
 pieces end to end: trio records -> per-proband pedigree extraction ->
 per-stratum CIP thresholds -> kinship-estimated genetic-liability scores,
 with an LT-FGRS-style familywise-censoring option (`index_age`) for
@@ -121,7 +127,8 @@ Python 3.9 and 3.12.
    dominance kernel in a richer relationship design; MZ/DZ pairs alone cannot
    separate `A`, `C`, and `D`. The "experimental" label is lifted.
 
-2. ~~**Multi-trait genetic correlations `r_g`.**~~ **Done.**
+2. ~~**Multi-trait genetic correlations `r_g`.**~~ **Done — now in
+   `research/advanced_fitting.py`.**
    `fit_genetic_correlation` estimates `r_g` between traits by a **cross-trait
    Haseman–Elston regression** — the multivariate analogue of the fit above:
    regress same-trait cross-relative products on `A` for each `h2_p`, cross-trait
@@ -146,7 +153,8 @@ Python 3.9 and 3.12.
 Bringing twin/family structural-equation-modelling strengths (model comparison,
 likelihood-based inference) to the pedigree/registry setting.
 
-- ~~**Significance tests for components / correlations.**~~ **Done.**
+- ~~**Significance tests for components / correlations.**~~ **Done — now in
+  `research/advanced_fitting.py`.**
   `test_variance_component` (is `C` needed?) and `test_genetic_correlation` (is
   `r_g ≠ 0`?) — the frequentist analog of the SEM likelihood-ratio test, done as a
   **parametric bootstrap**: fit the null, simulate under it on the same pedigrees
@@ -157,9 +165,9 @@ likelihood-based inference) to the pedigree/registry setting.
   individualized thresholds require an explicit assertion that they were fixed
   from baseline covariates, never age of onset.
 
-- ~~**Approximate Monte-Carlo EM backend.**~~ **Done.**
-  `fit_variance_components(..., method="mcem")` (aliases `"ml"`/`"reml"`) runs a
-  finite-iteration, damped Monte-Carlo EM-style fit, *not* restricted ML: the
+- ~~**Approximate Monte-Carlo EM backend.**~~ **Done — now in
+  `research/advanced_fitting.py` as `fit_variance_components_mcem`.**
+  A finite-iteration, damped Monte-Carlo EM-style fit, *not* restricted ML: the
   E-step is the truncated-MVN liability draw already used; the
   M-step maximises the Gaussian likelihood of the imputed liabilities
   (`min log|Σ| + tr(Σ⁻¹ S)`) instead of the HE regression. The current implementation
@@ -171,7 +179,8 @@ likelihood-based inference) to the pedigree/registry setting.
   family bootstrap remains the relevant uncertainty route under its assumptions.
 
 - ~~**Latent factor model on the multi-trait genetic covariance** (Genomic-SEM-lite).~~
-  **Done.** `fit_genetic_factor` fits `r_g ≈ ΛΛ' + Ψ` — a common-factor model — to
+  **Done — now in `research/advanced_fitting.py`.** `fit_genetic_factor` fits
+  `r_g ≈ ΛΛ' + Ψ` — a common-factor model — to
   the genetic correlation matrix from `fit_genetic_correlation`, by **MINRES**
   (minimising the off-diagonal residuals, so the factor(s) explain the cross-trait
   correlations, not each trait's own variance). `srmr` / `prop_explained` read off
@@ -187,8 +196,10 @@ likelihood-based inference) to the pedigree/registry setting.
 - **Relationship-specific environmental components.** *Partly done.* The single `C`
   is now a **bank**: `_COMPONENT_OFFDIAG` ships `C` (full-sib / sibship) and `M`
   (couple / spousal, identified from the `A = 0` mate pairs), fitted jointly with
-  `A` by `fit_variance_components(fams, ("A", "C", "M"))` and testable with
-  `test_variance_component(fams, "M")`. Each environment component must be a valid
+  `A` by `fit_variance_components(..., sampling="population")` and testable with
+  `research.advanced_fitting.test_variance_component(fams, "M",
+  sampling="population")`. Each environment
+  component must be a valid
   symmetric PSD kernel. The shipped kernels are **equivalence-class partitions**,
   which guarantees PSD but is not the only valid construction; the fitter rejects
   a kernel that is not PSD. This rules out the naive **vertical** parent-offspring
@@ -204,7 +215,8 @@ likelihood-based inference) to the pedigree/registry setting.
   symmetric shared-environment ≠ directional maternal effect, and an environment
   `∝ A` is confounded with `h2`.
 
-- **Onset-age-structured genetic correlation.** *Done, with a hard identifiability
+- **Onset-age-structured genetic correlation.** *Done — now in
+  `research/advanced_fitting.py`, with a hard identifiability
   caveat.* `fit_genetic_correlation_decay` fits
   `Cov(g_i^p, g_j^q) = A_ij sqrt(h2_p h2_q) rho_g K(|a_ip - a_jq|; lam)` -- a
   genetic correlation that decays with the onset-age difference between relatives,
@@ -230,7 +242,7 @@ likelihood-based inference) to the pedigree/registry setting.
   `n_starts` runs the EM from perturbed inits to guard the multi-modal
   likelihood; and a `converged` flag plus the `negq` trace report
   convergence. The analytic gradient is pinned by finite-difference tests
-  (`tests/test_decay.py::GradientTests`).
+  (`research/tests/test_decay.py::GradientTests`).
 
 ## Medium-term — rigor and real data
 
@@ -249,7 +261,7 @@ likelihood-based inference) to the pedigree/registry setting.
    `bench_calibration.py` adds slope/intercept and **decile (tail) calibration** to
    the correlation-only accuracy story (most correctly specified cells are near
    slope 1, with a rare extended-family outlier; a wrong `h²` tilts the scale but
-   barely changes ranking — the complement to `liability_sensitivity`);
+   barely changes ranking — the complement to an `h²` sensitivity sweep);
    `bench_confounding.py` shows
    cohort-blind (single-K) thresholds **inflate `λ_GC`** under a secular prevalence
    trend while the cohort-aware family ablation stays near 1 on average;
@@ -266,10 +278,12 @@ likelihood-based inference) to the pedigree/registry setting.
    adjusted-power increment, rather than conflating those two claims. **Mixture validation**
    is now done (`bench_pafgrs_mixture.py`, RESULTS.md section 16): generative
    validation under both the threshold-crossing and the stochastic-onset
-   observation models. The mixture is implemented correctly and never costs
-   correlation, but its censoring correction is small at the tested settings;
-   the case encoding (pinned vs lifetime vs interval) dominates calibration
-   there.
+   observation models. The mixture behaves as intended in those tested designs,
+   and the mean correlation differences are at most 0.0005, but paired
+   uncertainty was not retained; the benchmark therefore does not establish
+   non-inferiority or zero correlation cost. Its censoring correction is small
+   at the tested settings, and the case encoding (pinned vs lifetime vs
+   interval) dominates calibration there.
 
 6. ~~**Censoring-aware CIPs.**~~ **Done.** `ltpred/cip.py` estimates the
    cumulative-incidence curve from registry-style follow-up records (entry age,
@@ -277,19 +291,21 @@ likelihood-based inference) to the pedigree/registry setting.
    Greenwood SEs) for the no-competing-risks case, and `aalen_johansen_cip`
    (delayed entry, right censoring, death/emigration as competing events --
    the LT-FH++ construction, Pedersen et al. 2022) with the closed-form Aalen
-   (1978) variance and an optional person-level bootstrap cross-check. Output
+   (1978) variance. Output
    feeds `thresholds_from_cip` directly. Validated in
    `bench_cip_estimation.py`: exact recovery of a known curve (max err ~0.002),
    the competing-risks overestimation of KM quantified (~0.022 at 42% death
    share), delayed entry handled, and end-to-end the estimated curve costs
    ~0.005 of calibration slope vs the oracle CIP.
 
-7. ~~**Sensitivity utility.**~~ **Done.** `liability_sensitivity(families,
-   h2_values)` re-estimates over an h² grid and reports the cross-setting
+7. ~~**Sensitivity utility.**~~ **Done, then removed.** An `h²`-grid sensitivity
+   helper re-estimated over the grid and reported the cross-setting
    Pearson correlation of the scores (`min_corr` = lowest cross-setting score
    correlation) plus how the scale shifts. In the tested pedigree,
    `min_corr ≈ 0.97` across h² 0.2–0.8, consistent with a near-linear rescaling in
-   that setting; this is not general rank invariance. Prevalence/CIP sensitivity
+   that setting; this is not general rank invariance. The helper was dropped from
+   the core as a thin convenience loop — re-estimate over the grid and correlate
+   the scores directly. Prevalence/CIP sensitivity
    (which moves the bounds, not the covariance) is done by rebuilding families per
    prevalence and comparing.
 
@@ -310,7 +326,7 @@ likelihood-based inference) to the pedigree/registry setting.
     Trusted-Publishing release workflow (`.github/workflows/publish.yml`,
     documented in [RELEASING.md](RELEASING.md)) publishes on a tagged GitHub
     Release. The remaining step is the one-time PyPI trusted-publisher
-    registration and the first tagged release.
+    registration and the first PyPI publication from the release workflow.
 
 12. **Multi-trait PA approximation**, if it can be made accurate, for scalable
     multi-trait analysis.

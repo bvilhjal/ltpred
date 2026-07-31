@@ -71,22 +71,31 @@ def main():
             latent_corr[(a, b)].append(np.corrcoef(la, lb)[0, 1])
         fd = [est[p][-1] for p in (("o", "m"), ("o", "f"), ("o", "s1"))]
         h2_falconer.append(2.0 * np.mean(fd))
-        h2_fit.append(fit_heritability(sim.families[:4000], n_iter=600,
-                                       burn_in=200, seed=rep).h2)
+        h2_fit.append(
+            fit_heritability(
+                sim.families[:4000],
+                sampling="population",
+                n_iter=600,
+                burn_in=200,
+                seed=rep,
+            ).h2
+        )
 
-    print(f"\n  {'pair':10s} {'expected h2*A':>12s} {'tetrachoric':>12s} "
+    print(f"\n  {'pair':10s} {'expected h2*A':>12s} {'tetrachoric ± SE':>18s} "
           f"{'latent corr':>12s}")
     for a, b, e in PAIRS:
         t = np.mean(est[(a, b)])
-        tse = np.std(est[(a, b)]) / np.sqrt(REPS)
+        tse = np.std(est[(a, b)], ddof=1) / np.sqrt(REPS)
         l = np.mean(latent_corr[(a, b)])
-        print(f"  {a + '-' + b:10s} {e:12.3f} {t:9.4f} ± {tse:.4f} {l:12.4f}")
+        print(f"  {a + '-' + b:10s} {e:12.3f} {t:12.4f} ± {tse:.4f} {l:12.4f}")
 
-    print(f"\n  Falconer h2 = 2 x tetrachoric(first-degree): "
-          f"{np.mean(h2_falconer):.4f} ± {np.std(h2_falconer) / np.sqrt(REPS):.4f}"
+    print(f"\n  Falconer h2 = 2 x tetrachoric(first-degree), mean ± SE: "
+          f"{np.mean(h2_falconer):.4f} ± "
+          f"{np.std(h2_falconer, ddof=1) / np.sqrt(REPS):.4f}"
           f"  (truth {H2})")
-    print(f"  fit_heritability on the same families:      "
-          f"{np.mean(h2_fit):.4f} ± {np.std(h2_fit) / np.sqrt(REPS):.4f}")
+    print(f"  fit_heritability on the same families, mean ± SE:      "
+          f"{np.mean(h2_fit):.4f} ± "
+          f"{np.std(h2_fit, ddof=1) / np.sqrt(REPS):.4f}")
 
     # matrix form on the first-degree block
     rng = np.random.default_rng(np.random.PCG64(SEED + 99))

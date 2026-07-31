@@ -18,7 +18,7 @@ Typical use (single-trait inference defaults to Pearson-Aitken)::
 
 The pieces, if you want them directly:
 
-* :func:`~ltpred.covariance.construct_covmat` -- family covariance from relatedness
+* :func:`~ltpred.covariance.construct_covmat_single` / ``construct_covmat_multi`` -- family covariance from relatedness
 * :func:`~ltpred.thresholds.age_thresholds` / ``prevalence_thresholds`` -- status+age -> bounds
 * :func:`~ltpred.gibbs.rtmvnorm_gibbs` -- the truncated-MVN Gibbs sampler
 * :func:`~ltpred.estimate.estimate_liability` -- the end-to-end estimator
@@ -34,43 +34,31 @@ __version__ = "0.2.0"
 
 # public name -> submodule it lives in
 _EXPORTS = {
-    "covariance": ["get_relatedness", "construct_covmat", "construct_covmat_single",
-                   "construct_covmat_multi", "construct_covmat_sex_limited",
-                   "construct_covmat_nurture",
+    "covariance": ["get_relatedness", "construct_covmat_single",
+                   "construct_covmat_multi",
                    "correct_positive_definite", "Covmat",
                    "kinship_from_pedigree", "construct_covmat_from_kinship"],
     "cip": ["CipCurve", "kaplan_meier_cip", "aalen_johansen_cip"],
     "pedigree": ["ParentGraph", "Pedigree", "build_parent_graph",
-                 "extract_pedigree", "extract_pedigrees"],
-    "pipeline": ["PopulationScores", "estimate_liabilities"],
+                 "extract_pedigree"],
     "tetrachoric": ["TetrachoricResult", "tetrachoric", "tetrachoric_table",
                     "tetrachoric_matrix"],
     "liability_scale": ["observed_to_liability_h2", "liability_to_observed_h2",
-                        "observed_to_liability_gencov",
-                        "liability_to_observed_gencov",
-                        "observed_to_liability_rg", "probit_liability_r2",
-                        "liability_r2_from_z"],
+                        "probit_liability_r2", "liability_r2_from_z"],
     "thresholds": ["convert_age_to_cir", "convert_age_to_thresh",
-                   "convert_liability_to_aoo",
-                   "convert_observed_to_liability_scale", "prevalence_thresholds",
+                   "convert_liability_to_aoo", "prevalence_thresholds",
                    "age_thresholds", "liability_threshold", "pa_thresholds",
                    "thresholds_from_cip"],
     "gibbs": ["rtmvnorm_gibbs", "gibbs_params"],
-    "pearson_aitken": ["pa_algorithm", "pa_estimate_batched", "tnorm_moments",
-                       "tnorm_mixture_conditional"],
+    "pearson_aitken": ["pa_algorithm", "pa_estimate_batched"],
     "family": ["Member", "Family", "families_from_columns"],
-    "estimate": ["estimate_liability", "estimate_liability_pa",
+    "estimate": ["estimate_liability",
                  "estimate_liability_pa_arrays", "estimate_liability_gibbs_arrays",
-                 "estimate_liability_from_kinship", "liability_sensitivity",
-                 "SensitivityResult", "batch_means", "LiabilityResult"],
+                 "estimate_liability_from_kinship", "batch_means",
+                 "LiabilityResult"],
     "simulate": ["simulate_under_LTM_single", "Simulation"],
     "fit": ["fit_heritability", "FitResult", "fit_variance_components",
-            "VarCompResult", "fit_genetic_correlation", "GenCorrResult",
-            "fit_genetic_correlation_decay", "DecayGenCorrResult",
-            "fit_genetic_factor", "FactorResult",
-            "bootstrap_fit", "BootstrapResult", "test_variance_component",
-            "test_genetic_correlation", "SignificanceTest",
-            "fit_nurture", "NurtureFit"],
+            "VarCompResult", "bootstrap_fit", "BootstrapResult"],
     "_numba": ["set_num_threads"],
 }
 
@@ -83,8 +71,8 @@ __all__ = [
     "__version__",
     "Member", "Family", "families_from_columns",
     "prevalence_thresholds", "age_thresholds", "pa_thresholds",
-    "thresholds_from_cip", "convert_observed_to_liability_scale",
-    "estimate_liability", "LiabilityResult", "liability_sensitivity",
+    "thresholds_from_cip",
+    "estimate_liability", "LiabilityResult",
     "kinship_from_pedigree", "estimate_liability_from_kinship",
     "simulate_under_LTM_single", "fit_heritability", "set_num_threads",
 ]

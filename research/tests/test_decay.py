@@ -13,11 +13,13 @@ import numpy as np
 from ltpred.covariance import get_relatedness, correct_positive_definite
 from ltpred.thresholds import liability_threshold
 from ltpred.family import Family, Member
-from ltpred.fit import (fit_genetic_correlation_decay, _decay_kernel,
-                        _decay_kernel_deriv, _decay_cov, _decay_cov_batch,
-                        _decay_negq_grad, _multi_cov, _project_covariance)
+from research.advanced_fitting import (fit_genetic_correlation_decay,
+                                       _decay_kernel, _decay_kernel_deriv,
+                                       _decay_cov, _decay_cov_batch,
+                                       _decay_negq_grad, _multi_cov,
+                                       _project_covariance,
+                                       _prepare_group_decay)
 from ltpred.estimate import _group_by_structure
-from ltpred.fit import _prepare_group_decay
 
 FAM = ["m", "f", "s1", "s2"]
 P = 2

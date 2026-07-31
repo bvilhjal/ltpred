@@ -9,7 +9,7 @@ liability two ways -- the Gibbs sampler and the deterministic Pearson-Aitken
 effective-sample-size proxy for using the estimated liability. This compact demo
 uses one logistic age curve, so it illustrates the age component rather than full
 age/sex/birth-cohort LT-FH++. It also reports
-how closely the two fitting methods agree and their relative speed.
+how closely the two fitting methods agree and their warmed-path relative speed.
 
 Run (from the repo root): python examples/ltfh_power_demo.py
 (installs not required — this inserts the repo root on sys.path; or `pip install -e .`.)
@@ -35,15 +35,23 @@ def main():
         use_age=True, seed=1,
     )
 
-    t0 = time.time()
+    # Compile/warm both paths before timing. Otherwise the Gibbs timing pays a
+    # one-off Numba compilation cost while PA inherits a warm process, which is
+    # a startup comparison masquerading as a throughput comparison.
+    warm = sim.families[:50]
+    estimate_liability(warm, h2=h2, method="gibbs", out=("genetic",),
+                       tol=0.5, n_sim=100, burn_in=20, seed=0)
+    estimate_liability(warm, h2=h2, method="pearson-aitken", out=("genetic",))
+
+    t0 = time.perf_counter()
     gibbs = estimate_liability(sim.families, h2=h2, method="gibbs", out=("genetic",),
                                tol=0.03, n_sim=25_000, burn_in=800, seed=0)
-    t_gibbs = time.time() - t0
+    t_gibbs = time.perf_counter() - t0
 
-    t0 = time.time()
+    t0 = time.perf_counter()
     pa = estimate_liability(sim.families, h2=h2, method="pearson-aitken",
                             out=("genetic",))
-    t_pa = time.time() - t0
+    t_pa = time.perf_counter() - t0
 
     true_g = sim.genetic
     status = sim.status["o"].astype(float)
@@ -63,7 +71,7 @@ def main():
     print(f"PA squared-corr eff-N proxy     : {(r_pa / r_status) ** 2:.2f}x")
     print(f"Gibbs vs PA agreement (corr)   : "
           f"{np.corrcoef(gibbs.est['genetic'], pa.est['genetic'])[0, 1]:.4f}")
-    print(f"PA speed-up over Gibbs         : {t_gibbs / t_pa:.0f}x")
+    print(f"Warm-path PA speed-up over Gibbs: {t_gibbs / t_pa:.0f}x")
 
 
 if __name__ == "__main__":

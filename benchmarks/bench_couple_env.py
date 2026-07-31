@@ -42,11 +42,8 @@ import argparse
 
 import numpy as np
 
-from _common import get_plt
-from ltpred.covariance import correct_positive_definite
-from ltpred.thresholds import liability_threshold
-from ltpred.family import Family, Member
-from ltpred.fit import _component_matrix, fit_variance_components
+from _common import get_plt, simulate_families_components
+from ltpred.fit import fit_variance_components
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -55,41 +52,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 STRUCT = ["o", "s1", "s2", "m", "f", "mgm", "mgf", "pgm", "pgf"]
 
 
-def simulate_vc(roles, props, n_fam, prev, seed):
-    """Families with liabilities ~ N(0, sum_c props[c] K_c + e2 I), thresholded.
-
-    ``props`` maps a component ('A', 'C', 'M') to its variance proportion."""
-    roles = list(roles)
-    tot = sum(props.values())
-    Sig = (1.0 - tot) * np.eye(len(roles))
-    for c, v in props.items():
-        if v > 0:
-            Sig = Sig + v * _component_matrix(roles, c)
-    Sig, _ = correct_positive_definite(Sig)
-    rng = np.random.default_rng(seed)
-    liab = rng.multivariate_normal(np.zeros(len(roles)), Sig, size=n_fam)
-    t = float(liability_threshold(prev))
-    fams = []
-    for i in range(n_fam):
-        members = [Member(role=r, lower=(t if liab[i, c] > t else -np.inf),
-                          upper=(np.inf if liab[i, c] > t else t))
-                   for c, r in enumerate(roles)]
-        fams.append(Family(fam_id=i, members=members))
-    return fams
-
-
 def fit_replicates(roles, props, comps, n_fam, prev, reps, seed0, n_iter, burn_in):
     """Fit `reps` independent cohorts under `props`; return the fitted-component dict
     of arrays keyed by the components in `comps`."""
     out = {c: np.empty(reps) for c in comps}
     for r in range(reps):
-        fams = simulate_vc(roles, props, n_fam, prev, seed0 + r)
+        fams = simulate_families_components(roles, props, n_fam, prev, seed0 + r)
         # Use a reproducible but distinct inference stream for every cohort. A fixed
         # fitter seed would suppress one source of across-replicate Monte-Carlo
         # variation and synchronize all chains unnecessarily.
         fit_seed = 1_000_000 + seed0 + r
         res = fit_variance_components(
-            fams, comps, n_iter=n_iter, burn_in=burn_in, seed=fit_seed
+            fams, comps, sampling="population",
+            n_iter=n_iter, burn_in=burn_in, seed=fit_seed
         )
         for c in comps:
             out[c][r] = res.components[c]
@@ -123,8 +98,9 @@ def main():
               n_iter=args.n_iter, burn_in=args.burn_in)
 
     # warm the JIT
-    fit_variance_components(simulate_vc(STRUCT, {"A": 0.4, "M": 0.2}, 60, args.prev, 0),
-                            ("A", "M"), n_iter=20, burn_in=5)
+    fit_variance_components(
+        simulate_families_components(STRUCT, {"A": 0.4, "M": 0.2}, 60, args.prev, 0),
+        ("A", "M"), sampling="population", n_iter=20, burn_in=5)
 
     rows = []
 

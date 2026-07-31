@@ -13,30 +13,30 @@ is also a top-level export.
 | function | purpose |
 |---|---|
 | `estimate_liability` | end-to-end estimator (PA inference by default for one trait, Gibbs for multi-trait) |
-| `liability_sensitivity` | sweep the assumed `h²` and report how stable the score is |
-| `fit_heritability` | **fit** liability-scale `h²` from family data (data-augmentation fixed point) |
+| `fit_heritability` | **fit** liability-scale `h²` from independent, non-overlapping, unascertained population-sampled families; pass `sampling="population"` |
 | `prevalence_thresholds` / `age_thresholds` | classic or personalised pinned bounds; family rows determine LT-FH++ vs ADuLT |
 | `pa_thresholds` | age-specific interval-case and PA-FGRS censored-control-mixture inputs; an age-dependent variant, not base PA-FGRS, exact PA-FGRS_ADT, or a requirement merely to use the PA engine |
 | `thresholds_from_cip` | bounds from an empirical (population) CIP curve — `case_mode="interval"` is likewise an age-dependent PA-FGRS-style variant rather than exact PA-FGRS_ADT; endpoint values are held constant outside its age grid |
 | `families_from_columns` | build family inputs from flat columns |
 | `kinship_from_pedigree` / `estimate_liability_from_kinship` | arbitrary-pedigree input and PA-default estimation with ordinary bounds; the high-level estimator has no `K_i`/`K_pop`/`use_mixture` support |
 | `simulate_under_LTM_single` | simulate families for testing/benchmarking |
-| `convert_observed_to_liability_scale` | observed → liability-scale `h²` (Lee et al.) |
+| `observed_to_liability_h2` / `liability_to_observed_h2` | observed ↔ liability-scale `h²` (Lee et al.) |
 | `set_num_threads` | set the Numba-parallel thread count |
 
 ## Advanced fitting and scale APIs
 
 | function | purpose |
 |---|---|
-| `estimate_liability_pa` | explicit deterministic Pearson–Aitken sequential-moment approximation |
-| `estimate_liability_pa_arrays` / `_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
-| `fit_variance_components` | **fit** additive `A` + shared-environment `C` (sibship) / `M` (couple) as proportions |
-| `fit_genetic_correlation` | **fit** the genetic correlation `r_g` between traits (cross-trait HE regression) |
-| `fit_nurture` | **fit** direct `h²` and the indirect (genetic-nurture) coefficient, closed-form from two liability covariances |
-| `fit_genetic_correlation_decay` | **fit** an onset-age-decaying `r_g` + decay rate `λ` (Monte-Carlo EM; data-hungry) |
-| `fit_genetic_factor` | **fit** a common-factor model `r_g ≈ ΛΛ' + Ψ` (Genomic-SEM-lite) |
-| `bootstrap_fit` | iid-family cluster bootstrap SD / percentile interval for a stable-shape statistic |
-| `test_variance_component` / `test_genetic_correlation` | parametric-bootstrap significance tests |
+| `estimate_liability_pa_arrays` / `estimate_liability_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
+| `fit_variance_components` | **fit** additive `A` + shared-environment `C` (sibship) / `M` (couple) as proportions under the same population-sampling contract |
+| `bootstrap_fit` | iid-family cluster bootstrap SD / percentile interval; it does not correct ascertainment bias |
+
+The heavier inferential machinery — the multi-trait genetic-correlation,
+onset-age-decay, common-factor and genetic-nurture fits, the MCEM
+variance-component fit, and the parametric-bootstrap significance tests — lives
+in the unsupported checkout-only
+[`research/` package](https://github.com/bvilhjal/ltpred/tree/main/research);
+they are not installed with the distribution.
 
 For the Gibbs estimator and model-fit samplers, `seed` is either `None` or an
 integer in `[0, 2**32 - 1]`; booleans are rejected. Derived sampler streams wrap
@@ -48,14 +48,16 @@ follow NumPy's `default_rng` contract.
 | function | purpose |
 |---|---|
 | `pa_algorithm` / `pa_estimate_batched` | Pearson–Aitken selection updates |
-| `tnorm_moments` / `tnorm_mixture_conditional` | truncated-normal moments (+ censoring mixture) |
-| `construct_covmat` / `_single` / `_multi` | family covariance from relatedness |
-| `construct_covmat_sex_limited` | sex-specific `h²` and cross-sex `r_g` in the covariance |
-| `construct_covmat_nurture` | direct vs indirect (genetic-nurture) path model |
+| `construct_covmat_single` / `construct_covmat_multi` | family covariance from relatedness |
 | `get_relatedness` | shared-DNA × `h²` for a pair of roles |
 | `construct_covmat_from_kinship` | liability covariance from a kinship/`A` matrix |
-| `rtmvnorm_gibbs` | truncated-MVN Gibbs sampler |
+| `rtmvnorm_gibbs` | truncated-MVN Gibbs sampler; covariance must be strictly positive-definite |
 | `convert_age_to_cir` / `convert_age_to_thresh` / … | age ↔ incidence ↔ threshold |
+
+PA accepts a symmetric positive-semidefinite covariance. Gibbs requires strict
+positive-definiteness because it forms precision-based conditional variances.
+The sex-limited and genetic-nurture covariance constructors live in the
+checkout-only `research/covariance_extensions.py`.
 
 ## Estimation — `ltpred.estimate`
 
@@ -69,9 +71,12 @@ follow NumPy's `default_rng` contract.
 
 ::: ltpred.tetrachoric
 
-## Register pipeline — `ltpred.pipeline`
+## Register pipeline — `research.pipeline`
 
-::: ltpred.pipeline
+The end-to-end register pipeline (`PopulationScores`, `estimate_liabilities`)
+moved to the unsupported `research/` package at the repository root
+(`research/pipeline.py`); it is importable from a checkout but is not part of
+the installed `ltpred` distribution, so it has no generated reference here.
 
 ## CIP estimation — `ltpred.cip`
 

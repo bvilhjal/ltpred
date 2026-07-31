@@ -4,8 +4,8 @@ import numpy as np
 
 from ltpred.covariance import kinship_from_pedigree
 from ltpred.estimate import estimate_liability_from_kinship
-from ltpred.pipeline import PopulationScores, estimate_liabilities
 from ltpred.thresholds import thresholds_from_cip
+from research.pipeline import PopulationScores, estimate_liabilities
 
 # same toy population as test_pedigree
 IDS = ["mgm", "mgf", "pgm", "pgf", "m", "f", "au", "f2", "au_sp", "sp",

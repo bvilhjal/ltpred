@@ -48,7 +48,7 @@ packages = ["ltpred"]
 version = { attr = "ltpred.__version__" }
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "research"]
 pythonpath = ["."]
 
 [tool.ruff]

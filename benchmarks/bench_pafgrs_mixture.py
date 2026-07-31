@@ -1,9 +1,9 @@
 """Generative validation of the PA-FGRS age-censored-control mixture.
 
 The PA-FGRS censoring mixture (`use_mixture=True`; Dybdahl Krebs et al. 2024)
-ships with unit tests but no generative benchmark (ROADMAP: "mixture validation
-remains deferred"; benchmarks/README over-billed PA-FGRS coverage). This is the
-deferred benchmark: simulate families under the liability-threshold model with
+has unit tests, but this generative benchmark is needed to test calibration and
+ranking against known genetic liability: simulate families under the
+liability-threshold model with
 an age-dependent CIP, censor honestly (a case is observed only if its onset age
 precedes the current age; otherwise it is a censored control carrying its
 individual cumulative incidence K_i), then ask whether the mixture recovers the

@@ -124,7 +124,8 @@ def main():
           f"  reps={REPS}  roles={ROLES}")
     arms = ["control", "heavy-tail env", "assortative", "sibship env",
             "wrong prevalence"]
-    print(f"  {'arm':24s} {'corr':>16s} {'slope':>16s}")
+    print(f"  {'arm':24s} {'corr (mean ± SE)':>16s} "
+          f"{'slope (mean ± SE)':>16s}")
     for arm in arms:
         if arm == "wrong prevalence":
             for assumed in (0.05, 0.20):
@@ -135,8 +136,10 @@ def main():
                     c, s = estimate(g, L, st, assumed)
                     cs.append(c); ss.append(s)
                 print(f"  {arm + ' (' + str(assumed) + ')':24s} "
-                      f"{np.mean(cs):6.4f} ± {np.std(cs)/np.sqrt(REPS):.4f}  "
-                      f"{np.mean(ss):6.4f} ± {np.std(ss)/np.sqrt(REPS):.4f}")
+                      f"{np.mean(cs):6.4f} ± "
+                      f"{np.std(cs, ddof=1)/np.sqrt(REPS):.4f}  "
+                      f"{np.mean(ss):6.4f} ± "
+                      f"{np.std(ss, ddof=1)/np.sqrt(REPS):.4f}")
         else:
             cs, ss = [], []
             for rep in range(REPS):
@@ -144,8 +147,10 @@ def main():
                 g, L, st = simulate(rng, arm, N_FAM, PREV_TRUE)
                 c, s = estimate(g, L, st, PREV_TRUE)
                 cs.append(c); ss.append(s)
-            print(f"  {arm:24s} {np.mean(cs):6.4f} ± {np.std(cs)/np.sqrt(REPS):.4f}  "
-                  f"{np.mean(ss):6.4f} ± {np.std(ss)/np.sqrt(REPS):.4f}")
+            print(f"  {arm:24s} {np.mean(cs):6.4f} ± "
+                  f"{np.std(cs, ddof=1)/np.sqrt(REPS):.4f}  "
+                  f"{np.mean(ss):6.4f} ± "
+                  f"{np.std(ss, ddof=1)/np.sqrt(REPS):.4f}")
     print(f"\nruntime {time.time() - t0:.0f}s")
 
 

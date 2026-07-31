@@ -11,8 +11,8 @@ children, remarriages, cousins), then checks:
   Part 2 (payoff):   for each proband, simulate liabilities on the extracted
          pedigree and estimate the genetic liability two ways -- the kinship
          path on ALL extracted relatives (up to third degree: cousins) vs the
-         role grammar on the first-degree subset it can encode (parents,
-         sibs, grandparents). The LT-FGRS (Pedersen et al. 2026) claim is
+         fixed named-role grammar subset it can encode (parents, full siblings,
+         grandparents). The LT-FGRS (Pedersen et al. 2026) claim is
          that which relatives you include matters; this measures it.
   Part 3 (scale):    extraction timing for thousands of probands.
 
@@ -107,7 +107,7 @@ def main():
     print(f"Part 1: extracted vs full-pedigree kinship, max abs diff over "
           f"{N_CHECK} probands: {max_abs:.2e}")
 
-    # ---- Part 2: all relatives vs the first-degree role subset ----------------
+    # ---- Part 2: all relatives vs the fixed named-role grammar subset ----------
     thr = float(liability_threshold(PREV))
     est_ids = [ids[i] for i in rng.choice(len(ids), size=N_EST, replace=False)]
     truths, ests_all, ests_role = [], [], []
@@ -125,7 +125,7 @@ def main():
         truths.append(liab[0])
         ests_all.append(est_all[0])
 
-        # role arm: the first-degree relatives the grammar encodes
+        # role arm: the fixed parent/sibling/grandparent names the grammar encodes
         p_idx = fi[p]
         pm, pf = mother[p_idx], father[p_idx]
 
@@ -178,8 +178,8 @@ def main():
     c_between = np.corrcoef(ests_all, ests_role)[0, 1]
     print(f"Part 2 (N={N_EST}, h2={H2}, prev={PREV}, degree<={MAX_DEGREE}):")
     print(f"  corr(est, true g)  all relatives: {c_all:.4f}   "
-          f"first-degree roles: {c_role:.4f}   ratio {c_all / c_role:.3f}")
-    print(f"  corr(all-relatives est, first-degree est): {c_between:.4f}")
+          f"named-role subset: {c_role:.4f}   ratio {c_all / c_role:.3f}")
+    print(f"  corr(all-relatives est, named-role estimate): {c_between:.4f}")
 
     # ---- Part 3: extraction timing -------------------------------------------
     t1 = time.time()

@@ -55,7 +55,8 @@ ancestors closed in, so the sub-pedigree's kinship is exact (see
 `benchmarks/bench_pedigree_inference.py`). For the full chain --
 trio records -> pedigrees -> per-stratum CIP thresholds -> per-proband
 scores, with familywise censoring for prospective prediction -- use
-`ltpred.pipeline.estimate_liabilities`.
+`research.pipeline.estimate_liabilities` (in the unsupported `research/`
+package at the repository root, importable from a checkout).
 
 When your relatives don't fit the fixed roles — deeper pedigrees, cousins,
 multiple marriages, inbreeding — describe the pedigree by **who each person's
@@ -221,17 +222,23 @@ from ltpred import aalen_johansen_cip, kaplan_meier_cip
 # per person: age at entry into follow-up (0, register start, or immigration),
 # age at exit, and what happened at exit (0 censoring, 1 diagnosis, 2 death)
 curve = aalen_johansen_cip(age_entry, age_exit, event_type)   # competing risks
-# curve.ages / curve.values feed thresholds_from_cip; curve.se is the
-# closed-form Aalen (1978) SE (bootstrap optional: n_boot=200)
+# Values below 1 feed thresholds_from_cip; an exhausted terminal risk set can
+# yield exactly 1, which has no finite probit threshold. curve.se is the
+# finite-risk-set, tie-correct Aalen (1978) SE.
 ```
 
-Use `aalen_johansen_cip` whenever death before diagnosis is common (elderly
-onsets): treating death as censoring (plain Kaplan-Meier) overestimates the
-diagnosed proportion (quantified in `benchmarks/bench_cip_estimation.py`).
-`kaplan_meier_cip` is the right choice only when censoring -- including death --
-is independent of the event process. Both handle left truncation (delayed
-entry). Stratify by calling the estimator once per stratum (sex, birth-year
-band) and passing each group of relatives the curve of their stratum.
+Use `aalen_johansen_cip` when the target is the **crude (marginal) diagnosed
+proportion** in a population where death can preclude diagnosis. Death remains
+a competing event even if death and diagnosis are statistically independent.
+Treating death as censoring asks for the different, hypothetical no-death
+**net risk** and generally overestimates the diagnosed proportion (quantified
+in `benchmarks/bench_cip_estimation.py`). Use `kaplan_meier_cip` only when net
+risk is the intended estimand and non-event censoring is independent. Both
+estimators handle left truncation (delayed entry) when entry is independent of
+the event process conditional on the modelled strata and the risk sets overlap.
+Ordinary right censoring must likewise be conditionally non-informative.
+Stratify by calling the estimator once per stratum (sex, birth-year band) and
+passing each group of relatives the curve of their stratum.
 
 #### A real register-data recipe
 
@@ -290,9 +297,10 @@ Key points:
 - `use_mixture=True` only makes sense when `K_i` / `K_pop` are supplied (from
   `pa_thresholds` or `thresholds_from_cip`); it is the PA-FGRS
   age-censored-control correction and is supported by the PA engine only.
-- Estimate the **CIP outside ltpred** from population-representative register data,
-  stratified by sex, birth cohort, ancestry and calendar period, and accounting for
-  competing risks — then pass one stratum's curve per call.
+- Estimate the **CIP from population-representative data**, using
+  [`ltpred.cip`](cip-estimation.md) or an external estimator. Stratify by sex,
+  birth cohort, ancestry and calendar period, account for competing risks, and
+  pass one stratum's curve per call.
 - Ensure each stratum's age grid covers the analysed ages. Values outside the grid
   use the nearest endpoint rather than extrapolation, and `k_pop` should be passed
   explicitly unless the last CIP value is a defensible lifetime prevalence.
@@ -309,18 +317,31 @@ Heritability must be on the **liability** scale. If you only have an
 observed/case-control-scale estimate, convert it (Lee et al. 2011):
 
 ```python
-from ltpred import convert_observed_to_liability_scale
-h2_liab = convert_observed_to_liability_scale(obs_h2=0.15, pop_prev=0.05, prop_cases=0.5)
+from ltpred import observed_to_liability_h2
+
+# Use the case fraction in the same analysed sample that produced obs_h2.
+study_case_fraction = n_cases / sample_size
+h2_liab = observed_to_liability_h2(
+    obs_h2=0.15,
+    pop_prev=0.05,
+    prop_cases=study_case_fraction,
+)
 ```
+
+`prop_cases` is the **observed study case fraction**, not the population
+prevalence and not a generic `0.5`. Omit it only for a population-representative
+sample; for an ascertained case-control study, pass the actual analysed
+fraction.
 
 The full transformation toolkit lives in `ltpred.liability_scale`: both
 directions of the Lee et al. (2011) h² bridge
-(`observed_to_liability_h2` / `liability_to_observed_h2`), the Lee et al.
-(2012) genetic-covariance bridge (`observed_to_liability_gencov`; the genetic
-correlation itself is scale-invariant), and probit estimation of incremental
-liability r² (`probit_liability_r2`, `liability_r2_from_z` -- the probit
-model IS the liability-threshold model, so per-SNP liability variance
-explained is the identity `2 f (1-f) beta²`).
+(`observed_to_liability_h2` / `liability_to_observed_h2`), and probit estimation
+of residual-scale genetic variance (`probit_liability_r2`,
+`liability_r2_from_z`). Despite their compatibility names, the default output
+is `q = 2 f (1-f) beta²` in probit residual-variance units, not a fraction of
+total liability variance. For independent or suitably LD-pruned variants, sum
+`q` first; only then convert the aggregate to the total-variance fraction
+`q / (1 + q)`.
 
 **Which `h²`?** The right value is the additive genetic variance component you want
 the family covariance to represent — the model is additive-genetic only (see

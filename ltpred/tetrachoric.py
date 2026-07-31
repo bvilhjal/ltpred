@@ -10,11 +10,12 @@ tetrachoric correlation is ``h2 * A`` (Falconer's classic route: parent-
 offspring and full sibs give ``h2 / 2``, so ``h2 ~ 2 * tetrachoric``).
 
 The estimator is the maximum-likelihood tetrachoric (Kirk 1973; Tallis 1962):
-thresholds from the marginals, then a 1-D search over the correlation
+thresholds from the marginals, then a bounded 1-D search over the correlation
 maximising the 2x2 multinomial log-likelihood, with the bivariate-normal CDF
-evaluated by Gauss-Legendre quadrature (deterministic, accurate to ~1e-10).
-The pointwise standard error comes from the observed information (a numeric
-Hessian of the log-likelihood). The quick cosine approximation
+from SciPy (``multivariate_normal``, with explicit ``1e-10`` requested
+integration tolerances). The pointwise standard error comes
+from the observed information (a numeric Hessian of the log-likelihood). The
+quick cosine approximation
 (``cos(pi / (1 + sqrt(a*d / (b*c))))``-style estimators) is not used -- the
 MLE is cheap enough.
 
@@ -26,29 +27,19 @@ tetrachorics in the same data (``benchmarks/bench_tetrachoric.py``).
 from __future__ import annotations
 
 import math
+import warnings
 from dataclasses import dataclass
 
 import numpy as np
+from scipy.optimize import minimize_scalar
 from scipy.special import ndtr, ndtri
+from scipy.stats import multivariate_normal
 
 __all__ = ["TetrachoricResult", "tetrachoric", "tetrachoric_table",
            "tetrachoric_matrix"]
 
-_LOG_SQRT_2PI = 0.9189385332046727
-_GL_NODES = np.array([
-    -0.9602898564975363, -0.7966664774136267,
-    -0.5255324099163290, -0.1834346424956498,
-    0.1834346424956498, 0.5255324099163290,
-    0.7966664774136267, 0.9602898564975363,
-])
-_GL_WEIGHTS = np.array([
-    0.1012285362903763, 0.2223810344533745,
-    0.3137066458778873, 0.3626837833783620,
-    0.3626837833783620, 0.3137066458778873,
-    0.2223810344533745, 0.1012285362903763,
-])
-_TAIL = 8.0
 _RHO_EPS = 1e-9
+_CDF_TOL = 1e-10
 
 
 @dataclass
@@ -67,17 +58,13 @@ class TetrachoricResult:
     corrected: bool
 
 
-def _phi(x):
-    return math.exp(-0.5 * x * x - _LOG_SQRT_2PI)
-
-
 def _bvn_cdf(a, b, rho):
     """P(X < a, Y < b) for standard bivariate normal with correlation rho.
 
-    Gauss-Legendre panels over the 1-D integral
-    ``int_-inf^a phi(x) Phi((b - rho x) / sqrt(1 - rho^2)) dx``;
-    accurate to ~1e-10. Handles the rho -> +-1 limits and infinite bounds.
-    """
+    Delegates to SciPy's bivariate-normal CDF (``multivariate_normal.cdf``)
+    with explicit absolute/relative tolerances of ``1e-10``. Numerical accuracy
+    remains subject to SciPy's integration routine. Handles the rho -> +-1
+    limits and infinite bounds itself."""
     if a == -math.inf or b == -math.inf:
         return 0.0
     if a == math.inf:
@@ -88,25 +75,9 @@ def _bvn_cdf(a, b, rho):
         return float(ndtr(min(a, b)))
     if rho <= -1.0 + 1e-12:
         return max(0.0, float(ndtr(a) - ndtr(-b)))
-    if a <= -_TAIL:
-        return 0.0
-    if a >= _TAIL:
-        return float(ndtr(b))
-
-    s = math.sqrt(1.0 - rho * rho)
-    lo, hi = -_TAIL, a
-    n_panels = max(1, int(math.ceil((hi - lo) / 2.0)))
-    panel = (hi - lo) / n_panels
-    total = 0.0
-    for k in range(n_panels):
-        center = lo + (k + 0.5) * panel
-        half = 0.5 * panel
-        acc = 0.0
-        for x, w in zip(_GL_NODES, _GL_WEIGHTS):
-            xx = center + half * x
-            acc += w * _phi(xx) * float(ndtr((b - rho * xx) / s))
-        total += half * acc
-    return total
+    return float(multivariate_normal.cdf(
+        [a, b], mean=[0.0, 0.0], cov=[[1.0, rho], [rho, 1.0]],
+        maxpts=1_000_000, abseps=_CDF_TOL, releps=_CDF_TOL))
 
 
 def _neg_loglik(rho, t1, t2, a, b, c, d):
@@ -121,29 +92,6 @@ def _neg_loglik(rho, t1, t2, a, b, c, d):
         if n_ij:
             ll += n_ij * math.log(max(p_ij, 1e-300))
     return -ll
-
-
-def _golden_minimize(f, lo, hi, tol=1e-10, max_iter=200):
-    """Golden-section minimum of a unimodal f on (lo, hi)."""
-    invphi = (math.sqrt(5.0) - 1.0) / 2.0
-    x1 = hi - invphi * (hi - lo)
-    x2 = lo + invphi * (hi - lo)
-    f1, f2 = f(x1), f(x2)
-    for _ in range(max_iter):
-        if abs(hi - lo) < tol:
-            break
-        if f1 > f2:
-            lo = x1
-            x1, f1 = x2, f2
-            x2 = lo + invphi * (hi - lo)
-            f2 = f(x2)
-        else:
-            hi = x2
-            x2, f2 = x1, f1
-            x1 = hi - invphi * (hi - lo)
-            f1 = f(x1)
-    x = 0.5 * (lo + hi)
-    return x, f(x)
 
 
 def tetrachoric_table(a, b, c, d, *, continuity_correction=True):
@@ -187,7 +135,9 @@ def tetrachoric_table(a, b, c, d, *, continuity_correction=True):
     def f(rho):
         return _neg_loglik(rho, t1, t2, a, b, c, d)
 
-    rho, fmin = _golden_minimize(f, -1.0 + _RHO_EPS, 1.0 - _RHO_EPS)
+    res = minimize_scalar(f, bounds=(-1.0 + _RHO_EPS, 1.0 - _RHO_EPS),
+                          method="bounded", options={"xatol": 1e-12})
+    rho, fmin = res.x, res.fun
 
     # observed information via a numeric Hessian
     delta = 1e-4
@@ -215,13 +165,19 @@ def tetrachoric(x, y, *, continuity_correction=True):
                              continuity_correction=continuity_correction)
 
 
-def tetrachoric_matrix(X, *, continuity_correction=True):
+def tetrachoric_matrix(X, *, continuity_correction=True, check_psd=True):
     """Pairwise tetrachoric correlations among the columns of ``X``.
 
-    ``X`` is an ``(n_pairs, m)`` binary array; returns the ``(m, m)``
-    correlation matrix (unit diagonal). Each off-diagonal entry is an
-    independent :func:`tetrachoric_table` MLE.
+    ``X`` is an ``(n_pairs, m)`` binary array; returns the symmetric ``(m, m)``
+    matrix of pairwise estimates with unit diagonal. Because the off-diagonal
+    entries are fitted independently, the result is **not guaranteed to be a
+    positive-semidefinite correlation matrix**. With ``check_psd=True`` (the
+    default), a materially negative eigenvalue emits a warning; do not pass such
+    a result to a covariance model without a scientifically justified joint fit
+    or projection.
     """
+    if not isinstance(check_psd, (bool, np.bool_)):
+        raise TypeError("check_psd must be bool")
     X = np.asarray(X)
     if X.ndim != 2:
         raise ValueError("X must be a 2-D (pairs, variables) array")
@@ -239,4 +195,11 @@ def tetrachoric_matrix(X, *, continuity_correction=True):
             r = tetrachoric_table(n_a[i, j], n_b[i, j], n_c[i, j], n_d[i, j],
                                   continuity_correction=continuity_correction)
             R[i, j] = R[j, i] = r.rho
+    min_eig = float(np.linalg.eigvalsh(R).min()) if m else 0.0
+    if check_psd and min_eig < -1e-8:
+        warnings.warn(
+            "pairwise tetrachoric estimates are not positive-semidefinite "
+            f"(minimum eigenvalue {min_eig:.3g}); do not use this matrix as a "
+            "covariance without a justified joint fit or projection",
+            RuntimeWarning, stacklevel=2)
     return R

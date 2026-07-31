@@ -1,6 +1,6 @@
 """End-to-end register-pipeline benchmark.
 
-`ltpred.pipeline.estimate_liabilities` chains trio records -> pedigree
+`research.pipeline.estimate_liabilities` chains trio records -> pedigree
 discovery -> CIP thresholds -> per-proband genetic-liability scores. This
 benchmark builds a synthetic register (3-generation population, remarriages;
 a known logistic CIP; liabilities from the extracted pedigrees; onsets by
@@ -39,7 +39,7 @@ sys.path.insert(0, os.path.join(ROOT, "benchmarks"))
 from bench_pedigree_inference import simulate_population  # noqa: E402
 from ltpred.cip import aalen_johansen_cip  # noqa: E402
 from ltpred.covariance import kinship_from_pedigree  # noqa: E402
-from ltpred.pipeline import estimate_liabilities  # noqa: E402
+from research.pipeline import estimate_liabilities  # noqa: E402
 from scipy.stats import norm  # noqa: E402
 
 SEED = 20260719

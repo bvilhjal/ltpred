@@ -46,6 +46,9 @@ class KaplanMeierTests(unittest.TestCase):
             kaplan_meier_cip([0], [np.inf], [1])
         with self.assertRaisesRegex(ValueError, "no events"):
             kaplan_meier_cip([0, 0], [1, 2], [0, 0])
+        for invalid in ([2], [-1], ["0"]):
+            with self.assertRaisesRegex(ValueError, "boolean or 0/1"):
+                kaplan_meier_cip([0], [1], invalid)
         with self.assertRaisesRegex(ValueError, "at least one person"):
             kaplan_meier_cip([], [], [])
 
@@ -54,9 +57,9 @@ class AalenJohansenTests(unittest.TestCase):
     def test_hand_computed_competing_risks(self):
         # exits 5(c1), 7(c2), 9(c1), 11(censor), 13(c1)
         c1 = aalen_johansen_cip(np.zeros(5), [5, 7, 9, 11, 13],
-                                [1, 2, 1, 0, 1], n_boot=0)
+                                [1, 2, 1, 0, 1])
         c2 = aalen_johansen_cip(np.zeros(5), [5, 7, 9, 11, 13],
-                                [1, 2, 1, 0, 1], cause=2, n_boot=0)
+                                [1, 2, 1, 0, 1], cause=2)
         np.testing.assert_allclose(c1.ages, [5, 7, 9, 13])
         np.testing.assert_allclose(c1.values, [0.2, 0.2, 0.4, 0.8],
                                    rtol=0, atol=1e-12)
@@ -64,6 +67,38 @@ class AalenJohansenTests(unittest.TestCase):
                                    rtol=0, atol=1e-12)
         # F1 + F2 = 1 - S at the horizon
         self.assertAlmostEqual(c1.values[-1] + c2.values[-1], 1.0, places=12)
+        # Finite-risk Aalen variances, computed from the cmprsk recurrence.
+        # The final Y=1 cause-1 event exercises the exhausted-risk-set limit.
+        np.testing.assert_allclose(
+            c1.se ** 2, [1 / 25, 1 / 25, 241 / 3600, 81 / 400],
+            rtol=0, atol=1e-14,
+        )
+        np.testing.assert_allclose(
+            c2.se ** 2, [0, 17 / 400, 17 / 400, 17 / 400],
+            rtol=0, atol=1e-14,
+        )
+
+    def test_tied_events_use_finite_risk_set_correction(self):
+        # At ages 1, 2, 3:
+        #   Y       = 8, 5, 2
+        #   d_cause = 2, 0, 1
+        #   d_other = 1, 2, 0
+        # One censor at 2.5 creates Y=2 at age 3; the other exits at age 4.
+        c = aalen_johansen_cip(
+            np.zeros(8),
+            [1, 1, 1, 2, 2, 2.5, 3, 4],
+            [1, 1, 2, 2, 2, 0, 1, 0],
+        )
+        np.testing.assert_allclose(
+            c.values, [1 / 4, 1 / 4, 7 / 16],
+            rtol=0, atol=1e-14,
+        )
+        # Hard-coded oracle from the finite-risk, tie-correct Aalen formula.
+        # The former d/Y**2 approximation gives different values.
+        np.testing.assert_allclose(
+            c.se ** 2, [3 / 112, 3 / 112, 711 / 12800],
+            rtol=0, atol=1e-14,
+        )
 
     def test_matches_km_without_competing_events(self):
         rng = np.random.default_rng(1)
@@ -81,16 +116,6 @@ class AalenJohansenTests(unittest.TestCase):
         bulk = slice(0, len(km.se) // 2)
         np.testing.assert_allclose(aj.se[bulk], km.se[bulk], rtol=0.05, atol=2e-4)
 
-    def test_bootstrap_se_deterministic_and_nonnegative(self):
-        kw = dict(n_boot=25, seed=3)
-        c = aalen_johansen_cip(np.zeros(5), [5, 7, 9, 11, 13],
-                               [1, 2, 1, 0, 1], **kw)
-        c2 = aalen_johansen_cip(np.zeros(5), [5, 7, 9, 11, 13],
-                                [1, 2, 1, 0, 1], **kw)
-        np.testing.assert_array_equal(c.se, c2.se)
-        self.assertTrue(np.all(c.se >= 0))
-        self.assertTrue(np.all(np.isfinite(c.se)))
-
     def test_validation(self):
         with self.assertRaisesRegex(ValueError, "integer"):
             aalen_johansen_cip([0], [1], [0.5])
@@ -98,6 +123,13 @@ class AalenJohansenTests(unittest.TestCase):
             aalen_johansen_cip([0], [1], [-1])
         with self.assertRaisesRegex(ValueError, "no events"):
             aalen_johansen_cip([0, 0], [1, 2], [0, 2])
+        with self.assertRaisesRegex(ValueError, "0 denotes censoring"):
+            aalen_johansen_cip(
+                [0, 0, 0], [1, 1, 1], [0, 0, 1], cause=0)
+        with self.assertRaisesRegex(TypeError, "positive integer"):
+            aalen_johansen_cip([0], [1], [1], cause=1.0)
+        with self.assertRaisesRegex(TypeError, "not bool"):
+            aalen_johansen_cip([0], [1], [1], cause=True)
 
 
 class ThresholdIntegrationTests(unittest.TestCase):
@@ -125,32 +157,30 @@ class ThresholdIntegrationTests(unittest.TestCase):
         self.assertEqual(c.n_entered, 6)
         self.assertEqual(c.estimator, "kaplan-meier")
 
+    def test_n_entered_counts_positive_followup_contributors(self):
+        km = kaplan_meier_cip([0, 1], [1, 1], [1, 0])
+        aj = aalen_johansen_cip([0, 1], [1, 1], [1, 0])
+        self.assertEqual(km.n_entered, 1)
+        self.assertEqual(aj.n_entered, 1)
+
+class AalenJohansenGuardTests(unittest.TestCase):
+    def test_zero_length_event_raises_like_kaplan_meier(self):
+        # An event at entry occurs outside the documented risk interval; this
+        # used to return values=[0.0] with se=1.3e154 instead of failing.
+        entry, exit_ = [50, 50], [50, 80]
+        with self.assertRaisesRegex(ValueError, "zero-length follow-up"):
+            aalen_johansen_cip(entry, exit_, np.array([1, 0]))
+        with self.assertRaisesRegex(ValueError, "zero-length follow-up"):
+            kaplan_meier_cip(entry, exit_, np.array([True, False]))
+
+    def test_zero_length_event_raises_even_with_other_risk(self):
+        # One valid event and one zero-length event at the same age: Y=1,
+        # d=2. The old implementation produced a negative survival step.
+        with self.assertRaisesRegex(ValueError, "zero-length follow-up"):
+            aalen_johansen_cip([0, 1], [1, 1], np.array([1, 1]))
+        with self.assertRaisesRegex(ValueError, "zero-length follow-up"):
+            kaplan_meier_cip([0, 1], [1, 1], np.array([True, True]))
+
 
 if __name__ == "__main__":
     unittest.main()
-
-
-class AalenJohansenGuardTests(unittest.TestCase):
-    def test_empty_risk_set_raises_like_kaplan_meier(self):
-        # entry == exit at an event age leaves nobody at risk; this used to
-        # return values=[0.0] with se=1.3e154 instead of failing.
-        entry, exit_ = [50, 50], [50, 80]
-        with self.assertRaisesRegex(ValueError, "empty risk set"):
-            aalen_johansen_cip(entry, exit_, np.array([1, 0]))
-        with self.assertRaisesRegex(ValueError, "empty risk set"):
-            kaplan_meier_cip(entry, exit_, np.array([True, False]))
-
-    def test_closed_form_and_bootstrap_se_agree_on_clean_data(self):
-        rng = np.random.default_rng(0)
-        n = 400
-        entry = np.zeros(n)
-        t, ct, cens = (rng.exponential(s, n) for s in (40.0, 60.0, 80.0))
-        exit_ = np.minimum(np.minimum(t, ct), cens)
-        ev = np.where((t <= ct) & (t <= cens), 1,
-                      np.where((ct < t) & (ct <= cens), 2, 0)).astype(int)
-        closed = aalen_johansen_cip(entry, exit_, ev)
-        boot = aalen_johansen_cip(entry, exit_, ev, n_boot=200, seed=1)
-        self.assertTrue(np.all(np.isfinite(closed.se)))
-        self.assertTrue(np.all(np.isfinite(boot.se)))
-        k = len(closed.ages) // 2
-        self.assertLess(abs(closed.se[k] - boot.se[k]), 0.01)

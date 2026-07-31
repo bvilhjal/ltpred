@@ -37,15 +37,19 @@ The guide is split into short, task-focused pages:
 | **[Data preparation](data-preparation.md)** | inputs, role grammar, arbitrary pedigrees, threshold builders, CIPs, getting `h²` |
 | **[CIP estimation](cip-estimation.md)** | estimating cumulative incidence from follow-up records (Kaplan-Meier, Aalen-Johansen), estimands, stratification |
 | **[Estimation](estimation.md)** | running the estimator, reading the result, Gibbs vs PA, scaling, multi-trait, GWAS export |
-| **[Inference](inference.md)** | fitting `h²`, variance components (A/C/M), genetic correlation, factor models, significance tests |
+| **[Inference](inference.md)** | population-sampled fitting of `h²` and variance components (A/C/M), plus family-cluster bootstrap |
 | **[Assumptions & checklist](assumptions.md)** | modelling assumptions, real-data checklist, pitfalls |
 | **[API reference](api.md)** | the exported workflow plus advanced module APIs, with signatures and docstrings |
+
+Unsupported experimental fitters and the register pipeline live in the
+checkout-only [`research/` package](https://github.com/bvilhjal/ltpred/tree/main/research);
+they are not installed with ltpred.
 
 See [algorithm.md](algorithm.md) for the model and the estimators, and the
 [benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
 for model and engine comparisons. For runnable end-to-end scripts see
-[`examples/registry_pipeline.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/registry_pipeline.py) (a
-status/age table → GWAS phenotype template) and
+[`examples/registry_pipeline.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/registry_pipeline.py)
+(a core status/age-to-score example) and
 [`examples/ltfh_power_demo.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/ltfh_power_demo.py).
 
 ## When to use ltpred
@@ -57,10 +61,17 @@ Use ltpred when you have, per proband:
 - for LT-FH/LT-FH++, the same for some **relatives** of known relationship
   (parents, siblings, grandparents, half-sibs, aunts/uncles, children), and
 - a **population prevalence** and a **liability-scale heritability** `h²` for the
-  disease — external, fitted from the families themselves
-  (`fit_heritability`), or cross-checked with tetrachoric correlations
+  disease — preferably external, or cross-checked with tetrachoric correlations
   (`ltpred.tetrachoric`, the Falconer route `h² ~ 2 ×` first-degree
   tetrachoric).
+
+!!! warning "Family-data fitting is population-sampling only"
+
+    `fit_heritability` and `fit_variance_components` support only independent,
+    non-overlapping, unascertained population-sampled families. They do not
+    correct case/control enrichment or selection on family history. Pass
+    `sampling="population"` only after verifying that contract; otherwise use an
+    external estimate or an estimator that models the sampling design.
 
 The output targets the posterior mean genetic liability of each proband (Gibbs by
 Monte Carlo; PA by a sequential-moment approximation). Feeding it to a
@@ -75,8 +86,8 @@ predicted does not leak into its predictor. An ADuLT input with `o` unbound has 
 remaining observation and is therefore uninformative.
 
 ltpred does not build LD or run the GWAS itself — those are upstream/downstream
-steps. It **does** estimate `h²` from the family data (`fit_heritability`) when you
-don't have an external value.
+steps. Its family-data fitters are optional and restricted by the
+population-sampling contract above.
 
 Families can be supplied two ways: the compact **role grammar** (`o`, `m`, `f`,
 `s1`, …) for common nuclear/extended structures, or a **kinship / relationship-
@@ -87,7 +98,7 @@ The high-level kinship estimator currently accepts ordinary `lower`/`upper` boun
 only, not `K_i`/`K_pop` or `use_mixture`; it therefore does not run the PA-FGRS
 censoring mixture.
 Pedigrees can be discovered from trio records with `ltpred.pedigree`
-(`extract_pedigrees`, `ParentGraph`, `Pedigree`), which feeds
+(`build_parent_graph`, `extract_pedigree`, `ParentGraph`, `Pedigree`), which feeds
 `kinship_from_pedigree`. ltpred does not wrap igraph the way LTFHPlus does, and
 ships no plotting utilities.
 

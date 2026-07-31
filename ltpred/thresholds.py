@@ -20,9 +20,8 @@ import numpy as np
 
 from ._mathfun import norm_cdf, norm_ppf
 
-__all__ = ["convert_age_to_cir", "convert_cir_to_age", "convert_age_to_thresh",
-           "convert_liability_to_aoo", "truncated_normal_cdf",
-           "convert_observed_to_liability_scale", "prevalence_thresholds",
+__all__ = ["convert_age_to_cir", "convert_age_to_thresh",
+           "convert_liability_to_aoo", "prevalence_thresholds",
            "age_thresholds", "liability_threshold", "pa_thresholds",
            "thresholds_from_cip"]
 
@@ -42,7 +41,7 @@ def convert_age_to_cir(age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     return pop_prev / (1.0 + np.exp((mid_point - age) * slope))
 
 
-def convert_cir_to_age(cir, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
+def _convert_cir_to_age(cir, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     """Invert :func:`convert_age_to_cir`: the age at a cumulative incidence ``cir``.
 
     ``mid_point - log(pop_prev/cir - 1) / slope``, clamped at 0. Returns ``nan``
@@ -54,87 +53,32 @@ def convert_cir_to_age(cir, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     return np.maximum(age, 0.0)
 
 
-def convert_age_to_thresh(age, dist="logistic", pop_prev=0.1, mid_point=60.0,
-                          slope=1.0 / 8.0, min_age=10.0, max_age=90.0,
-                          lower=None, upper=np.inf):
+def convert_age_to_thresh(age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     """Liability threshold implied by an age (or age of onset).
 
-    With ``dist="logistic"`` the threshold is ``Phi^-1(1 - cir(age))`` where
-    ``cir`` is :func:`convert_age_to_cir`, so a younger onset (lower incidence)
-    gives a higher threshold, i.e. a more extreme liability. With ``dist="normal"``
-    the threshold instead interpolates linearly in age between the truncated-normal
-    bounds ``lower``/``upper``. Vectorised over ``age``. Port of
-    LTFHPlus::convert_age_to_thresh.
-
-    Note that in the ``"normal"`` branch ``max_age`` is a **span**, not an
-    endpoint: the map covers ``[min_age, min_age + max_age]``, mirroring
-    :func:`convert_liability_to_aoo`'s ``[min_aoo, min_aoo + max_aoo]`` (both keep
-    LTFHPlus's parameterisation). Ages outside that window are clamped to the
-    endpoint threshold -- ``upper`` below it, ``lower`` above -- rather than
-    silently returning NaN, which is what the unclamped fraction produced."""
+    The threshold is ``Phi^-1(1 - cir(age))`` where ``cir`` is
+    :func:`convert_age_to_cir`, so a younger onset (lower incidence) gives a
+    higher threshold, i.e. a more extreme liability. Vectorised over ``age``.
+    Port of LTFHPlus::convert_age_to_thresh (the logistic branch; the
+    truncated-normal ``dist="normal"`` alternative is not ported)."""
     age = np.asarray(age, dtype=float)
-    if lower is None:
-        lower = norm_ppf(0.95)
-    if dist == "logistic":
-        cir = convert_age_to_cir(age, pop_prev=pop_prev, mid_point=mid_point,
-                                 slope=slope)
-        return norm_ppf(1.0 - cir)
-    if dist == "normal":
-        frac = np.clip(1.0 - (age - min_age) / max_age, 0.0, 1.0)
-        return norm_ppf(frac * (norm_cdf(upper) - norm_cdf(lower)) + norm_cdf(lower))
-    raise ValueError("dist must be 'logistic' or 'normal'")
+    cir = convert_age_to_cir(age, pop_prev=pop_prev, mid_point=mid_point,
+                             slope=slope)
+    return norm_ppf(1.0 - cir)
 
 
-def truncated_normal_cdf(liability, lower=None, upper=np.inf):
-    """CDF of a standard normal truncated to ``(lower, upper)``, at ``liability``.
-
-    ``(Phi(l) - Phi(lower)) / (Phi(upper) - Phi(lower))`` -- the probability a
-    truncated-normal draw falls at or below ``liability``. Vectorised over
-    ``liability``. Port of LTFHPlus::truncated_normal_cdf."""
-    if lower is None:
-        lower = norm_ppf(0.95)
-    liability = np.asarray(liability, dtype=float)
-    return (norm_cdf(liability) - norm_cdf(lower)) / (norm_cdf(upper) - norm_cdf(lower))
-
-
-def convert_liability_to_aoo(liability, dist="logistic", pop_prev=0.1,
-                             mid_point=60.0, slope=1.0 / 8.0, min_aoo=10.0,
-                             max_aoo=90.0, lower=None, upper=np.inf):
+def convert_liability_to_aoo(liability, pop_prev=0.1, mid_point=60.0,
+                             slope=1.0 / 8.0):
     """Age of onset implied by a case's true liability.
 
-    Higher liability -> earlier onset. With ``dist="logistic"`` this is
-    :func:`convert_cir_to_age` applied to the incidence ``1 - Phi(liability)``;
-    with ``dist="normal"`` it maps the truncated-normal CDF linearly onto
-    ``[min_aoo, min_aoo + max_aoo]``. Vectorised. Port of
-    LTFHPlus::convert_liability_to_aoo."""
+    Higher liability -> earlier onset: :func:`_convert_cir_to_age` applied to
+    the incidence ``1 - Phi(liability)``. Vectorised. Port of
+    LTFHPlus::convert_liability_to_aoo (the logistic branch; the
+    truncated-normal ``dist="normal"`` alternative is not ported)."""
     liability = np.asarray(liability, dtype=float)
-    if lower is None:
-        lower = norm_ppf(0.95)
-    if dist == "logistic":
-        cir = 1.0 - norm_cdf(liability)
-        return convert_cir_to_age(cir, pop_prev=pop_prev, mid_point=mid_point,
-                                  slope=slope)
-    if dist == "normal":
-        return (1.0 - truncated_normal_cdf(liability, lower=lower, upper=upper)) * max_aoo + min_aoo
-    raise ValueError("dist must be 'logistic' or 'normal'")
-
-
-def convert_observed_to_liability_scale(obs_h2=0.5, pop_prev=0.05, prop_cases=0.5):
-    """Rescale an observed-scale heritability to the liability scale (Lee et al. 2011).
-
-    Multiplies by ``K(1-K)/z^2`` where ``z = phi(Phi^-1(1-K))``; when ``prop_cases``
-    is given (ascertained case/control study) an extra ``K(1-K)/(P(1-P))`` factor
-    corrects for the case oversampling. Vectorised over the inputs. Port of
-    LTFHPlus::convert_observed_to_liability_scale."""
-    obs_h2 = np.asarray(obs_h2, dtype=float)
-    pop_prev = np.asarray(pop_prev, dtype=float)
-    t = norm_ppf(1.0 - pop_prev)
-    z = np.exp(-0.5 * t * t) / np.sqrt(2.0 * np.pi)  # phi(t)
-    factor = pop_prev * (1.0 - pop_prev) / (z * z)
-    if prop_cases is None:
-        return obs_h2 * factor
-    prop_cases = np.asarray(prop_cases, dtype=float)
-    return obs_h2 * factor * (pop_prev * (1.0 - pop_prev)) / (prop_cases * (1.0 - prop_cases))
+    cir = 1.0 - norm_cdf(liability)
+    return _convert_cir_to_age(cir, pop_prev=pop_prev, mid_point=mid_point,
+                               slope=slope)
 
 
 def prevalence_thresholds(status, pop_prev=0.1):
@@ -164,7 +108,7 @@ def age_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     year- and sex-specific curves and include relatives. The same personalised
     construction with proband rows only is ADuLT."""
     status = np.asarray(status, dtype=bool)
-    thr = convert_age_to_thresh(age, dist="logistic", pop_prev=pop_prev,
+    thr = convert_age_to_thresh(age, pop_prev=pop_prev,
                                 mid_point=mid_point, slope=slope)
     thr = np.asarray(thr, dtype=float)
     lower = np.where(status, thr, -np.inf)
@@ -215,7 +159,7 @@ def pa_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     matching the intended study design."""
     status = np.asarray(status, dtype=bool)
     age = np.asarray(age, dtype=float)
-    thr = np.asarray(convert_age_to_thresh(age, dist="logistic", pop_prev=pop_prev,
+    thr = np.asarray(convert_age_to_thresh(age, pop_prev=pop_prev,
                                            mid_point=mid_point, slope=slope), dtype=float)
     cir = np.asarray(convert_age_to_cir(age, pop_prev=pop_prev, mid_point=mid_point,
                                         slope=slope), dtype=float)

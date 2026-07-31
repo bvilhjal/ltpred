@@ -36,11 +36,9 @@ import warnings
 import numpy as np
 from scipy.stats import t as student_t
 
-from _common import get_plt
+from _common import get_plt, simulate_families_components
 from ltpred.covariance import get_relatedness, correct_positive_definite
-from ltpred.thresholds import liability_threshold
 from ltpred.fit import _component_matrix, fit_heritability, fit_variance_components
-from ltpred.family import Family, Member
 from ltpred.estimate import _estimate_group
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -63,25 +61,6 @@ def _matrices(roles):
     A = correct_positive_definite(A)[0]
     C = _component_matrix(roles, "C")
     return A, C
-
-
-def simulate_ace(roles, h2, c2, n_fam, prev, seed):
-    """Families under l = g + c + e (A+C+E); returns (families, true g_target)."""
-    A, C = _matrices(roles)
-    n = len(roles)
-    e2 = max(1.0 - h2 - c2, 0.0)
-    rng = np.random.default_rng(seed)
-    g = rng.multivariate_normal(np.zeros(n), h2 * A, size=n_fam)
-    c = (rng.multivariate_normal(np.zeros(n), c2 * C, size=n_fam) if c2 > 0
-         else np.zeros((n_fam, n)))
-    e = rng.normal(0.0, np.sqrt(e2), size=(n_fam, n)) if e2 > 0 else np.zeros((n_fam, n))
-    liab = g + c + e
-    t = float(liability_threshold(prev))
-    status = liab > t
-    fams = [Family(i, [Member(roles[j], (t if status[i, j] else -np.inf),
-                             (np.inf if status[i, j] else t)) for j in range(n)])
-            for i in range(n_fam)]
-    return fams, g[:, TARGET]
 
 
 def estimate_g(fams, roles, h2, c2, *, n_sim, burn_in, seed):
@@ -127,12 +106,15 @@ def run_setting(roles, h2, c2, n_fam, prev, reps, n_sim, burn_in, seed0):
     fitted = []
     for r in range(reps):
         seed = seed0 + 1000 * r
-        fams, g_true = simulate_ace(roles, h2, c2, n_fam, prev, seed)
+        fams, g = simulate_families_components(roles, {"A": h2, "C": c2}, n_fam,
+                                               prev, seed, return_genetic=True)
+        g_true = g[:, TARGET]
         h2_add = min(max(fit_heritability(
-            fams, n_iter=500, burn_in=150, seed=seed + 101
+            fams, sampling="population", n_iter=500, burn_in=150, seed=seed + 101
         ).h2, 0.02), 0.95)
         vc = fit_variance_components(
-            fams, ("A", "C"), n_iter=600, burn_in=200, seed=seed + 211
+            fams, ("A", "C"), sampling="population",
+            n_iter=600, burn_in=200, seed=seed + 211
         )
         h2_ace, c2_ace = vc.components["A"], vc.components["C"]
         fitted.append((h2_add, h2_ace, c2_ace))
@@ -215,9 +197,12 @@ def main():
               burn_in=args.burn_in)
 
     warm_c2 = float(tested_c2[0])
-    fw, _ = simulate_ace(ROLES, h2, warm_c2, 60, args.prev, 0)     # warm JIT
+    fw, _ = simulate_families_components(ROLES, {"A": h2, "C": warm_c2}, 60,
+                                         args.prev, 0, return_genetic=True)  # warm JIT
     estimate_g(fw, ROLES, h2, warm_c2, n_sim=2000, burn_in=200, seed=0)
-    fit_variance_components(fw, ("A", "C"), n_iter=20, burn_in=5)
+    fit_variance_components(
+        fw, ("A", "C"), sampling="population", n_iter=20, burn_in=5
+    )
 
     print(f"h2={h2} n_fam={args.n_fam} reps={args.reps}  corr(estimate, true genetic liability)")
 
