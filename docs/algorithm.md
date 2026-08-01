@@ -653,7 +653,7 @@ applied this result sequentially to multifactorial threshold traits
 ([1974, *Biometrics*](https://pubmed.ncbi.nlm.nih.gov/4813384/)). On ltpred's
 separately observed family-member intervals **without the censoring mixture**, PA
 and Gibbs posterior-mean estimates had correlation ≥ 0.997 while PA ran
-315–510× faster in the controlled 10-thread benchmark. The PA-only mixture was
+203–492× faster in the controlled 4-thread benchmark. The PA-only mixture was
 not part of this comparison. Same grouping / `prange` structure as the Gibbs path.
 
 ### Base PA-FGRS: lifetime cases and censored controls

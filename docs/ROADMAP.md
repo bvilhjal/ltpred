@@ -15,7 +15,9 @@ provides two alternative inference engines for posterior-mean genetic liability:
 - **Pearson–Aitken (PA)** — a deterministic selection-formula sweep. Its optional
   PA-FGRS extension adds the age-censored-control mixture. On the **no-mixture**
   benchmark grid, PA and Gibbs posterior-mean estimates had correlation ≥0.997,
-  and PA ran 315–510× faster in the controlled 10-thread timing benchmark. The
+  and PA ran 203–492× faster in the controlled 4-thread timing benchmark (the
+  ratio depends on thread count: Gibbs is parallel, the PA object path largely
+  serial). The
   PA-only mixture was not part of that comparison.
 
 Both support classic LT-FH and personalised pinned bounds used as LT-FH++ with
@@ -27,8 +29,8 @@ Multi-trait estimation is Gibbs-only (PA is single-trait).
 **Performance and scale.** The core is Numba-JIT'd and `prange`-parallel, with
 families grouped by structure (canonical form). Streaming batch-means keeps
 standard-error memory at `O(F)`; the array API skips Python objects and, in the
-current warmed timing run, adds another 6–31× over the PA object path while
-processing 1.6–8.6 million already-aligned families/s. A float32 bounds option
+current warmed timing run, adds another 21–52× over the PA object path while
+processing 1.2–3.8 million already-aligned families/s. A float32 bounds option
 halves memory. (The exploration also showed
 why int8-quantising the covariance, ldpred3-style, is the wrong lever here.)
 

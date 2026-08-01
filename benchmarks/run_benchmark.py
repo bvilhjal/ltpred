@@ -165,6 +165,18 @@ def _machine_profile():
     }
 
 
+def _load_average():
+    # A timing benchmark taken on a busy machine is not comparable with one
+    # taken on an idle machine, and nothing else in the record reveals that.
+    # RESULTS.md's protocol asks for no concurrent load; this makes a run that
+    # violated it self-identifying rather than silently slow.
+    try:
+        one, five, fifteen = os.getloadavg()
+    except (OSError, AttributeError):
+        return None
+    return {"1min": round(one, 2), "5min": round(five, 2), "15min": round(fifteen, 2)}
+
+
 def _numba_runtime():
     # `thread_settings` records what was *requested*; this records what Numba
     # resolved to, which is what the timing benchmarks actually depend on.
@@ -263,12 +275,14 @@ def main():
     stdout_path = log_dir / f"{run_id}.stdout.log"
     stderr_path = log_dir / f"{run_id}.stderr.log"
 
+    load_before = _load_average()
     t0 = time.perf_counter()
     with stdout_path.open("wb") as stdout_fh, stderr_path.open("wb") as stderr_fh:
         proc = subprocess.run(
             command, cwd=ROOT, check=False, stdout=stdout_fh, stderr=stderr_fh)
     elapsed = time.perf_counter() - t0
     finished = datetime.now(timezone.utc)
+    load_after = _load_average()
     after = _artifact_state()
 
     # Preserve the familiar console behavior after the child exits while keeping
@@ -294,6 +308,7 @@ def main():
             "platform": platform.platform(),
             "machine": _machine_profile(),
             "numba_runtime": _numba_runtime(),
+            "load_average": {"before": load_before, "after": load_after},
             "packages": _package_versions(),
             "thread_settings": {
                 name: os.environ.get(name)
