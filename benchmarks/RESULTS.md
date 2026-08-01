@@ -98,7 +98,7 @@ Across all 27 cells, the mean PA–Gibbs agreement is 0.9977–0.9999 with
 across-seed SEs of at most 0.0001 (bare means shown). Absolute accuracy
 increases with prevalence, heritability, and informative relatives.
 Relative gain over a case/control label is often largest for rarer
-disease; the largest grid mean is 2.47 ± 0.67× (extended, h²=0.2, K=0.01).
+disease; the largest grid mean is 2.53 ± 0.52× (extended, h²=0.2, K=0.01).
 The extreme low-prevalence cells are themselves noisy — the former
 single-seed maximum, 2.67× at parents + siblings, h²=0.2, K=0.05,
 replicates as 2.11 ± 0.15× — so treat their ordering as descriptive.
