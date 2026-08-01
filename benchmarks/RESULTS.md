@@ -53,8 +53,11 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   grid (five seeds per cell), mean corr(PA, Gibbs) is 0.9977–0.9999. The
   stressful-pedigree benchmark remains
   at least 0.9984. PA and Gibbs also give indistinguishable downstream GWAS
-  results. In the isolated 10-thread timing run, the PA object path is
-  **315–510× faster** than grouped Gibbs across the tested sizes and pedigrees.
+  results. In the 4-thread timing run, the PA object path is **203–492× faster**
+  than grouped Gibbs across the tested sizes and pedigrees. The ratio is not
+  thread-count-free: Gibbs is the parallel engine while the PA object path is
+  largely serial, so fewer threads inflate the speed-up. Quote it with its
+  thread count or not at all.
 - **Classic LT-FH improves genotype-GWAS signal without average null inflation.**
   Across three genotype/effect/cohort replicates, the same classic LT-FH model
   inferred by either PA or Gibbs delivers a causal-SNP NCP ratio of
@@ -102,22 +105,30 @@ replicates as 2.11 ± 0.15× — so treat their ordering as descriptive.
 
 ## 2. Controlled runtime scaling (`bench_scaling.py`)
 
-Five warmed timings per point, reported as medians; Python 3.13.5, Numba 0.61.0,
-10 Numba threads, h²=0.5, K=0.05, and 25,000 Gibbs draws. No other benchmark ran
-concurrently.
+Five warmed timings per point, reported as medians; Python 3.14.6, NumPy 2.4.6,
+SciPy 1.18.0, Numba 0.66.0, **4 Numba threads**, on an Apple M2 Pro (10 cores,
+arm64), h²=0.5, K=0.05, and 25,000 Gibbs draws. No other benchmark ran
+concurrently, but the machine was not otherwise idle: system processes held
+1-minute load average near 7–11 throughout. `benchmarks/run_manifest.jsonl`
+records the machine, resolved thread count and load for every run, so a timing
+taken under load is identifiable rather than silently slow.
+
+These supersede an earlier 10-thread reference (315–510×) taken on different
+hardware and a different stack, which does not reproduce on this machine at any
+thread count. Four threads is the operating point this project now baselines on.
 
 ### Scaling with number of families (parents + one sibling)
 
 | families | Gibbs families/s | PA object families/s | PA array families/s | object speed-up |
 |---:|---:|---:|---:|---:|
-| 500 | 654 | 224,027 | 2.11 M | 343× |
-| 1,000 | 606 | 211,930 | 3.18 M | 349× |
-| 2,000 | 626 | 261,006 | 1.55 M | 417× |
-| 4,000 | 677 | 240,743 | 2.74 M | 355× |
-| 8,000 | 724 | 280,243 | 8.63 M | 387× |
+| 500 | 296 | 71,264 | 1.93 M | 241× |
+| 1,000 | 295 | 73,863 | 2.65 M | 250× |
+| 2,000 | 300 | 73,319 | 3.55 M | 244× |
+| 4,000 | 299 | 78,229 | 3.79 M | 261× |
+| 8,000 | 305 | 71,878 | 3.76 M | 236× |
 
 The object path includes `Family`/`Member` bounds assembly and grouping. The
-array path receives already aligned, repeatedly reused arrays; its 1.6–8.6
+array path receives already aligned, repeatedly reused arrays; its 1.2–3.8
 million families/s is therefore a hot-kernel measurement, not end-to-end input
 preparation. Its very short calls also make cache and scheduler effects visible,
 so use the CSV IQRs rather than interpreting the non-monotone point rates.
@@ -126,16 +137,18 @@ so use the CSV IQRs rather than interpreting the non-monotone point rates.
 
 | relatives | structure | Gibbs time | PA object time | PA array time | object speed-up |
 |---:|---|---:|---:|---:|---:|
-| 2 | parents | 2.03 s | 0.0064 s | 0.00028 s | 315× |
-| 3 | + sibling | 2.67 s | 0.0073 s | 0.00032 s | 367× |
-| 5 | + two grandparents | 3.66 s | 0.0101 s | 0.00054 s | 363× |
-| 7 | extended | 5.05 s | 0.0102 s | 0.00058 s | 495× |
-| 10 | extended + aunts | 6.73 s | 0.0132 s | 0.00090 s | 510× |
+| 2 | parents | 5.52 s | 0.0272 s | 0.00055 s | 203× |
+| 3 | + sibling | 6.78 s | 0.0278 s | 0.00071 s | 244× |
+| 5 | + two grandparents | 10.68 s | 0.0296 s | 0.00089 s | 361× |
+| 7 | extended | 12.61 s | 0.0348 s | 0.00114 s | 362× |
+| 10 | extended + aunts | 17.16 s | 0.0349 s | 0.00169 s | 492× |
 
 The small PA times are not strictly monotone; five repeats quantify timing
-variation but do not abolish operating-system noise. The defensible claim on
-this machine is the observed **315–510×** object-path speed-up, not a universal
-hardware-independent constant.
+variation but do not abolish operating-system noise, and this run carried
+background load. The defensible claim is the observed **203–492×** object-path
+speed-up *at four threads on this machine* — not a universal hardware-independent
+constant, and not transferable to another thread count, since raising the thread
+count speeds Gibbs up far more than the largely serial PA object path.
 
 This is the only benchmark used for performance claims. It warms all paths,
 records five timings per point with median/IQR, uses `perf_counter`, records the

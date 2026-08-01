@@ -69,7 +69,7 @@ liability-threshold model:
    **Pearson–Aitken** (PA) engine turns the covariance and
    intervals into an estimate of the posterior mean of the proband's genetic (`g`)
    and/or full (`o`) liability. PA has no Monte-Carlo error, but retains sequential
-   approximation error, and ran 315–510× faster in the controlled 10-thread,
+   approximation error, and ran 203–492× faster in the controlled 4-thread,
    **no-mixture** benchmark; PA and Gibbs `genetic` posterior-mean estimates had
    correlation ≥ 0.997 on those benchmarked structures. The PA-FGRS censoring
    mixture is PA-only and was not part of that comparison.
