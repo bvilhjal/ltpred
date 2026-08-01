@@ -10,14 +10,22 @@ its own data, so the true genetic liability is known and the benchmarks run
 locally with no downloads (the one exception, real-LD genotypes, is an opt-in
 [HAPNEST](hapnest/README.md) step).
 
-Run single-core-ish for reproducible timings, or let Numba use all cores for
-speed:
+This project baselines on **four threads**, which is what the timings in
+`RESULTS.md` were measured at. Pin the thread count explicitly rather than
+letting Numba take every core: a speed-up is only interpretable alongside the
+thread count it was measured at, because Gibbs is parallel while the PA object
+path is largely serial.
 
 ```bash
 python benchmarks/bench_accuracy.py
-python benchmarks/bench_scaling.py
-NUMBA_NUM_THREADS=10 OMP_NUM_THREADS=10 python benchmarks/bench_gwas_power.py
+NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=4 python benchmarks/bench_scaling.py
+NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=4 python benchmarks/bench_gwas_power.py
 ```
+
+Timing runs also want an otherwise-quiet machine. The manifest records the load
+average, so check it before quoting a number: `bench_scaling`'s current figures
+were taken at 1-minute load ~7–11 on a 10-core box and are correspondingly
+conservative.
 
 Most scripts write a `.csv` and, if matplotlib is present, a `.png`. The
 following scripts instead print focused diagnostics to stdout:
