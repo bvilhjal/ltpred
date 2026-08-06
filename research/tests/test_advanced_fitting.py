@@ -636,16 +636,16 @@ def _coherent_varying_bounds(n_fam=30, seed=1, *, mixed_geometry=False):
     return families
 
 
-def test_mcem_accepts_person_specific_thresholds():
+def test_mcem_rejects_person_specific_thresholds():
+    # MCEM shares the pooled-moment augmentation, so it inherits the same
+    # personalised-threshold bias and refuses those bounds like the HE fit.
     fams = _coherent_varying_bounds(n_fam=20)
-    result = fit_variance_components_mcem(fams, ("A",),
-                                          n_iter=12, burn_in=6, inner_sweeps=1,
-                                          seed=1)
-    assert np.isfinite(result.components["A"])
-    assert result.loglik is not None and np.isfinite(result.loglik)
+    with pytest.raises(ValueError, match="single case/control threshold"):
+        fit_variance_components_mcem(fams, ("A",), n_iter=12, burn_in=6,
+                                     inner_sweeps=1, seed=1)
 
 
-def test_genetic_correlation_accepts_person_specific_rectangles():
+def test_genetic_correlation_rejects_person_specific_rectangles():
     fams = _simulate_two_trait(
         ["m", "s1"], [0.4, 0.4], np.eye(2), np.eye(2),
         n_fam=20, prev=[0.1, 0.2], seed=3,
@@ -659,11 +659,8 @@ def test_genetic_correlation_accepts_person_specific_rectangles():
             upper[np.isfinite(upper)] += delta
             member.lower, member.upper = lower, upper
 
-    # Exercise valid geometry the old blanket guard rejected.
-    fams[0].members[0].lower = np.array([0.0, -0.2])
-    fams[0].members[0].upper = np.array([0.0, 0.2])
-    result = fit_genetic_correlation(
-        fams, n_iter=12, burn_in=6, inner_sweeps=1, seed=1,
-    )
-    assert np.isfinite(result.h2).all()
-    assert np.isfinite(result.rg).all()
+    # The cross-trait HE regression is biased by personalised thresholds the same
+    # way; onset-age structure is the job of fit_genetic_correlation_decay.
+    with pytest.raises(ValueError, match="single case/control threshold"):
+        fit_genetic_correlation(fams, n_iter=12, burn_in=6, inner_sweeps=1,
+                                seed=1)
