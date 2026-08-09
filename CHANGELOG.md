@@ -8,6 +8,25 @@ version is 0 the public API may still change between minor releases.
 
 ### Fixed
 
+- **The moment fitters again reject personalised/onset-pinned LT-FH++ bounds.**
+  `fit_heritability` and `fit_variance_components` pool cross-products under a
+  single-threshold-per-trait assumption; on personalised (age-/CIP-specific) or
+  onset-pinned bounds — even perfectly coherent ones — the fixed point runs to
+  the `h2 ~ 1` boundary and invents a spurious shared-environment component. A
+  guard rejecting those inputs had been removed and the docstrings rewritten to
+  claim such bounds "are accepted"; the guard is restored (the docstrings now
+  state the requirement honestly) and extended to the `research/` pooled-moment
+  fitters `fit_variance_components_mcem` and `fit_genetic_correlation`. The guard
+  tolerates the float32/float64 representations of one common threshold and lets
+  NaN/reversed-bound errors surface first. `estimate_liability` is unaffected —
+  it conditions on `h2` rather than fitting it, and personalised bounds are its
+  intended input.
+- `research.advanced_fitting.fit_nurture` no longer rejects strong negative-
+  contrast models (`nurture < -0.5`, where parent-offspring covariance is
+  negative) that `construct_covmat_nurture` emits as valid PSD models and the
+  closed form inverts exactly; only the genuinely degenerate `nurture = -0.5`
+  corner (`po = 0` / `ss = 0`) and covariances no standardised model can
+  reproduce are refused.
 - Negative `burn_in` is rejected everywhere it reaches a sampler:
   `rtmvnorm_gibbs`, every Gibbs estimate path (validated once in
   `_estimate_group`, the shared choke point), `fit_heritability`,

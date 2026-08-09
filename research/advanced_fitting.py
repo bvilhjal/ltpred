@@ -46,7 +46,7 @@ from ltpred.estimate import (_group_by_structure, _validate_multitrait_bounds,
 from ltpred.family import Family, Member
 from ltpred.fit import (fit_variance_components, _COMPONENT_OFFDIAG,
                         _component_matrix, _prepare_group_vc,
-                        _validate_population_sampling)
+                        _validate_population_sampling, _assert_common_thresholds)
 from ltpred.gibbs import (gibbs_params, gibbs_advance, gibbs_advance_moment,
                           _init_chain, _FIXED_TOL, _offset_seed, _seed_rng)
 
@@ -230,11 +230,11 @@ def fit_variance_components_mcem(families, components=("A", "C"), *,
     Returns a :class:`MCEMVarCompResult`. ``seed`` must be a non-boolean integer
     in ``[0, 2**32 - 1]`` or ``None``.
 
-    Common and person-specific one-sided, two-sided, and pinned rectangles are
-    accepted. Their geometry cannot establish whether the observation model is
-    scientifically coherent, so callers must ensure the supplied bounds represent
-    the observation process intended for fitting. Standard NaN and interval-order
-    validation still applies."""
+    **Requires a common case/control threshold per trait**: sharing
+    :func:`fit_variance_components`' pooled-moment augmentation, it inherits the
+    same personalised-threshold bias and **rejects** personalised/onset-pinned
+    LT-FH++ bounds rather than fitting them to the boundary. Standard NaN and
+    interval-order validation still applies."""
     comps = list(components)
     for c in comps:
         if c not in _COMPONENT_OFFDIAG:
@@ -247,6 +247,9 @@ def fit_variance_components_mcem(families, components=("A", "C"), *,
         raise ValueError(f"burn_in ({burn_in}) must be non-negative and "
                          f"< n_iter ({n_iter})")
     _validate_population_sampling(sampling, "fit_variance_components_mcem")
+    # Shares the pooled-moment augmentation, so it has fit_variance_components'
+    # personalised-threshold failure mode; reject those bounds the same way.
+    _assert_common_thresholds(families, 1, context="fit_variance_components_mcem")
     C = len(comps)
     groups = [_prepare_group_vc(families, idx, comps)
               for _key, idx in _group_by_structure(families)]
@@ -1118,11 +1121,12 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
     representative. ``seed`` must be a non-boolean integer in
     ``[0, 2**32 - 1]`` or ``None``.
 
-    Common and person-specific one-sided, two-sided, and pinned rectangles are
-    accepted. Their geometry cannot establish whether the observation model is
-    scientifically coherent, so callers must ensure the supplied bounds represent
-    the observation process intended for fitting. Standard shape, NaN, and
-    interval-order validation still applies."""
+    **Requires a common case/control threshold per trait**: the cross-trait
+    Haseman-Elston regression shares the pooled-moment augmentation and inherits
+    its personalised-threshold bias, so personalised/onset-pinned LT-FH++ bounds
+    are **rejected** (use :func:`fit_genetic_correlation_decay` for onset-age
+    structure). Standard shape, NaN, and interval-order validation still
+    applies."""
     if not families:
         raise ValueError("no families provided")
     _require_member_rows(families, context="genetic-correlation fit")
@@ -1141,6 +1145,10 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
     elif len(phen_names) != P:
         raise ValueError("phen_names length must match number of traits")
     _validate_population_sampling(sampling, "fit_genetic_correlation")
+    # Cross-trait HE shares the pooled-moment augmentation; personalised
+    # per-person thresholds bias it the same way, so reject them (the onset-age
+    # decay model, fit_genetic_correlation_decay, is the route for age structure).
+    _assert_common_thresholds(families, P, context="fit_genetic_correlation")
     groups = [_prepare_group_multi(families, idx, P)
               for _key, idx in _group_by_structure(families)]
     sA2 = sum(g["sA2"] for g in groups)
@@ -1723,19 +1731,31 @@ def fit_nurture(cov_parent_offspring, cov_sib_sib):
 
     A sibling covariance *below* the parent-offspring one implies a negative
     ``nurture`` (a contrast effect); that is returned rather than clipped, since
-    silently flooring it at zero would hide a real signal. What is rejected is a
-    fit that no valid model can produce -- see the raised errors.
+    silently flooring it at zero would hide a real signal. A strong enough
+    contrast (``nurture < -0.5``) even drives the parent-offspring covariance
+    itself negative -- ``construct_covmat_nurture`` still emits a valid
+    standardised (PSD) model there, and this fitter is its exact inverse, so a
+    negative ``po`` is accepted too. Only the genuinely degenerate ``nurture =
+    -0.5`` corner (``po = 0`` and ``ss = 0``, where the ratio is undefined) and
+    covariances no standardised model can reproduce (implied ``h2`` outside
+    ``(0, 1]`` or a negative residual) are rejected -- see the raised errors.
     """
     po = float(cov_parent_offspring)
     ss = float(cov_sib_sib)
-    if po <= 0.0:
+    # ss = h2*(1+2n)^2/2 >= 0 for any real model; ss = 0 (and then po = 0) is the
+    # degenerate nurture = -0.5 corner where 1 + 2n vanishes and the ratio is
+    # undefined. po = 0 alone is the same corner. Everything else -- including a
+    # negative po from a strong contrast (nurture < -0.5) -- is invertible, and
+    # the h2/residual checks below reject inputs no standardised model produces.
+    if abs(po) < 1e-15:
         raise ValueError(
-            "cov_parent_offspring must be positive; a non-positive "
-            "parent-offspring liability covariance is incompatible with a "
-            f"heritable trait (got {po})")
-    if ss <= 0.0:
+            "cov_parent_offspring is (numerically) zero: the degenerate "
+            "nurture = -0.5 corner, where the direct/indirect model is not "
+            f"identified (got {po})")
+    if abs(ss) < 1e-15:
         raise ValueError(
-            f"cov_sib_sib must be positive (got {ss})")
+            "cov_sib_sib is (numerically) zero: the degenerate nurture = -0.5 "
+            f"corner leaves h2 = 2*po^2/ss undefined (got {ss})")
 
     nurture = (ss / po - 1.0) / 2.0
     h2 = 2.0 * po * po / ss

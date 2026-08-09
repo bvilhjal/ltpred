@@ -497,20 +497,29 @@ def _coherent_varying_bounds(n_fam=30, seed=1, *, mixed_geometry=False):
     return families
 
 
-def test_moment_fitters_accept_coherent_person_specific_rectangles():
+def test_moment_fitters_reject_coherent_person_specific_rectangles():
+    # Even perfectly coherent personalised/pinned LT-FH++ bounds bias the pooled
+    # HE fixed point to h2~1 (and invent a spurious C), so they are refused
+    # rather than silently fitted -- the geometry alone triggers the guard.
     fams = _coherent_varying_bounds(mixed_geometry=True)
     assert any(m.lower == m.upper for f in fams for m in f.members)
     assert any(np.isfinite(m.lower) and np.isfinite(m.upper) and m.lower < m.upper
                for f in fams for m in f.members)
 
-    h2 = fit_heritability(
-        fams, n_iter=20, burn_in=8, inner_sweeps=1, seed=1,
-        sampling="population")
-    vc = fit_variance_components(fams, ("A", "C"), n_iter=20, burn_in=8,
-                                 inner_sweeps=1, seed=1,
-                                 sampling="population")
-    assert np.isfinite(h2.h2)
-    assert all(np.isfinite(value) for value in vc.components.values())
+    with pytest.raises(ValueError, match="single case/control threshold"):
+        fit_heritability(fams, n_iter=20, burn_in=8, inner_sweeps=1, seed=1,
+                         sampling="population")
+    with pytest.raises(ValueError, match="single case/control threshold"):
+        fit_variance_components(fams, ("A", "C"), n_iter=20, burn_in=8,
+                                inner_sweeps=1, seed=1, sampling="population")
+
+
+def test_moment_fitters_recover_h2_on_coherent_common_threshold_data():
+    # the supported path: one case/control threshold per trait -> ~0.5, not ~1.0
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
+                                    pop_prev=0.1, n_sim=1500, seed=1)
+    res = fit_heritability(sim.families, seed=1, sampling="population")
+    assert 0.30 < res.h2 < 0.70
 
 
 def test_general_rectangles_still_receive_standard_bounds_validation():

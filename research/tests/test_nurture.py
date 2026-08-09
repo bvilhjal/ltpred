@@ -212,11 +212,31 @@ def test_fit_nurture_reports_a_contrast_effect_rather_than_clipping_it():
     assert fit.disagreement < 0
 
 
-@pytest.mark.parametrize("po,ss", [(0.0, 0.5), (-0.1, 0.5), (0.3, 0.0), (0.3, -0.2)])
-def test_fit_nurture_rejects_non_positive_covariances(po, ss):
+@pytest.mark.parametrize("po,ss,match", [
+    (0.0, 0.5, "cov_parent_offspring is .* zero"),   # degenerate nurture=-0.5
+    (0.3, 0.0, "cov_sib_sib is .* zero"),            # degenerate nurture=-0.5
+    (0.3, -0.2, r"outside \(0, 1\]"),                # implied h2 < 0
+])
+def test_fit_nurture_rejects_degenerate_and_unreproducible(po, ss, match):
     from research.advanced_fitting import fit_nurture
-    with pytest.raises(ValueError, match="must be positive"):
+    with pytest.raises(ValueError, match=match):
         fit_nurture(po, ss)
+
+
+def test_fit_nurture_accepts_strong_negative_contrast():
+    # nurture < -0.5 drives parent-offspring covariance negative, but
+    # construct_covmat_nurture still emits a valid PSD model there and
+    # fit_nurture is its exact inverse -- so a negative po must be accepted.
+    from research.covariance_extensions import construct_covmat_nurture
+    from research.advanced_fitting import fit_nurture
+    cov = construct_covmat_nurture(("m", "f", "s1", "s2"), h2=0.5, nurture=-0.6)
+    i = _index(cov)
+    po = cov.matrix[i["o"], i["m"]]
+    ss = cov.matrix[i["o"], i["s1"]]
+    assert po < 0                                    # the contrast corner
+    fit = fit_nurture(po, ss)
+    assert fit.nurture == pytest.approx(-0.6, abs=1e-9)
+    assert fit.h2 == pytest.approx(0.5, abs=1e-9)
 
 
 def test_fit_nurture_rejects_covariances_no_valid_model_produces():

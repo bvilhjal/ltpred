@@ -83,6 +83,82 @@ def _validate_population_sampling(sampling, context):
             "sampling process")
 
 
+def _assert_common_thresholds(families, n_pheno, *, context):
+    """Reject person-specific liability bounds in the pooled-moment fitters.
+
+    The Haseman-Elston fixed point pools cross-products across families and reads
+    them as estimates of ``h2 * A_ij``, which holds only when every augmented
+    liability is a draw from the *same* ``N(0, 1)`` population -- i.e. when one
+    threshold per trait separates cases from controls. **Personalised LT-FH++
+    bounds break that assumption**: an age-/CIP-specific threshold per person
+    (and an onset pin for cases) gives each augmented draw its own conditional
+    mean, the pooled cross-products stop estimating ``h2 * A``, and the fixed
+    point runs away to its ``1 - eps`` ceiling.
+
+    This is not a small bias, and it is *not* a matter of incoherent inputs: on
+    coherent simulated LT-FH++ data (the exact output of :func:`age_thresholds`)
+    with a true ``h2 = 0.5``, :func:`fit_heritability` returns ~1.0 and
+    :func:`fit_variance_components` reports ``A ~ 0.67`` with a wholly spurious
+    ``C ~ 0.33``. Returning those numbers silently is worse than refusing, so
+    this raises.
+
+    The prediction estimators (:func:`~ltpred.estimate.estimate_liability` and
+    friends) are unaffected -- they *condition* on a supplied ``h2`` rather than
+    fitting it, and personalised bounds are exactly what they are designed for.
+    """
+    los, his = [], []
+    for family in families:
+        for member in family.members:
+            los.append(np.broadcast_to(np.asarray(member.lower, dtype=float), (n_pheno,)))
+            his.append(np.broadcast_to(np.asarray(member.upper, dtype=float), (n_pheno,)))
+    if not los:
+        return
+    lo_all = np.asarray(los)
+    hi_all = np.asarray(his)
+    # Structural bounds validation runs first so a NaN or reversed interval gets
+    # its own precise error rather than being miscounted as a pin/interval below.
+    validate_bounds(lo_all, hi_all, context=context)
+
+    pinned = interval = 0
+    thresholds = [[] for _ in range(n_pheno)]
+    for row_lo, row_hi in zip(lo_all, hi_all):
+        for p in range(n_pheno):
+            lo, hi = row_lo[p], row_hi[p]
+            if hi - lo < 1e-8:
+                pinned += 1
+            elif np.isneginf(lo) and np.isfinite(hi):
+                thresholds[p].append(float(hi))
+            elif np.isfinite(lo) and np.isposinf(hi):
+                thresholds[p].append(float(lo))
+            elif np.isfinite(lo) and np.isfinite(hi):
+                interval += 1
+    # rtol=1e-6 tolerates the ~1e-7 gap between the float32 and float64
+    # representations of one common threshold; genuine age-/CIP-specific
+    # thresholds differ by orders of magnitude more.
+    varying = any(v and not np.allclose(v, v[0], rtol=1e-6, atol=1e-9)
+                  for v in thresholds)
+    if not (pinned or interval or varying):
+        return
+    seen = []
+    if pinned:
+        seen.append(f"{pinned} onset-pinned bound(s)")
+    if interval:
+        seen.append(f"{interval} two-sided interval bound(s)")
+    if varying:
+        seen.append("thresholds that differ between individuals")
+    raise ValueError(
+        f"{context}: found {', '.join(seen)}. The pooled Haseman-Elston fixed "
+        "point assumes a single case/control threshold per trait, so "
+        "personalised (age-/CIP-specific) LT-FH++ bounds bias it badly -- on "
+        "coherent simulated data with h2 = 0.5 it returns ~1.0 and invents a "
+        "shared-environment component. Refusing rather than returning that. "
+        "Fit from common-threshold bounds (e.g. prevalence_thresholds) instead; "
+        "to model onset-age structure explicitly use "
+        "research.advanced_fitting.fit_genetic_correlation_decay, whose "
+        "likelihood M-step is built for it. Personalised bounds remain correct "
+        "for estimate_liability, which conditions on h2 rather than fitting it.")
+
+
 def _validate_update_controls(damp, eps):
     """Validate and normalise the stochastic fixed-point controls."""
     if isinstance(damp, (bool, np.bool_)):
@@ -186,11 +262,15 @@ def fit_heritability(families, *, h2_init=0.5, n_iter=1500, burn_in=500,
     ``[0, 2**32 - 1]`` or ``None``, ``h2_init`` must lie in [0, 1], and ``burn_in``
     must be non-negative and smaller than ``n_iter``.
 
-    Common and person-specific one-sided, two-sided, and pinned rectangles are
-    accepted. Their geometry cannot establish whether the observation model is
-    scientifically coherent, so callers must ensure the supplied bounds represent
-    the observation process intended for fitting. Standard NaN and interval-order
-    validation still applies."""
+    **Requires a common case/control threshold per trait.** The pooled
+    Haseman-Elston fixed point assumes every augmented liability is drawn from
+    the same ``N(0, 1)`` population, so personalised (age-/CIP-specific) or
+    onset-pinned LT-FH++ bounds — even perfectly coherent ones — bias it to the
+    ``h2 ~ 1`` boundary. Those inputs are **rejected**, not silently fitted (see
+    :func:`_assert_common_thresholds`). Fit from common-threshold bounds; the
+    prediction path (:func:`~ltpred.estimate.estimate_liability`) is unaffected,
+    since it conditions on ``h2`` rather than fitting it. Standard NaN and
+    interval-order validation still applies."""
     if int(burn_in) < 0 or int(burn_in) >= int(n_iter):
         raise ValueError(f"burn_in ({burn_in}) must be non-negative and "
                          f"< n_iter ({n_iter})")
@@ -198,6 +278,7 @@ def fit_heritability(families, *, h2_init=0.5, n_iter=1500, burn_in=500,
         raise ValueError("h2_init must be in [0, 1]")
     damp, eps = _validate_update_controls(damp, eps)
     _validate_population_sampling(sampling, "fit_heritability")
+    _assert_common_thresholds(families, 1, context="fit_heritability")
     groups = [_prepare_group(families, idx) for _key, idx in _group_by_structure(families)]
     sxx = sum(sum(aij * aij for (_i, _j, aij) in g["pairs"]) * g["F"] for g in groups)
     if sxx <= 0:
@@ -390,11 +471,12 @@ def fit_variance_components(families, components=("A", "C"), *,
     clusters are independent and representative. ``seed`` must be a non-boolean
     integer in ``[0, 2**32 - 1]`` or ``None``.
 
-    Common and person-specific one-sided, two-sided, and pinned rectangles are
-    accepted. Their geometry cannot establish whether the observation model is
-    scientifically coherent, so callers must ensure the supplied bounds represent
-    the observation process intended for fitting. Standard NaN and interval-order
-    validation still applies."""
+    **Requires a common case/control threshold per trait**, exactly as
+    :func:`fit_heritability` does and for the same reason: personalised or
+    onset-pinned LT-FH++ bounds bias the pooled moment fit to the boundary (it
+    invents a spurious shared-environment component), so they are **rejected**
+    rather than silently fitted. Standard NaN and interval-order validation still
+    applies."""
     comps = list(components)
     for c in comps:
         if c not in _COMPONENT_OFFDIAG:
@@ -408,6 +490,7 @@ def fit_variance_components(families, components=("A", "C"), *,
                          f"< n_iter ({n_iter})")
     damp, eps = _validate_update_controls(damp, eps)
     _validate_population_sampling(sampling, "fit_variance_components")
+    _assert_common_thresholds(families, 1, context="fit_variance_components")
     C = len(comps)
     groups = [_prepare_group_vc(families, idx, comps)
               for _key, idx in _group_by_structure(families)]
