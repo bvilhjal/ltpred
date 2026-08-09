@@ -39,6 +39,15 @@ it with uninformative `(-inf, inf)` bounds. Two relatives of the same kind must 
 numbered (`s1`, `s2`). Relatedness (and hence covariance) is derived from the role
 labels — see `get_relatedness`.
 
+One half-sib convention is worth knowing: following LTFHPlus, two **same-side**
+half-sibs (`mhs1`/`mhs2`, or `phs1`/`phs2`) are related `0.5·h²` to each other,
+not `0.25·h²` — the grammar implies they share the unrecorded second parent —
+while a maternal/paternal half-sib pair is unrelated. If two same-side half-sibs
+in fact have different second parents, the role labels cannot express that;
+describe the pedigree through `kinship_from_pedigree` instead, where the pair's
+relatedness comes from the recorded parents (`0.25·h²` through the single shared
+parent, with no implied second-parent sharing).
+
 Conditioning on `o` is an analysis choice, not a structural requirement. Include
 it when intentionally constructing a GWAS phenotype from the proband's diagnosis.
 For prospective prediction/classification of that diagnosis, omit `o` or make its

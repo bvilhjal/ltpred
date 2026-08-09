@@ -41,7 +41,7 @@ import numpy as np
 from ._numba import _jit, _jit_parallel, prange
 from ._mathfun import _norm_cdf, _norm_ppf
 from .gibbs import as_bounds
-from ._validation import validate_mixture_inputs
+from ._validation import validate_bounds, validate_mixture_inputs
 
 __all__ = ["pa_algorithm", "pa_estimate_batched"]
 
@@ -375,6 +375,29 @@ def _pa_batched_nomix(cov, lowers, uppers, est, var):
         var[f] = v
 
 
+def _validate_pa_covmat(covmat):
+    """Return ``covmat`` as float64 after a light shape/symmetry check.
+
+    The PA counterpart of the Gibbs gate (:func:`ltpred.gibbs._validate_covmat`),
+    with the same scale-relative symmetry tolerance but **without** the strict
+    positive-definite check: the production paths already route through
+    :func:`ltpred.covariance.correct_positive_definite`, and PA's sequential
+    rank-1 updates never invert the supplied covariance."""
+    cov = np.asarray(covmat, dtype=np.float64)
+    if cov.ndim != 2 or cov.shape[0] != cov.shape[1]:
+        raise ValueError("covmat must be square")
+    if not np.all(np.isfinite(cov)):
+        raise ValueError("covmat must contain only finite values")
+    matrix_scale = float(np.max(np.abs(cov))) if cov.size else 1.0
+    symmetry_tolerance = 1e-10 * matrix_scale
+    asymmetry = float(np.max(np.abs(cov - cov.T))) if cov.size else 0.0
+    if asymmetry > symmetry_tolerance:
+        raise ValueError(
+            "covmat must be symmetric (maximum asymmetry "
+            f"{asymmetry:.3g}, relative tolerance {symmetry_tolerance:.3g})")
+    return cov
+
+
 def pa_algorithm(covmat, lower, upper, target=0, K_i=None, K_pop=None):
     """Pearson-Aitken estimate of the target liability for a single family.
 
@@ -384,13 +407,14 @@ def pa_algorithm(covmat, lower, upper, target=0, K_i=None, K_pop=None):
     ``K_i``/``K_pop`` (per row, ``nan`` where unused) switch on the censored-control
     mixture. Returns ``(est, var)`` -- sequential-moment approximations to the
     target's posterior mean and conditional variance (exact for one truncation)."""
-    cov = np.array(covmat, dtype=np.float64, copy=True)
+    cov = _validate_pa_covmat(covmat)
     d = cov.shape[0]
     lower = np.asarray(lower, dtype=np.float64)
     upper = np.asarray(upper, dtype=np.float64)
     order = np.concatenate(([target], np.delete(np.arange(d), target)))
     cov = np.ascontiguousarray(cov[np.ix_(order, order)])
     lo, hi = lower[order], upper[order]
+    validate_bounds(lo, hi, context="pa_algorithm bounds")
     if K_i is None and K_pop is None:          # no-mixture fast path
         return _pa_family_nomix(cov, lo, hi)
     K_i, K_pop = validate_mixture_inputs(
@@ -409,7 +433,7 @@ def pa_estimate_batched(covmat, lowers, uppers, target=0, K_is=None, K_pops=None
     ``K_is``/``K_pops`` are given, dispatches to the no-mixture kernel, which never
     allocates the ``(F, d)`` mixture arrays. Returns the PA sequential-moment
     approximations ``(est, var)`` of length ``F``."""
-    cov = np.array(covmat, dtype=np.float64, copy=True)
+    cov = _validate_pa_covmat(covmat)
     d = cov.shape[0]
     lowers = as_bounds(lowers)             # keeps float32 to halve memory
     uppers = as_bounds(uppers)
@@ -417,6 +441,7 @@ def pa_estimate_batched(covmat, lowers, uppers, target=0, K_is=None, K_pops=None
     order = np.concatenate(([target], np.delete(np.arange(d), target)))
     cov = np.ascontiguousarray(cov[np.ix_(order, order)])
     lo, hi = np.ascontiguousarray(lowers[:, order]), np.ascontiguousarray(uppers[:, order])
+    validate_bounds(lo, hi, context="pa_estimate_batched bounds")
     est = np.empty(F)
     var = np.empty(F)
     if K_is is None and K_pops is None:        # no-mixture fast path (no K arrays)

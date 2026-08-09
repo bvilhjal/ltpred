@@ -36,6 +36,34 @@ def test_batched_kernel_matches_batch_means_single_round():
     assert np.all(se > 0)
 
 
+def test_multi_round_pooling_matches_offline_batch_means():
+    # _estimate_group pools the streamed batch-mean sums (bm_s1/bm_s2) across
+    # rounds. With n_sim = 4 the per-round batching (b = 2, nb = 2) tiles the
+    # concatenated draws exactly, so two tol-forced rounds must reproduce the
+    # offline batch_means of the same-seeded rtmvnorm_gibbs draws to machine
+    # precision.
+    from ltpred.estimate import _estimate_group, _base_seeds, batch_means
+    from ltpred.gibbs import rtmvnorm_gibbs
+    cov = np.array([[0.5, 0.5], [0.5, 1.0]])
+    t = float(stats.norm.isf(0.05))
+    lowers = np.array([[-np.inf, t], [t, -np.inf], [-np.inf, -np.inf]])
+    uppers = np.array([[np.inf, np.inf], [np.inf, t], [t, t]])
+    seed, max_rounds = 11, 2
+    base = _base_seeds(seed, 3, max_rounds)
+    est, se = _estimate_group(cov, [0, 1], lowers, uppers, base,
+                              tol=1e-12, n_sim=4, burn_in=25,
+                              max_rounds=max_rounds)
+    for f in range(3):
+        draws = np.vstack([
+            rtmvnorm_gibbs(cov, lowers[f], uppers[f], out=(0, 1), n_sim=4,
+                           burn_in=25, seed=int((base[f] + r) % (2 ** 32)))
+            for r in range(max_rounds)
+        ])
+        est_off, se_off = batch_means(draws)
+        np.testing.assert_allclose(est[f], est_off, atol=1e-12)
+        np.testing.assert_allclose(se[f], se_off, atol=1e-12)
+
+
 def test_pa_arrays_match_object_api():
     from ltpred.estimate import estimate_liability_pa_arrays, _estimate_liability_pa
     t = float(stats.norm.isf(0.05))
@@ -220,3 +248,33 @@ def test_mixed_precision_bounds_keep_their_own_dtype():
                                    (-np.inf, np.inf))
     assert out_lo.dtype == np.float32
     assert out_hi.dtype == np.float64
+
+
+def test_multi_trait_full_output_smoke():
+    # out=("full",) on the multi-trait path returns finite per-trait estimates
+    # under the expected (output, phenotype) column names
+    gcorr = np.array([[1.0, 0.3], [0.3, 1.0]])
+    fcorr = np.array([[1.0, 0.2], [0.2, 1.0]])
+    t = float(stats.norm.isf(0.05))
+    fam = Family("f1", [Member("o", [t, -np.inf], [np.inf, t]),
+                        Member("m", [-np.inf, t], [t, np.inf])])
+    res = estimate_liability([fam], h2=[0.5, 0.4], genetic_corrmat=gcorr,
+                             full_corrmat=fcorr, phen_names=["A", "B"],
+                             out=("full",), tol=0.1, n_sim=10_000,
+                             burn_in=200, seed=1)
+    assert set(res.est) == {"full_A", "full_B"}
+    assert np.isfinite(res.est["full_A"]).all()
+    assert np.isfinite(res.est["full_B"]).all()
+
+
+@pytest.mark.parametrize("method", ["pa", "gibbs"])
+def test_family_without_proband_own_status_estimates(method):
+    # no member with role "o": the proband's own liability is inserted as
+    # uninformative, so the estimate is driven by the relatives alone
+    t = float(stats.norm.isf(0.05))
+    fam = Family("f", [Member("m", t, np.inf), Member("f", -np.inf, t)])
+    kwargs = (dict(n_sim=10_000, burn_in=200, tol=0.1, seed=1)
+              if method == "gibbs" else {})
+    res = estimate_liability([fam], h2=0.5, method=method,
+                             out=("genetic",), **kwargs)
+    assert np.isfinite(res.est["genetic"][0])

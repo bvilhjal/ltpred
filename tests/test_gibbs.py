@@ -379,3 +379,22 @@ def test_far_tail_member_does_not_poison_its_relatives():
     draws = rtmvnorm_gibbs(cov, lower=[40.0, -np.inf], upper=[np.inf, 0.0],
                            out=(0, 1), n_sim=20_000, burn_in=500, seed=2)
     assert not np.isnan(draws).any()
+
+
+@pytest.mark.parametrize("burn_in,error", [
+    (-1, ValueError), (-1000, ValueError), (np.int64(-2), ValueError),
+    (True, TypeError), (np.bool_(False), TypeError), (1.5, TypeError),
+    (np.float64(10), TypeError), ("10", TypeError),
+])
+def test_rtmvnorm_gibbs_rejects_invalid_burn_in(burn_in, error):
+    # the kernels loop range(-burn_in, n_sim): a negative burn-in silently skipped
+    # initial output rows while n_sim draws were still credited, and a float was
+    # silently truncated
+    with pytest.raises(error, match="burn_in must be a non-negative integer"):
+        rtmvnorm_gibbs(np.eye(1), n_sim=10, burn_in=burn_in)
+
+
+def test_rtmvnorm_gibbs_accepts_zero_burn_in():
+    s = rtmvnorm_gibbs(np.eye(1), n_sim=20, burn_in=0, seed=1)
+    assert s.shape == (20, 1)
+    assert np.isfinite(s).all()

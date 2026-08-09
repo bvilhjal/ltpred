@@ -9,12 +9,13 @@ family-history inclusion distinguishes LT-FH++ (with relatives) from ADuLT
 engines for those bounds. PA-FGRS is a separate PA-specific specification; its
 censoring mixture is not included in the PA–Gibbs comparisons below.
 
-- **Snapshot:** assembled from focused runs through 2026-07-30; this was not one
-  atomic rerun of all 28 scripts. The first 14-section campaign was generated
-  on 2026-07-14.
-- **Recorded environment for that base campaign:** Python 3.13.5, NumPy 2.1.3,
-  SciPy 1.15.3, Numba 0.61.0, 10 logical cores. Later additions did not record a
-  complete machine-readable environment or source manifest.
+- **Snapshot:** assembled from focused runs on 2026-07-31 and 2026-08-01, each
+  recorded in `run_manifest.jsonl`; this was not one atomic rerun of all 28
+  scripts. The first 14-section campaign was generated on 2026-07-14.
+- **Recorded environment for the stored artifacts:** Python 3.14.6
+  (free-threading), NumPy 2.4.6, SciPy 1.18.0, Numba 0.66.0, 10 logical cores
+  (Apple M2 Pro, arm64), with the full machine-readable environment, command,
+  and Git state recorded per run in `run_manifest.jsonl`.
 - **Provenance limit:** these checked-in values are historical artifacts. They
   do not automatically validate later source changes, including a dirty working
   tree. Claims should be refreshed after numerical or benchmark-source changes.
@@ -92,7 +93,7 @@ unchanged from the former single-seed grid. At h²=0.5 and K=0.05:
 |---|---:|---:|---:|---:|
 | parents | 0.382 ± 0.009 | 0.382 ± 0.009 | 1.36 ± 0.03× | 0.9997 |
 | parents + 2 siblings | 0.437 ± 0.009 | 0.437 ± 0.009 | 1.66 ± 0.07× | 0.9997 |
-| extended | 0.424 ± 0.012 | 0.424 ± 0.012 | 1.69 ± 0.15× | 0.9997 |
+| extended | 0.419 ± 0.014 | 0.420 ± 0.014 | 1.71 ± 0.09× | 0.9997 |
 
 Across all 27 cells, the mean PA–Gibbs agreement is 0.9977–0.9999 with
 across-seed SEs of at most 0.0001 (bare means shown). Absolute accuracy
@@ -162,16 +163,16 @@ relatives. Gibbs is a first-replicate cross-check only (`gibbs_reps=1`).
 
 | h² | K | classic LT-FH corr (PA) | FH + onset corr (PA) | first-rep FH + onset Gibbs | squared-correlation eff-N proxy: onset / classic |
 |---:|---:|---:|---:|---:|---:|
-| 0.5 | 0.05 | 0.4328 ± 0.0042 | 0.4349 ± 0.0040 | 0.4345 | 1.0097 ± 0.0029× |
-| 0.5 | 0.30 | 0.6365 ± 0.0065 | 0.6651 ± 0.0042 | 0.6666 | 1.0924 ± 0.0092× |
-| 0.8 | 0.30 | 0.7381 ± 0.0049 | 0.7723 ± 0.0037 | 0.7787 | 1.0949 ± 0.0061× |
+| 0.5 | 0.05 | 0.4275 ± 0.0100 | 0.4297 ± 0.0101 | 0.4232 | 1.0102 ± 0.0016× |
+| 0.5 | 0.30 | 0.6342 ± 0.0036 | 0.6604 ± 0.0028 | 0.6646 | 1.0844 ± 0.0081× |
+| 0.8 | 0.30 | 0.7434 ± 0.0050 | 0.7754 ± 0.0046 | 0.7834 | 1.0879 ± 0.0018× |
 
 Both main columns use PA and condition on the same family; Gibbs is only the
 first-replicate agreement check. This is an LT-FH++ age-component ablation over
 classic LT-FH, not ADuLT and not raw case/control. The mean squared-correlation
-eff-N proxy over the eight-cell grid is 1.038×. Onset information matters
+eff-N proxy over the eight-cell grid is 1.037×. Onset information matters
 most when enough relatives are observed as cases; at low prevalence its
-increment is small. Minimum first-replicate PA/Gibbs agreement is 0.998997.
+increment is small. Minimum first-replicate PA/Gibbs agreement is 0.998964.
 
 ## 4. Replicated classic-LT-FH genotype GWAS (`bench_gwas_power.py`)
 
@@ -200,14 +201,14 @@ distinct across cohorts.
 
 | true h² | fitted mean | bias | empirical SD | reported MC SE | SD / MC SE |
 |---:|---:|---:|---:|---:|---:|
-| 0.2 | 0.201 | +0.001 | 0.040 | 0.0019 | 21× |
-| 0.4 | 0.386 | -0.014 | 0.057 | 0.0020 | 28× |
-| 0.6 | 0.596 | -0.004 | 0.061 | 0.0024 | 25× |
-| 0.8 | 0.786 | -0.014 | 0.062 | 0.0025 | 25× |
+| 0.2 | 0.201 | +0.001 | 0.037 | 0.0020 | 19× |
+| 0.4 | 0.387 | -0.013 | 0.055 | 0.0022 | 25× |
+| 0.6 | 0.577 | -0.023 | 0.063 | 0.0023 | 28× |
+| 0.8 | 0.786 | -0.014 | 0.061 | 0.0026 | 24× |
 
-At 3,000 families, empirical SD is 0.105 with parents only, 0.054 with parents +
-two siblings, and 0.046 with the extended structure. The 4,000/8,000-family SDs
-are 0.039/0.041; their chi-square SD intervals overlap substantially, so the tiny
+At 3,000 families, empirical SD is 0.107 with parents only, 0.052 with parents +
+two siblings, and 0.051 with the extended structure. The 4,000/8,000-family SDs
+are 0.038/0.040; their chi-square SD intervals overlap substantially, so the tiny
 uptick is replicate noise, not evidence against 1/sqrt(N) scaling.
 
 The returned `h2_se` is within-run Monte Carlo error. It is not a sampling
@@ -221,13 +222,13 @@ across-cohort SD):
 
 | true A | true C | fitted A (SD) | fitted C (SD) |
 |---:|---:|---:|---:|
-| 0.4 | 0.2 | 0.398 (0.055) | 0.197 (0.034) |
-| 0.5 | 0.1 | 0.486 (0.051) | 0.099 (0.032) |
-| 0.3 | 0.3 | 0.295 (0.064) | 0.295 (0.042) |
-| 0.6 | 0.0 | 0.583 (0.046) | 0.010 (0.007) |
+| 0.4 | 0.2 | 0.399 (0.057) | 0.190 (0.034) |
+| 0.5 | 0.1 | 0.492 (0.053) | 0.101 (0.032) |
+| 0.3 | 0.3 | 0.297 (0.062) | 0.294 (0.038) |
+| 0.6 | 0.0 | 0.583 (0.057) | 0.013 (0.012) |
 
 At true A=0.4 and C=0.2, increasing N from 1,000 to 8,000 families reduces
-empirical SD from 0.053 to 0.029 for A and from 0.066 to 0.025 for C. The small
+empirical SD from 0.072 to 0.029 for A and from 0.067 to 0.018 for C. The small
 positive biases at N=1,000 shrink toward zero with N.
 
 The null panel reports a constrained boundary mean and SD. Formal component
@@ -241,13 +242,13 @@ includes phenotypic correlation 0.2 even when genetic correlation is zero.
 
 | true r_g | fitted mean | bias | empirical SD |
 |---:|---:|---:|---:|
-| 0.0 | 0.0068 | +0.0068 | 0.0688 |
-| 0.3 | 0.2755 | -0.0245 | 0.0581 |
-| 0.6 | 0.5778 | -0.0222 | 0.0653 |
+| 0.0 | -0.0061 | -0.0061 | 0.0798 |
+| 0.3 | 0.2894 | -0.0106 | 0.0825 |
+| 0.6 | 0.5976 | -0.0024 | 0.0706 |
 
-At true r_g=0.5, the across-cohort SD is 0.124, 0.099, 0.064, and 0.037
+At true r_g=0.5, the across-cohort SD is 0.148, 0.108, 0.078, and 0.042
 for N=1,000, 2,000, 4,000, and 8,000 families (15 cohorts per point). Bias at
-8,000 is +0.0009. The null cell shows that non-genetic phenotypic correlation is
+8,000 is +0.0068. The null cell shows that non-genetic phenotypic correlation is
 not spuriously recovered as genetic correlation on average.
 
 ## 8. Shared environment and prediction (`bench_shared_env.py`)
@@ -260,20 +261,22 @@ The last two columns are the fitted parameters behind those predictions.
 
 | true c² | accuracy, ignore C | accuracy, fit A+C | paired gain ± 95% CI | fitted h², ignore C | fitted h², fit A+C |
 |---:|---:|---:|---:|---:|---:|
-| 0.0 | 0.53356 | 0.53351 | -0.00005 ± 0.00034 | 0.487 | 0.484 |
-| 0.1 | 0.50160 | 0.50291 | +0.00131 ± 0.00019 | 0.531 | 0.448 |
-| 0.2 | 0.48912 | 0.49319 | +0.00407 ± 0.00199 | 0.638 | 0.453 |
-| 0.3 | 0.47151 | 0.47805 | +0.00654 ± 0.00204 | 0.748 | 0.483 |
+| 0.0 | 0.53251 | 0.53238 | -0.00013 ± 0.00041 | 0.502 | 0.492 |
+| 0.1 | 0.49899 | 0.49996 | +0.00096 ± 0.00061 | 0.550 | 0.468 |
+| 0.2 | 0.48869 | 0.49226 | +0.00357 ± 0.00144 | 0.643 | 0.469 |
+| 0.3 | 0.47059 | 0.47649 | +0.00590 ± 0.00231 | 0.748 | 0.478 |
 
 At c²=0.3, the paired gains with 2, 4, and 6 full siblings are respectively
-+0.00480 ± 0.00472, +0.00668 ± 0.00127, and +0.00601 ± 0.00229 (95% CI
++0.00266 ± 0.00342, +0.00636 ± 0.00574, and +0.00829 ± 0.00658 (95% CI
 half-widths). More relatives help identify C, but four replicates are too few to
 claim monotone gain with sibship size.
 
-The benchmark now retains per-family Gibbs MCSEs and warns when estimates miss
-the requested tolerance. That instrumentation was added immediately after this
-30-minute canonical run, whose pre-instrumentation code discarded the MCSEs;
-therefore convergence flags cannot honestly be reconstructed for these rows.
+The benchmark retains per-family Gibbs MCSEs and warns when estimates miss the
+requested tolerance, and the stored rows carry that instrumentation: across the
+four fitted models the per-model MCSE maxima span 0.0093–0.0200, with zero
+nonfinite and zero unconverged estimates in every cell. The canonical run took
+542 s (`run_manifest.jsonl`), not the ~30 minutes an earlier transcription of
+this paragraph claimed.
 
 The predictive increment is intentionally evaluated as a paired difference on
 the same cohorts. Its main practical value is smaller than the parameter-
@@ -285,18 +288,18 @@ Twenty-five independent cohorts per cell, 3,000 extended families.
 
 | true m² | fitted A (true 0.4) | A SD | fitted M | M SD |
 |---:|---:|---:|---:|---:|
-| 0.0 | 0.398 | 0.034 | 0.018 | 0.012 |
-| 0.1 | 0.400 | 0.031 | 0.106 | 0.038 |
-| 0.2 | 0.396 | 0.027 | 0.197 | 0.042 |
-| 0.3 | 0.393 | 0.036 | 0.301 | 0.029 |
+| 0.0 | 0.394 | 0.032 | 0.014 | 0.011 |
+| 0.1 | 0.392 | 0.036 | 0.102 | 0.035 |
+| 0.2 | 0.399 | 0.032 | 0.197 | 0.038 |
+| 0.3 | 0.387 | 0.029 | 0.286 | 0.022 |
 
 Omission comparison, using the same shared variance as sibship C or couple M:
 
 | shared variance | bias in A if C omitted (SD) | bias in A if M omitted (SD) |
 |---:|---:|---:|
-| 0.1 | +0.044 (0.034) | +0.004 (0.033) |
-| 0.2 | +0.108 (0.034) | +0.012 (0.052) |
-| 0.3 | +0.163 (0.034) | +0.038 (0.033) |
+| 0.1 | +0.047 (0.031) | -0.005 (0.031) |
+| 0.2 | +0.101 (0.034) | +0.025 (0.040) |
+| 0.3 | +0.156 (0.037) | +0.034 (0.035) |
 
 Omitting M biases A much less than omitting C, but not identically zero. The
 M=0 result is a constrained boundary floor, not evidence of a false-positive
@@ -313,14 +316,14 @@ death or current age. Values are scored against known true genetic liability.
 
 | observed proband case fraction | case/control corr | classic LT-FH corr (PA) | FH + age/cohort corr (PA) | classic LT-FH squared-correlation eff-N proxy / c-c | age/cohort proxy / classic |
 |---:|---:|---:|---:|---:|---:|
-| 0.019 (population) | 0.233 | 0.347 | 0.348 | 2.212 ± 0.015× | 1.009 ± 0.011× |
-| 0.10 | 0.464 | 0.524 | 0.530 | 1.276 ± 0.006× | 1.021 ± 0.002× |
-| 0.25 | 0.623 | 0.658 | 0.668 | 1.118 ± 0.006× | 1.029 ± 0.001× |
-| 0.50 | 0.698 | 0.728 | 0.744 | 1.086 ± 0.009× | 1.045 ± 0.002× |
+| 0.0215 (population) | 0.232 | 0.346 | 0.350 | 2.233 ± 0.127× | 1.023 ± 0.003× |
+| 0.10 | 0.471 | 0.525 | 0.531 | 1.242 ± 0.018× | 1.022 ± 0.002× |
+| 0.25 | 0.621 | 0.654 | 0.663 | 1.107 ± 0.008× | 1.030 ± 0.002× |
+| 0.50 | 0.694 | 0.722 | 0.738 | 1.081 ± 0.003× | 1.045 ± 0.002× |
 
 Both family-history scores use PA. The first is classic LT-FH; the second changes
 the bounds to add age and cohort information, not the inference engine. Thus the
-population-sampling **2.212 ± 0.015×** is
+population-sampling **2.233 ± 0.127×** is
 `(corr(classic LT-FH) / corr(case/control))²`, a squared-correlation eff-N
 proxy, not the causal-SNP NCP ratio reported in section 4. Family history is most
 valuable relative to case/control in population sampling; the incremental
@@ -329,9 +332,9 @@ age/cohort benefit grows under ascertainment.
 ### Cohort effects
 
 At a 3× lifetime-prevalence trend per 30 birth years, cohort-aware and single-K
-pedigree scores have similar narrow-cohort ranking (0.7445 versus 0.7427), but
-their mean scores differ by -0.07246 ± 0.00031. Truth-referenced mean errors are
-+0.0031 ± 0.0059 for cohort-aware and -0.0693 ± 0.0062 for single-K.
+pedigree scores have similar narrow-cohort ranking (0.7419 versus 0.7399), but
+their mean scores differ by -0.07335 ± 0.00025. Truth-referenced mean errors are
++0.0041 ± 0.0057 for cohort-aware and -0.0693 ± 0.0057 for single-K.
 
 The replicated own-onset panel has **no family-history inputs** and is therefore
 ADuLT. It isolates cohort-aware versus cohort-blind ranking across broader birth
@@ -348,13 +351,13 @@ cohorts:
 
 Fifteen independent cohorts, 3,000 families, five traits. Under planted
 one-factor truth, loadings 0.8/0.7/0.6/0.5/0.4 are recovered as
-0.822/0.704/0.606/0.487/0.404, with SD 0.056–0.102.
+0.809/0.695/0.596/0.522/0.411, with SD 0.052–0.088.
 
 | truth and fitted model | SRMR mean | SRMR SD |
 |---|---:|---:|
-| true 1F, fit 1F | 0.047 | 0.015 |
-| true 2F, fit 1F | 0.146 | 0.030 |
-| true 2F, fit 2F | 0.017 | 0.011 |
+| true 1F, fit 1F | 0.042 | 0.011 |
+| true 2F, fit 1F | 0.145 | 0.033 |
+| true 2F, fit 2F | 0.016 | 0.011 |
 
 This demonstrates that SRMR diagnoses this planted misspecification. It is not a
 calibrated factor-number test; extra factors improve in-sample fit by construction.
@@ -367,31 +370,31 @@ across-seed means ± SE. Correctly specified PA:
 
 | structure | K | slope | corr | top-decile realised/predicted |
 |---|---:|---:|---:|---:|
-| parents + siblings | 0.01 | 1.004 ± 0.024 | 0.259 ± 0.003 | 0.978 ± 0.089 |
-| parents + siblings | 0.05 | 1.006 ± 0.008 | 0.431 ± 0.004 | 1.002 ± 0.027 |
-| parents + siblings | 0.20 | 1.006 ± 0.005 | 0.593 ± 0.003 | 1.002 ± 0.006 |
-| extended | 0.01 | 0.954 ± 0.036 | 0.243 ± 0.007 | 0.878 ± 0.041 |
-| extended | 0.05 | 1.011 ± 0.013 | 0.431 ± 0.005 | 1.000 ± 0.015 |
-| extended | 0.20 | 0.998 ± 0.010 | 0.595 ± 0.006 | 0.997 ± 0.016 |
+| parents + siblings | 0.01 | 1.004 ± 0.024 | 0.259 ± 0.003 | 0.982 ± 0.059 |
+| parents + siblings | 0.05 | 1.006 ± 0.008 | 0.431 ± 0.004 | 1.003 ± 0.030 |
+| parents + siblings | 0.20 | 1.006 ± 0.005 | 0.593 ± 0.003 | 1.001 ± 0.007 |
+| extended | 0.01 | 0.989 ± 0.027 | 0.249 ± 0.004 | 0.946 ± 0.018 |
+| extended | 0.05 | 1.002 ± 0.019 | 0.429 ± 0.008 | 0.991 ± 0.023 |
+| extended | 0.20 | 1.002 ± 0.007 | 0.595 ± 0.006 | 1.007 ± 0.004 |
 
 Every slope mean is within 1.3 SE of 1 and every PA intercept within 0.01
 of 0; Gibbs and PA slope means agree within 0.01 cell for cell. The former
 single-seed outlier (extended pedigree, K=0.01, slope 0.916) replicates as
-0.954 ± 0.036 — mostly cohort noise. One departure does replicate: at
+0.989 ± 0.027 — mostly cohort noise. One departure does replicate: at
 K=0.01 with the extended pedigree the top-decile realised/predicted ratio
-is 0.878 ± 0.041, about 3 SE below 1, so the top of that score is
-over-stated by roughly 12%. Calibration is good in every tested cell, but
+is 0.946 ± 0.018, about 3 SE below 1, so the top of that score is
+over-stated by roughly 5%. Calibration is good in every tested cell, but
 the rare-disease top decile still blocks a universal calibration claim.
 
 Misspecified h², with true h²=0.5 and K=0.05:
 
 | assumed h² | slope | corr | top realised/predicted | calibration RMSE |
 |---|---:|---:|---:|---:|
-| 0.2 | 2.240 ± 0.015 | 0.429 ± 0.004 | 2.253 ± 0.060 | 0.165 ± 0.003 |
-| 0.4 | 1.216 ± 0.009 | 0.431 ± 0.004 | 1.214 ± 0.033 | 0.068 ± 0.004 |
-| 0.5 | 1.006 ± 0.008 | 0.431 ± 0.004 | 1.002 ± 0.027 | 0.043 ± 0.006 |
-| 0.6 | 0.864 ± 0.007 | 0.430 ± 0.004 | 0.859 ± 0.024 | 0.062 ± 0.006 |
-| 0.8 | 0.678 ± 0.006 | 0.429 ± 0.004 | 0.675 ± 0.019 | 0.137 ± 0.006 |
+| 0.2 | 2.240 ± 0.015 | 0.429 ± 0.004 | 2.256 ± 0.065 | 0.165 ± 0.004 |
+| 0.4 | 1.216 ± 0.009 | 0.431 ± 0.004 | 1.215 ± 0.036 | 0.066 ± 0.004 |
+| 0.5 | 1.006 ± 0.008 | 0.431 ± 0.004 | 1.003 ± 0.030 | 0.040 ± 0.006 |
+| 0.6 | 0.864 ± 0.007 | 0.430 ± 0.004 | 0.862 ± 0.025 | 0.058 ± 0.006 |
+| 0.8 | 0.678 ± 0.006 | 0.429 ± 0.004 | 0.678 ± 0.020 | 0.135 ± 0.006 |
 
 Ranking barely changes — corr spans 0.429–0.431 with SE ≤ 0.004 — while
 the slope sweeps from 2.240 ± 0.015 down to 0.678 ± 0.006: the
@@ -424,9 +427,9 @@ Single-seed stress cells:
 | regime | corr(PA, Gibbs) | corr(PA, true g) | corr(Gibbs, true g) |
 |---|---:|---:|---:|
 | baseline | 0.99969 | 0.4380 | 0.4377 |
-| large pedigree | 0.99973 | 0.4490 | 0.4501 |
+| large pedigree | 0.99972 | 0.4483 | 0.4491 |
 | rare, K=0.005 | 0.99843 | 0.2300 | 0.2308 |
-| densely affected | 0.99909 | 0.4657 | 0.4665 |
+| densely affected | 0.99907 | 0.4893 | 0.4902 |
 
 Fold-order spread as a percentage of the between-proband score SD:
 
@@ -434,12 +437,14 @@ Fold-order spread as a percentage of the between-proband score SD:
 |---|---:|---:|
 | trio | 0.084% | 1.96% |
 | parents + 2 siblings | 0.114% | 2.24% |
-| extended | 0.094% | 3.36% |
-| large | 0.069% | 2.82% |
+| extended | 0.090% | 2.39% |
+| large | 0.068% | 3.33% |
 
-The typical order effect is tiny. The p95 values are small but not monotone in
-pedigree size. This script does not compare fold-order spread with Gibbs Monte
-Carlo noise and does not directly measure rank changes, so it makes neither claim.
+The typical order effect is tiny. The p95 values are small and rise with
+pedigree size in this grid, while the medians are not monotone; with one seed
+per cell, either pattern is descriptive rather than established. This script
+does not compare fold-order spread with Gibbs Monte Carlo noise and does not
+directly measure rank changes, so it makes neither claim.
 
 ## 15. Integrated personalised LT-FH++ genotype GWAS (`bench_ltfhpp_personalization.py`)
 
@@ -660,14 +665,15 @@ remarriages and cousin links):
   truncates only *which relatives* are included, never the kinship among
   them.)
 - **Payoff (the LT-FGRS point):** estimating genetic liability on 300
-  probands, corr(est, truth) is 0.618 using all relatives up to third degree
-  vs 0.559 with the fixed named-role subset the grammar encodes (parents, full
+  probands, corr(est, truth) is 0.532 using all relatives up to third degree
+  vs 0.452 with the fixed named-role subset the grammar encodes (parents, full
   siblings, and grandparents)
-  (+10.6%); the two scores correlate 0.89 -- which relatives you include
-  matters, consistent with Pedersen et al. (2026, LT-FGRS).
-- **Scale:** 3,000 extractions at degree 3 in 0.29 s (~0.1 ms per proband);
-  per-proband neighborhoods stay small (tens of nodes), so per-proband
-  extraction plus a small dense kinship covariance is the right architecture.
+  (+17.6%); the two scores correlate 0.88 -- which relatives you include
+  matters, consistent with the LT-FGRS package (Pedersen et al.).
+- **Scale:** 3,000 extractions at degree 3 in 0.18–0.32 s over the two stored
+  runs (~0.1 ms per proband); per-proband neighborhoods stay small (tens of
+  nodes), so per-proband extraction plus a small dense kinship covariance is
+  the right architecture.
 
 Kinship here is the exact tabular method (inbreeding-aware), not the 2025
 paper's path-counting approximation.
@@ -681,24 +687,28 @@ liability field `G ~ N(0, h2 A)`, `L = G + E` -- an earlier per-pedigree draw
 silently decorrelates probands' g from relatives' statuses; the crossing
 model with a logistic CIP, lifetime prevalence 0.10):
 
-- **Accuracy / which relatives matter:** corr(est, true g) is 0.364 at
-  degree 3 (first cousins) vs 0.340 at degree 1 (first-degree only), with
-  calibration slopes near 1 (0.93 / 0.96). The degree-3 advantage is modest
+- **Accuracy / which relatives matter:** corr(est, true g) is 0.373 at
+  degree 3 (first cousins) vs 0.364 at degree 1 (first-degree only), with
+  calibration slopes near 1 (0.96 / 1.03). The degree-3 advantage is modest
   at this ~3% effective case rate -- the LT-FGRS effect, in the realistic
-  direction. (corr ~0.36 is itself the honest accuracy at this case rate and
-  age structure; the pedigree benchmark's 0.62 used a 10% rate with a uniform
+  direction. (corr ~0.37 is itself the honest accuracy at this case rate and
+  age structure; the pedigree benchmark's 0.53 used a 10% rate with a uniform
   threshold.)
-- **CIP estimated from the register itself:** 0.3648 vs 0.3640 with the
+- **CIP estimated from the register itself:** 0.3728 vs 0.3733 with the
   oracle curve. This run detected no loss from estimating the CIP from
   follow-up records at this register size; it does not establish zero cost
   without repeated-run uncertainty (consistent with section 19).
 - **Prospective prediction** (diagnosis after index age 40): the honest
-  familywise-censored score reaches corr 0.090 with the future outcome;
-  leaking relatives' post-index events adds +0.04 (0.132), and leaking the
-  proband's own future outcome inflates to 0.357 -- a clean demonstration of
-  both the cost of honest censoring and what leakage buys.
-- **Throughput:** ~160 probands/s (400 in 2.5 s), per-proband extraction plus
-  a small dense kinship covariance each.
+  familywise-censored score reaches corr 0.169 with the future outcome;
+  adding relatives' post-index events gives 0.148, and leaking the proband's
+  own future outcome inflates to 0.399. A single run retains no replicate
+  uncertainty, so the relatives'-events contrast does not establish that
+  those events help or harm at this sample size; the proband's-own-outcome
+  leakage is unambiguous and large -- honest censoring costs real accuracy,
+  and leaking the proband's own future buys plenty.
+- **Throughput:** 266–359 probands/s over the two stored runs (400 in
+  1.1–1.5 s), per-proband extraction plus a small dense kinship covariance
+  each.
 
 ## 22. Tetrachoric correlations (`bench_tetrachoric.py`)
 
@@ -814,18 +824,18 @@ fitted with `n_em = 45`, `n_draw = 100`, 3 replicates per cell:
 |---|---|---|---|
 | scalar null | r_g = 0.5, lam = 0 | 0.506 +/- 0.049 | 0.001 +/- 0.002 |
 | decay | r_g = 0.5, lam = 0.04 | 0.515 +/- 0.178 | 0.041 +/- 0.009 |
-| data req (n = 1200) | r_g = 0.5, lam = 0.04 | 0.618 +/- 0.128 | 0.064 +/- 0.027 |
-| data req (n = 2500) | r_g = 0.5, lam = 0.04 | 0.530 +/- 0.110 | 0.045 +/- 0.021 |
-| r_g null | r_g = 0, lam = 0.04 | 0.005 +/- 0.087 | (unidentified) |
+| data req (n = 1000) | r_g = 0.5, lam = 0.04 | 0.578 +/- 0.107 | 0.063 +/- 0.029 |
+| data req (n = 2500) | r_g = 0.5, lam = 0.04 | 0.526 +/- 0.114 | 0.044 +/- 0.022 |
+| r_g null | r_g = 0, lam = 0.04 | 0.009 +/- 0.089 | (unidentified) |
 
 - **The headline r_g is recovered** (0.51-0.53 at `n_fam = 2500`), and the decay
   rate is identified in the right place (`lam_cross ~ 0.041`, `lam_within ~ 0.039`
   vs true 0.04).
 - **The scalar null is clean**: `lam = 0` refits give `r_g ~ 0.51` and
   `lam ~ 0.001` -- no manufactured decay, exactly the scalar-model limit.
-- **No spurious correlation at the `r_g = 0` null** (`0.005 +/- 0.087`).
-- **The model is data-hungry**: at `n_fam = 1200` both `r_g` and `lam` run high
-  (0.62 / 0.064) along the amplitude-decay ridge, converging to the truth as `n`
+- **No spurious correlation at the `r_g = 0` null** (`0.009 +/- 0.089`).
+- **The model is data-hungry**: at `n_fam = 1000` both `r_g` and `lam` run high
+  (0.58 / 0.063) along the amplitude-decay ridge, converging to the truth as `n`
   grows into the thousands. Below that, estimates are ridge-dominated; prefer the
   scalar `fit_genetic_correlation`.
 - *Estimator correctness*: the analytic cross-trait gradient of the M-step is
@@ -864,7 +874,7 @@ This benchmark measures it against a known truth.
 Families (proband + both parents + one sibling) are drawn from the **true**
 sex-limited covariance, so the proband's genetic liability is known exactly.
 Proband and sibling sexes are balanced across the four cells. `K_female = 0.05`,
-`K_male = 0.10`; 5 replicates of 2,000 families. Four arms, all scored by
+`K_male = 0.10`; 3 replicates of 2,000 families. Four arms, all scored by
 `corr(estimate, true g)` and the calibration slope `regress(true on estimate)`:
 the stored `±` values are the original normal 95% half-widths. The script now
 uses t half-widths; rerun it before quoting its intervals as current.
@@ -882,27 +892,27 @@ fixed:
 
 | true rg | sex thresholds | sex in Sigma | gain | eff-N proxy |
 |---:|---:|---:|---:|---:|
-| 1.0 | 0.3663 | 0.4100 | +0.0437 ± 0.0035 | 1.255x ± 0.036 |
-| 0.8 | 0.3703 | 0.4115 | +0.0412 ± 0.0073 | 1.238x ± 0.053 |
-| 0.6 | 0.3573 | 0.4055 | +0.0482 ± 0.0060 | 1.290x ± 0.044 |
-| 0.4 | 0.3430 | 0.3978 | +0.0548 ± 0.0048 | 1.349x ± 0.047 |
-| 0.2 | 0.3430 | 0.4030 | +0.0601 ± 0.0056 | 1.384x ± 0.057 |
+| 1.0 | 0.3735 | 0.4149 | +0.0414 ± 0.0213 | 1.235x ± 0.126 |
+| 0.8 | 0.3604 | 0.4023 | +0.0419 ± 0.0289 | 1.249x ± 0.199 |
+| 0.6 | 0.3550 | 0.4013 | +0.0462 ± 0.0237 | 1.278x ± 0.151 |
+| 0.4 | 0.3348 | 0.3937 | +0.0589 ± 0.0106 | 1.384x ± 0.064 |
+| 0.2 | 0.3306 | 0.3921 | +0.0614 ± 0.0030 | 1.407x ± 0.046 |
 
 **(b) Sweeping the heritability gap** at `rg = 1`, mean `h2 = 0.4`:
 
 | gap | sex thresholds | sex in Sigma | gain | eff-N proxy |
 |---:|---:|---:|---:|---:|
-| 0.0 | 0.4100 | 0.4100 | +0.0000 ± 0.0000 | 1.000x ± 0.000 |
-| 0.2 | 0.3929 | 0.4056 | +0.0127 ± 0.0030 | 1.066x ± 0.016 |
-| 0.4 | 0.3657 | 0.4042 | +0.0385 ± 0.0052 | 1.222x ± 0.032 |
-| 0.6 | 0.3402 | 0.4365 | +0.0963 ± 0.0087 | 1.651x ± 0.093 |
+| 0.0 | 0.4001 | 0.4001 | +0.0000 ± 0.0000 | 1.000x ± 0.000 |
+| 0.2 | 0.3837 | 0.3948 | +0.0111 ± 0.0026 | 1.059x ± 0.023 |
+| 0.4 | 0.3537 | 0.3942 | +0.0405 ± 0.0144 | 1.241x ± 0.070 |
+| 0.6 | 0.3395 | 0.4335 | +0.0940 ± 0.0272 | 1.639x ± 0.334 |
 
 At gap 0 with `rg = 1` the sex-limited covariance **is** the scalar covariance,
 so the arms are bit-identical and the gain is exactly zero -- the benchmark's
 own sanity check.
 
 The gain is real but conditional, and modest until the sex difference is large:
-`1.07x` at a heritability gap of 0.2, `1.22x` at 0.4, `1.65x` at 0.6.
+`1.06x` at a heritability gap of 0.2, `1.24x` at 0.4, `1.64x` at 0.6.
 **A sex-limited model with no sex difference to find buys nothing**, which is
 the case a practitioner should expect by default. Mis-specifying `rg` as 1 when
 it is truly 0.2 costs about a quarter of the gain: worth getting approximately
@@ -918,12 +928,12 @@ cannot contribute and every bit of any gain is attributable to `rg`:
 
 | true rg | composition | sex thresholds | sex in Sigma | gain |
 |---:|---|---:|---:|---:|
-| 1.0 | same-sex | 0.3993 | 0.3993 | +0.0000 ± 0.0000 |
-| 0.6 | same-sex | 0.3993 | 0.3993 | +0.0000 ± 0.0000 |
-| 0.2 | same-sex | 0.3993 | 0.3993 | +0.0000 ± 0.0000 |
-| 1.0 | cross-sex | 0.4276 | 0.4276 | +0.0000 ± 0.0000 |
-| 0.6 | cross-sex | 0.3741 | 0.3843 | +0.0102 ± 0.0052 |
-| 0.2 | cross-sex | 0.3046 | 0.3503 | +0.0457 ± 0.0113 |
+| 1.0 | same-sex | 0.4105 | 0.4105 | +0.0000 ± 0.0000 |
+| 0.6 | same-sex | 0.4105 | 0.4105 | +0.0000 ± 0.0000 |
+| 0.2 | same-sex | 0.4105 | 0.4105 | +0.0000 ± 0.0000 |
+| 1.0 | cross-sex | 0.4271 | 0.4271 | +0.0000 ± 0.0000 |
+| 0.6 | cross-sex | 0.3740 | 0.3871 | +0.0131 ± 0.0096 |
+| 0.2 | cross-sex | 0.3035 | 0.3538 | +0.0502 ± 0.0342 |
 
 The effect appears in exactly the cells the model predicts and nowhere else:
 identically zero across every same-sex row regardless of `rg`, zero in the
@@ -933,23 +943,23 @@ the pairs it is defined to act on. It also shows where the model is worth
 reaching for: pedigrees rich in opposite-sex relatives, not same-sex ones.
 
 **Calibration is the cleaner signal.** Only the sex-limited covariance is
-calibrated; the slope sits at `0.981-1.034` across every cell. The
-threshold-only arm degrades as the gap grows (`0.9814` at gap 0 down to
-`0.8272` at gap 0.6), and the pooled arm sits between them.
+calibrated; the slope sits at `0.945-1.019` across every cell. The
+threshold-only arm degrades as the gap grows (`0.9609` at gap 0 down to
+`0.8390` at gap 0.6), and the pooled arm sits between them.
 
 **An unexpected result worth stating plainly.** When the architecture is
 genuinely sex-limited but the covariance is left sex-blind, personalising the
 *thresholds* by sex made the score **worse** than ignoring sex entirely --
-`0.3402` vs `0.3849` in correlation at gap 0.6, and worse on calibration too
-(`0.8272` vs `0.9241`). This is not an argument for sex-blind thresholds. It is
+`0.3395` vs `0.3906` in correlation at gap 0.6, and worse on calibration too
+(`0.8390` vs `0.9469`). This is not an argument for sex-blind thresholds. It is
 consistent with the factorisation: thresholds set `mu`, but the estimate is
 `w' mu`, and sharpening `mu` for a subgroup whose weights `w` are wrong need not
 improve the product. Two mis-specifications partially cancel in the pooled arm.
 The reading is that sex-specific thresholds and a sex-specific covariance are
 not substitutes -- under true sex limitation, only fixing `Sigma` fixed both
 ranking and calibration. Verified as a real effect rather than noise: at gap 0
-the pooled/threshold difference is `-0.0011` over 6 replicates of 4,000
-families, within the CI, and it appears only once the gap is nonzero.
+the pooled/threshold difference is `-0.0051` over the stored 3 replicates of
+2,000 families, within the CI, and it appears only once the gap is nonzero.
 
 Caveats: one pedigree shape, a balanced sex design, PA inference, and supplied
 rather than fitted parameters. Nothing here estimates `h2_F`, `h2_M` or `rg`,
@@ -979,10 +989,10 @@ a rerun for current intervals. Four estimators are scored against `A_o`:
 
 | true n | additive (moment h2) | A + C matched | nurture | cost |
 |---:|---:|---:|---:|---:|
-| 0.0 | 0.3690 | 0.3690 | 0.3690 | +0.0000 ± 0.0000 |
-| 0.1 | 0.3952 | 0.3949 | 0.3958 | +0.0006 ± 0.0006 |
-| 0.2 | 0.4237 | 0.4221 | 0.4253 | +0.0017 ± 0.0007 |
-| 0.3 | 0.4602 | 0.4550 | 0.4645 | +0.0043 ± 0.0017 |
+| 0.0 | 0.3805 | 0.3805 | 0.3805 | +0.0000 ± 0.0000 |
+| 0.1 | 0.3952 | 0.3949 | 0.3958 | +0.0006 ± 0.0008 |
+| 0.2 | 0.4237 | 0.4221 | 0.4253 | +0.0017 ± 0.0010 |
+| 0.3 | 0.4602 | 0.4550 | 0.4645 | +0.0043 ± 0.0025 |
 
 At `n = 0` every arm is identical and the cost is exactly zero -- the sanity
 check. Correlation *rises* with `n` in all arms, because a stronger shared
@@ -994,12 +1004,12 @@ cost of ignoring nurture stays small throughout.
 
 | true n | c2 matched | h2 from parent-offspring | h2 from sibs | A+C slope | nurture slope |
 |---:|---:|---:|---:|---:|---:|
-| 0.0 | 0.0000 | 0.4000 | 0.4000 | 1.0012 | 1.0012 |
+| 0.0 | 0.0000 | 0.4000 | 0.4000 | 1.0157 | 1.0157 |
 | 0.1 | 0.0880 | 0.4800 | 0.5760 | 1.0693 | 1.0000 |
 | 0.2 | 0.1920 | 0.5600 | 0.7840 | 1.1458 | 1.0077 |
 | 0.3 | 0.3120 | 0.6400 | 1.0000 | 1.1957 | 1.0005 |
 
-The nurture model is calibrated at every setting (slope `1.000-1.008`). The
+The nurture model is calibrated at every setting (slope `1.000-1.016`). The
 A+C model -- which reproduces the sibling covariance **exactly** -- drifts to
 `1.196`, under-predicting the true direct effect by about a fifth.
 
@@ -1045,6 +1055,18 @@ constructor requires.
 - Added LD-proxy filtering to the real-LD calibration path.
 - Removed unsupported claims about fold-order monotonicity, Gibbs-noise dominance,
   universal score calibration, and zero omission bias for M.
+- Re-derived every quantitative table from the stored 2026-07-31/08-01 artifacts
+  (the 19 committed `bench_*.csv` files and the `run_logs/` run logs) on
+  2026-08-09, after an independent review (`docs/EXTERNAL_REVIEW.md`, 2026-08-07)
+  found doc/artifact transcription skew in roughly a third of the tables.
+  Qualitative text changed in §7 (genetic-correlation null-bias sign), §8
+  (removed the false claim that the stored rows predate MCSE instrumentation --
+  the CSV carries per-model MCSE-max/nonfinite/unconverged columns), §14
+  (fold-order p95 ordering), §20 (pedigree-payoff magnitude), §21 (the
+  relatives'-events leakage contrast: stored direction is a decrease, so the
+  contrast is now unresolved at this n rather than asserted), and §26
+  (replicate-count correction, 5 to 3, with the affected cells refreshed). No
+  qualitative conclusion changed except §21's leakage-contrast direction.
 
 ## Remaining limitations
 

@@ -48,7 +48,8 @@ def fit_rep(kw, n_fam, rep, args):
     r = fit_genetic_correlation_decay(fams, kernel="ou", n_em=args.n_em,
                                       n_draw=args.n_draw, burn=args.burn,
                                       m_iter=args.m_iter,
-                                      seed=args.seed + 100_000 + rep)
+                                      seed=args.seed + 100_000 + rep,
+                                      sampling="population")
     return r.rg[0, 1], r.h2.copy(), r.lambda_cross[0, 1]
 
 

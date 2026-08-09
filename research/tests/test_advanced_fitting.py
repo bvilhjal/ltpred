@@ -85,7 +85,7 @@ def test_genetic_correlation_recovers_rg():
     fams = _simulate_two_trait(["m", "f", "s1", "s2"], [0.5, 0.4], rg, rp,
                                n_fam=2500, prev=[0.1, 0.1], seed=101)
     r = fit_genetic_correlation(fams, n_iter=800, burn_in=250, seed=1,
-                                phen_names=["A", "B"])
+                                phen_names=["A", "B"], sampling="population")
     assert r.rg.shape == (2, 2)
     assert r.phen_names == ["A", "B"]
     assert np.allclose(np.diag(r.rg), 1.0)
@@ -106,7 +106,8 @@ def test_genetic_correlation_null_no_false_positive():
     rp = np.array([[1.0, 0.3], [0.3, 1.0]])
     fams = _simulate_two_trait(["m", "f", "s1", "s2"], [0.5, 0.5], rg, rp,
                                n_fam=2500, prev=[0.1, 0.1], seed=7)
-    r = fit_genetic_correlation(fams, n_iter=800, burn_in=250, seed=1)
+    r = fit_genetic_correlation(fams, n_iter=800, burn_in=250, seed=1,
+                                sampling="population")
     assert abs(r.rg[0, 1]) < 0.30                            # no spurious genetic corr
     assert r.rp[0, 1] > 0.10                                 # phenotypic corr still seen
     # the phenotypic correlation shows up as an *environmental* one instead
@@ -146,7 +147,8 @@ def test_genetic_correlation_uses_and_reports_one_coherent_psd_model(monkeypatch
     monkeypatch.setattr(af_mod, "gibbs_params", fake_params)
     monkeypatch.setattr(af_mod, "gibbs_advance", fake_advance)
     result = af_mod.fit_genetic_correlation(
-        fams, n_iter=5, burn_in=1, inner_sweeps=1, damp=1.0)
+        fams, n_iter=5, burn_in=1, inner_sweeps=1, damp=1.0,
+        sampling="population")
 
     for matrix in (result.genetic_cov, result.env_cov, result.rg,
                    result.re, result.rp):
@@ -170,7 +172,8 @@ def test_genetic_correlation_validates_input():
     # lone probands (no related pairs)
     lone = [Family(i, [Member("o", [-np.inf, -np.inf], [1.0, 1.0])]) for i in range(20)]
     with pytest.raises(ValueError, match="related pairs"):
-        fit_genetic_correlation(lone, n_iter=50, burn_in=10)
+        fit_genetic_correlation(lone, n_iter=50, burn_in=10,
+                                sampling="population")
     with pytest.raises(ValueError, match="burn_in"):
         fit_genetic_correlation(
             _simulate_two_trait(["m", "f", "s1"], [0.5, 0.5], np.eye(2), np.eye(2),
@@ -466,7 +469,8 @@ def test_genetic_correlation_test_detects_rg():
     rp = np.array([[1.0, 0.2], [0.2, 1.0]])
     fams = _simulate_two_trait(["m", "f", "s1", "s2"], [0.5, 0.5], rg, rp,
                                n_fam=1500, prev=[0.1, 0.1], seed=3)
-    r = test_genetic_correlation(fams, n_boot=25, seed=1, n_iter=350, burn_in=100)
+    r = test_genetic_correlation(fams, n_boot=25, seed=1, n_iter=350, burn_in=100,
+                                 sampling="population")
     assert r.null.shape == (25,)
     assert 0.0 < r.p_value <= 1.0
     assert r.p_value < 0.2                          # real r_g -> significant
@@ -579,7 +583,8 @@ def test_variance_components_mcem_matches_he_and_has_modelbased_se():
                                  n_iter=400, burn_in=120, seed=1,
                                  sampling="population")
     mcem = fit_variance_components_mcem(sim.families, ("A",),
-                                        n_iter=400, burn_in=120, seed=1)
+                                        n_iter=400, burn_in=120, seed=1,
+                                        sampling="population")
     assert mcem.components["A"] == pytest.approx(he.components["A"], abs=0.06)
     assert mcem.se["A"] > 5 * he.se["A"]                # model-based >> within-dataset MC
     assert 0.01 < mcem.se["A"] < 0.15                   # in the plausible sampling-SD range
@@ -590,8 +595,10 @@ def test_variance_components_mcem_loglik_aic():
     # on real A+C data AIC prefers A+C. The HE fit has no likelihood fields.
     import dataclasses
     fams = _sim_ac(["m", "f", "s1", "s2", "s3", "s4"], 0.4, 0.2, 2000, 5)
-    rA = fit_variance_components_mcem(fams, ("A",), n_iter=350, burn_in=100, seed=1)
-    rAC = fit_variance_components_mcem(fams, ("A", "C"), n_iter=350, burn_in=100, seed=1)
+    rA = fit_variance_components_mcem(fams, ("A",), n_iter=350, burn_in=100,
+                                      seed=1, sampling="population")
+    rAC = fit_variance_components_mcem(fams, ("A", "C"), n_iter=350, burn_in=100,
+                                       seed=1, sampling="population")
     assert rA.loglik is not None and np.isfinite(rA.loglik)
     assert rA.aic == pytest.approx(2 * 1 - 2 * rA.loglik)
     assert rAC.aic == pytest.approx(2 * 2 - 2 * rAC.loglik)
@@ -640,7 +647,7 @@ def test_mcem_accepts_person_specific_thresholds():
     fams = _coherent_varying_bounds(n_fam=20)
     result = fit_variance_components_mcem(fams, ("A",),
                                           n_iter=12, burn_in=6, inner_sweeps=1,
-                                          seed=1)
+                                          seed=1, sampling="population")
     assert np.isfinite(result.components["A"])
     assert result.loglik is not None and np.isfinite(result.loglik)
 
@@ -664,6 +671,108 @@ def test_genetic_correlation_accepts_person_specific_rectangles():
     fams[0].members[0].upper = np.array([0.0, 0.2])
     result = fit_genetic_correlation(
         fams, n_iter=12, burn_in=6, inner_sweeps=1, seed=1,
+        sampling="population",
     )
     assert np.isfinite(result.h2).all()
     assert np.isfinite(result.rg).all()
+
+
+def test_research_fitters_make_population_sampling_contract_explicit():
+    # the research fitters embed the same population-sampling assumption as the
+    # core moment fitters, so they share the sampling= contract gate
+    import warnings
+
+    sim = simulate_under_LTM_single(fam_vec=["m", "s1"], h2=0.5, n_sim=30,
+                                    pop_prev=0.1, seed=1)
+    with pytest.warns(RuntimeWarning, match="unascertained"):
+        fit_variance_components_mcem(sim.families, ("A",), n_iter=10, burn_in=6,
+                                     inner_sweeps=1, seed=1)
+    with pytest.raises(ValueError, match="only sampling='population'"):
+        fit_variance_components_mcem(sim.families, ("A",), n_iter=10, burn_in=6,
+                                     sampling="case-control")
+    multi = _simulate_two_trait(["m", "s1"], [0.5, 0.4], np.eye(2), np.eye(2),
+                                n_fam=30, prev=[0.1, 0.1], seed=1)
+    with pytest.warns(RuntimeWarning, match="unascertained"):
+        fit_genetic_correlation(multi, n_iter=10, burn_in=6, inner_sweeps=1,
+                                seed=1)
+    with pytest.raises(ValueError, match="only sampling='population'"):
+        fit_genetic_correlation(multi, n_iter=10, burn_in=6,
+                                sampling="family-history")
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
+        fit_genetic_correlation(multi, n_iter=10, burn_in=6, inner_sweeps=1,
+                                seed=1, sampling="population")
+    assert not recorded
+
+
+def test_research_fitters_reject_negative_burn_in():
+    sim = simulate_under_LTM_single(fam_vec=["m", "s1"], h2=0.5, n_sim=30,
+                                    pop_prev=0.1, seed=1)
+    with pytest.raises(ValueError, match="non-negative"):
+        fit_variance_components_mcem(sim.families, ("A",), n_iter=10, burn_in=-1)
+    multi = _simulate_two_trait(["m", "s1"], [0.5, 0.4], np.eye(2), np.eye(2),
+                                n_fam=30, prev=[0.1, 0.1], seed=1)
+    with pytest.raises(ValueError, match="non-negative"):
+        fit_genetic_correlation(multi, n_iter=10, burn_in=-1)
+
+
+class _GradientTests:
+    """Finite-difference pins for analytic gradients hidden in optimizer closures.
+
+    Same idea as the GradientTests of research/tests/test_decay.py: the analytic
+    gradient must match central finite differences of its own objective. The
+    objectives here are closures passed to ``scipy.optimize.minimize``, so a spy
+    captures them as the fit runs."""
+
+    @staticmethod
+    def _capture_minimize(monkeypatch):
+        import scipy.optimize
+        captured = {}
+        real_minimize = scipy.optimize.minimize
+
+        def spy(fun, *args, **kwargs):
+            captured.setdefault("obj_grad", fun)
+            return real_minimize(fun, *args, **kwargs)
+
+        monkeypatch.setattr(scipy.optimize, "minimize", spy)
+        return captured
+
+    @staticmethod
+    def _check(obj_grad, x0):
+        _, grad = obj_grad(x0)
+        d = 1e-6
+        for a in range(len(x0)):
+            step = np.zeros_like(x0)
+            step[a] = d
+            fd = (obj_grad(x0 + step)[0] - obj_grad(x0 - step)[0]) / (2 * d)
+            assert grad[a] == pytest.approx(fd, rel=1e-4, abs=1e-6), \
+                f"grad[{a}]: {grad[a]:.6f} vs fd {fd:.6f}"
+
+
+def test_mstep_reml_gradient_matches_finite_difference(monkeypatch):
+    from research.advanced_fitting import _mstep_reml
+    from ltpred.fit import _component_matrix
+
+    roles = ["o", "s1", "m", "f"]
+    Kmats = [_component_matrix(roles, "A"), _component_matrix(roles, "C")]
+    k = len(roles)
+    rng = np.random.default_rng(0)
+    X = rng.normal(size=(30, k))
+    stats = [(X.T @ X / 30.0 + 0.3 * np.eye(k), 30, Kmats)]   # PD second moment
+    captured = _GradientTests._capture_minimize(monkeypatch)
+    _mstep_reml(np.array([0.3, 0.2]), stats, 1e-4)
+    _GradientTests._check(captured["obj_grad"], np.array([0.35, 0.25]))
+
+
+def test_minres_loadings_gradient_matches_finite_difference(monkeypatch):
+    from research.advanced_fitting import _minres_loadings
+
+    R = np.array([[1.0, 0.5, 0.4, 0.3],
+                  [0.5, 1.0, 0.45, 0.35],
+                  [0.4, 0.45, 1.0, 0.5],
+                  [0.3, 0.35, 0.5, 1.0]])
+    captured = _GradientTests._capture_minimize(monkeypatch)
+    _minres_loadings(R, 1, None, 50, 1e-8)
+    # an arbitrary interior loading vector, away from the warm start
+    _GradientTests._check(captured["obj_grad"],
+                          np.array([0.35, -0.2, 0.55, 0.1]))

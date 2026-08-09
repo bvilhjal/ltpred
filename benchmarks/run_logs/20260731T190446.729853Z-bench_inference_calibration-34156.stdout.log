@@ -1,0 +1,16 @@
+Inference-machinery calibration (Type-I / coverage / SE-vs-SD)
+seed=20260719  R=25  n_fam=400  true A-only model (h2=0.5, C=0)  n_boot=50  fit={'n_iter': 600, 'burn_in': 200}
+
+Part 1: test_variance_component('C') under the true null
+  rejection rate at 0.05: 0.00  (95% binomial CI 0.00-0.14)
+  p-values: mean 0.428  median 0.392  min 0.059  (Uniform: 0.5 / 0.5 / ~1/(R+1))
+
+Part 2: bootstrap_fit 95% CI coverage for fit_heritability
+  coverage of true h2: 24/25 = 0.96  (95% binomial CI 0.80-1.00)
+  mean bootstrap SE 0.168 vs across-dataset SD 0.132  (ratio 1.27)
+
+Part 3: MCEM OPG SE vs across-dataset SD (A component)
+  mean reported SE 0.127 vs across-dataset SD 0.136  (ratio 0.93)
+  point-estimate mean A 0.502 (truth 0.5)
+
+runtime 558s

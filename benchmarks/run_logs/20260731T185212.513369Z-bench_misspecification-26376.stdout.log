@@ -1,0 +1,11 @@
+Model-misspecification stress (PA estimator, classic bounds)
+seed=20260719  h2=0.5  true prevalence=0.1  fams=8000  reps=5  roles=['o', 'm', 'f', 's1']
+  arm                      corr (mean ± SE) slope (mean ± SE)
+  control                  0.4983 ± 0.0045  1.0002 ± 0.0090
+  heavy-tail env           0.4820 ± 0.0024  0.9898 ± 0.0049
+  assortative              0.4915 ± 0.0017  0.9741 ± 0.0035
+  sibship env              0.4934 ± 0.0043  0.9776 ± 0.0071
+  wrong prevalence (0.05)  0.4982 ± 0.0045  0.8886 ± 0.0081
+  wrong prevalence (0.2)   0.4980 ± 0.0045  1.1328 ± 0.0101
+
+runtime 6s

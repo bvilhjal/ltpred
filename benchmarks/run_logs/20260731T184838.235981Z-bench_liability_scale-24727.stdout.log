@@ -1,0 +1,14 @@
+Probit residual-scale genetic-variance benchmark
+seed=20260719  N=20000  M=100  causal=0.2  Var(Xb)=0.5  prev=0.1  reps=3
+truth: probit residual-scale 0.5; Lee fraction-of-total 0.3333
+
+  route                            mean sd/sqrt(R)
+  truth probit scale             0.5000
+  truth Lee fraction             0.3333
+  (a) joint probit identity      0.5095 ± 0.0170
+  (a') marginal probit identity   0.3523 ± 0.0068
+  (b) probit (z²-1)/(N wbar)     0.3203 ± 0.0242
+  (c) null-adjusted OLS          0.1193 ± 0.0108
+  (c) Lee-2011 bridged           0.3341 ± 0.0317
+
+runtime 3s

@@ -12,7 +12,7 @@ children, remarriages, cousins), then checks:
          pedigree and estimate the genetic liability two ways -- the kinship
          path on ALL extracted relatives (up to third degree: cousins) vs the
          fixed named-role grammar subset it can encode (parents, full siblings,
-         grandparents). The LT-FGRS (Pedersen et al. 2026) claim is
+         grandparents). The LT-FGRS (Pedersen et al., LTFGRS R package) claim is
          that which relatives you include matters; this measures it.
   Part 3 (scale):    extraction timing for thousands of probands.
 

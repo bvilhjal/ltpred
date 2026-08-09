@@ -67,7 +67,14 @@ def get_relatedness(s1, s2, h2=0.5):
     ``0.5*h2`` for parent/offspring or full sibs, ``0.25*h2`` for grandparents and
     half-sibs. Pass ``h2=1`` to get the bare shared-DNA fraction. A port of
     LTFHPlus::get_relatedness -- the relatedness table is reproduced branch for
-    branch."""
+    branch.
+
+    Inherited LTFHPlus convention: two **same-side** half-sibs (``mhs1``/``mhs2``,
+    or ``phs1``/``phs2``) are related ``0.5*h2`` *to each other* — the role grammar
+    cannot name their second parents, so it implies a shared one (they are treated
+    as full sibs of each other). A pedigree in which same-side half-sibs have
+    distinct other parents is not expressible in this grammar; use
+    :func:`construct_covmat_from_kinship` for those."""
     s1, s2 = s1.lower(), s2.lower()
     _validate_relative(s1)
     _validate_relative(s2)
@@ -240,6 +247,11 @@ def _expand_family(fam_vec, n_fam, add_ind):
             _validate_relative(role)
             if cnt < 0:
                 raise ValueError("n_fam counts must be non-negative")
+            if cnt > 1 and _SINGLE.match(role):
+                raise ValueError(
+                    f"n_fam count {cnt} for singleton role {role!r}: roles like "
+                    f"{role!r} occur at most once per family — request multiples "
+                    "with a numbered role instead (s1, s2, ...)")
         n_fam = {r: c for r, c in n_fam.items() if c > 0 and r not in ("g", "o")}
         roles = []
         for r, c in n_fam.items():
@@ -253,6 +265,13 @@ def _expand_family(fam_vec, n_fam, add_ind):
         for r in fam_vec:
             _validate_relative(r)
 
+    if len(set(fam_vec)) != len(fam_vec):
+        # a repeated role names two individuals with one covariance coordinate,
+        # silently building a perfectly-correlated (singular) pair of rows
+        dup = sorted({r for r in fam_vec if fam_vec.count(r) > 1})
+        raise ValueError(
+            f"duplicate role(s) {dup} in the family specification; each role "
+            "names one individual — number repeated relatives (s1, s2, ...).")
     return (["g", "o"] + list(fam_vec)) if add_ind else list(fam_vec)
 
 
@@ -549,7 +568,12 @@ def construct_covmat_from_kinship(A, h2=0.5, target=0, add_ind=True):
 
     This is exactly the matrix the Gibbs / PA samplers consume, so a kinship-derived
     covariance is a drop-in for the role-based one; for a standard pedigree the two
-    agree entry for entry."""
+    agree entry for entry. One qualification: the role grammar's inherited
+    convention takes two same-side half-sibs (``mhs1``, ``mhs2``) to share a second
+    parent (:func:`get_relatedness`), so the entry-for-entry agreement holds only
+    for pedigrees whose same-side half-sib sets satisfy that convention — a
+    pedigree giving them distinct other parents legitimately disagrees with the
+    role-based matrix there."""
     A = np.ascontiguousarray(A, dtype=np.float64)
     n = A.shape[0]
     if A.shape != (n, n):

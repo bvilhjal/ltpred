@@ -50,7 +50,7 @@ def _simulate(n_fam, lam=0.05, rg=0.5, rp=0.3, prev=(0.2, 0.2), seed=0):
     fams = []
     for i in range(n_fam):
         aod = rng.uniform(15.0, 65.0, size=(k, P))
-        Sig = _decay_cov(A, h2, G, R, E, aod, lam_w, lam_x, "ou")
+        Sig = _decay_cov(A, h2, G, E, aod, lam_w, lam_x, "ou")
         Sig, _ = correct_positive_definite(Sig)
         x = rng.multivariate_normal(np.zeros(k * P), Sig)
         members = []
@@ -131,7 +131,7 @@ class CovarianceTests(unittest.TestCase):
         Sb = _decay_cov_batch(A, dself, dcross, h2, G, E, lam_w, lam_x,
                               [(0, 1)], "ou")
         for f in range(F):
-            S1 = _decay_cov(A, h2, G, R, E, aod[f], lam_w, lam_x, "ou")
+            S1 = _decay_cov(A, h2, G, E, aod[f], lam_w, lam_x, "ou")
             np.testing.assert_allclose(Sb[f], S1, atol=1e-12)
 
     def test_shared_lambda_positive_definite(self):
@@ -141,7 +141,7 @@ class CovarianceTests(unittest.TestCase):
         h2, G, E, R, lam_w, lam_x = _params()
         for _ in range(50):
             aod = rng.uniform(15, 65, size=(k, P))
-            S = _decay_cov(A, h2, G, R, E, aod, lam_w, lam_x, "ou")
+            S = _decay_cov(A, h2, G, E, aod, lam_w, lam_x, "ou")
             self.assertGreater(np.linalg.eigvalsh(S).min(), 0.0)
 
     def test_lambda_zero_reduces_to_scalar_model(self):
@@ -152,7 +152,7 @@ class CovarianceTests(unittest.TestCase):
         h2, G, E, R, lam_w, lam_x = _params(rg=0.5, rp=0.3)
         zero_w = np.zeros(P)
         zero_x = np.zeros((P, P))
-        S_decay = _decay_cov(A, h2, G, R, E, aod, zero_w, zero_x, "ou")
+        S_decay = _decay_cov(A, h2, G, E, aod, zero_w, zero_x, "ou")
         S_scalar = _multi_cov(A, h2, G, R)
         np.testing.assert_allclose(S_decay, S_scalar, atol=1e-12)
 
@@ -175,17 +175,20 @@ class ErrorPathTests(unittest.TestCase):
             for m in f.members:
                 m.aod = None
         with self.assertRaises(ValueError):
-            fit_genetic_correlation_decay(fams, n_em=8, n_draw=5, burn=2)
+            fit_genetic_correlation_decay(fams, n_em=8, n_draw=5, burn=2,
+                                          sampling="population")
 
     def test_no_related_pairs_raises(self):
         with self.assertRaises(ValueError):
             fit_genetic_correlation_decay(_lone_probands(20), n_em=8,
-                                          n_draw=5, burn=2)
+                                          n_draw=5, burn=2,
+                                          sampling="population")
 
     def test_unknown_kernel_raises(self):
         with self.assertRaises(ValueError):
             fit_genetic_correlation_decay(_simulate(20, seed=2), kernel="nope",
-                                          n_em=8, n_draw=5, burn=2)
+                                          n_em=8, n_draw=5, burn=2,
+                                          sampling="population")
 
     def test_n_em_too_small_raises(self):
         with self.assertRaises(ValueError):
@@ -195,6 +198,22 @@ class ErrorPathTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "n_starts .* must be >= 1"):
             fit_genetic_correlation_decay(_simulate(20, seed=3), n_em=8,
                                           n_starts=0)
+
+    def test_negative_burn_raises(self):
+        with self.assertRaisesRegex(ValueError, "non-negative"):
+            fit_genetic_correlation_decay(_simulate(20, seed=5), n_em=8,
+                                          burn=-1)
+
+    def test_population_sampling_contract(self):
+        # the decay fit embeds the same population-sampling assumption as the
+        # core moment fitters, so it shares the sampling= contract gate
+        fams = _simulate(20, seed=12)
+        with self.assertWarnsRegex(RuntimeWarning, "unascertained"):
+            fit_genetic_correlation_decay(fams, n_em=8, n_draw=5, burn=2,
+                                          m_iter=20)
+        with self.assertRaisesRegex(ValueError, "only sampling='population'"):
+            fit_genetic_correlation_decay(fams, n_em=8, n_draw=5, burn=2,
+                                          m_iter=20, sampling="case-control")
 
     def test_phen_names_mismatch_raises(self):
         with self.assertRaises(ValueError):
@@ -210,7 +229,8 @@ class FitCoherenceTests(unittest.TestCase):
     def test_result_is_coherent_psd_model(self):
         fams = _simulate(400, seed=7)
         res = fit_genetic_correlation_decay(fams, n_em=8, n_draw=40, burn=20,
-                                            m_iter=50, seed=11)
+                                            m_iter=50, seed=11,
+                                            sampling="population")
         # rp == genetic_cov + env_cov exactly, diagonal 1
         np.testing.assert_allclose(res.rp, res.genetic_cov + res.env_cov,
                                    atol=1e-8)
@@ -231,7 +251,8 @@ class FitCoherenceTests(unittest.TestCase):
         # recovery kill-test lives in benchmarks/bench_aod_decay.py.
         fams = _simulate(1500, lam=0.05, rg=0.5, seed=9)
         res = fit_genetic_correlation_decay(fams, n_em=14, n_draw=60, burn=30,
-                                            m_iter=80, seed=5)
+                                            m_iter=80, seed=5,
+                                            sampling="population")
         rg = res.rg[0, 1]
         self.assertGreater(rg, 0.0)     # right sign, not collapsed to <= 0
         self.assertLess(rg, 0.95)       # not inflated to the boundary
@@ -251,7 +272,7 @@ class NewOptionsTests(unittest.TestCase):
         res = fit_genetic_correlation_decay(_simulate(400, seed=3),
                                             shared_lambda=True, n_em=8,
                                             n_draw=30, burn=15, m_iter=40,
-                                            seed=2)
+                                            seed=2, sampling="population")
         # one rate governs every block: within == cross (broadcast)
         self.assertAlmostEqual(res.lambda_within[0], res.lambda_within[1])
         self.assertAlmostEqual(res.lambda_within[0], res.lambda_cross[0, 1])
@@ -259,7 +280,8 @@ class NewOptionsTests(unittest.TestCase):
     def test_shared_env_coherent_and_returns_cov(self):
         res = fit_genetic_correlation_decay(_simulate(400, seed=4),
                                             shared_env=True, n_em=8, n_draw=30,
-                                            burn=15, m_iter=40, seed=6)
+                                            burn=15, m_iter=40, seed=6,
+                                            sampling="population")
         # coherence preserved: rp == genetic_cov + env_cov (env = C + E)
         np.testing.assert_allclose(res.rp, res.genetic_cov + res.env_cov,
                                    atol=1e-8)
@@ -274,7 +296,7 @@ class NewOptionsTests(unittest.TestCase):
     def test_converged_and_negq_present(self):
         res = fit_genetic_correlation_decay(_simulate(300, seed=5), n_em=8,
                                             n_draw=30, burn=15, m_iter=40,
-                                            seed=7)
+                                            seed=7, sampling="population")
         self.assertIsInstance(bool(res.converged), bool)
         self.assertEqual(len(res.negq), res.n_iter)
         self.assertIn("negq", res.traces)
@@ -282,7 +304,8 @@ class NewOptionsTests(unittest.TestCase):
     def test_n_starts_runs(self):
         res = fit_genetic_correlation_decay(_simulate(200, seed=6), n_em=8,
                                             n_draw=20, burn=10, m_iter=30,
-                                            n_starts=2, seed=8)
+                                            n_starts=2, seed=8,
+                                            sampling="population")
         self.assertTrue(np.isfinite(res.rg[0, 1]))
 
 

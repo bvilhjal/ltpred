@@ -381,6 +381,22 @@ def _validate_seed(seed):
     return seed
 
 
+def _validate_burn_in(burn_in):
+    """Return a user-supplied ``burn_in`` as a plain non-negative int, or raise.
+
+    The sweep kernels loop ``range(-burn_in, n_sim)``, so a negative burn-in
+    silently drops initial output rows while ``n_sim`` draws are still credited.
+    As for :func:`_validate_seed`, ``bool`` and non-integers are rejected rather
+    than truncated."""
+    if isinstance(burn_in, (bool, np.bool_)) \
+            or not isinstance(burn_in, (int, np.integer)):
+        raise TypeError("burn_in must be a non-negative integer")
+    burn_in = int(burn_in)
+    if burn_in < 0:
+        raise ValueError("burn_in must be a non-negative integer")
+    return burn_in
+
+
 def _offset_seed(seed, offset):
     """Derive a deterministic uint32 seed without overflowing its public range."""
     if seed is None:
@@ -521,7 +537,8 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
         liability in the family-model ordering). Indices must be integers in
         ``[0, d)``. Duplicates are dropped and the returned order is sorted.
     n_sim, burn_in : int
-        Post-burn-in draws to keep and sweeps to discard first.
+        Post-burn-in draws to keep and sweeps to discard first. ``burn_in`` must
+        be a non-boolean non-negative integer.
     seed : int, optional
         Non-boolean integer in ``[0, 2**32 - 1]`` for reproducibility, or ``None``.
     params : (P, sd), optional
@@ -541,6 +558,7 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
         # ``gibbs_params`` performs the covariance validation in this path.
         params = gibbs_params(cov)
     d = cov.shape[0]
+    burn_in = _validate_burn_in(burn_in)
 
     lower = np.broadcast_to(np.asarray(lower, dtype=np.float64), (d,)).copy()
     upper = np.broadcast_to(np.asarray(upper, dtype=np.float64), (d,)).copy()
@@ -584,5 +602,5 @@ def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
 
     res = np.empty((int(n_sim), len(out)), dtype=np.float64)
     _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, int(n_sim),
-                 int(burn_in), res)
+                 burn_in, res)
     return res

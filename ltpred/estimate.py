@@ -33,7 +33,7 @@ import numpy as np
 from .covariance import (construct_covmat_single, construct_covmat_multi,
                          construct_covmat_from_kinship, correct_positive_definite)
 from .gibbs import (gibbs_params, gibbs_estimate_batched, as_bounds, _MAX_SEED,
-                    _validate_seed)
+                    _validate_seed, _validate_burn_in)
 from .pearson_aitken import pa_estimate_batched
 from ._validation import validate_bounds, validate_mixture_inputs
 
@@ -159,6 +159,37 @@ def _validate_mc_se_n_sim(n_sim):
     return n_sim
 
 
+def _validate_tol(tol):
+    """Return the Gibbs convergence tolerance as a finite positive float.
+
+    A NaN tolerance never satisfies ``se <= tol``, so the sampler runs to
+    ``max_rounds`` yet the unconverged warning (keyed on the same comparison)
+    stays silent; a non-positive one can never be reached."""
+    if isinstance(tol, (bool, np.bool_)):
+        raise TypeError("tol must be a positive real number, not bool")
+    try:
+        tol = float(tol)
+    except (TypeError, ValueError):
+        raise TypeError("tol must be a positive real number") from None
+    if not np.isfinite(tol) or tol <= 0.0:
+        raise ValueError("tol must be finite and > 0")
+    return tol
+
+
+def _validate_max_rounds(max_rounds):
+    """Return ``max_rounds`` as a positive int: with none, the convergence loop
+    never runs and every family keeps its all-zero initial estimates."""
+    if isinstance(max_rounds, (bool, np.bool_)):
+        raise TypeError("max_rounds must be a positive integer, not bool")
+    try:
+        max_rounds = operator.index(max_rounds)
+    except TypeError:
+        raise TypeError("max_rounds must be a positive integer") from None
+    if max_rounds < 1:
+        raise ValueError("max_rounds must be at least 1")
+    return max_rounds
+
+
 def batch_means(samples):
     """Batch-means estimate and Monte-Carlo SE of column means (Jones et al. 2006).
 
@@ -230,8 +261,15 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
     The one-time :func:`gibbs_params` factorisation is reused across families and
     rounds; each round runs the parallel kernel over the still-unconverged
     families and pools their batch means (fixed batch size ``b``) so earlier draws
-    are not wasted. Returns ``(est, se)`` of shape ``(F, ncols)``."""
+    are not wasted. Returns ``(est, se)`` of shape ``(F, ncols)``.
+
+    The single choke point every Gibbs estimate path funnels through, so the
+    shared sampler controls (``tol``, ``n_sim``, ``burn_in``, ``max_rounds``) are
+    validated once here for all of them."""
     n_sim = _validate_mc_se_n_sim(n_sim)
+    burn_in = _validate_burn_in(burn_in)
+    tol = _validate_tol(tol)
+    max_rounds = _validate_max_rounds(max_rounds)
     F = lowers.shape[0]
     ncols = len(out_idx)
     out_idx = np.asarray(out_idx, dtype=np.int64)
@@ -279,13 +317,22 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
 
 
 def _check_unique_roles(families):
-    """Reject a family with a duplicated role (two rows both ``s1``, etc.).
+    """Reject a family with a duplicated role (two rows both ``s1``, etc.) or a
+    user-supplied ``g`` member.
 
     Each role names one individual, so a repeat would silently merge two relatives
     into one covariance coordinate. Number repeated relatives instead (``s1``,
-    ``s2``)."""
+    ``s2``). ``g`` is never legitimate user input: the estimator adds the genetic
+    coordinate itself, so a supplied ``g`` row would silently condition that
+    coordinate on the member's bounds."""
     for fam in families:
         roles = [m.role for m in fam.members]
+        if "g" in roles:
+            raise ValueError(
+                f"family {fam.fam_id!r} has a member with role 'g'; the genetic "
+                "liability coordinate is added by the estimator and cannot be "
+                "observed — remove that member (the proband's own status is "
+                "role 'o').")
         if len(roles) != len(set(roles)):
             dup = sorted({r for r in roles if roles.count(r) > 1})
             raise ValueError(
@@ -294,7 +341,15 @@ def _check_unique_roles(families):
 
 
 def _check_unique_role_labels(roles):
-    """Reject duplicate column labels in the array estimators' ``roles``."""
+    """Reject duplicate column labels or a ``g`` column in the array estimators'
+    ``roles`` — the same contract as :func:`_check_unique_roles` for the object
+    paths: each column identifies a different family member, and ``g`` is added
+    by the estimator rather than supplied."""
+    if "g" in roles:
+        raise ValueError(
+            "roles must not contain 'g'; the genetic liability coordinate is "
+            "added by the estimator, so a supplied 'g' column would silently "
+            "condition it — remove that column")
     if len(roles) != len(set(roles)):
         raise ValueError("roles contains duplicate role labels; each column must "
                          "identify a different family member")
@@ -558,6 +613,12 @@ def _estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
     n_pheno = len(h2_vec)
     if phen_names is None:
         phen_names = [f"phenotype{p + 1}" for p in range(n_pheno)]
+    elif len(set(phen_names)) != len(phen_names):
+        # result dicts are keyed by (output, phenotype) name — a duplicate name
+        # would silently collapse two traits' columns onto one key
+        raise ValueError(
+            f"phen_names contains duplicates {phen_names!r}; each phenotype "
+            "needs a distinct name")
     _check_unique_roles(families)
     _validate_multitrait_bounds(families, n_pheno)
     dtype = _bounds_dtype(dtype)
@@ -769,8 +830,8 @@ def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",), tol=0
     ``method`` selects the inference engine; the **default** (``None``) picks the
     deterministic **Pearson-Aitken (PA)** estimator for a single trait. Across the
     benchmark's tested no-mixture structures, PA and Gibbs posterior-mean estimates
-    had correlation at least ``0.997`` and PA ran 315–510x faster on the benchmark
-    hardware. The dispatcher
+    had correlation at least ``0.997`` and PA ran 203–492× faster at four threads
+    on the no-mixture benchmark grid. The dispatcher
     falls back to the **Gibbs**
     sampler for the multi-trait model, which PA does not support. Pass ``method``
     explicitly to override: ``"pearson-aitken"`` (aliases ``"pa"``, ``"aitken"``;

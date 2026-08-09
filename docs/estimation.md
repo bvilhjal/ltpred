@@ -179,6 +179,12 @@ deterministic *approximation*: it is exact for a single observed truncation. In
 the benchmarked **no-mixture** family structures, PA and Gibbs posterior-mean
 `genetic` estimates had correlation ≥ 0.997. For unusual pedigrees — very large, densely
 affected, or heavily truncated — treat Gibbs as the reference and cross-check.
+PA's sequential approximation is also fold-order dependent; the estimator
+canonicalizes each family to a sorted role order before folding (a
+reproducibility choice, not an accuracy one), and
+`benchmarks/bench_pa_robustness.py` puts the spread across fold orders at a
+median < 0.12% and p95 < 3.4% of the between-proband score SD on the stress
+pedigrees.
 
 Hujoel et al.'s original LT-FH study reported a less favourable Pearson–Aitken
 comparison for UK Biobank's aggregate sibling question (at least one sibling

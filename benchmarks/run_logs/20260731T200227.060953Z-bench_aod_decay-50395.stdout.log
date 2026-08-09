@@ -1,0 +1,14 @@
+kernel=ou  h2=[0.5, 0.5]  r_p=0.3  lam_max=0.080  n_em=45
+
+== (a) recovery vs true lambda (rg=0.5, n_fam=2500) ==
+  lam=0.000 (scalar null) | rg=+0.506±0.049 (true .5)  lam_x=0.0013±0.0022 (true 0.0)  [142s]
+  lam=0.040 | rg=+0.515±0.178 (true .5)  lam_x=0.0413±0.0093 (true 0.04)  [141s]
+
+== (b) data requirement (rg=0.5, lam=0.04) ==
+  n_fam= 1000 | rg=+0.578±0.107 (true .5)  lam_x=0.0632 (true .04)
+  n_fam= 2500 | rg=+0.526±0.114 (true .5)  lam_x=0.0445 (true .04)
+
+== (c) null rg=0 (lam=0.04, n_fam=2500) ==
+  rg=+0.009±0.089 (true 0)  lam_x=0.0521 (true .04)
+
+wrote bench_aod_decay.csv and bench_aod_decay.png

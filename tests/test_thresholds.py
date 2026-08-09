@@ -7,7 +7,8 @@ from scipy import stats
 from ltpred.thresholds import (convert_age_to_cir, _convert_cir_to_age,
                                convert_age_to_thresh, convert_liability_to_aoo,
                                prevalence_thresholds, age_thresholds,
-                               liability_threshold, thresholds_from_cip)
+                               liability_threshold, pa_thresholds,
+                               thresholds_from_cip)
 
 
 def test_cir_monotone_and_bounded():
@@ -113,3 +114,34 @@ def test_age_thresholds_case_pinned_control_open():
     # case pinned (lower == upper), control open below its age threshold
     assert lower[0] == upper[0]
     assert lower[1] == -np.inf and np.isfinite(upper[1])
+
+
+@pytest.mark.parametrize("prev", [0.0, 1.0, -0.1, 1.5])
+def test_simple_threshold_helpers_reject_degenerate_prevalence(prev):
+    # liability_threshold(0) = +inf and (1) = -inf flowed silently into bounds
+    # (a K=0 "case" pin at (inf, inf) reaches the sampler); the logistic age
+    # helpers turned out-of-range prevalences into silent NaN thresholds
+    with pytest.raises(ValueError, match=r"\(0, 1\)"):
+        liability_threshold(prev)
+    with pytest.raises(ValueError, match=r"\(0, 1\)"):
+        convert_age_to_cir(50, pop_prev=prev)
+    with pytest.raises(ValueError, match=r"\(0, 1\)"):
+        convert_age_to_thresh(50, pop_prev=prev)
+    with pytest.raises(ValueError, match=r"\(0, 1\)"):
+        convert_liability_to_aoo(1.5, pop_prev=prev)
+    with pytest.raises(ValueError, match=r"\(0, 1\)"):
+        prevalence_thresholds([1, 0], pop_prev=prev)
+    with pytest.raises(ValueError, match=r"\(0, 1\)"):
+        age_thresholds([1, 0], [40, 70], pop_prev=prev)
+    with pytest.raises(ValueError, match=r"\(0, 1\)"):
+        pa_thresholds([1, 0], [40, 70], pop_prev=prev)
+
+
+def test_liability_threshold_validates_elementwise():
+    with pytest.raises(ValueError, match=r"\(0, 1\)"):
+        liability_threshold(np.array([0.05, 1.5]))
+    with pytest.raises(ValueError, match=r"\(0, 1\)"):
+        liability_threshold(np.array([-0.2, 0.05]))
+    # valid arrays still map elementwise
+    t = liability_threshold(np.array([0.05, 0.10]))
+    assert np.allclose(t, [stats.norm.isf(0.05), stats.norm.isf(0.10)])

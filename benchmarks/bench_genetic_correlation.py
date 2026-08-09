@@ -54,7 +54,8 @@ def fit_replicates(rg_val, n_fam, prev, reps, seed0, n_iter, burn_in):
         fams = simulate_families_multi(FAM, H2, rg_val, RP_OFFDIAG, n_fam,
                                        (prev, prev), seed0 + r)
         res = fit_genetic_correlation(fams, n_iter=n_iter, burn_in=burn_in,
-                                      seed=seed0 + 100_000 + r)
+                                      seed=seed0 + 100_000 + r,
+                                      sampling="population")
         fitted[r] = res.rg[0, 1]
     return fitted
 
@@ -74,7 +75,8 @@ def main():
 
     fit_genetic_correlation(simulate_families_multi(FAM, H2, 0.5, 0.2, 60,
                                                     (0.1, 0.1), 0),
-                            n_iter=20, burn_in=5)   # warm JIT
+                            n_iter=20, burn_in=5,
+                            sampling="population")   # warm JIT
 
     rows = []
 

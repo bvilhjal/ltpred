@@ -70,8 +70,10 @@ indexes the records, `extract_pedigree` visits every person within
 distance equal the standard relationship degree) and closes on all recorded
 ancestors, so the extracted pedigree's kinship is exact for every member pair.
 Its kinship is the exact tabular one (inbreeding-aware), not the paper's
-path-counting approximation. The LT-FGRS pipeline (Pedersen et al. 2026)
-consumes the same extraction downstream.
+path-counting approximation. The
+[LTFGRS](https://emilmip.github.io/LTFGRS/) R package (Pedersen et al.) —
+LT-FH++, PA-FGRS and Kendler's FGRS with unified data preparation — consumes
+the same extraction downstream.
 
 This is an **additive-genetic** model: familial resemblance is entirely genetic
 sharing. Shared environment, household/cultural transmission, assortative mating
@@ -401,8 +403,8 @@ the CIP/prevalence model is always supplied.
 The multivariate liability-threshold model on which `ltpred` rests — relatives'
 liabilities jointly multivariate normal with covariance set by the relationship
 matrix, and affection status *truncating* those liabilities — is the framework
-Pak Sham and the genetic-epidemiology tradition formalised (Sham, *Statistical
-Methods in Genetic Epidemiology*, 1998). Evaluating the joint distribution of a
+Pak Sham and the genetic-epidemiology tradition formalised (Sham, *Statistics
+in Human Genetics*, 1998). Evaluating the joint distribution of a
 family's liabilities under an observed affection pattern is exactly the
 truncated-multivariate-normal problem the two backends address: the Gibbs sampler
 draws it, Pearson–Aitken approximates its moments.
@@ -541,6 +543,18 @@ age and demographics map person `i` to an interval:
   `[T_i(a_i), inf)` and therefore define an age-dependent PA-FGRS-style variant,
   not the paper's base case encoding.
 
+What pinning *assumes* is worth stating, since the benchmarks show the case
+encoding (pinned vs lifetime interval vs age-specific interval) dominates
+calibration. A pinned case's liability is a deterministic function of its onset
+age — zero conditional variance at `T_i(a_i)` — with the stratum's CIP curve
+hard-coded as the liability–onset map, error-free onset dates and homogeneous
+severity (two cases with the same stratum and onset age carry identical
+liability). When onset timing is uncertain or recorded only as a window, an
+interval encoding is safer: the lifetime interval conditions only on being
+affected, and the age-specific interval at least leaves the liability free above
+its edge. The [real-data checklist](assumptions.md#real-data-checklist) already
+asks for the encoding choice to be recorded.
+
 For **LT-FH++ and ADuLT**, age, sex and birth cohort enter **only through
 `K(t; s, b)` and its interval edge `T_i`**, never the covariance `Sigma`. In base
 PA-FGRS, a control's age/stratum instead enters the mixture through `K_i`; the case
@@ -656,6 +670,15 @@ and Gibbs posterior-mean estimates had correlation ≥ 0.997 while PA ran
 203–492× faster in the controlled 4-thread benchmark. The PA-only mixture was
 not part of this comparison. Same grouping / `prange` structure as the Gibbs path.
 
+**Fold order.** Because PA is a sequential approximation, its error depends on
+the order in which members are folded in. The estimator canonicalizes every
+family to a sorted role order before folding (bounds are realigned by role
+name), so results depend on the family's role set, never on the input row order
+or which family arrived first. This is a reproducibility choice, not an accuracy
+one — no fold order is more exact than another. On the
+`benchmarks/bench_pa_robustness.py` stress pedigrees the spread across fold
+orders was a median < 0.12% and p95 < 3.4% of the between-proband score SD.
+
 ### Base PA-FGRS: lifetime cases and censored controls
 
 An observed case contributes the lifetime interval
@@ -681,6 +704,14 @@ through the mixture weight via `K_i`, and `upper` merely flags a censored contro
 an age-specific `Phi^-1(1 - K_i)` gives the same result.
 Enabled via `use_mixture=True`; off, PA reduces to the plain truncated-moment
 sweep.
+
+The weight encodes an onset-timing assumption. `(K_pop − K_i)/K_pop` is a future
+case's probability of not yet having onset by the current age, read off the
+population CIP curve of the person's stratum — i.e. onset timing among future
+cases is treated as independent of liability. Higher-liability future cases in
+fact tend to onset earlier, so the not-yet-onset component is only approximately
+the above-threshold tail the mixture assigns it. The construction likewise
+assumes censoring is non-informative given the stratum.
 
 ## Fitting the covariance (heritability)
 
@@ -803,8 +834,10 @@ the estimate for a correlated, under-powered one.
 These inputs are jointly constrained. Let `D = diag(sqrt(h2))`,
 `G = D genetic_corrmat D`, and `E = full_corrmat - G`. Both `G` and `E` must be
 positive semi-definite, while the two supplied correlation matrices must be
-symmetric with unit diagonal. The full pedigree covariance is
-`G ⊗ A + E ⊗ I`. The constructor rejects an incoherent decomposition rather than
+symmetric with unit diagonal. The observed full-liability block of the pedigree
+covariance is `G ⊗ A + E ⊗ I`; the appended target genetic coordinate carries
+`Var(g^p) = h2_p` and same-person cross-trait `Cov(g^p, g^q) = G[p,q]`, with no
+`E` contribution. The constructor rejects an incoherent decomposition rather than
 silently applying a positive-definite correction to a different model.
 
 ### Fitting the genetic correlation
@@ -998,7 +1031,7 @@ is fit to two-factor data.
 
 The method sits in a long quantitative-genetics lineage. **Threshold models** for
 binary/categorical traits — mapping a continuous latent liability through a
-threshold — go back to Wright, Dempster & Lerner (1950), Falconer (1965) and
+threshold — go back to Wright (1934), Dempster & Lerner (1950), Falconer (1965) and
 Gianola (1982). Their continuous-trait analogue is **selection-index / BLUP**
 prediction of additive genetic value from relatives' phenotypes and a relationship
 matrix (Hazel 1943; Henderson 1975; the animal model, and its genomic-relationship
@@ -1046,9 +1079,14 @@ Related family-history methods and interpretation:
 - [Pedersen et al. 2025, *Front Genet*](https://doi.org/10.3389/fgene.2025.1708315)
   — graph-based extraction of arbitrary-degree relatives and kinship matrices from
   population trio records; relevant upstream preprocessing, not PA validation.
+- [Pedersen et al., LTFGRS R package](https://emilmip.github.io/LTFGRS/) —
+  LT-FH++, PA-FGRS and Kendler's FGRS with unified data preparation on the same
+  graph-based extraction.
 
 Threshold-model background:
 
+- Wright 1934, *Genetics* — the underlying-scale threshold analysis of digit
+  number in guinea pigs.
 - Dempster & Lerner 1950, *Genetics* — heritability of threshold characters.
 - Falconer 1965, *Ann. Hum. Genet.* — liability to disease from incidence in relatives.
 - Gianola 1982, *J. Anim. Sci.* — threshold characters in animal breeding.
@@ -1061,7 +1099,7 @@ Selection index / BLUP background:
 
 Liability-threshold risk models (Sham and colleagues):
 
-- Sham 1998, *Statistical Methods in Genetic Epidemiology* (Oxford) — the
+- Sham 1998, *Statistics in Human Genetics* (Edward Arnold) — the
   multivariate liability-threshold model in genetic epidemiology.
 - So, Kwan, Cherny & Sham 2011, *AJHG* — risk prediction from family history and
   known susceptibility loci, with age, follow-up and competing mortality risks.

@@ -128,7 +128,7 @@ def simulate_families_multi(fam_vec, h2_vec, rg, rp, n_fam, prev, seed,
     fams = []
     for i in range(n_fam):
         ages = rng.uniform(aod[0], aod[1], size=(k, P))
-        Sig = _decay_cov(A, h2_vec, G, R, E, ages, lam_w, lam_x, kernel)
+        Sig = _decay_cov(A, h2_vec, G, E, ages, lam_w, lam_x, kernel)
         if c2 > 0.0:
             for p in range(P):                   # cross-relative env correlation
                 Sig[p * k:(p + 1) * k, p * k:(p + 1) * k] += c2 * J

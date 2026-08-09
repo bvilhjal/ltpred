@@ -26,9 +26,21 @@ __all__ = ["convert_age_to_cir", "convert_age_to_thresh",
            "thresholds_from_cip"]
 
 
+def _validate_pop_prev(pop_prev):
+    """Prevalences must lie in the open interval (0, 1), elementwise.
+
+    At 0 or 1 the liability threshold ``Phi^-1(1 - K)`` is an infinity (a K=0
+    "case" pin at ``(inf, inf)`` reaches the sampler), and outside the interval
+    the ppf is NaN -- both silent on the way in, so reject them here."""
+    prev = np.asarray(pop_prev, dtype=float)
+    if np.any((prev <= 0.0) | (prev >= 1.0)):
+        raise ValueError("pop_prev must lie in the open interval (0, 1)")
+    return prev
+
+
 def liability_threshold(pop_prev):
     """Single-prevalence liability threshold ``T = Phi^-1(1 - K)``."""
-    return norm_ppf(1.0 - np.asarray(pop_prev, dtype=float))
+    return norm_ppf(1.0 - _validate_pop_prev(pop_prev))
 
 
 def convert_age_to_cir(age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
@@ -37,6 +49,7 @@ def convert_age_to_cir(age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     ``cir(age) = pop_prev / (1 + exp((mid_point - age) * slope))`` -- incidence
     climbs from ~0 at young ages toward ``pop_prev`` at old ages, passing half-way
     at ``mid_point``. Vectorised over ``age``."""
+    _validate_pop_prev(pop_prev)
     age = np.asarray(age, dtype=float)
     return pop_prev / (1.0 + np.exp((mid_point - age) * slope))
 
@@ -46,6 +59,7 @@ def _convert_cir_to_age(cir, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
 
     ``mid_point - log(pop_prev/cir - 1) / slope``, clamped at 0. Returns ``nan``
     where ``cir >= pop_prev`` (that incidence is never reached). Vectorised."""
+    _validate_pop_prev(pop_prev)
     cir = np.asarray(cir, dtype=float)
     with np.errstate(divide="ignore", invalid="ignore"):
         age = mid_point - np.log(pop_prev / cir - 1.0) / slope

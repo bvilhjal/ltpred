@@ -18,10 +18,11 @@ grandchildren, half-siblings, aunts/uncles, nieces/nephews) distance 2;
 **third-degree** (first cousins, great-grandparents) distance 3. This is
 achieved by adding explicit edges between full siblings (two shared parents)
 to the parent-child graph, so traversal distance equals the standard degree
-rather than the raw meiotic count. Mates enter through shared children
-(distance 3 via the child); they are genetically unrelated to the proband but
-belong to the pedigree (and to the spousal-environment component of
-`fit_variance_components`).
+rather than the raw meiotic count. Mates enter through shared children: the
+proband's own mate is graph distance 2 (proband -> child -> mate), while a
+relative's mate is distance 3 via the relative's child; they are genetically
+unrelated to the proband but belong to the pedigree (and to the
+spousal-environment component of `fit_variance_components`).
 
 The extracted :class:`Pedigree` carries ``ids``/``father``/``mother`` in the
 exact form :func:`~ltpred.covariance.kinship_from_pedigree` consumes (a parent

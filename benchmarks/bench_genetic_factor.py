@@ -65,7 +65,7 @@ def rg_two_factor():
 def fit_pipeline(rg_true, n_fam, prev, seed, n_iter, burn_in, n_factors=1):
     fams = simulate_families_multi(FAM, H2, rg_true, None, n_fam, prev, seed)
     gc = fit_genetic_correlation(fams, n_iter=n_iter, burn_in=burn_in,
-                                 seed=seed + 100_000)
+                                 seed=seed + 100_000, sampling="population")
     fac = fit_genetic_factor(gc, n_factors=n_factors)
     return fac
 
@@ -124,7 +124,8 @@ def main():
                                        args.prev, seed)
         gc = fit_genetic_correlation(fams, n_iter=args.n_iter,
                                      burn_in=args.burn_in,
-                                     seed=seed + 100_000)
+                                     seed=seed + 100_000,
+                                     sampling="population")
         s1[r] = fit_genetic_factor(gc, n_factors=1).srmr
         s2[r] = fit_genetic_factor(gc, n_factors=2).srmr
         if (r + 1) % 5 == 0 or r + 1 == args.reps:

@@ -542,3 +542,13 @@ def test_common_threshold_accepts_mixed_float32_float64_endpoints():
         sim.families, n_iter=20, burn_in=8, inner_sweeps=1, seed=1,
         sampling="population")
     assert np.isfinite(result.h2)
+
+
+def test_moment_fitters_reject_negative_burn_in():
+    # the burn_in >= n_iter guard used to let a negative burn_in through
+    sim = simulate_under_LTM_single(fam_vec=["m", "s1"], h2=0.5, n_sim=10,
+                                    pop_prev=0.1, seed=1)
+    with pytest.raises(ValueError, match="non-negative"):
+        fit_heritability(sim.families, n_iter=10, burn_in=-1)
+    with pytest.raises(ValueError, match="non-negative"):
+        fit_variance_components(sim.families, ("A",), n_iter=10, burn_in=-1)

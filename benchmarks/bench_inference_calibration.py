@@ -129,7 +129,8 @@ def main():
     for rep in range(R):
         fams = make_dataset(rep)
         r = fit_variance_components_mcem(fams, ("A", "C"),
-                                         seed=3000 + rep, **FIT_KW)
+                                         seed=3000 + rep,
+                                         sampling="population", **FIT_KW)
         a_hats.append(float(r.components["A"]))
         se_mcem.append(float(r.se["A"]))
     sd_across = float(np.std(a_hats, ddof=1))

@@ -439,3 +439,46 @@ def test_mixture_allows_pinned_rows_with_nan_K():
                        Member("s1", -np.inf, t, K_i=0.02, K_pop=0.10)])
     res = _estimate_liability_pa([fam], h2=0.5, use_mixture=True)
     assert np.isfinite(res.est["genetic"][0])
+
+
+def test_pa_entry_points_validate_bounds():
+    # unlike rtmvnorm_gibbs the public PA entries never called validate_bounds:
+    # NaN bounds propagated silently, and a reversed pair narrower than 1e-3 was
+    # "sorted" by the narrow-interval quadrature
+    h2 = 0.5
+    cov = np.array([[h2, h2], [h2, 1.0]])
+    with pytest.raises(ValueError, match="NaN"):
+        pa_algorithm(cov, [-np.inf, np.nan], [np.inf, np.inf])
+    with pytest.raises(ValueError, match="reversed bounds"):
+        pa_algorithm(cov, [-np.inf, 1.0], [np.inf, 0.9995])
+    with pytest.raises(ValueError, match="NaN"):
+        pa_estimate_batched(cov, [[-np.inf, np.nan]], [[np.inf, np.inf]])
+    with pytest.raises(ValueError, match="reversed bounds"):
+        pa_estimate_batched(cov, [[-np.inf, 1.0]], [[np.inf, 0.9995]])
+
+
+@pytest.mark.parametrize(
+    "cov,match",
+    [(np.array([[np.nan, 0.0], [0.0, 1.0]]), "finite"),
+     (np.array([[np.inf, 0.0], [0.0, 1.0]]), "finite"),
+     (np.array([[1.0, 0.9], [0.1, 1.0]]), "symmetric"),
+     (np.zeros((2, 3)), "square")],
+)
+def test_pa_entry_points_validate_covariance(cov, match):
+    # a light check (square / finite / scale-relative symmetric) -- deliberately
+    # NOT the strict Gibbs PD gate: production paths route through
+    # correct_positive_definite upstream and PA never inverts the covariance
+    lo, hi = [-np.inf, 1.0], [np.inf, np.inf]
+    with pytest.raises(ValueError, match=match):
+        pa_algorithm(cov, lo, hi)
+    with pytest.raises(ValueError, match=match):
+        pa_estimate_batched(cov, [lo], [hi])
+
+
+def test_pa_accepts_merely_psd_covariance():
+    # pin the light-check design: a singular but symmetric covariance still runs
+    psd = np.ones((2, 2))
+    est, var = pa_algorithm(psd, [-np.inf, 1.0], [np.inf, np.inf])
+    assert np.isfinite(est) and np.isfinite(var)
+    est, var = pa_estimate_batched(psd, [[-np.inf, 1.0]], [[np.inf, np.inf]])
+    assert np.isfinite(est[0]) and np.isfinite(var[0])

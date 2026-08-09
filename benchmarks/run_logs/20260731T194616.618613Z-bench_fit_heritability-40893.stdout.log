@@ -1,0 +1,16 @@
+== (a) bias & precision vs true h2 (n_fam=3000, parents+2 sibs) ==
+  h2=0.2 | fitted=0.201  bias=+0.001  SD=0.037 | reported se=0.0020  (SD/se=19x)  [18s]
+  h2=0.4 | fitted=0.387  bias=-0.013  SD=0.055 | reported se=0.0022  (SD/se=25x)  [17s]
+  h2=0.6 | fitted=0.577  bias=-0.023  SD=0.063 | reported se=0.0023  (SD/se=28x)  [17s]
+  h2=0.8 | fitted=0.786  bias=-0.014  SD=0.061 | reported se=0.0026  (SD/se=24x)  [17s]
+== (b) precision (SD) vs #families (h2=0.5) ==
+  n_fam= 1000 | SD=0.094
+  n_fam= 2000 | SD=0.066
+  n_fam= 4000 | SD=0.038
+  n_fam= 8000 | SD=0.040
+== structure at n_fam=3000, h2=0.5 ==
+  parents          (2 rel) | SD=0.107
+  parents+2 sibs   (4 rel) | SD=0.052
+  extended         (8 rel) | SD=0.051
+
+wrote bench_fit_heritability.csv and bench_fit_heritability.png

@@ -313,8 +313,8 @@ def test_out_accepts_scalar_and_sequence(spelling):
     assert "genetic" in estimate_liability(sim.families, h2=0.5, method="gibbs",
                                            out=spelling, n_sim=2000, seed=1).est
     # single-column APIs (array, kinship) take the same spellings
-    roles = ["g", "o", "m", "f"]
-    lo = np.array([[-9.0, 1.2, -9.0, 1.2]]); hi = np.array([[9.0, 9.0, 1.2, 9.0]])
+    roles = ["o", "m", "f"]
+    lo = np.array([[1.2, -9.0, 1.2]]); hi = np.array([[9.0, 1.2, 9.0]])
     estimate_liability_pa_arrays(roles, lo, hi, h2=0.5, out=spelling)
     estimate_liability_gibbs_arrays(roles, lo, hi, h2=0.5, out=spelling, n_sim=2000, seed=1)
     A = np.array([[1.0, .5, .5], [.5, 1, 0], [.5, 0, 1]])
@@ -330,8 +330,8 @@ def test_out_invalid_and_multicolumn_errors():
     with pytest.raises(ValueError, match="genetic/full"):
         estimate_liability(sim.families, h2=0.5, method="pa", out="bogus")
     # a single-column API cannot return two columns at once
-    roles = ["g", "o", "m", "f"]
-    lo = np.array([[-9.0, 1.2, -9.0, 1.2]]); hi = np.array([[9.0, 9.0, 1.2, 9.0]])
+    roles = ["o", "m", "f"]
+    lo = np.array([[1.2, -9.0, 1.2]]); hi = np.array([[9.0, 1.2, 9.0]])
     with pytest.raises(ValueError, match="single column"):
         estimate_liability_pa_arrays(roles, lo, hi, out=("genetic", "full"))
 
@@ -571,3 +571,73 @@ def test_array_and_kinship_estimators_warn_when_covariance_is_corrected():
     with pytest.warns(RuntimeWarning, match="nudged to strict positive definiteness"):
         estimate_liability_from_kinship(np.ones((2, 2)), np.array([[1.0, -np.inf]]),
                                         np.array([[np.inf, 1.0]]), h2=1.0)
+
+
+@pytest.mark.parametrize("burn_in,error", [
+    (-1, ValueError), (np.int64(-5), ValueError),
+    (True, TypeError), (np.bool_(False), TypeError), (2.5, TypeError),
+])
+def test_gibbs_estimator_rejects_invalid_burn_in(burn_in, error):
+    # validated once in _estimate_group, the choke point of every Gibbs path
+    fam = Family("f", [Member("o", 1.0, np.inf)])
+    with pytest.raises(error, match="burn_in must be a non-negative integer"):
+        estimate_liability([fam], method="gibbs", n_sim=20, burn_in=burn_in)
+
+
+@pytest.mark.parametrize("tol", [0.0, -0.5, np.nan, np.inf])
+def test_gibbs_estimator_rejects_non_finite_or_non_positive_tol(tol):
+    # tol=NaN never satisfied se <= tol, so the sampler ran to max_rounds while
+    # the unconverged warning (keyed on the same comparison) stayed silent
+    fam = Family("f", [Member("o", 1.0, np.inf)])
+    with pytest.raises(ValueError, match="tol must be finite and > 0"):
+        estimate_liability([fam], method="gibbs", n_sim=20, burn_in=0, tol=tol)
+
+
+@pytest.mark.parametrize("max_rounds,error", [
+    (0, ValueError), (-3, ValueError), (True, TypeError), (1.5, TypeError),
+])
+def test_gibbs_estimator_rejects_bad_max_rounds(max_rounds, error):
+    # max_rounds < 1 skipped the sampling loop and returned all-zero estimates
+    fam = Family("f", [Member("o", 1.0, np.inf)])
+    with pytest.raises(error, match="max_rounds"):
+        estimate_liability([fam], method="gibbs", n_sim=20, burn_in=0,
+                           max_rounds=max_rounds)
+
+
+def test_gibbs_array_estimator_rejects_invalid_burn_in():
+    from ltpred.estimate import estimate_liability_gibbs_arrays
+    lo = np.array([[-np.inf]])
+    hi = np.array([[1.0]])
+    with pytest.raises(ValueError, match="burn_in must be a non-negative integer"):
+        estimate_liability_gibbs_arrays(["o"], lo, hi, n_sim=20, burn_in=-1)
+    with pytest.raises(TypeError, match="burn_in must be a non-negative integer"):
+        estimate_liability_gibbs_arrays(["o"], lo, hi, n_sim=20, burn_in=True)
+
+
+def test_multi_trait_rejects_duplicate_phen_names():
+    # result columns are keyed by (output, phenotype) name; duplicates silently
+    # collapsed two traits onto one key (last write won)
+    fam = Family("f1", [Member("o", [1.0, -np.inf], [np.inf, 1.0])])
+    with pytest.raises(ValueError, match="phen_names contains duplicates"):
+        estimate_liability([fam], h2=[0.5, 0.4], genetic_corrmat=np.eye(2),
+                           full_corrmat=np.eye(2), phen_names=["A", "A"],
+                           n_sim=20, burn_in=0)
+
+
+def test_member_role_g_is_rejected_on_object_and_array_paths():
+    # "g" is never legitimate user input: the estimator adds the genetic
+    # coordinate itself, so a supplied "g" row silently conditioned it
+    from ltpred.estimate import (estimate_liability_gibbs_arrays,
+                                 estimate_liability_pa_arrays)
+    t = float(stats.norm.isf(0.05))
+    fam = Family("f", [Member("g", t, np.inf), Member("o", -np.inf, t)])
+    for method in ("pa", "gibbs"):
+        with pytest.raises(ValueError, match="role 'g'"):
+            estimate_liability([fam], h2=0.5, method=method, n_sim=20, burn_in=0)
+    lo = np.array([[-9.0, t]])
+    hi = np.array([[9.0, np.inf]])
+    with pytest.raises(ValueError, match="must not contain 'g'"):
+        estimate_liability_pa_arrays(["g", "o"], lo, hi, h2=0.5)
+    with pytest.raises(ValueError, match="must not contain 'g'"):
+        estimate_liability_gibbs_arrays(["g", "o"], lo, hi, h2=0.5, n_sim=20,
+                                        burn_in=0)

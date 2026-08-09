@@ -1,0 +1,15 @@
+(a) cost of ignoring nurture   [h2 = 0.4, K = 0.05, 5 reps x 3000 fam]
+    n | add(true) add(moment)  A+C sibs  nurture |      cost ± 95% t CI
+ 0.00 |    0.3805      0.3805    0.3805   0.3805 | +0.0000 ± 0.0000
+ 0.10 |    0.3952      0.3952    0.3949   0.3958 | +0.0006 ± 0.0008
+ 0.20 |    0.4234      0.4237    0.4221   0.4253 | +0.0017 ± 0.0010
+ 0.30 |    0.4591      0.4602    0.4550   0.4645 | +0.0043 ± 0.0025
+
+(b) the identifiability trap: A+C reproduces sib-sib covariance exactly
+    n | c2 matched | h2 from par-off h2 from sibs | A+C slope nurture slope |      trap ± 95% t CI
+ 0.00 |     0.0000 |          0.4000       0.4000 |    1.0157        1.0157 | +0.0000 ± 0.0000
+ 0.10 |     0.0880 |          0.4800       0.5760 |    1.0693        1.0000 | +0.0009 ± 0.0009
+ 0.20 |     0.1920 |          0.5600       0.7840 |    1.1458        1.0077 | +0.0033 ± 0.0012
+ 0.30 |     0.3120 |          0.6400       1.0000 |    1.1957        1.0005 | +0.0095 ± 0.0043
+
+wrote bench_nurture.csv

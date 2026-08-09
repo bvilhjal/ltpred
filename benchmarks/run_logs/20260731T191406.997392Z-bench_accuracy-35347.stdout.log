@@ -1,0 +1,177 @@
+
+replicate 1/5 (seed 1)
+  parents        h2=0.2 K=0.01 | corr PA=0.191 Gibbs=0.193 | PA eff-N proxy=1.60x | agree=0.9985 | t: 1.48s / 0.014s
+  parents        h2=0.2 K=0.05 | corr PA=0.266 Gibbs=0.267 | PA eff-N proxy=1.34x | agree=0.9995 | t: 1.41s / 0.015s
+  parents        h2=0.2 K=0.20 | corr PA=0.325 Gibbs=0.326 | PA eff-N proxy=1.30x | agree=0.9998 | t: 1.43s / 0.015s
+  parents        h2=0.5 K=0.01 | corr PA=0.235 Gibbs=0.236 | PA eff-N proxy=1.93x | agree=0.9985 | t: 1.43s / 0.014s
+  parents        h2=0.5 K=0.05 | corr PA=0.394 Gibbs=0.394 | PA eff-N proxy=1.29x | agree=0.9997 | t: 1.54s / 0.014s
+  parents        h2=0.5 K=0.20 | corr PA=0.517 Gibbs=0.517 | PA eff-N proxy=1.26x | agree=0.9999 | t: 1.41s / 0.013s
+  parents        h2=0.8 K=0.01 | corr PA=0.268 Gibbs=0.269 | PA eff-N proxy=1.77x | agree=0.9972 | t: 1.45s / 0.014s
+  parents        h2=0.8 K=0.05 | corr PA=0.475 Gibbs=0.476 | PA eff-N proxy=1.22x | agree=0.9994 | t: 1.43s / 0.014s
+  parents        h2=0.8 K=0.20 | corr PA=0.645 Gibbs=0.645 | PA eff-N proxy=1.17x | agree=0.9998 | t: 1.40s / 0.013s
+  parents+sibs   h2=0.2 K=0.01 | corr PA=0.173 Gibbs=0.172 | PA eff-N proxy=2.11x | agree=0.9987 | t: 2.27s / 0.016s
+  parents+sibs   h2=0.2 K=0.05 | corr PA=0.289 Gibbs=0.288 | PA eff-N proxy=2.67x | agree=0.9996 | t: 2.19s / 0.016s
+  parents+sibs   h2=0.2 K=0.20 | corr PA=0.418 Gibbs=0.417 | PA eff-N proxy=2.27x | agree=0.9999 | t: 2.20s / 0.017s
+  parents+sibs   h2=0.5 K=0.01 | corr PA=0.297 Gibbs=0.298 | PA eff-N proxy=1.89x | agree=0.9991 | t: 2.30s / 0.015s
+  parents+sibs   h2=0.5 K=0.05 | corr PA=0.440 Gibbs=0.440 | PA eff-N proxy=1.78x | agree=0.9997 | t: 2.23s / 0.015s
+  parents+sibs   h2=0.5 K=0.20 | corr PA=0.580 Gibbs=0.580 | PA eff-N proxy=1.51x | agree=0.9999 | t: 2.19s / 0.016s
+  parents+sibs   h2=0.8 K=0.01 | corr PA=0.355 Gibbs=0.355 | PA eff-N proxy=1.47x | agree=0.9984 | t: 2.22s / 0.015s
+  parents+sibs   h2=0.8 K=0.05 | corr PA=0.529 Gibbs=0.529 | PA eff-N proxy=1.32x | agree=0.9995 | t: 2.23s / 0.015s
+  parents+sibs   h2=0.8 K=0.20 | corr PA=0.705 Gibbs=0.706 | PA eff-N proxy=1.20x | agree=0.9999 | t: 2.22s / 0.015s
+  extended       h2=0.2 K=0.01 | corr PA=0.181 Gibbs=0.181 | PA eff-N proxy=2.52x | agree=0.9989 | t: 3.42s / 0.017s
+  extended       h2=0.2 K=0.05 | corr PA=0.257 Gibbs=0.257 | PA eff-N proxy=2.14x | agree=0.9996 | t: 3.54s / 0.017s
+  extended       h2=0.2 K=0.20 | corr PA=0.393 Gibbs=0.393 | PA eff-N proxy=1.73x | agree=0.9999 | t: 3.47s / 0.017s
+  extended       h2=0.5 K=0.01 | corr PA=0.246 Gibbs=0.246 | PA eff-N proxy=2.14x | agree=0.9987 | t: 3.47s / 0.018s
+  extended       h2=0.5 K=0.05 | corr PA=0.386 Gibbs=0.386 | PA eff-N proxy=1.55x | agree=0.9997 | t: 3.45s / 0.017s
+  extended       h2=0.5 K=0.20 | corr PA=0.580 Gibbs=0.580 | PA eff-N proxy=1.39x | agree=0.9999 | t: 3.38s / 0.018s
+  extended       h2=0.8 K=0.01 | corr PA=0.275 Gibbs=0.273 | PA eff-N proxy=1.59x | agree=0.9978 | t: 3.39s / 0.017s
+  extended       h2=0.8 K=0.05 | corr PA=0.469 Gibbs=0.468 | PA eff-N proxy=1.68x | agree=0.9994 | t: 3.42s / 0.017s
+  extended       h2=0.8 K=0.20 | corr PA=0.700 Gibbs=0.700 | PA eff-N proxy=1.24x | agree=0.9999 | t: 3.48s / 0.018s
+
+replicate 2/5 (seed 2)
+  parents        h2=0.2 K=0.01 | corr PA=0.146 Gibbs=0.146 | PA eff-N proxy=1.32x | agree=0.9985 | t: 1.42s / 0.015s
+  parents        h2=0.2 K=0.05 | corr PA=0.262 Gibbs=0.262 | PA eff-N proxy=1.62x | agree=0.9996 | t: 1.43s / 0.015s
+  parents        h2=0.2 K=0.20 | corr PA=0.384 Gibbs=0.384 | PA eff-N proxy=1.42x | agree=0.9998 | t: 1.42s / 0.014s
+  parents        h2=0.5 K=0.01 | corr PA=0.205 Gibbs=0.204 | PA eff-N proxy=1.20x | agree=0.9988 | t: 1.44s / 0.013s
+  parents        h2=0.5 K=0.05 | corr PA=0.397 Gibbs=0.396 | PA eff-N proxy=1.45x | agree=0.9997 | t: 1.48s / 0.014s
+  parents        h2=0.5 K=0.20 | corr PA=0.569 Gibbs=0.569 | PA eff-N proxy=1.28x | agree=0.9999 | t: 1.43s / 0.014s
+  parents        h2=0.8 K=0.01 | corr PA=0.260 Gibbs=0.257 | PA eff-N proxy=1.37x | agree=0.9977 | t: 1.58s / 0.014s
+  parents        h2=0.8 K=0.05 | corr PA=0.479 Gibbs=0.478 | PA eff-N proxy=1.33x | agree=0.9995 | t: 1.46s / 0.014s
+  parents        h2=0.8 K=0.20 | corr PA=0.678 Gibbs=0.678 | PA eff-N proxy=1.19x | agree=0.9998 | t: 1.43s / 0.015s
+  parents+sibs   h2=0.2 K=0.01 | corr PA=0.134 Gibbs=0.133 | PA eff-N proxy=1.84x | agree=0.9986 | t: 2.19s / 0.014s
+  parents+sibs   h2=0.2 K=0.05 | corr PA=0.242 Gibbs=0.241 | PA eff-N proxy=1.84x | agree=0.9996 | t: 2.33s / 0.015s
+  parents+sibs   h2=0.2 K=0.20 | corr PA=0.404 Gibbs=0.404 | PA eff-N proxy=1.53x | agree=0.9999 | t: 2.22s / 0.017s
+  parents+sibs   h2=0.5 K=0.01 | corr PA=0.245 Gibbs=0.246 | PA eff-N proxy=1.71x | agree=0.9987 | t: 2.19s / 0.016s
+  parents+sibs   h2=0.5 K=0.05 | corr PA=0.435 Gibbs=0.436 | PA eff-N proxy=1.82x | agree=0.9997 | t: 2.20s / 0.014s
+  parents+sibs   h2=0.5 K=0.20 | corr PA=0.598 Gibbs=0.598 | PA eff-N proxy=1.47x | agree=0.9999 | t: 2.21s / 0.017s
+  parents+sibs   h2=0.8 K=0.01 | corr PA=0.298 Gibbs=0.298 | PA eff-N proxy=1.56x | agree=0.9979 | t: 2.20s / 0.016s
+  parents+sibs   h2=0.8 K=0.05 | corr PA=0.547 Gibbs=0.547 | PA eff-N proxy=1.34x | agree=0.9995 | t: 2.18s / 0.015s
+  parents+sibs   h2=0.8 K=0.20 | corr PA=0.698 Gibbs=0.698 | PA eff-N proxy=1.22x | agree=0.9998 | t: 2.21s / 0.015s
+  extended       h2=0.2 K=0.01 | corr PA=0.109 Gibbs=0.111 | PA eff-N proxy=4.19x | agree=0.9987 | t: 3.40s / 0.017s
+  extended       h2=0.2 K=0.05 | corr PA=0.236 Gibbs=0.236 | PA eff-N proxy=2.73x | agree=0.9996 | t: 3.46s / 0.017s
+  extended       h2=0.2 K=0.20 | corr PA=0.411 Gibbs=0.411 | PA eff-N proxy=1.57x | agree=0.9999 | t: 3.51s / 0.018s
+  extended       h2=0.5 K=0.01 | corr PA=0.251 Gibbs=0.249 | PA eff-N proxy=1.82x | agree=0.9989 | t: 3.51s / 0.019s
+  extended       h2=0.5 K=0.05 | corr PA=0.463 Gibbs=0.462 | PA eff-N proxy=1.62x | agree=0.9997 | t: 3.47s / 0.017s
+  extended       h2=0.5 K=0.20 | corr PA=0.604 Gibbs=0.603 | PA eff-N proxy=1.47x | agree=0.9999 | t: 3.61s / 0.017s
+  extended       h2=0.8 K=0.01 | corr PA=0.299 Gibbs=0.296 | PA eff-N proxy=1.76x | agree=0.9980 | t: 3.58s / 0.017s
+  extended       h2=0.8 K=0.05 | corr PA=0.516 Gibbs=0.515 | PA eff-N proxy=1.51x | agree=0.9995 | t: 3.52s / 0.018s
+  extended       h2=0.8 K=0.20 | corr PA=0.686 Gibbs=0.685 | PA eff-N proxy=1.20x | agree=0.9998 | t: 3.54s / 0.017s
+
+replicate 3/5 (seed 3)
+  parents        h2=0.2 K=0.01 | corr PA=0.146 Gibbs=0.148 | PA eff-N proxy=1.42x | agree=0.9985 | t: 1.48s / 0.015s
+  parents        h2=0.2 K=0.05 | corr PA=0.263 Gibbs=0.264 | PA eff-N proxy=1.23x | agree=0.9995 | t: 1.46s / 0.014s
+  parents        h2=0.2 K=0.20 | corr PA=0.402 Gibbs=0.403 | PA eff-N proxy=1.42x | agree=0.9998 | t: 1.46s / 0.014s
+  parents        h2=0.5 K=0.01 | corr PA=0.214 Gibbs=0.214 | PA eff-N proxy=1.61x | agree=0.9988 | t: 1.46s / 0.014s
+  parents        h2=0.5 K=0.05 | corr PA=0.395 Gibbs=0.395 | PA eff-N proxy=1.34x | agree=0.9996 | t: 1.48s / 0.014s
+  parents        h2=0.5 K=0.20 | corr PA=0.583 Gibbs=0.583 | PA eff-N proxy=1.29x | agree=0.9999 | t: 1.45s / 0.014s
+  parents        h2=0.8 K=0.01 | corr PA=0.286 Gibbs=0.286 | PA eff-N proxy=1.53x | agree=0.9980 | t: 1.45s / 0.014s
+  parents        h2=0.8 K=0.05 | corr PA=0.483 Gibbs=0.483 | PA eff-N proxy=1.26x | agree=0.9994 | t: 1.44s / 0.014s
+  parents        h2=0.8 K=0.20 | corr PA=0.705 Gibbs=0.706 | PA eff-N proxy=1.16x | agree=0.9998 | t: 1.47s / 0.014s
+  parents+sibs   h2=0.2 K=0.01 | corr PA=0.150 Gibbs=0.150 | PA eff-N proxy=2.44x | agree=0.9988 | t: 2.21s / 0.016s
+  parents+sibs   h2=0.2 K=0.05 | corr PA=0.259 Gibbs=0.259 | PA eff-N proxy=2.17x | agree=0.9997 | t: 2.23s / 0.015s
+  parents+sibs   h2=0.2 K=0.20 | corr PA=0.428 Gibbs=0.427 | PA eff-N proxy=1.81x | agree=0.9999 | t: 2.19s / 0.016s
+  parents+sibs   h2=0.5 K=0.01 | corr PA=0.265 Gibbs=0.264 | PA eff-N proxy=1.78x | agree=0.9990 | t: 2.24s / 0.016s
+  parents+sibs   h2=0.5 K=0.05 | corr PA=0.464 Gibbs=0.463 | PA eff-N proxy=1.66x | agree=0.9997 | t: 2.25s / 0.015s
+  parents+sibs   h2=0.5 K=0.20 | corr PA=0.609 Gibbs=0.609 | PA eff-N proxy=1.51x | agree=0.9999 | t: 2.22s / 0.016s
+  parents+sibs   h2=0.8 K=0.01 | corr PA=0.323 Gibbs=0.321 | PA eff-N proxy=1.89x | agree=0.9982 | t: 2.25s / 0.015s
+  parents+sibs   h2=0.8 K=0.05 | corr PA=0.546 Gibbs=0.545 | PA eff-N proxy=1.51x | agree=0.9995 | t: 2.26s / 0.016s
+  parents+sibs   h2=0.8 K=0.20 | corr PA=0.709 Gibbs=0.709 | PA eff-N proxy=1.26x | agree=0.9998 | t: 2.64s / 0.016s
+  extended       h2=0.2 K=0.01 | corr PA=0.160 Gibbs=0.162 | PA eff-N proxy=3.08x | agree=0.9988 | t: 3.80s / 0.017s
+  extended       h2=0.2 K=0.05 | corr PA=0.313 Gibbs=0.314 | PA eff-N proxy=1.97x | agree=0.9996 | t: 3.88s / 0.018s
+  extended       h2=0.2 K=0.20 | corr PA=0.438 Gibbs=0.439 | PA eff-N proxy=1.74x | agree=0.9999 | t: 4.23s / 0.017s
+  extended       h2=0.5 K=0.01 | corr PA=0.266 Gibbs=0.263 | PA eff-N proxy=1.60x | agree=0.9990 | t: 4.13s / 0.017s
+  extended       h2=0.5 K=0.05 | corr PA=0.396 Gibbs=0.395 | PA eff-N proxy=1.73x | agree=0.9997 | t: 3.52s / 0.018s
+  extended       h2=0.5 K=0.20 | corr PA=0.591 Gibbs=0.590 | PA eff-N proxy=1.41x | agree=0.9999 | t: 3.46s / 0.018s
+  extended       h2=0.8 K=0.01 | corr PA=0.303 Gibbs=0.300 | PA eff-N proxy=1.78x | agree=0.9981 | t: 3.52s / 0.018s
+  extended       h2=0.8 K=0.05 | corr PA=0.497 Gibbs=0.495 | PA eff-N proxy=1.39x | agree=0.9995 | t: 3.47s / 0.018s
+  extended       h2=0.8 K=0.20 | corr PA=0.696 Gibbs=0.695 | PA eff-N proxy=1.27x | agree=0.9998 | t: 3.51s / 0.018s
+
+replicate 4/5 (seed 4)
+  parents        h2=0.2 K=0.01 | corr PA=0.111 Gibbs=0.111 | PA eff-N proxy=1.29x | agree=0.9980 | t: 1.40s / 0.014s
+  parents        h2=0.2 K=0.05 | corr PA=0.202 Gibbs=0.202 | PA eff-N proxy=1.51x | agree=0.9995 | t: 1.38s / 0.013s
+  parents        h2=0.2 K=0.20 | corr PA=0.313 Gibbs=0.313 | PA eff-N proxy=1.38x | agree=0.9998 | t: 1.39s / 0.013s
+  parents        h2=0.5 K=0.01 | corr PA=0.211 Gibbs=0.209 | PA eff-N proxy=1.30x | agree=0.9988 | t: 1.40s / 0.014s
+  parents        h2=0.5 K=0.05 | corr PA=0.352 Gibbs=0.351 | PA eff-N proxy=1.35x | agree=0.9996 | t: 1.42s / 0.014s
+  parents        h2=0.5 K=0.20 | corr PA=0.522 Gibbs=0.522 | PA eff-N proxy=1.23x | agree=0.9999 | t: 1.41s / 0.014s
+  parents        h2=0.8 K=0.01 | corr PA=0.283 Gibbs=0.280 | PA eff-N proxy=1.31x | agree=0.9977 | t: 1.43s / 0.014s
+  parents        h2=0.8 K=0.05 | corr PA=0.453 Gibbs=0.451 | PA eff-N proxy=1.29x | agree=0.9993 | t: 1.42s / 0.015s
+  parents        h2=0.8 K=0.20 | corr PA=0.663 Gibbs=0.662 | PA eff-N proxy=1.14x | agree=0.9998 | t: 1.43s / 0.014s
+  parents+sibs   h2=0.2 K=0.01 | corr PA=0.163 Gibbs=0.162 | PA eff-N proxy=2.22x | agree=0.9985 | t: 2.25s / 0.015s
+  parents+sibs   h2=0.2 K=0.05 | corr PA=0.274 Gibbs=0.273 | PA eff-N proxy=2.02x | agree=0.9996 | t: 2.20s / 0.015s
+  parents+sibs   h2=0.2 K=0.20 | corr PA=0.399 Gibbs=0.399 | PA eff-N proxy=1.66x | agree=0.9999 | t: 2.24s / 0.015s
+  parents+sibs   h2=0.5 K=0.01 | corr PA=0.293 Gibbs=0.294 | PA eff-N proxy=1.15x | agree=0.9991 | t: 2.31s / 0.016s
+  parents+sibs   h2=0.5 K=0.05 | corr PA=0.441 Gibbs=0.441 | PA eff-N proxy=1.43x | agree=0.9997 | t: 2.23s / 0.015s
+  parents+sibs   h2=0.5 K=0.20 | corr PA=0.606 Gibbs=0.607 | PA eff-N proxy=1.48x | agree=0.9999 | t: 2.33s / 0.015s
+  parents+sibs   h2=0.8 K=0.01 | corr PA=0.317 Gibbs=0.316 | PA eff-N proxy=1.63x | agree=0.9982 | t: 2.27s / 0.015s
+  parents+sibs   h2=0.8 K=0.05 | corr PA=0.511 Gibbs=0.511 | PA eff-N proxy=1.51x | agree=0.9995 | t: 2.25s / 0.016s
+  parents+sibs   h2=0.8 K=0.20 | corr PA=0.681 Gibbs=0.682 | PA eff-N proxy=1.24x | agree=0.9998 | t: 2.28s / 0.015s
+  extended       h2=0.2 K=0.01 | corr PA=0.172 Gibbs=0.171 | PA eff-N proxy=1.42x | agree=0.9985 | t: 3.43s / 0.017s
+  extended       h2=0.2 K=0.05 | corr PA=0.294 Gibbs=0.293 | PA eff-N proxy=1.83x | agree=0.9996 | t: 3.49s / 0.017s
+  extended       h2=0.2 K=0.20 | corr PA=0.429 Gibbs=0.429 | PA eff-N proxy=1.64x | agree=0.9999 | t: 3.47s / 0.017s
+  extended       h2=0.5 K=0.01 | corr PA=0.265 Gibbs=0.265 | PA eff-N proxy=1.78x | agree=0.9988 | t: 3.44s / 0.018s
+  extended       h2=0.5 K=0.05 | corr PA=0.431 Gibbs=0.431 | PA eff-N proxy=1.60x | agree=0.9997 | t: 3.46s / 0.018s
+  extended       h2=0.5 K=0.20 | corr PA=0.610 Gibbs=0.610 | PA eff-N proxy=1.38x | agree=0.9999 | t: 3.42s / 0.017s
+  extended       h2=0.8 K=0.01 | corr PA=0.308 Gibbs=0.306 | PA eff-N proxy=1.69x | agree=0.9978 | t: 3.40s / 0.017s
+  extended       h2=0.8 K=0.05 | corr PA=0.511 Gibbs=0.510 | PA eff-N proxy=1.49x | agree=0.9994 | t: 3.35s / 0.020s
+  extended       h2=0.8 K=0.20 | corr PA=0.710 Gibbs=0.710 | PA eff-N proxy=1.21x | agree=0.9998 | t: 3.42s / 0.017s
+
+replicate 5/5 (seed 5)
+  parents        h2=0.2 K=0.01 | corr PA=0.188 Gibbs=0.188 | PA eff-N proxy=1.40x | agree=0.9984 | t: 1.43s / 0.013s
+  parents        h2=0.2 K=0.05 | corr PA=0.258 Gibbs=0.258 | PA eff-N proxy=1.28x | agree=0.9996 | t: 1.40s / 0.013s
+  parents        h2=0.2 K=0.20 | corr PA=0.380 Gibbs=0.380 | PA eff-N proxy=1.36x | agree=0.9998 | t: 1.40s / 0.014s
+  parents        h2=0.5 K=0.01 | corr PA=0.268 Gibbs=0.268 | PA eff-N proxy=1.44x | agree=0.9988 | t: 1.45s / 0.014s
+  parents        h2=0.5 K=0.05 | corr PA=0.373 Gibbs=0.373 | PA eff-N proxy=1.35x | agree=0.9997 | t: 1.44s / 0.013s
+  parents        h2=0.5 K=0.20 | corr PA=0.581 Gibbs=0.581 | PA eff-N proxy=1.26x | agree=0.9999 | t: 1.56s / 0.014s
+  parents        h2=0.8 K=0.01 | corr PA=0.291 Gibbs=0.292 | PA eff-N proxy=1.38x | agree=0.9978 | t: 1.50s / 0.014s
+  parents        h2=0.8 K=0.05 | corr PA=0.474 Gibbs=0.474 | PA eff-N proxy=1.26x | agree=0.9995 | t: 1.44s / 0.014s
+  parents        h2=0.8 K=0.20 | corr PA=0.687 Gibbs=0.687 | PA eff-N proxy=1.15x | agree=0.9998 | t: 1.56s / 0.014s
+  parents+sibs   h2=0.2 K=0.01 | corr PA=0.193 Gibbs=0.190 | PA eff-N proxy=2.74x | agree=0.9989 | t: 2.26s / 0.017s
+  parents+sibs   h2=0.2 K=0.05 | corr PA=0.298 Gibbs=0.296 | PA eff-N proxy=1.86x | agree=0.9996 | t: 2.22s / 0.015s
+  parents+sibs   h2=0.2 K=0.20 | corr PA=0.374 Gibbs=0.374 | PA eff-N proxy=2.03x | agree=0.9999 | t: 2.26s / 0.015s
+  parents+sibs   h2=0.5 K=0.01 | corr PA=0.269 Gibbs=0.270 | PA eff-N proxy=1.41x | agree=0.9989 | t: 2.33s / 0.017s
+  parents+sibs   h2=0.5 K=0.05 | corr PA=0.406 Gibbs=0.407 | PA eff-N proxy=1.61x | agree=0.9997 | t: 2.23s / 0.015s
+  parents+sibs   h2=0.5 K=0.20 | corr PA=0.584 Gibbs=0.584 | PA eff-N proxy=1.33x | agree=0.9999 | t: 2.23s / 0.015s
+  parents+sibs   h2=0.8 K=0.01 | corr PA=0.321 Gibbs=0.323 | PA eff-N proxy=1.96x | agree=0.9982 | t: 2.24s / 0.016s
+  parents+sibs   h2=0.8 K=0.05 | corr PA=0.509 Gibbs=0.509 | PA eff-N proxy=1.45x | agree=0.9995 | t: 2.30s / 0.015s
+  parents+sibs   h2=0.8 K=0.20 | corr PA=0.700 Gibbs=0.699 | PA eff-N proxy=1.28x | agree=0.9998 | t: 2.22s / 0.015s
+  extended       h2=0.2 K=0.01 | corr PA=0.159 Gibbs=0.160 | PA eff-N proxy=1.42x | agree=0.9988 | t: 3.43s / 0.017s
+  extended       h2=0.2 K=0.05 | corr PA=0.311 Gibbs=0.311 | PA eff-N proxy=1.83x | agree=0.9996 | t: 3.45s / 0.017s
+  extended       h2=0.2 K=0.20 | corr PA=0.403 Gibbs=0.403 | PA eff-N proxy=1.90x | agree=0.9999 | t: 3.40s / 0.019s
+  extended       h2=0.5 K=0.01 | corr PA=0.195 Gibbs=0.193 | PA eff-N proxy=1.76x | agree=0.9985 | t: 3.45s / 0.019s
+  extended       h2=0.5 K=0.05 | corr PA=0.423 Gibbs=0.422 | PA eff-N proxy=2.07x | agree=0.9997 | t: 3.49s / 0.019s
+  extended       h2=0.5 K=0.20 | corr PA=0.583 Gibbs=0.583 | PA eff-N proxy=1.41x | agree=0.9999 | t: 3.45s / 0.020s
+  extended       h2=0.8 K=0.01 | corr PA=0.284 Gibbs=0.281 | PA eff-N proxy=2.35x | agree=0.9974 | t: 3.43s / 0.017s
+  extended       h2=0.8 K=0.05 | corr PA=0.498 Gibbs=0.497 | PA eff-N proxy=1.49x | agree=0.9995 | t: 3.46s / 0.017s
+  extended       h2=0.8 K=0.20 | corr PA=0.681 Gibbs=0.680 | PA eff-N proxy=1.24x | agree=0.9998 | t: 3.50s / 0.017s
+
+across-seed means ± SE (sd/sqrt(reps)):
+  parents        h2=0.2 K=0.01 | corr PA=0.156±0.015 Gibbs=0.157±0.015 | PA eff-N proxy=1.41±0.05x | agree=0.9984±0.0001
+  parents        h2=0.2 K=0.05 | corr PA=0.250±0.012 Gibbs=0.250±0.012 | PA eff-N proxy=1.40±0.07x | agree=0.9996±0.0000
+  parents        h2=0.2 K=0.20 | corr PA=0.361±0.018 Gibbs=0.361±0.018 | PA eff-N proxy=1.37±0.02x | agree=0.9998±0.0000
+  parents        h2=0.5 K=0.01 | corr PA=0.227±0.012 Gibbs=0.226±0.012 | PA eff-N proxy=1.50±0.13x | agree=0.9987±0.0001
+  parents        h2=0.5 K=0.05 | corr PA=0.382±0.009 Gibbs=0.382±0.009 | PA eff-N proxy=1.36±0.03x | agree=0.9997±0.0000
+  parents        h2=0.5 K=0.20 | corr PA=0.554±0.014 Gibbs=0.554±0.014 | PA eff-N proxy=1.27±0.01x | agree=0.9999±0.0000
+  parents        h2=0.8 K=0.01 | corr PA=0.278±0.006 Gibbs=0.277±0.006 | PA eff-N proxy=1.47±0.08x | agree=0.9977±0.0001
+  parents        h2=0.8 K=0.05 | corr PA=0.473±0.005 Gibbs=0.472±0.006 | PA eff-N proxy=1.27±0.02x | agree=0.9994±0.0000
+  parents        h2=0.8 K=0.20 | corr PA=0.676±0.010 Gibbs=0.676±0.010 | PA eff-N proxy=1.16±0.01x | agree=0.9998±0.0000
+  parents+sibs   h2=0.2 K=0.01 | corr PA=0.163±0.010 Gibbs=0.161±0.010 | PA eff-N proxy=2.27±0.15x | agree=0.9987±0.0001
+  parents+sibs   h2=0.2 K=0.05 | corr PA=0.272±0.010 Gibbs=0.272±0.010 | PA eff-N proxy=2.11±0.15x | agree=0.9996±0.0000
+  parents+sibs   h2=0.2 K=0.20 | corr PA=0.404±0.009 Gibbs=0.404±0.009 | PA eff-N proxy=1.86±0.13x | agree=0.9999±0.0000
+  parents+sibs   h2=0.5 K=0.01 | corr PA=0.274±0.010 Gibbs=0.274±0.010 | PA eff-N proxy=1.59±0.14x | agree=0.9990±0.0001
+  parents+sibs   h2=0.5 K=0.05 | corr PA=0.437±0.009 Gibbs=0.437±0.009 | PA eff-N proxy=1.66±0.07x | agree=0.9997±0.0000
+  parents+sibs   h2=0.5 K=0.20 | corr PA=0.595±0.006 Gibbs=0.596±0.006 | PA eff-N proxy=1.46±0.03x | agree=0.9999±0.0000
+  parents+sibs   h2=0.8 K=0.01 | corr PA=0.322±0.009 Gibbs=0.323±0.009 | PA eff-N proxy=1.70±0.09x | agree=0.9982±0.0001
+  parents+sibs   h2=0.8 K=0.05 | corr PA=0.528±0.008 Gibbs=0.528±0.008 | PA eff-N proxy=1.42±0.04x | agree=0.9995±0.0000
+  parents+sibs   h2=0.8 K=0.20 | corr PA=0.699±0.005 Gibbs=0.699±0.005 | PA eff-N proxy=1.24±0.01x | agree=0.9998±0.0000
+  extended       h2=0.2 K=0.01 | corr PA=0.156±0.013 Gibbs=0.157±0.012 | PA eff-N proxy=2.53±0.52x | agree=0.9987±0.0001
+  extended       h2=0.2 K=0.05 | corr PA=0.282±0.015 Gibbs=0.282±0.015 | PA eff-N proxy=2.10±0.17x | agree=0.9996±0.0000
+  extended       h2=0.2 K=0.20 | corr PA=0.415±0.008 Gibbs=0.415±0.008 | PA eff-N proxy=1.72±0.06x | agree=0.9999±0.0000
+  extended       h2=0.5 K=0.01 | corr PA=0.244±0.013 Gibbs=0.243±0.013 | PA eff-N proxy=1.82±0.09x | agree=0.9988±0.0001
+  extended       h2=0.5 K=0.05 | corr PA=0.420±0.014 Gibbs=0.419±0.014 | PA eff-N proxy=1.71±0.09x | agree=0.9997±0.0000
+  extended       h2=0.5 K=0.20 | corr PA=0.593±0.006 Gibbs=0.593±0.006 | PA eff-N proxy=1.41±0.02x | agree=0.9999±0.0000
+  extended       h2=0.8 K=0.01 | corr PA=0.294±0.006 Gibbs=0.291±0.006 | PA eff-N proxy=1.83±0.13x | agree=0.9978±0.0001
+  extended       h2=0.8 K=0.05 | corr PA=0.498±0.008 Gibbs=0.497±0.008 | PA eff-N proxy=1.51±0.05x | agree=0.9994±0.0000
+  extended       h2=0.8 K=0.20 | corr PA=0.694±0.005 Gibbs=0.694±0.005 | PA eff-N proxy=1.23±0.01x | agree=0.9998±0.0000
+
+wrote bench_accuracy.csv and bench_accuracy.png
+total runtime: 5.8 min

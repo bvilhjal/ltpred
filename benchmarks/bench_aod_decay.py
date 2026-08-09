@@ -66,7 +66,8 @@ def fit_replicates(rg_val, lam, n_fam, prev, reps, seed0, n_em, n_draw, burn,
         res = fit_genetic_correlation_decay(fams, kernel=KERNEL, n_em=n_em,
                                             n_draw=n_draw, burn=burn,
                                             m_iter=m_iter,
-                                            seed=seed0 + 100_000 + r)
+                                            seed=seed0 + 100_000 + r,
+                                            sampling="population")
         rg_fit[r] = res.rg[0, 1]
         lamx_fit[r] = res.lambda_cross[0, 1]
         lamw_fit[r] = res.lambda_within
@@ -91,7 +92,8 @@ def main():
     fit_genetic_correlation_decay(
         simulate_families_multi(FAM, H2, 0.5, 0.3, 40, (0.2, 0.2), 0,
                                 aod=(AGE_LO, AGE_HI), lam=0.04, kernel=KERNEL),
-        kernel=KERNEL, n_em=8, n_draw=20, burn=10, m_iter=20)
+        kernel=KERNEL, n_em=8, n_draw=20, burn=10, m_iter=20,
+        sampling="population")
 
     rows = []
     lam_max = 4.0 / (AGE_HI - AGE_LO)

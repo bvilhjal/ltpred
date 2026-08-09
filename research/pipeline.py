@@ -26,7 +26,7 @@ Two observation designs, per the package's leakage conventions:
   every relative's events after the proband-specific index age are censored at
   that age (a later case becomes a censored control at the index age), so no
   post-index information enters the score (the LT-FGRS pipeline's censoring
-  step, Pedersen et al. 2026).
+  step; Pedersen et al., LTFGRS R package).
 
 Scale note: estimation is per proband with a small dense kinship covariance
 (register neighbourhoods are tens of people), which is the right architecture

@@ -30,7 +30,11 @@ they alter a censored control's mixture weight through `K_i`. They do not alter
 `h²` or genetic correlations. Follow-up/censoring must be represented by a
 defensible observation model; independent censoring is required for ordinary
 Kaplan–Meier risk estimates, and competing events require a cumulative-incidence
-estimator.
+estimator. The PA-FGRS censored-control mixture inherits both requirements: its
+weight `(K_pop − K_i)/K_pop` reads a future case's not-yet-onset probability off
+the stratum's population CIP, which assumes censoring is non-informative given
+the stratum and onset timing among future cases independent of liability (see
+[algorithm.md](algorithm.md#base-pa-fgrs-lifetime-cases-and-censored-controls)).
 
 Gibbs targets the truncated-Gaussian conditional moments by Monte Carlo. PA is a
 deterministic sequential-moment approximation when several interval observations

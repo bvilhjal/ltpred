@@ -1,0 +1,12 @@
+== (a) A+M recovery (a2=0.4, n_fam=3000, o+s1+s2+m+f+mgm+mgf+pgm+pgf) ==
+  m2=0.0 | A=0.394(-0.006) SD=0.032 | M=0.014(+0.014) SD=0.011  [49s]
+  m2=0.1 | A=0.392(-0.008) SD=0.036 | M=0.102(+0.002) SD=0.035  [49s]
+  m2=0.2 | A=0.399(-0.001) SD=0.032 | M=0.197(-0.003) SD=0.038  [49s]
+  m2=0.3 | A=0.387(-0.013) SD=0.029 | M=0.286(-0.014) SD=0.022  [50s]
+== (b) additive-only A bias from ignoring shared environment ==
+   (same s2 variance placed as C (sibship) vs M (couple); fit ('A',) only)
+  s2=0.1 | ignore C: A=0.447 (+0.047, SD=0.031; inflated) | ignore M: A=0.395 (-0.005, SD=0.031; much less biased)
+  s2=0.2 | ignore C: A=0.501 (+0.101, SD=0.034; inflated) | ignore M: A=0.425 (+0.025, SD=0.040; much less biased)
+  s2=0.3 | ignore C: A=0.556 (+0.156, SD=0.037; inflated) | ignore M: A=0.434 (+0.034, SD=0.035; much less biased)
+
+wrote bench_couple_env.csv and bench_couple_env.png

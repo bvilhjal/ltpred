@@ -1,0 +1,8 @@
+Pedigree-inference benchmark (trio records -> relatives)
+population: 2683 persons
+Part 1: extracted vs full-pedigree kinship, max abs diff over 300 probands: 0.00e+00
+Part 2 (N=300, h2=0.5, prev=0.1, degree<=3):
+  corr(est, true g)  all relatives: 0.5318   named-role subset: 0.4521   ratio 1.176
+  corr(all-relatives est, named-role estimate): 0.8834
+Part 3: 3000 extractions at degree 3: 0.18s
+runtime 4s

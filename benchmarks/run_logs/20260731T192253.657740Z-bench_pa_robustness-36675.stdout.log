@@ -1,0 +1,12 @@
+== (a) PA vs Gibbs on stressful pedigrees (h2=0.5) ==
+  baseline           | PA<->Gibbs=0.9997 | corr(PA,g)=0.438 corr(Gibbs,g)=0.438
+  large pedigree     | PA<->Gibbs=0.9997 | corr(PA,g)=0.448 corr(Gibbs,g)=0.449
+  rare (K=0.005)     | PA<->Gibbs=0.9984 | corr(PA,g)=0.230 corr(Gibbs,g)=0.231
+  dense (>=3 aff)    | PA<->Gibbs=0.9991 | corr(PA,g)=0.489 corr(Gibbs,g)=0.490
+== (b) fold-in ordering sensitivity vs pedigree size (K=0.050, 10 orders) ==
+  trio (2 rel)           | order-SD median=0.00023 p95=0.00528 | vs signal SD: median 0.08% p95 1.96%
+  parents+2 sibs (4)     | order-SD median=0.00034 p95=0.00664 | vs signal SD: median 0.11% p95 2.24%
+  extended (8)           | order-SD median=0.00029 p95=0.00777 | vs signal SD: median 0.09% p95 2.39%
+  large (11)             | order-SD median=0.00024 p95=0.01169 | vs signal SD: median 0.07% p95 3.33%
+
+wrote bench_pa_robustness.csv and bench_pa_robustness.png

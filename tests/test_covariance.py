@@ -301,3 +301,35 @@ def test_zero_h2_is_rejected_with_an_explanation():
     # the open end of the interval is still fine
     construct_covmat_single(fam_vec=["m", "f"], h2=1.0)
     construct_covmat_single(fam_vec=["m", "f"], h2=1e-6)
+
+
+def test_expand_family_rejects_duplicate_roles():
+    # duplicate singleton roles used to build a singular matrix with two
+    # perfectly-correlated "mothers"
+    with pytest.raises(ValueError, match="duplicate role"):
+        construct_covmat_single(fam_vec=["m", "m"], h2=0.5)
+    with pytest.raises(ValueError, match="duplicate role"):
+        construct_covmat_single(fam_vec=["s1", "s1"], h2=0.5)
+    with pytest.raises(ValueError, match="duplicate role"):
+        construct_covmat_multi(fam_vec=["m", "m"], genetic_corrmat=np.eye(2),
+                               full_corrmat=np.eye(2), h2_vec=[0.5, 0.4])
+
+
+def test_n_fam_rejects_singleton_counts_above_one():
+    # a count > 1 for a singleton role used to be silently dropped; numbered
+    # roles are the way to request multiples
+    with pytest.raises(ValueError, match="singleton role"):
+        construct_covmat_single(fam_vec=None, n_fam={"m": 2}, h2=0.5)
+    with pytest.raises(ValueError, match="singleton role"):
+        construct_covmat_single(fam_vec=None, n_fam={"mgm": 3}, h2=0.5)
+    cov = construct_covmat_single(fam_vec=None, n_fam={"s": 2}, h2=0.5)
+    assert cov.roles == ["g", "o", "s1", "s2"]
+
+
+def test_same_side_half_sibs_share_a_second_parent_by_convention():
+    # the inherited LTFHPlus convention (see the get_relatedness docstring): two
+    # same-side half-sibs are related 0.5*h2 *to each other* — an implied shared
+    # second parent — while cross-side half-sibs are unrelated
+    assert get_relatedness("mhs1", "mhs2", h2=0.4) == pytest.approx(0.5 * 0.4)
+    assert get_relatedness("phs1", "phs2", h2=0.4) == pytest.approx(0.5 * 0.4)
+    assert get_relatedness("mhs1", "phs1", h2=0.4) == pytest.approx(0.0)

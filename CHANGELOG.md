@@ -4,6 +4,61 @@ All notable changes to ltpred are recorded here. This project follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html); while the major
 version is 0 the public API may still change between minor releases.
 
+## Unreleased
+
+### Fixed
+
+- Negative `burn_in` is rejected everywhere it reaches a sampler:
+  `rtmvnorm_gibbs`, every Gibbs estimate path (validated once in
+  `_estimate_group`, the shared choke point), `fit_heritability`,
+  `fit_variance_components`, and the research fitters. The sweep kernels loop
+  `range(-burn_in, n_sim)`, so a negative value silently undercounted draws;
+  boolean and non-integer burn-ins are rejected rather than truncated. The
+  estimator choke point also validates `tol` (finite and > 0 — a NaN tolerance
+  never converged yet suppressed the unconverged warning) and `max_rounds`
+  (positive integer — a non-positive count returned all-zero estimates).
+- `pa_algorithm` and `pa_estimate_batched` now validate their truncation
+  bounds (no NaN, no reversed intervals — a reversed pair narrower than 1e-3
+  was silently "sorted" by the narrow-interval quadrature) and their
+  covariance (square, all-finite, symmetric within a scale-relative
+  tolerance). This is deliberately lighter than the Gibbs gate: no strict
+  positive-definite check, since the production paths route through
+  `correct_positive_definite` upstream.
+- Multi-trait estimation rejects duplicate `phen_names`; result dicts are
+  keyed by (output, phenotype) name, so duplicates silently collapsed two
+  traits' columns onto one key.
+- A member or column with role `"g"` is rejected on the object and array
+  estimator paths. The genetic-liability coordinate is added by the estimator,
+  so a supplied `"g"` silently conditioned it on that row's bounds.
+- `construct_covmat_single` / `construct_covmat_multi` reject duplicate roles
+  in `fam_vec` (`["m", "m"]` built a singular matrix with two
+  perfectly-correlated "mothers") and `n_fam` counts above 1 for singleton
+  roles such as `m` or `mgm` (previously dropped silently; numbered roles like
+  `s1`, `s2` are the way to request multiples).
+- The simple threshold helpers (`liability_threshold`,
+  `convert_age_to_cir`, `convert_age_to_thresh`, `convert_liability_to_aoo`,
+  `prevalence_thresholds`, `age_thresholds`, `pa_thresholds`) now require
+  prevalences in the open interval (0, 1): 0 or 1 produced infinite
+  thresholds, and out-of-range values silent NaN ones.
+- Docstring corrections: `estimate_liability` quotes the current benchmark
+  figure (PA 203–492× faster at four threads on the no-mixture grid, was the
+  superseded 315–510×); `ltpred.pedigree` states the proband's own mate is
+  graph distance 2 (only a relative's mate is 3); `get_relatedness` documents
+  the inherited LTFHPlus convention that two same-side half-sibs are related
+  0.5·h² *to each other* (an implied shared second parent), and
+  `construct_covmat_from_kinship` scopes its entry-for-entry agreement claim
+  to pedigrees consistent with that convention.
+
+### Changed
+
+- The research fitters `fit_variance_components_mcem`,
+  `fit_genetic_correlation` and `fit_genetic_correlation_decay` add the core's
+  `sampling=` contract gate: pass `sampling="population"` to affirm
+  independent, non-overlapping, unascertained population-sampled families;
+  omission warns, and any other value raises.
+- `research.advanced_fitting._decay_cov` drops its dead `rp` parameter (the
+  phenotypic correlation never entered the per-family covariance).
+
 ## 0.3.0 — 2026-07-31
 
 ### Changed (breaking)

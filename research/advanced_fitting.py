@@ -45,7 +45,8 @@ from ltpred.estimate import (_group_by_structure, _validate_multitrait_bounds,
                              batch_means)
 from ltpred.family import Family, Member
 from ltpred.fit import (fit_variance_components, _COMPONENT_OFFDIAG,
-                        _component_matrix, _prepare_group_vc)
+                        _component_matrix, _prepare_group_vc,
+                        _validate_population_sampling)
 from ltpred.gibbs import (gibbs_params, gibbs_advance, gibbs_advance_moment,
                           _init_chain, _FIXED_TOL, _offset_seed, _seed_rng)
 
@@ -199,8 +200,13 @@ def _reml_loglik(groups, comps, h2, eps, rng, n_draw=200):
 
 def fit_variance_components_mcem(families, components=("A", "C"), *,
                                  n_iter=1500, burn_in=500, inner_sweeps=5,
-                                 damp=0.2, seed=None, eps=1e-4):
+                                 damp=0.2, seed=None, eps=1e-4, sampling=None):
     """Approximate fixed-damping Monte-Carlo EM-style variance components.
+
+    **Sampling contract:** like the core moment fitters, this supports
+    independent, non-overlapping, unascertained population-sampled families only.
+    Pass ``sampling="population"`` to acknowledge that contract; omitting it
+    warns, and any other value raises.
 
     The likelihood counterpart of the Haseman-Elston
     :func:`ltpred.fit.fit_variance_components` moment fit (this is the route the
@@ -237,8 +243,10 @@ def fit_variance_components_mcem(families, components=("A", "C"), *,
                              "(dominance 'D' is not supported)")
     if len(set(comps)) != len(comps):
         raise ValueError(f"duplicate components in {components!r}")
-    if int(burn_in) >= int(n_iter):
-        raise ValueError(f"burn_in ({burn_in}) must be < n_iter ({n_iter})")
+    if int(burn_in) < 0 or int(burn_in) >= int(n_iter):
+        raise ValueError(f"burn_in ({burn_in}) must be non-negative and "
+                         f"< n_iter ({n_iter})")
+    _validate_population_sampling(sampling, "fit_variance_components_mcem")
     C = len(comps)
     groups = [_prepare_group_vc(families, idx, comps)
               for _key, idx in _group_by_structure(families)]
@@ -392,7 +400,7 @@ def _prepare_group_decay(families, idx, n_pheno):
                 x=np.ascontiguousarray(x), aod=aod)
 
 
-def _decay_cov(A, h2, G, rp, E, aod_f, lam_w, lam_x, kernel, C=None):
+def _decay_cov(A, h2, G, E, aod_f, lam_w, lam_x, kernel, C=None):
     """Per-family ``(kP, kP)`` liability covariance with the onset-age kernel.
 
     Block ``(p, q)``, element ``(i, j)``: ``A_ij * (h2[p] if p==q else G[p,q]) *
@@ -558,6 +566,12 @@ def _decay_negq_grad(theta, P, M_groups, groups, pairs, lam_max, kernel, eps,
                                lam_w, lam_x, pairs, kernel, C)
         minev = float(np.linalg.eigvalsh(Sig).min())
         if minev <= 1e-9:
+            # The zero gradient makes this penalty region a stationary point for
+            # L-BFGS-B. Safe by design, not by accident: every M-step starts
+            # from the previous PSD-projected iterate (``_run_em`` re-projects
+            # after each L-BFGS call), so the optimizer never *begins* inside
+            # the region — the rising 1e9 penalty only pushes its line searches
+            # back toward feasibility.
             return 1e9 + 1e9 * abs(minev), np.zeros(len(theta))
         Si = np.linalg.inv(Sig)
         logdet = np.linalg.slogdet(Sig)[1]
@@ -609,8 +623,13 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
                                   shared_lambda=False, shared_env=False,
                                   n_em=40, n_draw=100, burn=40, m_iter=100,
                                   n_starts=1, seed=None, eps=1e-4,
-                                  phen_names=None):
+                                  phen_names=None, sampling=None):
     """Genetic correlation with an onset-age decay (structured ``r_g``).
+
+    **Sampling contract:** like the core moment fitters, this supports
+    independent, non-overlapping, unascertained population-sampled families only.
+    Pass ``sampling="population"`` to acknowledge that contract; omitting it
+    warns, and any other value raises.
 
     Estimates the two-trait (or multi-trait) genetic correlation when the
     genetic covariance between relatives diagnosed at ages ``a1`` and ``a2``
@@ -689,10 +708,13 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
                          "enough points for a Monte-Carlo SE")
     if int(n_starts) < 1:
         raise ValueError(f"n_starts ({n_starts}) must be >= 1")
+    if int(burn) < 0:
+        raise ValueError(f"burn ({burn}) must be non-negative")
     if phen_names is None:
         phen_names = [f"phenotype{p + 1}" for p in range(P)]
     elif len(phen_names) != P:
         raise ValueError("phen_names length must match number of traits")
+    _validate_population_sampling(sampling, "fit_genetic_correlation_decay")
 
     groups = [_prepare_group_decay(families, idx, P)
               for _key, idx in _group_by_structure(families)]
@@ -734,14 +756,14 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
         return _decay_unpack(theta, P, pairs, lam_max, eps, shared_lambda,
                              shared_env)
 
-    def compute_M(h2, lam_w, G, lam_x, E, rp, C):
+    def compute_M(h2, lam_w, G, lam_x, E, C):
         M_groups = []
         for g in groups:
             k, F = g["k"], g["F"]
             kP = k * P
             M = np.empty((F, kP, kP))
             for slot in range(F):
-                S = _decay_cov(g["A"], h2, G, rp, E, g["aod"][slot],
+                S = _decay_cov(g["A"], h2, G, E, g["aod"][slot],
                                lam_w, lam_x, kernel, C)
                 S, _ = correct_positive_definite(S)
                 Pm, sd = gibbs_params(S)
@@ -806,7 +828,7 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
         tr_negq = np.empty(int(n_em))
         for it in range(int(n_em)):
             h2, lam_w, G, lam_x, E, rp, C = unpack(theta)
-            M_groups = compute_M(h2, lam_w, G, lam_x, E, rp, C)
+            M_groups = compute_M(h2, lam_w, G, lam_x, E, C)
             res = minimize(qgrad, theta, args=(M_groups,), jac=True,
                            method="L-BFGS-B", bounds=bounds,
                            options={"maxiter": int(m_iter)})
@@ -1059,8 +1081,14 @@ def _require_member_rows(families, *, context):
 
 
 def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=5,
-                            damp=0.2, seed=None, eps=1e-4, phen_names=None):
+                            damp=0.2, seed=None, eps=1e-4, phen_names=None,
+                            sampling=None):
     """Estimate the **genetic correlation** between traits from family data.
+
+    **Sampling contract:** like the core moment fitters, this supports
+    independent, non-overlapping, unascertained population-sampled families only.
+    Pass ``sampling="population"`` to acknowledge that contract; omitting it
+    warns, and any other value raises.
 
     The multi-trait generalisation of :func:`ltpred.fit.fit_heritability`: a
     **cross-trait** Haseman–Elston regression. Each member must carry one
@@ -1105,12 +1133,14 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
                          "lower/upper must be length-n_pheno (see "
                          "estimate._estimate_liability_multi)")
     _validate_multitrait_bounds(families, P)
-    if int(burn_in) >= int(n_iter):
-        raise ValueError(f"burn_in ({burn_in}) must be < n_iter ({n_iter})")
+    if int(burn_in) < 0 or int(burn_in) >= int(n_iter):
+        raise ValueError(f"burn_in ({burn_in}) must be non-negative and "
+                         f"< n_iter ({n_iter})")
     if phen_names is None:
         phen_names = [f"phenotype{p + 1}" for p in range(P)]
     elif len(phen_names) != P:
         raise ValueError("phen_names length must match number of traits")
+    _validate_population_sampling(sampling, "fit_genetic_correlation")
     groups = [_prepare_group_multi(families, idx, P)
               for _key, idx in _group_by_structure(families)]
     sA2 = sum(g["sA2"] for g in groups)

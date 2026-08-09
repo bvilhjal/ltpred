@@ -14,10 +14,6 @@ dist/
 # Docs site build (`mkdocs build`)
 site/
 
-# Local benchmark provenance artifacts
-benchmarks/run_manifest.jsonl
-benchmarks/run_logs/
-
 # Environments
 .venv/
 venv/

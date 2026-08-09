@@ -1,0 +1,16 @@
+threads=10 timing_reps=5
+== scaling with number of families (parents + one sibling; three relatives) ==
+n_fam=   500 | Gibbs    0.64s (    776/s) | PA  0.005s (    95842/s) | array  0.0002s (   2309101/s) |   123x
+n_fam=  1000 | Gibbs    1.18s (    848/s) | PA  0.009s (   111192/s) | array  0.0003s (   3722906/s) |   131x
+n_fam=  2000 | Gibbs    2.30s (    869/s) | PA  0.018s (   108294/s) | array  0.0004s (   5089463/s) |   125x
+n_fam=  4000 | Gibbs    4.61s (    868/s) | PA  0.038s (   106128/s) | array  0.0006s (   6579067/s) |   122x
+n_fam=  8000 | Gibbs    9.24s (    866/s) | PA  0.075s (   106754/s) | array  0.0014s (   5909953/s) |   123x
+
+== scaling with family size (n_fam=2000) ==
+parents          (2 rel) | Gibbs    1.84s | PA  0.018s | array  0.0004s |   102x
++sib             (3 rel) | Gibbs    2.33s | PA  0.019s | array  0.0005s |   123x
++2 grandp.       (5 rel) | Gibbs    3.34s | PA  0.022s | array  0.0007s |   149x
+extended         (7 rel) | Gibbs    4.45s | PA  0.022s | array  0.0008s |   198x
+extended+aunts   (10 rel) | Gibbs    6.04s | PA  0.025s | array  0.0010s |   242x
+
+wrote bench_scaling.csv and bench_scaling.png

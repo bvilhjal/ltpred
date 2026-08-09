@@ -184,15 +184,16 @@ def fit_heritability(families, *, h2_init=0.5, n_iter=1500, burn_in=500,
     Needs relatives (at least one related pair); a set of lone probands carries no
     information about ``h2`` and raises. ``seed`` must be a non-boolean integer in
     ``[0, 2**32 - 1]`` or ``None``, ``h2_init`` must lie in [0, 1], and ``burn_in``
-    must be smaller than ``n_iter``.
+    must be non-negative and smaller than ``n_iter``.
 
     Common and person-specific one-sided, two-sided, and pinned rectangles are
     accepted. Their geometry cannot establish whether the observation model is
     scientifically coherent, so callers must ensure the supplied bounds represent
     the observation process intended for fitting. Standard NaN and interval-order
     validation still applies."""
-    if int(burn_in) >= int(n_iter):
-        raise ValueError(f"burn_in ({burn_in}) must be < n_iter ({n_iter})")
+    if int(burn_in) < 0 or int(burn_in) >= int(n_iter):
+        raise ValueError(f"burn_in ({burn_in}) must be non-negative and "
+                         f"< n_iter ({n_iter})")
     if not 0.0 <= float(h2_init) <= 1.0:
         raise ValueError("h2_init must be in [0, 1]")
     damp, eps = _validate_update_controls(damp, eps)
@@ -402,8 +403,9 @@ def fit_variance_components(families, components=("A", "C"), *,
                              "(dominance 'D' is not supported)")
     if len(set(comps)) != len(comps):
         raise ValueError(f"duplicate components in {components!r}")
-    if int(burn_in) >= int(n_iter):
-        raise ValueError(f"burn_in ({burn_in}) must be < n_iter ({n_iter})")
+    if int(burn_in) < 0 or int(burn_in) >= int(n_iter):
+        raise ValueError(f"burn_in ({burn_in}) must be non-negative and "
+                         f"< n_iter ({n_iter})")
     damp, eps = _validate_update_controls(damp, eps)
     _validate_population_sampling(sampling, "fit_variance_components")
     C = len(comps)

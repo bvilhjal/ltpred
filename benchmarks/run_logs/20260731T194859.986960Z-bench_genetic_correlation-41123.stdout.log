@@ -1,0 +1,11 @@
+== (a) bias & precision vs true r_g (n_fam=3000, h2=[0.5, 0.4], r_p=0.2) ==
+  r_g=0.0 (null) | fitted=-0.006  bias=-0.006  SD=0.080  [56s]
+  r_g=0.3 | fitted=+0.289  bias=-0.011  SD=0.083  [56s]
+  r_g=0.6 | fitted=+0.598  bias=-0.002  SD=0.071  [56s]
+== (b) precision (SD of r_g) vs #families (r_g=0.5) ==
+  n_fam= 1000 | SD=0.148
+  n_fam= 2000 | SD=0.108
+  n_fam= 4000 | SD=0.078
+  n_fam= 8000 | SD=0.042
+
+wrote bench_genetic_correlation.csv and bench_genetic_correlation.png

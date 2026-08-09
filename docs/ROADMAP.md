@@ -228,10 +228,10 @@ likelihood-based inference) to the pedigree/registry setting.
   inflates cross-products in an age-dependent way that masquerades as fast genetic
   decay and drives a moment fit's `lam` to its bound. The headline `r_g` is
   recovered well, as is `lam` (`r_g ~ 0.51-0.53`, `lam ~ 0.041` vs true 0.5 /
-  0.04 at `n_fam = 2500`; `lam ~ 0.001` under the scalar null; `r_g ~ 0.005` at
+  0.04 at `n_fam = 2500`; `lam ~ 0.001` under the scalar null; `r_g ~ 0.009` at
   the `r_g = 0` null). The amplitude-decay ridge plus environmental competition
-  make the model **data-hungry**: at `n_fam ~ 1200` both `r_g` and `lam` come
-  out high (`~0.62` / `~0.064`) and they converge to the truth only as `n`
+  make the model **data-hungry**: at `n_fam ~ 1000` both `r_g` and `lam` come
+  out high (`~0.58` / `~0.063`) and they converge to the truth only as `n`
   grows into the thousands, with many EM iterations. A research tool for
   data-rich registry pedigrees, not small nuclear-family case/control panels.
   Follow-on options now address the main limitations: `shared_lambda` ties the
