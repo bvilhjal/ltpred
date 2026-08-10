@@ -46,16 +46,88 @@ class Covmat:
     phen_names: list = None
 
 
-def _match(pattern, s):
-    return re.match(pattern, s) is not None
-
-
 def _validate_relative(s):
     if not _VALID.fullmatch(s):
         raise ValueError(
             f"{s!r} is not a valid relative abbreviation. Use g, o, m, f, "
             "c<group>.<idx> (e.g. c1.1), mgm, mgf, pgm, pgf, s[0-9]*, mhs[0-9]*, "
             "phs[0-9]*, mau[0-9]*, or pau[0-9]*.")
+
+
+# Regex patterns for classifying numbered roles into relationship kinds.
+_ROLE_SIB = re.compile(r"s\d*")
+_ROLE_GP = re.compile(r"[mp]g[mf]")
+_ROLE_HS = re.compile(r"[mp]hs\d*")
+_ROLE_AVUNC = re.compile(r"[mp]au\d*")
+_ROLE_CHILD = re.compile(r"c\d+\.\d+")
+
+
+def _classify(role):
+    """Return ``(kind, side)`` for a validated role string.
+
+    Kinds: proband, genetic, parent, sib, gp, hs, avunc, child.
+    Side: ``'m'`` (maternal), ``'p'`` (paternal), or ``''`` (neutral)."""
+    if role == 'o':
+        return 'proband', ''
+    if role == 'g':
+        return 'genetic', ''
+    if role == 'm':
+        return 'parent', 'm'
+    if role == 'f':
+        return 'parent', 'p'
+    if _ROLE_SIB.fullmatch(role):
+        return 'sib', ''
+    if _ROLE_GP.fullmatch(role):
+        return 'gp', 'm' if role.startswith('m') else 'p'
+    if _ROLE_HS.fullmatch(role):
+        return 'hs', 'm' if role.startswith('m') else 'p'
+    if _ROLE_AVUNC.fullmatch(role):
+        return 'avunc', 'm' if role.startswith('m') else 'p'
+    if _ROLE_CHILD.fullmatch(role):
+        return 'child', ''
+    return 'unknown', ''
+
+
+# Shared-DNA fraction between role kinds, for same-side or side-neutral pairs.
+# Keys are alphabetically sorted kind pairs; values are the DNA fraction shared
+# (multiplied by h² in get_relatedness for cross-role entries).
+_SHARED_DNA = {
+    ('avunc', 'avunc'): 0.5,
+    ('avunc', 'child'): 0.125,
+    ('avunc', 'genetic'): 0.25,
+    ('avunc', 'gp'): 0.5,
+    ('avunc', 'hs'): 0.25,
+    ('avunc', 'parent'): 0.5,
+    ('avunc', 'proband'): 0.25,
+    ('avunc', 'sib'): 0.25,
+    ('child', 'genetic'): 0.5,
+    ('child', 'gp'): 0.125,
+    ('child', 'hs'): 0.125,
+    ('child', 'parent'): 0.25,
+    ('child', 'proband'): 0.5,
+    ('child', 'sib'): 0.25,
+    ('genetic', 'genetic'): 1.0,
+    ('genetic', 'gp'): 0.25,
+    ('genetic', 'hs'): 0.25,
+    ('genetic', 'parent'): 0.5,
+    ('genetic', 'proband'): 1.0,
+    ('genetic', 'sib'): 0.5,
+    ('gp', 'gp'): 0.0,
+    ('gp', 'hs'): 0.25,
+    ('gp', 'parent'): 0.5,
+    ('gp', 'proband'): 0.25,
+    ('gp', 'sib'): 0.25,
+    ('hs', 'hs'): 0.5,
+    ('hs', 'parent'): 0.5,
+    ('hs', 'proband'): 0.25,
+    ('hs', 'sib'): 0.25,
+    ('parent', 'parent'): 0.0,
+    ('parent', 'proband'): 0.5,
+    ('parent', 'sib'): 0.5,
+    ('proband', 'proband'): 1.0,
+    ('proband', 'sib'): 0.5,
+    ('sib', 'sib'): 0.5,
+}
 
 
 def get_relatedness(s1, s2, h2=0.5):
@@ -65,157 +137,39 @@ def get_relatedness(s1, s2, h2=0.5):
     ``m``/``f`` parents, ``s`` siblings, ``mgm``/``pgf`` grandparents, ``mhs``/``phs``
     half-sibs, ``mau``/``pau`` aunts/uncles, ``c`` children). Returns e.g.
     ``0.5*h2`` for parent/offspring or full sibs, ``0.25*h2`` for grandparents and
-    half-sibs. Pass ``h2=1`` to get the bare shared-DNA fraction. A port of
-    LTFHPlus::get_relatedness -- the relatedness table is reproduced branch for
-    branch.
+    half-sibs. Pass ``h2=1`` to get the bare shared-DNA fraction.
 
-    Inherited LTFHPlus convention: two **same-side** half-sibs (``mhs1``/``mhs2``,
-    or ``phs1``/``phs2``) are related ``0.5*h2`` *to each other* — the role grammar
-    cannot name their second parents, so it implies a shared one (they are treated
-    as full sibs of each other). A pedigree in which same-side half-sibs have
-    distinct other parents is not expressible in this grammar; use
-    :func:`construct_covmat_from_kinship` for those."""
+    Two **same-side** half-sibs (``mhs1``/``mhs2`` or ``phs1``/``phs2``) are
+    related ``0.5*h2`` *to each other* — the role grammar cannot name their second
+    parents, so it implies a shared one (they are treated as full sibs of each
+    other). A pedigree in which same-side half-sibs have distinct other parents is
+    not expressible in this grammar; use :func:`construct_covmat_from_kinship`
+    for those."""
     s1, s2 = s1.lower(), s2.lower()
     _validate_relative(s1)
     _validate_relative(s2)
 
-    if _match(r"o$", s1):  # target individual's full liability
-        if s1 == s2:
-            return 1.0
-        if _match(r"g$", s2):
-            return 1.0 * h2
-        if _match(r"m$", s2) or _match(r"f$", s2) or _match(r"c[0-9]*\.[0-9]*", s2) or _match(r"s[0-9]*", s2):
-            return 0.5 * h2
-        if _match(r"[mp]hs[0-9]*", s2) or _match(r"[mp]g[mf]", s2) or _match(r"[mp]au[0-9]*", s2):
-            return 0.25 * h2
+    # Self-relatedness: the variance of the coordinate.
+    # g (genetic liability) has variance h²; every other coordinate (full
+    # liabilities) has variance 1.0.
+    if s1 == s2:
+        return float(h2) if s1 == 'g' else 1.0
 
-    elif _match(r"g$", s1):  # target individual's genetic liability
-        if _match(r"[go]$", s2):
-            return 1.0 * h2
-        if _match(r"m$", s2) or _match(r"f$", s2) or _match(r"c[0-9]*\.[0-9]*", s2) or _match(r"s[0-9]*", s2):
-            return 0.5 * h2
-        if _match(r"[mp]hs[0-9]*", s2) or _match(r"[mp]g[mf]", s2) or _match(r"[mp]au[0-9]*", s2):
-            return 0.25 * h2
+    k1, side1 = _classify(s1)
+    k2, side2 = _classify(s2)
 
-    elif _match(r"m$", s1):  # mother
-        if s1 == s2:
-            return 1.0
-        if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"mhs[0-9]*", s2) or _match(r"mg[mf]$", s2) or _match(r"mau[0-9]*", s2):
-            return 0.5 * h2
-        if _match(r"c[0-9]*\.[0-9]*", s2):
-            return 0.25 * h2
-        if _match(r"f$", s2) or _match(r"pg[mf]$", s2) or _match(r"phs[0-9]*", s2) or _match(r"pau[0-9]*", s2):
-            return 0.0
+    # Opposite-side relatives are unrelated through the proband.
+    if side1 and side2 and side1 != side2:
+        return 0.0
 
-    elif _match(r"f$", s1):  # father
-        if s1 == s2:
-            return 1.0
-        if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"phs[0-9]*", s2) or _match(r"pg[mf]$", s2) or _match(r"pau[0-9]*", s2):
-            return 0.5 * h2
-        if _match(r"c[0-9]*\.[0-9]*", s2):
-            return 0.25 * h2
-        if _match(r"m$", s2) or _match(r"mg[mf]$", s2) or _match(r"mhs[0-9]*", s2) or _match(r"mau[0-9]*", s2):
-            return 0.0
+    # Child–child: depends on partner group.
+    if k1 == 'child' and k2 == 'child':
+        frac = 0.5 if _child_group(s1) == _child_group(s2) else 0.25
+        return frac * h2
 
-    elif _match(r"c[0-9]*\.[0-9]*", s1):  # children
-        if s1 == s2:
-            return 1.0
-        if _match(r"[go]$", s2):
-            return 0.5 * h2
-        if _match(r"c[0-9]*\.[0-9]*", s2) and _child_group(s1) == _child_group(s2):
-            return 0.5 * h2   # same partner group -> full siblings
-        if _match(r"c[0-9]*\.[0-9]*", s2) and _child_group(s1) != _child_group(s2):
-            return 0.25 * h2  # different partner group -> half siblings
-        if _match(r"[mf]$", s2) or _match(r"s[0-9]*", s2):
-            return 0.25 * h2
-        if _match(r"[mp]g[mf]$", s2) or _match(r"[mp]au[0-9]*", s2) or _match(r"[mp]hs[0-9]*", s2):
-            return 0.125 * h2
-
-    elif _match(r"s[0-9]*", s1):  # full siblings
-        if s1 == s2:
-            return 1.0
-        if _match(r"[go]$", s2) or _match(r"m$", s2) or _match(r"f$", s2) or _match(r"s[0-9]*", s2):
-            return 0.5 * h2
-        if _match(r"c[0-9]*\.[0-9]*", s2) or _match(r"[mp]hs[0-9]*", s2) or _match(r"[mp]g[mf]", s2) or _match(r"[mp]au[0-9]*", s2):
-            return 0.25 * h2
-
-    elif _match(r"mg[mf]$", s1):  # maternal grandparent
-        if s1 == s2:
-            return 1.0
-        if _match(r"mg[mf]$", s2):
-            return 0.0
-        if _match(r"c[0-9]*\.[0-9]*", s2):
-            return 0.125 * h2
-        if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"mhs[0-9]*", s2):
-            return 0.25 * h2
-        if _match(r"m$", s2) or _match(r"mau[0-9]*", s2):
-            return 0.5 * h2
-        if _match(r"f$", s2) or _match(r"pg[mf]$", s2) or _match(r"phs[0-9]*", s2) or _match(r"pau[0-9]*", s2):
-            return 0.0
-
-    elif _match(r"pg[mf]$", s1):  # paternal grandparent
-        if s1 == s2:
-            return 1.0
-        if _match(r"pg[mf]$", s2):
-            return 0.0
-        if _match(r"c[0-9]*\.[0-9]*", s2):
-            return 0.125 * h2
-        if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"phs[0-9]*", s2):
-            return 0.25 * h2
-        if _match(r"f$", s2) or _match(r"pau[0-9]*", s2):
-            return 0.5 * h2
-        if _match(r"m$", s2) or _match(r"mg[mf]$", s2) or _match(r"mhs[0-9]*", s2) or _match(r"mau[0-9]*", s2):
-            return 0.0
-
-    elif _match(r"mhs[0-9]*", s1):  # maternal half-siblings
-        if s1 == s2:
-            return 1.0
-        if _match(r"c[0-9]*\.[0-9]*", s2):
-            return 0.125 * h2
-        if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"mg[mf]$", s2) or _match(r"mau[0-9]*", s2):
-            return 0.25 * h2
-        if _match(r"m$", s2) or _match(r"mhs[0-9]*", s2):
-            return 0.5 * h2
-        if _match(r"f$", s2) or _match(r"pg[mf]$", s2) or _match(r"phs[0-9]*", s2) or _match(r"pau[0-9]*", s2):
-            return 0.0
-
-    elif _match(r"phs[0-9]*", s1):  # paternal half-siblings
-        if s1 == s2:
-            return 1.0
-        if _match(r"c[0-9]*\.[0-9]*", s2):
-            return 0.125 * h2
-        if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"pg[mf]$", s2) or _match(r"pau[0-9]*", s2):
-            return 0.25 * h2
-        if _match(r"f$", s2) or _match(r"phs[0-9]*", s2):
-            return 0.5 * h2
-        if _match(r"m$", s2) or _match(r"mg[mf]$", s2) or _match(r"mhs[0-9]*", s2) or _match(r"mau[0-9]*", s2):
-            return 0.0
-
-    elif _match(r"mau[0-9]*", s1):  # maternal aunts/uncles
-        if s1 == s2:
-            return 1.0
-        if _match(r"c[0-9]*\.[0-9]*", s2):
-            return 0.125 * h2
-        if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"mhs[0-9]*", s2):
-            return 0.25 * h2
-        if _match(r"m$", s2) or _match(r"mg[mf]$", s2) or _match(r"mau[0-9]*", s2):
-            return 0.5 * h2
-        if _match(r"f$", s2) or _match(r"pg[mf]$", s2) or _match(r"phs[0-9]*", s2) or _match(r"pau[0-9]*", s2):
-            return 0.0
-
-    elif _match(r"pau[0-9]*", s1):  # paternal aunts/uncles
-        if s1 == s2:
-            return 1.0
-        if _match(r"c[0-9]*\.[0-9]*", s2):
-            return 0.125 * h2
-        if _match(r"[go]$", s2) or _match(r"s[0-9]*", s2) or _match(r"phs[0-9]*", s2):
-            return 0.25 * h2
-        if _match(r"f$", s2) or _match(r"pg[mf]$", s2) or _match(r"pau[0-9]*", s2):
-            return 0.5 * h2
-        if _match(r"m$", s2) or _match(r"mg[mf]$", s2) or _match(r"mhs[0-9]*", s2) or _match(r"mau[0-9]*", s2):
-            return 0.0
-
-    return np.nan
+    key = (k1, k2) if k1 <= k2 else (k2, k1)
+    frac = _SHARED_DNA.get(key, 0.0)
+    return frac * h2
 
 
 def _child_group(s):

@@ -333,3 +333,158 @@ def test_same_side_half_sibs_share_a_second_parent_by_convention():
     assert get_relatedness("mhs1", "mhs2", h2=0.4) == pytest.approx(0.5 * 0.4)
     assert get_relatedness("phs1", "phs2", h2=0.4) == pytest.approx(0.5 * 0.4)
     assert get_relatedness("mhs1", "phs1", h2=0.4) == pytest.approx(0.0)
+
+
+# ---------------------------------------------------------------------------
+# Exhaustive relatedness-table validation
+# ---------------------------------------------------------------------------
+
+# One representative per role kind × side.
+_ROLE_KIND_EXAMPLES = {
+    # kind: (same-side examples, opposite-side examples from the other side)
+    "proband":     (["o"], []),                         # neutral — relates to all
+    "genetic":     (["g"], []),
+    "sib":         (["s1", "s2"], []),
+    "child":       (["c1.1", "c1.2"], ["c2.1"]),       # diff-group for child↔child
+    "parent":      (["m"], ["f"]),
+    "gp":          (["mgm", "mgf"], ["pgm", "pgf"]),
+    "hs":          (["mhs1", "mhs2"], ["phs1", "phs2"]),
+    "avunc":       (["mau1", "mau2"], ["pau1", "pau2"]),
+}
+
+_KINDS = list(_ROLE_KIND_EXAMPLES)
+
+# Expected shared-DNA fraction for every kind pair (same side or neutral).
+# Triangulated; (k1, k2) with k1 <= k2 alphabetically.
+_EXPECTED_SHARED_DNA = {
+    ("avunc", "avunc"): 0.5,
+    ("avunc", "child"): 0.125,
+    ("avunc", "genetic"): 0.25,
+    ("avunc", "gp"): 0.5,
+    ("avunc", "hs"): 0.25,
+    ("avunc", "parent"): 0.5,
+    ("avunc", "proband"): 0.25,
+    ("avunc", "sib"): 0.25,
+    ("child", "genetic"): 0.5,
+    ("child", "gp"): 0.125,
+    ("child", "hs"): 0.125,
+    ("child", "parent"): 0.25,
+    ("child", "proband"): 0.5,
+    ("child", "sib"): 0.25,
+    ("genetic", "genetic"): 1.0,
+    ("genetic", "gp"): 0.25,
+    ("genetic", "hs"): 0.25,
+    ("genetic", "parent"): 0.5,
+    ("genetic", "proband"): 1.0,
+    ("genetic", "sib"): 0.5,
+    ("gp", "gp"): 0.0,
+    ("gp", "hs"): 0.25,
+    ("gp", "parent"): 0.5,
+    ("gp", "proband"): 0.25,
+    ("gp", "sib"): 0.25,
+    ("hs", "hs"): 0.5,
+    ("hs", "parent"): 0.5,
+    ("hs", "proband"): 0.25,
+    ("hs", "sib"): 0.25,
+    ("parent", "parent"): 0.0,
+    ("parent", "proband"): 0.5,
+    ("parent", "sib"): 0.5,
+    ("proband", "proband"): 1.0,
+    ("proband", "sib"): 0.5,
+    ("sib", "sib"): 0.5,
+}
+
+
+def _is_neutral(kind):
+    """Kinds that relate to both maternal and paternal sides."""
+    return kind in ("proband", "genetic", "sib", "child")
+
+
+def test_relatedness_self():
+    """Every role has self-relatedness 1.0; g has variance h²."""
+    for kind, (same_examples, _) in _ROLE_KIND_EXAMPLES.items():
+        for role in same_examples:
+            if kind == "genetic":
+                assert get_relatedness(role, role, h2=0.5) == pytest.approx(0.5)
+            else:
+                assert get_relatedness(role, role, h2=0.5) == pytest.approx(1.0)
+
+
+def test_relatedness_opposite_sides_are_zero():
+    """Two side-specific roles on opposite sides are unrelated."""
+    maternal = ["m", "mgm", "mgf", "mhs1", "mau1"]
+    paternal = ["f", "pgm", "pgf", "phs1", "pau1"]
+    for ma in maternal:
+        for pa in paternal:
+            assert get_relatedness(ma, pa, h2=1.0) == pytest.approx(0.0), \
+                f"{ma!r} ↔ {pa!r} should be 0.0"
+
+
+def test_relatedness_same_side_matches_table():
+    """Every same-side or neutral pair matches the expected fraction."""
+    for k1 in _KINDS:
+        same1, _ = _ROLE_KIND_EXAMPLES[k1]
+        for k2 in _KINDS:
+            # canonical key
+            key = (k1, k2) if k1 <= k2 else (k2, k1)
+
+            # Child↔child is special (depends on partner group) — tested separately
+            if k1 == "child" and k2 == "child":
+                continue
+
+            expected = _EXPECTED_SHARED_DNA.get(key)
+            if expected is None:
+                continue  # not a valid pair (e.g. cross-kind that never appears)
+
+            # If both are same-side-specific and on different sides, skip
+            # (covered by test_relatedness_opposite_sides_are_zero).
+            is_k1_sided = not _is_neutral(k1)
+            is_k2_sided = not _is_neutral(k2)
+
+            # Test same-side (both maternal if both sided, or at least one neutral).
+            # For same-kind pairs, use two distinct examples so we test the
+            # cross-individual fraction, not the self-relatedness path.
+            # Kinds with only one example can't distinguish these — skip them
+            # (self-relatedness is tested separately).
+            if k1 == k2:
+                examples = _ROLE_KIND_EXAMPLES[k1][0]
+                if len(examples) < 2:
+                    continue
+                r1, r2 = examples[0], examples[1]
+            elif is_k1_sided and is_k2_sided:
+                r1 = same1[0]
+                r2 = _ROLE_KIND_EXAMPLES[k2][0][0]
+            else:
+                r1 = same1[0]
+                r2 = _ROLE_KIND_EXAMPLES[k2][0][0]
+
+            got = get_relatedness(r1, r2, h2=1.0)
+            assert got == pytest.approx(expected), \
+                f"{r1!r} ({k1}) ↔ {r2!r} ({k2}): expected {expected}, got {got}"
+
+
+def test_relatedness_child_groups():
+    """Children in same partner group are full sibs; different groups are half sibs."""
+    assert get_relatedness("c1.1", "c1.2", h2=1.0) == pytest.approx(0.5)
+    assert get_relatedness("c1.1", "c2.1", h2=1.0) == pytest.approx(0.25)
+    assert get_relatedness("c1.1", "c1.1", h2=1.0) == pytest.approx(1.0)
+
+
+def test_relatedness_half_sib_convention():
+    """Same-side half-sibs are treated as full sibs of each other (0.5)."""
+    assert get_relatedness("mhs1", "mhs2", h2=1.0) == pytest.approx(0.5)
+    assert get_relatedness("phs1", "phs2", h2=1.0) == pytest.approx(0.5)
+
+
+def test_relatedness_symmetric_exhaustive():
+    """Every role pair is symmetric."""
+    roles = [
+        "g", "o", "m", "f", "s1", "s2",
+        "mgm", "mgf", "pgm", "pgf",
+        "mhs1", "phs1", "mau1", "pau1",
+        "c1.1", "c1.2", "c2.1",
+    ]
+    for a in roles:
+        for b in roles:
+            assert get_relatedness(a, b, 0.4) == get_relatedness(b, a, 0.4), \
+                f"{a!r} ↔ {b!r} not symmetric"

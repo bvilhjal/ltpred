@@ -288,7 +288,11 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
 
     m0 = _tnorm_mean(mu, sd, lower, split)
     v0 = _tnorm_var(mu, sd, lower, split)
-    if split == math.inf or lower == split:  # observed case -> no upper component
+    # ``split == inf``: plain-mode observed case (split = upper = +inf).
+    # ``lower == split``: the lower bound coincides with the split point
+    # (lifetime threshold for mixture mode, upper bound for plain mode) —
+    # the lower component has zero width, so nothing to mix.
+    if split == math.inf or lower == split:
         m1 = 0.0
         v1 = 0.0
     else:

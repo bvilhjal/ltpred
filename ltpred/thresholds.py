@@ -131,16 +131,15 @@ def age_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
 
 
 def pa_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
-    """Age-dependent PA-FGRS-style inputs: ``(lower, upper, K_i, K_pop)``.
+    """**Not** the paper-faithful PA-FGRS encoding — an age-dependent variant.
 
-    The historical name refers to an observation encoding, not to selecting the
-    Pearson-Aitken inference engine. The helper is **not** the paper-faithful base
-    PA-FGRS encoding: Dybdahl Krebs et al. (2024) give observed cases the lifetime
-    interval ``(Phi^-1(1 - K_pop), inf)`` and use age-specific incidence only in
-    the censored-control mixture. This helper instead gives cases age-specific
-    onset intervals, making it an age-dependent PA-FGRS-style variant.
+    This helper gives cases **age-specific onset intervals**. Dybdahl Krebs et al.
+    (2024) instead give observed cases the lifetime interval
+    ``(Phi^-1(1 - K_pop), inf)`` and use age-specific incidence only in the
+    censored-control mixture. This is an age-dependent PA-FGRS-style variant,
+    not the base model.
 
-    For base PA-FGRS, obtain lifetime case/control intervals with
+    For **base PA-FGRS**, obtain lifetime case/control intervals with
     :func:`prevalence_thresholds`, supply ``K_i``/``K_pop`` for controls, and use
     the Pearson-Aitken estimator with ``use_mixture=True``. To infer onset-pinned
     LT-FH++ or ADuLT with Pearson-Aitken, use :func:`age_thresholds` or
