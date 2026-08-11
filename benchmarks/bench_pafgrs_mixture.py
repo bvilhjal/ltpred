@@ -62,16 +62,26 @@ hurt calibration anywhere; (2) it improves the calibration slope toward 1 in
 the MID regime; (3) correlation improves or matches; (4) the pinned encodings
 calibrate best (slope nearest 1). If (1) fails the implementation is suspect.
 
-Run:  conda run -n ltpred python benchmarks/bench_pafgrs_mixture.py
+Every replicate's corr/slope is retained and written to
+``bench_pafgrs_mixture.csv`` (long format: one ``replicate`` row per
+model x regime x rep x arm, plus ``paired_contrast`` rows). The paired
+mixture-minus-no-mixture differences per replicate are reported as mean +/-
+across-replicate SE with a t-based 95% CI (the bench_ltfhpp_personalization
+convention), which is what the "no correlation cost" question needs.
+
+Run:  python benchmarks/run_benchmark.py bench_pafgrs_mixture.py
 """
 
 from __future__ import annotations
 
+import argparse
+import csv
 import os
 import sys
 import time
 
 import numpy as np
+from scipy import stats
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -92,6 +102,8 @@ FAM_VEC = ["m", "f", "s1"]
 N_FAM = 20_000
 REPS = 5
 GIBBS_N = 2_000          # smaller subset for the sampling reference
+HERE = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_OUTPUT_PREFIX = os.path.join(HERE, "bench_pafgrs_mixture")
 AGE_RANGES = {           # (low, high) current-age ranges per regime
     "mid": {"o": (35, 55), "s": (35, 55), "m": (55, 75), "f": (55, 75)},
     "old": {"o": (60, 85), "s": (60, 85), "m": (75, 95), "f": (75, 95)},
@@ -196,61 +208,189 @@ def run_arm(families, true_g, use_mixture, gibbs_subset=None):
     return out
 
 
+def _mean_ci(values):
+    values = np.asarray(values, dtype=float)
+    values = values[np.isfinite(values)]
+    if not values.size:
+        return np.nan, np.nan, np.nan, np.nan, 0
+    mean = float(values.mean())
+    if values.size == 1:
+        return mean, np.nan, np.nan, np.nan, 1
+    sd = float(values.std(ddof=1))
+    se = sd / np.sqrt(values.size)
+    ci95 = float(stats.t.ppf(0.975, values.size - 1) * se)
+    return mean, sd, float(se), ci95, int(values.size)
+
+
+def _contrast_rows(replicate_rows):
+    """Paired mixture-minus-no-mixture differences per cell and case encoding."""
+    out = []
+    cells = []
+    for row in replicate_rows:
+        cell = (row["onset_model"], row["regime"])
+        if cell not in cells:
+            cells.append(cell)
+    for onset_model, regime in cells:
+        cell_rows = [row for row in replicate_rows
+                     if row["onset_model"] == onset_model
+                     and row["regime"] == regime]
+        for case_mode in sorted({row["case_mode"] for row in cell_rows}):
+            nomix = {row["rep"]: row for row in cell_rows
+                     if row["case_mode"] == case_mode and not row["use_mixture"]}
+            mix = {row["rep"]: row for row in cell_rows
+                   if row["case_mode"] == case_mode and row["use_mixture"]}
+            paired_reps = sorted(set(nomix) & set(mix))
+            if not paired_reps:
+                continue
+            base = nomix[paired_reps[0]]
+            row = {key: base[key] for key in
+                   ("onset_model", "regime", "n_fam", "fam", "h2", "K_pop",
+                    "mid", "slope", "reps", "seed")}
+            row.update(
+                row_type="paired_contrast",
+                rep="",
+                arm="",
+                case_mode=case_mode,
+                use_mixture="",
+                comparison=f"{mix[paired_reps[0]]['arm']} - {base['arm']}",
+                contrast_left=base["arm"],
+                contrast_right=mix[paired_reps[0]]["arm"],
+                contrast_n=len(paired_reps),
+            )
+            for metric in ("corr_pa", "slope_pa"):
+                delta = [mix[rep][metric] - nomix[rep][metric]
+                         for rep in paired_reps]
+                mean, sd, se, ci95, _ = _mean_ci(delta)
+                row[f"delta_{metric}"] = mean
+                row[f"delta_{metric}_sd"] = sd
+                row[f"delta_{metric}_se"] = se
+                row[f"delta_{metric}_ci95"] = ci95
+            out.append(row)
+    return out
+
+
+def write_csv(rows, output_prefix):
+    fields = []
+    for row in rows:
+        for field in row:
+            if field not in fields:
+                fields.append(field)
+    path = f"{output_prefix}.csv"
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n-fam", type=int, default=N_FAM)
+    parser.add_argument("--reps", type=int, default=REPS)
+    parser.add_argument("--gibbs-n", type=int, default=GIBBS_N,
+                        help="subset size for the Gibbs cross-check; 0 disables")
+    parser.add_argument("--seed", type=int, default=SEED)
+    parser.add_argument("--output-prefix", default=DEFAULT_OUTPUT_PREFIX,
+                        help="path stem for the .csv output")
+    args = parser.parse_args()
+
     t0 = time.time()
     print("PA-FGRS censoring-mixture generative validation")
-    print(f"seed={SEED}  h2={H2}  K_pop={K_POP}  CIP logistic(mid={MID_POINT},"
-          f" slope={SLOPE})  fams={N_FAM} reps={REPS}  fam_vec={FAM_VEC}")
+    print(f"seed={args.seed}  h2={H2}  K_pop={K_POP}  CIP logistic(mid={MID_POINT},"
+          f" slope={SLOPE})  fams={args.n_fam} reps={args.reps}  fam_vec={FAM_VEC}")
     print("truth = simulated genetic liability; slope = regress(true ~ est)"
-          " (1.0 = calibrated)\n")
+          " (1.0 = calibrated); +/- is across-replicate SE\n")
 
     grids = [
         ("CROSSING", "crossing",
          [("base + no-mixture", "base", False),
-          ("base + mixture   ", "base", True),
+          ("base + mixture", "base", True),
           ("interval + mixture", "interval", True),
           ("pinned + no-mixture", "pinned", False),
           ("pinned + mixture", "pinned", True)]),
         ("STOCHASTIC-ONSET", "stochastic",
          [("base + no-mixture", "base", False),
-          ("base + mixture   ", "base", True)]),
+          ("base + mixture", "base", True)]),
     ]
+    replicate_rows = []
     for model_label, onset_model, arms in grids:
         print(f"===== observation model: {model_label} =====")
         for regime in ("mid", "old"):
-            results = {name: {"pa": [], "gibbs": [], "pa_gibbs_corr": []}
-                       for name, _, _ in arms}
-            for rep in range(REPS):
-                rng = np.random.default_rng(np.random.PCG64(SEED + 31 * rep))
-                liab, roles, obs = simulate_cohort(rng, regime, N_FAM,
+            cell_rows = []
+            for rep in range(args.reps):
+                rng = np.random.default_rng(np.random.PCG64(args.seed + 31 * rep))
+                liab, roles, obs = simulate_cohort(rng, regime, args.n_fam,
                                                    onset_model=onset_model)
                 true_g = liab[:, roles.index("g")]
                 for name, case_mode, use_mix in arms:
-                    fams = build_families(obs, roles, N_FAM, case_mode)
-                    res = run_arm(fams, true_g, use_mix,
-                                  gibbs_subset=GIBBS_N if name.startswith("base + no")
-                                  else None)
-                    for k in results[name]:
-                        if k in res:
-                            results[name][k].append(res[k])
+                    fams = build_families(obs, roles, args.n_fam, case_mode)
+                    gibbs = (args.gibbs_n if name.startswith("base + no")
+                             and args.gibbs_n else None)
+                    res = run_arm(fams, true_g, use_mix, gibbs_subset=gibbs)
+                    row = dict(
+                        row_type="replicate",
+                        onset_model=onset_model,
+                        regime=regime,
+                        rep=rep,
+                        arm=name,
+                        case_mode=case_mode,
+                        use_mixture=int(use_mix),
+                        comparison="",
+                        n_fam=args.n_fam,
+                        fam="+".join(FAM_VEC),
+                        h2=H2,
+                        K_pop=K_POP,
+                        mid=MID_POINT,
+                        slope=SLOPE,
+                        reps=args.reps,
+                        seed=args.seed,
+                        corr_pa=res["pa"][0],
+                        slope_pa=res["pa"][1],
+                        corr_gibbs=np.nan,
+                        slope_gibbs=np.nan,
+                        corr_pa_gibbs=np.nan,
+                    )
+                    if "gibbs" in res:
+                        row.update(corr_gibbs=res["gibbs"][0],
+                                   slope_gibbs=res["gibbs"][1],
+                                   corr_pa_gibbs=res["pa_gibbs_corr"])
+                    replicate_rows.append(row)
+                    cell_rows.append(row)
             print(f"--- {regime.upper()} regime "
                   f"({'heavy' if regime == 'mid' else 'light'} censoring) ---")
-            print(f"  {'arm':22s} {'corr(PA)':>9s} {'slope(PA)':>10s} "
+            print(f"  {'arm':22s} {'corr(PA)':>17s} {'slope(PA)':>17s} "
                   f"{'corr(Gibbs)':>12s} {'slope(Gibbs)':>12s} {'corr(PA,Gibbs)':>14s}")
             for name, _, _ in arms:
-                r = results[name]
-                pa_c = np.mean([x[0] for x in r["pa"]])
-                pa_s = np.mean([x[1] for x in r["pa"]])
-                if r["gibbs"]:
-                    g_c = np.mean([x[0] for x in r["gibbs"]])
-                    g_s = np.mean([x[1] for x in r["gibbs"]])
-                    pg = np.mean(r["pa_gibbs_corr"])
-                    print(f"  {name:22s} {pa_c:9.4f} {pa_s:10.4f} {g_c:12.4f} "
+                sub = [row for row in cell_rows if row["arm"] == name]
+                pa_c, _, pa_c_se, _, _ = _mean_ci([r["corr_pa"] for r in sub])
+                pa_s, _, pa_s_se, _, _ = _mean_ci([r["slope_pa"] for r in sub])
+                gibbs_rows = [r for r in sub if np.isfinite(r["corr_gibbs"])]
+                if gibbs_rows:
+                    g_c = np.mean([r["corr_gibbs"] for r in gibbs_rows])
+                    g_s = np.mean([r["slope_gibbs"] for r in gibbs_rows])
+                    pg = np.mean([r["corr_pa_gibbs"] for r in gibbs_rows])
+                    print(f"  {name:22s} {pa_c:7.4f} ± {pa_c_se:.4f} "
+                          f"{pa_s:7.4f} ± {pa_s_se:.4f} {g_c:12.4f} "
                           f"{g_s:12.4f} {pg:14.4f}")
                 else:
-                    print(f"  {name:22s} {pa_c:9.4f} {pa_s:10.4f} {'-':>12s} "
+                    print(f"  {name:22s} {pa_c:7.4f} ± {pa_c_se:.4f} "
+                          f"{pa_s:7.4f} ± {pa_s_se:.4f} {'-':>12s} "
                           f"{'-':>12s} {'-':>14s}")
             print()
+
+    contrast_rows = _contrast_rows(replicate_rows)
+    print("paired contrasts (mixture - no-mixture per replicate; "
+          "mean ± SE, t-based 95% CI half-width)")
+    for row in contrast_rows:
+        print(f"  {row['onset_model']}/{row['regime']} {row['comparison']}: "
+              f"Δcorr={row['delta_corr_pa']:+.5f} ± {row['delta_corr_pa_se']:.5f} "
+              f"(CI95 ±{row['delta_corr_pa_ci95']:.5f}); "
+              f"Δslope={row['delta_slope_pa']:+.5f} ± {row['delta_slope_pa_se']:.5f} "
+              f"(CI95 ±{row['delta_slope_pa_ci95']:.5f})")
+
+    csv_path = write_csv(replicate_rows + contrast_rows, args.output_prefix)
+    print(f"\nwrote {os.path.basename(csv_path)}")
     print(f"runtime {time.time() - t0:.0f}s")
 
 

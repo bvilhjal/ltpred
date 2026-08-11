@@ -422,27 +422,31 @@ average.
 
 ## 14. PA robustness (`bench_pa_robustness.py`)
 
-Single-seed stress cells:
+Three independent seeds per grid cell; values are the across-seed mean ± SE
+(per-seed rows in `bench_pa_robustness.csv`):
 
 | regime | corr(PA, Gibbs) | corr(PA, true g) | corr(Gibbs, true g) |
 |---|---:|---:|---:|
-| baseline | 0.99969 | 0.4380 | 0.4377 |
-| large pedigree | 0.99972 | 0.4483 | 0.4491 |
-| rare, K=0.005 | 0.99843 | 0.2300 | 0.2308 |
-| densely affected | 0.99907 | 0.4893 | 0.4902 |
+| baseline | 0.999707 ± 0.000011 | 0.438 ± 0.005 | 0.438 ± 0.005 |
+| large pedigree | 0.999709 ± 0.000004 | 0.465 ± 0.011 | 0.465 ± 0.011 |
+| rare, K=0.005 | 0.998262 ± 0.000088 | 0.216 ± 0.007 | 0.216 ± 0.008 |
+| densely affected | 0.999096 ± 0.000022 | 0.486 ± 0.002 | 0.487 ± 0.002 |
 
-Fold-order spread as a percentage of the between-proband score SD:
+The worst single-seed PA–Gibbs agreement is 0.99813 (rare, K=0.005).
+
+Fold-order spread as a percentage of the between-proband score SD
+(across-seed mean ± SE):
 
 | pedigree | median | p95 |
 |---|---:|---:|
-| trio | 0.084% | 1.96% |
-| parents + 2 siblings | 0.114% | 2.24% |
-| extended | 0.090% | 2.39% |
-| large | 0.068% | 3.33% |
+| trio | 0.081% ± 0.011 | 1.90% ± 0.03 |
+| parents + 2 siblings | 0.099% ± 0.010 | 2.25% ± 0.09 |
+| extended | 0.083% ± 0.011 | 2.34% ± 0.15 |
+| large | 0.069% ± 0.006 | 3.24% ± 0.05 |
 
 The typical order effect is tiny. The p95 values are small and rise with
-pedigree size in this grid, while the medians are not monotone; with one seed
-per cell, either pattern is descriptive rather than established. This script
+pedigree size in this grid — the largest pedigree has the highest p95 in all
+three seeds — while the medians are not monotone. This script
 does not compare fold-order spread with Gibbs Monte Carlo noise and does not
 directly measure rank changes, so it makes neither claim.
 
@@ -522,41 +526,65 @@ genetic liability over 5 replicates of 20,000 families. Two censoring regimes
 (mid-life, heavy; old, light) and two observation models: the LT-FH++
 threshold-crossing convention, and a stochastic-onset model in which onset age
 is drawn from the CIP independent of liability (the mixture's native model).
-Slope = regress(true on estimate); 1.0 is a calibrated posterior mean.
+Slope = regress(true on estimate); 1.0 is a calibrated posterior mean. `±` is
+the across-replicate SE. Every replicate's corr/slope is retained in
+`bench_pafgrs_mixture.csv` (long format: one row per model x regime x rep x
+arm, plus the paired-contrast rows quoted below).
 
 Threshold-crossing observation model:
 
 | arm | corr MID | slope MID | corr OLD | slope OLD |
 |---|---|---|---|---|
-| base (lifetime case) + no-mixture | 0.3281 | 1.1992 | 0.4693 | 1.0293 |
-| base + mixture | 0.3277 | 1.1738 | 0.4691 | 1.0209 |
-| interval case + mixture | 0.3334 | 0.8444 | 0.4766 | 0.8263 |
-| pinned case + no-mixture | 0.3337 | 0.9977 | 0.4770 | 0.9885 |
-| pinned case + mixture | 0.3337 | 0.9766 | 0.4769 | 0.9811 |
+| base (lifetime case) + no-mixture | 0.3281 ± 0.0047 | 1.1992 ± 0.0151 | 0.4693 ± 0.0030 | 1.0293 ± 0.0069 |
+| base + mixture | 0.3277 ± 0.0047 | 1.1738 ± 0.0149 | 0.4691 ± 0.0030 | 1.0209 ± 0.0068 |
+| interval case + mixture | 0.3334 ± 0.0047 | 0.8444 ± 0.0097 | 0.4766 ± 0.0033 | 0.8263 ± 0.0050 |
+| pinned case + no-mixture | 0.3337 ± 0.0048 | 0.9977 ± 0.0109 | 0.4770 ± 0.0034 | 0.9885 ± 0.0057 |
+| pinned case + mixture | 0.3337 ± 0.0048 | 0.9766 ± 0.0109 | 0.4769 ± 0.0034 | 0.9811 ± 0.0057 |
 
 (Gibbs cross-check on base + no-mixture: corr(PA, Gibbs) 0.9992 / 0.9998,
 matching slopes 1.2192 / 1.0217 -- the MID slope > 1 is the case encoding's
-information loss, not a PA artifact.)
+information loss, not a PA artifact. Under the stochastic-onset model
+corr(PA, Gibbs) is 0.9992 / 0.9998 with matching slopes 0.9959 / 0.9925.)
 
 Stochastic-onset observation model:
 
 | arm | corr MID | slope MID | corr OLD | slope OLD |
 |---|---|---|---|---|
-| base + no-mixture | 0.2757 | 1.0184 | 0.4528 | 0.9957 |
-| base + mixture | 0.2758 | 0.9974 | 0.4528 | 0.9878 |
+| base + no-mixture | 0.2757 ± 0.0030 | 1.0184 ± 0.0134 | 0.4528 ± 0.0031 | 0.9957 ± 0.0075 |
+| base + mixture | 0.2758 ± 0.0030 | 0.9974 ± 0.0130 | 0.4528 ± 0.0031 | 0.9878 ± 0.0075 |
 
-### Verdict: behaves as intended here; small censoring effect; case encoding dominates
+Paired mixture-minus-no-mixture contrasts (per-replicate differences on
+identical cohorts; mean ± SE with t-based 95% CI half-width, 5 replicates):
 
-- **The mixture behaves as intended in this design**: it moves calibration
-  toward 1 for the under-conditioned lifetime-case encoding and is near-exact
-  under its native stochastic-onset model. Mean correlations differ by at most
-  0.0005, but the report does not retain uncertainty for those paired
-  differences, so this does not establish non-inferiority or “no cost”.
-- **Its effect at these settings is small** (calibration slope shifts of
-  0.01-0.03, correlation unchanged). Under the threshold-crossing model the
-  plain age truncation is already exact for censored controls, so the mixture
-  has no work to do; under the stochastic-onset model the naive encoding is
-  already nearly calibrated at these settings.
+| cell | case encoding | Δcorr | Δslope |
+|---|---|---|---|
+| crossing MID | lifetime interval | -0.00034 ± 0.00004 (CI ± 0.00011) | -0.02537 ± 0.00032 (CI ± 0.00088) |
+| crossing MID | pinned | -0.00002 ± 0.00004 (CI ± 0.00010) | -0.02106 ± 0.00032 (CI ± 0.00089) |
+| crossing OLD | lifetime interval | -0.00017 ± 0.00005 (CI ± 0.00013) | -0.00844 ± 0.00013 (CI ± 0.00036) |
+| crossing OLD | pinned | -0.00008 ± 0.00004 (CI ± 0.00011) | -0.00743 ± 0.00012 (CI ± 0.00034) |
+| stochastic MID | lifetime interval | +0.00007 ± 0.00005 (CI ± 0.00014) | -0.02093 ± 0.00047 (CI ± 0.00131) |
+| stochastic OLD | lifetime interval | +0.00002 ± 0.00005 (CI ± 0.00013) | -0.00787 ± 0.00009 (CI ± 0.00025) |
+
+### Verdict: behaves as intended here; no measurable correlation cost; case encoding dominates
+
+- **No measurable correlation cost, now with paired uncertainty.** All six
+  Δcorr CIs are tighter than ±0.0002. Three cells (crossing-MID pinned and
+  both stochastic-onset cells) include zero -- consistent with no cost at a CI
+  half-width of ~0.0001. The three crossing cells that exclude zero put the
+  cost at -0.00008 to -0.00034, at most 0.1% of the 0.33-0.47 correlation
+  level. The earlier "means differ by at most 0.0005" observation is thus
+  confirmed as a bounded, practically negligible cost rather than an
+  unresolved one.
+- **The calibration shifts are real and directionally consistent.** Every
+  Δslope CI excludes zero; the mixture always lowers the slope, by 0.007-0.025
+  and most strongly under heavy censoring. Where the no-mixture encoding
+  under-conditions (lifetime interval, MID: slopes 1.20 and 1.02) this moves
+  calibration toward 1, including under the mixture's native stochastic-onset
+  model (1.018 -> 0.997). Where the naive encoding is already calibrated it
+  tilts slightly past (pinned MID 0.998 -> 0.977): under threshold crossing
+  the plain age truncation is already exact for censored controls, so the
+  mixture has no correct work to do, and that small tilt is the price of
+  applying it anyway.
 - **Case encoding dominates calibration**: pinned (LT-FH++-exact) cases give
   slope 0.98-1.00 in every cell; the lifetime case interval loses onset-age
   information (slope up to 1.20 under heavy censoring); the age-specific
@@ -568,8 +596,9 @@ Stochastic-onset observation model:
 ## 17. Inference-machinery calibration (`bench_inference_calibration.py`)
 
 The inferential layer (as opposed to point-estimate bias) validated over R = 25
-independent A-only datasets (400 families, proband + parents + sib, prevalence
-0.1, true h2 = 0.5, C = 0; n_boot = 50, reduced fit iterations):
+independent datasets per panel (n_boot = 50, reduced fit iterations). The first
+three panels use A-only datasets (400 families, proband + parents + sib,
+prevalence 0.1, true h2 = 0.5, C = 0):
 
 - **Type-I of `test_variance_component("C")`:** 0/25 rejections at 0.05
   (Clopper–Pearson two-sided 95% CI 0.00–0.14); p-values mean 0.428, median 0.392, min
@@ -584,6 +613,13 @@ independent A-only datasets (400 families, proband + parents + sib, prevalence
 - **MCEM OPG SE:** mean reported SE 0.127 vs across-dataset SD 0.136 (ratio
   0.93); point estimate mean A = 0.502 (truth 0.5). The approximate
   information SE is close to the sampling SD at this design, slightly narrow.
+- **Type-I of `test_genetic_correlation`:** under a true r_g = 0 null with a
+  nonzero phenotypic correlation (two traits, h2 = (0.5, 0.4), r_p = 0.2,
+  prevalence 0.1, parents + 2 sibs — the null cell of section 7's design at
+  the same R, n_fam, n_boot, and fit settings): 0/25 rejections at 0.05
+  (Clopper–Pearson two-sided 95% CI 0.00–0.14); p-values mean 0.577, median
+  0.569, min 0.059 -- no anti-conservatism, and the phenotypic correlation is
+  not mistaken for a genetic one.
 
 Resolution note: R = 25 bounds what these can resolve (a true 10% Type-I rate
 would have ~7% chance of showing 0/25). The read is "no gross
@@ -653,25 +689,33 @@ person-level bootstrap remains an option.
 parent-offspring records (the Pedersen et al. 2025 graph-extraction niche,
 with full-sibling edges giving the standard relationship-degree scale:
 parents/siblings degree 1, grandparents/half-sibs/aunts degree 2, first
-cousins degree 3). On a simulated 3-generation population (2,683 persons,
-remarriages and cousin links):
+cousins degree 3). Exactness and scale use one simulated 3-generation
+population (2,683 persons, remarriages and cousin links); the payoff is
+replicated over five independent populations of the same simulator (2,529 to
+2,719 persons). `±` is the across-replicate SE (sd/sqrt(R)); the paired
+contrast carries a t-based 95% CI (section 15 convention). Per-replicate
+values are in `bench_pedigree_inference.csv` (long format: rep, metric,
+value; rep 0 marks the single-run parts).
 
 - **Exactness:** with a full ancestral closure (every recorded ancestor of the
   extracted set included), the extracted sub-pedigree's kinship equals the
   full-population kinship restricted to the members -- max abs diff **0.0**
-  over 300 probands. (Without the closure, boundary members who are actually
-  siblings were split into unrelated founders, diff 0.5; the closure is what
-  makes the extracted pedigree safe to estimate from. The degree limit
-  truncates only *which relatives* are included, never the kinship among
-  them.)
+  over 300 probands (single run). (Without the closure, boundary members who
+  are actually siblings were split into unrelated founders, diff 0.5; the
+  closure is what makes the extracted pedigree safe to estimate from. The
+  degree limit truncates only *which relatives* are included, never the
+  kinship among them.)
 - **Payoff (the LT-FGRS point):** estimating genetic liability on 300
-  probands, corr(est, truth) is 0.532 using all relatives up to third degree
-  vs 0.452 with the fixed named-role subset the grammar encodes (parents, full
-  siblings, and grandparents)
-  (+17.6%); the two scores correlate 0.88 -- which relatives you include
-  matters, consistent with the LT-FGRS package (Pedersen et al.).
-- **Scale:** 3,000 extractions at degree 3 in 0.18–0.32 s over the two stored
-  runs (~0.1 ms per proband); per-proband neighborhoods stay small (tens of
+  probands per replicate, corr(est, truth) is **0.569 ± 0.013** using all
+  relatives up to third degree vs **0.498 ± 0.016** with the fixed named-role
+  subset the grammar encodes (parents, full siblings, and grandparents); the
+  paired all-minus-named-role contrast is **+0.0714 ± 0.0064**, 95% CI
+  [+0.054, +0.089] -- the gain over the role grammar is real and stable
+  across populations (ratio of means 1.14; the two scores correlate
+  0.898 ± 0.007). Which relatives you include matters, consistent with the
+  LT-FGRS package (Pedersen et al.).
+- **Scale:** 3,000 extractions at degree 3 in 0.17 s (single-run timing,
+  ~0.06 ms per proband); per-proband neighborhoods stay small (tens of
   nodes), so per-proband extraction plus a small dense kinship covariance is
   the right architecture.
 
@@ -681,33 +725,58 @@ paper's path-counting approximation.
 ## 21. End-to-end register pipeline (`bench_register_pipeline.py`)
 
 `research.pipeline.estimate_liabilities` chains trio records -> pedigree
-discovery -> per-stratum CIP thresholds -> per-proband scores. On a synthetic
-register (3-generation population of 2,683 with remarriages; one CONSISTENT
-liability field `G ~ N(0, h2 A)`, `L = G + E` -- an earlier per-pedigree draw
-silently decorrelates probands' g from relatives' statuses; the crossing
-model with a logistic CIP, lifetime prevalence 0.10):
+discovery -> per-stratum CIP thresholds -> per-proband scores. Over five
+independent synthetic registers (3-generation populations of 2,529 to 2,719
+with remarriages; one CONSISTENT liability field `G ~ N(0, h2 A)`, `L = G + E`
+-- an earlier per-pedigree draw silently decorrelates probands' g from
+relatives' statuses; the crossing model with a logistic CIP, lifetime
+prevalence 0.10). `±` is the across-replicate SE (sd/sqrt(R)); paired
+contrasts carry t-based 95% CIs (section 15 convention). Per-replicate
+values are in `bench_register_pipeline.csv` (long format: rep, metric,
+value; rep 0 marks the single-run throughput part).
 
-- **Accuracy / which relatives matter:** corr(est, true g) is 0.373 at
-  degree 3 (first cousins) vs 0.364 at degree 1 (first-degree only), with
-  calibration slopes near 1 (0.96 / 1.03). The degree-3 advantage is modest
-  at this ~3% effective case rate -- the LT-FGRS effect, in the realistic
-  direction. (corr ~0.37 is itself the honest accuracy at this case rate and
-  age structure; the pedigree benchmark's 0.53 used a 10% rate with a uniform
-  threshold.)
-- **CIP estimated from the register itself:** 0.3728 vs 0.3733 with the
-  oracle curve. This run detected no loss from estimating the CIP from
-  follow-up records at this register size; it does not establish zero cost
-  without repeated-run uncertainty (consistent with section 19).
-- **Prospective prediction** (diagnosis after index age 40): the honest
-  familywise-censored score reaches corr 0.169 with the future outcome;
-  adding relatives' post-index events gives 0.148, and leaking the proband's
-  own future outcome inflates to 0.399. A single run retains no replicate
-  uncertainty, so the relatives'-events contrast does not establish that
-  those events help or harm at this sample size; the proband's-own-outcome
-  leakage is unambiguous and large -- honest censoring costs real accuracy,
-  and leaking the proband's own future buys plenty.
-- **Throughput:** 266–359 probands/s over the two stored runs (400 in
-  1.1–1.5 s), per-proband extraction plus a small dense kinship covariance
+- **Accuracy / which relatives matter:** corr(est, true g) is
+  **0.447 ± 0.023** at degree 3 (first cousins) vs **0.414 ± 0.027** at
+  degree 1 (first-degree only), with calibration slopes 1.08 ± 0.04 and
+  1.06 ± 0.03. The paired degree-3-minus-degree-1 contrast,
+  **+0.0332 ± 0.0080** with 95% CI [+0.011, +0.055], resolves the
+  second/third-degree contribution as a small real gain -- the LT-FGRS
+  effect, in the realistic direction. (corr ~0.45 is itself the honest
+  accuracy at these registers' case rates and age structure; the pedigree
+  benchmark's 0.569 used a 10% rate with a uniform lifetime threshold.)
+- **CIP estimated from the register itself:** 0.4450 ± 0.0236 vs
+  0.4468 ± 0.0233 with the oracle curve. The paired estimated-minus-oracle
+  contrast is -0.0018 ± 0.0009, 95% CI [-0.0043, +0.0007]: any cost of
+  estimating the CIP from follow-up records at this register size is at most
+  a few thousandths of a correlation point (consistent with section 19).
+- **Prospective prediction** (diagnosis in (40, 70] after index age 40;
+  observed future-case rate 0.073 ± 0.007): the honest familywise-censored
+  score reaches corr 0.145 ± 0.030 with the future outcome and rank
+  (Mann-Whitney) AUC **0.581 ± 0.031**, and is calibrated in the large --
+  mean model-consistent predicted future-case risk 0.069 ± 0.001 vs the
+  observed 0.073 (the prediction integrates the proband's posterior g and
+  the residual E against the CIP; the linear calibration slope of future on
+  score is 0.26 ± 0.07). Adding relatives' post-index events gives corr
+  0.153 ± 0.026 and AUC 0.645 ± 0.018; leaking the proband's own future
+  outcome inflates to corr 0.387 ± 0.049 and AUC 0.785 ± 0.021.
+  - **The relatives'-events contrast now has an answer, and it is
+    metric-dependent.** Paired (b)-(a): **ΔAUC +0.0648 ± 0.0139, 95% CI
+    [+0.026, +0.103]** -- relatives' post-index events genuinely improve
+    rank discrimination -- while Δcorr is +0.0084 ± 0.0208, 95% CI
+    [-0.050, +0.066], unresolved at R = 5. The old single stored run had
+    shown a small corr decrease; that direction does not hold up under
+    replication. The divergence comes from the score scale: the extra
+    conditioning changes the score's dispersion (the calibration slope drops
+    to 0.16 from 0.26), which a correlation with a binary outcome prices in
+    but the rank statistic ignores. So: post-index relative events help
+    prediction (they are leakage for prospective use, not noise), and the
+    corr-based verdict of the previous single run was noise.
+  - The proband's-own-outcome leakage is unambiguous and large: paired
+    (c)-(a) Δcorr **+0.2423 ± 0.0251**, 95% CI [+0.173, +0.312]; ΔAUC
+    +0.204 ± 0.016, 95% CI [+0.159, +0.249]. Honest censoring costs real
+    accuracy, and leaking the proband's own future buys plenty.
+- **Throughput:** 358 probands/s (400 probands in 1.1 s; single run, not
+  replicated), per-proband extraction plus a small dense kinship covariance
   each.
 
 ## 22. Tetrachoric correlations (`bench_tetrachoric.py`)
@@ -1033,6 +1102,79 @@ rather than by running `fit_heritability`, so they show what a moment estimator
 targets without its finite-sample noise. Nuclear families only, as the
 constructor requires.
 
+## 28. PGS comparison and the joint model (`bench_pgs_comparison.py`)
+
+The PGS-baseline and PGS + family-history joint analysis, with an honest
+train/test split. Five independent genotype/effect/cohort replicates; each has
+10,000 probands, 2,000 independent SNPs (30 causal), h²=0.5, K=0.05, and
+parents plus one sibling — the `bench_gwas_power.py` generative framework. Each
+replicate is split 50/50: the discovery GWAS and the PGS weight fit use only
+the 5,000 train probands, and everything predictive is scored on the 5,000
+held-out test probands. There is no in-sample scoring.
+
+The PGS is trained on the train case/control GWAS as marginal Z-scored
+weights `w_j = √n · corr(x_j, y)` (the default self-contained numpy backend).
+With independent SNPs there is no LD to shrink for, so this is the
+LDpred-infinitesimal limit up to an overall scale; an optional
+`--pgs-backend ldpred3` fits LDpred3-auto on the train summary statistics and
+scores via saved weights (it agreed with the numpy backend to within 0.002
+correlation on a shared replicate). The family-history score is the classic
+LT-FH posterior mean from the Pearson–Aitken engine: this framework has no
+age/sex/cohort structure, so personalised LT-FH++ thresholds would be identical
+for every member and add nothing (section 15 covers the personalised case; PA
+matches Gibbs to corr ≥ 0.997 per section 1). As elsewhere in this report, the
+GWAS panel below reports **causal-SNP NCP ratios** (`mean chi² - 1`) while the
+prediction panel reports **squared-correlation R²** against held-out true `g`;
+the two magnitudes are not comparable. `±` is replicate SE throughout.
+
+GWAS arms on the train cohort (as in section 4):
+
+| Phenotype | mean causal chi² | causal-SNP NCP ratio / c-c | lambda GC |
+|---|---:|---:|---:|
+| case/control | 22.28 ± 1.11 | 1.000× | 0.999 ± 0.021 |
+| LT-FH (PA) | 31.73 ± 1.43 | 1.446 ± 0.023× | 1.018 ± 0.023 |
+| oracle true g | 168.38 ± 1.47 | 7.95 ± 0.43× | 1.017 ± 0.018 |
+
+The LT-FH NCP ratio matches section 4's replicated 1.468 ± 0.040× (the ratio
+is sample-size independent in expectation; only the discovery n differs).
+Prediction arms on the test cohort, against the held-out true genetic value:
+
+| Score | corr with held-out g | R² |
+|---|---:|---:|
+| case/control label | 0.343 ± 0.007 | 0.118 ± 0.005 |
+| PGS | 0.485 ± 0.009 | 0.236 ± 0.009 |
+| LT-FH (PA) | 0.413 ± 0.003 | 0.170 ± 0.003 |
+| PGS + LT-FH joint (OLS on both) | — | 0.339 ± 0.009 |
+
+The PGS beats the raw label (paired ΔR² = **+0.1176 ± 0.0199**), LT-FH beats
+case/control on correlation (paired Δcorr = +0.0694 ± 0.0104), and the joint
+model beats either score alone: the incremental R² of the PGS over LT-FH is
+**+0.1689 ± 0.0188** and of LT-FH over the PGS is **+0.1036 ± 0.0071** (paired
+95% CI half-widths, section-15 style; the LT-FH-vs-case/control NCP-ratio
+increment is +0.4464 ± 0.0638).
+
+The two scores are weakly correlated and complementary, as the measurement
+model in `docs/algorithm.md` predicts. The estimand: with
+`p = h²_SNP / h²_total = 1` by construction here (the true `g` is built
+entirely from the simulated SNPs), the prediction is
+`Corr(PGS, FH) = a·b·√p = a·b` where `a = Corr(PGS, g)` and
+`b = Corr(FH, g)` are measured on the test cohort — equivalently
+`√(R²_pgs · R²_fh · p)` at `p = 1`. Observed corr(PGS, LT-FH) is
+**0.2009 ± 0.0046** against a theory value of 0.2003 ± 0.0050; the paired
+theory-minus-observed difference is **-0.0006 ± 0.0160** (95% CI), consistent
+with zero. Conditional independence holds by construction in this design — the
+PGS error is train-cohort sampling noise, the LT-FH error is posterior
+uncertainty from the relatives, and the cohorts do not overlap — so this is a
+verification of the identity, not evidence about its failure modes (ancestry,
+assortment, selection), which the doc's caveats cover.
+
+Caveats: independent SNPs only (no LD; the HAPNEST path remains blocked); the
+joint regression targets the true `g`, an oracle evaluation rather than an
+observed outcome; and at 2,000 SNPs the multiple-testing dilution is mild, so
+the PGS-to-label gap is friendlier than a genome-wide setting — the joint
+model's *increment* over the PGS is the portable number, not the absolute R².
+Rerun: `python benchmarks/bench_pgs_comparison.py`.
+
 ## Historical report changes
 
 - Replicated the accuracy and calibration grids across five independent
@@ -1067,13 +1209,23 @@ constructor requires.
   contrast is now unresolved at this n rather than asserted), and §26
   (replicate-count correction, 5 to 3, with the affected cells refreshed). No
   qualitative conclusion changed except §21's leakage-contrast direction.
+- Added replication (five independent populations/registers) and long-format
+  CSV artifacts to §20 (`bench_pedigree_inference.csv`) and §21
+  (`bench_register_pipeline.csv`) on 2026-08-10, plus prospective
+  discrimination metrics (rank AUC, calibration-in-the-large); the §21
+  relatives'-events leakage contrast is now resolved by paired t CIs (helps
+  rank discrimination; corr contrast unresolved).
+- §16 gained paired replicate uncertainty (`bench_pafgrs_mixture`, now with a
+  long-format CSV) and §17 gained the `test_genetic_correlation` r_g = 0 null
+  panel (0/25 rejections); §14 is now 3-seed with across-seed mean ± SE
+  (2026-08-10).
 
 ## Remaining limitations
 
 - The accuracy and calibration grids (sections 1 and 12) are now replicated
   across five independent seeds; every cell reports an across-seed mean and
-  SE. The PA stress grid (section 14) remains single-seed — treat small
-  differences there as descriptive.
+  SE. The PA stress grid (section 14) is now 3-seed with across-seed mean
+  ± SE; treat finer seed-level detail there as descriptive.
 - Three- or four-replicate panels give useful SEs but still estimate tail
   uncertainty coarsely. The integrated main panel now uses ten replicates and
   its sex isolation uses five; tail calibration remains noisier than paired

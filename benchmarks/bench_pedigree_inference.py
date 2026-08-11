@@ -8,24 +8,35 @@ children, remarriages, cousins), then checks:
   Part 1 (fidelity): for random probands, the kinship computed on the
          EXTRACTED sub-pedigree equals the full-population kinship
          restricted to the same members -- extraction does not perturb A.
-  Part 2 (payoff):   for each proband, simulate liabilities on the extracted
-         pedigree and estimate the genetic liability two ways -- the kinship
-         path on ALL extracted relatives (up to third degree: cousins) vs the
-         fixed named-role grammar subset it can encode (parents, full siblings,
-         grandparents). The LT-FGRS (Pedersen et al., LTFGRS R package) claim is
-         that which relatives you include matters; this measures it.
-  Part 3 (scale):    extraction timing for thousands of probands.
+         Single run.
+  Part 2 (payoff):   over `--reps` independent simulated populations, for
+         each proband simulate liabilities on the extracted pedigree and
+         estimate the genetic liability two ways -- the kinship path on ALL
+         extracted relatives (up to third degree: cousins) vs the fixed
+         named-role grammar subset it can encode (parents, full siblings,
+         grandparents). The LT-FGRS (Pedersen et al., LTFGRS R package) claim
+         is that which relatives you include matters; this measures it with
+         per-replicate values, across-replicate SEs (sd/sqrt(R)), and the
+         paired all-vs-role contrast with a t-based 95% CI (section 15
+         convention).
+  Part 3 (scale):    extraction timing for thousands of probands. Single run.
+
+Writes `benchmarks/bench_pedigree_inference.csv` in long format
+(rep, metric, value; rep 0 marks the single-run parts).
 
 Run:  conda run -n ltpred python benchmarks/bench_pedigree_inference.py
 """
 
 from __future__ import annotations
 
+import argparse
+import csv
 import os
 import sys
 import time
 
 import numpy as np
+from scipy import stats
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -44,6 +55,10 @@ PREV = 0.10
 MAX_DEGREE = 3
 N_CHECK = 300
 N_EST = 300
+N_FOUNDER_PAIRS = 150
+REPS = 5
+CSV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "bench_pedigree_inference.csv")
 
 
 def simulate_population(rng, n_founder_pairs=150, gens=3, remarry=0.10):
@@ -85,31 +100,16 @@ def simulate_population(rng, n_founder_pairs=150, gens=3, remarry=0.10):
     return ids, father, mother
 
 
-def main():
-    t0 = time.time()
-    print("Pedigree-inference benchmark (trio records -> relatives)")
-    rng = np.random.default_rng(np.random.PCG64(SEED))
-    ids, father, mother = simulate_population(rng)
-    print(f"population: {len(ids)} persons")
+def payoff_replicate(rng, n_est, n_founder_pairs):
+    """One independent population: corr(est, true g) two ways, paired.
+
+    Returns (corr_all_relatives, corr_named_role, corr_between_arms)."""
+    ids, father, mother = simulate_population(rng, n_founder_pairs=n_founder_pairs)
     graph = build_parent_graph(ids, father, mother)
-
-    # ---- Part 1: extraction fidelity -----------------------------------------
-    _, A_full = kinship_from_pedigree(ids, father, mother)
-    fi = {p: i for i, p in enumerate(ids)}
-    check_ids = [ids[i] for i in rng.choice(len(ids), size=N_CHECK, replace=False)]
-    max_abs = 0.0
-    for p in check_ids:
-        ped = extract_pedigree(graph, p, max_degree=MAX_DEGREE)
-        _, A_sub = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
-        sub_full = [fi[q] for q in ped.ids]
-        max_abs = max(max_abs,
-                      float(np.max(np.abs(A_sub - A_full[np.ix_(sub_full, sub_full)]))))
-    print(f"Part 1: extracted vs full-pedigree kinship, max abs diff over "
-          f"{N_CHECK} probands: {max_abs:.2e}")
-
-    # ---- Part 2: all relatives vs the fixed named-role grammar subset ----------
     thr = float(liability_threshold(PREV))
-    est_ids = [ids[i] for i in rng.choice(len(ids), size=N_EST, replace=False)]
+    fi = {p: i for i, p in enumerate(ids)}
+    est_ids = [ids[i] for i in rng.choice(len(ids), size=min(n_est, len(ids)),
+                                          replace=False)]
     truths, ests_all, ests_role = [], [], []
     for p in est_ids:
         ped = extract_pedigree(graph, p, max_degree=MAX_DEGREE)
@@ -173,20 +173,119 @@ def main():
     truths = np.array(truths)
     ests_all = np.array(ests_all)
     ests_role = np.array(ests_role)
-    c_all = np.corrcoef(truths, ests_all)[0, 1]
-    c_role = np.corrcoef(truths, ests_role)[0, 1]
-    c_between = np.corrcoef(ests_all, ests_role)[0, 1]
-    print(f"Part 2 (N={N_EST}, h2={H2}, prev={PREV}, degree<={MAX_DEGREE}):")
-    print(f"  corr(est, true g)  all relatives: {c_all:.4f}   "
-          f"named-role subset: {c_role:.4f}   ratio {c_all / c_role:.3f}")
-    print(f"  corr(all-relatives est, named-role estimate): {c_between:.4f}")
+    return (float(np.corrcoef(truths, ests_all)[0, 1]),
+            float(np.corrcoef(truths, ests_role)[0, 1]),
+            float(np.corrcoef(ests_all, ests_role)[0, 1]))
 
-    # ---- Part 3: extraction timing -------------------------------------------
+
+def mean_se(values):
+    """Across-replicate mean and SE (sd / sqrt(R), ddof=1); nan SE for R < 2."""
+    v = np.asarray(values, dtype=float)
+    if v.size < 2:
+        return float(v.mean()), float("nan")
+    return float(v.mean()), float(v.std(ddof=1) / np.sqrt(v.size))
+
+
+def paired_summary(deltas):
+    """Paired contrast: mean, SE, and t-based 95% CI half-width (§15 style)."""
+    d = np.asarray(deltas, dtype=float)
+    mean, se = mean_se(d)
+    ci = (float(stats.t.ppf(0.975, d.size - 1) * se) if d.size >= 2
+          else float("nan"))
+    return mean, se, ci
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Pedigree extraction fidelity and the arbitrary-kinship "
+                    "payoff over the fixed named-role grammar.")
+    parser.add_argument("--reps", type=int, default=REPS,
+                        help="independent populations for Part 2 (payoff)")
+    parser.add_argument("--n-check", type=int, default=N_CHECK,
+                        help="probands for the Part 1 kinship check")
+    parser.add_argument("--n-est", type=int, default=N_EST,
+                        help="probands per replicate in Part 2")
+    parser.add_argument("--n-founder-pairs", type=int, default=N_FOUNDER_PAIRS,
+                        help="founder couples per simulated population")
+    parser.add_argument("--seed", type=int, default=SEED)
+    parser.add_argument("--output", default=CSV_PATH,
+                        help="CSV artifact path (long format: rep, metric, value)")
+    args = parser.parse_args(argv)
+
+    t0 = time.time()
+    print(f"Pedigree-inference benchmark (trio records -> relatives), "
+          f"reps={args.reps}")
+    rng = np.random.default_rng(np.random.PCG64(args.seed))
+    ids, father, mother = simulate_population(
+        rng, n_founder_pairs=args.n_founder_pairs)
+    print(f"population: {len(ids)} persons")
+    graph = build_parent_graph(ids, father, mother)
+    csv_rows = []
+
+    # ---- Part 1: extraction fidelity (single run) -------------------------
+    _, A_full = kinship_from_pedigree(ids, father, mother)
+    fi = {p: i for i, p in enumerate(ids)}
+    check_ids = [ids[i] for i in rng.choice(len(ids), size=min(args.n_check, len(ids)),
+                                            replace=False)]
+    max_abs = 0.0
+    for p in check_ids:
+        ped = extract_pedigree(graph, p, max_degree=MAX_DEGREE)
+        _, A_sub = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
+        sub_full = [fi[q] for q in ped.ids]
+        max_abs = max(max_abs,
+                      float(np.max(np.abs(A_sub - A_full[np.ix_(sub_full, sub_full)]))))
+    print(f"Part 1: extracted vs full-pedigree kinship, max abs diff over "
+          f"{len(check_ids)} probands: {max_abs:.2e}")
+    csv_rows.append((0, "part1_max_abs_kinship_diff", max_abs))
+
+    # ---- Part 2: all relatives vs the fixed named-role grammar subset ----------
+    print(f"Part 2: payoff over {args.reps} independent populations "
+          f"(N={args.n_est} probands each, h2={H2}, prev={PREV}, "
+          f"degree<={MAX_DEGREE})")
+    c_all_r, c_role_r, c_between_r = [], [], []
+    for rep in range(args.reps):
+        rrng = np.random.default_rng(np.random.PCG64(args.seed + 1000 + rep))
+        c_all, c_role, c_between = payoff_replicate(
+            rrng, args.n_est, args.n_founder_pairs)
+        c_all_r.append(c_all)
+        c_role_r.append(c_role)
+        c_between_r.append(c_between)
+        csv_rows.extend([
+            (rep + 1, "part2_corr_all_relatives", c_all),
+            (rep + 1, "part2_corr_named_role", c_role),
+            (rep + 1, "part2_corr_between_arms", c_between),
+            (rep + 1, "part2_delta_corr_all_minus_role", c_all - c_role),
+        ])
+        print(f"  rep {rep + 1}: all {c_all:.4f}  role {c_role:.4f}  "
+              f"delta {c_all - c_role:+.4f}  corr(arms) {c_between:.4f}")
+    m_all, s_all = mean_se(c_all_r)
+    m_role, s_role = mean_se(c_role_r)
+    m_bet, s_bet = mean_se(c_between_r)
+    d_mean, d_se, d_ci = paired_summary(np.array(c_all_r) - np.array(c_role_r))
+    print("  means (± across-replicate SE):")
+    print(f"  corr(est, true g)  all relatives: {m_all:.4f} ± {s_all:.4f}   "
+          f"named-role subset: {m_role:.4f} ± {s_role:.4f}   "
+          f"ratio {m_all / m_role:.3f}")
+    print(f"  paired all-minus-role: {d_mean:+.4f} ± {d_se:.4f} SE; "
+          f"t-based 95% CI [{d_mean - d_ci:+.4f}, {d_mean + d_ci:+.4f}]")
+    print(f"  corr(all-relatives est, named-role estimate): "
+          f"{m_bet:.4f} ± {s_bet:.4f}")
+
+    # ---- Part 3: extraction timing (single run) ---------------------------
     t1 = time.time()
     for p in ids[:3000]:
         extract_pedigree(graph, p, max_degree=MAX_DEGREE)
-    print(f"Part 3: 3000 extractions at degree {MAX_DEGREE}: "
-          f"{time.time() - t1:.2f}s")
+    dt3 = time.time() - t1
+    print(f"Part 3 (single run): 3000 extractions at degree {MAX_DEGREE}: "
+          f"{dt3:.2f}s")
+    csv_rows.append((0, "part3_seconds_3000_extractions", dt3))
+
+    # ---- CSV artifact ------------------------------------------------------
+    with open(args.output, "w", newline="") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(["rep", "metric", "value"])
+        writer.writerows(csv_rows)
+    print(f"wrote {args.output} ({len(csv_rows)} rows)")
     print(f"runtime {time.time() - t0:.0f}s")
 
 

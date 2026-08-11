@@ -18,8 +18,13 @@ Truth `g` is known from the simulation. Expectation: PA tracks Gibbs to corr ≳
 across all regimes, and the ordering spread stays small across the tested pedigree
 sizes. This script does not compare that spread with Gibbs Monte-Carlo noise.
 
+Each grid cell is run under ``--reps`` independent seeds (default 3); the CSV
+carries one long-format row per cell per seed, and the console/plot aggregate
+to the across-seed mean ± SE.
+
     python benchmarks/bench_pa_robustness.py
     python benchmarks/bench_pa_robustness.py --n-fam 3000 --orders 12
+    python benchmarks/bench_pa_robustness.py --reps 5 --seed 7
 Writes bench_pa_robustness.csv (+ .png if matplotlib is present).
 """
 
@@ -131,6 +136,25 @@ def fold_order(fam_vec, prev, n_fam, n_orders, seed, h2=0.5):
                 between_sd=between)
 
 
+def _mean_se(vals):
+    vals = np.asarray(vals, float)
+    if len(vals) < 2:
+        return float(vals[0]), 0.0
+    return float(vals.mean()), float(vals.std(ddof=1) / np.sqrt(len(vals)))
+
+
+def aggregate(rows, key, metrics):
+    """Across-seed mean ± SE per ``key`` value, preserving first-seen order."""
+    out = []
+    for k in dict.fromkeys(r[key] for r in rows):
+        sub = [r for r in rows if r[key] == k]
+        agg = {key: k, "n_rel": sub[0]["n_rel"], "n_seeds": len(sub)}
+        for m in metrics:
+            agg[m], agg[m + "_se"] = _mean_se([r[m] for r in sub])
+        out.append(agg)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n-fam", type=int, default=2000)
@@ -138,26 +162,52 @@ def main():
     ap.add_argument("--orders", type=int, default=10)
     ap.add_argument("--order-nfam", type=int, default=800)
     ap.add_argument("--prev", type=float, default=0.05)
-    ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--reps", type=int, default=3,
+                    help="independent seeds per grid cell")
+    ap.add_argument("--seed", type=int, default=1, help="base seed")
     args = ap.parse_args()
+    seeds = [args.seed + 1000 * r for r in range(args.reps)]
 
     estimate(simulate_families(["m", "f"], 0.5, 0.1, 40, 0).families, 0.5, "gibbs",
              n_sim=500, seed=0)                              # warm JIT
 
-    print("== (a) PA vs Gibbs on stressful pedigrees (h2=0.5) ==")
-    reg = regimes(args.n_fam, args.seed, args.n_sim)
+    print("== (a) PA vs Gibbs on stressful pedigrees (h2=0.5, %d seed(s)) =="
+          % len(seeds))
+    reg = []
+    for seed in seeds:
+        print("  seed %d:" % seed)
+        reg.extend(dict(seed=seed, **r)
+                   for r in regimes(args.n_fam, seed, args.n_sim))
+    agg_reg = aggregate(reg, "regime", ["agree", "corr_pa", "corr_gibbs"])
+    print("  across-seed mean +/- SE:")
+    for r in agg_reg:
+        amin = min(s["agree"] for s in reg if s["regime"] == r["regime"])
+        print("  %-18s | PA<->Gibbs=%.5f+/-%.5f (min %.5f) | "
+              "corr(PA,g)=%.3f+/-%.3f corr(Gibbs,g)=%.3f+/-%.3f"
+              % (r["regime"], r["agree"], r["agree_se"], amin,
+                 r["corr_pa"], r["corr_pa_se"], r["corr_gibbs"],
+                 r["corr_gibbs_se"]))
 
-    print("== (b) fold-in ordering sensitivity vs pedigree size (K=%.3f, %d orders) =="
-          % (args.prev, args.orders))
+    print("== (b) fold-in ordering sensitivity vs pedigree size (K=%.3f, %d orders, "
+          "%d seed(s)) ==" % (args.prev, args.orders, len(seeds)))
     fo = []
-    for name, fam_vec in SIZES.items():
-        d = fold_order(fam_vec, args.prev, args.order_nfam, args.orders, args.seed)
-        fo.append(dict(name=name, **d))
-        print("  %-22s | order-SD median=%.5f p95=%.5f | vs signal SD: median %.2f%% p95 %.2f%%"
-              % (name, d["median_sd"], d["p95_sd"], 100 * d["rel_median"], 100 * d["rel_p95"]))
+    for seed in seeds:
+        for name, fam_vec in SIZES.items():
+            d = fold_order(fam_vec, args.prev, args.order_nfam, args.orders, seed)
+            fo.append(dict(seed=seed, name=name, **d))
+    agg_fo = aggregate(fo, "name",
+                       ["median_sd", "p95_sd", "rel_median", "rel_p95"])
+    print("  across-seed mean +/- SE:")
+    for r in agg_fo:
+        print("  %-22s | order-SD median=%.5f+/-%.5f p95=%.5f+/-%.5f | "
+              "vs signal SD: median %.2f%%+/-%.2f p95 %.2f%%+/-%.2f"
+              % (r["name"], r["median_sd"], r["median_sd_se"],
+                 r["p95_sd"], r["p95_sd_se"],
+                 100 * r["rel_median"], 100 * r["rel_median_se"],
+                 100 * r["rel_p95"], 100 * r["rel_p95_se"]))
 
     write_csv(reg, fo)
-    plot(reg, fo)
+    plot(agg_reg, agg_fo)
     print("\nwrote bench_pa_robustness.csv and bench_pa_robustness.png")
 
 
@@ -165,36 +215,46 @@ def write_csv(reg, fo):
     path = os.path.join(HERE, "bench_pa_robustness.csv")
     with open(path, "w", newline="") as fh:
         w = csv.writer(fh, lineterminator="\n")
-        w.writerow(["panel", "label", "n_rel", "agree", "corr_pa", "corr_gibbs",
-                    "median_sd", "p95_sd", "rel_median", "rel_p95", "between_sd"])
+        w.writerow(["panel", "label", "n_rel", "seed", "agree", "corr_pa",
+                    "corr_gibbs", "median_sd", "p95_sd", "rel_median",
+                    "rel_p95", "between_sd"])
         for r in reg:
-            w.writerow(["regime", r["regime"], r["n_rel"], r["agree"], r["corr_pa"],
-                        r["corr_gibbs"], "", "", "", "", ""])
+            w.writerow(["regime", r["regime"], r["n_rel"], r["seed"], r["agree"],
+                        r["corr_pa"], r["corr_gibbs"], "", "", "", "", ""])
         for r in fo:
-            w.writerow(["foldorder", r["name"], r["n_rel"], "", "", "", r["median_sd"],
-                        r["p95_sd"], r["rel_median"], r["rel_p95"], r["between_sd"]])
+            w.writerow(["foldorder", r["name"], r["n_rel"], r["seed"],
+                        "", "", "", r["median_sd"], r["p95_sd"], r["rel_median"],
+                        r["rel_p95"], r["between_sd"]])
 
 
-def plot(reg, fo):
+def plot(agg_reg, agg_fo):
     plt = get_plt()
     if plt is None:
         return
     fig, ax = plt.subplots(1, 2, figsize=(11, 4.4))
-    names = [r["regime"] for r in reg]
+    names = [r["regime"] for r in agg_reg]
     x = np.arange(len(names))
-    ax[0].plot(x, [r["agree"] for r in reg], "-o", color="#2F7D4F", label="corr(PA, Gibbs)")
-    ax[0].plot(x, [r["corr_pa"] for r in reg], "-s", color="#3B4A9C", label="corr(PA, g)")
-    ax[0].plot(x, [r["corr_gibbs"] for r in reg], "--^", color="#B95C3C", label="corr(Gibbs, g)")
+    ax[0].errorbar(x, [r["agree"] for r in agg_reg],
+                   yerr=[r["agree_se"] for r in agg_reg],
+                   fmt="-o", color="#2F7D4F", capsize=3, label="corr(PA, Gibbs)")
+    ax[0].errorbar(x, [r["corr_pa"] for r in agg_reg],
+                   yerr=[r["corr_pa_se"] for r in agg_reg],
+                   fmt="-s", color="#3B4A9C", capsize=3, label="corr(PA, g)")
+    ax[0].errorbar(x, [r["corr_gibbs"] for r in agg_reg],
+                   yerr=[r["corr_gibbs_se"] for r in agg_reg],
+                   fmt="--^", color="#B95C3C", capsize=3, label="corr(Gibbs, g)")
     ax[0].set_xticks(x); ax[0].set_xticklabels(names, fontsize=7.5, rotation=12)
     ax[0].set_ylabel("correlation")
     ax[0].set_title("(a) PA tracks Gibbs across stressful pedigrees")
     ax[0].legend(fontsize=8)
 
-    nrel = [r["n_rel"] for r in fo]
-    ax[1].plot(nrel, [100 * r["rel_p95"] for r in fo], "-o", color="#B07A16",
-               label="worst-case (p95)")
-    ax[1].plot(nrel, [100 * r["rel_median"] for r in fo], "-s", color="#3B4A9C",
-               label="typical (median)")
+    nrel = [r["n_rel"] for r in agg_fo]
+    ax[1].errorbar(nrel, [100 * r["rel_p95"] for r in agg_fo],
+                   yerr=[100 * r["rel_p95_se"] for r in agg_fo],
+                   fmt="-o", color="#B07A16", capsize=3, label="worst-case (p95)")
+    ax[1].errorbar(nrel, [100 * r["rel_median"] for r in agg_fo],
+                   yerr=[100 * r["rel_median_se"] for r in agg_fo],
+                   fmt="-s", color="#3B4A9C", capsize=3, label="typical (median)")
     ax[1].set_xlabel("number of relatives folded in")
     ax[1].set_ylabel("order-induced spread (% of between-proband SD)")
     ax[1].set_title("(b) fold-order sensitivity stays small across sizes")

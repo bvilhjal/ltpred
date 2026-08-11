@@ -1,0 +1,29 @@
+== (a) PA vs Gibbs on stressful pedigrees (h2=0.5, 3 seed(s)) ==
+  seed 1:
+  baseline           | PA<->Gibbs=0.9997 | corr(PA,g)=0.438 corr(Gibbs,g)=0.438
+  large pedigree     | PA<->Gibbs=0.9997 | corr(PA,g)=0.448 corr(Gibbs,g)=0.449
+  rare (K=0.005)     | PA<->Gibbs=0.9984 | corr(PA,g)=0.230 corr(Gibbs,g)=0.231
+  dense (>=3 aff)    | PA<->Gibbs=0.9991 | corr(PA,g)=0.489 corr(Gibbs,g)=0.490
+  seed 1001:
+  baseline           | PA<->Gibbs=0.9997 | corr(PA,g)=0.428 corr(Gibbs,g)=0.429
+  large pedigree     | PA<->Gibbs=0.9997 | corr(PA,g)=0.485 corr(Gibbs,g)=0.485
+  rare (K=0.005)     | PA<->Gibbs=0.9981 | corr(PA,g)=0.213 corr(Gibbs,g)=0.215
+  dense (>=3 aff)    | PA<->Gibbs=0.9991 | corr(PA,g)=0.487 corr(Gibbs,g)=0.486
+  seed 2001:
+  baseline           | PA<->Gibbs=0.9997 | corr(PA,g)=0.447 corr(Gibbs,g)=0.446
+  large pedigree     | PA<->Gibbs=0.9997 | corr(PA,g)=0.462 corr(Gibbs,g)=0.462
+  rare (K=0.005)     | PA<->Gibbs=0.9982 | corr(PA,g)=0.205 corr(Gibbs,g)=0.204
+  dense (>=3 aff)    | PA<->Gibbs=0.9991 | corr(PA,g)=0.482 corr(Gibbs,g)=0.484
+  across-seed mean +/- SE:
+  baseline           | PA<->Gibbs=0.99971+/-0.00001 (min 0.99969) | corr(PA,g)=0.438+/-0.005 corr(Gibbs,g)=0.438+/-0.005
+  large pedigree     | PA<->Gibbs=0.99971+/-0.00000 (min 0.99970) | corr(PA,g)=0.465+/-0.011 corr(Gibbs,g)=0.465+/-0.011
+  rare (K=0.005)     | PA<->Gibbs=0.99826+/-0.00009 (min 0.99813) | corr(PA,g)=0.216+/-0.007 corr(Gibbs,g)=0.216+/-0.008
+  dense (>=3 aff)    | PA<->Gibbs=0.99910+/-0.00002 (min 0.99907) | corr(PA,g)=0.486+/-0.002 corr(Gibbs,g)=0.487+/-0.002
+== (b) fold-in ordering sensitivity vs pedigree size (K=0.050, 10 orders, 3 seed(s)) ==
+  across-seed mean +/- SE:
+  trio (2 rel)           | order-SD median=0.00023+/-0.00003 p95=0.00532+/-0.00006 | vs signal SD: median 0.08%+/-0.01 p95 1.90%+/-0.03
+  parents+2 sibs (4)     | order-SD median=0.00030+/-0.00003 p95=0.00679+/-0.00016 | vs signal SD: median 0.10%+/-0.01 p95 2.25%+/-0.09
+  extended (8)           | order-SD median=0.00027+/-0.00004 p95=0.00749+/-0.00047 | vs signal SD: median 0.08%+/-0.01 p95 2.34%+/-0.15
+  large (11)             | order-SD median=0.00024+/-0.00002 p95=0.01110+/-0.00031 | vs signal SD: median 0.07%+/-0.01 p95 3.24%+/-0.05
+
+wrote bench_pa_robustness.csv and bench_pa_robustness.png

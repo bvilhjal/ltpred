@@ -31,9 +31,10 @@ Most scripts write a `.csv` and, if matplotlib is present, a `.png`. The
 following scripts instead print focused diagnostics to stdout:
 `bench_cip_estimation.py`, `bench_env_components.py`,
 `bench_inference_calibration.py`, `bench_liability_scale.py`,
-`bench_misspecification.py`, `bench_pafgrs_mixture.py`,
-`bench_pedigree_inference.py`, `bench_register_pipeline.py`, and
-`bench_tetrachoric.py`.
+`bench_misspecification.py`, and `bench_tetrachoric.py`. `bench_pedigree_inference.py` and
+`bench_register_pipeline.py` print the same style of diagnostics but also
+write long-format `rep, metric, value` CSVs (`--reps` independent
+populations/registers; rep 0 marks single-run parts).
 
 For a provenance record, run a benchmark through the lightweight wrapper:
 
@@ -69,6 +70,18 @@ cores, on a cold JIT cache, or without Numba (the pure-Python fallback is
 numerically identical, just slower). Each script takes CLI flags (`--reps`,
 `--n-fam`, …) to trade runtime for precision.
 
+## Environments
+
+Two conda environments split the work:
+
+- **`ltpred314`** — package verification: pytest, ruff, and the docs gates
+  (`python scripts/check_docs.py`, `mkdocs build --strict`). Deliberately
+  dependency-minimal (stdlib + NumPy), CI-equivalent; the
+  `scripts/check_results.py` and `scripts/make_results.py` artifact guards
+  also run here (stdlib `csv` only, no pandas).
+- **`ldpred3`** — benchmark analysis and paper artifacts: pandas, matplotlib,
+  and the optional ldpred3 PGS backend used by the PGS-comparison arm.
+
 ## Scripts
 
 Rows marked **unsupported research** import checkout-only APIs from
@@ -87,16 +100,16 @@ Rows marked **unsupported research** import checkout-only APIs from
 | `bench_genetic_factor.py` | **unsupported research:** genetic factor model `r_g ≈ ΛΛ' + Ψ` (`fit_genetic_factor`): end-to-end recovery of planted single-factor loadings from family case/control data, plus `srmr` as an in-sample diagnostic for a planted two-factor misspecification (not a calibrated factor-number test) (→ `bench_genetic_factor.{csv,png}`) |
 | `bench_calibration.py` | **calibration** of the genetic-liability estimate, not just its ranking: the calibration slope/intercept and decile calibration curve of true `g` on the estimate (a correctly-specified posterior mean is self-calibrating, slope ≈ 1), and how a **wrong assumed `h²`** leaves the ranking (`corr`) robust but tilts the scale (slope) (→ `bench_calibration.{csv,png}`) |
 | `bench_confounding.py` | **LT-FH++ cohort-component confounding**: a secular prevalence trend plus birth-cohort-correlated null SNPs, showing cohort-blind family thresholds inflate `λ_GC` (to ~16.5 at the strongest trend) while cohort-aware family thresholds remain near 1; this isolates cohort, not full age/sex/cohort LT-FH++ (→ `bench_confounding.{csv,png}`) |
-| `bench_pa_robustness.py` | **PA robustness**: agreement with the Gibbs posterior mean (corr ≥ 0.998) on stressful pedigrees — large, rare (K=0.005), densely affected — and deterministic fold-in ordering sensitivity (→ `bench_pa_robustness.{csv,png}`) |
+| `bench_pa_robustness.py` | **PA robustness**: agreement with the Gibbs posterior mean (corr ≥ 0.998) on stressful pedigrees — large, rare (K=0.005), densely affected — and deterministic fold-in ordering sensitivity; each grid cell is run under 3 independent seeds (`--reps`) and reported as across-seed mean ± SE (→ `bench_pa_robustness.{csv,png}`, one long-format row per cell per seed) |
 | `bench_shared_env.py` | value of modelling shared environment `C`: corr(genetic-liability estimate, true genetic liability) when families are simulated under `A+C+E`, comparing ignore-C (additive) vs fit-`A+C` vs oracle, swept over `c²` and sib-ship size (→ `bench_shared_env.{csv,png}`) |
 | `bench_couple_env.py` | the couple/spousal environment `M`: recovery of `A+M` (bias & across-dataset SD, including constrained-boundary behaviour at `m²=0`), and the identifiability contrast — ignoring a real `C` inflates additive-only `Â` much more than ignoring a real `M` (mates have `A=0`) (→ `bench_couple_env.{csv,png}`) |
 | `bench_fh_prediction.py` | registry simulation with age, cohort and competing mortality: PA fits both classic LT-FH and age/cohort-personalised family bounds, compared with squared-correlation effective-N proxies; a separate own-onset cohort-span panel is explicitly family-free **ADuLT** and tests cohort-aware vs cohort-blind ranking (→ `bench_fh_prediction.{csv,png}`) |
-| `bench_pafgrs_mixture.py` | generative validation of the PA-FGRS censored-control mixture under threshold-crossing and stochastic-onset observation models |
-| `bench_inference_calibration.py` | **unsupported research:** coarse repeated-sample checks of component-test Type-I error, family-bootstrap interval containment, and MCEM information SEs |
+| `bench_pafgrs_mixture.py` | generative validation of the PA-FGRS censored-control mixture under threshold-crossing and stochastic-onset observation models; per-replicate corr/slope retained with paired mixture-vs-no-mixture contrasts (mean ± SE, t-based 95% CI) (→ `bench_pafgrs_mixture.csv`) |
+| `bench_inference_calibration.py` | **unsupported research:** coarse repeated-sample checks of component-test Type-I error, family-bootstrap interval containment, MCEM information SEs, and `test_genetic_correlation` Type-I error under the r_g=0 null (`--parts` selects a subset) |
 | `bench_misspecification.py` | calibration and ranking under heavy tails, assortative mating, unmodelled shared environment, and wrong prevalence |
 | `bench_cip_estimation.py` | Kaplan–Meier/Aalen–Johansen curve recovery, delayed entry, competing mortality, and an end-to-end CIP-to-score check |
-| `bench_pedigree_inference.py` | pedigree extraction fidelity, arbitrary-kinship scoring versus the fixed named-role grammar, and extraction throughput |
-| `bench_register_pipeline.py` | **unsupported research:** pipeline from trio records through pedigree extraction and CIP thresholds to liability scores |
+| `bench_pedigree_inference.py` | pedigree extraction fidelity, arbitrary-kinship scoring versus the fixed named-role grammar (replicated, paired contrast), and extraction throughput (→ `bench_pedigree_inference.csv`) |
+| `bench_register_pipeline.py` | **unsupported research:** pipeline from trio records through pedigree extraction and CIP thresholds to liability scores; replicated accuracy/CIP/prospective arms with AUC and calibration-in-the-large, single-run throughput (→ `bench_register_pipeline.csv`) |
 | `bench_tetrachoric.py` | tetrachoric relative-pair correlations, latent-correlation comparison, and the Falconer diagnostic |
 | `bench_liability_scale.py` | probit residual-scale variance and observed-to-liability transformations, including null-adjusted summary-statistic estimates |
 | `bench_env_components.py` | end-to-end use of fitted `A`, `C`, and `M` components in liability estimation |
@@ -104,6 +117,7 @@ Rows marked **unsupported research** import checkout-only APIs from
 | `bench_aod_decay_robustness.py` | **unsupported research:** adversarial onset-age-decay probes for wrong kernels and unmodelled shared family environment |
 | `bench_sex_limitation.py` | **unsupported research:** sex-specific covariance versus sex-specific thresholds, including matched same-sex/cross-sex mechanisms |
 | `bench_nurture.py` | **unsupported research:** direct-effect scoring and moment-heritability distortion under genetic nurture |
+| `bench_pgs_comparison.py` | **PGS baseline and the PGS + family-history joint model** with an honest 50/50 train/test split: the PGS is trained on the train case/control GWAS (self-contained numpy Z-scored marginal weights; optional `--pgs-backend ldpred3` fits LDpred3-auto via saved weights, needing the optional ldpred3 package) and scored on held-out test probands — causal-SNP NCP ratios on train, R² against held-out true `g` on test, joint-model incremental R²s, and corr(PGS, LT-FH) checked against the `a·b·√p` theory prediction (→ `bench_pgs_comparison.{csv,png}`) |
 
 `_common.py` holds the shared simulation, estimation, GWAS and plotting helpers,
 plus a minimal PLINK `.bed` reader for the HAPNEST path.
@@ -145,3 +159,7 @@ plus a minimal PLINK `.bed` reader for the HAPNEST path.
 - Checked-in CSVs and [`RESULTS.md`](RESULTS.md) are historical artifacts.
   Their claims apply only to their recorded designs and provenance, not
   automatically to the current source tree.
+- `python scripts/check_results.py` re-derives the RESULTS.md headline values
+  from these CSVs and the `run_logs/` logs and fails on any mismatch;
+  `python scripts/make_results.py` renders paper-ready tables from the same
+  CSVs into `paper/tables/` (generated, do not hand-edit).
