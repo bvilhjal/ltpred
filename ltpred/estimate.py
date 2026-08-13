@@ -456,32 +456,17 @@ def _estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01, n_s
     fam_ids = np.empty(n, dtype=object)
     pids = np.empty(n, dtype=object)
 
-    for _key, idx in _group_by_structure(families):
+    for role_key, idx in _group_by_structure(families):
+        # Keep the first family's member order so seeded Gibbs sweeps match
+        # the kinship path on the same pedigree (coordinate order is the RNG
+        # order). Bounds are stacked by those role names, not by arrival order
+        # of later families in the group.
         roles = [m.role for m in families[idx[0]].members]
-        cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2,
-                                          c2=c2, m2=m2)
-        cov, n_corrections = correct_positive_definite(cov_obj.matrix)
-        _warn_if_corrected(n_corrections, "Gibbs sampling")
-        cov_roles = cov_obj.roles
-        o_pos = cov_roles.index("o") if "o" in cov_roles else None
-
-        lowers, uppers, group_pids = [], [], []
-        for f in idx:
-            lo, hi, mpids = _ordered_thresholds(families[f], cov_roles)
-            if lo.shape[1] != 1:
-                raise ValueError(
-                    f"family {families[f].fam_id!r} has length-{lo.shape[1]} "
-                    "bounds; the single-trait estimator needs scalar bounds per "
-                    "member -- use estimate_liability's multi-trait model")
-            lowers.append(lo[:, 0])
-            uppers.append(hi[:, 0])
-            group_pids.append(mpids[o_pos] if o_pos is not None and mpids[o_pos] is not None
-                              else families[f].fam_id)
-        lowers = np.array(lowers, dtype=dtype)
-        uppers = np.array(uppers, dtype=dtype)
-
-        g_est, g_se = _estimate_group(cov, out_coords, lowers, uppers,
-                                      seeds[idx], tol, n_sim, burn_in, max_rounds)
+        lowers, uppers, _ki, _kp, group_pids = _stack_object_members(
+            families, idx, roles, dtype)
+        g_est, g_se = _gibbs_from_role_arrays(
+            roles, lowers, uppers, h2, out_coords, seeds[idx],
+            tol, n_sim, burn_in, max_rounds, c2=c2, m2=m2)
         for slot, f in enumerate(idx):
             fam_ids[f] = families[f].fam_id
             pids[f] = group_pids[slot]
@@ -491,30 +476,6 @@ def _estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01, n_s
 
     _warn_unconverged(se, names, tol, max_rounds, n)
     return LiabilityResult(fam_ids=fam_ids, pids=pids, est=est, se=se)
-
-
-def _ordered_bounds_pa(family, cov_roles):
-    """Single-trait bounds + mixture inputs aligned to ``cov_roles`` for PA.
-
-    Like :func:`_ordered_thresholds` but also gathers per-member ``K_i``/``K_pop``
-    (``nan`` when absent) and returns scalars per row. The missing genetic row ``g``
-    (and ``o`` if absent) becomes the uninformative ``(-inf, inf)`` with ``nan``
-    mixture inputs, which the PA sweep treats as a no-op."""
-    by_role = {m.role: m for m in family.members}
-    lower, upper, pids, K_i, K_pop = [], [], [], [], []
-    for role in cov_roles:
-        m = by_role.get(role)
-        if m is None:
-            lower.append(-np.inf); upper.append(np.inf); pids.append(None)
-            K_i.append(np.nan); K_pop.append(np.nan)
-        else:
-            lower.append(float(m.lower)); upper.append(float(m.upper)); pids.append(m.pid)
-            K_i.append(np.nan if m.K_i is None else float(m.K_i))
-            K_pop.append(np.nan if m.K_pop is None else float(m.K_pop))
-    lower = np.array(lower)
-    upper = np.array(upper)
-    validate_bounds(lower, upper, context=f"family {family.fam_id!r} bounds")
-    return lower, upper, pids, np.array(K_i), np.array(K_pop)
 
 
 def _estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
@@ -529,10 +490,11 @@ def _estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False
     error. It is exact for a single truncation but approximate for multiple
     sequential truncations. ``out=("genetic",)`` estimates the proband's
     genetic liability ``g`` conditional on the whole family;
-    ``"full"`` targets ``o`` and predicts the proband's full liability from the
-    *relatives* (its own status is the target and so is not conditioned on).
-    ``use_mixture=True`` turns on the age-censored-control mixture, using each
-    member's ``K_i``/``K_pop`` (see :func:`ltpred.thresholds.pa_thresholds`).
+    ``"full"`` is ``E[l_o | own interval and relatives]`` — the target's own
+    bound is applied after the relative fold, matching Gibbs. Unbind ``o``
+    (or omit it) for a relatives-only predictor. ``use_mixture=True`` turns
+    on the age-censored-control mixture, using each member's ``K_i``/``K_pop``
+    (see :func:`ltpred.thresholds.pa_thresholds`).
     ``dtype=np.float32`` halves the per-family bound memory. Returns a
     :class:`LiabilityResult` with ``se = 0`` and PA approximations to conditional
     variances in ``var``."""
@@ -559,38 +521,19 @@ def _estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False
     for role_key, idx in _group_by_structure(families):
         # PA is a sequential approximation, so its fold order must be a property
         # of the family structure rather than whichever member/family happened
-        # to arrive first. Bounds below are realigned by role name.
+        # to arrive first. `_pa_from_role_arrays` canonicalises via sorted roles.
         roles = list(role_key)
-        cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2,
-                                          c2=c2, m2=m2)
-        cov, n_corrections = correct_positive_definite(cov_obj.matrix)
-        _warn_if_corrected(n_corrections, "Pearson-Aitken estimation")
-        cov_roles = cov_obj.roles
-        o_pos = cov_roles.index("o") if "o" in cov_roles else None
-
-        F, d = len(idx), len(cov_roles)
-        lowers = np.empty((F, d), dtype=dtype); uppers = np.empty((F, d), dtype=dtype)
-        K_is = np.empty((F, d), dtype=dtype) if use_mixture else None
-        K_pops = np.empty((F, d), dtype=dtype) if use_mixture else None
-        group_pids = []
-        for slot, f in enumerate(idx):
-            lo, hi, mpids, ki, kp = _ordered_bounds_pa(families[f], cov_roles)
-            lowers[slot] = lo; uppers[slot] = hi
-            if use_mixture:
-                K_is[slot] = ki; K_pops[slot] = kp
-            group_pids.append(mpids[o_pos] if o_pos is not None and mpids[o_pos] is not None
-                              else families[f].fam_id)
-
-        for c, name in zip(out_coords, names):
-            target = cov_roles.index("g") if c == 0 else cov_roles.index("o")
-            g_est, g_var = pa_estimate_batched(cov, lowers, uppers, target=target,
-                                               K_is=K_is, K_pops=K_pops)
-            for slot, f in enumerate(idx):
-                est[name][f] = g_est[slot]
-                var[name][f] = g_var[slot]
+        lowers, uppers, K_is, K_pops, group_pids = _stack_object_members(
+            families, idx, roles, dtype, use_mixture=use_mixture)
+        group_est, group_var = _pa_from_role_arrays(
+            roles, lowers, uppers, h2, out_coords, K_i=K_is, K_pop=K_pops,
+            use_mixture=use_mixture, c2=c2, m2=m2)
         for slot, f in enumerate(idx):
             fam_ids[f] = families[f].fam_id
             pids[f] = group_pids[slot]
+            for c, name in zip(out_coords, names):
+                est[name][f] = group_est[c][slot]
+                var[name][f] = group_var[c][slot]
 
     se = {name: np.zeros(n) for name in names}   # deterministic: no Monte-Carlo error
     return LiabilityResult(fam_ids=fam_ids, pids=pids, est=est, se=se, var=var)
@@ -691,6 +634,110 @@ def _align_to_cov(roles, cov_roles, columns, defaults):
     return out
 
 
+def _single_trait_cov(roles, h2, c2, m2, engine, *, canonical=False):
+    """Single-trait covariance with a PD nudge.
+
+    Pearson-Aitken passes ``canonical=True`` so the sequential fold order is
+    a property of the role *set*. Gibbs keeps the caller order: the sweep
+    consumes RNG per coordinate, so sorting would change seeded draws."""
+    fam_vec = sorted(roles) if canonical else list(roles)
+    cov_obj = construct_covmat_single(fam_vec=fam_vec, add_ind=True,
+                                      h2=h2, c2=c2, m2=m2)
+    cov, n_corrections = correct_positive_definite(cov_obj.matrix)
+    _warn_if_corrected(n_corrections, engine)
+    return cov_obj, cov
+
+
+def _target_index(cov_roles, out_coord):
+    """Row of ``g`` (``out_coord==0``) or ``o`` in a single-trait covariance."""
+    return cov_roles.index("g") if out_coord == 0 else cov_roles.index("o")
+
+
+def _pa_from_role_arrays(roles, lower, upper, h2, out_coords, K_i=None,
+                         K_pop=None, use_mixture=False, c2=None, m2=None):
+    """PA estimates for one or more targets on same-structure role arrays.
+
+    ``roles`` labels the columns of ``lower``/``upper`` (no ``g`` — the
+    constructor adds it). Returns ``(est, var)`` dicts keyed by out-coord."""
+    roles = list(roles)
+    _check_unique_role_labels(roles)
+    lower = as_bounds(lower)
+    upper = as_bounds(upper)
+    validate_bounds(lower, upper, context="array estimator bounds")
+    cov_obj, cov = _single_trait_cov(
+        roles, h2, c2, m2, "Pearson-Aitken estimation", canonical=True)
+    lo, hi = _align_to_cov(roles, cov_obj.roles, (lower, upper),
+                           (-np.inf, np.inf))
+    ki = kp = None
+    if use_mixture:
+        K_i, K_pop = validate_mixture_inputs(
+            K_i, K_pop, expected_shape=lower.shape, require_pair=True,
+            lower=lower, upper=upper,
+            context="array estimator mixture inputs")
+        ki, kp = _align_to_cov(
+            roles, cov_obj.roles, (as_bounds(K_i), as_bounds(K_pop)),
+            (np.nan, np.nan))
+    est, var = {}, {}
+    for coord in out_coords:
+        e, v = pa_estimate_batched(
+            cov, lo, hi, target=_target_index(cov_obj.roles, coord),
+            K_is=ki, K_pops=kp)
+        est[coord] = e
+        var[coord] = v
+    return est, var
+
+
+def _gibbs_from_role_arrays(roles, lower, upper, h2, out_coords, seeds,
+                            tol, n_sim, burn_in, max_rounds, c2=None, m2=None):
+    """Gibbs estimates for one or more targets on same-structure role arrays."""
+    roles = list(roles)
+    _check_unique_role_labels(roles)
+    lower = as_bounds(lower)
+    upper = as_bounds(upper)
+    validate_bounds(lower, upper, context="array estimator bounds")
+    cov_obj, cov = _single_trait_cov(roles, h2, c2, m2, "Gibbs sampling")
+    lo, hi = _align_to_cov(roles, cov_obj.roles, (lower, upper),
+                           (-np.inf, np.inf))
+    targets = [_target_index(cov_obj.roles, c) for c in out_coords]
+    return _estimate_group(cov, targets, lo, hi, seeds, tol, n_sim, burn_in,
+                           max_rounds)
+
+
+def _stack_object_members(families, idx, roles, dtype, use_mixture=False):
+    """Stack one structure group's member scalars into ``(F, len(roles))`` arrays.
+
+    ``roles`` is the group's user-role key (no ``g``). Missing ``o`` is not
+    inserted here — :func:`_align_to_cov` fills it as unbounded."""
+    F, k = len(idx), len(roles)
+    lowers = np.empty((F, k), dtype=dtype)
+    uppers = np.empty((F, k), dtype=dtype)
+    K_is = np.empty((F, k), dtype=dtype) if use_mixture else None
+    K_pops = np.empty((F, k), dtype=dtype) if use_mixture else None
+    pids = []
+    for slot, f in enumerate(idx):
+        fam = families[f]
+        by_role = {m.role: m for m in fam.members}
+        for j, role in enumerate(roles):
+            member = by_role[role]
+            lo = np.asarray(member.lower, dtype=float)
+            hi = np.asarray(member.upper, dtype=float)
+            if lo.size != 1 or hi.size != 1:
+                raise ValueError(
+                    f"family {fam.fam_id!r} has length-{max(lo.size, hi.size)} "
+                    "bounds; the single-trait estimator needs scalar bounds per "
+                    "member -- use estimate_liability's multi-trait model")
+            lowers[slot, j] = float(lo.reshape(()))
+            uppers[slot, j] = float(hi.reshape(()))
+            if use_mixture:
+                K_is[slot, j] = (np.nan if member.K_i is None
+                                 else float(member.K_i))
+                K_pops[slot, j] = (np.nan if member.K_pop is None
+                                   else float(member.K_pop))
+        o = by_role.get("o")
+        pids.append(o.pid if o is not None and o.pid is not None else fam.fam_id)
+    return lowers, uppers, K_is, K_pops, pids
+
+
 def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic", K_i=None, K_pop=None, use_mixture=False, c2=None, m2=None):
     """Array-level Pearson-Aitken estimator — skips ``Family``/``Member`` objects.
 
@@ -700,35 +747,15 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic", K_i
         them straight from your columns, e.g. with a threshold helper). The covariance
     is built once (with the ``c2``/``m2`` sibship and couple shared-environment
     components, ``h2 + c2 + m2 <= 1``). ``out`` is ``"genetic"`` (target ``g``) or
-    ``"full"`` (target
-    ``o``). ``use_mixture`` with ``K_i``/``K_pop`` (same shape) enables the
+    ``"full"`` (``E[l_o | own interval and relatives]``). ``use_mixture`` with
+    ``K_i``/``K_pop`` (same shape) enables the
     censored-control mixture. Returns PA sequential-moment approximations
     ``(est, var)`` of length ``n_families``."""
-    roles = list(roles)
-    _check_unique_role_labels(roles)
-    lower = as_bounds(lower)                # keeps float32 if given, else float64
-    upper = as_bounds(upper)
-    validate_bounds(lower, upper, context="array estimator bounds")
-    # The PA fold is sequential. Canonicalise its covariance order while retaining
-    # ``roles`` as the column labels used to realign every caller-supplied array.
-    cov_obj = construct_covmat_single(fam_vec=sorted(roles), add_ind=True, h2=h2,
-                                      c2=c2, m2=m2)
-    cov, n_corrections = correct_positive_definite(cov_obj.matrix)
-    _warn_if_corrected(n_corrections, "Pearson-Aitken estimation")
-    cov_roles = cov_obj.roles
-    target = cov_roles.index("g") if _single_out(out) == 0 else cov_roles.index("o")
-
-    lo, hi = _align_to_cov(roles, cov_roles, (lower, upper), (-np.inf, np.inf))
-    if use_mixture:
-        K_i, K_pop = validate_mixture_inputs(
-            K_i, K_pop, expected_shape=lower.shape, require_pair=True,
-            lower=lower, upper=upper,
-            context="array estimator mixture inputs")
-        K_i = as_bounds(K_i)
-        K_pop = as_bounds(K_pop)
-        ki, kp = _align_to_cov(roles, cov_roles, (K_i, K_pop), (np.nan, np.nan))
-        return pa_estimate_batched(cov, lo, hi, target=target, K_is=ki, K_pops=kp)
-    return pa_estimate_batched(cov, lo, hi, target=target)
+    coord = _single_out(out)
+    est, var = _pa_from_role_arrays(
+        roles, lower, upper, h2, [coord], K_i=K_i, K_pop=K_pop,
+        use_mixture=use_mixture, c2=c2, m2=m2)
+    return est[coord], var[coord]
 
 
 def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic", tol=0.01, n_sim=100_000, burn_in=1000, seed=None, max_rounds=100, c2=None, m2=None):
@@ -740,28 +767,19 @@ def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic", 
     batch-means Monte-Carlo SE) of length ``n_families`` for the single target
     selected by ``out``. ``seed`` must be a non-boolean integer in
     ``[0, 2**32 - 1]`` or ``None``."""
-    roles = list(roles)
-    _check_unique_role_labels(roles)
-    lower = as_bounds(lower)                # keeps float32 if given, else float64
-    upper = as_bounds(upper)
-    validate_bounds(lower, upper, context="array estimator bounds")
-    cov_obj = construct_covmat_single(fam_vec=roles, add_ind=True, h2=h2,
-                                      c2=c2, m2=m2)
-    cov, n_corrections = correct_positive_definite(cov_obj.matrix)
-    _warn_if_corrected(n_corrections, "Gibbs sampling")
-    cov_roles = cov_obj.roles
-    target = cov_roles.index("g") if _single_out(out) == 0 else cov_roles.index("o")
-
-    lo, hi = _align_to_cov(roles, cov_roles, (lower, upper), (-np.inf, np.inf))
-    seeds = _base_seeds(seed, lo.shape[0], max_rounds)
-    est, se = _estimate_group(cov, [target], lo, hi, seeds, tol, n_sim, burn_in,
-                              max_rounds)
+    coord = _single_out(out)
+    lower = as_bounds(lower)
+    seeds = _base_seeds(seed, np.asarray(lower).shape[0], max_rounds)
+    est, se = _gibbs_from_role_arrays(
+        roles, lower, upper, h2, [coord], seeds, tol, n_sim, burn_in,
+        max_rounds, c2=c2, m2=m2)
     return est[:, 0], se[:, 0]
 
 
 def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="genetic",
                                     tol=0.01, n_sim=100_000, burn_in=1000, seed=None,
-                                    max_rounds=100, method=None):
+                                    max_rounds=100, method=None, K_i=None, K_pop=None,
+                                    use_mixture=False):
     """Estimate a target individual's liability from an **arbitrary pedigree**.
 
     The kinship-based counterpart of the array estimators: instead of the fixed role
@@ -776,14 +794,15 @@ def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="gene
     diagonal entries of ``A`` exceed one.
 
     ``out`` selects ``"genetic"`` (the target's genetic liability — the usual
-    family-history GWAS phenotype) or ``"full"`` (its full liability). ``method=None`` uses the
+    family-history GWAS phenotype) or ``"full"`` (``E[l_o | own interval and
+    relatives]`` on both engines). ``method=None`` uses the
     deterministic Pearson-Aitken engine, matching the main single-trait default;
     pass ``method="gibbs"`` for reference sampling. Returns ``(est, uncertainty)``,
     where the second array is PA's approximate conditional variance or the Gibbs
     Monte-Carlo SE, respectively.
-    As in the object PA API, PA ``out="full"`` predicts the target's full liability
-    from the other members without conditioning on its own bound; Gibbs conditions
-    on all supplied bounds. Each array has length ``n_families``. The covariance is built by
+    ``use_mixture=True`` with per-member ``K_i``/``K_pop`` (same shape as
+    ``lower``) runs the PA-FGRS censored-control mixture; Gibbs does not
+    implement it. Each array has length ``n_families``. The covariance is built by
     :func:`~ltpred.covariance.construct_covmat_from_kinship`, so results match the
     role-based estimator whenever the pedigree encodes the same relationships — but
     this also handles half-sibs of any degree, cousins, and inbred pedigrees.
@@ -799,6 +818,11 @@ def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="gene
     if lower.shape[1] != n or upper.shape[1] != n:
         raise ValueError(f"lower/upper must have {n} columns (one per pedigree member)")
     out_coord = _single_out(out)
+    method_name = _resolve_method(method, "pearson-aitken")
+    if use_mixture and method_name == "gibbs":
+        raise ValueError(
+            "use_mixture=True is only supported by Pearson-Aitken; the Gibbs "
+            "estimator does not implement the censored-control mixture")
 
     cov_obj = construct_covmat_from_kinship(A, h2=h2, target=target, add_ind=True)
     cov, n_corrections = correct_positive_definite(cov_obj.matrix)
@@ -811,8 +835,19 @@ def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="gene
     hi = np.ascontiguousarray(np.concatenate([pos, upper], axis=1))
     tgt = 0 if out_coord == 0 else 1 + int(target)     # g row, or the target's o row
 
-    if _resolve_method(method, "pearson-aitken") == "pearson-aitken":
-        return pa_estimate_batched(cov, lo, hi, target=tgt)
+    if method_name == "pearson-aitken":
+        if not use_mixture:
+            return pa_estimate_batched(cov, lo, hi, target=tgt)
+        K_i, K_pop = validate_mixture_inputs(
+            K_i, K_pop, expected_shape=lower.shape, require_pair=True,
+            lower=lower, upper=upper,
+            context="kinship estimator mixture inputs")
+        nan_g = np.full((F, 1), np.nan, dtype=as_bounds(K_i).dtype)
+        ki = np.ascontiguousarray(np.concatenate([nan_g, as_bounds(K_i)], axis=1))
+        kp = np.ascontiguousarray(np.concatenate(
+            [np.full((F, 1), np.nan, dtype=as_bounds(K_pop).dtype),
+             as_bounds(K_pop)], axis=1))
+        return pa_estimate_batched(cov, lo, hi, target=tgt, K_is=ki, K_pops=kp)
 
     seeds = _base_seeds(seed, F, max_rounds)
     est, se = _estimate_group(cov, [tgt], lo, hi, seeds, tol, n_sim, burn_in,

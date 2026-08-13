@@ -217,34 +217,34 @@ def _std_tnorm_moments(a, b):
 
 
 @_jit
-def _tnorm_mean(mu, sd, lower, upper):
-    """Mean of ``N(mu, sd^2)`` truncated to ``(lower, upper)``.
+def _tnorm_moments_loc(mu, sd, lower, upper):
+    """Mean and variance of ``N(mu, sd^2)`` truncated to ``(lower, upper)``.
 
-    Returns ``mu`` for an infinite interval and ``lower`` for a point mass
-    (``lower == upper``)."""
+    Returns ``(mu, sd^2)`` for an infinite interval and ``(lower, 0)`` for a
+    point mass. One call into :func:`_std_tnorm_moments` — the sweep used to
+    evaluate the mean and variance kernels separately on the same interval."""
     if lower == -math.inf and upper == math.inf:
-        return mu
+        return mu, sd * sd
     if lower == upper:
-        return lower
+        return lower, 0.0
     a = (lower - mu) / sd
     b = (upper - mu) / sd
-    mean, _ = _std_tnorm_moments(a, b)
-    return mu + sd * mean
+    mean, var = _std_tnorm_moments(a, b)
+    return mu + sd * mean, sd * sd * var
+
+
+@_jit
+def _tnorm_mean(mu, sd, lower, upper):
+    """Mean of ``N(mu, sd^2)`` truncated to ``(lower, upper)``."""
+    mean, _ = _tnorm_moments_loc(mu, sd, lower, upper)
+    return mean
 
 
 @_jit
 def _tnorm_var(mu, sd, lower, upper):
-    """Variance of ``N(mu, sd^2)`` truncated to ``(lower, upper)``.
-
-    ``sd^2`` for an infinite interval and ``0`` for a point mass."""
-    if lower == -math.inf and upper == math.inf:
-        return sd * sd
-    if lower == upper:
-        return 0.0
-    a = (lower - mu) / sd
-    b = (upper - mu) / sd
-    _, var = _std_tnorm_moments(a, b)
-    return sd * sd * var
+    """Variance of ``N(mu, sd^2)`` truncated to ``(lower, upper)``."""
+    _, var = _tnorm_moments_loc(mu, sd, lower, upper)
+    return var
 
 
 @_jit
@@ -286,8 +286,7 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
         split = upper                            # plain truncated normal on (lower, upper)
         mixture_prob = 1.0
 
-    m0 = _tnorm_mean(mu, sd, lower, split)
-    v0 = _tnorm_var(mu, sd, lower, split)
+    m0, v0 = _tnorm_moments_loc(mu, sd, lower, split)
     # ``split == inf``: plain-mode observed case (split = upper = +inf).
     # ``lower == split``: the lower bound coincides with the split point
     # (lifetime threshold for mixture mode, upper bound for plain mode) —
@@ -296,8 +295,7 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
         m1 = 0.0
         v1 = 0.0
     else:
-        m1 = _tnorm_mean(mu, sd, split, math.inf)
-        v1 = _tnorm_var(mu, sd, split, math.inf)
+        m1, v1 = _tnorm_moments_loc(mu, sd, split, math.inf)
 
     new_mean = mixture_prob * m0 + (1.0 - mixture_prob) * m1
     new_var = mixture_prob * (m0 * m0 + v0) + (1.0 - mixture_prob) * (m1 * m1 + v1) \
@@ -330,7 +328,10 @@ def _pa_update(cov, mu, i, nm, nv):
 def _pa_family(cov, lower, upper, K_i, K_pop):
     """One family's PA sweep **with** the censored-control mixture; target row 0.
 
-    Mutates ``cov`` in place, folding observations ``d-1, ..., 1``. Returns
+    Mutates ``cov`` in place, folding observations ``d-1, ..., 1``. Then
+    applies the target's own interval to the updated ``N(mu[0], cov[0,0])``.
+    Unbounded targets (``g``) are a no-op there; ``out="full"`` therefore
+    conditions on the proband's own status, matching Gibbs. Returns
     ``(est, var)`` as sequential-moment approximations to the target's posterior
     mean and conditional variance."""
     d = cov.shape[0]
@@ -338,7 +339,7 @@ def _pa_family(cov, lower, upper, K_i, K_pop):
     for i in range(d - 1, 0, -1):
         nm, nv = _tnorm_mixture(mu[i], cov[i, i], lower[i], upper[i], K_i[i], K_pop[i])
         _pa_update(cov, mu, i, nm, nv)
-    return mu[0], cov[0, 0]
+    return _tnorm_mixture(mu[0], cov[0, 0], lower[0], upper[0], K_i[0], K_pop[0])
 
 
 @_jit
@@ -346,15 +347,14 @@ def _pa_family_nomix(cov, lower, upper):
     """PA sweep **without** the mixture -- plain truncated-normal moments.
 
     The default fast path: skips all ``K_i``/``K_pop`` handling (no NaN arrays, no
-    per-coordinate mixture branch). Same active-block update as :func:`_pa_family`."""
+    per-coordinate mixture branch). Same active-block update as :func:`_pa_family`,
+    including the final target-interval update."""
     d = cov.shape[0]
     mu = np.zeros(d)
     for i in range(d - 1, 0, -1):
-        sd_i = math.sqrt(cov[i, i])
-        nm = _tnorm_mean(mu[i], sd_i, lower[i], upper[i])
-        nv = _tnorm_var(mu[i], sd_i, lower[i], upper[i])
+        nm, nv = _tnorm_moments_loc(mu[i], math.sqrt(cov[i, i]), lower[i], upper[i])
         _pa_update(cov, mu, i, nm, nv)
-    return mu[0], cov[0, 0]
+    return _tnorm_moments_loc(mu[0], math.sqrt(cov[0, 0]), lower[0], upper[0])
 
 
 @_jit_parallel
@@ -406,7 +406,9 @@ def pa_algorithm(covmat, lower, upper, target=0, K_i=None, K_pop=None):
     """Pearson-Aitken estimate of the target liability for a single family.
 
     ``covmat`` is the ``(d, d)`` liability covariance; ``lower``/``upper`` are the
-    per-row truncation bounds (the target row should be ``(-inf, inf)``). ``target``
+    per-row truncation bounds. An unbounded target row (``(-inf, inf)``, the
+    usual ``g``) is a no-op after the relative fold; a bounded target
+    (``out="full"``) is conditioned on last. ``target``
     is the row to estimate (0 = the genetic liability ``g`` in the usual ordering).
     ``K_i``/``K_pop`` (per row, ``nan`` where unused) switch on the censored-control
     mixture. Returns ``(est, var)`` -- sequential-moment approximations to the

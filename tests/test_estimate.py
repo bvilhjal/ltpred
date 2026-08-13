@@ -63,6 +63,20 @@ def test_single_proband_case_only():
     assert res.se["genetic"][0] <= 0.02
 
 
+def test_pa_full_matches_gibbs_estimand_on_a_lone_case():
+    # PA used to skip the target's own bound, so out="full" was 0 for a lone
+    # case. Both engines now return E[l_o | own interval].
+    h2, prev = 0.5, 0.05
+    t = float(stats.norm.isf(prev))
+    fam = Family("f1", [Member("o", lower=t, upper=np.inf)])
+    pa = estimate_liability([fam], h2=h2, method="pa", out=("genetic", "full"))
+    assert pa.est["full"][0] == pytest.approx(_imr(t), abs=1e-9)
+    assert pa.est["genetic"][0] == pytest.approx(h2 * _imr(t), abs=1e-9)
+    unbound = Family("f2", [Member("o", lower=-np.inf, upper=np.inf)])
+    rel_only = estimate_liability([unbound], h2=h2, method="pa", out="full")
+    assert rel_only.est["full"][0] == pytest.approx(0.0)
+
+
 def test_high_level_gibbs_handles_nine_sigma_case_bound():
     fam = Family("tail", [Member("o", lower=9.0, upper=np.inf)])
     res = estimate_liability([fam], h2=0.5, method="gibbs", out="full",
@@ -297,6 +311,35 @@ def test_estimate_from_kinship_defaults_to_pa():
     assert np.array_equal(default[1], explicit[1])
     with pytest.raises(ValueError, match="unknown method"):
         estimate_liability_from_kinship(A, lower, upper, method="magic")
+
+
+def test_kinship_estimator_accepts_pa_mixture():
+    from ltpred import estimate_liability_from_kinship, kinship_from_pedigree
+    from ltpred.thresholds import pa_thresholds
+    _, A = kinship_from_pedigree(
+        ["o", "m"], [None, None], [None, None])
+    status = np.array([[0, 0], [1, 0]])
+    age = np.array([[40.0, 70.0], [45.0, 70.0]])
+    # two families, two members; build K from the control rows
+    lower = np.empty((2, 2))
+    upper = np.empty((2, 2))
+    K_i = np.empty((2, 2))
+    K_pop = np.empty((2, 2))
+    for j in range(2):
+        lo, hi, ki, kp = pa_thresholds(status[:, j], age[:, j], pop_prev=0.1)
+        lower[:, j], upper[:, j], K_i[:, j], K_pop[:, j] = lo, hi, ki, kp
+    est_mix, var_mix = estimate_liability_from_kinship(
+        A, lower, upper, h2=0.5, use_mixture=True, K_i=K_i, K_pop=K_pop)
+    est_plain, _ = estimate_liability_from_kinship(A, lower, upper, h2=0.5)
+    assert np.all(np.isfinite(est_mix))
+    assert np.all(var_mix >= 0)
+    # first family is two censored controls: the mixture should raise the score
+    # relative to a naive age truncation (weaker evidence of low liability)
+    assert est_mix[0] > est_plain[0]
+    with pytest.raises(ValueError, match="only supported by Pearson-Aitken"):
+        estimate_liability_from_kinship(
+            A, lower, upper, h2=0.5, method="gibbs", use_mixture=True,
+            K_i=K_i, K_pop=K_pop, n_sim=20, burn_in=0)
 
 
 @pytest.mark.parametrize("spelling", ["genetic", ("genetic",)])

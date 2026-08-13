@@ -34,12 +34,16 @@ familial resemblance (see
 **stochastic-approximation fixed point**, not posterior sampling of `h²`: the trace
 is not a posterior draw and its mean is not a posterior mean.
 
-The fitter accepts common or person-specific one-sided, two-sided, and pinned
-rectangles: their geometry alone cannot reveal how they were constructed. That
-flexibility makes provenance the caller's responsibility. The onset-pinned bounds
-from the quickstart are accepted, but using them makes that onset/threshold
-construction part of the fitted observation model. If that is not the model you
-intend, use an external estimate or construct separate fitting bounds.
+The pooled Haseman–Elston fixed point requires **one case/control threshold
+per trait**. Personalised (age-/CIP-specific) or onset-pinned LT-FH++ bounds —
+including the Quickstart's `age_thresholds` output, even when they are
+internally coherent — are **rejected**. On those inputs the fixed point runs
+to the \(h^2 \sim 1\) boundary and invents a spurious shared-environment
+component. Fit from common-threshold bounds (`prevalence_thresholds`), or
+bring an external liability-scale \(h^2\). Personalised bounds remain the
+intended input for `estimate_liability`, which conditions on \(h^2\) rather
+than fitting it. For onset-age-structured genetic correlation see
+`research.advanced_fitting.fit_genetic_correlation_decay`.
 
 ```python
 from ltpred import fit_heritability

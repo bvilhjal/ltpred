@@ -50,8 +50,13 @@ class TestProbitLiabilityR2:
             pytest.approx(v / (1 + v))
 
     def test_maf_validation(self):
+        # 2f(1-f) is defined for any allele frequency, not only the minor one
+        assert probit_liability_r2(0.1, 0.6) == pytest.approx(
+            probit_liability_r2(0.1, 0.4))
         with pytest.raises(ValueError, match="maf"):
-            probit_liability_r2(0.1, 0.6)
+            probit_liability_r2(0.1, 1.5)
+        with pytest.raises(ValueError, match="maf"):
+            probit_liability_r2(0.1, -0.1)
 
 
 class TestLiabilityR2FromZ:

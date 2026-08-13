@@ -60,8 +60,9 @@ even when `A_ii > 1`; for non-inbred pedigrees the scaling is a no-op. This
 reproduces the role-grammar covariance entry-for-entry where they overlap and
 additionally covers half-sibs of any degree, cousins and inbred pedigrees;
 `estimate_liability_from_kinship` runs PA by default or Gibbs on request.
-That high-level kinship API accepts only `lower`/`upper`; it has no `K_i`, `K_pop`
-or `use_mixture` arguments and therefore does not implement PA-FGRS censoring.
+That high-level kinship API accepts `lower`/`upper` and, with Pearson–Aitken,
+`use_mixture=True` plus per-member `K_i`/`K_pop` for the PA-FGRS
+censored-control mixture. Gibbs still has no mixture implementation.
 For discovering the relatives from population trio records, `ltpred.pedigree`
 implements graph-based relative extraction in the style of [Pedersen et al.
 (2025)](https://doi.org/10.3389/fgene.2025.1708315): `build_parent_graph`
@@ -648,12 +649,16 @@ mean_j  +=  (Sigma_ji / v_i) * (m* - m_i)
 cov_jk  +=  (Sigma_ji Sigma_ik / v_i^2) * (v* - v_i)
 ```
 
-`pa_algorithm` places the target genetic liability first and folds the observed
-members in one at a time (last to first). For each, `(m*, v*)` are the
-truncated-normal moments on its interval (`_std_tnorm_moments`, with
-`v* = 0` for a pinned point mass — exact conditioning). Reading
-the target's updated mean gives `E[l_g | data]` and its variance the posterior
-variance — **deterministically, with no Monte-Carlo error**.
+`pa_algorithm` places the target first and folds the other members in one at a
+time (last to first). For each, `(m*, v*)` are the truncated-normal moments on
+its interval (`_std_tnorm_moments`, with `v* = 0` for a pinned point mass —
+exact conditioning). After that fold it applies the target's own interval to
+the updated `N(m_0, v_0)`. For the usual genetic target `g` those bounds are
+`(-inf, inf)` and this is a no-op. For `out="full"` it is
+`E[l_o | own interval and relatives]`, the same estimand as Gibbs. Reading
+the target's updated mean gives `E[l_g | data]` (or `E[l_o | data]`) and its
+variance the posterior variance — **deterministically, with no Monte-Carlo
+error**.
 
 After one truncation the selected distribution is no longer, in general,
 multivariate normal. Pearson–Aitken keeps only the updated first two moments and

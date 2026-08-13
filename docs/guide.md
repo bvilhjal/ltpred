@@ -94,9 +94,9 @@ Families can be supplied two ways: the compact **role grammar** (`o`, `m`, `f`,
 matrix** path (`kinship_from_pedigree`, `estimate_liability_from_kinship`) for
 arbitrary pedigrees — deeper trees, cousins, inbreeding, non-standard structures.
 The role grammar is fastest and simplest; the kinship path is the general case.
-The high-level kinship estimator currently accepts ordinary `lower`/`upper` bounds
-only, not `K_i`/`K_pop` or `use_mixture`; it therefore does not run the PA-FGRS
-censoring mixture.
+The high-level kinship estimator accepts ordinary `lower`/`upper` bounds and,
+on the PA engine, `use_mixture=True` with per-member `K_i`/`K_pop` for the
+PA-FGRS censored-control mixture. Gibbs still has no mixture implementation.
 Pedigrees can be discovered from trio records with `ltpred.pedigree`
 (`build_parent_graph`, `extract_pedigree`, `ParentGraph`, `Pedigree`), which feeds
 `kinship_from_pedigree`. ltpred does not wrap igraph the way LTFHPlus does, and
@@ -110,7 +110,7 @@ ships no plotting utilities.
 | personalised CIP, with relatives | `thresholds_from_cip(…, case_mode="pin")`; relatives + optional `o` | PA (default); Gibbs reference | LT-FH++ |
 | personalised CIP, no relatives | same pinned bounds; include role `o` only | PA (default); Gibbs reference | ADuLT |
 | logistic tutorial | `age_thresholds` with either row pattern above | PA or Gibbs | age-only demonstration, not full LT-FH++ |
-| published base PA-FGRS | role/object API; lifetime bounds from `prevalence_thresholds`; add control-specific `K_i`/`K_pop` from the CIP | PA with `use_mixture=True` | PA-FGRS |
+| published base PA-FGRS | role/object or kinship API; lifetime bounds from `prevalence_thresholds`; add control-specific `K_i`/`K_pop` from the CIP | PA with `use_mixture=True` | PA-FGRS |
 | age-dependent interval/mixture encoding | `pa_thresholds`, or `thresholds_from_cip(…, case_mode="interval")` | PA with `use_mixture=True` | PA-FGRS-style variant; neither base PA-FGRS nor exact PA-FGRS_ADT |
 | multiple traits | vector `h2` + correlation matrices | Gibbs only | model still follows bounds + rows |
 

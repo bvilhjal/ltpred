@@ -102,8 +102,8 @@ def probit_liability_r2(beta, maf, *, fraction=False):
     """
     beta = np.asarray(beta, dtype=float)
     maf = np.asarray(maf, dtype=float)
-    if np.any((maf < 0) | (maf > 0.5)):
-        raise ValueError("maf must lie in [0, 0.5]")
+    if np.any((maf < 0.0) | (maf > 1.0)):
+        raise ValueError("maf must lie in [0, 1] (allele frequency; 2f(1-f) is symmetric)")
     r2 = 2.0 * maf * (1.0 - maf) * beta * beta
     if fraction:
         r2 = r2 / (1.0 + r2)

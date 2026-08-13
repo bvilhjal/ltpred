@@ -84,9 +84,10 @@ gen, var = estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0)
 # Pearson-Aitken is the default; pass method="gibbs" to receive Monte-Carlo SE instead.
 ```
 
-This high-level arbitrary-kinship function accepts `A` and `lower`/`upper` only.
-It has no `K_i`, `K_pop`, or `use_mixture` arguments, so it cannot apply the
-PA-FGRS age-censored-control mixture.
+This high-level arbitrary-kinship function accepts `A`, `lower`/`upper`, and
+on Pearson–Aitken `use_mixture=True` with per-member `K_i`/`K_pop` for the
+PA-FGRS censored-control mixture. Pass `method="gibbs"` only for the
+no-mixture sampler.
 
 For a pedigree that *does* fit the role grammar the two paths give identical
 results (same covariance); the pedigree path additionally handles half-sibs of any

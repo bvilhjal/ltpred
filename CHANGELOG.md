@@ -6,6 +6,32 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Changed
+
+- **Pearson–Aitken `out="full"` is now the same estimand as Gibbs:**
+  \(\mathbb{E}[l_o \mid\) own interval and relatives\(]\). The sweep applies the
+  target's own bound after folding the other members (unbounded `g` is a
+  no-op). A lone case therefore no longer returns PA `full = 0`. Omit `o` or
+  unbind it for a relatives-only predictor. Object, array, and kinship PA
+  paths all go through this update.
+- **`simulate_under_LTM_single(use_age=True)` uses generation-consistent
+  ages and `onset <= current age` as the observed-case rule.** A young
+  high-liability person is a censored control, not a case pinned at a future
+  onset. New arguments: `onset_model` (`"threshold_crossing"` default, or
+  `"stochastic"` — lifetime status at \(T\), onset drawn from the CIP
+  independently of \(l\)) and `case_encoding` (`"pin"` / `"interval"` /
+  `"lifetime"`). Stochastic + lifetime/interval is the mode that does not
+  pin cases at their true liability.
+- **`estimate_liability_from_kinship` accepts the PA-FGRS mixture**
+  (`use_mixture=True` with `K_i`/`K_pop`). Gibbs still rejects it.
+- `probit_liability_r2` accepts allele frequency in `[0, 1]`, not only
+  minor-allele frequency in `[0, 0.5]`.
+- Single-trait object estimators are adapters over the array kernels
+  (canonical sorted-role covariance, one PD-nudge/warning path).
+- `docs/inference.md` matches the restored common-threshold guard on
+  `fit_heritability` / `fit_variance_components` (personalised/onset-pinned
+  bounds are rejected, not accepted).
+
 ### Fixed
 
 - **The moment fitters again reject personalised/onset-pinned LT-FH++ bounds.**

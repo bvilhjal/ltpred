@@ -62,6 +62,43 @@ def test_age_flavour_runs_and_is_finite():
     assert np.all(np.isfinite(res.est["genetic"]))
 
 
+def test_age_flavour_is_generation_consistent_and_followup_coherent():
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5, n_sim=400,
+                                    pop_prev=0.1, use_age=True, seed=13)
+    assert np.all(sim.ages["m"] > sim.ages["o"])
+    assert np.all(sim.ages["f"] > sim.ages["o"])
+    for role in ("o", "m", "f", "s1"):
+        is_case = sim.status[role]
+        assert np.all(sim.onset[role][is_case] <= sim.ages[role][is_case])
+        # a lifetime-affected person who is still too young is a control
+        future = np.isfinite(sim.onset[role]) & ~is_case
+        assert np.all(sim.onset[role][future] > sim.ages[role][future])
+
+
+def test_stochastic_onset_does_not_pin_cases_at_true_liability():
+    sim = simulate_under_LTM_single(
+        fam_vec=["m"], h2=0.5, n_sim=800, pop_prev=0.2, use_age=True,
+        onset_model="stochastic", case_encoding="lifetime", seed=17,
+    )
+    o = sim.roles.index("o")
+    case = sim.status["o"]
+    assert case.any()
+    # lifetime encoding: every case shares the population threshold, not l_o
+    t = next(m.lower for m in sim.families[int(np.flatnonzero(case)[0])].members
+             if m.role == "o")
+    pins = np.array([
+        next(m.lower for m in fam.members if m.role == "o")
+        for fam, is_case in zip(sim.families, case) if is_case
+    ])
+    assert np.allclose(pins, t)
+    assert not np.allclose(sim.liabilities[case, o], t, atol=0.05)
+
+
+def test_age_options_rejected_without_use_age():
+    with pytest.raises(ValueError, match="use_age"):
+        simulate_under_LTM_single(use_age=False, onset_model="stochastic")
+
+
 def test_child_roles_get_the_child_age_range():
     # "c1.2".rstrip("0123456789") stops at the dot and yields "c1.", so the
     # _AGE_RANGES["c"] entry was unreachable and children drew adult ages.

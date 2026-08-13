@@ -71,15 +71,13 @@ Multi-trait columns are suffixed with the phenotype name, e.g.
 score = res.genetic             # use this as your GWAS phenotype / risk score
 ```
 
-> **`out="full"` differs between the methods.** For **Gibbs**, `full` is
-> `E[l_o | own status, relatives]` — the proband's full liability conditioned on
-> everything, including their own interval. For **Pearson–Aitken**, the full
-> liability is the *target* of the sweep and so is **not** conditioned on its own
-> observed interval; `full` there means "the proband's full liability predicted
-> from the relatives". They are not the same quantity (e.g. a case with no
-> relatives gives a positive Gibbs `full` but a `0` PA `full`). The canonical GWAS
-> phenotype is `out="genetic"`, where the two agree; if you specifically want the
-> own-status-conditioned full liability, use Gibbs.
+> **`out="full"` is \(\mathbb{E}[l_o \mid\) own interval and relatives\(]\)**
+> on both engines. Pearson–Aitken applies the target's own bound after the
+> relative fold (an unbounded `g` is a no-op). A lone case therefore gives a
+> positive PA `full`, matching Gibbs, not zero. Omit role `o` or set its
+> bounds to `(-inf, inf)` when you want a relatives-only predictor — the
+> same rule as for prospective prediction. The canonical GWAS phenotype is
+> still `out="genetic"`.
 
 ### What the score is — and is not
 

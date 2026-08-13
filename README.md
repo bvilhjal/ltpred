@@ -173,10 +173,9 @@ variance-component fit, and the parametric-bootstrap significance tests, plus
 the sex-limited and genetic-nurture covariance constructors in
 `research.covariance_extensions`.
 
-The high-level arbitrary-kinship estimator accepts `A` plus `lower`/`upper` only;
-it does not accept `K_i`, `K_pop`, or `use_mixture`. Use the role/object estimator
-for the PA-FGRS censoring mixture (or a covariance-level PA API if you assemble all
-arrays yourself).
+The high-level arbitrary-kinship estimator accepts `A`, `lower`/`upper`, and
+(PA only) `use_mixture=True` with per-member `K_i`/`K_pop` for the PA-FGRS
+censored-control mixture. Gibbs still has no mixture implementation.
 
 Beyond the additive `A` covariance, the fitted sibship (`C`) and couple (`M`)
 components feed back into prediction through the `c2`/`m2` arguments on the

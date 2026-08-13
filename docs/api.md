@@ -18,7 +18,7 @@ is also a top-level export.
 | `pa_thresholds` | age-specific interval-case and PA-FGRS censored-control-mixture inputs; an age-dependent variant, not base PA-FGRS, exact PA-FGRS_ADT, or a requirement merely to use the PA engine |
 | `thresholds_from_cip` | bounds from an empirical (population) CIP curve — `case_mode="interval"` is likewise an age-dependent PA-FGRS-style variant rather than exact PA-FGRS_ADT; endpoint values are held constant outside its age grid |
 | `families_from_columns` | build family inputs from flat columns |
-| `kinship_from_pedigree` / `estimate_liability_from_kinship` | arbitrary-pedigree input and PA-default estimation with ordinary bounds; the high-level estimator has no `K_i`/`K_pop`/`use_mixture` support |
+| `kinship_from_pedigree` / `estimate_liability_from_kinship` | arbitrary-pedigree input and PA-default estimation; pass `use_mixture=True` with `K_i`/`K_pop` for the PA-FGRS censored-control mixture |
 | `simulate_under_LTM_single` | simulate families for testing/benchmarking |
 | `observed_to_liability_h2` / `liability_to_observed_h2` | observed ↔ liability-scale `h²` (Lee et al.) |
 | `set_num_threads` | set the Numba-parallel thread count |
