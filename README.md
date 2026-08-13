@@ -49,6 +49,9 @@ classification, omit the proband's role `o` or give it uninformative
 - **[Algorithm & model](docs/algorithm.md)** — the liability-threshold model, both
   estimators, the Pearson–Aitken selection formula, the censoring mixture, and the
   implementation/performance notes.
+- **[Methods note](report/ltpred_methods.pdf)** — estimand, observation models,
+  PA exactness, and simulation evidence, written for colleagues
+  (`report/ltpred_methods.tex`).
 - **[Benchmarks](benchmarks/RESULTS.md)** — accuracy, speed and GWAS-power
   comparison of the two methods.
 

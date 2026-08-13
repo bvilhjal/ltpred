@@ -16,6 +16,9 @@ family-history, age-of-onset and registry-scale analyses.
 For the statistical model and implementation details, see
 [Algorithm & model](algorithm.md). The [assumptions checklist](assumptions.md)
 summarises the checks to make before a real-data analysis.
+A typeset technical report (theory, implementation, and committed simulation
+numbers) ships in the repository as
+[`report/ltpred_methods.pdf`](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf).
 
 Unsupported experimental fitters and the register pipeline live in the source
 checkout's

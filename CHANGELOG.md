@@ -6,6 +6,12 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Added
+
+- Technical report `report/ltpred_methods.pdf` (LaTeX source
+  `report/ltpred_methods.tex`): estimand, theory, implementation, and
+  committed simulation evidence. Included in the source distribution.
+
 ### Changed
 
 - **Pearson–Aitken `out="full"` is now the same estimand as Gibbs:**

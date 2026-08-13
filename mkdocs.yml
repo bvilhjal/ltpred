@@ -36,6 +36,7 @@ nav:
       - Assumptions & checklist: assumptions.md
   - Reference:
       - Algorithm & model: algorithm.md
+      - Technical report: report.md
       - API reference: api.md
   - Project:
       - Roadmap: ROADMAP.md

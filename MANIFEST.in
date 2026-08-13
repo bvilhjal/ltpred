@@ -3,3 +3,6 @@
 include CHANGELOG.md
 include CITATION.cff
 include benchmarks/bench_liability_scale.py
+include report/README.md
+include report/ltpred_methods.tex
+include report/ltpred_methods.pdf
