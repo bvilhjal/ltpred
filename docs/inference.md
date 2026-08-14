@@ -29,6 +29,13 @@ Unsupported experimental inferential machinery lives in the checkout-only
     with the **wrong prevalence** — a real and fixable cause — so the error
     reports the observed and asserted rates rather than assuming ascertainment.
 
+    **It is a guard, not a certificate.** The enrichment it can detect is
+    `1 + 6·√((1−K)/(K·n))` — at K = 0.05 that is ~1.67× at N = 1,500 and
+    ~1.26× at N = 10,000. Milder enrichment passes silently, and the
+    dose-response below shows a 1.17× enrichment already inflates `h²` by
+    +0.12. Passing this check is not evidence that your sample is
+    population-sampled.
+
 The meaning of a reported `se` depends on the method. For the
 Haseman–Elston/data-augmentation fits, it is a *within-dataset* Monte-Carlo
 diagnostic, not across-dataset sampling uncertainty.

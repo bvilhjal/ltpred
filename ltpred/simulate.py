@@ -117,8 +117,11 @@ def _record_onset(aoo, onset_resolution):
     every case bound is derived from that recorded value -- so the same rounding
     must apply to whichever ``case_encoding`` is in use, otherwise ``pin`` and
     ``interval`` would silently describe different observation processes.
-    ``onset_resolution=None`` records the exact simulated onset, which is what
-    makes ``pin`` reproduce the true liability exactly."""
+    ``onset_resolution=None`` records the exact simulated onset. That makes the
+    pin reproduce the true liability up to the round trip through the CIP curve,
+    which is lossless except at the extreme upper tail, where
+    :func:`~ltpred.thresholds._convert_cir_to_age` clamps the implied onset age
+    at 0 and the liability cannot be recovered from it."""
     if onset_resolution is None:
         return aoo
     return round(aoo / onset_resolution) * onset_resolution
@@ -255,8 +258,9 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     onset). Case bounds are built from the recorded value under both ``"pin"``
     and ``"interval"``, so the two encodings describe the same observation
     process. This matters when the simulation is used as an oracle: under
-    ``threshold_crossing`` a pin reproduces the true liability **exactly only
-    with** ``onset_resolution=None``. At the default one-year grid the pinned
+    ``threshold_crossing`` a pin reproduces the true liability only with
+    ``onset_resolution=None``, and even then only up to the age-0 clamp in the
+    CIP inverse, which caps the recoverable liability at the extreme tail. At the default one-year grid the pinned
     bound sits within roughly 0.02 of the simulated liability (about 2% of its
     SD), which is a floor on any measured recovery — realistic, but not zero."""
     onset_resolution = _validate_onset_resolution(onset_resolution)

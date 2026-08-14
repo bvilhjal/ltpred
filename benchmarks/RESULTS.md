@@ -1,6 +1,6 @@
 # ltpred benchmark results
 
-Historical results from the 28 local benchmark scripts in this directory
+Historical results from the 30 local benchmark scripts in this directory
 (`bench_aod_decay_robustness.py` is reported as a subsection of section 25).
 Bounds
 distinguish non-personalised, personalised pinned and interval-case encodings;
@@ -9,9 +9,12 @@ family-history inclusion distinguishes LT-FH++ (with relatives) from ADuLT
 engines for those bounds. PA-FGRS is a separate PA-specific specification; its
 censoring mixture is not included in the PA–Gibbs comparisons below.
 
-- **Snapshot:** assembled from focused runs on 2026-07-31 and 2026-08-01, each
-  recorded in `run_manifest.jsonl`; this was not one atomic rerun of all 28
-  scripts. The first 14-section campaign was generated on 2026-07-14.
+- **Snapshot:** assembled from focused runs on 2026-07-31, 2026-08-01 and
+  2026-08-14/15, each recorded in `run_manifest.jsonl`; this was not one atomic
+  rerun of all 30 scripts. The first 14-section campaign was generated on
+  2026-07-14. **The 2026-08-14/15 reruns used a different interpreter from the
+  environment recorded below** (Python 3.10.20, NumPy 1.26.4, SciPy 1.15.3);
+  `run_manifest.jsonl` records the per-run environment and is authoritative.
 - **Recorded environment for the stored artifacts:** Python 3.14.6
   (free-threading), NumPy 2.4.6, SciPy 1.18.0, Numba 0.66.0, 10 logical cores
   (Apple M2 Pro, arm64), with the full machine-readable environment, command,
@@ -217,7 +220,7 @@ sibling. The NCP ratio uses `(mean causal chi² - 1)`, not raw mean chi².
 |---|---:|---:|---:|---:|
 | case/control | 39.63 ± 2.19 | 1.00× | 41.1 ± 2.2% | 1.011 ± 0.009 |
 | classic LT-FH (Gibbs) | 57.53 ± 1.87 | 1.468 ± 0.040× | 48.9 ± 4.0% | 1.012 ± 0.019 |
-| classic LT-FH (PA) | 57.60 ± 1.91 | 1.469 ± 0.039× | 48.9 ± 4.0% | 1.006 ± 0.021 |
+| classic LT-FH (PA) | 57.60 ± 1.91 | 1.469 ± 0.039× | 48.9 ± 4.0% | 1.007 ± 0.021 |
 | oracle true g | 337.37 ± 2.07 | 8.77 ± 0.57× | 75.6 ± 1.1% | 1.047 ± 0.015 |
 
 The former 1.53× headline was one seed; 1.47 ± 0.04× is the replicated NCP
@@ -701,8 +704,10 @@ classic case/control bounds, h2 = 0.5, true prevalence 0.10):
 The score is robust to structural misspecification at these strengths: heavy
 tails, generative assortative mating, and an unmodeled sibship environment
 each move the calibration slope by only 0.01-0.03 (direction as theory says --
-familial resemblance over-credited to genes) and cost almost no ranking
-(<= 0.007 corr). The dominant calibration risk is a wrong prevalence/
+familial resemblance over-credited to genes). The ranking cost is small but not
+uniformly negligible: assortative 0.007 and sibship 0.005, but heavy-tail
+0.016 (0.4983 +/- 0.0045 vs 0.4820 +/- 0.0024) -- about 3% of the control
+correlation, and roughly 3 SE, so it is a real if minor cost rather than none. The dominant calibration risk is a wrong prevalence/
 threshold model (slope 0.89-1.13 for a factor-2 error) -- exactly what the
 personalised CIPs of LT-FH++ exist to remove, and the reason threshold
 provenance matters more than model refinement here.
@@ -858,8 +863,9 @@ model (h2 = 0.5, prevalence 0.1, 5 replicates of 20,000 families):
 The pairwise means broadly track h2 * A and the latent Pearson correlations,
 but several cells differ from the nominal target by more than one reported SE
 (notably mother-sibling and the mate pair). Five replicates are too few to turn
-that pattern into a calibrated equivalence claim. SEs are sample-SD
-(`ddof=1`) across the five replicates (rerun 2026-08-14). The Falconer
+that pattern into a calibrated equivalence claim. ± is the SE of the mean
+across the five replicates (`np.std(..., ddof=1)/sqrt(REPS)`, rerun
+2026-08-14) -- not the sample SD. The Falconer
 heritability estimate h2 ~ 2 x tetrachoric(first-degree) gives 0.497 ± 0.016
 (truth 0.5) from binary relative pairs alone, agreeing with
 `fit_heritability` on the same families (0.515 ± 0.031).
@@ -1325,7 +1331,7 @@ liabilities is uncensored (nuclear):
 
 **This is a decomposition, not the mechanism, and must not be read as one.** At
 true h² = 0 every ascertained scheme still fits 1.000 while this statistic sits
-at ~0 (`proband_case` +0.015) or negative (`family_history` -0.083, and -0.546
+at ~0 (`proband_case` +0.006) or negative (`family_history` -0.107, and -0.562
 once centered -- centering makes it *worse*). The fitter never sees these
 liabilities; it sees truncated-MVN draws conditional on the selected status
 pattern, so under proband ascertainment every augmented proband is redrawn above
@@ -1388,15 +1394,17 @@ heritability at the null.
 trust (`ltpred.fit._assert_population_case_rate`). The thresholds assert a
 prevalence, and under population sampling each role's case count is
 Binomial(n_families, K), so a binomial z-test applies per role. All five
-phenotype-selected schemes above raise at z = +43 to +276; a 12-cohort
+phenotype-selected schemes above raise at z = +67 to +436 (at this section's N = 10,000; the same schemes give +43 to +276 at N = 4,000); a 12-cohort
 specificity check across N ∈ {500 … 10,000} and K ∈ {0.02 … 0.20} raised nothing.
 The bar is deliberately conservative (z ≥ 6 and a ratio outside [1/1.15, 1.15]):
 `bootstrap_fit` resamples are centred on the cohort's rate rather than on K, so
 their z carries the cohort's own sampling error as an offset, and a z ≥ 4 bar
-fired on a legitimate 1,500-family cohort. The cost is power at small N --
-detectable enrichment is ~1.47× at N = 1,500 and ~1.26× at N = 10,000 -- so the
-check catches the catastrophic designs and does **not** certify population
-sampling. Mild enrichment on a small cohort still passes, and the dose-response
+fired on a legitimate 1,500-family cohort. The cost is power at small N.
+Detectable enrichment is the ratio at which |z| reaches the bar,
+`1 + 6·√((1−K)/(K·n))`, so it depends on the prevalence as well as N: at this
+section's K = 0.05 it is **~1.67× at N = 1,500** and ~1.26× at N = 10,000 (at
+K = 0.10 it would be ~1.46× and ~1.18×). So the check catches the catastrophic
+designs and does **not** certify population sampling. Mild enrichment on a small cohort still passes, and the dose-response
 above shows that is not harmless.
 
 With `sampling="ipw"` the same test is applied to the **weighted** counts, using

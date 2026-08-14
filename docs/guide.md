@@ -65,13 +65,20 @@ Use ltpred when you have, per proband:
   (`ltpred.tetrachoric`, the Falconer route `h² ~ 2 ×` first-degree
   tetrachoric).
 
-!!! warning "Family-data fitting is population-sampling only"
+!!! warning "Family-data fitting needs a declared sampling design"
 
-    `fit_heritability` and `fit_variance_components` support only independent,
-    non-overlapping, unascertained population-sampled families. They do not
-    correct case/control enrichment or selection on family history. Pass
-    `sampling="population"` only after verifying that contract; otherwise use an
-    external estimate or an estimator that models the sampling design.
+    `fit_heritability` and `fit_variance_components` assume independent,
+    non-overlapping families under one of two contracts:
+    `sampling="population"` for an unascertained sample — checked against your
+    observed case rates, not taken on trust — or `sampling="ipw"` with
+    per-family `weights = 1 / P(family sampled)` when selection was on observed
+    status with a known, strictly positive probability (case/control cohorts,
+    biobank case enrichment).
+
+    Selection on **family history**, and any design that samples no families
+    from some stratum (ascertainment through an affected proband), cannot be
+    reweighted at all: those are rejected rather than fitted. See
+    [Inference](inference.md#ascertained-samples).
 
 The output targets the posterior mean genetic liability of each proband (Gibbs by
 Monte Carlo; PA by a sequential-moment approximation). Feeding it to a

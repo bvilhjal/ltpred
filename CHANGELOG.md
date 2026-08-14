@@ -42,11 +42,13 @@ version is 0 the public API may still change between minor releases.
   cause, so the message reports the observed and asserted rates rather than
   assuming ascertainment.
   Calibrated from both sides: every ascertainment scheme in the new benchmark
-  raises at z = +43 to +276, and a 12-cohort specificity sweep raised nothing.
+  raises at z = +67 to +436 (N = 10,000), and a 12-cohort specificity sweep
+  raised nothing.
   The bar (z >= 6) is set by `bootstrap_fit`, whose resamples centre on the
   cohort's rate rather than on K; a z >= 4 bar fired on a legitimate cohort.
-  It catches catastrophic designs and does **not** certify population sampling
-  -- detectable enrichment is ~1.47x at N = 1,500.
+  It catches catastrophic designs and does **not** certify population sampling:
+  detectable enrichment is `1 + 6*sqrt((1-K)/(K*n))`, i.e. ~1.67x at N = 1,500
+  and ~1.26x at N = 10,000 when K = 0.05.
 - **`benchmarks/bench_ascertainment.py`** (RESULTS.md section 29): what the
   moment fitters return on selected samples, which no benchmark previously
   measured. Six arms over five ascertainment schemes plus a phenotype-

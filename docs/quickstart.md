@@ -74,9 +74,10 @@ bounds for role `o` only and omit every relative row.
 convert an observed-scale value — see
 [getting `h²`](data-preparation.md#getting-heritability-on-the-liability-scale).
 Do **not** fit `h²` from this two-family toy example. The built-in family-data
-fitter supports only independent, non-overlapping, unascertained
-population-sampled families; see [Inference](inference.md) for that explicit
-contract.
+fitter assumes independent, non-overlapping families under a declared sampling
+design — unascertained (`sampling="population"`), or selected on observed status
+with known inclusion probabilities (`sampling="ipw"` with weights); see
+[Inference](inference.md#ascertained-samples).
 
 ## 5. Inspect and align the score
 
@@ -98,7 +99,7 @@ The score is not an absolute disease-risk probability.
 |---|---|
 | understand roles, pedigrees, CIPs, real-data prep | [Data preparation](data-preparation.md) |
 | choose Gibbs vs PA, scale to biobank size, multi-trait, GWAS export | [Estimation](estimation.md) |
-| fit `h²` or A/C/M from unascertained population-sampled families | [Inference](inference.md) |
+| fit `h²` or A/C/M from population-sampled or reweighted selected families | [Inference](inference.md) |
 | know the modelling assumptions & the real-data checklist | [Assumptions & checklist](assumptions.md) |
 | look up a function signature | [API reference](api.md) |
 | the model & estimator maths | [algorithm.md](algorithm.md) |

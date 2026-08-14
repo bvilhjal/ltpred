@@ -146,8 +146,10 @@ Var(l_i)      = h2 + c2 + m2 + e2 = 1               (residual e2 absorbs)
 so `h2 + c2 + m2 <= 1` must hold. The genetic target still couples to
 relatives only through `h2 * A` — `g` remains a *genetic* liability.
 
-Only if the families are independent, non-overlapping and unascertained
-population samples, fit the components and wire them back in:
+If the families are independent and non-overlapping, and you can declare their
+sampling design (unascertained, or selected on observed status with known
+inclusion probabilities — see [Inference](inference.md#ascertained-samples)),
+fit the components and wire them back in:
 
 ```python
 from ltpred import estimate_liability, fit_variance_components
@@ -171,9 +173,13 @@ you to assemble its covariance explicitly. Validated in
 recalibrates the genetic estimate (slope 0.93 -> 0.99) and sharpens
 full-liability prediction on environmentally clustered families.
 
-For case/control-enriched or family-history-selected samples, use externally
-estimated components or a fitter that models the sampling design; the built-in
-moment fitter and family bootstrap do not correct ascertainment bias.
+For **case/control-enriched** samples with known inclusion probabilities, pass
+`sampling="ipw"` with per-family weights — see
+[Inference](inference.md#ascertained-samples) for the worked example and its two
+limits. For **family-history-selected** samples, and any design that samples no
+families from some stratum, reweighting is undefined: use externally estimated
+components or a fitter that models the sampling design. The family bootstrap
+does not correct ascertainment bias in either case.
 
 ## Choosing Gibbs vs Pearson–Aitken
 

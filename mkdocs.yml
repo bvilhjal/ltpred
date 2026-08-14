@@ -32,7 +32,7 @@ nav:
       - Data preparation: data-preparation.md
       - CIP estimation: cip-estimation.md
       - Estimation: estimation.md
-      - Population-sampled fitting: inference.md
+      - Fitting the model: inference.md
       - Assumptions & checklist: assumptions.md
   - Reference:
       - Algorithm & model: algorithm.md

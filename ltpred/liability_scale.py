@@ -70,7 +70,7 @@ def _master_factor(pop_prev, prop_cases):
 
 
 def observed_to_liability_h2(obs_h2: ArrayLike, pop_prev: ArrayLike,
-                             prop_cases: ArrayLike | None = None) -> np.ndarray:
+                             prop_cases: ArrayLike | None = None) -> np.ndarray | np.floating:
     """Observed-scale h² -> liability scale (Lee et al. 2011).
 
     Multiplies by ``K(1-K)/z²`` with ``z = phi(Phi^-1(1-K))``, plus the
@@ -81,7 +81,7 @@ def observed_to_liability_h2(obs_h2: ArrayLike, pop_prev: ArrayLike,
 
 
 def liability_to_observed_h2(liab_h2: ArrayLike, pop_prev: ArrayLike,
-                             prop_cases: ArrayLike | None = None) -> np.ndarray:
+                             prop_cases: ArrayLike | None = None) -> np.ndarray | np.floating:
     """Liability-scale h² -> observed scale (inverse of
     :func:`observed_to_liability_h2`)."""
     pop_prev, z = _z_density(pop_prev)
@@ -91,7 +91,7 @@ def liability_to_observed_h2(liab_h2: ArrayLike, pop_prev: ArrayLike,
 
 
 def probit_liability_r2(beta: ArrayLike, maf: ArrayLike, *,
-                        fraction: bool = False) -> np.ndarray:
+                        fraction: bool = False) -> np.ndarray | np.floating:
     """Residual-scale probit genetic variance: ``2 f (1-f) beta²``.
 
     Despite the compatibility name, the default is **not a total-liability
@@ -117,7 +117,7 @@ def probit_liability_r2(beta: ArrayLike, maf: ArrayLike, *,
 
 def liability_r2_from_z(z: ArrayLike, n: ArrayLike, pop_prev: ArrayLike,
                         prop_cases: ArrayLike | None = None, *,
-                        subtract_null: bool = True) -> np.ndarray:
+                        subtract_null: bool = True) -> np.ndarray | np.floating:
     """Residual-scale liability-variance signal from a GWAS z-statistic.
 
     For a marginal case-control GWAS statistic ``z_j``, the liability-scale

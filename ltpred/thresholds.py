@@ -40,14 +40,14 @@ def _validate_pop_prev(pop_prev):
     return prev
 
 
-def liability_threshold(pop_prev: ArrayLike) -> np.ndarray:
+def liability_threshold(pop_prev: ArrayLike) -> np.ndarray | np.floating:
     """Single-prevalence liability threshold ``T = Phi^-1(1 - K)``."""
     return norm_ppf(1.0 - _validate_pop_prev(pop_prev))
 
 
 def convert_age_to_cir(age: ArrayLike, pop_prev: ArrayLike = 0.1,
                        mid_point: float = 60.0,
-                       slope: float = 1.0 / 8.0) -> np.ndarray:
+                       slope: float = 1.0 / 8.0) -> np.ndarray | np.floating:
     """Cumulative incidence rate at a given age (logistic curve).
 
     ``cir(age) = pop_prev / (1 + exp((mid_point - age) * slope))`` -- incidence
@@ -73,7 +73,7 @@ def _convert_cir_to_age(cir, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
 
 def convert_age_to_thresh(age: ArrayLike, pop_prev: ArrayLike = 0.1,
                           mid_point: float = 60.0,
-                          slope: float = 1.0 / 8.0) -> np.ndarray:
+                          slope: float = 1.0 / 8.0) -> np.ndarray | np.floating:
     """Liability threshold implied by an age (or age of onset).
 
     The threshold is ``Phi^-1(1 - cir(age))`` where ``cir`` is
@@ -89,7 +89,7 @@ def convert_age_to_thresh(age: ArrayLike, pop_prev: ArrayLike = 0.1,
 
 def convert_liability_to_aoo(liability: ArrayLike, pop_prev: ArrayLike = 0.1,
                              mid_point: float = 60.0,
-                             slope: float = 1.0 / 8.0) -> np.ndarray:
+                             slope: float = 1.0 / 8.0) -> np.ndarray | np.floating:
     """Age of onset implied by a case's true liability.
 
     Higher liability -> earlier onset: :func:`_convert_cir_to_age` applied to

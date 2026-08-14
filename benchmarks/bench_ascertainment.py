@@ -1,11 +1,17 @@
 """What ascertainment does to `fit_heritability`, `fit_variance_components` and `fit_genetic_correlation`.
 
-Every other fitter benchmark here draws **unascertained population families**,
-which is the only design the fitters claim to support: they require an explicit
-`sampling="population"` and carry no ascertainment likelihood or sampling
-weights. But that gate is an *honour system* — it checks a string, not the data —
-so a user holding a case/control or family-history-selected cohort can pass it
-and get a number back. This benchmark measures what that number is worth.
+Every other fitter benchmark here draws **unascertained population families**.
+This one measures what the fitters do when that contract is violated -- the
+evidence behind two 0.3.1 features, so read the arms as the justification for
+them rather than as a description of current behaviour:
+
+* `sampling="population"` used to be an honour system (a string check, not a
+  data check), so an ascertained cohort fitted straight through. Arms A-F
+  measure what it returned. They therefore run under `unguarded()`, since the
+  check they motivated would now stop them.
+* `sampling="ipw"` with per-family weights corrects the subset of designs whose
+  inclusion probability is known and positive everywhere. Arm G measures that,
+  and runs through the real gate.
 
 Design. Each replicate draws a **population** of families under a known
 liability-threshold model, applies one ascertainment scheme to choose which
@@ -159,7 +165,8 @@ def _saturated(residuals):
 # the liabilities. Arms get disjoint blocks so a cell that appears in two arms
 # (N=10,000 is in both A and D) is a fresh replicate, not a byte-identical rerun.
 _ARM_OFFSET = {"h2": 0, "ac": 1_000_000, "rg": 2_000_000, "scale": 3_000_000,
-               "converge": 4_000_000, "mechanism": 0, "ipw": 5_000_000}
+               "converge": 4_000_000, "mechanism": 0, "ipw": 5_000_000,
+               "dose": 6_000_000, "lee": 7_000_000}
 
 
 def _seeds(base_seed, arm, rep):
@@ -700,8 +707,8 @@ def _he_moment(liab, roles, centered):
     The fitter never sees these liabilities; it sees truncated-MVN draws
     conditional on the selected status pattern at the current h2. The refuting
     cell is true h2 = 0: every ascertained scheme still fits to 0.9999 while
-    this statistic sits at ~0 (proband_case +0.015) or negative
-    (family_history -0.083, and -0.546 once centered, i.e. centering makes it
+    this statistic sits at ~0 (proband_case +0.006) or negative
+    (family_history -0.107, and -0.562 once centered, i.e. centering makes it
     worse). The runaway is augmentation feedback -- under proband_case every
     augmented proband is redrawn above threshold, relatives are pulled with it,
     and the cross-products stay positive whatever the truth -- which this
@@ -831,11 +838,164 @@ def arm_ipw(args, rows):
                          unweighted_mean=unw.mean(), unweighted_sd=sd_u))
 
 
+def _sample_at_case_share(roles, props, n_fam, prev, target, seed):
+    """`n_fam` families whose proband case share is `target` (keep all cases,
+    thin controls). Separate from `_select` because the dose-response needs the
+    share as a swept parameter rather than one of the two named schemes."""
+    rng = np.random.default_rng(seed)
+    Sig = _component_cov(roles, props)
+    t = float(liability_threshold(prev))
+    o = roles.index("o")
+    kept, n = [], 0
+    while n < n_fam:
+        st = rng.multivariate_normal(np.zeros(len(roles)), Sig, size=200_000) > t
+        pro = st[:, o]
+        n_case, n_ctrl = int(pro.sum()), int((~pro).sum())
+        if n_case == 0 or n_ctrl == 0:
+            continue
+        want = n_case * (1.0 - target) / target
+        mask = pro.copy()
+        ctrl = np.flatnonzero(~pro)
+        mask[ctrl[rng.random(ctrl.size) < min(1.0, want / n_ctrl)]] = True
+        kept.append(st[mask])
+        n += int(mask.sum())
+    st = np.concatenate(kept)[:n_fam]
+    return _build_families(st, roles, t), float(st[:, o].mean())
+
+
+def arm_dose(args, rows):
+    """Arm H -- how much enrichment does it take?
+
+    The schemes in arms A-G are fixed designs; this sweeps the realised case
+    share continuously against the assumed prevalence, which is what calibrates
+    the case-rate guard's tolerance in ltpred.fit. Previously computed ad hoc;
+    it is an arm so the numbers have an artifact behind them.
+    """
+    print("\n=== H. enrichment dose-response ===")
+    print(f"{'target':>7} {'realised':>9} {'enrich':>7} {'fitted h2':>10} {'bias':>8} {'SD':>7}")
+    roles = STRUCTURES["nuclear"]
+    for target in args.dose_targets:
+        fits, shares = [], []
+        for r in range(args.dose_reps):
+            data_seed, fit_seed = _seeds(args.seed, "dose", r)
+            fams, share = _sample_at_case_share(
+                roles, {"A": args.h2}, args.dose_n, args.prev, target,
+                seed=data_seed + int(target * 1e6))
+            with unguarded():
+                fits.append(fit_heritability(
+                    fams, seed=fit_seed,
+                    **_fit_kwargs(args.n_iter, args.burn_in)).h2)
+            shares.append(share)
+        fits = np.asarray(fits)
+        sd = float(fits.std(ddof=1)) if args.dose_reps > 1 else float("nan")
+        enrich = float(np.mean(shares)) / args.prev
+        print(f"{target:7.3f} {np.mean(shares):9.3f} {enrich:7.2f}x "
+              f"{fits.mean():10.3f} {fits.mean() - args.h2:+8.3f} {sd:7.3f}")
+        rows.append(dict(arm="dose", structure="nuclear", scheme=f"target_{target:g}",
+                         n_fam=args.dose_n, prev=args.prev, reps=args.dose_reps,
+                         target="h2", truth=args.h2, fitted_mean=fits.mean(),
+                         bias=fits.mean() - args.h2, sd=sd, sd_lo=np.nan,
+                         sd_hi=np.nan, boundary_frac=_at_boundary(fits),
+                         selection_frac=np.nan, case_frac=float(np.mean(shares)),
+                         enrichment=enrich))
+
+
+def arm_specificity(args, rows):
+    """Arm I -- does the case-rate guard fire on legitimate population data?
+
+    Sensitivity is arm A's job; this is the other half, and the one that decides
+    whether the guard is safe to ship. Each cell is an unascertained cohort that
+    MUST pass.
+    """
+    print("\n=== I. guard specificity on population cohorts ===")
+    print(f"{'N':>7} {'K':>6} {'cohorts':>8} {'false positives':>16}")
+    from ltpred.simulate import simulate_under_LTM_single
+    for n_fam, prev in args.spec_grid:
+        fp = 0
+        for r in range(args.spec_reps):
+            sim = simulate_under_LTM_single(
+                fam_vec=["m", "f", "s1", "s2"], h2=args.h2, n_sim=n_fam,
+                pop_prev=prev, seed=args.seed + 7919 * r + int(prev * 1000))
+            try:
+                fit_heritability(sim.families, n_iter=120, burn_in=40,
+                                 seed=args.seed + r, sampling="population")
+            except ValueError:
+                fp += 1
+        print(f"{n_fam:7d} {prev:6.2f} {args.spec_reps:8d} {fp:16d}")
+        rows.append(dict(arm="specificity", structure="nuclear",
+                         scheme=f"K{prev:g}", n_fam=n_fam, prev=prev,
+                         reps=args.spec_reps, target="false_positives",
+                         truth=0.0, fitted_mean=float(fp), bias=float(fp),
+                         sd=np.nan, sd_lo=np.nan, sd_hi=np.nan,
+                         boundary_frac=np.nan, selection_frac=np.nan))
+
+
+def _he_observed(status, roles):
+    """Observed-scale HE: standardised 0/1 cross-products regressed on A."""
+    A = np.array([[get_relatedness(a, b, 1.0) for b in roles] for a in roles])
+    pairs = [(i, j, A[i, j]) for i in range(len(roles))
+             for j in range(i + 1, len(roles)) if abs(A[i, j]) > 1e-12]
+    sxx = sum(a * a for _, _, a in pairs)
+    y = status.astype(float)
+    sd = y.std(axis=0, ddof=0)
+    if np.any(sd == 0):
+        return float("nan")
+    z = (y - y.mean(axis=0)) / sd
+    return sum(a * float(z[:, i] @ z[:, j]) for i, j, a in pairs) / (sxx * z.shape[0])
+
+
+def arm_lee(args, rows):
+    """Arm J -- can a Lee et al. observed->liability factor rescue this instead?
+
+    The obvious alternative to reweighting, and the one a reader will ask about.
+    It targets a different (observed-scale) estimand, so the fair test is the
+    full pipeline: observed-scale HE on the raw statuses, then
+    `observed_to_liability_h2(K, P)`.
+    """
+    print("\n=== J. observed-scale HE + Lee et al. correction ===")
+    print(f"{'scheme':>15} {'P(case)':>8} {'h2_obs':>8} {'+Lee':>8} {'bias':>8}")
+    from ltpred.liability_scale import observed_to_liability_h2
+    roles = STRUCTURES["nuclear"]
+    o = roles.index("o")
+    for scheme in args.lee_schemes:
+        obs, lee, ps = [], [], []
+        for r in range(args.reps):
+            data_seed, _ = _seeds(args.seed, "lee", r)
+            props = {"A": args.h2} if args.h2 > 0 else {}
+            fams, _st = simulate_ascertained(roles, props, args.n_fam,
+                                             args.prev, scheme, seed=data_seed)
+            status = np.array([[np.isfinite(m.lower) for m in f.members]
+                               for f in fams])
+            p_case = float(status[:, o].mean())
+            if not 0.0 < p_case < 1.0:      # Lee's factor needs P(1-P) > 0
+                continue
+            h2o = _he_observed(status, roles)
+            obs.append(h2o)
+            lee.append(float(observed_to_liability_h2(h2o, args.prev,
+                                                      prop_cases=p_case)))
+            ps.append(p_case)
+        if not lee:
+            print(f"{scheme:>15} {'--':>8} {'--':>8} {'--':>8} "
+                  f"{'undefined: P(1-P) = 0':>8}")
+            continue
+        lee_a = np.asarray(lee)
+        print(f"{scheme:>15} {np.mean(ps):8.3f} {np.mean(obs):8.3f} "
+              f"{lee_a.mean():8.3f} {lee_a.mean() - args.h2:+8.3f}")
+        rows.append(dict(arm="lee", structure="nuclear", scheme=scheme,
+                         n_fam=args.n_fam, prev=args.prev, reps=len(lee),
+                         target="h2_lee", truth=args.h2, fitted_mean=lee_a.mean(),
+                         bias=lee_a.mean() - args.h2,
+                         sd=float(lee_a.std(ddof=1)) if len(lee) > 1 else np.nan,
+                         sd_lo=np.nan, sd_hi=np.nan, boundary_frac=np.nan,
+                         selection_frac=np.nan, case_frac=float(np.mean(ps)),
+                         he_uncentered=float(np.mean(obs))))
+
+
 FIELDS = ["arm", "structure", "scheme", "n_fam", "prev", "reps", "target",
           "truth", "fitted_mean", "bias", "sd", "sd_lo", "sd_hi",
           "boundary_frac", "selection_frac", "case_frac", "residual",
           "he_uncentered", "he_centered", "trace_tail_slope",
-          "max_weight", "unweighted_mean", "unweighted_sd"]
+          "max_weight", "unweighted_mean", "unweighted_sd", "enrichment"]
 
 
 def write_csv(rows, tag=""):
@@ -908,6 +1068,14 @@ def main():
                    default=[500, 1500, 4000])
     p.add_argument("--converge-starts", type=float, nargs="+",
                    default=[0.05, 0.5, 0.95])
+    p.add_argument("--dose-targets", type=float, nargs="+",
+                   default=[0.05, 0.06, 0.075, 0.10, 0.125, 0.15, 0.20])
+    p.add_argument("--dose-n", type=int, default=4000)
+    p.add_argument("--dose-reps", type=int, default=3)
+    p.add_argument("--spec-reps", type=int, default=2)
+    p.add_argument("--lee-schemes", nargs="+",
+                   default=["population", "case_control", "enriched_20"],
+                   choices=list(SCHEMES))
     p.add_argument("--structures", nargs="+", default=["nuclear", "sibship"],
                    choices=sorted(STRUCTURES))
     p.add_argument("--schemes", nargs="+", default=list(SCHEMES),
@@ -917,21 +1085,26 @@ def main():
                    choices=list(SCHEMES))
     p.add_argument("--arms", nargs="+",
                    default=["h2", "ac", "rg", "scale", "converge", "mechanism",
-                            "ipw"],
+                            "ipw", "dose", "specificity", "lee"],
                    choices=["h2", "ac", "rg", "scale", "converge", "mechanism",
-                            "ipw"])
+                            "ipw", "dose", "specificity", "lee"])
     p.add_argument("--tag", default="",
                    help="suffix for the output filenames, so a supplementary "
                         "pass (e.g. --h2 0) does not overwrite the main grid")
     p.add_argument("--quick", action="store_true",
                    help="tiny grid for a smoke run")
     args = p.parse_args()
+    if not hasattr(args, "spec_grid"):
+        args.spec_grid = [(500, 0.05), (1500, 0.10), (4000, 0.05),
+                          (4000, 0.20), (10_000, 0.02), (10_000, 0.10)]
 
     if args.quick:
         args.reps, args.n_fam, args.n_iter, args.burn_in = 2, 800, 200, 60
         args.structures = ["nuclear"]
         args.scale_n, args.scale_reps = [400, 1600], 2
         args.converge_iters = [100, 300]
+        args.dose_targets, args.dose_n, args.dose_reps = [0.05, 0.15], 400, 2
+        args.spec_grid, args.spec_reps = [(400, 0.05)], 1
         args.converge_starts = [0.05, 0.95]
 
     t0 = time.time()
@@ -950,6 +1123,12 @@ def main():
         arm_mechanism(args, rows)
     if "ipw" in args.arms:
         arm_ipw(args, rows)
+    if "dose" in args.arms:
+        arm_dose(args, rows)
+    if "specificity" in args.arms:
+        arm_specificity(args, rows)
+    if "lee" in args.arms:
+        arm_lee(args, rows)
     write_csv(rows, args.tag)
     plot(rows, args.tag)
     print(f"total {time.time() - t0:.1f}s")

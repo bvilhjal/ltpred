@@ -92,6 +92,7 @@ Rows marked **unsupported research** import checkout-only APIs from
 |--------|------------------|
 | `bench_accuracy.py` | corr(estimated classic LT-FH liability, true g) across heritability × prevalence × family structure — Gibbs vs PA accuracy, calibration slope, RMSE and squared-correlation effective-N proxy over case/control (→ `bench_accuracy.{csv,png}`) |
 | `bench_scaling.py` | wall-clock scaling of both methods with #families and family size; families/second and speed-up (→ `bench_scaling.{csv,png}`) |
+| `bench_ascertainment.py` | what the moment fitters return on **selected** samples, and what inverse-probability weighting recovers: five ascertainment schemes plus a phenotype-independent negative control, over h2, A+C, r_g, bias-vs-N, a convergence/multi-start diagnostic, the complete-data HE moment, and the IPW refit (→ `bench_ascertainment.{csv,png}`; `--h2 0 --tag _h2null` for the true-h2=0 cell) |
 | `bench_age_onset.py` | LT-FH++ age component with the same relatives on both sides: classic binary LT-FH vs FH + interval cases vs FH + onset-pinned cases, both fit with PA (and Gibbs as an agreement check on the pin); squared-correlation effective-N proxy across prevalence (→ `bench_age_onset.{csv,png}`) |
 | `bench_gwas_power.py` | replicated genotype-based GWAS power for classic LT-FH: case/control vs the same LT-FH model inferred by Gibbs or PA vs an oracle — causal-SNP NCP ratio, detection power, SEs, and λ_GC (→ `bench_gwas_power.{csv,png}`). The default family is parents plus one sibling. Pass `--plink PREFIX` for **real-LD** HAPNEST genotypes; causal LD proxies are excluded from its calibration set (opt-in; see [`hapnest/README.md`](hapnest/README.md)) |
 | `bench_ltfhpp_personalization.py` | **integrated LT-FH++ genotype GWAS** with age-, sex-, and cohort-dependent CIP, coherent family onset/follow-up, competing mortality, ascertainment, and demographically stratified null SNPs. A matched ADuLT arm uses the identical personalised proband bounds with all relatives removed, directly isolating the LT-FH++ family-history increment. The 10-replicate main panel reports causal-SNP NCP ratios and paired CIs; a prespecified 5-replicate sex-isolation panel compares age-only with age+sex family bounds. PA is primary and Gibbs diagnostics cover the first two main replicates (→ `bench_ltfhpp_personalization.{csv,png}`) |
@@ -134,8 +135,9 @@ plus a minimal PLINK `.bed` reader for the HAPNEST path.
   The mixture script draws onset under threshold-crossing, stochastic, or
   liability-dependent (`onset_rho=0.6`) models.
 * **Fitter benchmarks** draw unascertained, population-sampled simulated
-  families and pass `sampling="population"` explicitly. They do not validate
-  fitting after case/control or family-history ascertainment.
+  families and pass `sampling="population"` explicitly. `bench_ascertainment.py`
+  is the exception and the complement: it measures what those fitters return
+  when the contract is violated, and what `sampling="ipw"` recovers.
 * **The classic GWAS benchmark** uses parents plus one sibling and builds each proband's genetic liability from simulated
   causal-SNP genotypes, then draws the relatives' liabilities *conditional on that
   value* from the same covariance. This gives a genotype matrix to associate

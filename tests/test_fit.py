@@ -751,3 +751,20 @@ def test_unknown_sampling_mode_names_the_supported_ones():
     # another mode: they cannot be reweighted at all.
     with pytest.raises(ValueError, match="cannot be reweighted at all"):
         fit_heritability(sim.families, sampling="proband", n_iter=10, burn_in=6)
+
+
+def test_case_rate_guard_ignores_uninformative_members():
+    # (-inf, inf) is how the prediction path unbinds a proband; such a member is
+    # neither a case nor a control. Counting it as a control deflated the role's
+    # observed rate and raised on legitimate population data.
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
+                                    n_sim=6000, pop_prev=0.05, seed=1)
+    rng = np.random.default_rng(0)
+    for fam in sim.families:
+        if rng.random() < 0.3:
+            for mem in fam.members:
+                if mem.role == "m":
+                    mem.lower, mem.upper = -np.inf, np.inf
+    res = fit_heritability(sim.families, n_iter=120, burn_in=40, seed=1,
+                           sampling="population")
+    assert 0.0 < res.h2 < 1.0

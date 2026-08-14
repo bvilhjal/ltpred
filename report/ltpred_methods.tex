@@ -35,7 +35,7 @@
   {\large Model, sequential approximation, and evidence in \texttt{ltpred}}}
 \author{Others (TBD) and Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
   {\small Aarhus University and SMARTbiomed}\\[0.35em]
-  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.3.0}}
+  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.3.1}}
 \date{14 August 2026}
 
 \begin{document}
@@ -593,7 +593,8 @@ case/control label.
 \caption{Load-bearing simulation claims.
 $\pm$ is a replicate SE except where marked as a $95\%$ CI
 half-width.
-Independent SNPs; no mixture except the last row.}
+Independent SNPs throughout; no row uses the censoring mixture
+\eqref{eq:mix}.}
 \label{tab:headlines}
 \small
 \begin{tabular}{@{}llp{6.6cm}@{}}
@@ -710,7 +711,7 @@ LT-FH (Gibbs)
   & $48.9\pm 4.0\%$ & $1.012\pm 0.019$ \\
 LT-FH (PA)
   & $57.60\pm 1.91$ & $1.469\pm 0.039\times$
-  & $48.9\pm 4.0\%$ & $1.006\pm 0.021$ \\
+  & $48.9\pm 4.0\%$ & $1.007\pm 0.021$ \\
 oracle $a_i$
   & $337.37\pm 2.07$ & $8.77\pm 0.57\times$
   & $75.6\pm 1.1\%$ & $1.047\pm 0.015$ \\
@@ -862,7 +863,11 @@ at.
 
 Heavy tails, generative assortment at phenotypic $\rho\approx 0.3$,
 and an unmodelled sibship $c^{2}=0.15$ each move the slope by only
-$0.01$--$0.03$ and cost at most $0.007$ in correlation.
+$0.01$--$0.03$.
+The ranking cost is small but not uniformly negligible: assortment
+costs $0.007$ and sibship $0.005$ in correlation, while heavy tails
+cost $0.016$ ($0.4983\pm 0.0045$ against $0.4820\pm 0.0024$), about
+$3\%$ of the control correlation and roughly $3$ SE.
 A factor-of-two error in prevalence moves the slope to $0.89$ or
 $1.13$.
 Threshold provenance is the calibration hazard; the Gaussian
@@ -915,9 +920,14 @@ regime than a genome-wide panel.
 The mixture \eqref{eq:mix} is PA-only.
 A generative check (five replicates of $20{,}000$ nuclear
 families; mid-life and old-age censoring; three onset models)
-finds no ranking cost that survives a paired contrast: all ten
-$\Delta\Corr$ $95\%$ CIs are tighter than $\pm 0.0002$, and the
-largest point cost is $-0.00034$.
+finds ranking costs that are resolvable but negligible in size:
+three of the ten paired $\Delta\Corr$ contrasts exclude zero, the
+largest being $-0.00034\pm 0.00011$, and all ten CIs are tighter
+than $\pm 0.0002$.
+A cost of $3\times 10^{-4}$ in correlation is statistically real
+and practically irrelevant; the honest statement is that the
+mixture does not meaningfully change ranking, not that no cost is
+detectable.
 Every $\Delta$slope CI excludes zero; the mixture always lowers
 the slope, by $0.007$--$0.025$, and most strongly under heavy
 censoring.
@@ -1013,8 +1023,8 @@ affected relative only & $0.000$ & $1.000$ & $\dagger$ \\
 \end{tabular}
 \end{table}
 
-Every phenotype-selected design is pinned at the clamp in every
-replicate.
+Every phenotype-selected design in Table~\ref{tab:ascertainment} is
+pinned at the clamp in every replicate.
 The sharper cell is $\h=0$: the population arm returns $0.018$ and
 the control $0.025$, while all five selected designs return
 $1.000$---complete heritability in a population with none.
@@ -1090,10 +1100,14 @@ A linear GWAS of those scores without a mixed model, or without
 pruning to non-overlapping families, is the analysis
 Zhuang et al.\ \cite{zhuang2022} warned about.
 
-Four evidence gaps would change how hard Section~\ref{sec:results}
-should be leaned on: a locked vector comparison to LTFHPlus, a
-real-LD GWAS, a Gibbs implementation of \eqref{eq:mix}, and a
-liability-dependent onset-timing arm for the mixture.
+Three evidence gaps would change how hard
+Section~\ref{sec:results} should be leaned on: a locked vector
+comparison to LTFHPlus, a real-LD GWAS, and a Gibbs implementation
+of \eqref{eq:mix}.
+The liability-dependent onset arm is no longer among them---it is
+reported above at $\rho=0.6$---but a single copula strength is not
+a sweep, and the pinned encoding's behaviour under weaker
+dependence is untested.
 
 \paragraph{Software.}
 \texttt{ltpred} is a Python implementation of the construction

@@ -355,7 +355,9 @@ def _warn_empty_families(families):
             f"{len(empty)} of {len(families)} families have no members "
             f"({shown}{more}); with nothing to condition on their estimate is "
             "the prior mean 0, not an informative score — check that the "
-            "member rows were joined in.", RuntimeWarning, stacklevel=3)
+            # 4, not 3: the chain is _warn_empty_families -> the per-model
+            # estimator -> estimate_liability -> the user's call
+            "member rows were joined in.", RuntimeWarning, stacklevel=4)
 
 
 def _check_unique_roles(families):

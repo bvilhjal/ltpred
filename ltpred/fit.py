@@ -152,9 +152,12 @@ def _validate_weights(weights, n_families, context):
 #:
 #: At z >= 6 the per-test null probability is ~1e-9, so chance firing is
 #: negligible even across a 25-resample bootstrap, while every ascertainment
-#: scheme in the benchmark fires at z >= +43. The cost is power at small N: the
-#: detectable enrichment is ~1.47x at N = 1500 and ~1.26x at N = 10,000, so
-#: MILD enrichment on a small cohort passes this check and remains the caller's
+#: scheme in the benchmark fires at z >= +67. The cost is power at small N.
+#: Detectable enrichment is the ratio at which |z| reaches the bar,
+#: ``1 + 6*sqrt((1-K)/(K*n))``, so it depends on BOTH n and the prevalence: at
+#: K = 0.05 it is ~1.67x at n = 1,500 and ~1.26x at n = 10,000; at K = 0.10,
+#: ~1.46x and ~1.18x. (Quoting one figure without its K mixes the two.) MILD
+#: enrichment on a small cohort therefore passes, and remains the caller's
 #: responsibility. This is a guard against the catastrophic case, not a
 #: certificate of population sampling.
 _CASE_RATE_RATIO_TOL = 1.15
@@ -201,9 +204,16 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None):
             hi = np.broadcast_to(np.asarray(member.upper, dtype=float), (n_pheno,))
             for p in range(n_pheno):
                 # after _assert_common_thresholds: finite lower => case,
-                # finite upper => control, and the finite end IS the threshold
-                is_case = np.isfinite(lo[p])
-                thr = lo[p] if is_case else hi[p]
+                # finite upper => control, and the finite end IS the threshold.
+                # An UNINFORMATIVE member -- (-inf, inf), which the prediction
+                # path uses routinely to unbind a proband -- is neither, and
+                # counting it as a control deflates the role's rate and
+                # manufactures a failure on legitimate data.
+                lo_p, hi_p = lo[p], hi[p]
+                is_case = bool(np.isfinite(lo_p))
+                if not is_case and not np.isfinite(hi_p):
+                    continue
+                thr = lo_p if is_case else hi_p
                 sw, sw2, k, t = per_role.get((member.role, p), (0.0, 0.0, 0.0, thr))
                 per_role[(member.role, p)] = (sw + w, sw2 + w * w,
                                               k + w * int(is_case), t)
@@ -425,12 +435,15 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
                      weights: ArrayLike | None = None) -> FitResult:
     """Estimate liability-scale ``h2`` from family case/control (+age) statuses.
 
-    **Sampling contract:** this moment fitter supports independent,
-    non-overlapping, unascertained population-sampled families only. Pass
-    ``sampling="population"`` to acknowledge that contract. Omitting ``sampling``
-    currently emits a compatibility warning; any other value raises. The fitter
-    has no ascertainment likelihood or sampling weights, so case/control
-    enrichment or selection on family history can produce severe boundary bias.
+    **Sampling contract:** this moment fitter assumes independent,
+    non-overlapping families under one of two designs. ``sampling="population"``
+    is the unascertained case; ``sampling="ipw"`` with per-family ``weights``
+    covers selection on observed status with a known, strictly positive
+    inclusion probability (below). Omitting ``sampling`` emits a compatibility
+    warning; anything else raises. There is no ascertainment *likelihood* here,
+    so a design that reweighting cannot reach -- selection on family history, or
+    any stratum sampled with probability zero -- still produces severe boundary
+    bias, and is rejected rather than fitted.
 
     That acknowledgement is now **checked against the data**, not merely taken on
     trust: the supplied thresholds assert a prevalence, and each role's case rate
@@ -460,6 +473,11 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     number. **Efficiency:** weights reach 19x at K = 0.05 with a 50/50 cohort, so
     the effective sample size is far below the nominal one; the benchmark reports
     the inflated across-replicate SD alongside the bias.
+
+    The case-rate check has a stated blind spot: the enrichment it can detect is
+    ``1 + 6*sqrt((1-K)/(K*n))``, which at K = 0.05 is ~1.67x at n = 1,500 and
+    ~1.26x at n = 10,000. Milder enrichment passes, and the benchmark's
+    dose-response shows that is not harmless.
 
     ``families`` is a list of :class:`~ltpred.family.Family` whose members carry
     liability bounds (from a threshold builder). Alternates a Gibbs augmentation of
