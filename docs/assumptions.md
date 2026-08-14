@@ -35,6 +35,9 @@ weight `(K_pop − K_i)/K_pop` reads a future case's not-yet-onset probability o
 the stratum's population CIP, which assumes censoring is non-informative given
 the stratum and onset timing among future cases independent of liability (see
 [algorithm.md](algorithm.md#base-pa-fgrs-lifetime-cases-and-censored-controls)).
+A liability-dependent onset arm (ρ = 0.6) leaves ranking intact and still
+shifts calibration the way the mixture is supposed to; it is the pinned
+case encoding that then over-conditions (RESULTS.md §16).
 
 Gibbs targets the truncated-Gaussian conditional moments by Monte Carlo. PA is a
 deterministic sequential-moment approximation when several interval observations
@@ -107,7 +110,10 @@ Before running a production analysis:
    it uninformative for prospective prediction/classification of that diagnosis.
 9. Decide **case encoding** — onset-pinned (`age_thresholds`), lifetime-interval
    (base PA-FGRS), or age-specific interval (`pa_thresholds`, an age-dependent
-   PA-FGRS-style variant) — and record it.
+   PA-FGRS-style variant) — and record it. Pin only when you believe onset is
+   the CIP inverse of liability; under partial or noisy onset dependence the
+   pin over-conditions, and most of the onset increment survives the interval
+   `[T(onset), ∞)` (RESULTS.md §3 and §16).
 10. Choose **Gibbs vs Pearson–Aitken**; for unusual no-mixture pedigrees cross-check
     PA against Gibbs. The PA-FGRS censoring mixture has no Gibbs implementation.
 11. **Residualize** the phenotype for covariates (sex, cohort, PCs, batch). Prefer

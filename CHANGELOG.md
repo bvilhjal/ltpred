@@ -18,7 +18,7 @@ version is 0 the public API may still change between minor releases.
   same K, true h2 = 0.5 and h2 = 0 both produce 1.000, and no multiplicative
   factor is invertible across that.
   Benchmarked: a 50/50 case/control cohort goes from h2 = 1.000 (pinned) to
-  0.456 against a truth of 0.5, and 20%-enriched from 1.000 to 0.481.
+  0.495 against a truth of 0.5, and 20%-enriched from 1.000 to 0.473.
   Two limits, both enforced or reported rather than assumed. **Positivity** --
   designs that sample no families from some stratum (ascertainment through an
   affected proband) have inclusion probability zero there and raise, because
@@ -57,9 +57,20 @@ version is 0 the public API may still change between minor releases.
   and 0.95); and a realised case share only 1.17x the assumed prevalence
   already inflates h2 by +0.12.
 
-- Technical report `report/ltpred_methods.pdf` (LaTeX source
-  `report/ltpred_methods.tex`): estimand, theory, implementation, and
-  committed simulation evidence. Included in the source distribution.
+- **`simulate_under_LTM_single(..., onset_model="liability_dependent")`**
+  with `onset_rho` in `[0, 1]` (default 0.6): among lifetime cases,
+  onset is coupled to liability by a Gaussian copula. `rho = 0`
+  recovers `"stochastic"`; `rho = 1` recovers `"threshold_crossing"`
+  among lifetime cases. This is the onset-timing assumption-stress
+  used by `bench_pafgrs_mixture`.
+- Technical report `report/ltpred_methods.pdf` (LaTeX source)
+  `report/ltpred_methods.tex`): estimand, theory, implementation
+  (grouping, streaming batch-means, object vs array path, `var` vs
+  `se`), and the load-bearing simulation tables — PA–Gibbs agreement
+  and speed, classic-LT-FH NCP, the LT-FH++/ADuLT increment, cohort
+  confounding, calibration under a wrong `h²`, PGS complementarity,
+  the PA-FGRS mixture, and ascertainment/IPW. Included in the source
+  distribution.
 - **Gibbs now reports the posterior variance**, so both engines fill
   `LiabilityResult.var` and the two are directly comparable. The batched kernel
   streams a sum of squares alongside the existing mean and batch-mean
@@ -91,6 +102,16 @@ version is 0 the public API may still change between minor releases.
 
 ### Changed
 
+- `bench_age_onset` now scores interval and pinned case encodings on the
+  same families, so the pin-equals-liability increment can be separated
+  from the onset lower bound. `bench_pafgrs_mixture` adds a
+  liability-dependent onset arm. `bench_cip_estimation`,
+  `bench_tetrachoric`, and `bench_liability_scale` write CSVs and were
+  rerun under the current SE / `subtract_null` conventions. The methods
+  note, `docs/algorithm.md`, `docs/assumptions.md`, and the README
+  encoding guidance now follow those runs: pin only under
+  threshold-crossing onset; most of the onset increment survives an
+  interval encoding.
 - **`simulate_under_LTM_single` applies the onset recording grid to
   `case_encoding="interval"` as well as `"pin"`.** Both encodings derive the
   case bound from the *recorded* onset age, so they now describe the same
@@ -137,6 +158,14 @@ version is 0 the public API may still change between minor releases.
 
 ### Fixed
 
+- **IPW recovery figures** quoted in the methods note, `fit_heritability`
+  docstring, `docs/inference.md` and `docs/ROADMAP.md`. The committed
+  `bench_ascertainment.csv` `ipw` arm gives 0.495 (50/50) and 0.473
+  (20% enriched). The previously quoted 0.456 is the `random_50`
+  control arm, not the case/control cell; 0.481 is not in the CSV.
+  `benchmarks/RESULTS.md` §29 already had the artifact values.
+- §13 confounding table last-digit offsets against
+  `bench_confounding.csv` (e.g. 16.461 ± 0.397 → 16.460 ± 0.399).
 - **The moment fitters again reject personalised/onset-pinned LT-FH++ bounds.**
   `fit_heritability` and `fit_variance_components` pool cross-products under a
   single-threshold-per-trait assumption; on personalised (age-/CIP-specific) or

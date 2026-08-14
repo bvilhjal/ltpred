@@ -550,11 +550,19 @@ calibration. A pinned case's liability is a deterministic function of its onset
 age — zero conditional variance at `T_i(a_i)` — with the stratum's CIP curve
 hard-coded as the liability–onset map, error-free onset dates and homogeneous
 severity (two cases with the same stratum and onset age carry identical
-liability). When onset timing is uncertain or recorded only as a window, an
-interval encoding is safer: the lifetime interval conditions only on being
-affected, and the age-specific interval at least leaves the liability free above
-its edge. The [real-data checklist](assumptions.md#real-data-checklist) already
-asks for the encoding choice to be recorded.
+liability). That identity is calibrated only under threshold-crossing onset
+(RESULTS.md §16: pinned slope 0.98–1.00). When onset only *tends* to track
+liability (Gaussian copula ρ = 0.6), the same pin over-conditions (slope 0.92
+under heavy censoring). On the same families, replacing the pin with
+`[T(onset), ∞)` keeps almost all of the age-of-onset increment except at high
+prevalence, where the pin adds another 0.01–0.02 in the squared-correlation
+proxy (RESULTS.md §3). Most of what onset contributes is the lower bound, not
+the point mass. When onset timing is uncertain or recorded only as a window,
+an interval encoding is the more honest likelihood: the lifetime interval
+conditions only on being affected, and the age-specific interval leaves the
+liability free above its edge. The
+[real-data checklist](assumptions.md#real-data-checklist) already asks for the
+encoding choice to be recorded.
 
 For **LT-FH++ and ADuLT**, age, sex and birth cohort enter **only through
 `K(t; s, b)` and its interval edge `T_i`**, never the covariance `Sigma`. In base
@@ -717,6 +725,16 @@ cases is treated as independent of liability. Higher-liability future cases in
 fact tend to onset earlier, so the not-yet-onset component is only approximately
 the above-threshold tail the mixture assigns it. The construction likewise
 assumes censoring is non-informative given the stratum.
+
+That independence assumption is now a generative arm
+(`simulate_under_LTM_single(..., onset_model="liability_dependent")`, default
+ρ = 0.6), not only a caveat. In RESULTS.md §16 the mixture still has no
+measurable ranking cost (all ten paired Δcorr 95% CIs tighter than ±0.0002),
+and it still always lowers the calibration slope. What breaks is the *pin*,
+not the mixture: under partial onset dependence the lifetime interval sits
+between the crossing and stochastic extremes (MID slope 1.13), while pinning
+over-conditions (0.92). There is still no Gibbs implementation of the
+mixture, so this is a PA-only check.
 
 ## Fitting the covariance (heritability)
 

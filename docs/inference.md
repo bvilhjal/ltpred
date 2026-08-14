@@ -143,8 +143,8 @@ Why this is the right shape of correction: the liability augmentation for a
 *given* family with *given* statuses is already the correct conditional
 distribution. What selection breaks is the **mix** of families, and weighting
 re-mixes them to population proportions. Benchmarked, this takes a 50/50
-case/control cohort from `h² = 1.000` (pinned) back to **0.456** against a truth
-of 0.5, and a 20%-enriched cohort from 1.000 to **0.481**.
+case/control cohort from `h² = 1.000` (pinned) back to **0.495** against a truth
+of 0.5, and a 20%-enriched cohort from 1.000 to **0.473**.
 
 Two limits, and both matter:
 

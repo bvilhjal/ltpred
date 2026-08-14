@@ -23,6 +23,14 @@ Two observation models, because the mixture's value depends on how onset works:
     true controls (l < T_pop) and future cases (l > T_pop, onset > age) --
     exactly what the mixture models, and what a naive age truncation
     mis-encodes. This is the arm that validates the mixture's purpose.
+  * LIABILITY-DEPENDENT (rho=0.6): lifetime status at T_pop, but among
+    lifetime cases onset is coupled to liability by a Gaussian copula
+    (ltpred.simulate onset_model="liability_dependent"). Higher liability
+    advances onset, with residual noise. Plain age truncation is then not
+    exact, pinning is not exact, and the mixture's independence assumption
+    is false: the not-yet-onset tail is depleted of high-liability people.
+    This is the assumption-stress arm. Pre-registered: the mixture still
+    lowers slope; a ranking cost may appear; pinned slope will not sit on 1.
 
 Design. h2=0.5, lifetime prevalence K_pop=0.10, logistic CIP
 K(age)=K_pop/(1+exp((mid_point-age)*slope)) (the repo's pa_thresholds family).
@@ -90,8 +98,8 @@ if ROOT not in sys.path:
 from ltpred.covariance import construct_covmat_single, correct_positive_definite  # noqa: E402
 from ltpred.estimate import estimate_liability  # noqa: E402
 from ltpred.family import Family, Member  # noqa: E402
-from ltpred.thresholds import (liability_threshold, convert_liability_to_aoo,  # noqa: E402
-                               convert_age_to_thresh)
+from ltpred.simulate import _onset_times  # noqa: E402
+from ltpred.thresholds import liability_threshold, convert_age_to_thresh  # noqa: E402
 
 SEED = 20260719
 H2 = 0.5
@@ -115,12 +123,19 @@ def cip(age):
     return K_POP / (1.0 + np.exp((MID_POINT - np.asarray(age, dtype=float)) * SLOPE))
 
 
+_ONSET_MAP = {
+    "crossing": ("threshold_crossing", 0.0),
+    "stochastic": ("stochastic", 0.0),
+    "dependent": ("liability_dependent", 0.6),
+}
+
+
 def simulate_cohort(rng, regime, n_fam, onset_model="crossing"):
     """Liabilities + honest censoring; returns truth and per-member observations.
 
-    onset_model='crossing': onset age is the deterministic threshold-crossing
-    map. 'stochastic': case status is l > T_pop and onset age is drawn from the
-    CIP (inverse-CDF of K(age)/K_pop) independent of liability."""
+    onset_model='crossing': onset is the CIP inverse of liability.
+    'stochastic': lifetime case if l > T_pop, onset ~ CIP independent of l.
+    'dependent': same lifetime rule, onset coupled to l at rho=0.6."""
     cov_obj = construct_covmat_single(fam_vec=FAM_VEC, add_ind=True, h2=H2)
     cov, _ = correct_positive_definite(cov_obj.matrix)
     roles = cov_obj.roles                       # g, o, m, f, s1
@@ -133,27 +148,18 @@ def simulate_cohort(rng, regime, n_fam, onset_model="crossing"):
         lo, hi = AGE_RANGES[regime][r.rstrip("0123456789")]
         ages[r] = rng.integers(lo, hi, size=n_fam)
 
+    sim_model, onset_rho = _ONSET_MAP[onset_model]
     obs = {r: [] for r in roles[1:]}
-    for i in range(n_fam):
-        for r in roles[1:]:
-            col = roles.index(r)
-            l = liab[i, col]
-            age = ages[r][i]
-            if onset_model == "crossing":
-                aoo = convert_liability_to_aoo(l, pop_prev=K_POP,
-                                               mid_point=MID_POINT, slope=SLOPE)
-                aoo = 0.0 if not np.isfinite(aoo) else float(aoo)
-                is_case = (l > t_pop) and (aoo <= age)
-            else:  # stochastic onset for lifetime cases only
-                if l > t_pop:
-                    u = float(rng.uniform())
-                    aoo = MID_POINT + np.log(u / (1.0 - u)) / SLOPE
-                    aoo = max(0.0, aoo)
-                    is_case = aoo <= age
-                else:
-                    is_case = False
-                    aoo = age
-            obs[r].append((is_case, aoo if is_case else age))
+    for r in roles[1:]:
+        col = roles.index(r)
+        onset_r = _onset_times(
+            liab[:, col], K_POP, MID_POINT, SLOPE, sim_model, t_pop, rng,
+            onset_rho=onset_rho)
+        for i in range(n_fam):
+            aoo = onset_r[i]
+            age = float(ages[r][i])
+            is_case = np.isfinite(aoo) and float(aoo) <= age
+            obs[r].append((is_case, float(aoo) if is_case else age))
     return liab, roles, obs
 
 
@@ -312,6 +318,11 @@ def main():
         ("STOCHASTIC-ONSET", "stochastic",
          [("base + no-mixture", "base", False),
           ("base + mixture", "base", True)]),
+        ("LIABILITY-DEPENDENT (rho=0.6)", "dependent",
+         [("base + no-mixture", "base", False),
+          ("base + mixture", "base", True),
+          ("pinned + no-mixture", "pinned", False),
+          ("pinned + mixture", "pinned", True)]),
     ]
     replicate_rows = []
     for model_label, onset_model, arms in grids:

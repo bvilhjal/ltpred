@@ -28,10 +28,11 @@ were taken at 1-minute load ~7–11 on a 10-core box and are correspondingly
 conservative.
 
 Most scripts write a `.csv` and, if matplotlib is present, a `.png`. The
-following scripts instead print focused diagnostics to stdout:
-`bench_cip_estimation.py`, `bench_env_components.py`,
-`bench_inference_calibration.py`, `bench_liability_scale.py`,
-`bench_misspecification.py`, and `bench_tetrachoric.py`. `bench_pedigree_inference.py` and
+following scripts print focused diagnostics to stdout and also write a
+summary CSV: `bench_cip_estimation.py`, `bench_liability_scale.py`, and
+`bench_tetrachoric.py`. These still print only:
+`bench_env_components.py`, `bench_inference_calibration.py`, and
+`bench_misspecification.py`. `bench_pedigree_inference.py` and
 `bench_register_pipeline.py` print the same style of diagnostics but also
 write long-format `rep, metric, value` CSVs (`--reps` independent
 populations/registers; rep 0 marks single-run parts).
@@ -91,7 +92,7 @@ Rows marked **unsupported research** import checkout-only APIs from
 |--------|------------------|
 | `bench_accuracy.py` | corr(estimated classic LT-FH liability, true g) across heritability × prevalence × family structure — Gibbs vs PA accuracy, calibration slope, RMSE and squared-correlation effective-N proxy over case/control (→ `bench_accuracy.{csv,png}`) |
 | `bench_scaling.py` | wall-clock scaling of both methods with #families and family size; families/second and speed-up (→ `bench_scaling.{csv,png}`) |
-| `bench_age_onset.py` | LT-FH++ age component with the same relatives on both sides: classic binary LT-FH vs FH + onset-pinned cases, both fit with PA (and Gibbs as an agreement check); squared-correlation effective-N proxy across prevalence (→ `bench_age_onset.{csv,png}`) |
+| `bench_age_onset.py` | LT-FH++ age component with the same relatives on both sides: classic binary LT-FH vs FH + interval cases vs FH + onset-pinned cases, both fit with PA (and Gibbs as an agreement check on the pin); squared-correlation effective-N proxy across prevalence (→ `bench_age_onset.{csv,png}`) |
 | `bench_gwas_power.py` | replicated genotype-based GWAS power for classic LT-FH: case/control vs the same LT-FH model inferred by Gibbs or PA vs an oracle — causal-SNP NCP ratio, detection power, SEs, and λ_GC (→ `bench_gwas_power.{csv,png}`). The default family is parents plus one sibling. Pass `--plink PREFIX` for **real-LD** HAPNEST genotypes; causal LD proxies are excluded from its calibration set (opt-in; see [`hapnest/README.md`](hapnest/README.md)) |
 | `bench_ltfhpp_personalization.py` | **integrated LT-FH++ genotype GWAS** with age-, sex-, and cohort-dependent CIP, coherent family onset/follow-up, competing mortality, ascertainment, and demographically stratified null SNPs. A matched ADuLT arm uses the identical personalised proband bounds with all relatives removed, directly isolating the LT-FH++ family-history increment. The 10-replicate main panel reports causal-SNP NCP ratios and paired CIs; a prespecified 5-replicate sex-isolation panel compares age-only with age+sex family bounds. PA is primary and Gibbs diagnostics cover the first two main replicates (→ `bench_ltfhpp_personalization.{csv,png}`) |
 | `bench_fit_heritability.py` | variance-component inference: bias and across-dataset precision of `fit_heritability` vs true h², vs #families and family structure, and the calibration of the reported `h2_se` (→ `bench_fit_heritability.{csv,png}`) |
@@ -104,7 +105,7 @@ Rows marked **unsupported research** import checkout-only APIs from
 | `bench_shared_env.py` | value of modelling shared environment `C`: corr(genetic-liability estimate, true genetic liability) when families are simulated under `A+C+E`, comparing ignore-C (additive) vs fit-`A+C` vs oracle, swept over `c²` and sib-ship size (→ `bench_shared_env.{csv,png}`) |
 | `bench_couple_env.py` | the couple/spousal environment `M`: recovery of `A+M` (bias & across-dataset SD, including constrained-boundary behaviour at `m²=0`), and the identifiability contrast — ignoring a real `C` inflates additive-only `Â` much more than ignoring a real `M` (mates have `A=0`) (→ `bench_couple_env.{csv,png}`) |
 | `bench_fh_prediction.py` | registry simulation with age, cohort and competing mortality: PA fits both classic LT-FH and age/cohort-personalised family bounds, compared with squared-correlation effective-N proxies; a separate own-onset cohort-span panel is explicitly family-free **ADuLT** and tests cohort-aware vs cohort-blind ranking (→ `bench_fh_prediction.{csv,png}`) |
-| `bench_pafgrs_mixture.py` | generative validation of the PA-FGRS censored-control mixture under threshold-crossing and stochastic-onset observation models; per-replicate corr/slope retained with paired mixture-vs-no-mixture contrasts (mean ± SE, t-based 95% CI) (→ `bench_pafgrs_mixture.csv`) |
+| `bench_pafgrs_mixture.py` | generative validation of the PA-FGRS censored-control mixture under threshold-crossing, stochastic-onset, and liability-dependent (ρ=0.6) observation models; per-replicate corr/slope retained with paired mixture-vs-no-mixture contrasts (mean ± SE, t-based 95% CI) (→ `bench_pafgrs_mixture.csv`) |
 | `bench_inference_calibration.py` | **unsupported research:** coarse repeated-sample checks of component-test Type-I error, family-bootstrap interval containment, MCEM information SEs, and `test_genetic_correlation` Type-I error under the r_g=0 null (`--parts` selects a subset) |
 | `bench_misspecification.py` | calibration and ranking under heavy tails, assortative mating, unmodelled shared environment, and wrong prevalence |
 | `bench_cip_estimation.py` | Kaplan–Meier/Aalen–Johansen curve recovery, delayed entry, competing mortality, and an end-to-end CIP-to-score check |
@@ -128,7 +129,10 @@ plus a minimal PLINK `.bed` reader for the HAPNEST path.
   full liability `o`, and relatives jointly from the liability-threshold family
   covariance. The bounds and retained relative rows define classic LT-FH or an
   LT-FH++ component ablation; none of these rows is ADuLT.
-  Because `g` is retained, accuracy is corr(estimate, `g`).
+  Because `g` is retained, accuracy is corr(estimate, `g`). The age-of-onset
+  script scores classic, interval, and pinned encodings on the same families.
+  The mixture script draws onset under threshold-crossing, stochastic, or
+  liability-dependent (`onset_rho=0.6`) models.
 * **Fitter benchmarks** draw unascertained, population-sampled simulated
   families and pass `sampling="population"` explicitly. They do not validate
   fitting after case/control or family-history ascertainment.

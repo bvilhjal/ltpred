@@ -11,13 +11,16 @@ mixture).
 
 For a grid of heritability x prevalence it simulates families under the LTM
 (true ``g`` known), assigns each case an age of onset through the
-liability->onset map, then scores two encodings of the same families:
+liability->onset map, then scores three encodings of the same families:
 
   * classic LT-FH            -- family statuses at ``(thresh(K_pop), inf)``, age ignored
-  * FH + age-of-onset CIP    -- the same family, cases pinned at ``thresh(onset)``
+  * FH + interval            -- cases ``[thresh(onset), inf)`` (onset as a lower bound)
+  * FH + pin                 -- cases pinned at ``thresh(onset)`` (the LT-FH++ identity)
 
-Both are fit with PA over independent replicates; the age-of-onset encoding is
-also fit with Gibbs on the first replicate to confirm the two engines agree.
+The pin-vs-interval contrast isolates how much of the onset increment is the
+pin-equals-liability identity rather than knowing that onset was at least that
+early. Both onset encodings are fit with PA; the pinned encoding is also fit
+with Gibbs on the first replicate to confirm the two engines agree.
 Metrics are corr(estimate, true g), its replicate SE, and the effective-N-style
 gain of age-of-onset over classic LT-FH. This is not ADuLT because relatives are
 included, and the comparator is not the raw proband case/control label. With
@@ -84,20 +87,21 @@ def simulate_onset(fam_vec, h2, pop_prev, n_fam, seed, followup=None,
 
 
 def build_families(raw, encoding):
-    """Build families under classic ``ltfh`` or ``age_onset`` encoding.
+    """Build families under classic, interval, or pinned onset encoding.
 
-    Classic LT-FH encodes a case as the one-sided ``(thresh(K_pop), inf)``;
-    the age component *pins* the case at its
-    onset threshold (``lower == upper == thresh(onset)``), which uses the onset to
-    fix the liability rather than merely bound it. Controls are identical across
-    encodings, so the two differ only in how cases carry information."""
+    Classic LT-FH encodes a case as ``(thresh(K_pop), inf)``. ``interval`` uses
+    the onset as a lower bound ``[thresh(onset), inf)``. ``pin`` (and the
+    legacy name ``age_onset``) sets ``lower == upper == thresh(onset)``.
+    Controls are identical across encodings."""
     fams = []
     for i, row in enumerate(raw["recs"]):
         members = []
         for role, is_case, onset_thr in row:
             if is_case and encoding == "ltfh":
                 members.append(Member(role, lower=raw["t_pop"], upper=np.inf))
-            elif is_case:                      # age-of-onset: pin at the onset threshold
+            elif is_case and encoding == "interval":
+                members.append(Member(role, lower=onset_thr, upper=np.inf))
+            elif is_case:
                 members.append(Member(role, lower=onset_thr, upper=onset_thr))
             else:
                 members.append(Member(role, lower=-np.inf, upper=raw["thr_follow"]))
@@ -109,7 +113,8 @@ def run(fam_vec, h2s, prevs, n_fam, followup, n_sim, seed, reps):
     rows = []
     for h2 in h2s:
         for prev in prevs:
-            values = {key: [] for key in ("ltfh", "pa", "gain")}
+            values = {key: [] for key in
+                      ("ltfh", "pa", "interval", "gain", "gain_interval")}
             r_gibbs = agreement = np.nan
             for rep in range(reps):
                 rep_seed = seed + rep
@@ -117,13 +122,19 @@ def run(fam_vec, h2s, prevs, n_fam, followup, n_sim, seed, reps):
                                      followup=followup)
                 true_g = raw["true_g"]
                 ltfh, _ = estimate(build_families(raw, "ltfh"), h2, "pa")
-                onset_families = build_families(raw, "age_onset")
+                onset_families = build_families(raw, "pin")
+                interval_families = build_families(raw, "interval")
                 aoo_pa, _ = estimate(onset_families, h2, "pa")
+                int_pa, _ = estimate(interval_families, h2, "pa")
                 r_ltfh = float(np.corrcoef(ltfh, true_g)[0, 1])
                 r_aoo = float(np.corrcoef(aoo_pa, true_g)[0, 1])
+                r_int = float(np.corrcoef(int_pa, true_g)[0, 1])
                 values["ltfh"].append(r_ltfh)
                 values["pa"].append(r_aoo)
+                values["interval"].append(r_int)
                 values["gain"].append((r_aoo / r_ltfh) ** 2 if r_ltfh > 0 else np.nan)
+                values["gain_interval"].append(
+                    (r_int / r_ltfh) ** 2 if r_ltfh > 0 else np.nan)
                 if rep == 0:
                     aoo_gibbs, _ = estimate(onset_families, h2, "gibbs",
                                             n_sim=n_sim, seed=seed)
@@ -141,12 +152,19 @@ def run(fam_vec, h2s, prevs, n_fam, followup, n_sim, seed, reps):
                              reps=reps, gibbs_reps=1,
                              corr_ltfh_pa=mean["ltfh"], se_ltfh_pa=se["ltfh"],
                              corr_age_onset_pa=mean["pa"], se_age_onset_pa=se["pa"],
+                             corr_interval_pa=mean["interval"],
+                             se_interval_pa=se["interval"],
                              corr_age_onset_gibbs_first_rep=r_gibbs,
                              gain=mean["gain"],
-                             se_gain=se["gain"], pa_gibbs_agree=agreement))
+                             se_gain=se["gain"],
+                             gain_interval=mean["gain_interval"],
+                             se_gain_interval=se["gain_interval"],
+                             pa_gibbs_agree=agreement))
             print(f"h2={h2:.1f} K={prev:.2f} | corr LT-FH={mean['ltfh']:.3f}"
-                  f"±{se['ltfh']:.3f} FH+onset PA={mean['pa']:.3f}±{se['pa']:.3f} "
-                  f"| gain={mean['gain']:.3f}±{se['gain']:.3f}x "
+                  f"±{se['ltfh']:.3f} pin={mean['pa']:.3f}±{se['pa']:.3f} "
+                  f"interval={mean['interval']:.3f}±{se['interval']:.3f} "
+                  f"| pin/classic={mean['gain']:.3f}±{se['gain']:.3f}x "
+                  f"int/classic={mean['gain_interval']:.3f}±{se['gain_interval']:.3f}x "
                   f"| first-rep Gibbs={r_gibbs:.3f}")
     return rows
 

@@ -52,6 +52,7 @@ class Guard:
     artifact: str
     recompute: Callable[[pathlib.Path], tuple]
     anchor: str
+    document: str = "benchmarks/RESULTS.md"
 
 
 def parse_quoted(text: str):
@@ -108,8 +109,14 @@ def run_guard(root: pathlib.Path, results_text: str, guard: Guard):
 
 
 def run_guards(root: pathlib.Path):
-    results_text = (root / "benchmarks" / "RESULTS.md").read_text(encoding="utf-8")
-    return [(guard, *run_guard(root, results_text, guard)) for guard in GUARDS]
+    cache = {}
+    out = []
+    for guard in GUARDS:
+        doc = getattr(guard, "document", "benchmarks/RESULTS.md")
+        if doc not in cache:
+            cache[doc] = (root / doc).read_text(encoding="utf-8")
+        out.append((guard, *run_guard(root, cache[doc], guard)))
+    return out
 
 
 # --- recomputation helpers -------------------------------------------------
@@ -450,7 +457,116 @@ def ascert_ipw_enriched(path):
             float(r["fitted_mean"]), float(r["sd"]))
 
 
+def ascert_ipw_cc_mean(path):
+    return (ascert_ipw_case_control(path)[2],)
+
+
+def ascert_ipw_enr_mean(path):
+    return (ascert_ipw_enriched(path)[2],)
+
+
+# --- recomputations: bench_confounding.csv (RESULTS §13) --------------------
+
+
+def confounding_r4_row(path):
+    row = _only(_rows(path), trend_R="4.0")
+    return (
+        float(row["lgc_strat_cohort"]), float(row["se_lgc_strat_cohort"]),
+        float(row["lgc_strat_single_K"]), float(row["se_lgc_strat_single_K"]),
+        float(row["lgc_strat_casecontrol"]), float(row["se_lgc_strat_casecontrol"]),
+    )
+
+
+# --- recomputations: bench_pgs_comparison.csv (RESULTS §28) -----------------
+
+
+def age_onset_h05_k03(path):
+    row = _only(_rows(path), h2="0.5", prevalence="0.3")
+    return (
+        float(row["corr_ltfh_pa"]), float(row["se_ltfh_pa"]),
+        float(row["corr_age_onset_pa"]), float(row["se_age_onset_pa"]),
+        float(row["corr_interval_pa"]), float(row["se_interval_pa"]),
+        float(row["gain"]), float(row["se_gain"]),
+        float(row["gain_interval"]), float(row["se_gain_interval"]),
+    )
+
+
+def mixture_dependent_mid_pin_slope(path):
+    vals = [float(r["slope_pa"]) for r in _rows(path)
+            if r.get("row_type") == "replicate"
+            and r.get("onset_model") == "dependent"
+            and r.get("regime") == "mid"
+            and r.get("arm") == "pinned + no-mixture"]
+    if not vals:
+        raise ValueError("no dependent/mid/pinned-no-mixture rows")
+    return (_mean_se(vals)[0],)
+
+
+def tetrachoric_falconer(path):
+    row = _only(_rows(path), pair="falconer_h2")
+    return (float(row["tetrachoric"]), float(row["se"]))
+
+
+def liability_lee_bridge(path):
+    row = _only(_rows(path), route="(c) Lee-2011 bridged")
+    return (float(row["mean"]), float(row["se"]))
+
+
+def pgs_test_r2s(path):
+    rows = [r for r in _rows(path) if r["row_type"] == "replicate"]
+
+    def ms(arm):
+        vals = [float(r["r2_g"]) for r in rows
+                if r["arm"] == arm and r["r2_g"] not in ("", "nan")]
+        return _mean_se(vals)
+
+    pgs, ltfh, joint = ms("PGS"), ms("LT-FH (PA)"), ms("PGS + LT-FH joint")
+    return (pgs[0], pgs[1], ltfh[0], ltfh[1], joint[0], joint[1])
+
+
+# --- the guard list -----------------------------------------------------------
+
+
 GUARDS = [
+    Guard("age-onset-h05-k03-encodings",
+          "benchmarks/bench_age_onset.csv",
+          age_onset_h05_k03,
+          r"^\| 0\.5 \| 0\.30 \| ([\d.]+) ± ([\d.]+) \| ([\d.]+) ± ([\d.]+) \| "
+          r"([\d.]+) ± ([\d.]+) \| ([\d.]+) ± ([\d.]+)× \| "
+          r"([\d.]+) ± ([\d.]+)× \|$"),
+    Guard("mixture-dependent-mid-pin-slope",
+          "benchmarks/bench_pafgrs_mixture.csv",
+          mixture_dependent_mid_pin_slope,
+          r"When onset only \*tends\* to track liability \(ρ = 0\.6\), pinning\s*"
+          r"over-conditions \(slope ([\d.]+) under heavy censoring\)"),
+    Guard("tetrachoric-falconer-h2",
+          "benchmarks/bench_tetrachoric.csv",
+          tetrachoric_falconer,
+          r"gives ([\d.]+) ± ([\d.]+)\s*\(truth 0\.5\)"),
+    Guard("liability-scale-lee-bridge",
+          "benchmarks/bench_liability_scale.csv",
+          liability_lee_bridge,
+          r"Lee-2011 bridged to liability \| ([\d.]+) ± ([\d.]+)"),
+    Guard("confounding-r4-stratified-lambda",
+          "benchmarks/bench_confounding.csv",
+          confounding_r4_row,
+          r"^\| 4 \| ([\d.]+) ± ([\d.]+) \| ([\d.]+) ± ([\d.]+) \| "
+          r"([\d.]+) ± ([\d.]+) \|$"),
+    Guard("pgs-test-r2-three-scores",
+          "benchmarks/bench_pgs_comparison.csv",
+          pgs_test_r2s,
+          r"\*\*([\d.]+) ± ([\d.]+)\*\* \(PGS\), \*\*([\d.]+) ± ([\d.]+)\*\* "
+          r"\(classic LT-FH\) and\s*\*\*([\d.]+) ± ([\d.]+)\*\*"),
+    Guard("report-ipw-case-control", _ASCERT,
+          ascert_ipw_cc_mean,
+          r"\$50/50\$ case/control\s+&\s+\$0\.499\$\s+&\s+\$1\.000\$\s+&\s+"
+          r"\$([\d.]+)\$",
+          document="report/ltpred_methods.tex"),
+    Guard("report-ipw-enriched", _ASCERT,
+          ascert_ipw_enr_mean,
+          r"\$20\\%\$ case-enriched\s+&\s+\$0\.199\$\s+&\s+\$1\.000\$\s+&\s+"
+          r"\$([\d.]+)\$",
+          document="report/ltpred_methods.tex"),
     Guard("ascertainment-ipw-case-control", _ASCERT,
           ascert_ipw_case_control,
           r"^\| case_control \| ([\d.]+) \| \*\*([\d.]+)\*\* \| "

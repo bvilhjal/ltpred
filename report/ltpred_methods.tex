@@ -36,7 +36,7 @@
 \author{Others (TBD) and Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
   {\small Aarhus University and SMARTbiomed}\\[0.35em]
   {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.3.0}}
-\date{13 August 2026}
+\date{14 August 2026}
 
 \begin{document}
 \maketitle
@@ -60,7 +60,15 @@ mixture, a classic-LT-FH causal-SNP noncentrality ratio of
 $1.47\pm 0.04\times$ over case/control (independent SNPs), and a
 paired $+0.145\pm 0.015$ LT-FH++ increment over matched ADuLT when
 onset is a deterministic function of liability and the CIP is known.
-Those last two figures are upper bounds relative to register data.
+The same personalised thresholds that supply that increment also
+remove a simulated cohort-confounding $\lambda_{\mathrm{GC}}$ of
+$16.46\pm 0.40$ (Table~\ref{tab:confound}).
+A PGS and $\mu_i$ remain complementary: joint test $R^{2}=0.339$
+against $0.236$ and $0.170$ (Table~\ref{tab:pgs}).
+The GWAS and personalisation figures are upper bounds relative to
+register data: a pin-versus-interval ablation keeps almost all of
+the onset increment except at high prevalence, and pinning is
+calibrated only when onset is the CIP inverse of liability.
 They are not estimates of clinical utility.
 \end{abstract}
 
@@ -258,6 +266,11 @@ the liability.
 When onset is a window, or $K$ is estimated, an interval
 $[T_i(a_i),\infty)$ or the lifetime interval $[T_{\mathrm{pop}},\infty)$
 is the more honest likelihood.
+On the same simulated families, the interval keeps almost all of
+the onset increment except at $K=0.30$, where the pin adds another
+$0.01$--$0.02$ in the squared-correlation proxy.
+When onset only tends to track liability ($\rho=0.6$), the pin
+over-conditions (slope $0.92$ under heavy censoring).
 
 Because the BLUP weights in \eqref{eq:blup-trunc} do not depend on
 the $T_i$, a shared threshold error is mostly a calibration shift.
@@ -386,8 +399,75 @@ eventually be cases, time-to-onset is independent of liability,
 and censoring is non-informative given the stratum.
 If higher liability advances onset, the not-yet-onset component is
 not the above-threshold tail assigned to it.
-There is no Gibbs implementation of \eqref{eq:mix}, so this part of
-the model has no sampling-based check in the package.
+A PA generative check at $\rho=0.6$ finds no ranking cost and the
+usual downward slope shift; the pin, not the mixture, is what
+breaks (Section~\ref{sec:results}).
+There is still no Gibbs implementation of \eqref{eq:mix}.
+
+%----------------------------------------------------------------------
+\section{Implementation}
+\label{sec:impl}
+
+The mathematics above is small dense linear algebra on one family.
+The software problem is many independent families, most of which share
+a pedigree shape.
+
+\paragraph{Grouping.}
+Families with the same ordered role set share one $\Sigma$.
+Both engines group on that key, factorise once, and apply the
+per-family intervals in a compiled kernel.
+The object API (\texttt{Family}/\texttt{Member}) does this grouping
+internally.
+The array API receives already-aligned bounds and is the hot path.
+
+\paragraph{Gibbs.}
+The inner sweep is Numba-JIT'd and \texttt{prange}-parallel across
+families in a group.
+Batch-means summaries---running sums and sums of squares---are
+streamed, so Monte-Carlo-SE memory is $O(F)$ rather than
+$O(n_{\mathrm{sim}}F)$, and the posterior variance is the same
+streaming second moment.
+Each family carries its own RNG seed: the draw does not depend on
+which worker picked it up.
+Without Numba the identical code runs serially.
+Far-tail inverse-CDF draws switch to a log-scale Rayleigh
+construction once $\Phi$ underflows.
+
+\paragraph{PA.}
+The same grouping applies.
+Fold order is canonicalised to a sorted role set so the result is a
+function of the pedigree shape, not of input row order---reproducibility,
+not a claim of smaller approximation error
+(Section~\ref{sec:pa}).
+
+\paragraph{What the timings measure.}
+Section~\ref{sec:results} quotes a $203$--$492\times$ object-path
+speed-up of PA over grouped Gibbs at four threads.
+That includes Python-side assembly.
+The array path, on already-aligned inputs, ran at $1.2$--$3.8$
+million families per second in the same warmed run---another
+$21$--$52\times$ over the object path.
+Those array rates are a hot-kernel measurement, not end-to-end
+register ingestion.
+
+\paragraph{Two different uncertainties.}
+Write $\widehat{\mu}_i$ for the reported estimate of \eqref{eq:estimand}.
+Then $\mathtt{var}$ is $\Var(a_i\mid C_F)$, the posterior spread.
+It does not shrink with more Gibbs draws.
+$\mathtt{se}$ is the estimator's own error in $\widehat{\mu}_i$:
+batch-means Monte Carlo for Gibbs, identically zero for PA.
+A PA standard error of zero means no Monte Carlo error, not zero
+approximation error, and not zero posterior variance.
+On a seven-observation fold---the regime where PA $\mathtt{var}$ is
+itself an approximation---the sequential-moment variance sits within
+$5\%$ of the Gibbs Monte-Carlo variance.
+
+\paragraph{What is not implemented.}
+There is no Gibbs version of \eqref{eq:mix}.
+Multi-trait estimation is Gibbs-only.
+The shipped environment kernels $C$ and $M$ feed back into
+single-trait prediction through $c^{2}$ and $m^{2}$; a directional
+maternal effect is not $M$.
 
 %----------------------------------------------------------------------
 \section{Fitting \(\h\) is a different problem}
@@ -492,12 +572,14 @@ Those are not the same analysis.
 
 Unless noted, $\pm$ is the SE of a mean across independent simulated
 cohorts.
-The numbers below are from committed benchmark artifacts (31~July
-and 1~August 2026).
+The numbers below are from committed benchmark artifacts
+(campaigns of 31~July, 1~August and 10--14~August 2026).
 They do not automatically validate later code.
 Every GWAS panel uses independent SNPs; a real-LD run has not been
 done.
 There is no locked comparison to R LTFHPlus.
+Table~\ref{tab:headlines} is the load-bearing subset; the rest of
+this section says what each number is allowed to mean.
 
 Two ratios appear and are not interchangeable.
 An \emph{NCP ratio} is
@@ -505,6 +587,43 @@ $(\overline{\chi^{2}}_{\mathrm{causal}}-1)$ over the same quantity
 for case/control.
 An \emph{eff-$N$ proxy} is a squared-correlation ratio to the
 case/control label.
+
+\begin{table}[ht]
+\centering
+\caption{Load-bearing simulation claims.
+$\pm$ is a replicate SE except where marked as a $95\%$ CI
+half-width.
+Independent SNPs; no mixture except the last row.}
+\label{tab:headlines}
+\small
+\begin{tabular}{@{}llp{6.6cm}@{}}
+\toprule
+Claim & Number & Design \\
+\midrule
+PA--Gibbs agreement
+  & $0.9977$--$0.9999$
+  & $27$-cell classic LT-FH grid, no mixture \\
+Object-path speed-up
+  & $203$--$492\times$
+  & $4$ threads, this machine \\
+Classic LT-FH NCP
+  & $1.47\pm 0.04\times$
+  & $10{,}000$ probands, $30$ causal SNPs \\
+LT-FH++ minus ADuLT
+  & $+0.145\pm 0.015$
+  & paired $95\%$ CI; known CIP, pinned onset \\
+Cohort-blind $\lambda_{\mathrm{GC}}$
+  & $16.46\pm 0.40$
+  & $4\times$ prevalence trend / $30$\,y \\
+PGS $+$ LT-FH test $R^{2}$
+  & $0.339$ vs $0.236$, $0.170$
+  & held-out $a_i$; $p=1$ by construction \\
+IPW $50/50$ $\widehat{\h}$
+  & $0.495$ (from $1.000$)
+  & $N=10{,}000$, $K=0.05$, truth $0.5$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{The sequential approximation}
 
@@ -604,46 +723,221 @@ oracle $a_i$
 
 The integrated LT-FH++ panel uses age/sex/cohort CIP, coherent
 follow-up, competing death, ascertainment, and stratified null
-SNPs.
+SNPs (Table~\ref{tab:ltfhpp}).
 Onset is the CIP inverse of true $\ell$, and cases are pinned at
 that $T_i$---so a case's full liability is essentially observed.
 Ten paired replicates.
+Accuracy, slope and NCP are adjusted for proband sex and birth
+year.
 
-Matched ADuLT (same personalised $T_i$ on the proband, no
-relatives) reaches an adjusted NCP ratio of
-$1.049\pm 0.004\times$.
-Full LT-FH++ reaches $1.194\pm 0.006\times$.
-The paired increment is $+0.145\pm 0.015$
-($95\%$ CI half-width).
-Calibration slope after covariate adjustment is
-$0.995\pm 0.015$.
-A sex-only panel closes a female--male mean-score-error gap of
-$0.051\pm 0.001$; the adjusted power increment is consistent with
-zero ($0.004\pm 0.005$).
+\begin{table}[ht]
+\centering
+\caption{Integrated personalised LT-FH++ genotype GWAS, ten paired
+replicates.
+NCP is $(\overline{\chi^{2}}-1)$ over case/control.
+The last column is stratified-null $\lambda_{\mathrm{GC}}$ before
+and after the same covariate adjustment.}
+\label{tab:ltfhpp}
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Phenotype & adj.\ corr & adj.\ slope & NCP / c-c
+  & $\lambda$ raw${}\to{}$adj. \\
+\midrule
+case/control
+  & $0.586\pm 0.008$ & $1.123\pm 0.021$ & $1.000\times$
+  & $1.140\to 1.019$ \\
+ADuLT (no FH)
+  & $0.600\pm 0.008$ & $1.004\pm 0.018$ & $1.049\pm 0.004\times$
+  & $1.024\to 1.014$ \\
+classic LT-FH
+  & $0.629\pm 0.008$ & $1.183\pm 0.020$ & $1.149\pm 0.007\times$
+  & $1.131\to 0.990$ \\
+FH $+$ age CIP
+  & $0.639\pm 0.008$ & $1.009\pm 0.016$ & $1.189\pm 0.006\times$
+  & $0.998\to 1.018$ \\
+\textbf{LT-FH++}
+  & $\mathbf{0.640\pm 0.008}$ & $\mathbf{0.995\pm 0.015}$
+  & $\mathbf{1.194\pm 0.006\times}$
+  & $\mathbf{0.996\to 1.010}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-Read this as: under a known CIP and a deterministic onset map,
-family history still adds association signal after the
-proband's own $T_i$ is personalised, and most of that increment is
-already present once age is in the CIP.
+The paired LT-FH++ minus ADuLT increment is
+$+0.145\pm 0.015$ NCP-ratio units ($95\%$ CI half-width).
+Age accounts for most of the step beyond classic LT-FH
+($+0.040\pm 0.008$); cohort adds a further
+$+0.006\pm 0.002$; sex adds nothing to adjusted NCP
+($-0.0004\pm 0.0010$).
+A prespecified sex-only panel nevertheless closes a
+female--minus--male mean-score-error gap of
+$0.051\pm 0.001$.
+Sex-specific CIP is a calibration device in this design, not a
+proven power device.
+
+Read Table~\ref{tab:ltfhpp} as: under a known CIP and a
+deterministic onset map, family history still adds association
+signal after the proband's own $T_i$ is personalised, and most of
+that increment is already present once age is in the CIP.
 Do not read it as the increment you will see in a register, where
 onset is noisy and $K(t;s,b)$ is estimated.
 The pin-equals-liability identity is an assumption of the
 observation model, and the simulation honours it.
+A separate, no-SNP ablation on the same families (section~3 of
+the benchmark report) finds that replacing the pin with the
+interval $[T(\mathrm{onset}),\infty)$ keeps almost all of the
+onset increment except at high prevalence, where the pin adds
+another $0.01$--$0.02$ in the squared-correlation proxy.
+Most of what age of onset contributes is the lower bound, not the
+point mass.
+
+\subsection{Cohort confounding}
+\label{sec:confound}
+
+Because the BLUP weights in \eqref{eq:blup-trunc} do not depend on
+the $T_i$, a \emph{shared} threshold error is mostly a calibration
+shift.
+A \emph{stratum-specific} error also reorders scores, and---if the
+stratum is correlated with a marker---induces association on that
+marker.
+Table~\ref{tab:confound} is the designed case: a secular prevalence
+trend plus null SNPs correlated with birth year.
+
+\begin{table}[ht]
+\centering
+\caption{Stratified-null $\lambda_{\mathrm{GC}}$ under a lifetime
+prevalence trend of $R$ per $30$ birth years.
+Three replicates.
+Truly independent null SNPs stay near $1$ for every method.}
+\label{tab:confound}
+\small
+\begin{tabular}{@{}cccc@{}}
+\toprule
+$R$ / $30$\,y
+  & FH $+$ cohort $K$
+  & single-$K$ FH
+  & case/control \\
+\midrule
+$1$ & $0.960\pm 0.012$ & $0.960\pm 0.012$ & $0.899\pm 0.034$ \\
+$2$ & $0.964\pm 0.054$ & $4.539\pm 0.253$ & $2.008\pm 0.257$ \\
+$3$ & $0.922\pm 0.057$ & $10.275\pm 0.078$ & $4.616\pm 0.220$ \\
+$4$ & $1.007\pm 0.040$ & $16.460\pm 0.399$ & $7.666\pm 0.094$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At $R=1$ there is no trend-driven inflation.
+At $R=4$, cohort-blind family thresholds reach
+$\lambda_{\mathrm{GC}}=16.46\pm 0.40$; the same family model with
+cohort-specific $K$ stays at $1.007\pm 0.040$.
+Case/control is also inflated, just less so.
+This is the argument for treating personalised CIP as a
+confounding-control device, not only as a power tweak.
+It is an independent-SNP illustration of the cohort component; it
+is not the full age/sex/cohort LT-FH++ design of
+Table~\ref{tab:ltfhpp}.
+
+\subsection{Calibration, and a wrong $\h$}
+
+A correctly specified posterior mean is self-calibrating: the
+regression of true $a_i$ on $\widehat{\mu}_i$ has slope $1$.
+On the classic-LT-FH grid that slope sits on $1$ to within
+simulation error (e.g.\ $1.006\pm 0.008$ at $K=0.05$, parents $+$
+two sibs).
+One replicated departure remains: at $K=0.01$ with an extended
+pedigree the top-decile realised/predicted ratio is
+$0.946\pm 0.018$, about $3$\,SE below $1$.
+
+A wrong assumed $\h$ leaves the ranking almost untouched and
+tilts the scale.
+With true $\h=0.5$ and $K=0.05$, assumed $\h$ from $0.2$ to $0.8$
+sweeps the slope from $2.240\pm 0.015$ down to $0.678\pm 0.006$
+while $\Corr(\widehat{\mu},a)$ stays in $0.429$--$0.431$
+(SE $\le 0.004$).
+Use $\widehat{\mu}$ as a GWAS phenotype or a ranker under a
+roughly right $\h$; do not treat its numerical scale as
+$\E[a_i\mid C_F]$ unless $\h$ is the one the score was computed
+at.
+
+Heavy tails, generative assortment at phenotypic $\rho\approx 0.3$,
+and an unmodelled sibship $c^{2}=0.15$ each move the slope by only
+$0.01$--$0.03$ and cost at most $0.007$ in correlation.
+A factor-of-two error in prevalence moves the slope to $0.89$ or
+$1.13$.
+Threshold provenance is the calibration hazard; the Gaussian
+family model is not.
 
 \subsection{Complementarity with a PGS}
 
 Five replicates, $10{,}000$ probands, $2{,}000$ independent SNPs,
 $50/50$ train/test, PGS trained on the train case/control GWAS
 (infinitesimal weights; no LD to shrink).
-Against held-out $a_i$, test $R^{2}$ is $0.236\pm 0.009$ (PGS),
-$0.170\pm 0.003$ (classic LT-FH), $0.339\pm 0.009$ (OLS on both).
+Table~\ref{tab:pgs} is scored against held-out $a_i$.
+
+\begin{table}[ht]
+\centering
+\caption{PGS and classic LT-FH on a held-out test half.
+$R^{2}$ is against true $a_i$.
+The joint model is OLS on the two scores.}
+\label{tab:pgs}
+\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Score & $\Corr(\,\cdot\,,a_i)$ & $R^{2}$ \\
+\midrule
+case/control label
+  & $0.343\pm 0.007$ & $0.118\pm 0.005$ \\
+PGS
+  & $0.485\pm 0.009$ & $0.236\pm 0.009$ \\
+LT-FH (PA)
+  & $0.413\pm 0.003$ & $0.170\pm 0.003$ \\
+PGS $+$ LT-FH
+  & --- & $0.339\pm 0.009$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 Incremental $R^{2}$: $+0.104\pm 0.007$ for LT-FH over PGS,
-$+0.169\pm 0.019$ for PGS over LT-FH.
+$+0.169\pm 0.019$ for PGS over LT-FH
+($95\%$ CI half-widths).
 Observed $\Corr(\mathrm{PGS},\mu)=0.2009\pm 0.0046$ against
 \eqref{eq:pgs-fh} at $p=1$ ($0.2003\pm 0.0050$).
 Conditional independence holds by construction here.
 That is a verification of the identity, not a test of the
 failure modes.
+The portable number is the increment, not the absolute $R^{2}$:
+$2{,}000$ independent SNPs are a friendlier multiple-testing
+regime than a genome-wide panel.
+
+\subsection{The censoring mixture}
+
+The mixture \eqref{eq:mix} is PA-only.
+A generative check (five replicates of $20{,}000$ nuclear
+families; mid-life and old-age censoring; three onset models)
+finds no ranking cost that survives a paired contrast: all ten
+$\Delta\Corr$ $95\%$ CIs are tighter than $\pm 0.0002$, and the
+largest point cost is $-0.00034$.
+Every $\Delta$slope CI excludes zero; the mixture always lowers
+the slope, by $0.007$--$0.025$, and most strongly under heavy
+censoring.
+
+The third onset model is a Gaussian copula of strength
+$\rho=0.6$ between liability and the CIP quantile among lifetime
+cases.
+Higher liability then advances onset, with residual noise.
+Plain age truncation is no longer exact, and neither is the pin.
+Pinned slope falls to $0.92$ under heavy censoring.
+The lifetime-interval slope sits at $1.13$, between the crossing
+($1.20$) and stochastic ($1.03$) extremes.
+
+Case encoding still dominates calibration, but the right encoding
+depends on the onset model.
+Pin cases at their onset threshold when the crossing model is
+believed; use the lifetime interval when onset ages are unreliable
+or only partly liability-dependent.
+There is still no Gibbs implementation of \eqref{eq:mix}, so this
+paragraph is not a PA--Gibbs comparison.
 
 \subsection{Moment recovery of \(\h\) and \(C\)}
 
@@ -710,8 +1004,8 @@ selection & case share & unweighted $\widehat{\h}$ & IPW $\widehat{\h}$ \\
 \midrule
 none (population)      & $0.050$ & $0.523$ & --- \\
 random $50\%$ (control)& $0.049$ & $0.506$ & --- \\
-$50/50$ case/control   & $0.499$ & $1.000$ & $0.456$ \\
-$20\%$ case-enriched   & $0.199$ & $1.000$ & $0.481$ \\
+$50/50$ case/control   & $0.499$ & $1.000$ & $0.495$ \\
+$20\%$ case-enriched   & $0.199$ & $1.000$ & $0.473$ \\
 affected proband       & $1.000$ & $1.000$ & $\dagger$ \\
 any affected member    & $0.293$ & $1.000$ & $\dagger$ \\
 affected relative only & $0.000$ & $1.000$ & $\dagger$ \\
@@ -744,6 +1038,32 @@ so under proband ascertainment every augmented proband is redrawn
 above $T$, its relatives are pulled with it, and the cross-products
 stay positive whatever the truth.
 
+\subsection{Which relatives, and leaking the outcome}
+
+On five simulated three-generation populations, scoring every
+relative out to third degree rather than the named-role grammar
+(parents, full sibs, grandparents) raises
+$\Corr(\widehat{\mu},a)$ from $0.498\pm 0.016$ to
+$0.569\pm 0.013$ (paired $+0.071\pm 0.006$, $95\%$ CI
+$[0.054,0.089]$).
+The increment is the LT-FGRS point: the degree limit chooses
+\emph{which} people enter $C_F$, not the kinship among those who
+do.
+An ancestral closure is required for that kinship to be exact.
+
+For prospective prediction the proband's own future diagnosis must
+not enter $C_F$ (Section~\ref{sec:estimand}).
+On five synthetic registers the honest familywise-censored score
+has rank AUC $0.581\pm 0.031$ for diagnosis in $(40,70]$ after
+index age $40$.
+Relatives' post-index events raise AUC by
+$+0.065\pm 0.014$ (they help discrimination; they are leakage for
+a prospective claim).
+The proband's own future outcome raises AUC by
+$+0.204\pm 0.016$.
+Honest censoring costs real accuracy, and leaking the answer buys
+plenty.
+
 %----------------------------------------------------------------------
 \section{What this does not do}
 \label{sec:limits}
@@ -770,9 +1090,10 @@ A linear GWAS of those scores without a mixed model, or without
 pruning to non-overlapping families, is the analysis
 Zhuang et al.\ \cite{zhuang2022} warned about.
 
-Three evidence gaps would change how hard Section~\ref{sec:results}
+Four evidence gaps would change how hard Section~\ref{sec:results}
 should be leaned on: a locked vector comparison to LTFHPlus, a
-real-LD GWAS, and a Gibbs implementation of \eqref{eq:mix}.
+real-LD GWAS, a Gibbs implementation of \eqref{eq:mix}, and a
+liability-dependent onset-timing arm for the mixture.
 
 \paragraph{Software.}
 \texttt{ltpred} is a Python implementation of the construction

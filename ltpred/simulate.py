@@ -27,6 +27,7 @@ import numpy as np
 
 from .covariance import construct_covmat_single
 from .family import Family, Member
+from ._mathfun import norm_cdf, norm_ppf
 from .thresholds import (liability_threshold, convert_liability_to_aoo,
                          convert_age_to_thresh, _convert_cir_to_age)
 
@@ -49,8 +50,9 @@ _AGE_RANGES = {
     "c": (0, 30),
 }
 
-_ONSET_MODELS = ("threshold_crossing", "stochastic")
+_ONSET_MODELS = ("threshold_crossing", "stochastic", "liability_dependent")
 _CASE_ENCODINGS = ("pin", "interval", "lifetime")
+_DEFAULT_ONSET_RHO = 0.6
 
 
 def _role_stem(role):
@@ -97,6 +99,7 @@ class Simulation:
     onset: dict = None
     onset_model: str = None
     case_encoding: str = None
+    onset_rho: float = None
 
     @property
     def genetic(self):
@@ -137,12 +140,28 @@ def _validate_onset_resolution(onset_resolution):
     return onset_resolution
 
 
-def _resolve_age_options(use_age, onset_model, case_encoding):
+def _validate_onset_rho(onset_rho, default=_DEFAULT_ONSET_RHO):
+    if onset_rho is None:
+        return float(default)
+    if isinstance(onset_rho, (bool, np.bool_)):
+        raise TypeError("onset_rho must be a number in [0, 1]")
+    try:
+        rho = float(onset_rho)
+    except (TypeError, ValueError) as exc:
+        raise TypeError("onset_rho must be a number in [0, 1]") from exc
+    if not np.isfinite(rho) or rho < 0.0 or rho > 1.0:
+        raise ValueError("onset_rho must be in [0, 1]")
+    return rho
+
+
+def _resolve_age_options(use_age, onset_model, case_encoding, onset_rho=None):
     if not use_age:
-        if onset_model is not None or case_encoding is not None:
+        if (onset_model is not None or case_encoding is not None
+                or onset_rho is not None):
             raise ValueError(
-                "onset_model and case_encoding apply only when use_age=True")
-        return None, None
+                "onset_model, case_encoding and onset_rho apply only when "
+                "use_age=True")
+        return None, None, None
     if onset_model is None:
         onset_model = "threshold_crossing"
     if onset_model not in _ONSET_MODELS:
@@ -153,10 +172,16 @@ def _resolve_age_options(use_age, onset_model, case_encoding):
     if case_encoding not in _CASE_ENCODINGS:
         raise ValueError(
             f"case_encoding must be one of {_CASE_ENCODINGS}, got {case_encoding!r}")
-    return onset_model, case_encoding
+    if onset_model == "liability_dependent":
+        onset_rho = _validate_onset_rho(onset_rho)
+    elif onset_rho is not None:
+        raise ValueError(
+            "onset_rho applies only when onset_model='liability_dependent'")
+    return onset_model, case_encoding, onset_rho
 
 
-def _onset_times(liab, pop_prev, mid_point, slope, onset_model, lifetime_t, rng):
+def _onset_times(liab, pop_prev, mid_point, slope, onset_model, lifetime_t, rng,
+                 onset_rho=0.0):
     """Per-person onset age; ``inf`` means never affected in this lifetime."""
     n = liab.shape[0]
     onset = np.full(n, np.inf)
@@ -166,14 +191,25 @@ def _onset_times(liab, pop_prev, mid_point, slope, onset_model, lifetime_t, rng)
         finite = np.isfinite(aoo)
         onset[finite] = np.maximum(aoo[finite], 0.0)
         return onset
-    # Stochastic: lifetime case if l > T; onset ~ CIP among lifetime cases,
-    # independent of the value of l given that. Pinning at T(onset) is then
-    # *not* the true liability — the point of this mode.
+    # Lifetime case if l > T. Among those cases, onset is drawn from the CIP:
+    # independently of l when onset_rho = 0 (``stochastic``), or with a
+    # Gaussian copula of strength onset_rho toward the crossing quantile
+    # (``liability_dependent``). Pinning at T(onset) is then *not* the true
+    # liability unless onset_rho = 1.
     lifetime_case = liab > lifetime_t
     if not np.any(lifetime_case):
         return onset
     u = rng.random(int(lifetime_case.sum()))
-    cir = np.clip(u * pop_prev, 1e-12, pop_prev * (1.0 - 1e-12))
+    rho = 0.0 if onset_model == "stochastic" else float(onset_rho)
+    if rho == 0.0:
+        cir = np.clip(u * pop_prev, 1e-12, pop_prev * (1.0 - 1e-12))
+    else:
+        l_case = liab[lifetime_case]
+        q_dep = np.clip((1.0 - norm_cdf(l_case)) / pop_prev, 1e-12, 1.0 - 1e-12)
+        z_dep = norm_ppf(q_dep)
+        z_ind = norm_ppf(np.clip(u, 1e-12, 1.0 - 1e-12))
+        z = rho * z_dep + np.sqrt(max(0.0, 1.0 - rho * rho)) * z_ind
+        cir = np.clip(norm_cdf(z), 1e-12, 1.0 - 1e-12) * pop_prev
     onset[lifetime_case] = _convert_cir_to_age(
         cir, pop_prev=pop_prev, mid_point=mid_point, slope=slope)
     return onset
@@ -188,7 +224,8 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
                               slope: float = 1.0 / 8.0, seed: int | None = None,
                               onset_model: str | None = None,
                               case_encoding: str | None = None,
-                              onset_resolution: float | None = 1.0) -> Simulation:
+                              onset_resolution: float | None = 1.0,
+                              onset_rho: float | None = None) -> Simulation:
     """Simulate ``n_sim`` families for a single trait.
 
     Builds the covariance from ``fam_vec``/``n_fam`` (``g``/``o`` prepended when
@@ -200,14 +237,18 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     With ``use_age=True`` current ages are generation-consistent, and a person
     is an observed case only if their onset age is at most their current age.
     ``onset_model`` is ``"threshold_crossing"`` (default: onset is the CIP
-    inverse of true liability — the LT-FH++ convention) or ``"stochastic"``
-    (lifetime status at ``T``, onset drawn
-    from the CIP independently of ``l`` given being a lifetime case).
+    inverse of true liability — the LT-FH++ convention), ``"stochastic"``
+    (lifetime status at ``T``, onset drawn from the CIP independently of
+    ``l`` given being a lifetime case), or ``"liability_dependent"`` (same
+    lifetime status, but onset is coupled to ``l`` by a Gaussian copula of
+    strength ``onset_rho``, default 0.6: higher liability tends to earlier
+    onset, with residual noise). ``rho = 0`` recovers ``stochastic``;
+    ``rho = 1`` recovers ``threshold_crossing`` among lifetime cases.
     ``case_encoding`` is ``"pin"`` (default for threshold-crossing),
     ``"interval"`` (age-specific ``[T(onset), inf)``), or ``"lifetime"``
-    (default for stochastic: ``[T, inf)``). This helper has one logistic CIP
-    and does not simulate the full sex/birth-cohort personalisation of
-    LT-FH++.
+    (default for stochastic and liability-dependent: ``[T, inf)``). This
+    helper has one logistic CIP and does not simulate the full
+    sex/birth-cohort personalisation of LT-FH++.
 
     ``onset_resolution`` is the grid a register is taken to **record** onset on,
     in years (default ``1.0``, whole years; ``None`` records the exact simulated
@@ -219,8 +260,8 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     bound sits within roughly 0.02 of the simulated liability (about 2% of its
     SD), which is a floor on any measured recovery — realistic, but not zero."""
     onset_resolution = _validate_onset_resolution(onset_resolution)
-    onset_model, case_encoding = _resolve_age_options(
-        use_age, onset_model, case_encoding)
+    onset_model, case_encoding, onset_rho = _resolve_age_options(
+        use_age, onset_model, case_encoding, onset_rho)
     cov_obj = construct_covmat_single(fam_vec=fam_vec, n_fam=n_fam,
                                       add_ind=add_ind, h2=h2)
     roles = cov_obj.roles
@@ -237,7 +278,8 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
         ages = _draw_ages(non_g, n_sim, rng)
         onset = {
             r: _onset_times(liab[:, roles.index(r)], pop_prev, mid_point, slope,
-                            onset_model, t, rng)
+                            onset_model, t, rng,
+                            onset_rho=0.0 if onset_rho is None else onset_rho)
             for r in non_g
         }
         status = {r: onset[r] <= ages[r] for r in non_g}
@@ -279,4 +321,4 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     return Simulation(roles=roles, covmat=cov_obj.matrix, liabilities=liab,
                       status=status, families=families, pop_prev=pop_prev,
                       ages=ages, onset=onset, onset_model=onset_model,
-                      case_encoding=case_encoding)
+                      case_encoding=case_encoding, onset_rho=onset_rho)

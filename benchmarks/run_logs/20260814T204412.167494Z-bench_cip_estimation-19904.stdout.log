@@ -1,0 +1,16 @@
+CIP estimation benchmark (known true logistic CIP)
+seed=20260719  N=50000  K_pop=0.1  mid=60.0 slope=0.125
+
+Part 1 (no mortality, n=49995, events=2741): max|est-true| 0.0013, fraction of age-grid truths inside pointwise ±2SE bands 1.00
+Part 2 (mortality, death share 0.42):
+  AJ vs true crude CIF:       max err 0.0017  (its estimand)
+  KM vs true crude CIF:       max err 0.0218  <- competing-risks overestimation
+  KM vs marginal no-death CIP: max err 0.0019  (KM is consistent for its own, different estimand)
+Part 3 (delayed entry from 1995, n=36759): AJ vs true crude CIF max err 0.0019
+
+Part 4 (end-to-end): estimated CIP -> thresholds_from_cip -> estimate_liability
+  oracle     slope 1.0015  corr 0.3861
+  estimated  slope 0.9969  corr 0.3861
+
+wrote bench_cip_estimation.csv
+runtime 30s

@@ -21,6 +21,7 @@ Run:  conda run -n ltpred python benchmarks/bench_tetrachoric.py
 
 from __future__ import annotations
 
+import csv
 import os
 import sys
 import time
@@ -107,7 +108,29 @@ def main():
     R = tetrachoric_matrix(X)
     print("\n  tetrachoric_matrix on [o, m, f, s1] (expected h2*A block):")
     print("  " + np.array2string(R, precision=3, suppress_small=True))
-    print(f"\nruntime {time.time() - t0:.0f}s")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "bench_tetrachoric.csv")
+    with open(out, "w", newline="") as fh:
+        writer = csv.DictWriter(
+            fh, fieldnames=("pair", "expected", "tetrachoric", "se",
+                            "latent_corr"),
+            lineterminator="\n")
+        writer.writeheader()
+        for a, b, e in PAIRS:
+            writer.writerow(dict(
+                pair=f"{a}-{b}", expected=e,
+                tetrachoric=float(np.mean(est[(a, b)])),
+                se=float(np.std(est[(a, b)], ddof=1) / np.sqrt(REPS)),
+                latent_corr=float(np.mean(latent_corr[(a, b)])),
+            ))
+        writer.writerow(dict(
+            pair="falconer_h2", expected=H2,
+            tetrachoric=float(np.mean(h2_falconer)),
+            se=float(np.std(h2_falconer, ddof=1) / np.sqrt(REPS)),
+            latent_corr=float(np.mean(h2_fit)),
+        ))
+    print(f"\nwrote {os.path.basename(out)}")
+    print(f"runtime {time.time() - t0:.0f}s")
 
 
 if __name__ == "__main__":

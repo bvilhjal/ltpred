@@ -51,7 +51,7 @@ which need an estimator that models the selection; those are detected and
 rejected rather than silently fitted. Section 29 of the benchmark report
 quantifies the uncorrected damage (at true `h² = 0`, every phenotype-selected
 design returns `h² = 1.0`) and the IPW recovery (a 50/50 case/control cohort
-returns from 1.000 to 0.456 against a truth of 0.5, at an efficiency cost).
+returns from 1.000 to 0.495 against a truth of 0.5, at an efficiency cost).
 `fit_variance_components` fits additive `A` and a **bank of relationship-specific
 shared-environment components** — `C` (sibship, from the full-sib excess) and `M`
 (couple, from the `A = 0` mate pairs) — together by a **multiple Haseman–Elston
@@ -292,13 +292,12 @@ likelihood-based inference) to the pedigree/registry setting.
    sex-isolation panel shows a clear stratum-calibration benefit but no resolved
    adjusted-power increment, rather than conflating those two claims. **Mixture validation**
    is now done (`bench_pafgrs_mixture.py`, RESULTS.md section 16): generative
-   validation under both the threshold-crossing and the stochastic-onset
-   observation models. The mixture behaves as intended in those tested designs,
-   and the mean correlation differences are at most 0.0005, but paired
-   uncertainty was not retained; the benchmark therefore does not establish
-   non-inferiority or zero correlation cost. Its censoring correction is small
-   at the tested settings, and the case encoding (pinned vs lifetime vs
-   interval) dominates calibration there.
+   validation under threshold-crossing, stochastic-onset, and
+   liability-dependent onset (ρ = 0.6), with paired mixture-minus-no-mixture
+   contrasts. All ten Δcorr 95% CIs are tighter than ±0.0002; every Δslope
+   CI excludes zero. Case encoding dominates calibration, and the pin is
+   calibrated only under threshold crossing (slope 0.92 at ρ = 0.6 under
+   heavy censoring). There is still no Gibbs implementation of the mixture.
 
 6. ~~**Censoring-aware CIPs.**~~ **Done.** `ltpred/cip.py` estimates the
    cumulative-incidence curve from registry-style follow-up records (entry age,

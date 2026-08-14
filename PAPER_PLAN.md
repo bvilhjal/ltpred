@@ -55,7 +55,7 @@ docs/RELEASING.md).
 | Inference calibration (Type-I, coverage) | bench_inference_calibration | ✅ + r_g-test null (W2) |
 | R LTFHPlus numerical comparison | NEW (small) | ⛔ needs `remotes::install_github("EmilMiP/LTFHPlus")` (R exists at /usr/local/bin/R) |
 | Competitor estimator for h² (LDSC/GREML-style) | via ldpred3 `ldsc_h2` arm in bench_pgs_comparison | 🚧 (W1, optional) |
-| Misspecification / assumption stress | bench_misspecification + liability-dependent-onset arm | partial ✅; onset-timing arm (later) |
+| Misspecification / assumption stress | bench_misspecification + liability-dependent-onset arm | ✅ onset-timing arm in §16 (ρ=0.6 copula; pin slope 0.92) |
 
 ## Provenance and structure rules (durable fixes, W1)
 
@@ -98,10 +98,10 @@ docs/RELEASING.md).
 
 **Wave 2 (this session, after wave 1):** ✅ done 2026-08-10
 - W2-A §16: bench_pafgrs_mixture retains per-replicate paired differences
-  (new CSV). **Verdict:** all six Δcorr CIs tighter than ±0.0002 (cost at
-  most 0.1% of level — bounded, practically negligible); every Δslope CI
-  excludes zero (the mixture always lowers slope, toward 1 where the naive
-  encoding under-conditions).
+  (new CSV). **Verdict (updated 2026-08-14):** all ten Δcorr CIs — including
+  the liability-dependent ρ = 0.6 arm — tighter than ±0.0002; every Δslope
+  CI excludes zero. Pinning is calibrated only under threshold crossing
+  (slope 0.92 at ρ = 0.6, heavy censoring).
 - W2-B: bench_inference_calibration Part 4 — `test_genetic_correlation`
   under the r_g = 0 null: **0/25 rejections at 0.05** (CP CI 0–0.14).
   bench_pa_robustness now 3-seed (§14 rewritten with across-seed mean ± SE;
@@ -110,8 +110,8 @@ docs/RELEASING.md).
 **Blocked / later (not this session):**
 - HAPNEST real-LD run (needs singularity; Linux VM or remote host).
 - R LTFHPlus numerical comparison (needs LTFHPlus installed in R).
-- Liability-dependent-onset-timing generative arm for the mixture
-  (assumption-stress; design needed).
+- ~~Liability-dependent-onset-timing generative arm for the mixture~~
+  done 2026-08-14 (`onset_model="liability_dependent"`, ρ=0.6; RESULTS §16).
 - GREML-class competitor for the h² fitter (needs GCTA; LDSC arm via ldpred3
   covers part of the question in W1-A).
 - Kendler-FGRS prediction baseline (implement from the 2021 paper; affected-

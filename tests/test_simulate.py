@@ -145,6 +145,66 @@ def test_age_options_rejected_without_use_age():
         simulate_under_LTM_single(use_age=False, onset_model="stochastic")
 
 
+def test_liability_dependent_rho_one_matches_crossing():
+    kwargs = dict(fam_vec=["m", "f"], h2=0.5, n_sim=2000, pop_prev=0.2,
+                  use_age=True, seed=21, onset_resolution=None)
+    crossing = simulate_under_LTM_single(onset_model="threshold_crossing",
+                                         **kwargs)
+    dependent = simulate_under_LTM_single(
+        onset_model="liability_dependent", onset_rho=1.0, **kwargs)
+    # Same liabilities (same seed) so lifetime cases match; rho=1 recovers
+    # the crossing onset among those cases.
+    assert np.allclose(crossing.liabilities, dependent.liabilities)
+    for role in ("o", "m", "f"):
+        lifetime = np.isfinite(crossing.onset[role])
+        assert lifetime.any()
+        assert np.allclose(crossing.onset[role][lifetime],
+                           dependent.onset[role][lifetime], atol=1e-6)
+
+
+def test_liability_dependent_rho_zero_matches_stochastic():
+    kwargs = dict(fam_vec=["m"], h2=0.5, n_sim=1500, pop_prev=0.2,
+                  use_age=True, seed=22, onset_resolution=None)
+    stochastic = simulate_under_LTM_single(onset_model="stochastic", **kwargs)
+    independent = simulate_under_LTM_single(
+        onset_model="liability_dependent", onset_rho=0.0, **kwargs)
+    assert np.allclose(stochastic.liabilities, independent.liabilities)
+    for role in ("o", "m"):
+        assert np.allclose(stochastic.onset[role], independent.onset[role],
+                           equal_nan=True)
+
+
+def test_liability_dependent_advances_onset_with_liability():
+    sim = simulate_under_LTM_single(
+        fam_vec=["m"], h2=0.5, n_sim=4000, pop_prev=0.25, use_age=True,
+        onset_model="liability_dependent", onset_rho=0.6, seed=23,
+        onset_resolution=None)
+    o = sim.roles.index("o")
+    lifetime = np.isfinite(sim.onset["o"])
+    assert lifetime.sum() > 50
+    corr = np.corrcoef(sim.liabilities[lifetime, o], sim.onset["o"][lifetime])[0, 1]
+    # Higher liability -> earlier onset, but not the crossing identity.
+    assert corr < -0.3
+    case, pins, _ = _proband_case_pins(sim)
+    assert case.any()
+    # Default encoding is lifetime, so observed cases share the population T.
+    assert np.allclose(pins[case], pins[case][0])
+
+
+@pytest.mark.parametrize("bad", [-0.1, 1.1, np.nan, True])
+def test_onset_rho_is_validated(bad):
+    with pytest.raises((ValueError, TypeError), match="onset_rho"):
+        simulate_under_LTM_single(n_sim=2, use_age=True,
+                                  onset_model="liability_dependent",
+                                  onset_rho=bad)
+
+
+def test_onset_rho_rejected_on_other_models():
+    with pytest.raises(ValueError, match="onset_rho"):
+        simulate_under_LTM_single(n_sim=2, use_age=True,
+                                  onset_model="stochastic", onset_rho=0.5)
+
+
 def test_child_roles_get_the_child_age_range():
     # "c1.2".rstrip("0123456789") stops at the dot and yields "c1.", so the
     # _AGE_RANGES["c"] entry was unreachable and children drew adult ages.

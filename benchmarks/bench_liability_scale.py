@@ -33,6 +33,7 @@ Run:  conda run -n ltpred python benchmarks/bench_liability_scale.py
 
 from __future__ import annotations
 
+import csv
 import os
 import sys
 import time
@@ -179,7 +180,25 @@ def main():
         m = rows[:, k].mean()
         s = rows[:, k].std(ddof=1) / np.sqrt(REPS)
         print(f"  {name:28s} {m:8.4f} ± {s:.4f}")
-    print(f"\nruntime {time.time() - t0:.0f}s")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "bench_liability_scale.csv")
+    with open(out, "w", newline="") as fh:
+        writer = csv.DictWriter(
+            fh, fieldnames=("route", "mean", "se", "target"),
+            lineterminator="\n")
+        writer.writeheader()
+        # joint recovers probit scale; Lee bridge recovers the fraction.
+        # marginal/z/OLS are attenuated — no single target.
+        targets = [VXB, np.nan, np.nan, np.nan, lee_truth]
+        for k, name in enumerate(names):
+            writer.writerow(dict(
+                route=name,
+                mean=float(rows[:, k].mean()),
+                se=float(rows[:, k].std(ddof=1) / np.sqrt(REPS)),
+                target=("" if not np.isfinite(targets[k]) else targets[k]),
+            ))
+    print(f"\nwrote {os.path.basename(out)}")
+    print(f"runtime {time.time() - t0:.0f}s")
 
 
 if __name__ == "__main__":

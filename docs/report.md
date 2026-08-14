@@ -16,7 +16,13 @@ tectonic -X compile ltpred_methods.tex
 
 The report states the estimand and assumptions first, then the
 liability-threshold model and BLUP identity, both inference engines,
-the population-sampling fitting contract, architecture notes, and
-the headline benchmark tables. Those tables are historical snapshots;
-see [`benchmarks/RESULTS.md`](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
+the implementation (grouping, streaming batch-means, object vs array
+path, posterior `var` vs estimator `se`), the population-sampling
+fitting contract, and the load-bearing simulation tables — agreement
+and speed, GWAS NCP, personalisation, cohort confounding, calibration,
+PGS complementarity, the censoring mixture (including
+liability-dependent onset), pin versus interval encodings, and
+ascertainment.
+Those tables are historical snapshots; see
+[`benchmarks/RESULTS.md`](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
 for provenance.

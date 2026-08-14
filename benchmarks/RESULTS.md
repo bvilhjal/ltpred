@@ -71,15 +71,40 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   **1.194 ± 0.006×**. The paired LT-FH++ minus ADuLT increment is
   **+0.1454 ± 0.0154** NCP-ratio units (95% CI half-width). Full LT-FH++ has
   adjusted calibration slope **0.995 ± 0.015** and PA/Gibbs agreement 0.99990.
+- **Cohort-blind family thresholds inflate stratified-null λ_GC; cohort-aware thresholds do not.**
+  At a 4× lifetime-prevalence trend per 30 birth years, single-K family
+  thresholds reach **16.460 ± 0.399**; the same family model with cohort-specific
+  K stays at **1.007 ± 0.040**. Independent null SNPs stay near 1 for every
+  method. Personalised CIP is a confounding-control device, not only a power
+  tweak.
 - **Sex-specific CIP improves stratum calibration, not proven adjusted power.**
   In a prespecified sex-only scenario, correct sex curves close the female-minus-
   male mean-score-error gap by **0.05091 ± 0.00096** (paired 95% CI), while the
   adjusted NCP-ratio increment is **0.0040 ± 0.0046** and remains unresolved.
-- **Cohort personalisation has two distinct benefits.** In a narrow living-proband
-  pedigree it mainly corrects a mean-score shift; in the family-free ADuLT panel,
-  cases spanning ±55 birth years reach corr 0.512 ± 0.007 with cohort-aware
-  thresholds versus 0.397 ± 0.017 when cohort is ignored (about 1.66× in
-  the squared-correlation eff-N proxy).
+- **A correctly specified posterior mean is self-calibrating; a wrong h² is not.**
+  On the classic-LT-FH grid, calibration slope sits on 1 (e.g. 1.006 ± 0.008 at
+  K=0.05). Assumed h² from 0.2 to 0.8 sweeps the slope from 2.240 ± 0.015 to
+  0.678 ± 0.006 while ranking stays in 0.429–0.431. Use the score as a ranker
+  or GWAS phenotype under a roughly right h²; do not treat its scale as
+  E[g | family] unless h² is the one it was computed at.
+- **A PGS and the family-history score are complementary.**
+  On a 50/50 train/test split, test R² against held-out g is
+  **0.236 ± 0.009** (PGS), **0.170 ± 0.003** (classic LT-FH) and
+  **0.339 ± 0.009** (OLS on both). Observed corr(PGS, LT-FH) is 0.2009 ± 0.0046
+  against the `a·b·√p` prediction 0.2003 ± 0.0050 (`p = 1` by construction).
+- **The PA-FGRS mixture has no measurable ranking cost; case encoding dominates calibration.**
+  All ten paired Δcorr 95% CIs (including the liability-dependent onset arm)
+  are tighter than ±0.0002. Under threshold crossing, pinned cases stay near
+  slope 1. When onset only *tends* to track liability (ρ = 0.6), pinning
+  over-conditions (slope 0.92 under heavy censoring). The lifetime interval
+  under-conditions (slope up to 1.20); an age-specific case interval
+  over-disperses (slope ≈ 0.83).
+- **Phenotype ascertainment pins the heritability fitter at the clamp.**
+  At true h² = 0 every phenotype-selected design returns h² = 1.0. Inverse-
+  probability weighting recovers a 50/50 case/control cohort from 1.000 to
+  **0.495** (truth 0.5; weights up to 19) and a 20%-enriched cohort to
+  **0.473**. Designs with a zero inclusion probability in some stratum cannot
+  be reweighted.
 - **Variance-component point estimates need sampling uncertainty.** The fitter's
   reported Monte Carlo SE is much smaller than empirical across-cohort SD. Use
   family bootstrap intervals for inference. A constrained component estimate at
@@ -162,19 +187,25 @@ array APIs separately.
 
 Three independent cohorts per cell, 3,000 families, eight
 relatives. Gibbs is a first-replicate cross-check only (`gibbs_reps=1`).
+The same simulated families are scored three ways: classic LT-FH (lifetime
+case interval), interval (`[T(onset), ∞)`), and pin (`T(onset)` as a
+point). Onset is the CIP inverse of true liability.
 
-| h² | K | classic LT-FH corr (PA) | FH + onset corr (PA) | first-rep FH + onset Gibbs | squared-correlation eff-N proxy: onset / classic |
-|---:|---:|---:|---:|---:|---:|
-| 0.5 | 0.05 | 0.4275 ± 0.0100 | 0.4297 ± 0.0101 | 0.4232 | 1.0102 ± 0.0016× |
-| 0.5 | 0.30 | 0.6342 ± 0.0036 | 0.6604 ± 0.0028 | 0.6646 | 1.0844 ± 0.0081× |
-| 0.8 | 0.30 | 0.7434 ± 0.0050 | 0.7754 ± 0.0046 | 0.7834 | 1.0879 ± 0.0018× |
+| h² | K | classic | pin | interval | pin / classic | interval / classic |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0.5 | 0.05 | 0.430 ± 0.004 | 0.433 ± 0.004 | 0.433 ± 0.004 | 1.018 ± 0.006× | 1.017 ± 0.005× |
+| 0.5 | 0.30 | 0.638 ± 0.005 | 0.666 ± 0.004 | 0.662 ± 0.004 | 1.089 ± 0.005× | 1.076 ± 0.003× |
+| 0.8 | 0.30 | 0.740 ± 0.003 | 0.774 ± 0.004 | 0.767 ± 0.004 | 1.093 ± 0.002× | 1.073 ± 0.001× |
 
-Both main columns use PA and condition on the same family; Gibbs is only the
-first-replicate agreement check. This is an LT-FH++ age-component ablation over
-classic LT-FH, not ADuLT and not raw case/control. The mean squared-correlation
-eff-N proxy over the eight-cell grid is 1.037×. Onset information matters
-most when enough relatives are observed as cases; at low prevalence its
-increment is small. Minimum first-replicate PA/Gibbs agreement is 0.998964.
+All three columns use PA and condition on the same family; Gibbs is only the
+first-replicate agreement check on the pin. This is an LT-FH++ age-component
+ablation over classic LT-FH, not ADuLT and not raw case/control. Mean pin /
+classic squared-correlation eff-N proxy over the eight-cell grid is 1.041×;
+interval / classic is 1.036×. At low prevalence pin and interval are
+indistinguishable. At K = 0.30 the pin adds a further ~0.01–0.02× over the
+interval: most of the onset increment is knowing the case is at least that
+extreme, not the pin-equals-liability identity. Minimum first-replicate
+PA/Gibbs agreement is 0.99897.
 
 ## 4. Replicated classic-LT-FH genotype GWAS (`bench_gwas_power.py`)
 
@@ -411,10 +442,10 @@ birth cohort; truly independent null SNPs stay near 1 for every method.
 
 | prevalence trend R per 30 y | FH + cohort-specific K | single-K FH | case/control |
 |---:|---:|---:|---:|
-| 1 | 0.960 ± 0.011 | 0.960 ± 0.011 | 0.899 ± 0.034 |
-| 2 | 0.965 ± 0.054 | 4.539 ± 0.252 | 2.008 ± 0.257 |
-| 3 | 0.922 ± 0.057 | 10.274 ± 0.077 | 4.616 ± 0.220 |
-| 4 | 1.008 ± 0.041 | 16.461 ± 0.397 | 7.666 ± 0.094 |
+| 1 | 0.960 ± 0.012 | 0.960 ± 0.012 | 0.899 ± 0.034 |
+| 2 | 0.964 ± 0.054 | 4.539 ± 0.253 | 2.008 ± 0.257 |
+| 3 | 0.922 ± 0.057 | 10.275 ± 0.078 | 4.616 ± 0.220 |
+| 4 | 1.007 ± 0.040 | 16.460 ± 0.399 | 7.666 ± 0.094 |
 
 This benchmark isolates the cohort component in a family model; it is not the
 full age/sex/cohort LT-FH++ design. At R=1 there is no trend-driven inflation;
@@ -525,9 +556,13 @@ under the liability-threshold model with a logistic CIP (h2 = 0.5, lifetime
 prevalence 0.10, mid-point 60), censors honestly (a case is observed only if
 its onset precedes the current age), and scores the estimate against the true
 genetic liability over 5 replicates of 20,000 families. Two censoring regimes
-(mid-life, heavy; old, light) and two observation models: the LT-FH++
-threshold-crossing convention, and a stochastic-onset model in which onset age
-is drawn from the CIP independent of liability (the mixture's native model).
+(mid-life, heavy; old, light) and three observation models: the LT-FH++
+threshold-crossing convention; a stochastic-onset model in which onset age
+is drawn from the CIP independent of liability (the mixture's native model);
+and a liability-dependent copula (ρ = 0.6) in which higher liability
+advances onset with residual noise — the assumption-stress arm, because
+the mixture treats future cases as a random draw from the above-threshold
+tail.
 Slope = regress(true on estimate); 1.0 is a calibrated posterior mean. `±` is
 the across-replicate SE. Every replicate's corr/slope is retained in
 `bench_pafgrs_mixture.csv` (long format: one row per model x regime x rep x
@@ -546,14 +581,24 @@ Threshold-crossing observation model:
 (Gibbs cross-check on base + no-mixture: corr(PA, Gibbs) 0.9992 / 0.9998,
 matching slopes 1.2192 / 1.0217 -- the MID slope > 1 is the case encoding's
 information loss, not a PA artifact. Under the stochastic-onset model
-corr(PA, Gibbs) is 0.9992 / 0.9998 with matching slopes 0.9959 / 0.9925.)
+corr(PA, Gibbs) is 0.9992 / 0.9998 with matching slopes 1.0685 / 0.9845.
+Under liability-dependent onset, 0.9992 / 0.9998 with slopes 1.1419 / 1.0127.)
 
 Stochastic-onset observation model:
 
 | arm | corr MID | slope MID | corr OLD | slope OLD |
 |---|---|---|---|---|
-| base + no-mixture | 0.2757 ± 0.0030 | 1.0184 ± 0.0134 | 0.4528 ± 0.0031 | 0.9957 ± 0.0075 |
-| base + mixture | 0.2758 ± 0.0030 | 0.9974 ± 0.0130 | 0.4528 ± 0.0031 | 0.9878 ± 0.0075 |
+| base + no-mixture | 0.2781 ± 0.0018 | 1.0267 ± 0.0069 | 0.4536 ± 0.0037 | 0.9990 ± 0.0082 |
+| base + mixture | 0.2782 ± 0.0018 | 1.0057 ± 0.0067 | 0.4537 ± 0.0037 | 0.9911 ± 0.0082 |
+
+Liability-dependent onset (ρ = 0.6):
+
+| arm | corr MID | slope MID | corr OLD | slope OLD |
+|---|---|---|---|---|
+| base + no-mixture | 0.3089 ± 0.0020 | 1.1321 ± 0.0103 | 0.4638 ± 0.0040 | 1.0162 ± 0.0083 |
+| base + mixture | 0.3088 ± 0.0020 | 1.1088 ± 0.0101 | 0.4638 ± 0.0040 | 1.0081 ± 0.0083 |
+| pinned + no-mixture | 0.3082 ± 0.0021 | 0.9199 ± 0.0088 | 0.4642 ± 0.0041 | 0.9631 ± 0.0075 |
+| pinned + mixture | 0.3083 ± 0.0021 | 0.9008 ± 0.0086 | 0.4642 ± 0.0042 | 0.9559 ± 0.0075 |
 
 Paired mixture-minus-no-mixture contrasts (per-replicate differences on
 identical cohorts; mean ± SE with t-based 95% CI half-width, 5 replicates):
@@ -564,36 +609,45 @@ identical cohorts; mean ± SE with t-based 95% CI half-width, 5 replicates):
 | crossing MID | pinned | -0.00002 ± 0.00004 (CI ± 0.00010) | -0.02106 ± 0.00032 (CI ± 0.00089) |
 | crossing OLD | lifetime interval | -0.00017 ± 0.00005 (CI ± 0.00013) | -0.00844 ± 0.00013 (CI ± 0.00036) |
 | crossing OLD | pinned | -0.00008 ± 0.00004 (CI ± 0.00011) | -0.00743 ± 0.00012 (CI ± 0.00034) |
-| stochastic MID | lifetime interval | +0.00007 ± 0.00005 (CI ± 0.00014) | -0.02093 ± 0.00047 (CI ± 0.00131) |
-| stochastic OLD | lifetime interval | +0.00002 ± 0.00005 (CI ± 0.00013) | -0.00787 ± 0.00009 (CI ± 0.00025) |
+| stochastic MID | lifetime interval | +0.00012 ± 0.00005 (CI ± 0.00013) | -0.02101 ± 0.00030 (CI ± 0.00083) |
+| stochastic OLD | lifetime interval | +0.00008 ± 0.00005 (CI ± 0.00015) | -0.00785 ± 0.00016 (CI ± 0.00046) |
+| dependent MID | lifetime interval | -0.00013 ± 0.00003 (CI ± 0.00008) | -0.02336 ± 0.00024 (CI ± 0.00066) |
+| dependent MID | pinned | +0.00005 ± 0.00005 (CI ± 0.00014) | -0.01913 ± 0.00030 (CI ± 0.00083) |
+| dependent OLD | lifetime interval | -0.00007 ± 0.00004 (CI ± 0.00012) | -0.00812 ± 0.00014 (CI ± 0.00038) |
+| dependent OLD | pinned | -0.00006 ± 0.00005 (CI ± 0.00014) | -0.00724 ± 0.00016 (CI ± 0.00044) |
 
-### Verdict: behaves as intended here; no measurable correlation cost; case encoding dominates
+### Verdict: behaves as intended here; no measurable correlation cost; case encoding dominates; pinning is not a free lunch
 
-- **No measurable correlation cost, now with paired uncertainty.** All six
-  Δcorr CIs are tighter than ±0.0002. Three cells (crossing-MID pinned and
-  both stochastic-onset cells) include zero -- consistent with no cost at a CI
-  half-width of ~0.0001. The three crossing cells that exclude zero put the
-  cost at -0.00008 to -0.00034, at most 0.1% of the 0.33-0.47 correlation
-  level. The earlier "means differ by at most 0.0005" observation is thus
-  confirmed as a bounded, practically negligible cost rather than an
-  unresolved one.
+- **No measurable correlation cost, now including the assumption-stress arm.**
+  All ten Δcorr CIs are tighter than ±0.0002. Several include zero. Those
+  that exclude zero put the cost at at most -0.00034, ~0.1% of the
+  correlation level. The mixture does not buy ranking, and it does not
+  spend it, even when its independence assumption is false.
+- **Pinning is calibrated only under threshold crossing.** At ρ = 0.6 the
+  pinned slope is 0.92 (MID) / 0.96 (OLD): onset is no longer the CIP
+  inverse of liability, so a point mass at T(onset) over-conditions.
+  The lifetime interval still under-conditions (MID slope 1.13), sitting
+  between the crossing (1.20) and stochastic (1.03) extremes. Use the pin
+  when the crossing model is believed; do not treat it as robust to noisy
+  or only partly liability-dependent onset.
 - **The calibration shifts are real and directionally consistent.** Every
   Δslope CI excludes zero; the mixture always lowers the slope, by 0.007-0.025
   and most strongly under heavy censoring. Where the no-mixture encoding
-  under-conditions (lifetime interval, MID: slopes 1.20 and 1.02) this moves
-  calibration toward 1, including under the mixture's native stochastic-onset
-  model (1.018 -> 0.997). Where the naive encoding is already calibrated it
-  tilts slightly past (pinned MID 0.998 -> 0.977): under threshold crossing
-  the plain age truncation is already exact for censored controls, so the
-  mixture has no correct work to do, and that small tilt is the price of
-  applying it anyway.
-- **Case encoding dominates calibration**: pinned (LT-FH++-exact) cases give
-  slope 0.98-1.00 in every cell; the lifetime case interval loses onset-age
-  information (slope up to 1.20 under heavy censoring); the age-specific
-  interval over-disperses (slope 0.83, consistent with the unit guard's
-  documented 0.84). Guidance: pin cases at their onset threshold where the
-  crossing model is believed; use the lifetime interval only when onset ages
-  are unreliable.
+  under-conditions (lifetime interval, MID: slopes 1.20, 1.03, 1.13 across
+  the three onset models) this moves calibration toward 1, including under
+  the mixture's native stochastic-onset model (1.027 -> 1.006). Where the
+  naive encoding is already calibrated it tilts slightly past (crossing
+  pinned MID 0.998 -> 0.977): under threshold crossing the plain age
+  truncation is already exact for censored controls, so the mixture has no
+  correct work to do, and that small tilt is the price of applying it anyway.
+- **Case encoding dominates calibration, but the right encoding depends on
+  the onset model.** Under threshold crossing, pinned cases give slope
+  0.98-1.00; the lifetime interval loses onset-age information (slope up
+  to 1.20); the age-specific interval over-disperses (slope 0.83). Under
+  liability-dependent onset the pin is the *wrong* encoding (slope 0.92).
+  Guidance: pin cases at their onset threshold only where the crossing
+  model is believed; use the lifetime interval when onset ages are
+  unreliable or only partly liability-dependent.
 
 ## 17. Inference-machinery calibration (`bench_inference_calibration.py`)
 
@@ -680,10 +734,10 @@ administrative censoring; one arm with a 1995 register start):
 
 This matches the LT-FH++ construction (Pedersen et al. 2022: Aalen-Johansen
 with death and emigration as competing events, sex x birth-year strata).
-The saved curve point estimates remain informative, but this historical run
-predates the corrected finite-risk-set Aalen variance and therefore does not
-validate the current SE implementation; rerun it for uncertainty claims. A
-person-level bootstrap remains an option.
+Rerun 2026-08-14 under the current finite-risk-set Aalen variance; the
+point estimates are unchanged from the historical run. Grid containment
+uses the current SE implementation. A person-level bootstrap remains an
+option for repeated-sample coverage. Artifacts: `bench_cip_estimation.csv`.
 
 ## 20. Pedigree inference from trio records (`bench_pedigree_inference.py`)
 
@@ -793,24 +847,24 @@ model (h2 = 0.5, prevalence 0.1, 5 replicates of 20,000 families):
 
 | pair | expected h2*A | tetrachoric | latent corr |
 |---|---|---|---|
-| o-m | 0.250 | 0.258 +/- 0.008 | 0.251 |
-| o-f | 0.250 | 0.240 +/- 0.009 | 0.252 |
-| o-s1 | 0.250 | 0.247 +/- 0.010 | 0.248 |
-| m-s1 | 0.250 | 0.267 +/- 0.006 | 0.253 |
-| o-mgm | 0.125 | 0.115 +/- 0.005 | 0.127 |
-| o-mau1 | 0.125 | 0.127 +/- 0.007 | 0.128 |
-| m-f (mates) | 0.000 | 0.016 +/- 0.005 | 0.000 |
+| o-m | 0.250 | 0.258 ± 0.009 | 0.251 |
+| o-f | 0.250 | 0.240 ± 0.010 | 0.252 |
+| o-s1 | 0.250 | 0.247 ± 0.011 | 0.248 |
+| m-s1 | 0.250 | 0.267 ± 0.007 | 0.253 |
+| o-mgm | 0.125 | 0.115 ± 0.006 | 0.127 |
+| o-mau1 | 0.125 | 0.127 ± 0.008 | 0.128 |
+| m-f (mates) | 0.000 | 0.016 ± 0.006 | 0.000 |
 
 The pairwise means broadly track h2 * A and the latent Pearson correlations,
 but several cells differ from the nominal target by more than one reported SE
 (notably mother-sibling and the mate pair). Five replicates are too few to turn
-that pattern into a calibrated equivalence claim. The checked-in SEs also used
-the population-SD convention; the source now uses sample SD (`ddof=1`) and
-requires a rerun for corrected numerical SEs. The Falconer heritability estimate
-h2 ~ 2 x tetrachoric(first-degree) gives 0.497 +/- 0.014 (truth 0.5) from
-binary relative pairs alone, agreeing with `fit_heritability` on the same
-families (0.515 +/- 0.028). `tetrachoric_matrix` produces the expected h2*A
-block for multi-variable status matrices.
+that pattern into a calibrated equivalence claim. SEs are sample-SD
+(`ddof=1`) across the five replicates (rerun 2026-08-14). The Falconer
+heritability estimate h2 ~ 2 x tetrachoric(first-degree) gives 0.497 ± 0.016
+(truth 0.5) from binary relative pairs alone, agreeing with
+`fit_heritability` on the same families (0.515 ± 0.031).
+`tetrachoric_matrix` produces the expected h2*A block for multi-variable
+status matrices. Artifacts: `bench_tetrachoric.csv`.
 
 Use it as a fast diagnostic and cross-check of the family model: liability
 correlations straight from relative-pair statuses, before any fitting.
@@ -824,11 +878,7 @@ per-SNP `q` is the identity 2 f (1-f) beta²; the z-statistic route is Lee &
 Wray 2013 with the master factor). The default `q` is not a total-liability
 fraction; aggregate it before applying `q / (1 + q)`.
 
-**Historical-default warning:** the table below was generated with raw `z²`
-second moments, equivalent to current `subtract_null=False`. The source
-benchmark now uses the null-adjusted default `(z² - 1) / N`; these saved numbers
-must not be presented as validation of that default. Point estimates below are
-retained only as a record of the prior run.
+Rerun 2026-08-14 under the current null-adjusted default `(z² - 1) / N`.
 
 On a polygenic disease simulated on
 the probit convention (liab = X beta + eps, Var(X beta) = 0.5, prevalence
@@ -836,18 +886,20 @@ the probit convention (liab = X beta + eps, Var(X beta) = 0.5, prevalence
 
 | route | estimate | target |
 |---|---|---|
-| (a) joint probit fit -> sum 2f(1-f)beta² | 0.510 +/- 0.014 | 0.500 (exact) |
-| (a') marginal probit fits (GWAS practice) | 0.352 +/- 0.006 | ~1/(1+V_bg) attenuated |
-| (b) historical raw probit z², Lee & Wray 2013 factor | 0.335 +/- 0.020 | prior `subtract_null=False` |
-| (c) OLS observed-scale total | 0.119 +/- 0.009 | (observed scale) |
-| (c) Lee-2011 bridged to liability | 0.349 +/- 0.026 | 1/3 (Lee fraction) |
+| (a) joint probit fit -> sum 2f(1-f)beta² | 0.510 ± 0.017 | 0.500 (exact) |
+| (a') marginal probit fits (GWAS practice) | 0.352 ± 0.007 | ~1/(1+V_bg) attenuated |
+| (b) null-adjusted probit z², Lee & Wray 2013 factor | 0.320 ± 0.024 | same as (a'), attenuated |
+| (c) OLS observed-scale total | 0.119 ± 0.011 | (observed scale) |
+| (c) Lee-2011 bridged to liability | 0.334 ± 0.032 | 1/3 (Lee fraction) |
 
-For the historical routes, the joint probit fit recovers the
-probit residual-scale total (0.5) exactly; marginal per-SNP fits attenuate by
-the polygenic background in their residuals (~1/(1+V_bg), material at h²=0.5);
-and the OLS/Lee-2011 route recovers the *fraction-of-total-liability* form
-(1/3), which is the McKelvey-Zavoina R² of Lee et al. 2012 (Genet Epidemiol,
-eq. 9) -- implemented as `probit_liability_r2(..., fraction=True)`.
+The joint probit fit recovers the probit residual-scale total (0.5);
+marginal per-SNP fits attenuate by the polygenic background in their
+residuals (~1/(1+V_bg), material at h²=0.5); the null-adjusted z route
+agrees with that attenuated total; and the OLS/Lee-2011 route recovers
+the *fraction-of-total-liability* form (1/3), which is the McKelvey-Zavoina
+R² of Lee et al. 2012 (Genet Epidemiol, eq. 9) -- implemented as
+`probit_liability_r2(..., fraction=True)`. Artifacts:
+`bench_liability_scale.csv`.
 
 Paper-fixture checks in the tests cover the Lee 2011 Discussion factors
 (observed 0.18/0.54/0.91 -> liability 0.1/0.3/0.5 at K=0.01, P=0.5) and the
@@ -1398,6 +1450,22 @@ positivity condition, tested the only way the data allows.
   long-format CSV) and §17 gained the `test_genetic_correlation` r_g = 0 null
   panel (0/25 rejections); §14 is now 3-seed with across-seed mean ± SE
   (2026-08-10).
+- Corrected the §13 confounding table to ordinary rounding against
+  `bench_confounding.csv` (2026-08-14). The previous last-digit offsets
+  (e.g. 16.461 ± 0.397 vs stored 16.460 ± 0.399) were unguarded
+  transcription. The qualitative claim is unchanged.
+- Corrected a docs/report transcription that quoted IPW recovery as 0.456 /
+  0.481 for 50/50 and 20%-enriched cohorts. Those figures are the
+  `random_50` IPW mean and a neighbour that is not in the committed CSV;
+  the `ipw` arm of `bench_ascertainment.csv` gives **0.495** and **0.473**.
+  RESULTS.md §29 already had the artifact values.
+- 2026-08-14: added a liability-dependent onset arm (ρ = 0.6) to §16;
+  compared pin vs interval encodings on the same families in §3; reran
+  §19/§22/§23 under the current SE and `subtract_null` conventions and
+  wrote `bench_{cip_estimation,tetrachoric,liability_scale}.csv`.
+  Stochastic-onset §16 numbers shifted slightly because the cohort
+  generator now shares `ltpred.simulate._onset_times` (vectorised
+  per-role draws); crossing cells were unchanged.
 
 ## Remaining limitations
 
@@ -1413,8 +1481,13 @@ positivity condition, tested the only way the data allows.
   calibrated at coarse resolution (section 17; R = 25 bounds the
   resolution -- read as 'no gross miscalibration').
 - The HAPNEST path was not executed here. The PA-FGRS censoring-mixture
-  benchmark now exists (section 16); its censoring correction is small at
-  the tested settings, and case encoding dominates calibration there.
+  benchmark (section 16) now includes a liability-dependent onset arm;
+  its censoring correction is small at the tested settings, and case
+  encoding dominates calibration there.
+- Sex-limitation and nurture interval fields (§26–27) still use the
+  stored normal 95% half-widths; the scripts now emit t half-widths and
+  those two tables need a rerun before the interval columns are treated
+  as current.
 - The lightweight GWAS helper uses the large-sample `n * r²` score statistic.
   A finite-sample regression test would use residual degrees of freedom and the
   `r² / (1-r²)` correction; the matched NCP ratios are robust to this

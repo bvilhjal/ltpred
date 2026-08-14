@@ -213,7 +213,10 @@ prespecified sex-CIP panel separately shows removal of a
 remains unresolved. In the replicated classic-LT-FH GWAS, PA and Gibbs both
 reach a 1.47 ± 0.04× causal-SNP NCP ratio. Across matched **no-mixture** bounds,
 their posterior-mean estimates had correlation ≥ 0.997. These PA–Gibbs claims do
-not validate the PA-only censoring mixture. See
+not validate the PA-only censoring mixture. That mixture has no
+measurable ranking cost under threshold-crossing, stochastic, or
+liability-dependent onset; pinning is calibrated only under
+threshold crossing. See
 [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md); real-LD runs use
 [HAPNEST](benchmarks/hapnest/README.md) genotypes (opt-in).
 

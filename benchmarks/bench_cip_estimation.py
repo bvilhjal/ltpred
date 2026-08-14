@@ -23,6 +23,7 @@ Run:  conda run -n ltpred python benchmarks/bench_cip_estimation.py
 
 from __future__ import annotations
 
+import csv
 import os
 import sys
 import time
@@ -174,6 +175,7 @@ def main():
     # horizon as k_pop (the thresholds_from_cip default)
     curves = {"oracle": (age_grid, true_curve, K_POP),
             "estimated": (km.ages, km.values, None)}
+    e2e = {}
     for label, (c_ages, c_vals, kpop) in curves.items():
         slopes, corrs = [], []
         for rep in range(REPS_E2E):
@@ -203,8 +205,32 @@ def main():
             slopes.append(float(np.polyfit(est, g, 1)[0]))
             corrs.append(float(np.corrcoef(est, g)[0, 1]))
         print(f"  {label:10s} slope {np.mean(slopes):.4f}  corr {np.mean(corrs):.4f}")
+        e2e[label] = (float(np.mean(slopes)), float(np.mean(corrs)))
 
-    print(f"\nruntime {time.time() - t0:.0f}s")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "bench_cip_estimation.csv")
+    with open(out, "w", newline="") as fh:
+        writer = csv.DictWriter(
+            fh, fieldnames=("part", "metric", "value"), lineterminator="\n")
+        writer.writeheader()
+        writer.writerows([
+            dict(part="km_no_mortality", metric="max_abs_err", value=err),
+            dict(part="km_no_mortality", metric="grid_containment",
+                 value=containment),
+            dict(part="aj_mortality", metric="max_abs_err_crude", value=err_aj),
+            dict(part="km_mortality", metric="max_abs_err_crude",
+                 value=err_km_crude),
+            dict(part="km_mortality", metric="max_abs_err_marginal",
+                 value=err_km_marg),
+            dict(part="aj_delayed_entry", metric="max_abs_err_crude",
+                 value=err_lt),
+            dict(part="e2e_oracle", metric="slope", value=e2e["oracle"][0]),
+            dict(part="e2e_oracle", metric="corr", value=e2e["oracle"][1]),
+            dict(part="e2e_estimated", metric="slope", value=e2e["estimated"][0]),
+            dict(part="e2e_estimated", metric="corr", value=e2e["estimated"][1]),
+        ])
+    print(f"\nwrote {os.path.basename(out)}")
+    print(f"runtime {time.time() - t0:.0f}s")
 
 
 if __name__ == "__main__":
