@@ -561,3 +561,85 @@ def test_moment_fitters_reject_negative_burn_in():
         fit_heritability(sim.families, n_iter=10, burn_in=-1)
     with pytest.raises(ValueError, match="non-negative"):
         fit_variance_components(sim.families, ("A",), n_iter=10, burn_in=-1)
+
+
+def _cc_family(fid, roles, statuses, threshold):
+    """One family with common-threshold case/control bounds."""
+    return Family(fid, [Member(r, threshold if st else -np.inf,
+                               np.inf if st else threshold)
+                        for r, st in zip(roles, statuses)])
+
+
+def test_population_case_rate_guard_catches_proband_ascertainment():
+    # `sampling="population"` used to be an honour system: it checked a string,
+    # not the data, so a case/control cohort fitted straight through to a fixed
+    # point at the clamp. The thresholds themselves assert the prevalence, so
+    # the claim is checkable -- and must be checked, because the failure is
+    # severe and silent (on ascertained data with true h2=0 the fitter returns
+    # h2=1.0).
+    from ltpred.thresholds import liability_threshold
+    t = float(liability_threshold(0.05))
+    roles = ["o", "m", "f", "s1"]
+    rng = np.random.default_rng(0)
+
+    # every proband affected; relatives at the population rate
+    fams = [_cc_family(i, roles, [True] + list(rng.random(3) < 0.05), t)
+            for i in range(800)]
+    with pytest.raises(ValueError, match="not consistent with sampling='population'"):
+        fit_heritability(fams, n_iter=50, burn_in=10, sampling="population")
+    with pytest.raises(ValueError, match=r"Role 'o'"):
+        fit_heritability(fams, n_iter=50, burn_in=10, sampling="population")
+
+
+def test_population_case_rate_guard_flags_relatives_not_just_the_proband():
+    # Selection on family history leaves the proband at the population rate and
+    # enriches the RELATIVES, so a guard that only looked at `o` would miss it.
+    from ltpred.thresholds import liability_threshold
+    t = float(liability_threshold(0.05))
+    roles = ["o", "m", "f", "s1"]
+    rng = np.random.default_rng(1)
+    fams = [_cc_family(i, roles,
+                       [rng.random() < 0.05, True] + list(rng.random(2) < 0.05), t)
+            for i in range(800)]
+    with pytest.raises(ValueError, match=r"Role 'm'"):
+        fit_heritability(fams, n_iter=50, burn_in=10, sampling="population")
+
+
+def test_population_case_rate_guard_passes_genuine_population_samples():
+    # Specificity is the property that matters most: a false positive refuses a
+    # legitimate analysis. Nothing here may raise.
+    for n_fam, prev, seed in [(400, 0.05, 3), (1200, 0.10, 4), (1200, 0.20, 5)]:
+        sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
+                                        n_sim=n_fam, pop_prev=prev, seed=seed)
+        res = fit_heritability(sim.families, n_iter=120, burn_in=40, seed=1,
+                               sampling="population")
+        assert 0.0 < res.h2 < 1.0
+
+
+def test_population_case_rate_guard_survives_bootstrap_resampling():
+    # bootstrap_fit re-runs the estimator on resamples centred on the COHORT's
+    # rate rather than on K, so their z carries the cohort's own sampling error
+    # as an offset. At a z bar of 4 this fired on a legitimate 1500-family
+    # cohort; the bar is 6 so that the bootstrap stays usable.
+    from ltpred import bootstrap_fit
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
+                                    n_sim=1500, pop_prev=0.1, seed=5)
+    bs = bootstrap_fit(sim.families,
+                       lambda f: fit_heritability(f, n_iter=120, burn_in=40,
+                                                  seed=1,
+                                                  sampling="population").h2,
+                       n_boot=12, seed=0)
+    assert bs.samples.shape == (12,)
+
+
+def test_population_case_rate_guard_covers_variance_components():
+    from ltpred import fit_variance_components
+    from ltpred.thresholds import liability_threshold
+    t = float(liability_threshold(0.05))
+    roles = ["o", "m", "f", "s1", "s2", "s3"]
+    rng = np.random.default_rng(2)
+    fams = [_cc_family(i, roles, [True] + list(rng.random(5) < 0.05), t)
+            for i in range(800)]
+    with pytest.raises(ValueError, match="not consistent with sampling='population'"):
+        fit_variance_components(fams, ("A", "C"), n_iter=50, burn_in=10,
+                                sampling="population")

@@ -8,6 +8,32 @@ version is 0 the public API may still change between minor releases.
 
 ### Added
 
+- **`sampling="population"` is now verified against the data, not taken on
+  trust.** It used to check a string, so an ascertained cohort fitted straight
+  through to a fixed point at the clamp. The supplied thresholds already assert
+  a prevalence, and under population sampling each role's case count is
+  `Binomial(n_families, K)`, so `fit_heritability`,
+  `fit_variance_components` and the `research/` moment fitters now run a
+  per-role binomial check and raise on a gross mismatch. A mismatch is equally
+  consistent with a mis-specified prevalence, which is a real and fixable
+  cause, so the message reports the observed and asserted rates rather than
+  assuming ascertainment.
+  Calibrated from both sides: every ascertainment scheme in the new benchmark
+  raises at z = +43 to +276, and a 12-cohort specificity sweep raised nothing.
+  The bar (z >= 6) is set by `bootstrap_fit`, whose resamples centre on the
+  cohort's rate rather than on K; a z >= 4 bar fired on a legitimate cohort.
+  It catches catastrophic designs and does **not** certify population sampling
+  -- detectable enrichment is ~1.47x at N = 1,500.
+- **`benchmarks/bench_ascertainment.py`** (RESULTS.md section 29): what the
+  moment fitters return on selected samples, which no benchmark previously
+  measured. Six arms over five ascertainment schemes plus a phenotype-
+  independent negative control. Headline: at true h2 = 0 every
+  phenotype-selected scheme returns h2 = 1.0 while the negative control returns
+  0.025; the distortion is bias, not noise (constant +0.500 across
+  N = 2,500-40,000) and not non-convergence (same estimate from h2_init 0.05
+  and 0.95); and a realised case share only 1.17x the assumed prevalence
+  already inflates h2 by +0.12.
+
 - Technical report `report/ltpred_methods.pdf` (LaTeX source
   `report/ltpred_methods.tex`): estimand, theory, implementation, and
   committed simulation evidence. Included in the source distribution.

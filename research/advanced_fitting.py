@@ -46,7 +46,8 @@ from ltpred.estimate import (_group_by_structure, _validate_multitrait_bounds,
 from ltpred.family import Family, Member
 from ltpred.fit import (fit_variance_components, _COMPONENT_OFFDIAG,
                         _component_matrix, _prepare_group_vc,
-                        _validate_population_sampling, _assert_common_thresholds)
+                        _validate_population_sampling, _assert_common_thresholds,
+                        _assert_population_case_rate)
 from ltpred.gibbs import (gibbs_params, gibbs_advance, gibbs_advance_moment,
                           _init_chain, _FIXED_TOL, _offset_seed, _seed_rng)
 
@@ -250,6 +251,8 @@ def fit_variance_components_mcem(families, components=("A", "C"), *,
     # Shares the pooled-moment augmentation, so it has fit_variance_components'
     # personalised-threshold failure mode; reject those bounds the same way.
     _assert_common_thresholds(families, 1, context="fit_variance_components_mcem")
+    _assert_population_case_rate(families, 1,
+                                 context="fit_variance_components_mcem")
     C = len(comps)
     groups = [_prepare_group_vc(families, idx, comps)
               for _key, idx in _group_by_structure(families)]
@@ -1149,6 +1152,7 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
     # per-person thresholds bias it the same way, so reject them (the onset-age
     # decay model, fit_genetic_correlation_decay, is the route for age structure).
     _assert_common_thresholds(families, P, context="fit_genetic_correlation")
+    _assert_population_case_rate(families, P, context="fit_genetic_correlation")
     groups = [_prepare_group_multi(families, idx, P)
               for _key, idx in _group_by_structure(families)]
     sA2 = sum(g["sA2"] for g in groups)

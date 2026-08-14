@@ -39,9 +39,11 @@ tables used normal `1.96 × SE` half-widths; their source scripts now use
 small-sample t half-widths and must be rerun before those interval fields are
 treated as current.
 
-All core fitter benchmarks use unascertained, population-sampled simulated
-families. They do not validate heritability or variance-component fitting under
-case/control or family-history ascertainment.
+Core fitter benchmarks (sections 5-9) use unascertained, population-sampled
+simulated families and characterise the fitters only under that supported
+contract. Section 29 measures the opposite case directly -- what those fitters
+return on ascertained samples -- and is the basis for the case-rate check that
+now verifies `sampling="population"` against the data.
 
 Metric names matter here. **NCP ratio** means a ratio of causal-SNP chi-square
 noncentrality components. **Eff-N proxy** means a squared-correlation ratio to
@@ -1174,6 +1176,137 @@ observed outcome; and at 2,000 SNPs the multiple-testing dilution is mild, so
 the PGS-to-label gap is friendlier than a genome-wide setting — the joint
 model's *increment* over the PGS is the portable number, not the absolute R².
 Rerun: `python benchmarks/bench_pgs_comparison.py`.
+
+## 29. Ascertainment: what the fitters do on selected samples (`bench_ascertainment.py`)
+
+The other fitter benchmarks all draw unascertained population families, which is
+the only design `fit_heritability` / `fit_variance_components` /
+`fit_genetic_correlation` claim to support. This section measures what happens
+when that contract is violated, because until 0.3.1 the `sampling="population"`
+gate checked a string rather than the data, so an ascertained cohort passed
+straight through.
+
+Each replicate draws a **population** under a known model, applies one selection
+rule, and fits the selected subset. Only the selection rule differs between
+rows: model, analysed N, thresholds and fitter settings are held fixed. Ten
+replicates, N = 10,000 analysed families, K = 0.05, true h² = 0.5, n_iter = 1500.
+`random_50` keeps half the population *independently of phenotype* and is the
+negative control: it exercises the identical chunked accept/reject, redraw and
+truncation path, so it isolates selection-on-phenotype from the harness.
+
+| scheme | realised case share | fitted h² (nuclear) | fitted h² (sibship) |
+|---|---:|---:|---:|
+| population | 0.050 | 0.523 (SD 0.055) | 0.511 (SD 0.030) |
+| random_50 *(negative control)* | 0.049 | 0.506 (SD 0.083) | 0.499 (SD 0.035) |
+| proband_case | 1.000 | **1.000** | **1.000** |
+| case_control | 0.499 | **1.000** | **1.000** |
+| enriched_20 | 0.199 | **1.000** | **1.000** |
+| family_history | 0.293 | **1.000** | **1.000** |
+| fh_proband_control | 0.000 | **1.000** | **1.000** |
+
+Every phenotype-selected scheme is pinned at the clamp in every replicate
+(boundary fraction 1.00, across-replicate SD 0.000). The population and
+negative-control arms are not.
+
+**The strongest cell is true h² = 0** (`--h2 0.0`, 5 replicates, nuclear):
+population returns 0.018 and `random_50` 0.025, while `proband_case`,
+`case_control`, `enriched_20`, `family_history` and `fh_proband_control` **all
+return 1.000**. Selecting families on phenotype makes the fitter report complete
+heritability in a population that has none.
+
+**A+C (`fit_variance_components`, sibship, true A = 0.4, C = 0.2).** The
+multi-component fit does not pin at the elementwise clamp -- it renormalises onto
+the simplex, so the diagnostic is the exhausted residual, not a component at
+1-eps:
+
+| scheme | A | C | residual | saturated |
+|---|---:|---:|---:|---:|
+| population | 0.399 | 0.188 | 0.414 | 0.00 |
+| random_50 | 0.408 | 0.186 | 0.406 | 0.00 |
+| proband_case | 0.500 | 0.500 | **0.0001** | 1.00 |
+| case_control | 0.464 | 0.536 | **0.0001** | 1.00 |
+| enriched_20 | 0.479 | 0.521 | **0.0001** | 1.00 |
+| family_history | 0.590 | 0.410 | **0.0001** | 1.00 |
+| fh_proband_control | 0.824 | 0.176 | **0.0001** | 1.00 |
+
+A + C sums to 1 - eps under every ascertained scheme: the whole liability
+variance is consumed. Reading the components alone would hide this, which is
+why the CSV carries `residual`.
+
+**Genetic correlation** (ascertained on trait 1, true r_g = 0.5) inherits it:
+population recovers 0.499 with per-trait h² of 0.524/0.509 and no pinning;
+`proband_case` and `case_control` return r_g = 1.000 with **both** per-trait h²
+at 1.000. Since r_g = G/sqrt(h²₁h²₂), that 1.000 is a ratio of two pinned
+denominators, not an estimate -- hence the `h2pin` column.
+
+### It is bias, not noise, and not non-convergence
+
+Three checks, because "the estimate is wrong" has several innocent explanations:
+
+- **More data does not help.** Across N = 2,500 / 10,000 / 40,000 the population
+  bias is +0.042 / -0.005 / +0.010 (shrinking, SD 0.028 → 0.016) while
+  `proband_case` holds at **+0.500 / +0.500 / +0.500**. Sampling noise shrinks
+  as 1/√N; this does not.
+- **It has converged.** `population` gives 0.474 / 0.483 / 0.483 at n_iter =
+  500 / 1500 / 4000; `proband_case` gives 0.9999 at all three with a trace-tail
+  slope of 0. Decisively, multi-start: `proband_case` reaches 0.9999 from
+  h2_init = 0.05, 0.5 and 0.95 alike (spread 0.0) -- it *climbs* to the ceiling
+  from below rather than failing to leave a high start.
+- **It is not the harness.** `random_50` selects half the population through the
+  identical code path and recovers h² (+0.006 nuclear, -0.001 sibship).
+
+### How wrong, and how little it takes
+
+The clamp censors the magnitude: every ascertained cell reports 0.9999 whatever
+the truth. The Haseman-Elston moment evaluated on the selected families' own
+liabilities is uncensored (nuclear):
+
+| scheme | HE moment | × truth | centered |
+|---|---:|---:|---:|
+| population | 0.508 | 1.02 | 0.508 |
+| random_50 | 0.507 | 1.01 | 0.507 |
+| proband_case | 1.679 | **3.36** | 0.199 |
+| case_control | 1.065 | 2.13 | 0.736 |
+| enriched_20 | 0.681 | 1.36 | 0.644 |
+| family_history | 1.083 | 2.17 | -0.056 |
+| fh_proband_control | 0.839 | 1.68 | 0.009 |
+
+**This is a decomposition, not the mechanism, and must not be read as one.** At
+true h² = 0 every ascertained scheme still fits 1.000 while this statistic sits
+at ~0 (`proband_case` +0.015) or negative (`family_history` -0.083, and -0.546
+once centered -- centering makes it *worse*). The fitter never sees these
+liabilities; it sees truncated-MVN draws conditional on the selected status
+pattern, so under proband ascertainment every augmented proband is redrawn above
+threshold, relatives are pulled with it, and the cross-products stay positive
+whatever the truth. The runaway is augmentation feedback, which a complete-data
+statistic cannot see.
+
+The tolerance is far tighter than intuition suggests. Sweeping the realised case
+share against the assumed prevalence (nuclear, N = 4,000, 3 replicates):
+
+| enrichment | 0.98× | 1.17× | 1.44× | 2.01× | ≥ 2.5× |
+|---|---:|---:|---:|---:|---:|
+| fitted h² | 0.498 | 0.619 | 0.860 | 1.000 | 1.000 |
+| bias | -0.002 | **+0.119** | **+0.360** | +0.500 | +0.500 |
+
+A 5.8% case rate against an assumed 5.0% already inflates h² by 24%.
+
+### What changed as a result
+
+`sampling="population"` is now verified against the data rather than taken on
+trust (`ltpred.fit._assert_population_case_rate`). The thresholds assert a
+prevalence, and under population sampling each role's case count is
+Binomial(n_families, K), so a binomial z-test applies per role. All five
+phenotype-selected schemes above raise at z = +43 to +276; a 12-cohort
+specificity check across N ∈ {500 … 10,000} and K ∈ {0.02 … 0.20} raised nothing.
+The bar is deliberately conservative (z ≥ 6 and a ratio outside [1/1.15, 1.15]):
+`bootstrap_fit` resamples are centred on the cohort's rate rather than on K, so
+their z carries the cohort's own sampling error as an offset, and a z ≥ 4 bar
+fired on a legitimate 1,500-family cohort. The cost is power at small N --
+detectable enrichment is ~1.47× at N = 1,500 and ~1.26× at N = 10,000 -- so the
+check catches the catastrophic designs and does **not** certify population
+sampling. Mild enrichment on a small cohort still passes, and the dose-response
+above shows that is not harmless.
 
 ## Historical report changes
 

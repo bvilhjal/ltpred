@@ -49,6 +49,7 @@ resampling helper shared by those fits and these.
 
 from __future__ import annotations
 
+import math
 import operator
 import warnings
 from collections.abc import Callable, Sequence
@@ -56,6 +57,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ._mathfun import norm_cdf
 from ._validation import validate_bounds
 from .covariance import get_relatedness, _is_full_sib, _is_mates
 from .gibbs import (gibbs_params, gibbs_advance,
@@ -82,6 +84,106 @@ def _validate_population_sampling(sampling, context):
             f"{context} supports only sampling='population'; ascertained or "
             "overlapping-family designs require an estimator that models their "
             "sampling process")
+
+
+#: Thresholds for the case-rate check, calibrated from BOTH sides.
+#:
+#: Sensitivity, from the dose-response in ``benchmarks/bench_ascertainment.py``
+#: (nuclear families, true h2 = 0.5, K = 0.05, N = 4000): a realised case share
+#: 1.17x the assumed prevalence inflates h2 by +0.119, 1.44x by +0.360, and by
+#: 2x the estimate is pinned at the clamp.
+#:
+#: Specificity matters more, because a false positive here refuses a legitimate
+#: analysis. Two things push the null z above what a single clean test would
+#: give: the check runs once per role (so several correlated tests per fit), and
+#: :func:`bootstrap_fit` re-runs the whole estimator on resamples that are
+#: centred on the *cohort's* rate rather than on K, so their z carries the
+#: cohort's own sampling error as a systematic offset. A legitimate 1500-family
+#: cohort (role rate 0.110 against K = 0.100, p = 0.20) produced a resample at
+#: z = 4.4 -- which is why the bar is 6.0 and not 4.0.
+#:
+#: At z >= 6 the per-test null probability is ~1e-9, so chance firing is
+#: negligible even across a 25-resample bootstrap, while every ascertainment
+#: scheme in the benchmark fires at z >= +43. The cost is power at small N: the
+#: detectable enrichment is ~1.47x at N = 1500 and ~1.26x at N = 10,000, so
+#: MILD enrichment on a small cohort passes this check and remains the caller's
+#: responsibility. This is a guard against the catastrophic case, not a
+#: certificate of population sampling.
+_CASE_RATE_RATIO_TOL = 1.15
+_CASE_RATE_Z_TOL = 6.0
+
+
+def _assert_population_case_rate(families, n_pheno, *, context):
+    """Check the observed case rate against the one the thresholds assert.
+
+    ``sampling="population"`` was an honour system: it checked a string, not the
+    data, so an ascertained cohort passed straight through to a fixed point that
+    runs to the boundary. The data can be checked directly, because the supplied
+    bounds already encode the assumed prevalence -- a common threshold ``t``
+    means ``K = 1 - Phi(t)`` -- and under population sampling each role's case
+    indicator is one ``Bernoulli(K)`` per family, independent across families.
+    So the count for role ``r`` is ``Binomial(n_families, K)`` and a plain
+    binomial z-test applies, with no clustering correction needed.
+
+    This runs after :func:`_assert_common_thresholds`, which guarantees exactly
+    the input this assumes: one threshold per trait, every member a one-sided
+    case or control, no pins or two-sided intervals.
+
+    A failure does not necessarily mean the sample was ascertained -- an honestly
+    population-sampled cohort analysed with a mis-specified ``K`` fails the same
+    way, and is wrong for the same reason. Either way the model's own
+    precondition is violated, so the message names the observed and asserted
+    rates rather than guessing the cause.
+    """
+    per_role = {}
+    for family in families:
+        for member in family.members:
+            lo = np.broadcast_to(np.asarray(member.lower, dtype=float), (n_pheno,))
+            hi = np.broadcast_to(np.asarray(member.upper, dtype=float), (n_pheno,))
+            for p in range(n_pheno):
+                # after _assert_common_thresholds: finite lower => case,
+                # finite upper => control, and the finite end IS the threshold
+                is_case = np.isfinite(lo[p])
+                thr = lo[p] if is_case else hi[p]
+                n, k, t = per_role.get((member.role, p), (0, 0, thr))
+                per_role[(member.role, p)] = (n + 1, k + int(is_case), t)
+
+    worst = None
+    for (role, pheno), (n, k, thr) in sorted(per_role.items()):
+        if n < 30:                       # binomial normal approx not trustworthy
+            continue
+        expected = float(norm_cdf(-thr))     # = 1 - Phi(thr), exact by symmetry
+        if not 0.0 < expected < 1.0:
+            continue
+        observed = k / n
+        se = math.sqrt(expected * (1.0 - expected) / n)
+        z = (observed - expected) / se if se > 0 else 0.0
+        ratio = observed / expected
+        if abs(z) >= _CASE_RATE_Z_TOL and not (
+                1.0 / _CASE_RATE_RATIO_TOL <= ratio <= _CASE_RATE_RATIO_TOL):
+            if worst is None or abs(z) > abs(worst[3]):
+                worst = (role, pheno, ratio, z, observed, expected, n)
+
+    if worst is None:
+        return
+    role, pheno, ratio, z, observed, expected, n = worst
+    trait = "" if n_pheno == 1 else f" (trait {pheno})"
+    raise ValueError(
+        f"{context}: the supplied families are not consistent with "
+        f"sampling='population'. Role {role!r}{trait} is affected in "
+        f"{observed:.4f} of {n} families, but the threshold supplied for it "
+        f"asserts a population prevalence of {expected:.4f} -- a factor of "
+        f"{ratio:.2f} ({z:+.1f} SD). The pooled Haseman-Elston fixed point "
+        "assumes every member is a draw from that same population, so this "
+        "mismatch biases it hard and in a direction that looks like real "
+        "heritability: in the repository benchmark a 1.17x enrichment inflates "
+        "h2 by +0.12 and 2x pins it at the boundary, and on ascertained data "
+        "with true h2 = 0 the fitter returns h2 = 1.0. Either the cohort is "
+        "ascertained (case/control, family-history or proband-affected "
+        "selection), which this estimator cannot correct, or the prevalence "
+        "behind the thresholds is wrong for this sample. Fixing the thresholds "
+        "is a real fix; ascertainment needs an estimator that models the "
+        "sampling process. See benchmarks/RESULTS.md, ascertainment section.")
 
 
 def _assert_common_thresholds(families, n_pheno, *, context):
@@ -250,6 +352,15 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     has no ascertainment likelihood or sampling weights, so case/control
     enrichment or selection on family history can produce severe boundary bias.
 
+    That acknowledgement is now **checked against the data**, not merely taken on
+    trust: the supplied thresholds assert a prevalence, and each role's case rate
+    is compared against it (:func:`_assert_population_case_rate`). A gross
+    mismatch raises, because the failure it guards is severe and silent -- on
+    ascertained families with a true ``h2`` of 0, this fitter returns
+    ``h2 = 1.0``. The check is deliberately conservative, so it catches the
+    catastrophic designs rather than certifying population sampling; mild
+    enrichment on a small cohort still passes and remains your responsibility.
+
     ``families`` is a list of :class:`~ltpred.family.Family` whose members carry
     liability bounds (from a threshold builder). Alternates a Gibbs augmentation of
     the latent liabilities with a damped Haseman–Elston update of ``h2`` — a
@@ -282,6 +393,7 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     damp, eps = _validate_update_controls(damp, eps)
     _validate_population_sampling(sampling, "fit_heritability")
     _assert_common_thresholds(families, 1, context="fit_heritability")
+    _assert_population_case_rate(families, 1, context="fit_heritability")
     groups = [_prepare_group(families, idx) for _key, idx in _group_by_structure(families)]
     sxx = sum(sum(aij * aij for (_i, _j, aij) in g["pairs"]) * g["F"] for g in groups)
     if sxx <= 0:
@@ -428,8 +540,11 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
 
     **Sampling contract:** like :func:`fit_heritability`, this supports
     independent, non-overlapping, unascertained population-sampled families only.
-    Pass ``sampling="population"`` to acknowledge that contract. The fitter does
-    not correct case/control or family-history ascertainment.
+    Pass ``sampling="population"`` to acknowledge that contract, which is
+    verified against the observed case rates rather than taken on trust (see
+    :func:`fit_heritability`). The fitter does not correct case/control or
+    family-history ascertainment; under it the components saturate, exhausting
+    the residual variance rather than sitting at the elementwise clamp.
 
     Generalises :func:`fit_heritability` from one component to several. Each sweep
     it (1) draws the latent liabilities from the **full family truncated-MVN**
@@ -496,6 +611,8 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
     damp, eps = _validate_update_controls(damp, eps)
     _validate_population_sampling(sampling, "fit_variance_components")
     _assert_common_thresholds(families, 1, context="fit_variance_components")
+    _assert_population_case_rate(families, 1,
+                                 context="fit_variance_components")
     C = len(comps)
     groups = [_prepare_group_vc(families, idx, comps)
               for _key, idx in _group_by_structure(families)]

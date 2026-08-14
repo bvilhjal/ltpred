@@ -387,7 +387,79 @@ _ACCURACY = "benchmarks/bench_accuracy.csv"
 _ACCURACY_ROW = (r"([\d.]+) ± ([\d.]+) \| ([\d.]+) ± ([\d.]+) \| "
                  r"([\d.]+) ± ([\d.]+)× \| ([\d.]+) \|$")
 
+
+_ASCERT = "benchmarks/bench_ascertainment.csv"
+_ASCERT_NULL = "benchmarks/bench_ascertainment_h2null.csv"
+
+
+def _ascert_rows(path, **where):
+    rows = _rows(path)
+    return [r for r in rows
+            if all(r[k] == v for k, v in where.items())]
+
+
+def ascert_h2_nuclear_population(path):
+    r = _ascert_rows(path, arm="h2", structure="nuclear", scheme="population")[0]
+    return (float(r["fitted_mean"]), float(r["sd"]))
+
+
+def ascert_h2_nuclear_random50(path):
+    r = _ascert_rows(path, arm="h2", structure="nuclear", scheme="random_50")[0]
+    return (float(r["fitted_mean"]), float(r["sd"]))
+
+
+def ascert_ac_saturated_residual(path):
+    """Every ascertained A+C cell must have exhausted the residual variance."""
+    rows = [r for r in _rows(path) if r["arm"] == "AC"
+            and r["scheme"] not in ("population", "random_50")]
+    return (max(float(r["residual"]) for r in rows),)
+
+
+def ascert_proband_case_moment(path):
+    r = _ascert_rows(path, arm="mechanism", structure="nuclear",
+                     scheme="proband_case")[0]
+    unc = float(r["he_uncentered"])
+    return (unc, unc / float(r["truth"]), float(r["he_centered"]))
+
+
+def ascert_scale_invariance(path):
+    """proband_case bias is constant in N -- the bias-not-noise claim."""
+    rows = _ascert_rows(path, arm="scale", scheme="proband_case")
+    return tuple(float(r["bias"]) for r in sorted(rows, key=lambda x: int(x["n_fam"])))
+
+
+def ascert_null_population(path):
+    r = _ascert_rows(path, arm="h2", scheme="population")[0]
+    return (float(r["fitted_mean"]),)
+
+
+def ascert_null_random50(path):
+    r = _ascert_rows(path, arm="h2", scheme="random_50")[0]
+    return (float(r["fitted_mean"]),)
+
+
 GUARDS = [
+    Guard("ascertainment-population-nuclear", _ASCERT,
+          ascert_h2_nuclear_population,
+          r"^\| population \| 0\.050 \| ([\d.]+) \(SD ([\d.]+)\)"),
+    Guard("ascertainment-negative-control-nuclear", _ASCERT,
+          ascert_h2_nuclear_random50,
+          r"^\| random_50 \*\(negative control\)\* \| 0\.049 \| ([\d.]+) \(SD ([\d.]+)\)"),
+    Guard("ascertainment-ac-residual-exhausted", _ASCERT,
+          ascert_ac_saturated_residual,
+          r"^\| proband_case \| 0\.500 \| 0\.500 \| \*\*([\d.]+)\*\* \| 1\.00 \|$"),
+    Guard("ascertainment-proband-case-moment", _ASCERT,
+          ascert_proband_case_moment,
+          r"^\| proband_case \| ([\d.]+) \| \*\*([\d.]+)\*\* \| ([\d.]+) \|$"),
+    Guard("ascertainment-bias-constant-in-n", _ASCERT,
+          ascert_scale_invariance,
+          r"`proband_case` holds at \*\*\+([\d.]+) / \+([\d.]+) / \+([\d.]+)\*\*"),
+    Guard("ascertainment-null-population", _ASCERT_NULL,
+          ascert_null_population,
+          r"population returns ([\d.]+) and `random_50`"),
+    Guard("ascertainment-null-negative-control", _ASCERT_NULL,
+          ascert_null_random50,
+          r"and `random_50` ([\d.]+), while"),
     Guard("accuracy-pa-gibbs-agreement-range", _ACCURACY,
           accuracy_agreement_range,
           r"mean (?:corr\(PA, Gibbs\)|PA–Gibbs agreement) is "
