@@ -138,8 +138,9 @@ def _validate_weights(weights, n_families, context):
 #:
 #: Sensitivity, from the dose-response in ``benchmarks/bench_ascertainment.py``
 #: (nuclear families, true h2 = 0.5, K = 0.05, N = 4000): a realised case share
-#: 1.17x the assumed prevalence inflates h2 by +0.119, 1.44x by +0.360, and by
-#: 2x the estimate is pinned at the clamp.
+#: 1.27x the assumed prevalence inflates h2 by +0.230, 1.49x by +0.493, and by
+#: 2x the estimate is pinned at the clamp (arm H of that benchmark; the curve is
+#: steep through this region, so read the shape rather than any single cell).
 #:
 #: Specificity matters more, because a false positive here refuses a legitimate
 #: analysis. Two things push the null z above what a single clean test would
@@ -261,8 +262,8 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None):
         f"{ratio:.2f} ({z:+.1f} SD). The pooled Haseman-Elston fixed point "
         "assumes every member is a draw from that same population, so this "
         "mismatch biases it hard and in a direction that looks like real "
-        "heritability: in the repository benchmark a 1.17x enrichment inflates "
-        "h2 by +0.12 and 2x pins it at the boundary, and on ascertained data "
+        "heritability: in the repository benchmark a 1.27x enrichment inflates "
+        "h2 by +0.23 and 2x pins it at the boundary, and on ascertained data "
         "with true h2 = 0 the fitter returns h2 = 1.0. Either the cohort is "
         "ascertained (case/control, family-history or proband-affected "
         "selection), which this estimator cannot correct, or the prevalence "

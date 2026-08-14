@@ -32,8 +32,8 @@ Unsupported experimental inferential machinery lives in the checkout-only
     **It is a guard, not a certificate.** The enrichment it can detect is
     `1 + 6·√((1−K)/(K·n))` — at K = 0.05 that is ~1.67× at N = 1,500 and
     ~1.26× at N = 10,000. Milder enrichment passes silently, and the
-    dose-response below shows a 1.17× enrichment already inflates `h²` by
-    +0.12. Passing this check is not evidence that your sample is
+    dose-response below shows a 1.27× enrichment already inflates `h²` by
+    +0.23. Passing this check is not evidence that your sample is
     population-sampled.
 
 The meaning of a reported `se` depends on the method. For the
@@ -119,9 +119,9 @@ and the tolerance is much tighter than intuition suggests. From the
 dose-response in `benchmarks/bench_ascertainment.py` (nuclear families,
 true `h²` = 0.5, K = 0.05, N = 4,000):
 
-| realised case share ÷ assumed K | 0.98× | 1.17× | 1.44× | ≥ 2× |
+| realised case share ÷ assumed K | 0.98× | 1.27× | 1.49× | ≥ 2× |
 |---|---:|---:|---:|---:|
-| fitted `h²` | 0.498 | 0.619 | 0.860 | 1.000 |
+| fitted `h²` | 0.426 | 0.730 | 0.993 | 1.000 |
 
 A 5.8% case rate against an assumed 5.0% already inflates `h²` by 24%. This is
 **bias, not noise**: it does not shrink with N (constant +0.500 from N = 2,500 to

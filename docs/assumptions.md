@@ -78,8 +78,8 @@ that samples *no* families from some stratum — ascertainment through an
 affected proband being the standard example, where inclusion probability is
 zero for unaffected probands and no weighting can reconstruct them. The
 severity is worth internalising: on ascertained families with a **true `h²` of
-0**, the unguarded fitter returns **`h² = 1.0`**, and a case rate only 1.17×
-the assumed prevalence already inflates `h²` by +0.12
+0**, the unguarded fitter returns **`h² = 1.0`**, and a case rate only 1.27×
+the assumed prevalence already inflates `h²` by +0.23
 ([RESULTS.md §29](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)).
 
 ## Real-data checklist

@@ -527,7 +527,53 @@ def pgs_test_r2s(path):
 # --- the guard list -----------------------------------------------------------
 
 
+def ascert_dose_row(enrich_lo, enrich_hi):
+    """The dose-response cell whose realised enrichment falls in a band.
+
+    Keyed on the measured enrichment rather than the swept target, because the
+    realised case share is what the table reports and what moves between runs.
+    """
+    def recompute(path):
+        for r in _rows(path):
+            if r["arm"] != "dose" or not r.get("enrichment"):
+                continue
+            if enrich_lo <= float(r["enrichment"]) < enrich_hi:
+                return (float(r["fitted_mean"]),)
+        raise AssertionError(f"no dose row in [{enrich_lo}, {enrich_hi})")
+    return recompute
+
+
+def ascert_specificity_total(path):
+    """Total false positives across the specificity grid -- must be 0."""
+    rows = [r for r in _rows(path) if r["arm"] == "specificity"]
+    assert rows, "no specificity rows"
+    return (sum(float(r["fitted_mean"]) for r in rows),)
+
+
+def ascert_lee(scheme):
+    def recompute(path):
+        r = _ascert_rows(path, arm="lee", scheme=scheme)[0]
+        return (float(r["fitted_mean"]),)
+    return recompute
+
+
 GUARDS = [
+    Guard("ascertainment-dose-unenriched", _ASCERT,
+          ascert_dose_row(0.9, 1.1),
+          r"^\| fitted h² \| ([\d.]+) \| [\d.]+ \| [\d.]+ \| 1\.000 \| 1\.000 \|$"),
+    Guard("ascertainment-dose-mild", _ASCERT,
+          ascert_dose_row(1.15, 1.35),
+          r"^\| fitted h² \| [\d.]+ \| ([\d.]+) \| [\d.]+ \| 1\.000 \| 1\.000 \|$"),
+    Guard("ascertainment-dose-strong", _ASCERT,
+          ascert_dose_row(1.4, 1.6),
+          r"^\| fitted h² \| [\d.]+ \| [\d.]+ \| ([\d.]+) \| 1\.000 \| 1\.000 \|$"),
+    Guard("ascertainment-specificity-zero-false-positives", _ASCERT,
+          ascert_specificity_total,
+          r"K ∈ \{0\.02 … 0\.20\}, \*\*(0) false positives\*\*"),
+    Guard("ascertainment-lee-case-control", _ASCERT, ascert_lee("case_control"),
+          r"cohorts lands at \*\*([\d.]+)\*\* \(50/50\)"),
+    Guard("ascertainment-lee-enriched", _ASCERT, ascert_lee("enriched_20"),
+          r"\*\*([\d.]+)\*\* \(20% enriched\)"),
     Guard("age-onset-h05-k03-encodings",
           "benchmarks/bench_age_onset.csv",
           age_onset_h05_k03,

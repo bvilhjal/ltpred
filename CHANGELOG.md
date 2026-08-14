@@ -56,8 +56,8 @@ version is 0 the public API may still change between minor releases.
   phenotype-selected scheme returns h2 = 1.0 while the negative control returns
   0.025; the distortion is bias, not noise (constant +0.500 across
   N = 2,500-40,000) and not non-convergence (same estimate from h2_init 0.05
-  and 0.95); and a realised case share only 1.17x the assumed prevalence
-  already inflates h2 by +0.12.
+  and 0.95); and a realised case share only 1.27x the assumed prevalence
+  already inflates h2 by +0.23.
 
 - **`simulate_under_LTM_single(..., onset_model="liability_dependent")`**
   with `onset_rho` in `[0, 1]` (default 0.6): among lifetime cases,

@@ -1339,15 +1339,22 @@ threshold, relatives are pulled with it, and the cross-products stay positive
 whatever the truth. The runaway is augmentation feedback, which a complete-data
 statistic cannot see.
 
-The tolerance is far tighter than intuition suggests. Sweeping the realised case
-share against the assumed prevalence (nuclear, N = 4,000, 3 replicates):
+The tolerance is far tighter than intuition suggests (arm H; nuclear,
+N = 4,000, 3 replicates, realised shares against an assumed K = 0.05):
 
-| enrichment | 0.98× | 1.17× | 1.44× | 2.01× | ≥ 2.5× |
+| enrichment | 0.98× | 1.27× | 1.49× | 2.00× | ≥ 2.5× |
 |---|---:|---:|---:|---:|---:|
-| fitted h² | 0.498 | 0.619 | 0.860 | 1.000 | 1.000 |
-| bias | -0.002 | **+0.119** | **+0.360** | +0.500 | +0.500 |
+| fitted h² | 0.426 | 0.730 | 0.993 | 1.000 | 1.000 |
+| bias | -0.074 | **+0.230** | **+0.493** | +0.500 | +0.500 |
+| across-rep SD | 0.055 | 0.087 | 0.004 | 0.000 | 0.000 |
 
-A 5.8% case rate against an assumed 5.0% already inflates h² by 24%.
+A 6.4% case rate against an assumed 5.0% inflates h² by +0.23. The curve is
+steep and its middle is the noisy part -- three replicates at N = 4,000 carry an
+SD near 0.09 there -- so read the shape, not any single cell: mild enrichment is
+already damaging, and by 2× the estimate is pinned. The unenriched cell sits at
+0.426 rather than 0.5, which is this arm's small-N noise floor (N = 4,000, SD
+0.055), not a bias of the fitter; the N = 10,000 population arm above recovers
+0.523.
 
 ### The correction, where one exists
 
@@ -1383,10 +1390,11 @@ A Lee et al. observed→liability factor cannot substitute. It is a multiplicati
 function of (K, P) alone, while at fixed K a true h² of 0.5 and of 0.0 **both**
 produce 1.000 -- no invertible constant maps both back. It also transforms an
 *observed-scale* estimate, and this fitter is already on the liability scale.
-Measured directly, an observed-scale HE + Lee pipeline on the same ascertained
-cohorts lands at 0.217 and 0.297 against a truth of 0.5 (and is itself +0.12 off
-under clean population sampling), though it does at least not manufacture
-heritability at the null.
+Measured directly (arm J), an observed-scale HE + Lee pipeline on the same
+ascertained cohorts lands at **0.211** (50/50) and **0.294** (20% enriched)
+against a truth of 0.5, and is itself +0.21 off under clean population sampling
+-- so it is not a drop-in replacement for the population-sampled fitter either.
+It does at least fail gracefully rather than manufacturing heritability.
 
 ### What changed as a result
 
@@ -1394,8 +1402,10 @@ heritability at the null.
 trust (`ltpred.fit._assert_population_case_rate`). The thresholds assert a
 prevalence, and under population sampling each role's case count is
 Binomial(n_families, K), so a binomial z-test applies per role. All five
-phenotype-selected schemes above raise at z = +67 to +436 (at this section's N = 10,000; the same schemes give +43 to +276 at N = 4,000); a 12-cohort
-specificity check across N ∈ {500 … 10,000} and K ∈ {0.02 … 0.20} raised nothing.
+phenotype-selected schemes above raise at z = +67 to +436 (at this section's
+N = 10,000; the same schemes give +43 to +276 at N = 4,000). Arm I is the
+specificity half: 12 unascertained cohorts across N ∈ {500 … 10,000} and
+K ∈ {0.02 … 0.20}, **0 false positives**.
 The bar is deliberately conservative (z ≥ 6 and a ratio outside [1/1.15, 1.15]):
 `bootstrap_fit` resamples are centred on the cohort's rate rather than on K, so
 their z carries the cohort's own sampling error as an offset, and a z ≥ 4 bar
