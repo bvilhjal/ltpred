@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import operator
 import warnings
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -235,9 +236,11 @@ def _prepare_group(families, idx):
                 x=np.ascontiguousarray(x))
 
 
-def fit_heritability(families, *, h2_init=0.5, n_iter=1500, burn_in=500,
-                     inner_sweeps=5, damp=0.2, seed=None, eps=1e-4,
-                     sampling=None):
+def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
+                     n_iter: int = 1500, burn_in: int = 500,
+                     inner_sweeps: int = 5, damp: float = 0.2,
+                     seed: int | None = None, eps: float = 1e-4,
+                     sampling: str | None = None) -> FitResult:
     """Estimate liability-scale ``h2`` from family case/control (+age) statuses.
 
     **Sampling contract:** this moment fitter supports independent,
@@ -416,9 +419,11 @@ def _prepare_group_vc(families, idx, comps):
                 x=np.ascontiguousarray(x))
 
 
-def fit_variance_components(families, components=("A", "C"), *,
-                            n_iter=1500, burn_in=500, inner_sweeps=5, damp=0.2,
-                            seed=None, eps=1e-4, sampling=None):
+def fit_variance_components(families: Sequence, components: Sequence[str] = ("A", "C"),
+                            *, n_iter: int = 1500, burn_in: int = 500,
+                            inner_sweeps: int = 5, damp: float = 0.2,
+                            seed: int | None = None, eps: float = 1e-4,
+                            sampling: str | None = None) -> VarCompResult:
     """Fit liability-scale variance components by a multiple Haseman-Elston regression.
 
     **Sampling contract:** like :func:`fit_heritability`, this supports
@@ -561,7 +566,9 @@ class BootstrapResult:
     samples: np.ndarray
 
 
-def bootstrap_fit(families, estimator, *, n_boot=100, seed=None, ci_level=0.95):
+def bootstrap_fit(families: Sequence, estimator: Callable, *, n_boot: int = 100,
+                  seed: int | None = None,
+                  ci_level: float = 0.95) -> BootstrapResult:
     """Approximate percentile uncertainty by **resampling family clusters**.
 
     The HE ``se`` reported by :func:`fit_heritability` and

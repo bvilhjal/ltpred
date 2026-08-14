@@ -33,6 +33,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from numpy.typing import ArrayLike
+
 from ._mathfun import norm_ppf
 
 __all__ = ["observed_to_liability_h2", "liability_to_observed_h2",
@@ -67,7 +69,8 @@ def _master_factor(pop_prev, prop_cases):
     return f * _ascertainment(pop_prev, prop_cases)
 
 
-def observed_to_liability_h2(obs_h2, pop_prev, prop_cases=None):
+def observed_to_liability_h2(obs_h2: ArrayLike, pop_prev: ArrayLike,
+                             prop_cases: ArrayLike | None = None) -> np.ndarray:
     """Observed-scale h² -> liability scale (Lee et al. 2011).
 
     Multiplies by ``K(1-K)/z²`` with ``z = phi(Phi^-1(1-K))``, plus the
@@ -77,7 +80,8 @@ def observed_to_liability_h2(obs_h2, pop_prev, prop_cases=None):
     return np.asarray(obs_h2, dtype=float) * _master_factor(pop_prev, prop_cases)
 
 
-def liability_to_observed_h2(liab_h2, pop_prev, prop_cases=None):
+def liability_to_observed_h2(liab_h2: ArrayLike, pop_prev: ArrayLike,
+                             prop_cases: ArrayLike | None = None) -> np.ndarray:
     """Liability-scale h² -> observed scale (inverse of
     :func:`observed_to_liability_h2`)."""
     pop_prev, z = _z_density(pop_prev)
@@ -86,7 +90,8 @@ def liability_to_observed_h2(liab_h2, pop_prev, prop_cases=None):
         pop_prev, prop_cases)
 
 
-def probit_liability_r2(beta, maf, *, fraction=False):
+def probit_liability_r2(beta: ArrayLike, maf: ArrayLike, *,
+                        fraction: bool = False) -> np.ndarray:
     """Residual-scale probit genetic variance: ``2 f (1-f) beta²``.
 
     Despite the compatibility name, the default is **not a total-liability
@@ -110,8 +115,9 @@ def probit_liability_r2(beta, maf, *, fraction=False):
     return r2
 
 
-def liability_r2_from_z(z, n, pop_prev, prop_cases=None, *,
-                        subtract_null=True):
+def liability_r2_from_z(z: ArrayLike, n: ArrayLike, pop_prev: ArrayLike,
+                        prop_cases: ArrayLike | None = None, *,
+                        subtract_null: bool = True) -> np.ndarray:
     """Residual-scale liability-variance signal from a GWAS z-statistic.
 
     For a marginal case-control GWAS statistic ``z_j``, the liability-scale

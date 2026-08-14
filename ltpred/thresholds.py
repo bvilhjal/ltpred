@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from numpy.typing import ArrayLike
+
 from ._mathfun import norm_cdf, norm_ppf
 
 __all__ = ["convert_age_to_cir", "convert_age_to_thresh",
@@ -38,12 +40,14 @@ def _validate_pop_prev(pop_prev):
     return prev
 
 
-def liability_threshold(pop_prev):
+def liability_threshold(pop_prev: ArrayLike) -> np.ndarray:
     """Single-prevalence liability threshold ``T = Phi^-1(1 - K)``."""
     return norm_ppf(1.0 - _validate_pop_prev(pop_prev))
 
 
-def convert_age_to_cir(age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
+def convert_age_to_cir(age: ArrayLike, pop_prev: ArrayLike = 0.1,
+                       mid_point: float = 60.0,
+                       slope: float = 1.0 / 8.0) -> np.ndarray:
     """Cumulative incidence rate at a given age (logistic curve).
 
     ``cir(age) = pop_prev / (1 + exp((mid_point - age) * slope))`` -- incidence
@@ -67,7 +71,9 @@ def _convert_cir_to_age(cir, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     return np.maximum(age, 0.0)
 
 
-def convert_age_to_thresh(age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
+def convert_age_to_thresh(age: ArrayLike, pop_prev: ArrayLike = 0.1,
+                          mid_point: float = 60.0,
+                          slope: float = 1.0 / 8.0) -> np.ndarray:
     """Liability threshold implied by an age (or age of onset).
 
     The threshold is ``Phi^-1(1 - cir(age))`` where ``cir`` is
@@ -81,8 +87,9 @@ def convert_age_to_thresh(age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     return norm_ppf(1.0 - cir)
 
 
-def convert_liability_to_aoo(liability, pop_prev=0.1, mid_point=60.0,
-                             slope=1.0 / 8.0):
+def convert_liability_to_aoo(liability: ArrayLike, pop_prev: ArrayLike = 0.1,
+                             mid_point: float = 60.0,
+                             slope: float = 1.0 / 8.0) -> np.ndarray:
     """Age of onset implied by a case's true liability.
 
     Higher liability -> earlier onset: :func:`_convert_cir_to_age` applied to
@@ -95,7 +102,8 @@ def convert_liability_to_aoo(liability, pop_prev=0.1, mid_point=60.0,
                                slope=slope)
 
 
-def prevalence_thresholds(status, pop_prev=0.1):
+def prevalence_thresholds(status: ArrayLike, pop_prev: ArrayLike = 0.1
+                          ) -> tuple[np.ndarray, np.ndarray]:
     """Classic LT-FH bounds from binary status and a single prevalence.
 
     Cases get ``(T, inf)`` and controls ``(-inf, T)`` with ``T = Phi^-1(1 - K)``.
@@ -108,7 +116,9 @@ def prevalence_thresholds(status, pop_prev=0.1):
     return lower, upper
 
 
-def age_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
+def age_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike = 0.1,
+                   mid_point: float = 60.0, slope: float = 1.0 / 8.0
+                   ) -> tuple[np.ndarray, np.ndarray]:
     """Age-dependent, onset-pinned bounds from status and age.
 
     A case is pinned at its onset threshold (``lower = upper = thresh(age_of_onset)``,
@@ -130,7 +140,9 @@ def age_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     return lower, upper
 
 
-def pa_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
+def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike = 0.1,
+                  mid_point: float = 60.0, slope: float = 1.0 / 8.0
+                  ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """**Not** the paper-faithful PA-FGRS encoding — an age-dependent variant.
 
     This helper gives cases **age-specific onset intervals**. Dybdahl Krebs et al.
@@ -183,8 +195,10 @@ def pa_thresholds(status, age, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     return lower, upper, K_i, K_pop
 
 
-def thresholds_from_cip(status, age, cip_ages, cip_values, k_pop=None,
-                        case_mode="pin", min_cip=1e-5):
+def thresholds_from_cip(status: ArrayLike, age: ArrayLike, cip_ages: ArrayLike,
+                        cip_values: ArrayLike, k_pop: float | None = None,
+                        case_mode: str = "pin", min_cip: float = 1e-5
+                        ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Liability bounds (+ ``K_i``, ``K_pop``) from an *empirical* CIP curve.
 
     The production alternative to the logistic ``age_thresholds`` /

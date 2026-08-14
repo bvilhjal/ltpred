@@ -36,6 +36,7 @@ inputs give identical pedigrees regardless of record order.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -78,7 +79,8 @@ class Pedigree:
     degree: np.ndarray
 
 
-def build_parent_graph(ids, father, mother):
+def build_parent_graph(ids: Sequence, father: Sequence,
+                       mother: Sequence) -> ParentGraph:
     """Index population trio records for traversal.
 
     ``ids`` must be unique; a parent not among ``ids`` (``None``, ``nan``, or
@@ -126,7 +128,8 @@ def build_parent_graph(ids, father, mother):
                        sibs=sibs, index=index)
 
 
-def extract_pedigree(graph, proband, max_degree=2):
+def extract_pedigree(graph: ParentGraph, proband: object,
+                     max_degree: int = 2) -> Pedigree:
     """One proband's pedigree by breadth-first traversal of ``graph``.
 
     Visits every person within ``max_degree`` relationship-degrees of

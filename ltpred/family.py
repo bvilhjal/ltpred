@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 __all__ = ["Member", "Family", "families_from_columns"]
 
@@ -64,8 +65,11 @@ class Family:
     members: list = field(default_factory=list)
 
 
-def families_from_columns(fam_id, role, lower, upper, pid=None, K_i=None,
-                        K_pop=None, aod=None):
+def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
+                          upper: ArrayLike, pid: ArrayLike | None = None,
+                          K_i: ArrayLike | None = None,
+                          K_pop: ArrayLike | None = None,
+                          aod: ArrayLike | None = None) -> list[Family]:
     """Group flat, column-oriented threshold data into a list of families.
 
     Mirrors the R ``.tbl`` input (columns ``fam_id``, ``role``, ``lower``,

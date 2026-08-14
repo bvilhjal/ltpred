@@ -11,8 +11,56 @@ version is 0 the public API may still change between minor releases.
 - Technical report `report/ltpred_methods.pdf` (LaTeX source
   `report/ltpred_methods.tex`): estimand, theory, implementation, and
   committed simulation evidence. Included in the source distribution.
+- **Gibbs now reports the posterior variance**, so both engines fill
+  `LiabilityResult.var` and the two are directly comparable. The batched kernel
+  streams a sum of squares alongside the existing mean and batch-mean
+  summaries, so the cost is one multiply-add per retained draw and the memory
+  stays `O(ncols)` per family. `estimate_liability_gibbs_arrays(...,
+  return_var=True)` exposes it on the array path. `var` (the spread of the
+  posterior — it does not shrink with more draws) and `se` (the estimator's own
+  error — it does) are now documented as the distinct quantities they are.
+  This also gives PA's sequential-moment `var` an independent reference: a new
+  test holds PA within 5% of the sampler on a seven-observation fold, the
+  multi-truncation regime where `var` is actually used and where it was
+  previously checked only for the single truncation PA is exact for.
+- **Type annotations on the public API**, backing the `py.typed` marker the
+  package already shipped. Every exported function now carries parameter and
+  return types. `__init__.py` gained an `if TYPE_CHECKING` re-export block:
+  the lazy PEP 562 `__getattr__` is a wildcard to a type checker, so without it
+  *every* `from ltpred import X` resolved to `Any` and the annotations were
+  invisible on the documented import path. `tests/test_public_api.py` pins the
+  two export lists together.
+- `simulate_under_LTM_single(onset_resolution=...)` makes the recording grid for
+  a case's age of onset explicit (default `1.0`, whole years, as before;
+  `None` records the exact simulated onset).
+- CI jobs for the **pure-Python fallback** (installed without the `fast` extra —
+  the path a plain `pip install ltpred` gets, previously never exercised because
+  both matrix legs installed Numba), the **declared dependency floor**
+  (`numpy==1.20.*`, `scipy==1.6.*`), and **`examples/*.py`**, which were run by
+  neither the tests nor CI. The test matrix adds Python 3.13 (already claimed in
+  the classifiers) and a macOS leg.
 
 ### Changed
+
+- **`simulate_under_LTM_single` applies the onset recording grid to
+  `case_encoding="interval"` as well as `"pin"`.** Both encodings derive the
+  case bound from the *recorded* onset age, so they now describe the same
+  observation process; previously `pin` rounded to whole years and `interval`
+  did not. The one-year default is unchanged for `pin`, so existing pinned
+  artifacts are unaffected; interval-case simulations shift slightly. The
+  docstring no longer claims a pin recovers the true liability outright — at the
+  default grid it lands within ~0.02 of it (~2% of a liability SD), which is a
+  floor under any oracle comparison built on the simulator; `onset_resolution=None`
+  recovers it exactly.
+- `kinship_from_pedigree` sorts the pedigree topologically with Kahn's
+  algorithm instead of repeated scans. Any valid topological order yields the
+  same `A` (pinned by a new record-order-invariance test), but the scan needed
+  one pass per generation and degraded to `O(n^2)` when records were listed
+  youngest-first — measured 1.25× total runtime on that ordering, the rest
+  being the inherently `O(n^2)` dense-`A` fill.
+- A family with **no members at all** now warns instead of silently returning
+  the prior mean 0, which is indistinguishable in the output from a real
+  estimate and in practice means a join dropped the member rows.
 
 - **Pearson–Aitken `out="full"` is now the same estimand as Gibbs:**
   \(\mathbb{E}[l_o \mid\) own interval and relatives\(]\). The sweep applies the

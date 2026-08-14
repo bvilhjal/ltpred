@@ -94,6 +94,52 @@ def test_stochastic_onset_does_not_pin_cases_at_true_liability():
     assert not np.allclose(sim.liabilities[case, o], t, atol=0.05)
 
 
+def _proband_case_pins(sim):
+    case = sim.status["o"]
+    pins = np.array([next(m.lower for m in fam.members if m.role == "o")
+                     for fam in sim.families])
+    return case, pins, sim.liabilities[:, sim.roles.index("o")]
+
+
+def test_onset_resolution_controls_pin_fidelity():
+    # Under threshold_crossing the onset age is the CIP inverse of the true
+    # liability, so a pin rebuilt from an *exactly* recorded onset returns that
+    # liability. The default one-year recording grid is a deliberate register
+    # approximation and must NOT be mistaken for exact recovery: it shifts the
+    # pin by ~1e-2, which is a floor under any oracle comparison built on it.
+    def run(resolution):
+        sim = simulate_under_LTM_single(
+            fam_vec=["m", "f"], h2=0.5, n_sim=1500, pop_prev=0.1,
+            use_age=True, seed=1, onset_resolution=resolution)
+        case, pins, true_l = _proband_case_pins(sim)
+        assert case.any()
+        return np.abs(pins[case] - true_l[case])
+
+    assert np.max(run(None)) < 1e-9
+    coarse = np.max(run(1.0))
+    assert 1e-3 < coarse < 0.1
+    assert np.max(run(0.25)) < coarse
+
+
+def test_onset_resolution_applies_to_interval_cases_too():
+    # pin and interval must describe the same observation process: both derive
+    # the case bound from the recorded onset age.
+    kwargs = dict(fam_vec=["m"], h2=0.5, n_sim=600, pop_prev=0.1, use_age=True,
+                  seed=3, onset_model="threshold_crossing")
+    pinned = simulate_under_LTM_single(case_encoding="pin", **kwargs)
+    interval = simulate_under_LTM_single(case_encoding="interval", **kwargs)
+    case, pin_lo, _ = _proband_case_pins(pinned)
+    _, int_lo, _ = _proband_case_pins(interval)
+    assert case.any()
+    assert np.allclose(pin_lo[case], int_lo[case])
+
+
+@pytest.mark.parametrize("bad", [0.0, -1.0, np.nan, True])
+def test_onset_resolution_is_validated(bad):
+    with pytest.raises((ValueError, TypeError), match="onset_resolution"):
+        simulate_under_LTM_single(n_sim=2, use_age=True, onset_resolution=bad)
+
+
 def test_age_options_rejected_without_use_age():
     with pytest.raises(ValueError, match="use_age"):
         simulate_under_LTM_single(use_age=False, onset_model="stochastic")

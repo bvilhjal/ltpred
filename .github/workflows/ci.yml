@@ -7,11 +7,18 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # `fast` extra installed: the JIT-compiled path. Kept on both ends of the
+    # supported range plus macOS, because Numba's threading layer and `prange`
+    # scheduling are the most platform-sensitive part of the package.
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.12"]
+        os: [ubuntu-latest]
+        python-version: ["3.9", "3.12", "3.13"]
+        include:
+          - os: macos-latest
+            python-version: "3.12"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,6 +31,78 @@ jobs:
         run: ruff check .
       - name: Tests
         run: pytest -q
+
+  test-no-numba:
+    # Numba is an OPTIONAL extra, so a plain `pip install ltpred` runs the pure
+    # Python fallback in ltpred/_numba.py -- the path most users get, and the
+    # one that promises identical numbers. It is ~100x slower than the JIT, so
+    # run the files that exercise the compiled kernels themselves (truncated
+    # moments and quantiles, the PA sweep, the batched accumulators, the Gibbs
+    # sweep) rather than the sampling-dominated statistical suite, and deselect
+    # the handful of large-n_sim comparisons inside them. That is ~285 tests in
+    # a few seconds; the JIT-marked ones are covered by the `test` job.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install WITHOUT the fast extra
+        run: pip install -e ".[test,lint]"
+      - name: Assert the fallback is really in use
+        run: python -c "from ltpred._numba import HAVE_NUMBA; assert not HAVE_NUMBA, 'numba leaked into the no-JIT job'"
+      - name: Kernel tests on the pure-Python fallback
+        run: |
+          pytest -q -m "not jit_required" \
+            tests/test_mathfun.py tests/test_thresholds.py \
+            tests/test_covariance.py tests/test_public_api.py \
+            tests/test_liability_scale.py tests/test_tetrachoric.py \
+            tests/test_numba.py tests/test_pedigree.py tests/test_cip.py \
+            tests/test_gibbs.py tests/test_pearson_aitken.py \
+            tests/test_batched.py
+
+  oldest-deps:
+    # The floors declared in pyproject are a promise; resolve to them so they
+    # are tested rather than assumed. The default `test` job always installs the
+    # newest NumPy/SciPy.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: pip
+      - name: Install at the declared dependency floor
+        run: |
+          pip install -e ".[test,lint]"
+          pip install --force-reinstall "numpy==1.20.*" "scipy==1.6.*"
+          python -c "import numpy, scipy; print(numpy.__version__, scipy.__version__)"
+      - name: Lint (pyflakes gate)
+        run: ruff check .
+      - name: Tests
+        run: pytest -q
+
+  examples:
+    # examples/*.py are the front door for new users and were previously run by
+    # neither the tests nor CI, so they could rot silently. They are small (a
+    # few seconds each), so just run them.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install (with the JIT extra)
+        run: pip install -e ".[fast]"
+      - name: Run every example end to end
+        run: |
+          for f in examples/*.py; do
+            echo "::group::$f"
+            python "$f"
+            echo "::endgroup::"
+          done
 
   docs:
     runs-on: ubuntu-latest

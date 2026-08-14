@@ -24,8 +24,10 @@ from __future__ import annotations
 
 import operator
 import threading
+from collections.abc import Sequence
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 from ._numba import _jit, _jit_parallel, prange
 from ._mathfun import _norm_cdf, _norm_ppf
@@ -193,7 +195,7 @@ def _validate_covmat(covmat):
     return cov
 
 
-def gibbs_params(covmat):
+def gibbs_params(covmat: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     """Precompute the sweep's conditional-regression matrix ``P`` and SDs ``sd``.
 
     The Gibbs conditionals come from the **precision** matrix ``Q = Sigma^-1``:
@@ -244,13 +246,17 @@ def _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, n_sim, burn_in, res):
 
 @_jit_parallel
 def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
-                            batch_size, n_batch, seeds, total_sum, bm_sum, bm_sumsq):
+                            batch_size, n_batch, seeds, total_sum, total_sumsq,
+                            bm_sum, bm_sumsq):
     """Sample many families, accumulating means online (no sample store).
 
     All families share the conditional-regression factorisation ``(P, sd)`` (they
     have the same covariance structure); only their truncation bounds differ. Each
     ``prange`` iteration runs one family's ``burn_in + n_sim`` sweeps and writes,
-    per output coordinate, the running sum ``total_sum[f]`` (for the mean) and two
+    per output coordinate, the running sum ``total_sum[f]`` (for the mean), the
+    running sum of squares ``total_sumsq[f]`` (for the **posterior** variance of
+    the target -- the spread of the truncated-MVN itself, not the sampler's error)
+    and two
     **batch-mean summaries** -- ``bm_sum[f]`` (sum of the ``n_batch`` batch means)
     and ``bm_sumsq[f]`` (sum of their squares) -- from which the batch-means
     Monte-Carlo SE is reconstructed without storing the batch means themselves.
@@ -276,6 +282,7 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
         x = _init_chain(lower, upper, sd0)
 
         tot = np.zeros(ncols)
+        tot_sq = np.zeros(ncols)      # sum of x^2 -> posterior variance
         batch_sum = np.zeros(ncols)
         s1 = np.zeros(ncols)          # sum of batch means Y_k
         s2 = np.zeros(ncols)          # sum of Y_k^2
@@ -292,6 +299,7 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                 for c in range(ncols):
                     v = x[out_idx[c]]
                     tot[c] += v
+                    tot_sq[c] += v * v
                     if bidx < n_batch:
                         batch_sum[c] += v
                 if bidx < n_batch:
@@ -307,6 +315,7 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
 
         for c in range(ncols):
             total_sum[f, c] = tot[c]
+            total_sumsq[f, c] = tot_sq[c]
             bm_sum[f, c] = s1[c]
             bm_sumsq[f, c] = s2[c]
 
@@ -323,16 +332,23 @@ def as_bounds(a):
 
 def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                            batch_size, n_batch, seeds):
-    """Thin wrapper over the batched kernel; returns ``(total_sum, bm_sum, bm_sumsq)``.
+    """Thin wrapper over the batched kernel.
 
+    Returns ``(total_sum, total_sumsq, bm_sum, bm_sumsq)``.
     ``total_sum[f, c]`` is the sum of ``n_sim`` post-burn-in draws (divide by
-    ``n_sim`` for the posterior mean); ``bm_sum`` / ``bm_sumsq`` are the sum and
+    ``n_sim`` for the posterior mean) and ``total_sumsq[f, c]`` the sum of their
+    squares, from which the **posterior variance** follows as
+    ``total_sumsq / N - (total_sum / N)^2``. ``bm_sum`` / ``bm_sumsq`` are the sum and
     sum-of-squares of the ``n_batch`` batch means, from which the batch-means SE is
     formed: with ``M`` batches of size ``b``, ``se = sqrt(b * (bm_sumsq - bm_sum^2/M)
-    / (M-1) / N)``. ``lowers``/``uppers`` may be float32 to halve their memory."""
+    / (M-1) / N)``. The two are different quantities: the posterior variance is a
+    property of the truncated MVN and does not shrink with more draws, while the
+    batch-means SE is the sampler's own error and does.
+    ``lowers``/``uppers`` may be float32 to halve their memory."""
     F = lowers.shape[0]
     ncols = out_idx.shape[0]
     total_sum = np.zeros((F, ncols), dtype=np.float64)
+    total_sumsq = np.zeros((F, ncols), dtype=np.float64)
     bm_sum = np.zeros((F, ncols), dtype=np.float64)
     bm_sumsq = np.zeros((F, ncols), dtype=np.float64)
     _gibbs_estimate_batched(np.ascontiguousarray(P), np.ascontiguousarray(sd),
@@ -341,8 +357,8 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                             np.asarray(out_idx, dtype=np.int64),
                             int(n_sim), int(burn_in), int(batch_size),
                             int(n_batch), np.asarray(seeds, dtype=np.int64),
-                            total_sum, bm_sum, bm_sumsq)
-    return total_sum, bm_sum, bm_sumsq
+                            total_sum, total_sumsq, bm_sum, bm_sumsq)
+    return total_sum, total_sumsq, bm_sum, bm_sumsq
 
 
 @_jit_parallel
@@ -514,9 +530,12 @@ def gibbs_advance_moment(P, sd, lowers, uppers, fixed, x, n_sweeps):
     return out_m
 
 
-def rtmvnorm_gibbs(covmat, lower=-np.inf, upper=np.inf, *, fixed=None,
-                   out=(0,), n_sim=100_000, burn_in=1000, seed=None,
-                   params=None):
+def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
+                   upper: ArrayLike = np.inf, *, fixed: ArrayLike | None = None,
+                   out: Sequence[int] = (0,), n_sim: int = 100_000,
+                   burn_in: int = 1000, seed: int | None = None,
+                   params: tuple[np.ndarray, np.ndarray] | None = None
+                   ) -> np.ndarray:
     """Draw truncated-MVN samples of the coordinates listed in ``out``.
 
     Parameters

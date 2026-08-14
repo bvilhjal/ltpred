@@ -16,9 +16,11 @@ sample from.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 __all__ = ["Covmat", "get_relatedness", "construct_covmat_single",
            "construct_covmat_multi", "kinship_from_pedigree",
@@ -130,7 +132,7 @@ _SHARED_DNA = {
 }
 
 
-def get_relatedness(s1, s2, h2=0.5):
+def get_relatedness(s1: str, s2: str, h2: float = 0.5) -> float:
     """Shared-DNA fraction between two family roles, times ``h2``.
 
     ``s1``/``s2`` are role strings (``g`` genetic liability, ``o`` full liability,
@@ -319,8 +321,12 @@ def _apply_env_components(cov, fam_roles, c2, m2, h2):
     return cov
 
 
-def construct_covmat_single(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
-                            n_fam=None, add_ind=True, h2=0.5, c2=None, m2=None):
+def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
+                                                            "mgf", "pgm", "pgf"),
+                            n_fam: Mapping[str, int] | None = None,
+                            add_ind: bool = True, h2: float = 0.5,
+                            c2: float | None = None,
+                            m2: float | None = None) -> Covmat:
     """Covariance matrix for one trait: proband ``g``/``o`` plus relatives.
 
     Entry ``(i, j)`` is ``get_relatedness(role_i, role_j, h2)``. With the defaults
@@ -353,9 +359,13 @@ def construct_covmat_single(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf")
     return Covmat(cov, roles)
 
 
-def construct_covmat_multi(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
-                           n_fam=None, add_ind=True, *, genetic_corrmat,
-                           full_corrmat, h2_vec, phen_names=None):
+def construct_covmat_multi(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
+                                                           "mgf", "pgm", "pgf"),
+                           n_fam: Mapping[str, int] | None = None,
+                           add_ind: bool = True, *,
+                           genetic_corrmat: ArrayLike,
+                           full_corrmat: ArrayLike, h2_vec: ArrayLike,
+                           phen_names: Sequence[str] | None = None) -> Covmat:
     """Covariance matrix for several correlated traits.
 
     Same-trait blocks use ``get_relatedness(., ., h2_p)``. Cross-trait blocks
@@ -438,7 +448,8 @@ def construct_covmat_multi(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
     return Covmat(cov, roles, phen_names=list(phen_names))
 
 
-def kinship_from_pedigree(ids, father, mother):
+def kinship_from_pedigree(ids: Sequence, father: Sequence,
+                          mother: Sequence) -> tuple[list, np.ndarray]:
     """Additive relationship matrix ``A`` (= 2×kinship) from a pedigree.
 
     Generalises the fixed role grammar (:func:`get_relatedness`) to **arbitrary
@@ -476,24 +487,34 @@ def kinship_from_pedigree(ids, father, mother):
 
     sire = [_parent_idx(p) for p in father]
     dam = [_parent_idx(p) for p in mother]
+    children = [[] for _ in range(n)]
     for i in range(n):
         if sire[i] == i or dam[i] == i:
             raise ValueError(f"individual {ids[i]!r} is its own parent")
+        if sire[i] != -1:
+            children[sire[i]].append(i)
+        if dam[i] != -1:
+            children[dam[i]].append(i)
 
-    # topological order: an individual comes after both its (known) parents
-    done = [False] * n
+    # Topological order: an individual comes after both its (known) parents.
+    # Kahn's algorithm, O(n + edges). Any valid topological order yields the
+    # same A, so the choice of order is free; the repeated-scan alternative
+    # needs one pass per generation and degrades to O(n^2) when the records are
+    # listed youngest-first.
+    n_parents = [int(sire[i] != -1) + int(dam[i] != -1) for i in range(n)]
+    ready = [i for i in range(n) if n_parents[i] == 0]
     order = []
-    while len(order) < n:
-        progressed = False
-        for i in range(n):
-            if done[i]:
-                continue
-            if (sire[i] == -1 or done[sire[i]]) and (dam[i] == -1 or done[dam[i]]):
-                order.append(i)
-                done[i] = True
-                progressed = True
-        if not progressed:
-            raise ValueError("pedigree has a cycle (an individual is its own ancestor)")
+    head = 0
+    while head < len(ready):
+        i = ready[head]
+        head += 1
+        order.append(i)
+        for child in children[i]:
+            n_parents[child] -= 1
+            if n_parents[child] == 0:
+                ready.append(child)
+    if len(order) < n:
+        raise ValueError("pedigree has a cycle (an individual is its own ancestor)")
 
     A = np.zeros((n, n), dtype=np.float64)
     for i in order:
@@ -507,7 +528,8 @@ def kinship_from_pedigree(ids, father, mother):
     return ids, A
 
 
-def construct_covmat_from_kinship(A, h2=0.5, target=0, add_ind=True):
+def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0,
+                                  add_ind: bool = True) -> Covmat:
     """Liability-scale covariance from an additive relationship matrix ``A``.
 
     The kinship-based counterpart of :func:`construct_covmat_single`: given ``A``
@@ -570,8 +592,9 @@ def construct_covmat_from_kinship(A, h2=0.5, target=0, add_ind=True):
     return Covmat(cov, ["g"] + o_roles)
 
 
-def correct_positive_definite(covmat, correction_val=0.99, correction_limit=100,
-                              eps=1e-8):
+def correct_positive_definite(covmat: ArrayLike, correction_val: float = 0.99,
+                              correction_limit: int = 100, eps: float = 1e-8
+                              ) -> tuple[np.ndarray, int]:
     """Nudge a not-quite-positive-definite covariance matrix back to PD.
 
     Relatedness rounding can leave the assembled matrix with a tiny (or negative)

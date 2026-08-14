@@ -47,7 +47,7 @@ except ImportError:  # pragma: no cover - exercised only without numba
         pass
 
 
-def set_num_threads(ncores):
+def set_num_threads(ncores: int) -> None:
     """Set the active thread count for subsequent Numba-parallel kernels.
 
     ``ncores`` must be a positive, non-boolean integer. With Numba installed,

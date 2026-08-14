@@ -31,6 +31,7 @@ import warnings
 from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import ArrayLike
 from scipy.optimize import minimize_scalar
 from scipy.special import ndtr, ndtri
 from scipy.stats import multivariate_normal
@@ -94,7 +95,8 @@ def _neg_loglik(rho, t1, t2, a, b, c, d):
     return -ll
 
 
-def tetrachoric_table(a, b, c, d, *, continuity_correction=True):
+def tetrachoric_table(a: float, b: float, c: float, d: float, *,
+                      continuity_correction: bool = True) -> TetrachoricResult:
     """Tetrachoric MLE from a 2x2 table of counts.
 
     The table reads ``a`` = both cases, ``b`` = first case only, ``c`` =
@@ -147,7 +149,8 @@ def tetrachoric_table(a, b, c, d, *, continuity_correction=True):
                              thresholds=(t1, t2), n=n_pairs, corrected=corrected)
 
 
-def tetrachoric(x, y, *, continuity_correction=True):
+def tetrachoric(x: ArrayLike, y: ArrayLike, *,
+                continuity_correction: bool = True) -> TetrachoricResult:
     """Tetrachoric MLE between two binary arrays of equal length."""
     x = np.asarray(x)
     y = np.asarray(y)
@@ -165,7 +168,8 @@ def tetrachoric(x, y, *, continuity_correction=True):
                              continuity_correction=continuity_correction)
 
 
-def tetrachoric_matrix(X, *, continuity_correction=True, check_psd=True):
+def tetrachoric_matrix(X: ArrayLike, *, continuity_correction: bool = True,
+                       check_psd: bool = True) -> np.ndarray:
     """Pairwise tetrachoric correlations among the columns of ``X``.
 
     ``X`` is an ``(n_pairs, m)`` binary array; returns the symmetric ``(m, m)``

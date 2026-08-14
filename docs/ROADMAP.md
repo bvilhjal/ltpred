@@ -109,7 +109,10 @@ BLUP / selection-index framing, the Pak–Sham liability-threshold-risk
 connection, and the environmental-covariance extension), plus `CITATION.cff`.
 
 The full test suite passes (`pytest`), with CI running it and the `ruff` gate on
-Python 3.9 and 3.12.
+Python 3.9, 3.12 and 3.13 (plus a macOS leg). Three further jobs cover the paths
+the matrix cannot: the **pure-Python fallback** (installed without the `fast`
+extra — what a plain `pip install ltpred` gets), the **declared dependency
+floor** (`numpy==1.20.*`, `scipy==1.6.*`), and `examples/*.py` end to end.
 
 ## Completed implementation history — variance components
 

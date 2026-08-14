@@ -53,6 +53,7 @@ import operator
 from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 __all__ = ["CipCurve", "kaplan_meier_cip", "aalen_johansen_cip"]
 
@@ -109,7 +110,8 @@ def _count_at(sorted_vals, grid):
     return hi - lo
 
 
-def kaplan_meier_cip(age_entry, age_exit, is_event):
+def kaplan_meier_cip(age_entry: ArrayLike, age_exit: ArrayLike,
+                     is_event: ArrayLike) -> CipCurve:
     """Kaplan-Meier cumulative incidence ``1 - S(t)`` with left truncation.
 
     Parameters
@@ -174,7 +176,8 @@ def kaplan_meier_cip(age_entry, age_exit, is_event):
                     estimator="kaplan-meier")
 
 
-def aalen_johansen_cip(age_entry, age_exit, event_type, cause=1):
+def aalen_johansen_cip(age_entry: ArrayLike, age_exit: ArrayLike,
+                       event_type: ArrayLike, cause: int = 1) -> CipCurve:
     """Aalen-Johansen cumulative incidence with competing risks.
 
     Parameters

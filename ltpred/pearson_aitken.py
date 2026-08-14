@@ -37,6 +37,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 from ._numba import _jit, _jit_parallel, prange
 from ._mathfun import _norm_cdf, _norm_ppf
@@ -402,7 +403,9 @@ def _validate_pa_covmat(covmat):
     return cov
 
 
-def pa_algorithm(covmat, lower, upper, target=0, K_i=None, K_pop=None):
+def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
+                 target: int = 0, K_i: ArrayLike | None = None,
+                 K_pop: ArrayLike | None = None) -> tuple[float, float]:
     """Pearson-Aitken estimate of the target liability for a single family.
 
     ``covmat`` is the ``(d, d)`` liability covariance; ``lower``/``upper`` are the
@@ -431,7 +434,10 @@ def pa_algorithm(covmat, lower, upper, target=0, K_i=None, K_pop=None):
     return _pa_family(cov, lo, hi, K_i[order], K_pop[order])
 
 
-def pa_estimate_batched(covmat, lowers, uppers, target=0, K_is=None, K_pops=None):
+def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
+                        target: int = 0, K_is: ArrayLike | None = None,
+                        K_pops: ArrayLike | None = None
+                        ) -> tuple[np.ndarray, np.ndarray]:
     """Vectorised :func:`pa_algorithm` over families sharing one covariance.
 
     ``lowers``/``uppers`` are ``(F, d)`` per-family bounds; ``covmat`` is shared.

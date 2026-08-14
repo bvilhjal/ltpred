@@ -216,6 +216,32 @@ def test_covmat_from_kinship_matches_role_grammar():
     assert construct_covmat_from_kinship(A, h2=h2, add_ind=False).matrix.shape == (9, 9)
 
 
+def test_kinship_is_independent_of_record_order():
+    # The tabular method needs parents placed before their children; the
+    # topological sort (Kahn's) supplies that regardless of how the records are
+    # listed. Youngest-first listing is the ordering that costs the naive
+    # repeated-scan sort one pass per generation, so pin it explicitly.
+    ids    = ["o", "m", "f", "s1", "mgm", "mgf", "pgm", "pgf"]
+    father = ["f", "mgf", "pgf", "f", None, None, None, None]
+    mother = ["m", "mgm", "pgm", "m", None, None, None, None]
+    _, A = kinship_from_pedigree(ids, father, mother)
+
+    rng = np.random.default_rng(11)
+    for _ in range(20):
+        perm = rng.permutation(len(ids))
+        p_ids = [ids[i] for i in perm]
+        p_fa = [father[i] for i in perm]
+        p_mo = [mother[i] for i in perm]
+        _, A_p = kinship_from_pedigree(p_ids, p_fa, p_mo)
+        # A_p is in permuted order; map it back and require an exact match
+        back = np.empty_like(A_p)
+        pos = {pid: k for k, pid in enumerate(p_ids)}
+        for a, ia in enumerate(ids):
+            for b, ib in enumerate(ids):
+                back[a, b] = A_p[pos[ia], pos[ib]]
+        assert np.array_equal(back, A)
+
+
 def test_covmat_from_kinship_scales_inbred_target_genetic_variance():
     ids = ["gm", "gf", "sA", "sB", "x"]
     father = [None, None, "gf", "gf", "sA"]

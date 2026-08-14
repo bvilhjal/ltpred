@@ -50,6 +50,14 @@ version = { attr = "ltpred.__version__" }
 [tool.pytest.ini_options]
 testpaths = ["tests", "research"]
 pythonpath = ["."]
+markers = [
+    # Correct without Numba, but sampling-dominated: ~100x slower on the
+    # pure-Python fallback, so the no-JIT CI job deselects these with
+    # `-m "not jit_required"`. Everything unmarked -- including the whole
+    # truncated-moment/quantile kernel, the PA sweep and the small-n_sim
+    # batched-accumulator identities -- still runs there.
+    "jit_required: too sampling-heavy to run without the Numba JIT",
+]
 
 [tool.ruff]
 # Lint for real defects, not style: like ldpred3/bipred, the codebase uses compact

@@ -81,7 +81,7 @@ def estimate_g(fams, roles, h2, c2, *, n_sim, burn_in, seed):
         for j, m in enumerate(fam.members):
             lo[i, 1 + j], hi[i, 1 + j] = m.lower, m.upper
     seeds = seed + np.arange(F, dtype=np.int64) * 50
-    est, se = _estimate_group(
+    est, se, _var = _estimate_group(
         cov, [0], lo, hi, seeds, GIBBS_TOL, int(n_sim), int(burn_in), GIBBS_MAX_ROUNDS
     )
     return est[:, 0], se[:, 0]

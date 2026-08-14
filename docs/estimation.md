@@ -60,8 +60,13 @@ res = estimate_liability(families, h2=0.5, out=("genetic",))
 | `res.pids` | one proband id per result (the `o` member's `pid`, else the `fam_id`) |
 | `res.est["genetic"]` | genetic-liability estimate per proband — a Gibbs Monte-Carlo estimate or PA sequential-moment approximation to the posterior mean; **the score** |
 | `res.est["full"]` | full-liability estimate (if requested), with the same Gibbs/PA interpretation as above; see caveat below |
-| `res.se["genetic"]` | Gibbs: Monte-Carlo standard error of the mean; PA: `0` |
-| `res.var["genetic"]` | PA only: sequential-moment approximation to the conditional variance `Var(G_i \| family)` — residual uncertainty about `G_i`, **not** a standard error of the estimate (`None` for Gibbs) |
+| `res.se["genetic"]` | the **estimator's own numerical error** in `res.est` — Gibbs: batch-means Monte-Carlo standard error of the mean, which shrinks as you sample more; PA: `0`, because it is deterministic (not because it is exact) |
+| `res.var["genetic"]` | the **posterior** conditional variance `Var(G_i \| family)` — how uncertain this proband's liability is given their family. Reported by **both** engines: Gibbs as the Monte-Carlo variance of its retained draws, PA as its sequential-moment approximation. It does **not** shrink as you sample more, and it is **not** a standard error of the estimate |
+
+The two are different quantities and neither substitutes for the other: `var`
+describes the proband, `se` describes the calculation. On a seven-observation
+family fold PA's `var` sits within 5% of the sampler's
+(`tests/test_pearson_aitken.py::test_pa_conditional_variance_matches_gibbs_multi_truncation`).
 
 `res.genetic` is shorthand for `res.est["genetic"]` (the usual single-trait output).
 Multi-trait columns are suffixed with the phenotype name, e.g.
@@ -194,7 +199,8 @@ test a different, no-mixture observation model
 | | Gibbs (`"gibbs"`) | Pearson–Aitken (`"pearson-aitken"`) |
 |---|---|---|
 | kind | Monte-Carlo (truncated-MVN sampler) | deterministic sequential-selection approximation |
-| error | batch-means MC SE (`res.se`) | no Monte-Carlo error, but a non-zero sequential moment-approximation error; gives `Var(G_i \| family)` in `res.var` |
+| error | batch-means MC SE (`res.se`) | no Monte-Carlo error (`res.se` is `0`), but a non-zero sequential moment-approximation error |
+| posterior variance | `Var(G_i \| family)` in `res.var`, from the retained draws | `Var(G_i \| family)` in `res.var`, as a sequential-moment approximation |
 | exactness | exact in the limit of infinite draws | exact for 1 truncation, close approx for families |
 | speed | ~117–363 families/s (4 threads) | ~57k–78k families/s — **203–492× faster** across tested sizes/structures, at the same 4 threads |
 | censoring mixture | not implemented | `use_mixture=True` |

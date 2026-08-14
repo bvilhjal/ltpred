@@ -114,8 +114,10 @@ sim = simulate_under_LTM_single(
 # The deterministic, fast PA inference engine is the single-trait default.
 pa = estimate_liability(sim.families, h2=0.5)
 pa.est["genetic"]      # (n_families,) PA approximations to posterior means
-pa.var["genetic"]      # PA moment approximations to conditional variances
-                        # (pa.se is 0 — deterministic, not zero approximation error)
+pa.var["genetic"]      # posterior variance Var(g | family) — how uncertain this
+                        # proband is; both engines report it (PA as a moment
+                        # approximation). pa.se is 0: deterministic, which is
+                        # not the same as zero approximation error.
 
 # ...or the Gibbs truncated-MVN sampler as a sampling-based cross-check.
 gibbs = estimate_liability(sim.families[:200], h2=0.5, method="gibbs",

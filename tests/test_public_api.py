@@ -34,3 +34,52 @@ def test_demoted_and_removed_names_are_gone_from_the_top_level():
                  "observed_to_liability_gencov", "observed_to_liability_rg"):
         with pytest.raises(AttributeError):
             getattr(ltpred, name)
+
+
+def test_static_reexports_cover_every_lazily_exported_name():
+    # A module-level __getattr__ is a wildcard to a type checker: without the
+    # `if TYPE_CHECKING` re-export block in __init__.py every `from ltpred
+    # import X` resolves to Any, silently voiding the py.typed promise. The two
+    # lists are maintained by hand, so pin them together.
+    import ast
+    import pathlib
+
+    import ltpred
+
+    source = pathlib.Path(ltpred.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    reexported = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.If) and getattr(node.test, "id", None) == "TYPE_CHECKING":
+            for stmt in ast.walk(node):
+                if isinstance(stmt, ast.ImportFrom):
+                    reexported.update(alias.name for alias in stmt.names)
+
+    lazy = {name for names in ltpred._EXPORTS.values() for name in names}
+    assert reexported, "the TYPE_CHECKING re-export block disappeared"
+    assert lazy - reexported == set(), (
+        "lazily exported but not statically re-exported (these resolve to Any "
+        f"for type checkers): {sorted(lazy - reexported)}")
+    assert reexported - lazy == set(), (
+        f"re-exported but not in _EXPORTS: {sorted(reexported - lazy)}")
+
+
+def test_py_typed_marker_is_present_and_backed_by_annotations():
+    # The marker tells type checkers to trust inline annotations, so the public
+    # signatures must actually carry them.
+    import inspect
+    import pathlib
+
+    import ltpred
+    from ltpred import estimate_liability, fit_heritability, prevalence_thresholds
+
+    assert (pathlib.Path(ltpred.__file__).parent / "py.typed").is_file()
+    for fn in (estimate_liability, fit_heritability, prevalence_thresholds):
+        # __annotations__ rather than inspect.get_annotations: the latter is
+        # 3.10+, and every annotated module uses `from __future__ import
+        # annotations`, so these are unevaluated strings on every version.
+        hints = fn.__annotations__
+        assert "return" in hints, f"{fn.__name__} has no return annotation"
+        params = [p for p in inspect.signature(fn).parameters]
+        missing = [p for p in params if p not in hints]
+        assert not missing, f"{fn.__name__} parameters lack annotations: {missing}"

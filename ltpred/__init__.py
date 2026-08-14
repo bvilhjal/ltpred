@@ -29,8 +29,47 @@ accelerates the Gibbs sweep. Names are imported lazily (PEP 562) so
 """
 
 import importlib
+from typing import TYPE_CHECKING
 
 __version__ = "0.3.0"
+
+if TYPE_CHECKING:
+    # Static re-exports. At runtime ``__getattr__`` below imports these lazily,
+    # but a module-level ``__getattr__`` is a wildcard to a type checker: every
+    # ``from ltpred import X`` would resolve to ``Any``, silently discarding the
+    # annotations the ``py.typed`` marker promises. Naming them here restores
+    # them without importing anything at run time. Kept in step with ``_EXPORTS``
+    # by ``tests/test_public_api.py``.
+    from .cip import CipCurve, aalen_johansen_cip, kaplan_meier_cip  # noqa: F401
+    from .covariance import (Covmat, construct_covmat_from_kinship,  # noqa: F401
+                             construct_covmat_multi, construct_covmat_single,
+                             correct_positive_definite, get_relatedness,
+                             kinship_from_pedigree)
+    from .estimate import (LiabilityResult, batch_means,  # noqa: F401
+                           estimate_liability,
+                           estimate_liability_from_kinship,
+                           estimate_liability_gibbs_arrays,
+                           estimate_liability_pa_arrays)
+    from .family import Family, Member, families_from_columns  # noqa: F401
+    from .fit import (BootstrapResult, FitResult, VarCompResult,  # noqa: F401
+                      bootstrap_fit, fit_heritability,
+                      fit_variance_components)
+    from .gibbs import gibbs_params, rtmvnorm_gibbs  # noqa: F401
+    from .liability_scale import (liability_r2_from_z,  # noqa: F401
+                                  liability_to_observed_h2,
+                                  observed_to_liability_h2,
+                                  probit_liability_r2)
+    from ._numba import set_num_threads  # noqa: F401
+    from .pearson_aitken import pa_algorithm, pa_estimate_batched  # noqa: F401
+    from .pedigree import (Pedigree, ParentGraph, build_parent_graph,  # noqa: F401
+                           extract_pedigree)
+    from .simulate import Simulation, simulate_under_LTM_single  # noqa: F401
+    from .tetrachoric import (TetrachoricResult, tetrachoric,  # noqa: F401
+                              tetrachoric_matrix, tetrachoric_table)
+    from .thresholds import (age_thresholds, convert_age_to_cir,  # noqa: F401
+                             convert_age_to_thresh, convert_liability_to_aoo,
+                             liability_threshold, pa_thresholds,
+                             prevalence_thresholds, thresholds_from_cip)
 
 # public name -> submodule it lives in
 _EXPORTS = {

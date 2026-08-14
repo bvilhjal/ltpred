@@ -20,6 +20,7 @@ Port of LTFHPlus::simulate_under_LTM(_single), with coherent follow-up.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -106,6 +107,36 @@ class Simulation:
         return self.liabilities[:, self.roles.index("o")]
 
 
+def _record_onset(aoo, onset_resolution):
+    """The onset age a register would *record*, at ``onset_resolution`` years.
+
+    Registers record onset on a grid (a year, a quarter), not to the instant, and
+    every case bound is derived from that recorded value -- so the same rounding
+    must apply to whichever ``case_encoding`` is in use, otherwise ``pin`` and
+    ``interval`` would silently describe different observation processes.
+    ``onset_resolution=None`` records the exact simulated onset, which is what
+    makes ``pin`` reproduce the true liability exactly."""
+    if onset_resolution is None:
+        return aoo
+    return round(aoo / onset_resolution) * onset_resolution
+
+
+def _validate_onset_resolution(onset_resolution):
+    if onset_resolution is None:
+        return None
+    if isinstance(onset_resolution, (bool, np.bool_)):
+        raise TypeError("onset_resolution must be a positive number or None, "
+                        "not bool")
+    try:
+        onset_resolution = float(onset_resolution)
+    except (TypeError, ValueError):
+        raise TypeError(
+            "onset_resolution must be a positive number or None") from None
+    if not np.isfinite(onset_resolution) or onset_resolution <= 0.0:
+        raise ValueError("onset_resolution must be finite and > 0, or None")
+    return onset_resolution
+
+
 def _resolve_age_options(use_age, onset_model, case_encoding):
     if not use_age:
         if onset_model is not None or case_encoding is not None:
@@ -148,11 +179,16 @@ def _onset_times(liab, pop_prev, mid_point, slope, onset_model, lifetime_t, rng)
     return onset
 
 
-def simulate_under_LTM_single(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
-                              n_fam=None, add_ind=True, h2=0.5, n_sim=1000,
-                              pop_prev=0.1, use_age=False, mid_point=60.0,
-                              slope=1.0 / 8.0, seed=None, onset_model=None,
-                              case_encoding=None):
+def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
+                                                              "mgf", "pgm", "pgf"),
+                              n_fam: Mapping[str, int] | None = None,
+                              add_ind: bool = True, h2: float = 0.5,
+                              n_sim: int = 1000, pop_prev: float = 0.1,
+                              use_age: bool = False, mid_point: float = 60.0,
+                              slope: float = 1.0 / 8.0, seed: int | None = None,
+                              onset_model: str | None = None,
+                              case_encoding: str | None = None,
+                              onset_resolution: float | None = 1.0) -> Simulation:
     """Simulate ``n_sim`` families for a single trait.
 
     Builds the covariance from ``fam_vec``/``n_fam`` (``g``/``o`` prepended when
@@ -164,14 +200,25 @@ def simulate_under_LTM_single(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf
     With ``use_age=True`` current ages are generation-consistent, and a person
     is an observed case only if their onset age is at most their current age.
     ``onset_model`` is ``"threshold_crossing"`` (default: onset is the CIP
-    inverse of true liability — the LT-FH++ convention; a pin then recovers
-    that liability) or ``"stochastic"`` (lifetime status at ``T``, onset drawn
+    inverse of true liability — the LT-FH++ convention) or ``"stochastic"``
+    (lifetime status at ``T``, onset drawn
     from the CIP independently of ``l`` given being a lifetime case).
     ``case_encoding`` is ``"pin"`` (default for threshold-crossing),
     ``"interval"`` (age-specific ``[T(onset), inf)``), or ``"lifetime"``
     (default for stochastic: ``[T, inf)``). This helper has one logistic CIP
     and does not simulate the full sex/birth-cohort personalisation of
-    LT-FH++."""
+    LT-FH++.
+
+    ``onset_resolution`` is the grid a register is taken to **record** onset on,
+    in years (default ``1.0``, whole years; ``None`` records the exact simulated
+    onset). Case bounds are built from the recorded value under both ``"pin"``
+    and ``"interval"``, so the two encodings describe the same observation
+    process. This matters when the simulation is used as an oracle: under
+    ``threshold_crossing`` a pin reproduces the true liability **exactly only
+    with** ``onset_resolution=None``. At the default one-year grid the pinned
+    bound sits within roughly 0.02 of the simulated liability (about 2% of its
+    SD), which is a floor on any measured recovery — realistic, but not zero."""
+    onset_resolution = _validate_onset_resolution(onset_resolution)
     onset_model, case_encoding = _resolve_age_options(
         use_age, onset_model, case_encoding)
     cov_obj = construct_covmat_single(fam_vec=fam_vec, n_fam=n_fam,
@@ -209,17 +256,17 @@ def simulate_under_LTM_single(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf
                 aoo = float(onset[r][i])
                 if case_encoding == "lifetime":
                     lower, upper = t, np.inf
-                elif case_encoding == "interval":
-                    thr = float(convert_age_to_thresh(
-                        aoo, pop_prev=pop_prev, mid_point=mid_point,
-                        slope=slope))
-                    lower, upper = thr, np.inf
                 else:
-                    aoo_r = 0.0 if not np.isfinite(aoo) else round(aoo)
+                    # An observed case has a finite onset at or before their
+                    # current age; the guard covers only a direct call with a
+                    # hand-built onset array.
+                    aoo_r = (0.0 if not np.isfinite(aoo)
+                             else _record_onset(aoo, onset_resolution))
                     thr = float(convert_age_to_thresh(
                         aoo_r, pop_prev=pop_prev, mid_point=mid_point,
                         slope=slope))
-                    lower, upper = thr, thr
+                    lower, upper = (thr, np.inf) if case_encoding == "interval" \
+                        else (thr, thr)
             else:
                 thr = float(convert_age_to_thresh(
                     ages[r][i], pop_prev=pop_prev, mid_point=mid_point,

@@ -10,7 +10,9 @@ from ltpred.family import Family, Member
 from ltpred.pearson_aitken import (pa_algorithm, pa_estimate_batched,
                                    _std_tnorm_moments, _tnorm_mixture)
 from ltpred.thresholds import pa_thresholds
-from ltpred.estimate import estimate_liability, _estimate_liability_pa
+from ltpred.estimate import (estimate_liability, _estimate_liability_pa,
+                             estimate_liability_pa_arrays,
+                             estimate_liability_gibbs_arrays)
 from ltpred.simulate import simulate_under_LTM_single
 
 
@@ -170,6 +172,7 @@ def test_pa_pinned_case_conditions_exactly():
     assert var == pytest.approx(h2 - h2 ** 2)
 
 
+@pytest.mark.jit_required
 def test_pa_matches_gibbs_on_families():
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
                                     pop_prev=0.1, n_sim=500, seed=3)
@@ -179,6 +182,31 @@ def test_pa_matches_gibbs_on_families():
     diff = np.abs(pa.est["genetic"] - gb.est["genetic"])
     assert np.corrcoef(pa.est["genetic"], gb.est["genetic"])[0, 1] > 0.99
     assert diff.mean() < 0.02
+
+
+@pytest.mark.jit_required
+def test_pa_conditional_variance_matches_gibbs_multi_truncation():
+    # PA's `var` is exact for a single truncation (pinned by the tests above),
+    # but real families fold several, where the sequential approximation is only
+    # approximate. Both engines now report a posterior variance, so check PA's
+    # against the sampler's on a family that folds seven observations -- the
+    # regime where `var` is actually used and was previously unchecked.
+    t = float(stats.norm.isf(0.05))
+    roles = ["o", "m", "f", "s1", "mgm", "mgf", "pgm"]
+    rng = np.random.default_rng(0)
+    status = rng.random((24, len(roles))) < 0.35
+    lower = np.where(status, t, -np.inf)
+    upper = np.where(status, np.inf, t)
+
+    _pa_est, pa_var = estimate_liability_pa_arrays(roles, lower, upper, h2=0.5)
+    _gb_est, _se, gb_var = estimate_liability_gibbs_arrays(
+        roles, lower, upper, h2=0.5, n_sim=200_000, burn_in=2000, seed=5,
+        tol=0.005, return_var=True)
+
+    rel = np.abs(pa_var - gb_var) / gb_var
+    assert np.all(pa_var > 0)
+    assert rel.max() < 0.05, f"worst relative deviation {rel.max():.3f}"
+    assert rel.mean() < 0.02
 
 
 def test_pa_family_history_raises_estimate():

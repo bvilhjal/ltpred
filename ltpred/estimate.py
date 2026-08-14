@@ -26,9 +26,11 @@ from __future__ import annotations
 
 import operator
 import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 from .covariance import (construct_covmat_single, construct_covmat_multi,
                          construct_covmat_from_kinship, correct_positive_definite)
@@ -103,13 +105,23 @@ def _resolve_out_entry(value):
 class LiabilityResult:
     """Per-family liability estimates and their numerical uncertainty summaries.
 
-    ``est``/``se`` map a column name to a per-family array (aligned with
+    ``est``/``se``/``var`` map a column name to a per-family array (aligned with
     ``fam_ids``). Single-trait columns are ``"genetic"`` / ``"full"``; multi-trait
-    columns are suffixed with the phenotype, e.g. ``"genetic_height"``. The Gibbs
-    method reports ``se`` as the batch-means Monte-Carlo error; the deterministic
-    Pearson-Aitken method reports ``se = 0`` and fills ``var`` with its
-    sequential-moment approximation to the conditional variance. Zero PA SE means
-    no Monte-Carlo error, not zero approximation error."""
+    columns are suffixed with the phenotype, e.g. ``"genetic_height"``.
+
+    The two uncertainty fields answer different questions and neither substitutes
+    for the other:
+
+    * ``var`` is the target's **posterior** (conditional) variance — how uncertain
+      this proband's liability is given their family. Both engines report it:
+      Gibbs as the Monte-Carlo variance of its retained draws, Pearson-Aitken as
+      its sequential-moment approximation. It does **not** shrink as you sample
+      more.
+    * ``se`` is the **estimator's own numerical error** in ``est``. Gibbs reports
+      the batch-means Monte-Carlo error, which does shrink with more draws;
+      Pearson-Aitken is deterministic and reports ``se = 0``. Zero PA SE means no
+      Monte-Carlo error, not zero approximation error — PA's sequential fold stays
+      approximate for more than one truncation, in both ``est`` and ``var``."""
     fam_ids: np.ndarray
     pids: object
     est: dict
@@ -190,7 +202,7 @@ def _validate_max_rounds(max_rounds):
     return max_rounds
 
 
-def batch_means(samples):
+def batch_means(samples: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     """Batch-means estimate and Monte-Carlo SE of column means (Jones et al. 2006).
 
     Splits ``n`` samples into ``a = n // b`` consecutive batches of size
@@ -261,7 +273,10 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
     The one-time :func:`gibbs_params` factorisation is reused across families and
     rounds; each round runs the parallel kernel over the still-unconverged
     families and pools their batch means (fixed batch size ``b``) so earlier draws
-    are not wasted. Returns ``(est, se)`` of shape ``(F, ncols)``.
+    are not wasted. Returns ``(est, se, var)`` of shape ``(F, ncols)``, where
+    ``var`` is the Monte-Carlo estimate of the target's **posterior** variance
+    (pooled over rounds from the streamed sums of squares) and ``se`` the
+    batch-means error of ``est``.
 
     The single choke point every Gibbs estimate path funnels through, so the
     shared sampler controls (``tol``, ``n_sim``, ``burn_in``, ``max_rounds``) are
@@ -281,12 +296,14 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
 
     # streaming batch-means accumulators (no per-family batch-mean arrays):
     tot = np.zeros((F, ncols))          # sum of samples -> mean
+    tot_sq = np.zeros((F, ncols))       # sum of squares -> posterior variance
     total_n = np.zeros(F)               # total kept samples
     bm_s1 = np.zeros((F, ncols))        # sum of batch means Y_k across rounds
     bm_s2 = np.zeros((F, ncols))        # sum of Y_k^2 across rounds
     bm_m = np.zeros(F)                  # total number of batches
     est = np.zeros((F, ncols))
     se = np.full((F, ncols), np.inf)
+    var = np.zeros((F, ncols))
 
     active = np.arange(F)
     rnd = 0
@@ -294,11 +311,13 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
         # wrap again: the per-round offset can carry a base seed past uint32
         seeds = np.where(base_seeds[active] < 0, -1,
                          (base_seeds[active] + rnd) % (_MAX_SEED + 1))
-        ts, s1, s2 = gibbs_estimate_batched(P, sd, sd0, lowers[active], uppers[active],
-                                            out_idx, n_sim, burn_in, b, nb, seeds)
+        ts, tsq, s1, s2 = gibbs_estimate_batched(
+            P, sd, sd0, lowers[active], uppers[active],
+            out_idx, n_sim, burn_in, b, nb, seeds)
         still = []
         for ai, f in enumerate(active):
             tot[f] += ts[ai]
+            tot_sq[f] += tsq[ai]
             total_n[f] += n_sim
             bm_s1[f] += s1[ai]
             bm_s2[f] += s2[ai]
@@ -309,11 +328,34 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
             sigma2 = b * ss / (m - 1)
             se[f] = np.sqrt(np.maximum(sigma2, 0.0) / total_n[f])
             est[f] = tot[f] / total_n[f]
+            # E[x^2] - E[x]^2 over every retained draw; a pinned (fixed)
+            # coordinate gives exactly 0, and rounding cannot make a variance
+            # negative, so clamp.
+            var[f] = np.maximum(tot_sq[f] / total_n[f] - est[f] ** 2, 0.0)
             if not np.all(se[f] <= tol):
                 still.append(f)
         active = np.array(still, dtype=int)
         rnd += 1
-    return est, se
+    return est, se, var
+
+
+def _warn_empty_families(families):
+    """Warn when a family carries no observed member at all.
+
+    Such a family has nothing to condition on, so every estimator correctly
+    returns the prior mean 0 — indistinguishable in the output from a genuine
+    estimate that happens to land near zero. In practice it almost always means
+    a join dropped the rows rather than that the proband is truly unobserved, so
+    say so rather than emitting a silent zero into a GWAS phenotype."""
+    empty = [fam.fam_id for fam in families if not fam.members]
+    if empty:
+        shown = ", ".join(repr(fid) for fid in empty[:5])
+        more = "" if len(empty) <= 5 else f", ... (+{len(empty) - 5} more)"
+        warnings.warn(
+            f"{len(empty)} of {len(families)} families have no members "
+            f"({shown}{more}); with nothing to condition on their estimate is "
+            "the prior mean 0, not an informative score — check that the "
+            "member rows were joined in.", RuntimeWarning, stacklevel=3)
 
 
 def _check_unique_roles(families):
@@ -445,6 +487,7 @@ def _estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01, n_s
     cost. ``seed`` must be a non-boolean integer in ``[0, 2**32 - 1]`` or ``None``.
     Returns a :class:`LiabilityResult` whose arrays line up with ``families``."""
     _check_unique_roles(families)
+    _warn_empty_families(families)
     dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
     names = [_OUT_NAMES[c] for c in out_coords]
@@ -453,6 +496,7 @@ def _estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01, n_s
 
     est = {name: np.empty(n) for name in names}
     se = {name: np.empty(n) for name in names}
+    var = {name: np.empty(n) for name in names}
     fam_ids = np.empty(n, dtype=object)
     pids = np.empty(n, dtype=object)
 
@@ -464,7 +508,7 @@ def _estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01, n_s
         roles = [m.role for m in families[idx[0]].members]
         lowers, uppers, _ki, _kp, group_pids = _stack_object_members(
             families, idx, roles, dtype)
-        g_est, g_se = _gibbs_from_role_arrays(
+        g_est, g_se, g_var = _gibbs_from_role_arrays(
             roles, lowers, uppers, h2, out_coords, seeds[idx],
             tol, n_sim, burn_in, max_rounds, c2=c2, m2=m2)
         for slot, f in enumerate(idx):
@@ -473,9 +517,10 @@ def _estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01, n_s
             for c, name in enumerate(names):
                 est[name][f] = g_est[slot, c]
                 se[name][f] = g_se[slot, c]
+                var[name][f] = g_var[slot, c]
 
     _warn_unconverged(se, names, tol, max_rounds, n)
-    return LiabilityResult(fam_ids=fam_ids, pids=pids, est=est, se=se)
+    return LiabilityResult(fam_ids=fam_ids, pids=pids, est=est, se=se, var=var)
 
 
 def _estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
@@ -499,6 +544,7 @@ def _estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False
     :class:`LiabilityResult` with ``se = 0`` and PA approximations to conditional
     variances in ``var``."""
     _check_unique_roles(families)
+    _warn_empty_families(families)
     if use_mixture:
         members = [member for family in families for member in family.members]
         K_i = [np.nan if member.K_i is None else member.K_i for member in members]
@@ -563,6 +609,7 @@ def _estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
             f"phen_names contains duplicates {phen_names!r}; each phenotype "
             "needs a distinct name")
     _check_unique_roles(families)
+    _warn_empty_families(families)
     _validate_multitrait_bounds(families, n_pheno)
     dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
@@ -573,6 +620,7 @@ def _estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
     seeds = _base_seeds(seed, n, max_rounds)
     est = {name: np.empty(n) for name in col_names}
     se = {name: np.empty(n) for name in col_names}
+    var = {name: np.empty(n) for name in col_names}
     fam_ids = np.empty(n, dtype=object)
     pids = np.empty(n, dtype=object)
 
@@ -599,17 +647,19 @@ def _estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
         lowers = np.array(lowers, dtype=dtype)
         uppers = np.array(uppers, dtype=dtype)
 
-        g_est, g_se = _estimate_group(cov, gibbs_out, lowers, uppers,
-                                      seeds[idx], tol, n_sim, burn_in, max_rounds)
+        g_est, g_se, g_var = _estimate_group(
+            cov, gibbs_out, lowers, uppers, seeds[idx], tol, n_sim, burn_in,
+            max_rounds)
         for slot, f in enumerate(idx):
             fam_ids[f] = families[f].fam_id
             pids[f] = group_pids[slot]
             for c, name in enumerate(col_names):
                 est[name][f] = g_est[slot, c]
                 se[name][f] = g_se[slot, c]
+                var[name][f] = g_var[slot, c]
 
     _warn_unconverged(se, col_names, tol, max_rounds, n)
-    return LiabilityResult(fam_ids=fam_ids, pids=pids, est=est, se=se)
+    return LiabilityResult(fam_ids=fam_ids, pids=pids, est=est, se=se, var=var)
 
 
 def _align_to_cov(roles, cov_roles, columns, defaults):
@@ -689,7 +739,9 @@ def _pa_from_role_arrays(roles, lower, upper, h2, out_coords, K_i=None,
 
 def _gibbs_from_role_arrays(roles, lower, upper, h2, out_coords, seeds,
                             tol, n_sim, burn_in, max_rounds, c2=None, m2=None):
-    """Gibbs estimates for one or more targets on same-structure role arrays."""
+    """Gibbs estimates for one or more targets on same-structure role arrays.
+
+    Returns ``(est, se, var)`` exactly as :func:`_estimate_group` does."""
     roles = list(roles)
     _check_unique_role_labels(roles)
     lower = as_bounds(lower)
@@ -738,7 +790,14 @@ def _stack_object_members(families, idx, roles, dtype, use_mixture=False):
     return lowers, uppers, K_is, K_pops, pids
 
 
-def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic", K_i=None, K_pop=None, use_mixture=False, c2=None, m2=None):
+def estimate_liability_pa_arrays(roles: Sequence[str], lower: ArrayLike,
+                                 upper: ArrayLike, h2: float = 0.5,
+                                 out: str = "genetic",
+                                 K_i: ArrayLike | None = None,
+                                 K_pop: ArrayLike | None = None,
+                                 use_mixture: bool = False,
+                                 c2: float | None = None, m2: float | None = None
+                                 ) -> tuple[np.ndarray, np.ndarray]:
     """Array-level Pearson-Aitken estimator — skips ``Family``/``Member`` objects.
 
     The production fast path for many same-structure probands: ``roles`` is the
@@ -758,28 +817,49 @@ def estimate_liability_pa_arrays(roles, lower, upper, h2=0.5, out="genetic", K_i
     return est[coord], var[coord]
 
 
-def estimate_liability_gibbs_arrays(roles, lower, upper, h2=0.5, out="genetic", tol=0.01, n_sim=100_000, burn_in=1000, seed=None, max_rounds=100, c2=None, m2=None):
+def estimate_liability_gibbs_arrays(roles: Sequence[str], lower: ArrayLike,
+                                    upper: ArrayLike, h2: float = 0.5,
+                                    out: str = "genetic", tol: float = 0.01,
+                                    n_sim: int = 100_000, burn_in: int = 1000,
+                                    seed: int | None = None,
+                                    max_rounds: int = 100,
+                                    c2: float | None = None,
+                                    m2: float | None = None,
+                                    return_var: bool = False
+                                    ) -> tuple[np.ndarray, ...]:
     """Array-level Gibbs inference — skips ``Family``/``Member`` objects.
 
         Same array inputs as :func:`estimate_liability_pa_arrays` (float32 ``lower``/
     ``upper`` halve their memory); the covariance takes the same ``c2``/``m2``
     shared-environment components. Returns ``(est, se)`` (posterior mean and
     batch-means Monte-Carlo SE) of length ``n_families`` for the single target
-    selected by ``out``. ``seed`` must be a non-boolean integer in
+    selected by ``out``, or ``(est, se, var)`` with ``return_var=True``, where
+    ``var`` is the Monte-Carlo estimate of the target's **posterior** variance —
+    the comparable quantity to the ``var`` returned by
+    :func:`estimate_liability_pa_arrays`, and a different thing from the sampler's
+    own error ``se``. ``seed`` must be a non-boolean integer in
     ``[0, 2**32 - 1]`` or ``None``."""
     coord = _single_out(out)
     lower = as_bounds(lower)
     seeds = _base_seeds(seed, np.asarray(lower).shape[0], max_rounds)
-    est, se = _gibbs_from_role_arrays(
+    est, se, var = _gibbs_from_role_arrays(
         roles, lower, upper, h2, [coord], seeds, tol, n_sim, burn_in,
         max_rounds, c2=c2, m2=m2)
+    if return_var:
+        return est[:, 0], se[:, 0], var[:, 0]
     return est[:, 0], se[:, 0]
 
 
-def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="genetic",
-                                    tol=0.01, n_sim=100_000, burn_in=1000, seed=None,
-                                    max_rounds=100, method=None, K_i=None, K_pop=None,
-                                    use_mixture=False):
+def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: ArrayLike,
+                                    h2: float = 0.5, target: int = 0,
+                                    out: str = "genetic", tol: float = 0.01,
+                                    n_sim: int = 100_000, burn_in: int = 1000,
+                                    seed: int | None = None, max_rounds: int = 100,
+                                    method: str | None = None,
+                                    K_i: ArrayLike | None = None,
+                                    K_pop: ArrayLike | None = None,
+                                    use_mixture: bool = False
+                                    ) -> tuple[np.ndarray, np.ndarray]:
     """Estimate a target individual's liability from an **arbitrary pedigree**.
 
     The kinship-based counterpart of the array estimators: instead of the fixed role
@@ -850,12 +930,22 @@ def estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0, out="gene
         return pa_estimate_batched(cov, lo, hi, target=tgt, K_is=ki, K_pops=kp)
 
     seeds = _base_seeds(seed, F, max_rounds)
-    est, se = _estimate_group(cov, [tgt], lo, hi, seeds, tol, n_sim, burn_in,
-                              max_rounds)
+    est, se, _var = _estimate_group(cov, [tgt], lo, hi, seeds, tol, n_sim,
+                                    burn_in, max_rounds)
     return est[:, 0], se[:, 0]
 
 
-def estimate_liability(families, h2=0.5, *, method=None, out=("genetic",), tol=0.01, use_mixture=False, genetic_corrmat=None, full_corrmat=None, phen_names=None, n_sim=100_000, burn_in=1000, seed=None, max_rounds=100, dtype=np.float64, c2=None, m2=None):
+def estimate_liability(families: Sequence, h2: ArrayLike = 0.5, *,
+                       method: str | None = None,
+                       out: str | Sequence[str] = ("genetic",),
+                       tol: float = 0.01, use_mixture: bool = False,
+                       genetic_corrmat: ArrayLike | None = None,
+                       full_corrmat: ArrayLike | None = None,
+                       phen_names: Sequence[str] | None = None,
+                       n_sim: int = 100_000, burn_in: int = 1000,
+                       seed: int | None = None, max_rounds: int = 100,
+                       dtype: object = np.float64, c2: float | None = None,
+                       m2: float | None = None) -> LiabilityResult:
     """Estimate conditional liabilities, dispatching on method and trait count.
 
     Bounds and relative rows distinguish LT-FH, LT-FH++ and ADuLT. PA-FGRS also

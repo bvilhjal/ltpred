@@ -13,6 +13,7 @@ def _imr(t):
     return stats.norm.pdf(t) / stats.norm.sf(t)
 
 
+@pytest.mark.jit_required
 def test_batched_kernel_matches_batch_means_single_round():
     # streamed batch-mean summaries reconstruct est + SE, matching the analytic
     # case posterior (g = h2*IMR, o = IMR), single round, one family.
@@ -25,7 +26,7 @@ def test_batched_kernel_matches_batch_means_single_round():
     n_sim = 40_000
     b = int(np.floor(np.sqrt(n_sim)))
     nb = n_sim // b
-    tot, bm_sum, bm_sumsq = gibbs_estimate_batched(
+    tot, tot_sq, bm_sum, bm_sumsq = gibbs_estimate_batched(
         P, sd, sd0, lowers, uppers, np.array([0, 1]), n_sim, 1000, b, nb,
         np.array([7]))
     est = tot[0] / n_sim
@@ -34,6 +35,21 @@ def test_batched_kernel_matches_batch_means_single_round():
     assert est[0] == pytest.approx(0.5 * _imr(t), abs=0.03)
     assert est[1] == pytest.approx(_imr(t), abs=0.03)
     assert np.all(se > 0)
+
+    # The streamed sums of squares give the *posterior* variance, a different
+    # quantity from the batch-means SE above: for the analytic one-truncation
+    # case, Var(o | o > t) = 1 + t*IMR - IMR^2 and Var(g | o > t) =
+    # h2 + h2^2 * (Var(o | o > t) - 1) by the Pearson-Aitken rank-1 update.
+    var = tot_sq[0] / n_sim - est ** 2
+    var_o = 1.0 + t * _imr(t) - _imr(t) ** 2
+    assert var[1] == pytest.approx(var_o, rel=0.05)
+    assert var[0] == pytest.approx(0.5 + 0.25 * (var_o - 1.0), rel=0.05)
+    # posterior variance is a property of the target, not of how long we sampled
+    tot2, tot_sq2, _, _ = gibbs_estimate_batched(
+        P, sd, sd0, lowers, uppers, np.array([0, 1]), 4 * n_sim, 1000,
+        b, nb, np.array([7]))
+    var2 = tot_sq2[0] / (4 * n_sim) - (tot2[0] / (4 * n_sim)) ** 2
+    assert var2 == pytest.approx(var, rel=0.05)
 
 
 def test_multi_round_pooling_matches_offline_batch_means():
@@ -50,9 +66,9 @@ def test_multi_round_pooling_matches_offline_batch_means():
     uppers = np.array([[np.inf, np.inf], [np.inf, t], [t, t]])
     seed, max_rounds = 11, 2
     base = _base_seeds(seed, 3, max_rounds)
-    est, se = _estimate_group(cov, [0, 1], lowers, uppers, base,
-                              tol=1e-12, n_sim=4, burn_in=25,
-                              max_rounds=max_rounds)
+    est, se, var = _estimate_group(cov, [0, 1], lowers, uppers, base,
+                                   tol=1e-12, n_sim=4, burn_in=25,
+                                   max_rounds=max_rounds)
     for f in range(3):
         draws = np.vstack([
             rtmvnorm_gibbs(cov, lowers[f], uppers[f], out=(0, 1), n_sim=4,
@@ -80,6 +96,7 @@ def test_pa_arrays_match_object_api():
     assert np.allclose(var_a, obj.var["genetic"])
 
 
+@pytest.mark.jit_required
 def test_gibbs_arrays_match_object_api():
     from ltpred.estimate import estimate_liability_gibbs_arrays, estimate_liability
     t = float(stats.norm.isf(0.05))
@@ -134,6 +151,7 @@ def test_canonical_grouping_permuted_members():
     assert res.est["genetic"][0] == pytest.approx(res.est["genetic"][1])
 
 
+@pytest.mark.jit_required
 def test_float32_bounds_match_float64():
     # float32 per-family bounds halve memory and match float64 to f32 precision
     from ltpred.simulate import simulate_under_LTM_single
@@ -169,6 +187,7 @@ def test_bad_dtype_rejected():
         estimate_liability([fam], h2=0.5, method="pa", dtype=np.int32)
 
 
+@pytest.mark.jit_required
 def test_grouping_gives_same_answer_regardless_of_order():
     # mix of two structures; shuffling families must not change per-family results
     t = float(stats.norm.isf(0.05))
@@ -190,6 +209,7 @@ def test_grouping_gives_same_answer_regardless_of_order():
         assert abs(by_id[fid] - val) < 0.1
 
 
+@pytest.mark.jit_required
 def test_batched_estimator_is_deterministic():
     t = float(stats.norm.isf(0.05))
     fams = [Family(f"f{i}", [Member("o", t if i % 2 else -np.inf,
@@ -203,6 +223,7 @@ def test_batched_estimator_is_deterministic():
     assert np.array_equal(a.est["full"], b.est["full"])
 
 
+@pytest.mark.jit_required
 def test_multi_round_convergence_tightens_se():
     # a tight tolerance forces extra rounds; the reported SE must respect it
     t = float(stats.norm.isf(0.05))
@@ -212,6 +233,7 @@ def test_multi_round_convergence_tightens_se():
     assert res.se["genetic"][0] <= 0.005
 
 
+@pytest.mark.jit_required
 def test_gibbs_arrays_coerces_integer_and_list_bounds():
     # The `lower = as_bounds(lower)` line sat inside the duplicate-role `raise`
     # block, so it never ran: integer bounds failed when the auto-added genetic
@@ -250,6 +272,7 @@ def test_mixed_precision_bounds_keep_their_own_dtype():
     assert out_hi.dtype == np.float64
 
 
+@pytest.mark.jit_required
 def test_multi_trait_full_output_smoke():
     # out=("full",) on the multi-trait path returns finite per-trait estimates
     # under the expected (output, phenotype) column names
