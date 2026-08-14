@@ -61,13 +61,23 @@ cross-trait component covariance; see
 [algorithm.md](algorithm.md#adding-environmental-covariance-to-improve-prediction)
 and [Inference](inference.md#variance-components-a-c-m).
 
-The family-data fitters support **only independent, non-overlapping,
-unascertained population-sampled families**. Pass `sampling="population"` only
-to acknowledge a design that satisfies this contract. The fitters have no
-ascertainment likelihood or sampling weights: overlapping pedigrees,
-case/control sampling, or selection on family history invalidate their ordinary
-iid-family moments, and bootstrap does not correct the resulting bias. In those
-settings use an estimator that models the sampling design.
+The family-data fitters assume **independent, non-overlapping families**, and
+one of two sampling contracts. `sampling="population"` for an unascertained
+sample — now *verified* against your data, since the thresholds assert a
+prevalence the observed case rates must match. `sampling="ipw"` with per-family
+`weights` for a sample selected on observed status with a **known, strictly
+positive** inclusion probability (case/control cohorts, biobank case
+enrichment); see [Inference](inference.md#ascertained-samples).
+
+Everything else invalidates the iid-family moments, and bootstrap does not
+correct it: overlapping pedigrees, selection on family history, and any design
+that samples *no* families from some stratum — ascertainment through an
+affected proband being the standard example, where inclusion probability is
+zero for unaffected probands and no weighting can reconstruct them. The
+severity is worth internalising: on ascertained families with a **true `h²` of
+0**, the unguarded fitter returns **`h² = 1.0`**, and a case rate only 1.17×
+the assumed prevalence already inflates `h²` by +0.12
+([RESULTS.md §29](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)).
 
 ## Real-data checklist
 
@@ -106,9 +116,15 @@ Before running a production analysis:
      phenotype, case-control imbalance, and tail behaviour
      ([Zhuang et al. 2022](https://doi.org/10.1093/bioinformatics/btac459)).
 12. For built-in family-data **fitting or bootstrap inference**, require
-    independent, non-overlapping, unascertained population-sampled families and
-    pass `sampling="population"` to the core fitter. Otherwise use a method that
-    models the sampling design.
+    independent, non-overlapping families, and match the contract to the design:
+    `sampling="population"` for an unascertained sample, or `sampling="ipw"`
+    with `weights = 1 / P(family sampled)` when selection was on observed status
+    with a known positive probability for every stratum. Check that your
+    observed case rates actually match the prevalence behind your thresholds —
+    the fitter now checks this for you and raises, but a mismatch may equally
+    mean the prevalence is wrong rather than the sample selected. Neither
+    contract covers proband-ascertained families; those need an estimator that
+    models the selection.
 
 ## Pitfalls
 

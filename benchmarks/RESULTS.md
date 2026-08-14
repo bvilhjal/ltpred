@@ -1291,6 +1291,45 @@ share against the assumed prevalence (nuclear, N = 4,000, 3 replicates):
 
 A 5.8% case rate against an assumed 5.0% already inflates h² by 24%.
 
+### The correction, where one exists
+
+Selection breaks the **mix** of families, not the per-family augmentation --
+given a family's statuses, its truncated-MVN draw is already the correct
+conditional law. So re-mixing by inverse probability of inclusion is a
+better-matched remedy than any scale transform. `sampling="ipw"` with
+per-family `weights = 1/P(sampled)` weights both the numerator and the
+denominator of the Haseman-Elston ratio. Same grid, 10 replicates, N = 10,000:
+
+| scheme | max weight | unweighted | **IPW** | bias | SD (IPW) |
+|---|---:|---:|---:|---:|---:|
+| population | 1.0 | 0.484 | 0.484 | −0.016 | 0.046 |
+| random_50 | 1.0 | 0.456 | 0.456 | −0.044 | 0.036 |
+| case_control | 19.0 | **1.000** | **0.495** | −0.005 | 0.055 |
+| enriched_20 | 4.7 | **1.000** | **0.473** | −0.027 | 0.012 |
+| proband_case | — | 1.000 | *undefined* | — | — |
+| family_history | — | 1.000 | *undefined* | — | — |
+| fh_proband_control | — | 1.000 | *undefined* | — | — |
+
+A 50/50 case/control cohort goes from pinned at 1.000 to 0.495 against a truth
+of 0.5. Two limits bound this:
+
+- **Positivity.** The three *undefined* rows sample no families at all from some
+  stratum, so inclusion probability is zero there and no weight reconstructs
+  what was never observed. This is detected rather than assumed: correct weights
+  must reproduce the asserted prevalence, and these cannot, so the fitter raises.
+- **Efficiency.** Weights reach 19× at K = 0.05, and the IPW SD (0.055) exceeds
+  the population arm's (0.046). IPW buys accuracy with precision, and the cost
+  grows as the enrichment does.
+
+A Lee et al. observed→liability factor cannot substitute. It is a multiplicative
+function of (K, P) alone, while at fixed K a true h² of 0.5 and of 0.0 **both**
+produce 1.000 -- no invertible constant maps both back. It also transforms an
+*observed-scale* estimate, and this fitter is already on the liability scale.
+Measured directly, an observed-scale HE + Lee pipeline on the same ascertained
+cohorts lands at 0.217 and 0.297 against a truth of 0.5 (and is itself +0.12 off
+under clean population sampling), though it does at least not manufacture
+heritability at the null.
+
 ### What changed as a result
 
 `sampling="population"` is now verified against the data rather than taken on
@@ -1307,6 +1346,13 @@ detectable enrichment is ~1.47× at N = 1,500 and ~1.26× at N = 10,000 -- so th
 check catches the catastrophic designs and does **not** certify population
 sampling. Mild enrichment on a small cohort still passes, and the dose-response
 above shows that is not harmless.
+
+With `sampling="ipw"` the same test is applied to the **weighted** counts, using
+Kish's effective sample size so heavy weights widen the tolerance rather than
+manufacturing significance. That makes one check do two jobs: correct weights
+must re-mix the sample back to population proportions, so a failure means either
+the weights are wrong or a stratum had inclusion probability zero -- the
+positivity condition, tested the only way the data allows.
 
 ## Historical report changes
 

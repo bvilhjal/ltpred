@@ -79,6 +79,8 @@ import sys
 import time
 import argparse
 
+import contextlib
+
 import numpy as np
 from scipy.stats import chi2
 
@@ -86,10 +88,13 @@ from _common import get_plt
 from ltpred.covariance import (construct_covmat_multi, correct_positive_definite,
                                get_relatedness)
 from ltpred.family import Family, Member
-from ltpred.fit import _component_matrix, fit_heritability, fit_variance_components
+import ltpred.fit as _fit_mod
+from ltpred.fit import (_component_matrix, fit_heritability,
+                        fit_variance_components)
 from ltpred.thresholds import liability_threshold
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import research.advanced_fitting as _af_mod  # noqa: E402
 from research.advanced_fitting import fit_genetic_correlation  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -154,7 +159,7 @@ def _saturated(residuals):
 # the liabilities. Arms get disjoint blocks so a cell that appears in two arms
 # (N=10,000 is in both A and D) is a fresh replicate, not a byte-identical rerun.
 _ARM_OFFSET = {"h2": 0, "ac": 1_000_000, "rg": 2_000_000, "scale": 3_000_000,
-               "converge": 4_000_000, "mechanism": 0}
+               "converge": 4_000_000, "mechanism": 0, "ipw": 5_000_000}
 
 
 def _seeds(base_seed, arm, rep):
@@ -396,6 +401,50 @@ def _check_target(scheme, stats, args):
               f"scheme it is named for; lower --prev below the target.")
 
 
+@contextlib.contextmanager
+def unguarded():
+    """Disable the case-rate guard for the arms that exist to measure it.
+
+    `sampling="population"` is now verified against the data
+    (`ltpred.fit._assert_population_case_rate`), so the ascertained cells of
+    arms A-D would raise -- which is the guard working. But the whole point of
+    those arms is to record WHAT THE NUMBER WOULD HAVE BEEN without it, so they
+    run with the check suppressed and say so. Arm G, which measures the IPW
+    remedy, deliberately does NOT use this: it goes through the real gate.
+    """
+    # Patch EVERY module that holds a reference. research/advanced_fitting.py
+    # does `from ltpred.fit import _assert_population_case_rate`, which binds
+    # its own module-global; patching only ltpred.fit leaves that binding intact
+    # and arm C still raises.
+    targets = [_fit_mod, _af_mod]
+    saved = [(m, m._assert_population_case_rate) for m in targets]
+    for m in targets:
+        m._assert_population_case_rate = lambda *a, **k: None
+    try:
+        yield
+    finally:
+        for m, fn in saved:
+            m._assert_population_case_rate = fn
+
+
+def _design_weights(scheme, status, o_col, prev):
+    """1/inclusion-probability by design, or None where positivity fails.
+
+    `case_control` / `enriched_20` keep every case and retain controls with
+    probability `K(1-q)/(q(1-K))` for target case share `q`, so the weights are
+    known exactly rather than estimated. Every other scheme drops an entire
+    stratum (no unaffected proband, or no unaffected family), giving that
+    stratum inclusion probability zero -- IPW is undefined, not merely noisy.
+    """
+    q = TARGET_CASE_FRAC.get(scheme)
+    if scheme in ("population", "random_50"):
+        return np.ones(status.shape[0])          # constant pi: weights cancel
+    if q is None:
+        return None
+    keep_p = prev * (1.0 - q) / (q * (1.0 - prev))
+    return np.where(status[:, o_col], 1.0, 1.0 / keep_p)
+
+
 def _fit_kwargs(n_iter, burn_in):
     # eps is passed explicitly: _EPS/_at_boundary/_saturated encode the clamp
     # location, so relying on the fitter default would let a change there
@@ -418,8 +467,9 @@ def arm_h2(args, rows):
                     roles, {"A": args.h2}, args.n_fam, args.prev, scheme,
                     seed=data_seed)
                 _check_target(scheme, st, args)
-                res = fit_heritability(fams, seed=fit_seed,
-                                       **_fit_kwargs(args.n_iter, args.burn_in))
+                with unguarded():
+                    res = fit_heritability(fams, seed=fit_seed,
+                                           **_fit_kwargs(args.n_iter, args.burn_in))
                 fitted.append(res.h2)
                 intens.append(st["accept_rate"])
                 cfrac.append(st["case_frac"])
@@ -454,8 +504,9 @@ def arm_ac(args, rows):
             fams, st = simulate_ascertained(roles, props, args.n_fam, args.prev,
                                             scheme, seed=data_seed)
             _check_target(scheme, st, args)
-            res = fit_variance_components(fams, ("A", "C"), seed=fit_seed,
-                                          **_fit_kwargs(args.n_iter, args.burn_in))
+            with unguarded():
+                res = fit_variance_components(fams, ("A", "C"), seed=fit_seed,
+                                              **_fit_kwargs(args.n_iter, args.burn_in))
             fa.append(res.components["A"])
             fc.append(res.components["C"])
             resid.append(res.residual)
@@ -494,8 +545,9 @@ def arm_rg(args, rows):
                 roles, h2_vec, args.rg, args.rp, args.n_fam, args.prev, scheme,
                 seed=data_seed)
             _check_target(scheme, st, args)
-            res = fit_genetic_correlation(fams, seed=fit_seed,
-                                          **_fit_kwargs(args.n_iter, args.burn_in))
+            with unguarded():
+                res = fit_genetic_correlation(fams, seed=fit_seed,
+                                              **_fit_kwargs(args.n_iter, args.burn_in))
             rg_hat.append(float(res.rg[0, 1]))
             h1.append(float(res.h2[0]))
             h2_.append(float(res.h2[1]))
@@ -543,8 +595,9 @@ def arm_scale(args, rows):
                 fams, _st = simulate_ascertained(roles, {"A": args.h2}, n_fam,
                                                  args.prev, scheme,
                                                  seed=data_seed)
-                res = fit_heritability(fams, seed=fit_seed,
-                                       **_fit_kwargs(args.n_iter, args.burn_in))
+                with unguarded():
+                    res = fit_heritability(fams, seed=fit_seed,
+                                           **_fit_kwargs(args.n_iter, args.burn_in))
                 fitted.append(res.h2)
             fitted = np.asarray(fitted)
             sd = float(fitted.std(ddof=1)) if args.scale_reps > 1 else float("nan")
@@ -578,8 +631,9 @@ def arm_converge(args, rows):
         fams, _st = simulate_ascertained(roles, {"A": args.h2}, args.n_fam,
                                          args.prev, scheme, seed=data_seed)
         for n_iter in args.converge_iters:
-            res = fit_heritability(fams, n_iter=n_iter, burn_in=n_iter // 3,
-                                   seed=fit_seed,
+            with unguarded():
+                res = fit_heritability(fams, n_iter=n_iter, burn_in=n_iter // 3,
+                                       seed=fit_seed,
                                    **{k: v for k, v in
                                       _fit_kwargs(n_iter, n_iter // 3).items()
                                       if k not in ("n_iter", "burn_in")})
@@ -602,9 +656,10 @@ def arm_converge(args, rows):
         # both above and below is the discriminating evidence.
         starts = []
         for h2_init in args.converge_starts:
-            res = fit_heritability(fams, n_iter=args.n_iter,
-                                   burn_in=args.burn_in, h2_init=h2_init,
-                                   seed=fit_seed,
+            with unguarded():
+                res = fit_heritability(fams, n_iter=args.n_iter,
+                                       burn_in=args.burn_in, h2_init=h2_init,
+                                       seed=fit_seed,
                                    **{k: v for k, v in
                                       _fit_kwargs(args.n_iter, args.burn_in).items()
                                       if k not in ("n_iter", "burn_in")})
@@ -704,10 +759,83 @@ def arm_mechanism(args, rows):
                              he_uncentered=unc.mean(), he_centered=cen.mean()))
 
 
+def arm_ipw(args, rows):
+    """Arm G -- does inverse-probability weighting undo the damage?
+
+    The augmentation for a GIVEN family with GIVEN statuses is already the right
+    conditional distribution; what selection breaks is the *mix* of families.
+    That is what IPW repairs, so it is a better-matched remedy than a scale
+    transform. This arm runs the real `sampling="ipw"` path -- no `unguarded()`
+    -- so it also exercises the positivity check.
+
+    Reported per scheme: the unweighted fit (what arms A-D measure), the IPW
+    fit, and both across-replicate SDs, because the standard objection to IPW is
+    efficiency rather than bias and the weights here reach 19x.
+    """
+    print("\n=== G. does IPW fix it? ===")
+    print(f"{'scheme':>19} {'maxw':>6} {'unweighted':>11} {'IPW':>8} {'bias':>8} "
+          f"{'SD(unw)':>8} {'SD(ipw)':>8}")
+    roles = STRUCTURES["nuclear"]
+    o_col = roles.index("o")
+    for scheme in args.schemes:
+        unw, ipw, maxw, blocked = [], [], 0.0, False
+        for r in range(args.reps):
+            data_seed, fit_seed = _seeds(args.seed, "ipw", r)
+            props = {"A": args.h2} if args.h2 > 0 else {}
+            fams, _st = simulate_ascertained(roles, props, args.n_fam, args.prev,
+                                             scheme, seed=data_seed)
+            status = np.array([[np.isfinite(m.lower) for m in f.members]
+                               for f in fams])
+            w = _design_weights(scheme, status, o_col, args.prev)
+            with unguarded():
+                unw.append(fit_heritability(
+                    fams, seed=fit_seed,
+                    **_fit_kwargs(args.n_iter, args.burn_in)).h2)
+            if w is None:
+                blocked = True
+                continue
+            maxw = max(maxw, float(w.max()))
+            # the REAL gate: sampling="ipw" re-runs the case-rate check on the
+            # weighted counts, so a positivity failure still raises here
+            try:
+                ipw.append(fit_heritability(
+                    fams, seed=fit_seed, weights=w,
+                    **{k: v for k, v in
+                       _fit_kwargs(args.n_iter, args.burn_in).items()
+                       if k != "sampling"}, sampling="ipw").h2)
+            except ValueError:
+                blocked = True
+                break
+        unw = np.asarray(unw)
+        sd_u = float(unw.std(ddof=1)) if len(unw) > 1 else float("nan")
+        if blocked or not ipw:
+            print(f"{scheme:>19} {'--':>6} {unw.mean():11.3f} {'--':>8} {'--':>8} "
+                  f"{sd_u:8.3f} {'--':>8}   positivity fails: IPW undefined")
+            rows.append(dict(arm="ipw", structure="nuclear", scheme=scheme,
+                             n_fam=args.n_fam, prev=args.prev, reps=args.reps,
+                             target="ipw_undefined", truth=args.h2,
+                             fitted_mean=unw.mean(), bias=unw.mean() - args.h2,
+                             sd=sd_u, sd_lo=np.nan, sd_hi=np.nan,
+                             boundary_frac=np.nan, selection_frac=np.nan))
+            continue
+        ipw = np.asarray(ipw)
+        sd_i = float(ipw.std(ddof=1)) if len(ipw) > 1 else float("nan")
+        print(f"{scheme:>19} {maxw:6.1f} {unw.mean():11.3f} {ipw.mean():8.3f} "
+              f"{ipw.mean() - args.h2:+8.3f} {sd_u:8.3f} {sd_i:8.3f}")
+        rows.append(dict(arm="ipw", structure="nuclear", scheme=scheme,
+                         n_fam=args.n_fam, prev=args.prev, reps=args.reps,
+                         target="h2_ipw", truth=args.h2, fitted_mean=ipw.mean(),
+                         bias=ipw.mean() - args.h2, sd=sd_i,
+                         sd_lo=np.nan, sd_hi=np.nan, boundary_frac=np.nan,
+                         selection_frac=np.nan, max_weight=maxw,
+                         unweighted_mean=unw.mean(), unweighted_sd=sd_u))
+
+
 FIELDS = ["arm", "structure", "scheme", "n_fam", "prev", "reps", "target",
           "truth", "fitted_mean", "bias", "sd", "sd_lo", "sd_hi",
           "boundary_frac", "selection_frac", "case_frac", "residual",
-          "he_uncentered", "he_centered", "trace_tail_slope"]
+          "he_uncentered", "he_centered", "trace_tail_slope",
+          "max_weight", "unweighted_mean", "unweighted_sd"]
 
 
 def write_csv(rows, tag=""):
@@ -788,8 +916,10 @@ def main():
                    default=["population", "proband_case", "case_control"],
                    choices=list(SCHEMES))
     p.add_argument("--arms", nargs="+",
-                   default=["h2", "ac", "rg", "scale", "converge", "mechanism"],
-                   choices=["h2", "ac", "rg", "scale", "converge", "mechanism"])
+                   default=["h2", "ac", "rg", "scale", "converge", "mechanism",
+                            "ipw"],
+                   choices=["h2", "ac", "rg", "scale", "converge", "mechanism",
+                            "ipw"])
     p.add_argument("--tag", default="",
                    help="suffix for the output filenames, so a supplementary "
                         "pass (e.g. --h2 0) does not overwrite the main grid")
@@ -818,6 +948,8 @@ def main():
         arm_converge(args, rows)
     if "mechanism" in args.arms:
         arm_mechanism(args, rows)
+    if "ipw" in args.arms:
+        arm_ipw(args, rows)
     write_csv(rows, args.tag)
     plot(rows, args.tag)
     print(f"total {time.time() - t0:.1f}s")

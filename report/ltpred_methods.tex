@@ -435,15 +435,51 @@ Personalised or onset-pinned rectangles---even the internally
 coherent ones that prediction wants---drive \eqref{eq:he} to the
 $\h\sim 1$ boundary and invent a $C$ component.
 Those inputs are refused.
-Ascertainment is not cured by more sweeps; it is a missing
-sampling likelihood.
-The same remarks apply to the multiple HE fit of $(\h,c^{2},m^{2})$.
+Ascertainment is not cured by more sweeps.
+The damage is severe and silent: on families selected through an
+affected proband with a \emph{true} $\h$ of zero, \eqref{eq:he}
+returns $\h=1.0$, and a realised case share only $1.17\times$ the
+prevalence the thresholds assert already inflates $\h$ by $+0.12$
+(Section~\ref{sec:ascertainment}).
+The claim is therefore checked rather than trusted: the supplied
+$T$ implies $K=1-\Phi(T)$, under population sampling each role's
+case count is $\mathrm{Binomial}(n_{\mathrm{fam}},K)$, and a gross
+departure is refused.
+The same remarks apply to the multiple HE fit of $(\h,c^{2},m^{2})$,
+where saturation shows up as an exhausted residual rather than a
+component at the clamp.
 A family bootstrap, when clusters are independent, estimates
 sampling variability under the fitted design.
 It does not de-bias selection.
 
-If the question is $\h$ from an ascertained case/control GWAS,
-use LDSC or GREML and \eqref{eq:lee}.
+\paragraph{Reweighting, where it is available.}
+The augmentation of a \emph{given} family with \emph{given} statuses
+is already the correct conditional law; what selection corrupts is
+the \emph{mix} of families.
+So when the inclusion probability $\pi_f$ is known by design and
+strictly positive for every stratum, weighting each family's
+contribution by $w_f=1/\pi_f$ in both the numerator and the
+denominator of \eqref{eq:he} re-mixes the sample to population
+proportions and restores the estimator.
+Two conditions bind.
+\emph{Positivity}: a design that samples no family from some stratum
+has $\pi=0$ there, and no weight reconstructs what was never
+observed---proband ascertainment is exactly this case, and it is
+detected, because correct weights must reproduce $K$ and these
+cannot.
+\emph{Efficiency}: at $K=0.05$ a $50/50$ case/control cohort needs
+weights up to $19$, so the effective sample size falls well below
+the nominal one.
+
+A multiplicative observed-to-liability factor such as
+\eqref{eq:lee} cannot substitute for this.
+It is a function of $(K,P)$ alone, whereas at fixed $K$ a true $\h$
+of $0.5$ and of $0$ both drive \eqref{eq:he} to $1.0$; no invertible
+constant maps both back.
+It also transforms an \emph{observed-scale} estimate, and
+\eqref{eq:he} is already on the liability scale.
+If the question is $\h$ from an ascertained case/control GWAS of
+unrelated individuals, use LDSC or GREML and \eqref{eq:lee}.
 If the question is $\h$ from population-sampled nuclear families
 with one threshold, the pedigree HE is a reasonable moment
 estimator and is calibrated in that design
@@ -648,6 +684,65 @@ $a_i$.
 A research-only cross-trait HE, $25$ cohorts, recovers $r_g=0$ as
 $-0.006$ (SD $0.080$) in the presence of phenotypic correlation
 $0.2$, and $r_g=0.6$ as $0.598$ (SD $0.071$).
+
+\subsection{What selection does to the same fit}
+\label{sec:ascertainment}
+
+Ten replicates, $10{,}000$ analysed families, $K=0.05$, true
+$\h=0.5$, nuclear pedigrees.
+Each replicate draws a population, applies one selection rule, and
+fits the selected subset; only the rule differs between rows.
+\texttt{random\_50} keeps half the population \emph{independently of
+phenotype} through the identical code path, and is the control that
+separates selection-on-phenotype from the machinery.
+
+\begin{table}[ht]
+\centering
+\caption{Fitted $\h$ under selection, and the inverse-probability
+weighted refit. Truth is $0.5$; $\dagger$ marks a design whose
+inclusion probability is zero for some stratum, where weighting is
+undefined.}
+\label{tab:ascertainment}
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+selection & case share & unweighted $\widehat{\h}$ & IPW $\widehat{\h}$ \\
+\midrule
+none (population)      & $0.050$ & $0.523$ & --- \\
+random $50\%$ (control)& $0.049$ & $0.506$ & --- \\
+$50/50$ case/control   & $0.499$ & $1.000$ & $0.456$ \\
+$20\%$ case-enriched   & $0.199$ & $1.000$ & $0.481$ \\
+affected proband       & $1.000$ & $1.000$ & $\dagger$ \\
+any affected member    & $0.293$ & $1.000$ & $\dagger$ \\
+affected relative only & $0.000$ & $1.000$ & $\dagger$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Every phenotype-selected design is pinned at the clamp in every
+replicate.
+The sharper cell is $\h=0$: the population arm returns $0.018$ and
+the control $0.025$, while all five selected designs return
+$1.000$---complete heritability in a population with none.
+
+It is bias, not variance, and not an unfinished chain.
+The gap is $+0.500$ at $N=2{,}500$, $10{,}000$ and $40{,}000$ while
+the population arm's shrinks toward zero; the same $0.9999$ is
+reached from $\h_{\mathrm{init}}\in\{0.05,0.5,0.95\}$, so the
+iteration climbs to the ceiling from below rather than failing to
+leave a high start.
+
+The clamp censors the magnitude.
+Evaluating \eqref{eq:he} on the selected families' own liabilities
+is uncensored and gives $1.68$ under proband ascertainment,
+$3.4\times$ the truth.
+That statistic is a decomposition and \emph{not} the mechanism: at
+$\h=0$ it sits near zero while the fitter reports $1.0$.
+The fitter never sees those liabilities.
+It sees truncated draws conditioned on the selected status pattern,
+so under proband ascertainment every augmented proband is redrawn
+above $T$, its relatives are pulled with it, and the cross-products
+stay positive whatever the truth.
 
 %----------------------------------------------------------------------
 \section{What this does not do}

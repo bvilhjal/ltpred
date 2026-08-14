@@ -458,10 +458,10 @@ def test_moment_fitters_make_population_sampling_contract_explicit():
     with pytest.warns(RuntimeWarning, match="unascertained"):
         fit_heritability(sim.families, n_iter=10, burn_in=6,
                          inner_sweeps=1, seed=1)
-    with pytest.raises(ValueError, match="only sampling='population'"):
+    with pytest.raises(ValueError, match=r"sampling='population' or sampling='ipw'"):
         fit_heritability(sim.families, sampling="case-control",
                          n_iter=10, burn_in=6)
-    with pytest.raises(ValueError, match="only sampling='population'"):
+    with pytest.raises(ValueError, match=r"sampling='population' or sampling='ipw'"):
         fit_variance_components(sim.families, ("A",),
                                 sampling="family-history",
                                 n_iter=10, burn_in=6)
@@ -643,3 +643,111 @@ def test_population_case_rate_guard_covers_variance_components():
     with pytest.raises(ValueError, match="not consistent with sampling='population'"):
         fit_variance_components(fams, ("A", "C"), n_iter=50, burn_in=10,
                                 sampling="population")
+
+
+def test_ipw_recovers_h2_under_case_control_ascertainment():
+    # The augmentation for a GIVEN family with GIVEN statuses is already the
+    # right conditional distribution; selection breaks the *mix* of families,
+    # which is exactly what inverse-probability weighting repairs.
+    import ltpred.fit as fit_mod
+    from ltpred.thresholds import liability_threshold
+    K, q, n = 0.05, 0.5, 3000
+    t = float(liability_threshold(K))
+    roles = ["o", "m", "f", "s1"]
+    rng = np.random.default_rng(4)
+    from ltpred.covariance import correct_positive_definite
+    from ltpred.fit import _component_matrix
+    Sig, _ = correct_positive_definite(
+        0.5 * _component_matrix(roles, "A") + 0.5 * np.eye(4))
+
+    keep_p = K * (1 - q) / (q * (1 - K))
+    fams, w = [], []
+    while len(fams) < n:
+        liab = rng.multivariate_normal(np.zeros(4), Sig, size=40_000)
+        st = liab > t
+        keep = st[:, 0] | (rng.random(st.shape[0]) < keep_p)
+        for row in st[keep]:
+            if len(fams) >= n:
+                break
+            fams.append(_cc_family(len(fams), roles, row, t))
+            w.append(1.0 if row[0] else 1.0 / keep_p)
+    w = np.asarray(w)
+
+    # unguarded, this cohort pins at the clamp -- that is the thing being fixed
+    original = fit_mod._assert_population_case_rate
+    fit_mod._assert_population_case_rate = lambda *a, **k: None
+    try:
+        naive = fit_heritability(fams, n_iter=600, burn_in=200, seed=2,
+                                 sampling="population").h2
+    finally:
+        fit_mod._assert_population_case_rate = original
+    assert naive > 0.9
+
+    ipw = fit_heritability(fams, n_iter=600, burn_in=200, seed=2,
+                           sampling="ipw", weights=w).h2
+    assert 0.35 < ipw < 0.65, ipw            # truth 0.5
+    assert ipw < naive - 0.3
+
+
+def test_ipw_rejects_positivity_failure_even_with_weights():
+    # Ascertainment through an affected proband gives an entire stratum
+    # inclusion probability zero. Correct weights must reproduce the asserted
+    # prevalence, so the weighted case-rate check is also the positivity check.
+    from ltpred.thresholds import liability_threshold
+    t = float(liability_threshold(0.05))
+    roles = ["o", "m", "f", "s1"]
+    rng = np.random.default_rng(6)
+    fams = [_cc_family(i, roles, [True] + list(rng.random(3) < 0.05), t)
+            for i in range(800)]
+    with pytest.raises(ValueError, match="positivity failure"):
+        fit_heritability(fams, n_iter=50, burn_in=10, sampling="ipw",
+                         weights=np.ones(len(fams)))
+
+
+def test_ipw_sampling_and_weights_must_agree():
+    from ltpred.thresholds import liability_threshold
+    t = float(liability_threshold(0.1))
+    roles = ["o", "m", "f", "s1"]
+    rng = np.random.default_rng(7)
+    fams = [_cc_family(i, roles, rng.random(4) < 0.1, t) for i in range(200)]
+    w = np.ones(len(fams))
+    with pytest.raises(ValueError, match="requires weights"):
+        fit_heritability(fams, n_iter=50, burn_in=10, sampling="ipw")
+    with pytest.raises(ValueError, match="weights are not accepted"):
+        fit_heritability(fams, n_iter=50, burn_in=10, sampling="population",
+                         weights=w)
+    with pytest.raises(ValueError, match="only meaningful with sampling='ipw'"):
+        fit_heritability(fams, n_iter=50, burn_in=10, weights=w)
+    for bad, msg in [(np.zeros(len(fams)), "strictly positive"),
+                     (np.ones(5), "one entry per family"),
+                     (np.full(len(fams), np.nan), "finite")]:
+        with pytest.raises(ValueError, match=msg):
+            fit_heritability(fams, n_iter=50, burn_in=10, sampling="ipw",
+                             weights=bad)
+
+
+def test_ipw_weights_pass_through_variance_components():
+    from ltpred import fit_variance_components
+    from ltpred.thresholds import liability_threshold
+    t = float(liability_threshold(0.1))
+    roles = ["o", "m", "f", "s1", "s2", "s3"]
+    rng = np.random.default_rng(8)
+    fams = [_cc_family(i, roles, rng.random(6) < 0.1, t) for i in range(600)]
+    res = fit_variance_components(fams, ("A", "C"), n_iter=120, burn_in=40,
+                                  seed=1, sampling="ipw",
+                                  weights=np.ones(len(fams)))
+    assert 0.0 <= res.components["A"] <= 1.0
+
+
+def test_unknown_sampling_mode_names_the_supported_ones():
+    # The contract grew a second mode; an unknown value must still be refused,
+    # and the message should say what IS accepted rather than only what is not.
+    sim = simulate_under_LTM_single(fam_vec=["m", "s1"], h2=0.5, n_sim=30,
+                                    pop_prev=0.1, seed=1)
+    with pytest.raises(ValueError, match=r"sampling='population' or sampling='ipw'"):
+        fit_heritability(sim.families, sampling="case-control",
+                         n_iter=10, burn_in=6)
+    # ...and it should point at why proband-ascertained designs are not simply
+    # another mode: they cannot be reweighted at all.
+    with pytest.raises(ValueError, match="cannot be reweighted at all"):
+        fit_heritability(sim.families, sampling="proband", n_iter=10, burn_in=6)

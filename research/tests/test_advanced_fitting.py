@@ -684,7 +684,7 @@ def test_research_fitters_make_population_sampling_contract_explicit():
     with pytest.warns(RuntimeWarning, match="unascertained"):
         fit_variance_components_mcem(sim.families, ("A",), n_iter=10, burn_in=6,
                                      inner_sweeps=1, seed=1)
-    with pytest.raises(ValueError, match="only sampling='population'"):
+    with pytest.raises(ValueError, match=r"sampling='population' or sampling='ipw'"):
         fit_variance_components_mcem(sim.families, ("A",), n_iter=10, burn_in=6,
                                      sampling="case-control")
     multi = _simulate_two_trait(["m", "s1"], [0.5, 0.4], np.eye(2), np.eye(2),
@@ -692,7 +692,7 @@ def test_research_fitters_make_population_sampling_contract_explicit():
     with pytest.warns(RuntimeWarning, match="unascertained"):
         fit_genetic_correlation(multi, n_iter=10, burn_in=6, inner_sweeps=1,
                                 seed=1)
-    with pytest.raises(ValueError, match="only sampling='population'"):
+    with pytest.raises(ValueError, match=r"sampling='population' or sampling='ipw'"):
         fit_genetic_correlation(multi, n_iter=10, burn_in=6,
                                 sampling="family-history")
     with warnings.catch_warnings(record=True) as recorded:

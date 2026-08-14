@@ -211,7 +211,7 @@ class ErrorPathTests(unittest.TestCase):
         with self.assertWarnsRegex(RuntimeWarning, "unascertained"):
             fit_genetic_correlation_decay(fams, n_em=8, n_draw=5, burn=2,
                                           m_iter=20)
-        with self.assertRaisesRegex(ValueError, "only sampling='population'"):
+        with self.assertRaisesRegex(ValueError, r"sampling='population' or sampling='ipw'"):
             fit_genetic_correlation_decay(fams, n_em=8, n_draw=5, burn=2,
                                           m_iter=20, sampling="case-control")
 

@@ -438,7 +438,27 @@ def ascert_null_random50(path):
     return (float(r["fitted_mean"]),)
 
 
+def ascert_ipw_case_control(path):
+    r = _ascert_rows(path, arm="ipw", scheme="case_control")[0]
+    return (float(r["max_weight"]), float(r["unweighted_mean"]),
+            float(r["fitted_mean"]), float(r["sd"]))
+
+
+def ascert_ipw_enriched(path):
+    r = _ascert_rows(path, arm="ipw", scheme="enriched_20")[0]
+    return (float(r["max_weight"]), float(r["unweighted_mean"]),
+            float(r["fitted_mean"]), float(r["sd"]))
+
+
 GUARDS = [
+    Guard("ascertainment-ipw-case-control", _ASCERT,
+          ascert_ipw_case_control,
+          r"^\| case_control \| ([\d.]+) \| \*\*([\d.]+)\*\* \| "
+          r"\*\*([\d.]+)\*\* \| −[\d.]+ \| ([\d.]+) \|$"),
+    Guard("ascertainment-ipw-enriched", _ASCERT,
+          ascert_ipw_enriched,
+          r"^\| enriched_20 \| ([\d.]+) \| \*\*([\d.]+)\*\* \| "
+          r"\*\*([\d.]+)\*\* \| −[\d.]+ \| ([\d.]+) \|$"),
     Guard("ascertainment-population-nuclear", _ASCERT,
           ascert_h2_nuclear_population,
           r"^\| population \| 0\.050 \| ([\d.]+) \(SD ([\d.]+)\)"),

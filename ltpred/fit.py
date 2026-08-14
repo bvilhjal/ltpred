@@ -57,6 +57,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from numpy.typing import ArrayLike
+
 from ._mathfun import norm_cdf
 from ._validation import validate_bounds
 from .covariance import get_relatedness, _is_full_sib, _is_mates
@@ -68,22 +70,68 @@ __all__ = ["FitResult", "fit_heritability", "VarCompResult",
            "fit_variance_components", "BootstrapResult", "bootstrap_fit"]
 
 
-def _validate_population_sampling(sampling, context):
-    """Make the supported sampling contract explicit while preserving old calls."""
+def _validate_population_sampling(sampling, context, *, weights=None):
+    """Resolve the sampling contract, and keep it consistent with ``weights``.
+
+    ``"population"`` is the unascertained contract. ``"ipw"`` says the families
+    were selected on observed status with a KNOWN, strictly positive inclusion
+    probability per family, and ``weights`` are the reciprocals of those
+    probabilities: the per-family moment contributions are then re-mixed to
+    population proportions. Returns the resolved mode.
+    """
     if sampling is None:
+        if weights is not None:
+            raise ValueError(
+                f"{context}: weights are only meaningful with sampling='ipw'; "
+                "pass sampling='ipw' to declare an inverse-probability-weighted "
+                "design")
         warnings.warn(
             f"{context} assumes independent, non-overlapping, unascertained "
             "population-sampled families. Case/control or family-history "
             "ascertainment can drive moment estimates to the boundary; it is not "
             "corrected by this fitter or by bootstrap_fit. Pass "
-            "sampling='population' only after verifying that contract.",
+            "sampling='population' only after verifying that contract, or "
+            "sampling='ipw' with weights for a known selection probability.",
             RuntimeWarning, stacklevel=3)
-        return
-    if sampling != "population":
+        return "population"
+    if sampling == "population":
+        if weights is not None:
+            raise ValueError(
+                f"{context}: sampling='population' means no selection to undo, "
+                "so weights are not accepted; use sampling='ipw' for a weighted "
+                "design")
+        return "population"
+    if sampling == "ipw":
+        if weights is None:
+            raise ValueError(
+                f"{context}: sampling='ipw' requires weights (one per family, "
+                "the reciprocal of that family's inclusion probability)")
+        return "ipw"
+    raise ValueError(
+        f"{context} supports sampling='population' or sampling='ipw'; "
+        "ascertained designs whose selection probability is zero for some "
+        "stratum (e.g. families ascertained through an affected proband) cannot "
+        "be reweighted at all and require an estimator that models the sampling "
+        "process")
+
+
+def _validate_weights(weights, n_families, context):
+    """Return per-family IPW weights as a positive finite float array."""
+    if weights is None:
+        return None
+    w = np.asarray(weights, dtype=float)
+    if w.ndim != 1 or w.shape[0] != n_families:
         raise ValueError(
-            f"{context} supports only sampling='population'; ascertained or "
-            "overlapping-family designs require an estimator that models their "
-            "sampling process")
+            f"{context}: weights must be one-dimensional with one entry per "
+            f"family; got shape {w.shape} for {n_families} families")
+    if not np.all(np.isfinite(w)):
+        raise ValueError(f"{context}: weights must be finite")
+    if np.any(w <= 0.0):
+        raise ValueError(
+            f"{context}: weights must be strictly positive -- a zero weight is a "
+            "family that could not have been sampled, which is a positivity "
+            "failure rather than something to down-weight")
+    return w
 
 
 #: Thresholds for the case-rate check, calibrated from BOTH sides.
@@ -113,7 +161,7 @@ _CASE_RATE_RATIO_TOL = 1.15
 _CASE_RATE_Z_TOL = 6.0
 
 
-def _assert_population_case_rate(families, n_pheno, *, context):
+def _assert_population_case_rate(families, n_pheno, *, context, weights=None):
     """Check the observed case rate against the one the thresholds assert.
 
     ``sampling="population"`` was an honour system: it checked a string, not the
@@ -134,9 +182,20 @@ def _assert_population_case_rate(families, n_pheno, *, context):
     way, and is wrong for the same reason. Either way the model's own
     precondition is violated, so the message names the observed and asserted
     rates rather than guessing the cause.
+
+    With ``weights`` (``sampling="ipw"``) the same test is applied to the
+    **weighted** case rate, and it then does double duty. Correct
+    inverse-probability weights re-mix the selected sample back to population
+    proportions, so the weighted rate must reproduce ``K``; if it does not, either
+    the weights are wrong or an entire stratum had inclusion probability zero and
+    no weighting can reconstruct it. That is the positivity condition, checked
+    the only way the data allows. The binomial SE uses Kish's effective sample
+    size ``(sum w)^2 / sum w^2``, so heavy weights correctly widen the tolerance
+    instead of manufacturing significance.
     """
     per_role = {}
-    for family in families:
+    for fam_index, family in enumerate(families):
+        w = 1.0 if weights is None else float(weights[fam_index])
         for member in family.members:
             lo = np.broadcast_to(np.asarray(member.lower, dtype=float), (n_pheno,))
             hi = np.broadcast_to(np.asarray(member.upper, dtype=float), (n_pheno,))
@@ -145,29 +204,45 @@ def _assert_population_case_rate(families, n_pheno, *, context):
                 # finite upper => control, and the finite end IS the threshold
                 is_case = np.isfinite(lo[p])
                 thr = lo[p] if is_case else hi[p]
-                n, k, t = per_role.get((member.role, p), (0, 0, thr))
-                per_role[(member.role, p)] = (n + 1, k + int(is_case), t)
+                sw, sw2, k, t = per_role.get((member.role, p), (0.0, 0.0, 0.0, thr))
+                per_role[(member.role, p)] = (sw + w, sw2 + w * w,
+                                              k + w * int(is_case), t)
 
     worst = None
-    for (role, pheno), (n, k, thr) in sorted(per_role.items()):
+    for (role, pheno), (sw, sw2, k, thr) in sorted(per_role.items()):
+        n = sw * sw / sw2 if sw2 > 0 else 0.0        # Kish effective sample size
         if n < 30:                       # binomial normal approx not trustworthy
             continue
         expected = float(norm_cdf(-thr))     # = 1 - Phi(thr), exact by symmetry
         if not 0.0 < expected < 1.0:
             continue
-        observed = k / n
+        observed = k / sw
         se = math.sqrt(expected * (1.0 - expected) / n)
         z = (observed - expected) / se if se > 0 else 0.0
         ratio = observed / expected
         if abs(z) >= _CASE_RATE_Z_TOL and not (
                 1.0 / _CASE_RATE_RATIO_TOL <= ratio <= _CASE_RATE_RATIO_TOL):
             if worst is None or abs(z) > abs(worst[3]):
-                worst = (role, pheno, ratio, z, observed, expected, n)
+                worst = (role, pheno, ratio, z, observed, expected, int(round(n)))
 
     if worst is None:
         return
     role, pheno, ratio, z, observed, expected, n = worst
     trait = "" if n_pheno == 1 else f" (trait {pheno})"
+    if weights is not None:
+        raise ValueError(
+            f"{context}: the WEIGHTED families are still not consistent with the "
+            f"supplied thresholds. Role {role!r}{trait} has a weighted affected "
+            f"rate of {observed:.4f} (effective n {n}) against an asserted "
+            f"population prevalence of {expected:.4f} -- a factor of {ratio:.2f} "
+            f"({z:+.1f} SD). Correct inverse-probability weights re-mix the "
+            "selected sample back to population proportions, so this means "
+            "either the weights are wrong, or an entire stratum had inclusion "
+            "probability zero (positivity failure) and no weighting can "
+            "reconstruct it. Families ascertained through an affected proband "
+            "are the standard example: with no unaffected-proband families "
+            "sampled, IPW is undefined and the design needs an estimator that "
+            "models the selection, not a reweighting of it.")
     raise ValueError(
         f"{context}: the supplied families are not consistent with "
         f"sampling='population'. Role {role!r}{trait} is affected in "
@@ -304,9 +379,10 @@ class FitResult:
     burn_in: int
 
 
-def _prepare_group(families, idx):
+def _prepare_group(families, idx, weights=None):
     """Per-structure precompute: relationship matrix ``A``, related-pair list,
-    per-family bounds/fixed mask, and the initial chain state ``x``."""
+    per-family bounds/fixed mask, per-family weights, and the initial chain
+    state ``x``."""
     roles = sorted(m.role for m in families[idx[0]].members)
     k = len(roles)
     A = np.array([[get_relatedness(ri, rj, h2=1.0) for rj in roles] for ri in roles])
@@ -332,9 +408,12 @@ def _prepare_group(families, idx):
     x = np.empty((F, k))
     for slot in range(F):
         x[slot] = _init_chain(lowers[slot], uppers[slot], ones)
+    w = (np.ones(F) if weights is None
+         else np.asarray(weights, dtype=float)[list(idx)])
     return dict(roles=roles, A=np.ascontiguousarray(A), pairs=pairs, k=k, F=F,
                 lowers=np.ascontiguousarray(lowers),
                 uppers=np.ascontiguousarray(uppers), fixed=fixed,
+                w=np.ascontiguousarray(w),
                 x=np.ascontiguousarray(x))
 
 
@@ -342,7 +421,8 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
                      n_iter: int = 1500, burn_in: int = 500,
                      inner_sweeps: int = 5, damp: float = 0.2,
                      seed: int | None = None, eps: float = 1e-4,
-                     sampling: str | None = None) -> FitResult:
+                     sampling: str | None = None,
+                     weights: ArrayLike | None = None) -> FitResult:
     """Estimate liability-scale ``h2`` from family case/control (+age) statuses.
 
     **Sampling contract:** this moment fitter supports independent,
@@ -360,6 +440,26 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     ``h2 = 1.0``. The check is deliberately conservative, so it catches the
     catastrophic designs rather than certifying population sampling; mild
     enrichment on a small cohort still passes and remains your responsibility.
+
+    **Selected samples:** ``sampling="ipw"`` with per-family ``weights`` handles
+    selection on observed status when the inclusion probability is known and
+    strictly positive for every stratum -- the standard case/control cohort and
+    biobank case-enrichment designs. Pass ``weights = 1 / P(family sampled)``.
+    The per-family moment contributions are then re-mixed to population
+    proportions, which is the right shape of remedy here: the augmentation for a
+    *given* family with *given* statuses is already correct, and it is the
+    **mix** of families that selection breaks. In the repository benchmark this
+    takes a 50/50 case/control cohort from ``h2 = 1.000`` (pinned) back to
+    ``0.456`` against a truth of 0.5.
+
+    Two limits, both real. **Positivity:** a design that samples no families from
+    some stratum -- ascertainment through an affected proband is the standard
+    example -- has inclusion probability zero there, and no weighting can
+    reconstruct what was never observed. That is checked, because correct weights
+    must reproduce the asserted prevalence, and it raises rather than returning a
+    number. **Efficiency:** weights reach 19x at K = 0.05 with a 50/50 cohort, so
+    the effective sample size is far below the nominal one; the benchmark reports
+    the inflated across-replicate SD alongside the bias.
 
     ``families`` is a list of :class:`~ltpred.family.Family` whose members carry
     liability bounds (from a threshold builder). Alternates a Gibbs augmentation of
@@ -391,11 +491,17 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     if not 0.0 <= float(h2_init) <= 1.0:
         raise ValueError("h2_init must be in [0, 1]")
     damp, eps = _validate_update_controls(damp, eps)
-    _validate_population_sampling(sampling, "fit_heritability")
+    weights = _validate_weights(weights, len(families), "fit_heritability")
+    _validate_population_sampling(sampling, "fit_heritability", weights=weights)
     _assert_common_thresholds(families, 1, context="fit_heritability")
-    _assert_population_case_rate(families, 1, context="fit_heritability")
-    groups = [_prepare_group(families, idx) for _key, idx in _group_by_structure(families)]
-    sxx = sum(sum(aij * aij for (_i, _j, aij) in g["pairs"]) * g["F"] for g in groups)
+    _assert_population_case_rate(families, 1, context="fit_heritability",
+                                 weights=weights)
+    groups = [_prepare_group(families, idx, weights)
+              for _key, idx in _group_by_structure(families)]
+    # weighted denominator: sum_f w_f sum_pairs A_ij^2. With w == 1 this is the
+    # unweighted count, so the weighted and unweighted paths are one expression.
+    sxx = sum(sum(aij * aij for (_i, _j, aij) in g["pairs"]) * float(g["w"].sum())
+              for g in groups)
     if sxx <= 0:
         raise ValueError("no related pairs in the families — cannot fit h2 "
                          "(need relatives, not lone probands).")
@@ -414,8 +520,9 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
             gibbs_advance(P, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
                           int(inner_sweeps))
             x = g["x"]
+            w = g["w"]
             for (i, j, aij) in g["pairs"]:
-                sxy += aij * float(x[:, i] @ x[:, j])
+                sxy += aij * float(w @ (x[:, i] * x[:, j]))
         h2_hat = min(max(sxy / sxx, eps), 1.0 - eps)
         h2 = (1.0 - damp) * h2 + damp * h2_hat
         trace[it] = h2
@@ -494,7 +601,7 @@ def _component_matrix(roles, comp):
     return K
 
 
-def _prepare_group_vc(families, idx, comps):
+def _prepare_group_vc(families, idx, comps, weights=None):
     """Per-structure precompute for the multi-component HE regression: each
     component's relationship matrix ``K_c``, the list of related pairs with their
     ``(K_c[i,j])_c`` predictor rows, per-family bounds / fixed mask, and the
@@ -525,9 +632,12 @@ def _prepare_group_vc(families, idx, comps):
     x = np.empty((F, k))
     for slot in range(F):
         x[slot] = _init_chain(lowers[slot], uppers[slot], ones)
+    w = (np.ones(F) if weights is None
+         else np.asarray(weights, dtype=float)[list(idx)])
     return dict(roles=roles, k=k, F=F, K=K, pairs=pairs,
                 lowers=np.ascontiguousarray(lowers),
                 uppers=np.ascontiguousarray(uppers), fixed=fixed,
+                w=np.ascontiguousarray(w),
                 x=np.ascontiguousarray(x))
 
 
@@ -535,14 +645,18 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
                             *, n_iter: int = 1500, burn_in: int = 500,
                             inner_sweeps: int = 5, damp: float = 0.2,
                             seed: int | None = None, eps: float = 1e-4,
-                            sampling: str | None = None) -> VarCompResult:
+                            sampling: str | None = None,
+                            weights: ArrayLike | None = None) -> VarCompResult:
     """Fit liability-scale variance components by a multiple Haseman-Elston regression.
 
     **Sampling contract:** like :func:`fit_heritability`, this supports
     independent, non-overlapping, unascertained population-sampled families only.
     Pass ``sampling="population"`` to acknowledge that contract, which is
-    verified against the observed case rates rather than taken on trust (see
-    :func:`fit_heritability`). The fitter does not correct case/control or
+    verified against the observed case rates rather than taken on trust, or
+    ``sampling="ipw"`` with per-family ``weights`` for a design selected on
+    observed status with known positive inclusion probabilities (see
+    :func:`fit_heritability` for both, including the positivity and efficiency
+    limits). Without one of those, this fitter does not correct case/control or
     family-history ascertainment; under it the components saturate, exhausting
     the residual variance rather than sitting at the elementwise clamp.
 
@@ -609,12 +723,16 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
         raise ValueError(f"burn_in ({burn_in}) must be non-negative and "
                          f"< n_iter ({n_iter})")
     damp, eps = _validate_update_controls(damp, eps)
-    _validate_population_sampling(sampling, "fit_variance_components")
+    weights = _validate_weights(weights, len(families),
+                                "fit_variance_components")
+    _validate_population_sampling(sampling, "fit_variance_components",
+                                  weights=weights)
     _assert_common_thresholds(families, 1, context="fit_variance_components")
     _assert_population_case_rate(families, 1,
-                                 context="fit_variance_components")
+                                 context="fit_variance_components",
+                                 weights=weights)
     C = len(comps)
-    groups = [_prepare_group_vc(families, idx, comps)
+    groups = [_prepare_group_vc(families, idx, comps, weights)
               for _key, idx in _group_by_structure(families)]
 
     # X'X is fixed across sweeps (depends only on the K_c and family counts); the
@@ -622,7 +740,7 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
     XtX = np.zeros((C, C))
     for g in groups:
         for (_i, _j, row) in g["pairs"]:
-            XtX += g["F"] * np.outer(row, row)
+            XtX += float(g["w"].sum()) * np.outer(row, row)
     if np.linalg.matrix_rank(XtX, tol=1e-8) < C:
         raise ValueError(
             "variance components not identified from these families — the "
@@ -646,8 +764,9 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
             gibbs_advance(P, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
                           int(inner_sweeps))
             x = g["x"]
+            w = g["w"]
             for (i, j, row) in g["pairs"]:
-                Xty += row * float(x[:, i] @ x[:, j])
+                Xty += row * float(w @ (x[:, i] * x[:, j]))
         h2_hat = np.linalg.solve(XtX_reg, Xty)
         h2_hat = np.clip(h2_hat, eps, 1.0 - eps)
         if h2_hat.sum() > 1.0 - eps:                      # keep e2 > 0

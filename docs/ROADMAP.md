@@ -38,10 +38,20 @@ why int8-quantising the covariance, ldpred3-style, is the wrong lever here.)
 fixed point (Gibbs augmentation + damped Haseman–Elston update, not posterior
 sampling of h²). Across h² 0.2–0.8, current simulations show small bias relative
 to the across-dataset SD rather than exact unbiasedness.
-Both core family-data fitters support only independent, non-overlapping,
-unascertained population-sampled families and require
-`sampling="population"` as an explicit acknowledgement; they do not model
-case/control or family-history ascertainment.
+Both core family-data fitters assume independent, non-overlapping families
+under one of two contracts. `sampling="population"` is the unascertained case,
+and is now **verified against the data** rather than merely asserted: the
+thresholds imply a prevalence, each role's case rate is tested against it, and a
+gross mismatch raises. `sampling="ipw"` with per-family weights covers selection
+on observed status with a known, strictly positive inclusion probability
+(case/control and biobank-enrichment designs), re-mixing the per-family moment
+contributions to population proportions. Neither covers designs where some
+stratum has inclusion probability zero — proband-ascertained family studies —
+which need an estimator that models the selection; those are detected and
+rejected rather than silently fitted. Section 29 of the benchmark report
+quantifies the uncorrected damage (at true `h² = 0`, every phenotype-selected
+design returns `h² = 1.0`) and the IPW recovery (a 50/50 case/control cohort
+returns from 1.000 to 0.456 against a truth of 0.5, at an efficiency cost).
 `fit_variance_components` fits additive `A` and a **bank of relationship-specific
 shared-environment components** — `C` (sibship, from the full-sib excess) and `M`
 (couple, from the `A = 0` mate pairs) — together by a **multiple Haseman–Elston

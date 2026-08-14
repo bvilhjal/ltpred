@@ -4,10 +4,33 @@ All notable changes to ltpred are recorded here. This project follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html); while the major
 version is 0 the public API may still change between minor releases.
 
-## Unreleased
+## 0.3.1 — 2026-08-14
 
 ### Added
 
+- **Inverse-probability weighting for selected samples**: `sampling="ipw"` with
+  per-family `weights = 1 / P(family sampled)` on `fit_heritability` and
+  `fit_variance_components`. The augmentation for a *given* family with *given*
+  statuses is already the correct conditional distribution -- selection breaks
+  the **mix** of families -- so re-mixing the per-family moment contributions is
+  a better-matched remedy than a scale transform such as Lee et al., which
+  operates on a different (observed-scale) estimand and cannot help here: at the
+  same K, true h2 = 0.5 and h2 = 0 both produce 1.000, and no multiplicative
+  factor is invertible across that.
+  Benchmarked: a 50/50 case/control cohort goes from h2 = 1.000 (pinned) to
+  0.456 against a truth of 0.5, and 20%-enriched from 1.000 to 0.481.
+  Two limits, both enforced or reported rather than assumed. **Positivity** --
+  designs that sample no families from some stratum (ascertainment through an
+  affected proband) have inclusion probability zero there and raise, because
+  correct weights must reproduce the asserted prevalence and these cannot.
+  **Efficiency** -- weights reach 19x at K = 0.05 with a 50/50 cohort, so the
+  benchmark reports the inflated across-replicate SD next to the bias.
+- The case-rate check is weight-aware, using Kish's effective sample size
+  `(sum w)^2 / sum w^2`, so it does double duty: a validity check on the weights
+  and the only positivity check the data admits.
+- `bench_ascertainment.py` arm G measures the IPW remedy through the real gate
+  (the historical arms run under an explicit `unguarded()` context, since their
+  purpose is to record what the number would have been without the check).
 - **`sampling="population"` is now verified against the data, not taken on
   trust.** It used to check a string, so an ascertained cohort fitted straight
   through to a fixed point at the clamp. The supplied thresholds already assert
@@ -173,8 +196,6 @@ version is 0 the public API may still change between minor releases.
   0.5·h² *to each other* (an implied shared second parent), and
   `construct_covmat_from_kinship` scopes its entry-for-entry agreement claim
   to pedigrees consistent with that convention.
-
-### Changed
 
 - The research fitters `fit_variance_components_mcem`,
   `fit_genetic_correlation` and `fit_genetic_correlation_decay` add the core's

@@ -735,9 +735,19 @@ family-history ascertainment therefore changes the latent cross-products and
 can severely bias the fit. Under such selection, supply an externally estimated
 population-scale `h2` or fit an explicit ascertainment model; neither more
 Gibbs iterations nor a different optimiser repairs a missing selection
-likelihood. Pass `sampling="population"` to `fit_heritability` or
-`fit_variance_components` to acknowledge this contract; omitting it currently
-warns, and no other sampling mode is accepted.
+likelihood.
+
+Two sampling modes are accepted. `sampling="population"` is the unascertained
+contract, and is **verified** rather than trusted: the thresholds imply
+`K = 1 - Phi(T)`, each role's case count is `Binomial(n_fam, K)` under that
+contract, and a gross departure raises. `sampling="ipw"` takes per-family
+`weights = 1 / P(family sampled)` and re-mixes the per-family moment
+contributions to population proportions — sound because the augmentation of a
+*given* family with *given* statuses is already the correct conditional law, and
+it is the **mix** that selection corrupts. It requires a strictly positive
+inclusion probability for every stratum; proband-ascertained designs have zero
+there and are rejected, since correct weights must reproduce `K` and none can.
+Omitting `sampling` still warns.
 
 1. **Augment** — one persistent truncated-MVN sweep per family under the current
    covariance `Sigma(h2) = (1-h2) I + h2 A` (`A` the additive relationship matrix
