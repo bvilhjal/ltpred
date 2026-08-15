@@ -231,6 +231,10 @@ threshold crossing. See
 [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md); real-LD runs use
 [HAPNEST](benchmarks/hapnest/README.md) genotypes (opt-in).
 
+## Development
+
+The code and documentation were written together with AI.
+
 ## License
 
 [MIT](LICENSE). Please cite the method(s) used and this repository; see

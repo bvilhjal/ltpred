@@ -6,6 +6,11 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Changed
+
+- README and the methods note now state that the code and
+  documentation were written together with AI.
+
 ## 0.3.4 — 2026-08-15
 
 ### Changed
