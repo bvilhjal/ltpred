@@ -6,6 +6,8 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.3.3 — 2026-08-15
+
 ### Fixed
 
 - Estimation with `use_mixture=True` no longer raises when one role-structure
