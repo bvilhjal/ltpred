@@ -597,10 +597,12 @@ Every GWAS panel uses independent SNPs; a real-LD run has not been
 done.
 A locked comparison to R LTFHPlus 2.2.0 and LTFGRS 1.0.1 is in
 Section~\ref{sec:ltfhplus}.
-Table~\ref{tab:headlines} is the load-bearing subset; the rest of
-this section says what each number is allowed to mean.
+Table~\ref{tab:headlines} is an index of those quantities: each row
+is a different estimand, the middle column is its value, and the
+right-hand column is the design that produced it.
+The rest of this section says what each value is allowed to mean.
 
-Two ratios appear and are not interchangeable.
+Two ratios appear later and are not interchangeable.
 An \emph{NCP ratio} is
 $(\overline{\chi^{2}}_{\mathrm{causal}}-1)$ over the same quantity
 for case/control.
@@ -609,14 +611,16 @@ case/control label.
 
 \begin{table}[ht]
 \centering
-\caption{Load-bearing simulation claims.
-$\pm$ is a replicate SE except where marked as a $95\%$ CI
-half-width.
+\caption{Headline quantities from the committed simulation artifacts.
+Each row is a different quantity.
+Value is that quantity: a range, a mean $\pm$ replicate SE, or
+(the NCP-increment row only) a paired $95\%$ CI half-width.
+Setting is the design.
 Independent SNPs throughout; no row uses the censoring mixture
 \eqref{eq:mix}.}
 \label{tab:headlines}
 \small
-\resizebox{\textwidth}{!}{\input{../paper/tables/headlines.tex}}
+\input{../paper/tables/headlines.tex}
 \end{table}
 
 \subsection{The sequential approximation}

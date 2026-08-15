@@ -312,42 +312,44 @@ def report_headlines(root):
     fold_pa = _mean_se([float(r["fold_ltfgrs_over_pa"]) for r in lock])
 
     body = [
-        ["PA--Gibbs agreement",
+        ["Corr(PA, Gibbs) posterior means",
          f"{min(agreement):.4f}--{max(agreement):.4f}",
-         "27-cell classic LT-FH grid, no mixture"],
-        ["Object-path speed-up",
+         "27-cell classic LT-FH grid; no mixture"],
+        ["PA / grouped-Gibbs wall-clock",
          f"{min(speedups):.0f}--{max(speedups):.0f}×",
-         "4 threads, this machine, intra-package"],
-        ["vs LTFHPlus Gibbs",
+         "this package, 4 threads, object path"],
+        ["LTFHPlus Gibbs / ltpred Gibbs wall-clock",
          _pm(*fold_gibbs, 2) + "×",
          "same algorithm; 200 nuclear families"],
-        ["vs LTFGRS PA",
+        ["LTFGRS PA / ltpred PA wall-clock",
          _pm(*fold_pa, 0) + "×",
          "same algorithm; 200 nuclear families"],
-        ["Classic LT-FH NCP",
+        ["Causal-SNP NCP ratio vs case/control",
          _pm(float(gwas_row["effN_vs_cc"]),
              float(gwas_row["se_effN_vs_cc"]), 2) + "×",
-         "10,000 probands, 30 causal SNPs"],
-        ["LT-FH++ minus ADuLT",
+         "classic LT-FH; 10,000 probands, 30 causal SNPs"],
+        ["LT-FH++ minus ADuLT NCP increment",
          f"{float(contrast['delta_effN_vs_cc_adjusted']):+.3f} ± "
          f"{float(contrast['delta_effN_vs_cc_adjusted_ci95']):.3f}",
-         "paired 95% CI; known CIP, pinned onset"],
-        ["Cohort-blind λ_GC",
+         "paired 95% CI half-width; known CIP, pinned onset"],
+        ["λ_GC with cohort-blind family thresholds",
          _pm(float(confounding["lgc_strat_single_K"]),
              float(confounding["se_lgc_strat_single_K"]), 2),
-         "4× prevalence trend / 30 y"],
-        ["PGS + LT-FH test R²",
-         f"{pgs_r2['PGS + LT-FH joint']:.3f} vs "
-         f"{pgs_r2['PGS']:.3f}, {pgs_r2['LT-FH (PA)']:.3f}",
-         "held-out genetic liability; p = 1 by construction"],
-        ["IPW 50/50 fitted h²",
-         f"{float(ipw['fitted_mean']):.3f} "
-         f"(from {float(ipw['unweighted_mean']):.3f})",
-         "N = 10,000, K = 0.05, truth 0.5"],
+         "4× prevalence trend over 30 y"],
+        ["Test R² of PGS+LT-FH / PGS / LT-FH",
+         f"{pgs_r2['PGS + LT-FH joint']:.3f} / "
+         f"{pgs_r2['PGS']:.3f} / {pgs_r2['LT-FH (PA)']:.3f}",
+         "held-out genetic liability"],
+        ["IPW-recovered h² (unweighted was 1.000)",
+         f"{float(ipw['fitted_mean']):.3f}",
+         "50/50 case-control; N = 10,000; truth 0.5"],
     ]
-    return ("Load-bearing simulation claims",
+    return ("Headline quantities",
             "multiple committed CSVs (see scripts/make_results.py)",
-            ["claim", "number", "design"], ["l", "r", "l"], body)
+            ["Quantity", "Value", "Setting"],
+            [r"@{}" + r"p{0.40\textwidth}", "r",
+             r"p{0.32\textwidth}@{}"],
+            body)
 
 
 # --- writers --------------------------------------------------------------------
