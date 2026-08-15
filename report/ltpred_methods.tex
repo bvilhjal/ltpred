@@ -324,36 +324,43 @@ indirect effects, selection).
 
 There is no closed form for $\E[\ell_F\mid C_F]$ once several
 intervals are live.
-Two approximations are used.
+Two algorithms are used.
 
-\subsection{Gibbs}
+\subsection{Algorithm G (Gibbs)}
 
-Coordinate-wise inverse-CDF sampling of the conditional
-normals \cite{kotecha1999}, with coefficients from the precision
-$Q=\Sigma^{-1}$:
+Let $Q=\Sigma^{-1}$,
 $\mathrm{sd}_j=\sqrt{1/Q_{jj}}$,
-$P_{ij}=-Q_{ij}/Q_{jj}$.
-Pinned coordinates are held.
-Coordinates that are untruncated in every family of a structure
-group (the genetic rows on the public path) are integrated out:
-the sweep is on the remaining truncated liabilities $y$, and the
-genetic mean is the Gaussian conditional $\E[g\mid y]$.
-The reported posterior variance is
-$\Var(\E[g\mid y])+\Var(g\mid y)$.
-The low-level chain \texttt{rtmvnorm\_gibbs} is not collapsed.
-Far-tail intervals cannot be drawn on the probability scale
-($\Phi$ underflows near $|z|\approx 38.5$); those use a log-scale
-Rayleigh construction.
+$P_{ij}=-Q_{ij}/Q_{jj}$ for $i\neq j$, and $P_{jj}=0$.
+The $j$th conditional is then the normal
+$\mathcal{N}(P_{\cdot j}^{\top}x,\mathrm{sd}_j^{2})$ restricted
+to $(a_j,b_j)$ \cite{kotecha1999}.
 $\Sigma$ must be strictly positive definite.
 
-The Monte Carlo standard error is the batch-means estimator
-\cite{jones2006} that LTFHPlus takes from \texttt{batchmeans}.
-Families that share a structure share one factorisation of
-$\Sigma$; the rest is embarrassingly parallel.
+\begin{enumerate}
+\item[G1.] Group families by ordered role set and form $P$,
+  $\mathrm{sd}$ once per group.
+\item[G2.] Integrate out coordinates that are untruncated in every
+  family of the group (the genetic rows on the public path).
+  The sweep is on the remaining truncated liabilities $y$;
+  the genetic mean is $\E[g\mid y]$ and the reported posterior
+  variance is $\Var(\E[g\mid y])+\Var(g\mid y)$.
+  The low-level chain \texttt{rtmvnorm\_gibbs} is not collapsed.
+\item[G3.] Initialise each chain at a feasible point of the
+  rectangle. Hold pinned coordinates.
+\item[G4.] Sweep free coordinates by inverse-CDF.
+  Far-tail intervals ($\Phi$ underflows near $|z|\approx 38.5$)
+  use a log-scale Rayleigh construction.
+\item[G5.] After burn-in, stream means, second moments, and
+  batch-mean summaries. Do not store the draw array.
+\item[G6.] Stop when every requested batch-means SE
+  \cite{jones2006} is below $\mathrm{tol}$.
+  Families that have met the tolerance are dropped from later
+  rounds.
+\end{enumerate}
 This is the sampling-based reference for every no-mixture claim
 below.
 
-\subsection{Pearson--Aitken}
+\subsection{Algorithm P (Pearson--Aitken)}
 \label{sec:pa}
 
 If one coordinate of a multivariate normal is selected from
@@ -366,23 +373,30 @@ $\mathcal{N}(m_i,v_i)$ to $(m^\star,v^\star)$, the others update by
   \Sigma_{jk}+\frac{\Sigma_{ji}\Sigma_{ik}}{v_i^{2}}(v^\star-v_i).
   \label{eq:pa}
 \end{equation}
-Mendell and Elston applied this sequentially to threshold traits
-\cite{mendell1974}.
-The implementation folds observed members last-to-first, then
-applies the target's own interval to the updated
-$\mathcal{N}(m_0,v_0)$.
-For the genetic target the last step is a no-op
-(bounds $(-\infty,\infty)$).
-For $\E[\ell_o\mid C_F]$ it is the same estimand Gibbs uses.
+Mendell and Elston applied \eqref{eq:pa} sequentially to threshold
+traits \cite{mendell1974}.
+
+\begin{enumerate}
+\item[P1.] Place the target first. Canonicalise the remaining
+  roles to a sorted name order (reproducibility, not accuracy).
+\item[P2.] Fold each remaining coordinate last-to-first: replace
+  its marginal by the truncated-normal moments of its interval
+  and apply \eqref{eq:pa}.
+\item[P3.] If $a_i=b_i$, set $v^\star=0$ (exact conditioning).
+\item[P4.] Apply the target's own interval to the updated
+  $\mathcal{N}(m_0,v_0)$.
+  For the genetic target this is a no-op
+  (bounds $(-\infty,\infty)$).
+  For $\E[\ell_o\mid C_F]$ it is the same estimand Algorithm~G
+  uses.
+\item[P5.] Read the target's updated mean and variance.
+\end{enumerate}
 
 After one truncation the selected law is no longer Gaussian.
-PA keeps the first two moments and proceeds as if it were.
+Algorithm~P keeps the first two moments and proceeds as if it
+were.
 Hence: exact for a single interval or a pin; a sequential
 two-moment approximation thereafter.
-Fold order changes the error.
-Canonicalising to a sorted role set makes the result a function of
-the pedigree shape, not of input row order---reproducibility, not
-accuracy.
 
 On the no-mixture structures we have tested, that approximation
 error is small enough to ignore for the posterior \emph{mean}
@@ -391,11 +405,13 @@ It has not been characterised for the mixture, and PA's reported
 conditional variance is itself an approximation.
 A PA standard error of zero means no Monte Carlo error.
 
-\subsection{Censored-control mixture}
+\subsection{Algorithm M (censored-control mixture)}
 \label{sec:mixture}
 
 A person unaffected only up to current follow-up is a mixture of a
 lifetime control and a not-yet-onset future case \cite{krebs2024}.
+Algorithm~P folds that person by replacing the ordinary truncated
+moments in P2 with the two-component moments below.
 With current CIP $K_i$ and lifetime $K_{\mathrm{pop}}$,
 \begin{equation}
   \pi
@@ -440,7 +456,7 @@ The object API (\texttt{Family}/\texttt{Member}) does this grouping
 internally.
 The array API receives already-aligned bounds and is the hot path.
 
-\paragraph{Gibbs.}
+\paragraph{Algorithm G.}
 The inner sweep is Numba-JIT'd and \texttt{prange}-parallel across
 families in a group.
 Untruncated coordinates that are free in every family of the

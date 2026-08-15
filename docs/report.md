@@ -20,7 +20,8 @@ and heritability tables are generated LaTeX inputs from the committed benchmark
 CSVs. A repository test checks that the inputs are current.
 
 The report states the estimand and assumptions first, then the
-liability-threshold model and BLUP identity, both inference engines,
+liability-threshold model and BLUP identity, Algorithms G
+(Gibbs), P (Pearson–Aitken) and M (mixture),
 the implementation (grouping, collapsed untruncated coordinates,
 streaming batch-means, object vs array path, posterior `var` vs
 estimator `se`), the population/IPW sampling

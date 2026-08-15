@@ -184,13 +184,21 @@ the sampling design. The family bootstrap does not correct ascertainment bias.
 
 ## Choosing Gibbs vs Pearson–Aitken
 
-Both target the same posterior-liability idea, but Pearson–Aitken is a
-deterministic *approximation*: it is exact for a single observed truncation. In
-the benchmarked **no-mixture** family structures, PA and Gibbs posterior-mean
-`genetic` estimates had correlation ≥ 0.997. For unusual pedigrees — very large, densely
-affected, or heavily truncated — treat Gibbs as the reference and cross-check.
-PA's sequential approximation is also fold-order dependent; the estimator
-canonicalizes each family to a sorted role order before folding (a
+Both engines return an estimate of the same target
+`μ_i = E[a_i | D_F]`
+([algorithm.md](algorithm.md#the-estimand), equation (3)).
+Write Algorithm G for the truncated-MVN Gibbs sampler and
+Algorithm P for the Pearson–Aitken sequential-selection sweep
+([algorithm.md](algorithm.md#inference-engine-1-gibbs-sampler)).
+G is exact in the limit of infinite draws. P is exact for a single
+interval or a pin, and a two-moment approximation thereafter.
+
+In the benchmarked **no-mixture** family structures, PA and Gibbs
+posterior-mean `genetic` estimates had correlation ≥ 0.997. For
+unusual pedigrees — very large, densely affected, or heavily
+truncated — treat Algorithm G as the reference and cross-check.
+Algorithm P is fold-order dependent; the estimator canonicalizes
+each family to a sorted role order before folding (a
 reproducibility choice, not an accuracy one), and
 `benchmarks/bench_pa_robustness.py` puts the spread across fold orders at a
 median < 0.12% and p95 < 3.4% of the between-proband score SD on the stress

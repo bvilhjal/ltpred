@@ -1,46 +1,120 @@
 # Algorithm and model
 
-ltpred implements classic LT-FH, personalised LT-FH++ with family history,
-family-free ADuLT, and the PA-FGRS lifetime-case/censored-control model. Its
-convenience helpers also expose an age-specific interval-case variant. Gibbs and
-deterministic Pearson–Aitken are alternative inference engines for LT-FH,
-LT-FH++ and ADuLT; PA-FGRS is PA-specific by definition and implementation.
-This page describes the models and engines. See [guide.md](guide.md) for usage.
+This page records the estimand, the observation models, and the two
+algorithms that compute the score. Usage is in [guide.md](guide.md).
+The typeset companion is the
+[methods note](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf).
+
+Write the names LT-FH, LT-FH++, ADuLT and PA-FGRS for *observation
+models*: they choose the set `D_F` that is conditioned on. They are
+not different genetic models, and they are not inference engines.
+Gibbs and Pearson–Aitken (PA) are the engines. Both apply to LT-FH,
+LT-FH++ and ADuLT. The PA-FGRS censoring mixture is PA-only.
+
+The argument is in this order: the liability-threshold model and the
+estimand; the family covariance; the BLUP identity; then the two
+engines, written as algorithms. Sections after the engines
+(environment kernels, thresholds, fitting) may be skipped on a first
+reading.
 
 ## The liability-threshold model
 
-Each person has an unobserved normally-distributed **liability**. It splits into a
-heritable genetic part and an independent environmental part:
+Let each person carry an unobserved liability. Write `l_g` for its
+additive genetic part and `l_e` for an independent environmental
+part. On the usual unit-liability scale,
 
 ```text
-l_o = l_g + l_e ,   l_g ~ N(0, h2) ,   l_e ~ N(0, 1 - h2) ,   l_o ~ N(0, 1)
+l_o  =  l_g + l_e ,
+l_g  ~  N(0, h²) ,     l_e  ~  N(0, 1 − h²) ,     l_o  ~  N(0, 1).     (1)
 ```
 
-`l_g` is the **genetic liability** (variance `h2`, the liability-scale
-heritability); `l_o` is the **full liability** (variance 1). A person is a case
-when `l_o` exceeds a threshold `T`. With a single population prevalence `K`,
-`T = Phi^-1(1 - K)`.
+Here `h²` is the liability-scale heritability. A person is a case
+when `l_o` exceeds a threshold `T`. With a single population
+prevalence `K`,
 
-The goal is `E[l_g | data]` for a proband — a graded genetic score — where `data`
-contains selected case/control statuses (and ages) from the proband and/or their
-relatives. The proband's own status is optional conditioning information.
+```text
+T  =  Φ⁻¹(1 − K).                                                       (2)
+```
+
+The later sections write `a` or `g` for a designated proband's
+additive genetic liability (so `Var(a) = h²`) and
+`ℓ` or `o` for a full liability (so `Var(ℓ) = 1`).
+Those are the same two coordinates as in (1).
+
+## The estimand
+
+Let `i` be a designated proband, `A` the additive relationship
+matrix of the people whose records are used, and `K( · )` the
+prevalence or cumulative-incidence model that turns status and age
+into interval endpoints or mixture weights. Write `ℓ_F` for the
+vector of full liabilities on those people, and `D_F` for the
+complete observation model encoded by the records. The target is
+
+```text
+μ_i  =  E[ a_i  |  D_F, A, h², K(·) ].                                  (3)
+```
+
+For LT-FH, LT-FH++ and ADuLT, `D_F` is the rectangle
+`ℓ_F ∈ C_F`, one interval per person. The PA-FGRS censoring
+mixture is a mixture of truncated laws and is not, in general, one
+rectangle.
+
+If `ℓ_F` were observed continuously, (3) would be the selection
+index / animal-model BLUP
+
+```text
+E[a_i | ℓ_F]  =  Cov(a_i, ℓ_F)  Var(ℓ_F)⁻¹  ℓ_F.                       (4)
+```
+
+A single relative with relationship `r` contributes `r h² ℓ_r`.
+Disease records do not give `ℓ_F`. They give `ℓ_F ∈ C_F`.
+Under joint normality,
+
+```text
+E[a_i | ℓ_F ∈ C_F]  =  Cov(a_i, ℓ_F)  Var(ℓ_F)⁻¹  E[ℓ_F | ℓ_F ∈ C_F]. (5)
+```
+
+The BLUP weights are unchanged; only the right-hand side is replaced
+by a truncated-normal mean. Hence the map from the binary (or
+censored) records to `μ_i` is nonlinear, and reduces to (4) only
+when every interval collapses to a point. Gibbs estimates the
+truncated-normal mean in (5) by sampling. PA approximates the same
+moment updates deterministically. Both return an estimate of (3).
+
+Two remarks, both easy to get wrong in an analysis.
+
+1. The proband's own diagnosis is optional. Include it when `μ_i`
+   is a GWAS phenotype constructed from that diagnosis. Leave the
+   corresponding interval as `(-∞,∞)` when the same
+   diagnosis is the outcome you will later predict or classify.
+   Conditioning on the answer is leakage.
+2. Equation (3) is not a SNP polygenic score. No marker effects
+   enter. Combining `μ_i` with a PGS is a downstream model.
+
+The [BLUP section](#connection-to-selection-index-and-blup) records
+the same identity in the language of the selection index. The
+[Sham section](#connection-to-shams-liability-threshold-risk-models)
+places the truncated-MVN problem in the genetic-epidemiology
+tradition.
 
 ## Family covariance
 
-Relatives' additive genetic liabilities are correlated by the **additive genetic
-relationship** `A_ij = 2 * phi_ij` (twice the kinship coefficient): `A = 1` for
-self, `0.5` for parent/offspring and full sibs, `0.25` for grandparents /
-half-sibs / aunts-uncles, etc. Writing `a` for additive genetic liability and `l`
-for full liability, the model is the animal-model form
+Relatives' additive genetic liabilities are correlated by the additive
+genetic relationship `A_ij = 2φ_ij` (twice the kinship
+coefficient): `A_ii = 1` for a non-inbred person, `A_ij = 1/2`
+for parent–offspring and full sibs, `A_ij = 1/4` for grandparents,
+half-sibs and avuncular pairs, and so on. The animal-model covariances
+are
 
 ```text
-Cov(a_i, a_j) = h2 * A_ij
-Cov(l_i, l_j) = h2 * A_ij   (i != j)
-Var(l_i)      = 1 ,   Var(a_i) = h2
+Cov(a_i, a_j)  =  h² A_ij ,
+Cov(ℓ_i, ℓ_j)  =  h² A_ij     (i ≠ j) ,
+Var(ℓ_i)       =  1 ,     Var(a_i)  =  h².                              (6)
 ```
 
-For the target proband, `a_0` is written `g` (variance `h2`) and its own full
-liability `l_0` is written `o` (variance 1); `Cov(g, o) = h2`.
+For the designated proband, write `g` for `a_0` and `o` for
+`ℓ_0`. Then `Var(g) = h²`, `Var(o) = 1`,
+and `Cov(g, o) = h²`.
 `get_relatedness(a, b, h2)` returns `A_ab * h2`, and `construct_covmat_single(...)`
 assembles this small fixed-pedigree relationship matrix, ordering `g`, `o` first
 followed by the relatives (`correct_positive_definite` nudges a rounding-singular
@@ -85,10 +159,11 @@ family history rather than a pure causal genetic value.
 
 ### Adding environmental covariance to improve prediction
 
-The covariance is **modular**, and adding non-genetic components to the
-between-relative covariance can improve prediction. Following the classic
-variance-components (ACE-type) decomposition, extend the full-liability covariance
-with valid shared-environment kernels:
+The covariance is modular. Adding a valid shared-environment kernel
+changes the conditional law of `ℓ_F` and therefore the right-hand
+side of (5). Following the classic variance-components (ACE-type)
+decomposition, extend the full-liability covariance with valid
+shared-environment kernels:
 
 ```text
 Cov(l_i, l_j) = h2 A_ij + c2 C_ij + m2 M_ij + sum_q u2_q K_q[i,j]
@@ -100,7 +175,8 @@ mate/couple kernel, and each optional `K_q` is another symmetric
 positive-semidefinite (PSD) sharing kernel. A directional maternal effect is not
 `M` and is not generally representable by one symmetric covariance kernel. Each
 kernel has unit diagonal in the fitted model, so its variance fraction reduces the
-individual residual `e2`; the kernels are not off-diagonal adjustments alone. Two payoffs:
+individual residual `e2`; the kernels are not off-diagonal adjustments alone.
+Two consequences follow.
 
 - **A sharper genetic estimate.** Modelling shared-environment resemblance lets
   the estimator attribute it to environment rather than genetics, so the genetic
@@ -329,75 +405,64 @@ role-based `estimate_liability` still takes a scalar `h2`.
 
 ## Connection to selection index and BLUP
 
-`ltpred` is a liability-threshold generalisation of the classical **selection
-index / BLUP** problem from quantitative genetics and animal breeding (Hazel 1943;
-Henderson 1975): predict an individual's additive genetic value from relatives'
-phenotypes and a relationship matrix.
+Equations (4) and (5) are the classical selection-index / BLUP problem
+(Hazel 1943; Henderson 1975), with one change: the phenotypes on the
+right-hand side are not observed continuously. They are truncated
+liabilities. We record the same identity here in the language of the
+selection index, because that is the shortest way to see what the
+two engines are computing.
 
-If the relatives' **continuous** liabilities `l_F` were observed, the optimal
-(Gaussian) predictor of the proband's additive genetic liability would be the
-selection-index / BLUP conditional mean,
-
-```text
-E[g | l_F] = Cov(g, l_F) Var(l_F)^-1 l_F ,
-```
-
-which weights each relative by its relationship to the proband and its information
-content, discounting shared covariance among the relatives so they are not
-double-counted. The one-relative case makes the weighting transparent: for a
-single relative with relationship `r` and observed liability `l_r`,
+If the relatives' continuous liabilities `ℓ_F` were observed, the
+optimal Gaussian predictor of the proband's additive genetic liability
+would be (4). Each relative is weighted by its relationship to the
+proband and by its residual information after the other relatives have
+been accounted for, so shared covariance is not double-counted. For a
+single relative with relationship `r` and observed liability
+`ℓ_r`,
 
 ```text
-Cov(g, l_r) = r * h2 ,   Var(l_r) = 1   =>   E[g | l_r] = r * h2 * l_r ,
+Cov(g, ℓ_r)  =  r h² ,     Var(ℓ_r)  =  1
+          ⇒     E[g | ℓ_r]  =  r h² ℓ_r.                                (7)
 ```
 
-so a parent or full sib (`r = 0.5`) contributes `0.5 h2 l_r` and a grandparent or
-half-sib (`r = 0.25`) contributes `0.25 h2 l_r`.
+A parent or full sib (`r = 1/2`) contributes `½ h² ℓ_r`;
+a grandparent or half-sib (`r = 1/4`) contributes `¼ h² ℓ_r`.
 
-In disease data the liabilities are **not** observed — we only know each lies in
-an interval `C_F` (a case above a threshold, a control below one, an age-of-onset
-case pinned at an age-specific threshold, a censored relative right-truncated).
-The target is therefore
+In disease data we know only that `ℓ_F` lies in a rectangle
+`C_F` (a case above a threshold, a control below one, an onset case
+pinned at an age-specific threshold, a censored relative
+right-truncated). Gaussian conditioning then gives (5): first form
+the truncated-normal mean `E[ℓ_F | ℓ_F ∈ C_F]`,
+then apply the same BLUP weights. The pipeline is
 
 ```text
-E[g | l_F in C_F] = Cov(g, l_F) Var(l_F)^-1 E[l_F | l_F in C_F] ,
+family statuses and ages
+        |   K(·)  →  thresholds / mixture weights
+rectangle (or mixture)  D_F
+        |   truncated MVN, Algorithm G or P
+E[ℓ_F | D_F]
+        |   BLUP / selection-index projection  (4)
+μ_i  =  E[a_i | D_F].
 ```
 
-by Gaussian conditioning: **first** infer the latent liabilities implied by
-status/age/censoring (`E[l_F | intervals]`), **then** project them onto the
-proband's additive genetic liability with the same BLUP weights. The pipeline:
+The rectangle `C_F` may include the proband's own interval when the
+score is a GWAS phenotype constructed from that diagnosis. It must
+exclude, or leave unbounded, the proband's interval when the same
+diagnosis is the outcome of a prospective evaluation; otherwise
+`D_F` contains the answer (remark 1 above).
 
-```text
-family statuses + ages
-     |  thresholds / CIPs
-latent liability intervals  C_F
-     |  truncated MVN
-E[l_F | l_F in C_F]
-     |  BLUP / selection-index projection
-E[g | family data]
-```
-
-Here `C_F` may include the proband's own interval when the score is deliberately a
-GWAS phenotype derived from that diagnosis. It must exclude, or leave unbounded,
-the proband's interval when the same diagnosis is the outcome of a prospective
-prediction/classification evaluation; otherwise the conditioning set contains the
-answer.
-
-So the method is **BLUP-like only after conditioning on latent liabilities**.
-Classical BLUP is linear in observed continuous phenotypes; here the binary /
-censored observations define truncation intervals, so the exact posterior mean is
-**nonlinear** in the data. It reduces exactly to selection-index / BLUP when the
-liabilities are observed continuously (or pinned to points). The Gibbs backend
-estimates the truncated-normal expectation directly; Pearson–Aitken approximates
-the same moment updates deterministically. Viewed this way, `ltpred` is a
-fixed-variance **probit / threshold liability model with a pedigree random
-effect**, used primarily for *prediction* (of `g`) — the liability estimators
-condition on an assumed `h2`, CIP/prevalence model and relationship matrix. The
-heritability itself can optionally be **fit** from the same family data by
-data augmentation, but only for independent, non-overlapping families under the
-declared population or known-probability IPW sampling contracts (see
-[Fitting the covariance](#fitting-the-covariance-heritability) below);
-the CIP/prevalence model is always supplied.
+Hence the method is BLUP-like only after the latent liabilities have
+been replaced by their truncated means. Classical BLUP is linear in
+observed continuous phenotypes. Here the exact posterior mean is
+nonlinear in the binary or censored records, and reduces to (4) when
+every interval is a point. The estimators condition on an assumed
+`h²`, a CIP or prevalence model, and a relationship matrix. The
+heritability itself can optionally be fit from the same family data
+by data augmentation, but only for independent, non-overlapping
+families under the declared population or known-probability IPW
+sampling contracts (see
+[Fitting the covariance](#fitting-the-covariance-heritability)
+below). The CIP model is always supplied.
 
 ## Connection to Sham's liability-threshold risk models
 
@@ -407,8 +472,8 @@ matrix, and affection status *truncating* those liabilities — is the framework
 Pak Sham and the genetic-epidemiology tradition formalised (Sham, *Statistics
 in Human Genetics*, 1998). Evaluating the joint distribution of a
 family's liabilities under an observed affection pattern is exactly the
-truncated-multivariate-normal problem the two backends address: the Gibbs sampler
-draws it, Pearson–Aitken approximates its moments.
+truncated-multivariate-normal problem Algorithms G and P address: G
+draws it, P approximates its moments.
 
 The tightest link is **So, Kwan, Cherny & Sham (2011)**, a risk-prediction
 framework that combines an individual's **family history** — through the
@@ -617,141 +682,217 @@ both estimators.
 
 ## Inference engine 1: Gibbs sampler
 
-`E[l_g | data]` is the mean of the family covariance's multivariate normal
-truncated to the per-person intervals — a truncated MVN with no closed form for
-more than a couple of members. `rtmvnorm_gibbs` samples it by sweeping one
-coordinate at a time, drawing each from its **conditional** normal restricted to
-its interval (inverse-CDF sampling; Kotecha & Djurić 1999):
+There is no closed form for `E[ℓ_F | ℓ_F ∈ C_F]`
+once several intervals are live. Algorithm G samples the truncated
+multivariate normal by coordinate-wise inverse-CDF draws
+(Kotecha & Djurić 1999). The public estimator is
+`gibbs_estimate_batched`; the low-level chain `rtmvnorm_gibbs` draws
+the full vector and is never collapsed.
+
+Write `Σ` for the family covariance, `Q = Σ⁻¹` for
+its precision, and
 
 ```text
-x_j  <-  mu_j + sd_j * Phi^-1( U( Phi((a_j - mu_j)/sd_j), Phi((b_j - mu_j)/sd_j) ) )
-mu_j  =  P[:, j] . x         (conditional mean)
+sd_j   =  (1 / Q_jj)^{1/2} ,
+P_ij   =  −Q_ij / Q_jj     (i ≠ j) ,     P_jj  =  0.                    (8)
 ```
 
-`P[:, j] = Sigma[-j,-j]^-1 Sigma[-j, j]` (conditional-regression coefficients,
-embedded with a 0 in slot `j`)
-and `sd_j = sqrt(Sigma[jj] - P[:,j].Sigma[:,j])` depend only on `Sigma`, so they
-are precomputed once. Pinned coordinates (`a_j == b_j`) are held fixed. The
-posterior means of `g` (and `o`) are the sample averages.
+The `j`th conditional, given the rest of the current state `x`, is
+then `N(μ_j, sd_j²)` restricted to
+`(a_j, b_j)`, with `μ_j = P[:, j] · x`. Both `P` and
+`sd` depend only on `Σ`, so they are computed once
+per structure. `Σ` must be strictly positive definite.
 
-**Convergence.** The sampler is re-run, accumulating draws, until the
-**batch-means** Monte-Carlo standard error of every requested estimate falls
-below `tol` (`batch_means`, R's `batchmeans::bmmat`).
+**Algorithm G** (truncated-MVN Gibbs).
 
-**Performance.** The inner sweep is Numba-JIT'd. Families with the same role
-sequence share one covariance, so the estimator groups them and runs the group in
-one `prange`-parallel kernel that accumulates the mean and the batch-means SE
-**online** from streaming batch summaries (running sums and sums-of-squares) — no
-full `(n_sim × n_out)` sample array, so the Monte-Carlo-SE memory is `O(families)`
-regardless of `n_sim`, and each family seeds its own RNG so results are
-deterministic regardless of thread scheduling. Coordinates that are untruncated
-in every family of the group (the genetic rows) are integrated out of the
-sweep; the genetic mean is the Gaussian conditional mean given the sampled
-truncated liabilities, and the reported posterior variance is
-`Var(E[g|y]) + Var(g|y)`. Without Numba the identical code runs serially in
-pure Python.
+**Input.** A covariance `Σ` shared by a group of families;
+per-family intervals `[a, b]`; the coordinates whose posterior
+means are required; `n_sim`, burn-in, batch size, and
+tolerance.
+
+**Output.** For each family, an estimate of (5), the posterior
+variance of the target, and a batch-means Monte-Carlo SE.
+
+**G1.** [Group.] Partition the families by ordered role set. For each
+group, form (8) once.
+
+**G2.** [Collapse.] Let `U` be the coordinates that are untruncated
+in every family of the group (the genetic rows on the public path).
+If `U` is nonempty, reduce the sweep to the complement `y` and
+store the Gaussian map `W` and residual variances of `U` given
+`y`. The genetic mean is then `E[g | y]`; the
+reported posterior variance is
+`Var(E[g | y]) + Var(g | y)`.
+
+**G3.** [Initialise.] For each family, set `x` to a feasible point
+of the rectangle (the same construction LTFHPlus uses). Hold a
+coordinate with `a_j = b_j` fixed.
+
+**G4.** [Sweep.] For `k = -B, …, n_sim−1` and for
+each free coordinate `j`, draw
+
+```text
+x_j  ←  μ_j + sd_j  Φ⁻¹( U( Φ((a_j−μ_j)/sd_j), Φ((b_j−μ_j)/sd_j) ) ).  (9)
+```
+
+Far-tail intervals cannot be drawn on the probability scale
+(`Φ` underflows near `|z| ≈ 38.5`); those use a
+log-scale Rayleigh construction.
+
+**G5.** [Accumulate.] After burn-in, stream the target: a kept
+coordinate contributes `x_j`; a collapsed coordinate contributes
+`(Wy)_u`. Update running sums, sums of squares, and batch-mean
+summaries. Do not store the `(n_sim × n_out)`
+draw array. Monte-Carlo-SE memory is therefore `O(F)`.
+
+**G6.** [Stop.] If every requested batch-means SE
+(`batch_means`, R's `batchmeans::bmmat`) is below `tol`, halt.
+Otherwise draw another block of `n_sim` and accumulate.
+Families that have already met `tol` are dropped from later rounds.
+
+Each family carries its own RNG seed, so the draw does not depend on
+which worker picked it up. The inner loop is Numba-JIT'd and
+`prange`-parallel across families in a group; without Numba the
+identical code runs serially.
 
 ## Inference engine 2: Pearson–Aitken
 
-The **Pearson–Aitken selection formula** gives, in closed form, how a
-jointly-Gaussian vector's mean and covariance change when one component's marginal
-is *selected* (truncated). If component `i` moves from `N(m_i, v_i)` to a selected
-mean/variance `(m*, v*)`, every component updates by a rank-1 correction:
+The Pearson–Aitken selection formula gives, in closed form, how a
+jointly Gaussian vector's mean and covariance change when one
+component's marginal is *selected* (truncated). If component `i`
+moves from `N(m_i, v_i)` to selected moments
+`(m*, v*)`, every remaining component updates by a
+rank-1 correction:
 
 ```text
-mean_j  +=  (Sigma_ji / v_i) * (m* - m_i)
-cov_jk  +=  (Sigma_ji Sigma_ik / v_i^2) * (v* - v_i)
+m_j     ←  m_j + (Σ_ji / v_i) (m* − m_i) ,
+Σ_jk    ←  Σ_jk + (Σ_ji Σ_ik / v_i²) (v* − v_i).                        (10)
 ```
 
-`pa_algorithm` places the target first and folds the other members in one at a
-time (last to first). For each, `(m*, v*)` are the truncated-normal moments on
-its interval (`_std_tnorm_moments`, with `v* = 0` for a pinned point mass —
-exact conditioning). After that fold it applies the target's own interval to
-the updated `N(m_0, v_0)`. For the usual genetic target `g` those bounds are
-`(-inf, inf)` and this is a no-op. For `out="full"` it is
-`E[l_o | own interval and relatives]`, the same estimand as Gibbs. Reading
-the target's updated mean gives `E[l_g | data]` (or `E[l_o | data]`) and its
-variance the posterior variance — **deterministically, with no Monte-Carlo
-error**.
+Aitken's source is his multivariate-normal selection note, not his
+generalized-least-squares paper
+([Aitken 1935](https://doi.org/10.1017/S0013091500008063)).
+Mendell & Elston applied (10) sequentially to multifactorial
+threshold traits
+([1974, *Biometrics*](https://pubmed.ncbi.nlm.nih.gov/4813384/)).
 
-After one truncation the selected distribution is no longer, in general,
-multivariate normal. Pearson–Aitken keeps only the updated first two moments and
-proceeds as if the remaining variables were Gaussian with those moments. Hence it
-is **exact for a single truncation** (and for exact Gaussian conditioning on
-point-pinned variables), but an approximation for multiple interval observations —
-the standard sequential-selection approximation. Aitken's relevant source is his
-multivariate-normal selection note, not his generalized-least-squares paper
-([Aitken 1935](https://doi.org/10.1017/S0013091500008063)); Mendell & Elston
-applied this result sequentially to multifactorial threshold traits
-([1974, *Biometrics*](https://pubmed.ncbi.nlm.nih.gov/4813384/)). On ltpred's
-separately observed family-member intervals **without the censoring mixture**, PA
-and Gibbs posterior-mean estimates had correlation ≥ 0.997 while PA ran
-384–488× faster than grouped Gibbs in the controlled 4-thread benchmark in
-this package. A locked comparison to R LTFHPlus 2.2.0 on the same classic
-LT-FH families gave corr(ltpred Gibbs, LTFHPlus) = 0.9999 and
-corr(PA, LTFHPlus) = 0.9999 (RMSE 0.0041). LTFHPlus is Gibbs-only; public
-PA is LTFGRS 1.0.1, and ltpred PA matches it at RMSE 0.000087. On that
-machine same-algorithm fold times were 6.87× (LTFHPlus Gibbs / ltpred
-Gibbs; 53.3 vs 7.76 ms/family) and 1178× (LTFGRS PA / ltpred PA;
-9.47 vs 0.0083 ms/family). Isolated-process peak RSS (ldpred3 `wait4`
-launcher) was 442 MiB (LTFHPlus), 260 MiB (LTFGRS PA) and ~148–165 MiB
-(ltpred). PA versus LTFHPlus is a different algorithm, not a faster
-Gibbs. The PA-only mixture was not part of either comparison. Same
-grouping / `prange` structure as the Gibbs path.
+**Algorithm P** (Pearson–Aitken sequential selection).
 
-**Fold order.** Because PA is a sequential approximation, its error depends on
-the order in which members are folded in. The estimator canonicalizes every
-family to a sorted role order before folding (bounds are realigned by role
-name), so results depend on the family's role set, never on the input row order
-or which family arrived first. This is a reproducibility choice, not an accuracy
-one — no fold order is more exact than another. On the
-`benchmarks/bench_pa_robustness.py` stress pedigrees the spread across fold
-orders was a median < 0.12% and p95 < 3.4% of the between-proband score SD.
+**Input.** A covariance `Σ`; per-family intervals; a target
+coordinate `t` (usually `g`).
+
+**Output.** An approximation to `E[t | C_F]` and to
+`Var(t | C_F)`, with no Monte-Carlo error.
+
+**P1.** [Order.] Place the target first. Canonicalise the remaining
+roles to a sorted name order and realign the bounds. This makes the
+result a function of the pedigree shape, not of input row order. It
+is a reproducibility choice, not a claim of smaller approximation
+error.
+
+**P2.** [Fold.] For each remaining coordinate `i`, last to first,
+replace its marginal `N(m_i, v_i)` by the truncated-normal
+moments `(m*, v*)` of its interval, and apply (10) to the
+remaining mean and covariance.
+
+**P3.** [Pin.] If `a_i = b_i`, set `v* = 0`. This is exact
+Gaussian conditioning on a point.
+
+**P4.** [Target.] Apply the target's own interval to the updated
+`N(m_0, v_0)`. For the genetic target the interval is
+`(-∞, ∞)` and this step is a no-op. For `out="full"` it
+is `E[ℓ_o | own interval and relatives]`, the same
+estimand Algorithm G uses.
+
+**P5.** [Read.] The target's updated mean is the estimate of (5);
+its updated variance is the reported posterior variance.
+
+After one truncation the selected law is no longer, in general,
+multivariate normal. Algorithm P keeps only the updated first two
+moments and proceeds as if the remaining variables were Gaussian
+with those moments. Hence it is exact for a single interval or a
+pin, and a sequential two-moment approximation thereafter.
+
+On separately observed family-member intervals **without the
+censoring mixture**, PA and Gibbs posterior-mean estimates had
+correlation ≥ 0.997 while PA ran 384–488× faster than grouped Gibbs
+in the controlled 4-thread benchmark in this package. A locked
+comparison to R LTFHPlus 2.2.0 on the same classic LT-FH families
+gave corr(ltpred Gibbs, LTFHPlus) = 0.9999 and corr(PA, LTFHPlus) =
+0.9999 (RMSE 0.0041). LTFHPlus is Gibbs-only; public PA is LTFGRS
+1.0.1, and ltpred PA matches it at RMSE 0.000087. On that machine
+same-algorithm fold times were 6.87× (LTFHPlus Gibbs / ltpred Gibbs;
+53.3 vs 7.76 ms/family) and 1178× (LTFGRS PA / ltpred PA; 9.47 vs
+0.0083 ms/family). Isolated-process peak RSS (ldpred3 `wait4`
+launcher) was 442 MiB (LTFHPlus), 260 MiB (LTFGRS PA) and
+~148–165 MiB (ltpred). PA versus LTFHPlus is a different algorithm,
+not a faster Gibbs. The PA-only mixture was not part of either
+comparison. The same grouping / `prange` structure as Algorithm G
+applies.
+
+On the `benchmarks/bench_pa_robustness.py` stress pedigrees the
+spread across fold orders was a median < 0.12% and p95 < 3.4% of
+the between-proband score SD. No fold order is more exact than
+another.
 
 ### Base PA-FGRS: lifetime cases and censored controls
 
 An observed case contributes the lifetime interval
-`[Φ⁻¹(1 − K_pop), inf)`. Age-specific incidence is used for censored controls:
+`[Φ⁻¹(1-K_pop), ∞)`. An age-censored control
+is not one truncated law. It is a mixture of a lifetime control and
+a not-yet-onset future case. Algorithm P folds that person by
+replacing the ordinary truncated moments in **P2** with the
+two-component moments below (`_tnorm_mixture` in
+`ltpred.pearson_aitken`; PA-FGRS supp. eqs. S3–S5).
 
-The censored-control mixture (`_tnorm_mixture` in `ltpred.pearson_aitken`)
-extends the truncated moments for **age-censored
-controls**: someone unaffected only up to their current follow-up is a mixture of
-a true control and a not-yet-onset future case. With the individual cumulative
-incidence `K_i` and lifetime prevalence `K_pop`, the selected moments become
+**Algorithm M** (censored-control mixture moments).
+
+**Input.** Current conditional mean and variance `(m, v)` of the
+coordinate being folded; current CIP `K_i`; lifetime prevalence
+`K_pop`.
+
+**Output.** Selected moments `(m*, v*)` for use in (10).
+
+**M1.** [Split.] Let `T_pop = Φ⁻¹(1-K_pop)`
+be the lifetime threshold, and write
+`Φ_below = Φ((T_pop − m) / √v)`.
+
+**M2.** [Weight.]
 
 ```text
-thr_pop   = Phi^-1(1 - K_pop)          # lifetime threshold
-Phi_below = Phi((thr_pop - mu) / sd)
-mix       = Phi_below / (Phi_below + (1 - Phi_below) * (K_pop - K_i) / K_pop)
-mean*     = mix * mean(below thr_pop) + (1 - mix) * mean(above thr_pop)
+π  =  Φ_below  /  ( Φ_below + (1 − Φ_below) (K_pop − K_i)/K_pop ).     (11)
 ```
 
-(with the matching two-component variance), following PA-FGRS supp. eqs. S3–S5.
-The split is the **lifetime** threshold, not the passed `upper`: age enters only
-through the mixture weight via `K_i`, and `upper` merely flags a censored control
-(finite) versus an observed case (`+inf`), so passing either the lifetime bound or
-an age-specific `Phi^-1(1 - K_i)` gives the same result.
-Enabled via `use_mixture=True`; off, PA reduces to the plain truncated-moment
-sweep.
+**M3.** [Mix.] Set `m*` and `v*` to the two-component
+mean and variance of the below-threshold and above-threshold
+truncated normals, with weights `π` and `1-π`.
 
-The weight encodes an onset-timing assumption. `(K_pop − K_i)/K_pop` is a future
-case's probability of not yet having onset by the current age, read off the
-population CIP curve of the person's stratum — i.e. onset timing among future
-cases is treated as independent of liability. Higher-liability future cases in
-fact tend to onset earlier, so the not-yet-onset component is only approximately
-the above-threshold tail the mixture assigns it. The construction likewise
-assumes censoring is non-informative given the stratum.
+The split in **M1** is the lifetime threshold, not the passed
+`upper`. Age enters only through `K_i` in (11). The bound `upper`
+merely flags a censored control (finite) versus an observed case
+(`+∞`), so passing either the lifetime bound or an
+age-specific `Φ⁻¹(1-K_i)` gives the same result. Enabled via
+`use_mixture=True`; off, Algorithm P reduces to the plain
+truncated-moment sweep.
+
+The factor `(K_pop-K_i)/K_pop` is the CIP
+probability that a future case has not yet onset. That is an
+onset-timing assumption: among people who will eventually be cases,
+time-to-onset is independent of liability, and censoring is
+non-informative given the stratum. If higher liability advances
+onset, the not-yet-onset component is only approximately the
+above-threshold tail **M3** assigns it.
 
 That independence assumption is now a generative arm
-(`simulate_under_LTM_single(..., onset_model="liability_dependent")`, default
-ρ = 0.6), not only a caveat. In RESULTS.md §16 three of ten paired Δcorr
-95% CIs exclude zero, but the largest shift is only −0.00034 (95% CI ± 0.00011);
-the ranking effect is statistically detectable and practically negligible.
-The mixture still always lowers the calibration slope. What breaks is the *pin*,
-not the mixture: under partial onset dependence the lifetime interval sits
-between the crossing and stochastic extremes (MID slope 1.13), while pinning
-over-conditions (0.92). There is still no Gibbs implementation of the
-mixture, so this is a PA-only check.
+(`simulate_under_LTM_single(..., onset_model="liability_dependent")`,
+default ρ = 0.6), not only a caveat. In RESULTS.md §16 three of ten
+paired Δcorr 95% CIs exclude zero, but the largest shift is only −0.00034 (95% CI ± 0.00011);
+the ranking effect is statistically detectable and practically negligible. The mixture still always
+lowers the calibration slope. What breaks is the *pin*, not the
+mixture: under partial onset dependence the lifetime interval sits
+between the crossing and stochastic extremes (MID slope 1.13),
+while pinning over-conditions (0.92). There is still no Gibbs
+implementation of the mixture, so this is a PA-only check.
 
 ## Fitting the covariance (heritability)
 
