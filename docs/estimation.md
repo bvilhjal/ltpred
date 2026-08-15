@@ -209,7 +209,7 @@ test a different, no-mixture observation model
 | error | batch-means MC SE (`res.se`) | no Monte-Carlo error (`res.se` is `0`), but a non-zero sequential moment-approximation error |
 | posterior variance | `Var(G_i \| family)` in `res.var`, from the retained draws | `Var(G_i \| family)` in `res.var`, as a sequential-moment approximation |
 | exactness | exact in the limit of infinite draws | exact for 1 truncation, close approx for families |
-| speed | ~117–363 families/s (4 threads) | ~57k–78k families/s — **203–492× faster than Gibbs in this package** across tested sizes/structures, at the same 4 threads |
+| speed | ~117–363 families/s (4 threads) | ~57k–78k families/s — **203–492× faster than Gibbs in this package** across tested sizes/structures, at the same 4 threads. Versus the public R packages on the locked 200-family cohort: **5.67×** vs LTFHPlus Gibbs (same algorithm) and **1296×** vs LTFGRS PA (same algorithm) |
 | censoring mixture | not implemented | `use_mixture=True` |
 
 A locked comparison to R LTFHPlus 2.2.0 and LTFGRS 1.0.1 on the same

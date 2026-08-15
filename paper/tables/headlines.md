@@ -5,7 +5,9 @@
 | claim | number | design |
 |---|---:|---|
 | PA--Gibbs agreement | 0.9977--0.9999 | 27-cell classic LT-FH grid, no mixture |
-| Object-path speed-up | 203--492× | 4 threads, this machine |
+| Object-path speed-up | 203--492× | 4 threads, this machine, intra-package |
+| vs LTFHPlus Gibbs | 5.67 ± 0.07× | same algorithm; 200 nuclear families |
+| vs LTFGRS PA | 1296 ± 17× | same algorithm; 200 nuclear families |
 | Classic LT-FH NCP | 1.47 ± 0.04× | 10,000 probands, 30 causal SNPs |
 | LT-FH++ minus ADuLT | +0.145 ± 0.015 | paired 95% CI; known CIP, pinned onset |
 | Cohort-blind λ_GC | 16.46 ± 0.40 | 4× prevalence trend / 30 y |

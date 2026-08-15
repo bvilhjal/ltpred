@@ -6,8 +6,9 @@ threshold model. It fixes the estimand, the observation-model
 menu, the PA exactness boundary, the implementation (grouping,
 streaming batch-means, object vs array path, `var` vs `se`), and
 the load-bearing simulation tables — agreement and speed, the
-LTFHPlus / LTFGRS lock (total and per-family time, isolated-process
-peak RSS), GWAS NCP, personalisation, cohort confounding, calibration,
+LTFHPlus / LTFGRS lock (total and per-family time, fold times versus
+both R packages, isolated-process peak RSS), GWAS NCP, personalisation,
+cohort confounding, calibration,
 PGS complementarity, the censoring mixture (including
 liability-dependent onset), pin versus interval encodings, and
 ascertainment.

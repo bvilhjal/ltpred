@@ -307,13 +307,23 @@ def report_headlines(root):
     ipw = next(r for r in ascert
                if r["arm"] == "ipw" and r["scheme"] == "case_control")
 
+    lock = _rows(root / "benchmarks/bench_ltfhplus_compare.csv")
+    fold_gibbs = _mean_se([float(r["fold_ltfhplus_over_gibbs"]) for r in lock])
+    fold_pa = _mean_se([float(r["fold_ltfgrs_over_pa"]) for r in lock])
+
     body = [
         ["PA--Gibbs agreement",
          f"{min(agreement):.4f}--{max(agreement):.4f}",
          "27-cell classic LT-FH grid, no mixture"],
         ["Object-path speed-up",
          f"{min(speedups):.0f}--{max(speedups):.0f}×",
-         "4 threads, this machine"],
+         "4 threads, this machine, intra-package"],
+        ["vs LTFHPlus Gibbs",
+         _pm(*fold_gibbs, 2) + "×",
+         "same algorithm; 200 nuclear families"],
+        ["vs LTFGRS PA",
+         _pm(*fold_pa, 0) + "×",
+         "same algorithm; 200 nuclear families"],
         ["Classic LT-FH NCP",
          _pm(float(gwas_row["effN_vs_cc"]),
              float(gwas_row["se_effN_vs_cc"]), 2) + "×",

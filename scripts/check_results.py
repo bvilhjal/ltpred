@@ -719,6 +719,16 @@ GUARDS = [
           mixture_largest_abs_corr_shift,
           r"largest shift is only ([−-][\d.]+) \(95% CI ± (\d+(?:\.\d+)?)\)",
           document="index.html"),
+    Guard("landing-public-fold-times",
+          "benchmarks/bench_ltfhplus_compare.csv",
+          lambda p: (
+              _mean_se([float(r["fold_ltfhplus_over_gibbs"])
+                        for r in _rows(p)])[0],
+              _mean_se([float(r["fold_ltfgrs_over_pa"])
+                        for r in _rows(p)])[0],
+          ),
+          r"same-algorithm fold times of ([\d.]+)× and ([\d.]+)×",
+          document="index.html"),
     Guard("report-mixture-largest-corr-shift",
           "benchmarks/bench_pafgrs_mixture.csv",
           mixture_largest_abs_corr_shift,
