@@ -591,11 +591,12 @@ unrelated-sample LDSC or GREML.
 Unless noted, $\pm$ is the SE of a mean across independent simulated
 cohorts.
 The numbers below are from committed benchmark artifacts
-(campaigns of 31~July, 1~August and 10--14~August 2026).
+(campaigns of 31~July, 1~August and 10--15~August 2026).
 They do not automatically validate later code.
 Every GWAS panel uses independent SNPs; a real-LD run has not been
 done.
-There is no locked comparison to R LTFHPlus.
+A locked comparison to R LTFHPlus 2.2.0 and LTFGRS 1.0.1 is in
+Section~\ref{sec:ltfhplus}.
 Table~\ref{tab:headlines} is the load-bearing subset; the rest of
 this section says what each number is allowed to mean.
 
@@ -639,8 +640,11 @@ $203$--$492\times$ faster than grouped Gibbs
 ($2{,}000$ families, $25{,}000$ draws).
 The ratio moves with thread count because Gibbs is the parallel
 engine.
-The useful statement is that the approximation is cheap enough for
-biobank-scale $C_F$, not a hardware-independent constant.
+Both engines are this package.
+The useful intra-package statement is that the approximation is
+cheap enough for biobank-scale $C_F$ relative to this Gibbs, not
+a hardware-independent constant.
+The comparison to public LTFHPlus and LTFGRS is Section~\ref{sec:ltfhplus}.
 
 \begin{table}[ht]
 \centering
@@ -664,6 +668,92 @@ parents + 2 sibs
 extended
   & $0.419\pm 0.014$ & $0.420\pm 0.014$
   & $1.71\pm 0.09\times$ & $0.9997$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Public LTFHPlus and LTFGRS}
+\label{sec:ltfhplus}
+
+The same classic LT-FH rectangles, three cohorts of $200$ nuclear
+families, $\h=0.5$, $K=0.05$, and LTFHPlus 2.2.0's own Gibbs
+settings ($n_{\mathrm{sim}}=10^{5}$, burn-in $1000$,
+$\mathrm{tol}=0.01$).
+LTFHPlus 2.2.0 is Gibbs-only.
+Public Pearson--Aitken is LTFGRS 1.0.1
+(\texttt{method="PA"}, \texttt{useMixture=FALSE}).
+Table~\ref{tab:ltfhplus} is the lock.
+
+Wall-clock is the estimator call after in-process warmup, as a
+cohort total and as milliseconds per family (total$/200$).
+Peak RSS is the isolated child via \texttt{wait4} (the ldpred3
+inherited-floor launcher), so it includes the interpreter.
+
+\begin{table}[ht]
+\centering
+\caption{Same families and bounds.
+R packages used one \texttt{future} worker; ltpred Gibbs used four
+Numba threads.
+RMSE is against LTFHPlus Gibbs except the PA--PA sentence below.
+Peak RSS is the isolated process, in MiB.}
+\label{tab:ltfhplus}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Estimator & corr vs LTFHPlus & RMSE
+  & total s & ms/fam.\ & peak MiB \\
+\midrule
+LTFHPlus Gibbs
+  & --- & ---
+  & $10.12\pm 0.10$ & $50.6\pm 0.5$ & $446.4\pm 1.2$ \\
+LTFGRS PA
+  & $0.9999\pm 0.0000$ & $0.0045\pm 0.0003$
+  & $1.856\pm 0.024$ & $9.28\pm 0.12$ & $258.2\pm 0.2$ \\
+ltpred Gibbs
+  & $0.9999\pm 0.0000$ & $0.0051\pm 0.0001$
+  & $1.785\pm 0.005$ & $8.92\pm 0.03$ & $147.9\pm 0.1$ \\
+ltpred PA
+  & $0.9999\pm 0.0000$ & $0.0045\pm 0.0003$
+  & $0.00143\pm 0.00001$ & $0.00716\pm 0.00004$
+  & $147.2\pm 0.4$ \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+The Gibbs scores agree at the scale of the Monte Carlo error.
+ltpred PA and LTFGRS PA agree much more tightly
+($\mathrm{RMSE}=8.7\times 10^{-5}$): the same sequential two-moment
+update, not two approximations.
+
+Table~\ref{tab:ltfhplus-fold} is the fold-time lock
+(mean of the three per-replicate ratios, not the ratio of the means).
+Same-algorithm: LTFHPlus Gibbs is $5.67\pm 0.07\times$ the ltpred
+Gibbs wall-clock; LTFGRS PA is $1296\pm 17\times$ the ltpred PA
+wall-clock (R \texttt{future\_lapply} versus compiled Python, not a
+different update).
+Mixing algorithms, LTFHPlus / ltpred PA is $7070\pm 97\times$;
+that is not ``LT-FH++, but faster.''
+The mixture \eqref{eq:mix} is not in this comparison.
+
+\begin{table}[ht]
+\centering
+\caption{Fold wall-clock on this machine.
+Mean $\pm$ SE of per-replicate ratios.
+$200$ nuclear families; one R \texttt{future} worker; four Numba threads.}
+\label{tab:ltfhplus-fold}
+\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Comparison & fold & same algorithm \\
+\midrule
+LTFHPlus Gibbs / ltpred Gibbs
+  & $5.67\pm 0.07\times$ & yes \\
+LTFGRS PA / ltpred PA
+  & $1296\pm 17\times$ & yes \\
+LTFHPlus Gibbs / ltpred PA
+  & $7070\pm 97\times$ & no \\
+LTFGRS PA / ltpred Gibbs
+  & $1.04\pm 0.01\times$ & no \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1015,10 +1105,12 @@ A linear GWAS of those scores without a mixed model, or without
 pruning to non-overlapping families, is the analysis
 Zhuang et al.\ \cite{zhuang2022} warned about.
 
-Three evidence gaps would change how hard
-Section~\ref{sec:results} should be leaned on: a locked vector
-comparison to LTFHPlus, a real-LD GWAS, and a Gibbs implementation
-of \eqref{eq:mix}.
+Two evidence gaps would change how hard
+Section~\ref{sec:results} should be leaned on: a real-LD GWAS, and
+a Gibbs implementation of \eqref{eq:mix}.
+The LTFHPlus / LTFGRS lock
+(Section~\ref{sec:ltfhplus}) covers only no-mixture classic
+bounds on $200$ equal nuclear families.
 The liability-dependent onset arm is no longer among them---it is
 reported above at $\rho=0.6$---but a single copula strength is not
 a sweep, and the pinned encoding's behaviour under weaker

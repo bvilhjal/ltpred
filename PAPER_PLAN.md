@@ -59,7 +59,10 @@ from the linked benchmark report, which is checked against committed artifacts.
 ## External dependencies
 
 - A real-LD run requires an appropriate HAPNEST/Linux environment.
-- Direct numerical comparison with LTFHPlus requires its R installation.
+- Direct numerical comparison with LTFHPlus and LTFGRS:
+  `bench_ltfhplus_compare.py` (opt-in; requires the R packages). Locked
+  against LTFHPlus 2.2.0 (Gibbs) and LTFGRS 1.0.1 (`method="PA"`) on
+  2026-08-15, with isolated-process peak RSS and per-family times.
 - PyPI publication requires the project owner's trusted-publisher setup and a
   tagged GitHub Release.
 - Zenodo deposition follows the final evidence freeze.

@@ -1,0 +1,31 @@
+Locked LTFHPlus comparison
+LTFHPlus 2.2.0  Rscript=/usr/local/bin/Rscript
+n_fam=200  reps=3  fam=m+f+s1  h2=0.5  K=0.05  tol=0.01  n_sim=100000  burn_in=1000
+LTFHPlus future workers=1  Numba threads=4
+Estimand: posterior-mean genetic liability on classic LT-FH bounds.
+LTFHPlus is Gibbs-only; PA is ltpred-only.
+
+warmed ltpred PA and Gibbs (JIT + first factorisation)
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=13.479
+rep 0: corr(Gibbs,LTFHPlus)=0.99987  corr(PA,LTFHPlus)=0.99992  RMSE(Gibbs,R)=0.0048  t R=13.48s  t Gibbs=2.84s  t PA=0.004s
+LTFHPlus 2.2.0  workers=1  families=200  seconds=15.093
+rep 1: corr(Gibbs,LTFHPlus)=0.99989  corr(PA,LTFHPlus)=0.99994  RMSE(Gibbs,R)=0.0051  t R=15.09s  t Gibbs=2.41s  t PA=0.003s
+LTFHPlus 2.2.0  workers=1  families=200  seconds=11.058
+rep 2: corr(Gibbs,LTFHPlus)=0.99987  corr(PA,LTFHPlus)=0.99993  RMSE(Gibbs,R)=0.0052  t R=11.06s  t Gibbs=2.84s  t PA=0.002s
+
+Across-replicate mean ± SE
+  corr(ltpred Gibbs, LTFHPlus)         0.9999 ± 0.0000
+  corr(ltpred PA, LTFHPlus)            0.9999 ± 0.0000
+  RMSE(ltpred Gibbs, LTFHPlus)         0.0050 ± 0.0001
+  LTFHPlus seconds                     13.2100 ± 1.1725
+  ltpred Gibbs seconds                 2.6938 ± 0.1440
+  ltpred PA seconds                    0.0032 ± 0.0006
+
+Wall-clock ratios on this machine (LTFHPlus workers=1, Numba threads=4):
+  LTFHPlus / ltpred Gibbs = 4.90
+  LTFHPlus / ltpred PA    = 4086.4
+  ltpred Gibbs / ltpred PA = 833.3
+These are not hardware-independent constants.
+
+wrote bench_ltfhplus_compare.csv

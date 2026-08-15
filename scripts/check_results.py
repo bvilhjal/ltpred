@@ -516,6 +516,67 @@ def tetrachoric_falconer(path):
     return (float(row["tetrachoric"]), float(row["se"]))
 
 
+def ltfhplus_gibbs_corr(path):
+    vals = [float(r["corr_gibbs_ltfhplus"]) for r in _rows(path)]
+    return (_mean_se(vals)[0],)
+
+
+def ltfhplus_gibbs_rmse(path):
+    return _mean_se([float(r["rmse_gibbs_ltfhplus"]) for r in _rows(path)])
+
+
+def ltfgrs_pa_lock(path):
+    corr = [float(r["corr_pa_ltfgrs"]) for r in _rows(path)]
+    rmse = [float(r["rmse_pa_ltfgrs"]) for r in _rows(path)]
+    return (_mean_se(corr)[0],) + _mean_se(rmse)
+
+
+def ltfhplus_seconds(path):
+    rows = _rows(path)
+
+    def pair(key):
+        return _mean_se([float(row[key]) for row in rows])
+
+    return (
+        pair("seconds_ltfhplus")
+        + pair("ms_per_fam_ltfhplus")
+        + pair("seconds_ltpred_gibbs")
+        + pair("ms_per_fam_ltpred_gibbs")
+        + pair("seconds_ltfgrs_pa")
+        + pair("ms_per_fam_ltfgrs_pa")
+        + pair("seconds_ltpred_pa")
+        + pair("ms_per_fam_ltpred_pa")
+    )
+
+
+def ltfhplus_folds(path):
+    rows = _rows(path)
+
+    def pair(key):
+        return _mean_se([float(r[key]) for r in rows])
+
+    return (
+        pair("fold_ltfhplus_over_gibbs")
+        + pair("fold_ltfgrs_over_pa")
+        + pair("fold_ltfhplus_over_pa")
+    )
+
+
+def ltfhplus_peak_mib(path):
+    rows = _rows(path)
+    mib = 1024.0 * 1024.0
+
+    def pair(key):
+        return _mean_se([float(row[key]) / mib for row in rows])
+
+    return (
+        pair("peak_rss_bytes_ltfhplus")
+        + pair("peak_rss_bytes_ltfgrs_pa")
+        + pair("peak_rss_bytes_ltpred_gibbs")
+        + pair("peak_rss_bytes_ltpred_pa")
+    )
+
+
 def liability_lee_bridge(path):
     row = _only(_rows(path), route="(c) Lee-2011 bridged")
     return (float(row["mean"]), float(row["se"]))
@@ -692,6 +753,63 @@ GUARDS = [
           r"cohorts lands at \*\*([\d.]+)\*\* \(50/50\)"),
     Guard("ascertainment-lee-enriched", _ASCERT, ascert_lee("enriched_20"),
           r"\*\*([\d.]+)\*\* \(20% enriched\)"),
+    Guard("ltfhplus-gibbs-agreement",
+          "benchmarks/bench_ltfhplus_compare.csv",
+          ltfhplus_gibbs_corr,
+          r"Against\s+LTFHPlus 2\.2\.0, corr = ([\d.]+)"),
+    Guard("ltfhplus-gibbs-rmse",
+          "benchmarks/bench_ltfhplus_compare.csv",
+          ltfhplus_gibbs_rmse,
+          r"Against\s+LTFHPlus 2\.2\.0, corr = [\d.]+ and RMSE = "
+          r"([\d.]+) ± ([\d.]+)"),
+    Guard("ltfgrs-pa-agreement",
+          "benchmarks/bench_ltfhplus_compare.csv",
+          ltfgrs_pa_lock,
+          r"ltpred PA and LTFGRS 1\.0\.1 `method=\"PA\"` agree at corr = "
+          r"([\d.]+)\s*\(RMSE ([\d.]+) ± ([\d.]+)\)"),
+    Guard("ltfhplus-wallclock",
+          "benchmarks/bench_ltfhplus_compare.csv",
+          ltfhplus_seconds,
+          r"1-worker LTFHPlus took\s+([\d.]+) ± ([\d.]+) s "
+          r"\(([\d.]+) ± ([\d.]+) ms/family\) versus "
+          r"([\d.]+) ± ([\d.]+) s\s*\(([\d.]+) ± ([\d.]+) ms/family\) "
+          r"for\s*4-thread ltpred Gibbs, "
+          r"([\d.]+) ± ([\d.]+) s\s*\(([\d.]+) ± ([\d.]+) ms/family\) "
+          r"for LTFGRS PA, and "
+          r"([\d.]+) ± ([\d.]+) s\s*\(([\d.]+) ± ([\d.]+) ms/family\) "
+          r"for ltpred PA"),
+    Guard("ltfhplus-peak-rss",
+          "benchmarks/bench_ltfhplus_compare.csv",
+          ltfhplus_peak_mib,
+          r"Isolated-process peak\s+RSS was ([\d.]+) ± ([\d.]+), "
+          r"([\d.]+) ± ([\d.]+), ([\d.]+) ± ([\d.]+) and "
+          r"([\d.]+) ± ([\d.]+) MiB"),
+    Guard("report-ltfgrs-pa-rmse",
+          "benchmarks/bench_ltfhplus_compare.csv",
+          lambda p: (_mean_se([float(r["rmse_pa_ltfgrs"])
+                               for r in _rows(p)])[0] * 1e5,),
+          r"\\mathrm\{RMSE\}=([\d.]+)\\times 10\^\{-5\}",
+          document="report/ltpred_methods.tex"),
+    Guard("report-ltfhplus-seconds",
+          "benchmarks/bench_ltfhplus_compare.csv",
+          lambda p: _mean_se([float(r["seconds_ltfhplus"])
+                              for r in _rows(p)]),
+          r"LTFHPlus Gibbs\s*& --- & ---\s*& \$([\d.]+)\\pm ([\d.]+)\$",
+          document="report/ltpred_methods.tex"),
+    Guard("ltfhplus-fold-times",
+          "benchmarks/bench_ltfhplus_compare.csv",
+          ltfhplus_folds,
+          r"\*\*([\d.]+) ± ([\d.]+)×\*\* \(LTFHPlus Gibbs / ltpred Gibbs\) and\s*"
+          r"\*\*([\d.]+) ± ([\d.]+)×\*\* \(LTFGRS PA / ltpred PA\)\. "
+          r"Mixing algorithms, LTFHPlus /\s*ltpred PA is \*\*([\d.]+) ± ([\d.]+)×\*\*"),
+    Guard("report-ltfhplus-fold-times",
+          "benchmarks/bench_ltfhplus_compare.csv",
+          ltfhplus_folds,
+          r"LTFHPlus Gibbs is \$([\d.]+)\\pm ([\d.]+)\\times\$ the ltpred\s*"
+          r"Gibbs wall-clock; LTFGRS PA is \$([\d.]+)\\pm ([\d.]+)\\times\$ "
+          r"the ltpred PA\s*wall-clock[\s\S]*?"
+          r"LTFHPlus / ltpred PA is \$([\d.]+)\\pm ([\d.]+)\\times\$",
+          document="report/ltpred_methods.tex"),
     Guard("age-onset-h05-k03-encodings",
           "benchmarks/bench_age_onset.csv",
           age_onset_h05_k03,

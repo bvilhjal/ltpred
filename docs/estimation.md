@@ -209,10 +209,18 @@ test a different, no-mixture observation model
 | error | batch-means MC SE (`res.se`) | no Monte-Carlo error (`res.se` is `0`), but a non-zero sequential moment-approximation error |
 | posterior variance | `Var(G_i \| family)` in `res.var`, from the retained draws | `Var(G_i \| family)` in `res.var`, as a sequential-moment approximation |
 | exactness | exact in the limit of infinite draws | exact for 1 truncation, close approx for families |
-| speed | ~117–363 families/s (4 threads) | ~57k–78k families/s — **203–492× faster** across tested sizes/structures, at the same 4 threads |
+| speed | ~117–363 families/s (4 threads) | ~57k–78k families/s — **203–492× faster than Gibbs in this package** across tested sizes/structures, at the same 4 threads |
 | censoring mixture | not implemented | `use_mixture=True` |
 
-The speed and agreement comparisons use ordinary bounds without the censoring
+A locked comparison to R LTFHPlus 2.2.0 and LTFGRS 1.0.1 on the same
+classic LT-FH families is in
+[`RESULTS.md` §30](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md):
+both engines had correlation 0.9999 with the R Gibbs scores; ltpred PA
+and LTFGRS PA agree at RMSE 0.000087. Same-algorithm fold times were
+5.67× versus LTFHPlus Gibbs and 1296× versus LTFGRS PA. Total and
+per-family times, and isolated-process peak RSS, are in that section.
+
+The intra-package speed and agreement comparisons use ordinary bounds without the censoring
 mixture. Those rates are machine-specific medians from five warmed timings per point;
 `benchmarks/RESULTS.md` reports the configuration and IQR-backed grid. Treat the
 range as evidence about scale, not a hardware promise.

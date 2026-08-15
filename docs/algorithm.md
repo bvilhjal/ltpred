@@ -682,8 +682,18 @@ applied this result sequentially to multifactorial threshold traits
 ([1974, *Biometrics*](https://pubmed.ncbi.nlm.nih.gov/4813384/)). On ltpred's
 separately observed family-member intervals **without the censoring mixture**, PA
 and Gibbs posterior-mean estimates had correlation ≥ 0.997 while PA ran
-203–492× faster in the controlled 4-thread benchmark. The PA-only mixture was
-not part of this comparison. Same grouping / `prange` structure as the Gibbs path.
+203–492× faster than grouped Gibbs in the controlled 4-thread benchmark in
+this package. A locked comparison to R LTFHPlus 2.2.0 on the same classic
+LT-FH families gave corr(ltpred Gibbs, LTFHPlus) = 0.9999 and
+corr(PA, LTFHPlus) = 0.9999 (RMSE 0.0051). LTFHPlus is Gibbs-only; public
+PA is LTFGRS 1.0.1, and ltpred PA matches it at RMSE 0.000087. On that
+machine same-algorithm fold times were 5.67× (LTFHPlus Gibbs / ltpred
+Gibbs; 50.6 vs 8.92 ms/family) and 1296× (LTFGRS PA / ltpred PA;
+9.28 vs 0.00716 ms/family). Isolated-process peak RSS (ldpred3 `wait4`
+launcher) was 446 MiB (LTFHPlus), 258 MiB (LTFGRS PA) and ~147 MiB
+(ltpred). PA versus LTFHPlus is a different algorithm, not a faster
+Gibbs. The PA-only mixture was not part of either comparison. Same
+grouping / `prange` structure as the Gibbs path.
 
 **Fold order.** Because PA is a sequential approximation, its error depends on
 the order in which members are folded in. The estimator canonicalizes every

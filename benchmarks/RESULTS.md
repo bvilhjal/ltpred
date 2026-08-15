@@ -64,6 +64,22 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   thread-count-free: Gibbs is the parallel engine while the PA object path is
   largely serial, so fewer threads inflate the speed-up. Quote it with its
   thread count or not at all.
+- **ltpred Gibbs matches public LTFHPlus on the same families.** Against
+  LTFHPlus 2.2.0, corr = 0.9999 and RMSE = 0.0051 ± 0.0001 (200 nuclear
+  families, three cohorts, the R package's own Gibbs settings).
+- **Public PA is LTFGRS, not LTFHPlus.** LTFHPlus 2.2.0 is Gibbs-only.
+  ltpred PA and LTFGRS 1.0.1 `method="PA"` agree at corr = 1.0000
+  (RMSE 0.000087 ± 0.000008). Same-algorithm fold times on this
+  machine were **5.67 ± 0.07×** (LTFHPlus Gibbs / ltpred Gibbs) and
+  **1296 ± 17×** (LTFGRS PA / ltpred PA). Mixing algorithms, LTFHPlus /
+  ltpred PA is **7070 ± 97×**. Totals: 1-worker LTFHPlus took
+  10.12 ± 0.10 s (50.6 ± 0.5 ms/family) versus 1.785 ± 0.005 s
+  (8.92 ± 0.03 ms/family) for 4-thread ltpred Gibbs, 1.856 ± 0.024 s
+  (9.28 ± 0.12 ms/family) for LTFGRS PA, and 0.00143 ± 0.00001 s
+  (0.00716 ± 0.00004 ms/family) for ltpred PA. Isolated-process peak
+  RSS was 446.4 ± 1.2, 258.2 ± 0.2, 147.9 ± 0.1 and 147.2 ± 0.4 MiB
+  respectively (interpreter included). The 7070× figure is not
+  "LT-FH++, but faster."
 - **Classic LT-FH improves genotype-GWAS signal without average null inflation.**
   Across three genotype/effect/cohort replicates, the same classic LT-FH model
   inferred by either PA or Gibbs delivers a causal-SNP NCP ratio of
@@ -1429,6 +1445,58 @@ sampling contract. Passing only establishes compatible role-wise case
 marginals; it does not certify joint family-pattern positivity or weight
 correctness.
 
+## 30. Locked comparison to R LTFHPlus and LTFGRS (`bench_ltfhplus_compare.py`)
+
+Same classic LT-FH families and bounds, three independent cohorts of 200
+nuclear pedigrees (parents + one sibling), h² = 0.5, K = 0.05, tol = 0.01,
+n_sim = 100,000, burn_in = 1,000 — LTFHPlus 2.2.0's own Gibbs settings.
+LTFHPlus 2.2.0 is Gibbs-only. Public Pearson–Aitken is LTFGRS 1.0.1
+(`estimate_liability(..., method="PA", useMixture=FALSE)`). `±` is the
+across-replicate SE. Numba used 4 threads; both R packages used 1
+`future` worker (sequential plan).
+
+Wall-clock is the estimator call after in-process warmup, as a cohort
+total and as milliseconds per family (total / 200). Peak RSS is the
+isolated child via `wait4` (ldpred3's inherited-floor launcher
+`_peak_launcher.py`): each arm is a fresh process, so the high-water
+mark is that process, not the fat driver. Those peaks include the
+interpreter and packages.
+
+| Estimator | corr vs LTFHPlus | RMSE vs LTFHPlus | total s / 200 fam. | ms / family | peak RSS (MiB) |
+|---|---:|---:|---:|---:|---:|
+| LTFHPlus Gibbs | — | — | 10.12 ± 0.10 | 50.6 ± 0.5 | 446.4 ± 1.2 |
+| LTFGRS PA | 0.9999 ± 0.0000 | 0.0045 ± 0.0003 | 1.856 ± 0.024 | 9.28 ± 0.12 | 258.2 ± 0.2 |
+| ltpred Gibbs | 0.9999 ± 0.0000 | 0.0051 ± 0.0001 | 1.785 ± 0.005 | 8.92 ± 0.03 | 147.9 ± 0.1 |
+| ltpred PA | 0.9999 ± 0.0000 | 0.0045 ± 0.0003 | 0.00143 ± 0.00001 | 0.00716 ± 0.00004 | 147.2 ± 0.4 |
+
+The Gibbs scores agree at the scale of the Monte Carlo error (LTFHPlus
+reports `genetic_se` ≈ 0.004). The PA scores agree with each other much
+more tightly: corr(ltpred PA, LTFGRS PA) = 1.0000, RMSE = 0.000087 ±
+0.000008 (max abs ≈ 0.0007). That is the same sequential two-moment
+update, not two different approximations.
+
+Per-family times are the cohort total divided by 200 equal nuclear
+pedigrees. They are not a sweep over pedigree size.
+
+Fold times are the mean ± SE of the three per-replicate ratios
+(not the ratio of the mean times):
+
+| Comparison | fold | same algorithm? |
+|---|---:|:---|
+| LTFHPlus Gibbs / ltpred Gibbs | 5.67 ± 0.07× | yes |
+| LTFGRS PA / ltpred PA | 1296 ± 17× | yes |
+| LTFHPlus Gibbs / ltpred PA | 7070 ± 97× | no |
+| LTFGRS PA / ltpred Gibbs | 1.04 ± 0.01× | no |
+
+The first row is Gibbs versus Gibbs across language and
+parallelisation. The second is the same sequential PA update in R
+versus compiled Python. The 7070× row mixes algorithms. None of
+these is a hardware-independent constant.
+Peak RSS at this n is mostly runtime: LTFHPlus Gibbs sits higher
+because the sampler retains 10⁵ draws; the two PA processes differ
+mainly in R versus Python heaps. Opt-in: requires R and LTFHPlus; the
+script exits 2 if they are missing. LTFGRS is the PA arm.
+
 ## Historical report changes
 
 - Replicated the accuracy and calibration grids across five independent
@@ -1489,6 +1557,8 @@ correctness.
   Stochastic-onset §16 numbers shifted slightly because the cohort
   generator now shares `ltpred.simulate._onset_times` (vectorised
   per-role draws); crossing cells were unchanged.
+- 2026-08-15: locked LTFHPlus 2.2.0 Gibbs and LTFGRS 1.0.1 PA (§30),
+  with isolated-process peak RSS and per-family times.
 
 ## Remaining limitations
 
@@ -1503,6 +1573,10 @@ correctness.
 - Component test Type-I error, bootstrap coverage, and MCEM SEs were
   calibrated at coarse resolution (section 17; R = 25 bounds the
   resolution -- read as 'no gross miscalibration').
+- The LTFHPlus / LTFGRS lock (§30) is classic no-mixture bounds only,
+  200 equal nuclear families, LTFHPlus 2.2.0 and LTFGRS 1.0.1. It does
+  not cover the PA-FGRS mixture, personalised CIP, or a pedigree-size
+  sweep; per-family times are the cohort total divided by 200.
 - The HAPNEST path was not executed here. The PA-FGRS censoring-mixture
   benchmark (section 16) now includes a liability-dependent onset arm;
   its censoring correction is small at the tested settings, and case

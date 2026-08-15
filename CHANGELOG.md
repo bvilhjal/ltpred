@@ -37,6 +37,13 @@ version is 0 the public API may still change between minor releases.
   posterior means match the closed-form truncated-normal conditional mean
   across traits, the multi-trait counterpart of the single-trait
   inverse-Mills oracles.
+- **`benchmarks/bench_ltfhplus_compare.py`**: locked comparison to public R
+  LTFHPlus 2.2.0 (Gibbs) and LTFGRS 1.0.1 (`method="PA"`) on the same
+  families and bounds. LTFHPlus has no PA path. Isolated-process peak RSS
+  uses a stdlib `wait4` launcher (the ldpred3 inherited-floor pattern).
+  Wall-clock is a cohort total, milliseconds per family, and fold times
+  versus LTFHPlus and LTFGRS (mean of per-replicate ratios). Opt-in
+  (exits 2 if R or LTFHPlus is missing; LTFGRS is the PA arm).
 
 ## 0.3.2 — 2026-08-15
 
