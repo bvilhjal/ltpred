@@ -17,6 +17,13 @@ age-censored-control mixture; the age-specific case-interval convenience helpers
 are documented separately as a PA-FGRS-style variant, not as an exact
 implementation of the paper's PA-FGRS_ADT specification.
 
+On matched classic LT-FH families, ltpred is much more computationally
+efficient than the two public R packages. Same-algorithm wall-clock
+ratios on the locked 200-family cohort were **6.87×** (LTFHPlus 2.2.0
+Gibbs / ltpred Gibbs) and **1178×** (LTFGRS 1.0.1 PA / ltpred PA).
+Those are implementation comparisons, not a claim that PA is a faster
+Gibbs; LTFHPlus is Gibbs-only and public PA is LTFGRS.
+
 Given each individual's case/control status, age and their relatives' statuses,
 ltpred estimates with Gibbs—or sequentially approximates with PA—the **posterior
 mean genetic liability**. This continuous phenotype can recover association power

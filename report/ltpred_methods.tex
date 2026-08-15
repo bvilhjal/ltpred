@@ -71,6 +71,11 @@ register data: a pin-versus-interval ablation keeps almost all of
 the onset increment except at high prevalence, and pinning is
 calibrated only when onset is the CIP inverse of liability.
 They are not estimates of clinical utility.
+On the locked comparison to the two public R packages
+(Section~\ref{sec:ltfhplus}), ltpred is much more computationally
+efficient at the same algorithm: LTFHPlus Gibbs takes
+$6.87\pm 0.12\times$ the ltpred Gibbs wall-clock, and LTFGRS PA
+takes $1178\pm 157\times$ the ltpred PA wall-clock.
 \end{abstract}
 
 \vspace{0.4em}
@@ -691,6 +696,8 @@ extended
 \subsection{Public LTFHPlus and LTFGRS}
 \label{sec:ltfhplus}
 
+ltpred is much more computationally efficient than both public
+packages when the algorithm is held fixed.
 The same classic LT-FH rectangles, three cohorts of $200$ nuclear
 families, $\h=0.5$, $K=0.05$, and LTFHPlus 2.2.0's own Gibbs
 settings ($n_{\mathrm{sim}}=10^{5}$, burn-in $1000$,
@@ -1140,6 +1147,9 @@ Heavier prototypes---sex-limited $A$, genetic nurture, onset-age
 decay of $r_g$, a common-factor summary of $r_g$, a Monte Carlo EM
 likelihood---are checkout-only and are not covered here.
 The source and this note were written together with AI.
+Relative to LTFHPlus 2.2.0 and LTFGRS 1.0.1 it is much more
+computationally efficient at the same algorithm
+(Section~\ref{sec:ltfhplus}).
 Source: \url{https://github.com/bvilhjal/ltpred}.
 Cite the method actually used
 \cite{hujoel2020,pedersen2022,pedersen2023,krebs2024} and the

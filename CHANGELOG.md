@@ -10,6 +10,9 @@ version is 0 the public API may still change between minor releases.
 
 - README and the methods note now state that the code and
   documentation were written together with AI.
+- README and the methods note now state that ltpred is much more
+  computationally efficient than LTFHPlus and LTFGRS, quoting the
+  locked same-algorithm fold times (6.87× Gibbs, 1178× PA).
 
 ## 0.3.4 — 2026-08-15
 
