@@ -1,0 +1,86 @@
+Locked LTFHPlus / LTFGRS comparison
+LTFHPlus 2.2.0  LTFGRS 1.0.1  Rscript=/usr/local/bin/Rscript
+n_fam=200  reps=3  fam=m+f+s1  h2=0.5  K=0.05  tol=0.01  n_sim=100000  burn_in=1000
+R future workers=1  Numba threads=4
+Estimand: posterior-mean genetic liability on classic LT-FH bounds.
+LTFHPlus is Gibbs-only. Public PA is LTFGRS method=PA.
+Peak RSS: isolated process via _peak_launcher (wait4, not parent floor).
+
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=10.585
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=1.8570
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0021
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=1.5368
+rep 0: corr(Gibbs,LTFHPlus)=0.99991  corr(PA,LTFHPlus)=0.99992  corr(PA,LTFGRS)=1.00000  t LTFGRS=1.857s  RMSE(Gibbs,R)=0.0040  t R=10.59s  t Gibbs=1.54s  t PA=0.002s  RSS MiB LTFHPlus=445.2  LTFGRS=259.5  Gibbs=198.5  PA=148.6
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=10.602
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=1.9970
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0014
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=1.5934
+rep 1: corr(Gibbs,LTFHPlus)=0.99993  corr(PA,LTFHPlus)=0.99995  corr(PA,LTFGRS)=1.00000  t LTFGRS=1.997s  RMSE(Gibbs,R)=0.0041  t R=10.60s  t Gibbs=1.59s  t PA=0.001s  RSS MiB LTFHPlus=441.4  LTFGRS=258.4  Gibbs=149.1  PA=148.1
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=10.805
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=1.8300
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0015
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=1.5268
+rep 2: corr(Gibbs,LTFHPlus)=0.99990  corr(PA,LTFHPlus)=0.99991  corr(PA,LTFGRS)=1.00000  t LTFGRS=1.830s  RMSE(Gibbs,R)=0.0044  t R=10.80s  t Gibbs=1.53s  t PA=0.001s  RSS MiB LTFHPlus=440.2  LTFGRS=261.4  Gibbs=148.2  PA=146.8
+
+Across-replicate mean ± SE
+  corr(ltpred Gibbs, LTFHPlus)         0.9999 ± 0.0000
+  corr(ltpred PA, LTFHPlus)            0.9999 ± 0.0000
+  corr(ltpred PA, LTFGRS PA)           1.0000 ± 0.0000
+  RMSE(ltpred Gibbs, LTFHPlus)         0.0041 ± 0.0001
+  RMSE(ltpred PA, LTFGRS PA)           0.0001 ± 0.0000
+  LTFHPlus seconds (total)             10.6640 ± 0.0707
+  LTFHPlus ms / family                 53.3200 ± 0.3534
+  LTFGRS PA seconds (total)            1.8947 ± 0.0518
+  LTFGRS PA ms / family                9.4733 ± 0.2588
+  ltpred Gibbs seconds (total)         1.5523 ± 0.0207
+  ltpred Gibbs ms / family             7.7617 ± 0.1037
+  ltpred PA seconds (total)            0.0017 ± 0.0002
+  ltpred PA ms / family                0.0083 ± 0.0011
+  LTFHPlus peak RSS bytes              442.28 ± 1.51 MiB
+  LTFGRS PA peak RSS bytes             259.77 ± 0.87 MiB
+  ltpred Gibbs peak RSS bytes          165.27 ± 16.60 MiB
+  ltpred PA peak RSS bytes             147.86 ± 0.53 MiB
+  fold LTFHPlus / ltpred Gibbs         6.8727 ± 0.1224
+  fold LTFGRS PA / ltpred PA           1177.6415 ± 157.1248
+  fold LTFHPlus / ltpred PA            6612.7400 ± 800.3519
+  fold LTFGRS PA / ltpred Gibbs        1.2201 ± 0.0168
+
+Fold times on this machine (mean of per-replicate ratios; R workers=1, Numba threads=4):
+  LTFHPlus / ltpred Gibbs = 6.87 ± 0.12  (same algorithm)
+  LTFGRS PA / ltpred PA   = 1177.6 ± 157.1  (same algorithm)
+  LTFHPlus / ltpred PA    = 6613 ± 800  (mixes algorithms)
+These are not hardware-independent constants.
+Peak RSS is the isolated child via wait4; it includes the
+interpreter and packages, not just the estimator scratch.
+
+wrote bench_ltfhplus_compare.csv

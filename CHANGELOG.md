@@ -6,6 +6,21 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.3.4 — 2026-08-15
+
+### Changed
+
+- Gibbs estimation collapses coordinates that are untruncated in every
+  family of a structure group (the genetic rows on the public path, and
+  every multi-trait genetic coordinate). The sweep runs on the remaining
+  truncated liabilities; genetic posterior means are the Gaussian
+  conditional means given those draws. Same estimand, fewer coordinates
+  per sweep, and a Rao–Blackwell Monte-Carlo SE. `rtmvnorm_gibbs` still
+  draws the full chain.
+- Reran the 4-thread scaling grid and the LTFHPlus / LTFGRS lock after
+  that collapse. Intra-package PA / Gibbs object-path speed-up is now
+  384–488×; LTFHPlus Gibbs / ltpred Gibbs is 6.87 ± 0.12×.
+
 ## 0.3.3 — 2026-08-15
 
 ### Fixed

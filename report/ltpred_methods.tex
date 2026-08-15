@@ -35,7 +35,7 @@
   {\large Model, sequential approximation, and evidence in \texttt{ltpred}}}
 \author{Others (TBD) and Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
   {\small Aarhus University and SMARTbiomed}\\[0.35em]
-  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.3.3}}
+  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.3.4}}
 \date{15 August 2026}
 
 \begin{document}
@@ -640,7 +640,7 @@ It is not a licence to treat PA and Gibbs as interchangeable once
 \eqref{eq:mix} is on.
 
 At four threads on one machine the object-path PA sweep is
-$203$--$492\times$ faster than grouped Gibbs
+$384$--$488\times$ faster than grouped Gibbs
 ($2{,}000$ families, $25{,}000$ draws).
 The ratio moves with thread count because Gibbs is the parallel
 engine.
@@ -709,17 +709,17 @@ Estimator & corr vs LTFHPlus & RMSE
 \midrule
 LTFHPlus Gibbs
   & --- & ---
-  & $10.12\pm 0.10$ & $50.6\pm 0.5$ & $446.4\pm 1.2$ \\
+  & $10.66\pm 0.07$ & $53.3\pm 0.4$ & $442.3\pm 1.5$ \\
 LTFGRS PA
-  & $0.9999\pm 0.0000$ & $0.0045\pm 0.0003$
-  & $1.856\pm 0.024$ & $9.28\pm 0.12$ & $258.2\pm 0.2$ \\
+  & $0.9999\pm 0.0000$ & $0.0046\pm 0.0002$
+  & $1.895\pm 0.052$ & $9.47\pm 0.26$ & $259.8\pm 0.9$ \\
 ltpred Gibbs
-  & $0.9999\pm 0.0000$ & $0.0051\pm 0.0001$
-  & $1.785\pm 0.005$ & $8.92\pm 0.03$ & $147.9\pm 0.1$ \\
+  & $0.9999\pm 0.0000$ & $0.0041\pm 0.0001$
+  & $1.552\pm 0.021$ & $7.76\pm 0.10$ & $165.3\pm 16.6$ \\
 ltpred PA
-  & $0.9999\pm 0.0000$ & $0.0045\pm 0.0003$
-  & $0.00143\pm 0.00001$ & $0.00716\pm 0.00004$
-  & $147.2\pm 0.4$ \\
+  & $0.9999\pm 0.0000$ & $0.0046\pm 0.0002$
+  & $0.00167\pm 0.00022$ & $0.0083\pm 0.0011$
+  & $147.9\pm 0.5$ \\
 \bottomrule
 \end{tabular}}
 \end{table}
@@ -731,11 +731,11 @@ update, not two approximations.
 
 Table~\ref{tab:ltfhplus-fold} is the fold-time lock
 (mean of the three per-replicate ratios, not the ratio of the means).
-Same-algorithm: LTFHPlus Gibbs is $5.67\pm 0.07\times$ the ltpred
-Gibbs wall-clock; LTFGRS PA is $1296\pm 17\times$ the ltpred PA
+Same-algorithm: LTFHPlus Gibbs is $6.87\pm 0.12\times$ the ltpred
+Gibbs wall-clock; LTFGRS PA is $1178\pm 157\times$ the ltpred PA
 wall-clock (R \texttt{future\_lapply} versus compiled Python, not a
 different update).
-Mixing algorithms, LTFHPlus / ltpred PA is $7070\pm 97\times$;
+Mixing algorithms, LTFHPlus / ltpred PA is $6613\pm 800\times$;
 that is not ``LT-FH++, but faster.''
 The mixture \eqref{eq:mix} is not in this comparison.
 
@@ -751,13 +751,13 @@ $200$ nuclear families; one R \texttt{future} worker; four Numba threads.}
 Comparison & fold & same algorithm \\
 \midrule
 LTFHPlus Gibbs / ltpred Gibbs
-  & $5.67\pm 0.07\times$ & yes \\
+  & $6.87\pm 0.12\times$ & yes \\
 LTFGRS PA / ltpred PA
-  & $1296\pm 17\times$ & yes \\
+  & $1178\pm 157\times$ & yes \\
 LTFHPlus Gibbs / ltpred PA
-  & $7070\pm 97\times$ & no \\
+  & $6613\pm 800\times$ & no \\
 LTFGRS PA / ltpred Gibbs
-  & $1.04\pm 0.01\times$ & no \\
+  & $1.22\pm 0.02\times$ & no \\
 \bottomrule
 \end{tabular}
 \end{table}

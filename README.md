@@ -72,17 +72,17 @@ liability-threshold model:
    **Pearson–Aitken** (PA) engine turns the covariance and
    intervals into an estimate of the posterior mean of the proband's genetic (`g`)
    and/or full (`o`) liability. PA has no Monte-Carlo error, but retains sequential
-   approximation error, and ran 203–492× faster than grouped Gibbs in the
+   approximation error, and ran 384–488× faster than grouped Gibbs in the
    controlled 4-thread, **no-mixture** benchmark in this package; PA and Gibbs
    `genetic` posterior-mean estimates had correlation ≥ 0.997 on those
    benchmarked structures. Against public LTFHPlus 2.2.0 on the same
    families, both engines had correlation 0.9999 with the R Gibbs scores
-   (RMSE 0.0051). LTFHPlus is Gibbs-only; public PA is LTFGRS 1.0.1, and
+   (RMSE 0.0041). LTFHPlus is Gibbs-only; public PA is LTFGRS 1.0.1, and
    ltpred PA matches it at RMSE 0.000087. Same-algorithm fold times:
-   LTFHPlus Gibbs / ltpred Gibbs = 5.67× (50.6 vs 8.92 ms/family);
-   LTFGRS PA / ltpred PA = 1296× (9.28 vs 0.00716 ms/family).
-   Isolated-process peak RSS was 446 MiB (LTFHPlus), 258 MiB (LTFGRS PA)
-   and ~147 MiB (ltpred). PA versus LTFHPlus is a different algorithm,
+   LTFHPlus Gibbs / ltpred Gibbs = 6.87× (53.3 vs 7.76 ms/family);
+   LTFGRS PA / ltpred PA = 1178× (9.47 vs 0.0083 ms/family).
+   Isolated-process peak RSS was 442 MiB (LTFHPlus), 260 MiB (LTFGRS PA)
+   and ~148–165 MiB (ltpred). PA versus LTFHPlus is a different algorithm,
    not a faster Gibbs. The PA-FGRS censoring mixture is PA-only and was
    not part of either comparison.
 

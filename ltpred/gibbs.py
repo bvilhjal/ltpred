@@ -18,6 +18,13 @@ liability), ``o`` (proband full liability), then one per relative; ``out`` picks
 which posterior samples to return (0 = genetic, 1 = full). Coordinates whose
 bounds coincide are ``fixed`` (for example an onset-pinned case in LT-FH++, or
 in family-free ADuLT) and are held constant rather than resampled.
+
+The batched estimator collapses coordinates that are untruncated in every
+family of a group (always ``g``, and every multi-trait genetic row). Those
+coordinates are integrated out of the chain; their posterior means are the
+Gaussian conditional means given the sampled truncated liabilities
+(Rao--Blackwell). ``rtmvnorm_gibbs`` still runs the full chain so retained
+draws stay a genuine truncated-MVN sample.
 """
 
 from __future__ import annotations
@@ -222,6 +229,30 @@ def gibbs_params(covmat: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     return np.ascontiguousarray(P), np.ascontiguousarray(sd)
 
 
+def _group_unbounded_mask(lowers, uppers):
+    """Coordinates with ``(-inf, inf)`` bounds in every family of the group."""
+    lo = np.asarray(lowers)
+    hi = np.asarray(uppers)
+    return (~np.isfinite(lo)).all(axis=0) & (~np.isfinite(hi)).all(axis=0)
+
+
+def _blup_from_keep(cov, keep_idx, coll_idx):
+    """Conditional mean map and residual variance of collapsed coordinates.
+
+    For jointly Gaussian ``(z, y)`` with ``y`` the kept (possibly truncated)
+    block, ``E[z | y] = W y`` and ``Var(z | y) = cond_var`` (constant).
+    """
+    cov = np.ascontiguousarray(cov, dtype=np.float64)
+    Syy = cov[np.ix_(keep_idx, keep_idx)]
+    Szy = cov[np.ix_(coll_idx, keep_idx)]
+    Szz = cov[np.ix_(coll_idx, coll_idx)]
+    W = np.linalg.solve(Syy.T, Szy.T).T
+    resid = Szz - W @ Szy.T
+    cond_var = np.maximum(np.diag(resid), 0.0)
+    return (np.ascontiguousarray(W, dtype=np.float64),
+            np.ascontiguousarray(cond_var, dtype=np.float64))
+
+
 @_jit
 def _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, n_sim, burn_in, res):
     """Inner Gibbs loop (the Rcpp ``rtmvnorm_gibbs_cpp`` port).
@@ -319,6 +350,80 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
             bm_sumsq[f, c] = s2[c]
 
 
+@_jit_parallel
+def _gibbs_estimate_batched_collapsed(
+        P, sd, sd0, lowers, uppers, out_kind, out_local, W, cond_var,
+        n_sim, burn_in, batch_size, n_batch, seeds,
+        total_sum, total_sumsq, bm_sum, bm_sumsq):
+    """Like ``_gibbs_estimate_batched`` on the kept block; BLUP the rest.
+
+    ``out_kind[c] == 0`` reads kept coordinate ``out_local[c]``.
+    ``out_kind[c] == 1`` accumulates ``W[out_local[c]] · x`` and adds
+    ``cond_var[out_local[c]]`` to the sum of squares so the streamed
+    posterior variance is ``Var(E[z|y]) + E[Var(z|y)]``.
+    """
+    F = lowers.shape[0]
+    d = sd.shape[0]
+    ncols = out_kind.shape[0]
+
+    for f in prange(F):
+        lower = lowers[f]
+        upper = uppers[f]
+        if seeds[f] >= 0:
+            np.random.seed(seeds[f])
+
+        fixed = np.empty(d, dtype=np.bool_)
+        for j in range(d):
+            fixed[j] = (upper[j] - lower[j]) < _FIXED_TOL
+        x = _init_chain(lower, upper, sd0)
+
+        tot = np.zeros(ncols)
+        tot_sq = np.zeros(ncols)
+        batch_sum = np.zeros(ncols)
+        s1 = np.zeros(ncols)
+        s2 = np.zeros(ncols)
+        bidx = 0
+        in_batch = 0
+
+        for k in range(-burn_in, n_sim):
+            for j in range(d):
+                if not fixed[j]:
+                    x[j] = _gibbs_conditional_draw(P, sd, x, j, lower[j],
+                                                   upper[j],
+                                                   np.random.random())
+            if k >= 0:
+                for c in range(ncols):
+                    loc = out_local[c]
+                    if out_kind[c] == 0:
+                        v = x[loc]
+                        extra = 0.0
+                    else:
+                        v = 0.0
+                        for i in range(d):
+                            v += W[loc, i] * x[i]
+                        extra = cond_var[loc]
+                    tot[c] += v
+                    tot_sq[c] += v * v + extra
+                    if bidx < n_batch:
+                        batch_sum[c] += v
+                if bidx < n_batch:
+                    in_batch += 1
+                    if in_batch == batch_size:
+                        for c in range(ncols):
+                            y = batch_sum[c] / batch_size
+                            s1[c] += y
+                            s2[c] += y * y
+                            batch_sum[c] = 0.0
+                        bidx += 1
+                        in_batch = 0
+
+        for c in range(ncols):
+            total_sum[f, c] = tot[c]
+            total_sumsq[f, c] = tot_sq[c]
+            bm_sum[f, c] = s1[c]
+            bm_sumsq[f, c] = s2[c]
+
+
 def as_bounds(a):
     """Contiguous float array for a kernel: **keep float32** (to halve the memory
     of large per-family bound arrays), otherwise coerce to float64. The kernels'
@@ -330,7 +435,7 @@ def as_bounds(a):
 
 
 def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
-                           batch_size, n_batch, seeds):
+                           batch_size, n_batch, seeds, cov=None, collapse=None):
     """Thin wrapper over the batched kernel.
 
     Returns ``(total_sum, total_sumsq, bm_sum, bm_sumsq)``.
@@ -343,20 +448,74 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
     / (M-1) / N)``. The two are different quantities: the posterior variance is a
     property of the truncated MVN and does not shrink with more draws, while the
     batch-means SE is the sampler's own error and does.
-    ``lowers``/``uppers`` may be float32 to halve their memory."""
-    F = lowers.shape[0]
-    ncols = out_idx.shape[0]
+    ``lowers``/``uppers`` may be float32 to halve their memory.
+
+    When ``collapse`` is true (the default whenever ``cov`` is supplied),
+    coordinates that are untruncated in every family are integrated out of
+    the sweep. Their streamed mean is the Gaussian conditional mean given the
+    sampled truncated coordinates; the streamed sum of squares includes the
+    constant residual variance so the reconstructed ``var`` is still
+    ``Var(target | C_F)``. Pass ``collapse=False`` to force the full chain.
+    ``rtmvnorm_gibbs`` is never collapsed.
+    """
+    out_idx = np.asarray(out_idx, dtype=np.int64)
+    F = int(np.asarray(lowers).shape[0])
+    ncols = int(out_idx.shape[0])
     total_sum = np.zeros((F, ncols), dtype=np.float64)
     total_sumsq = np.zeros((F, ncols), dtype=np.float64)
     bm_sum = np.zeros((F, ncols), dtype=np.float64)
     bm_sumsq = np.zeros((F, ncols), dtype=np.float64)
+    seeds = np.asarray(seeds, dtype=np.int64)
+    n_sim = int(n_sim)
+    burn_in = int(burn_in)
+    batch_size = int(batch_size)
+    n_batch = int(n_batch)
+
+    use_collapse = bool(collapse) if collapse is not None else cov is not None
+    if use_collapse:
+        if cov is None:
+            raise ValueError(
+                "collapse=True requires the group covariance ``cov``")
+        cov = np.ascontiguousarray(cov, dtype=np.float64)
+        unbounded = _group_unbounded_mask(lowers, uppers)
+        keep_idx = np.flatnonzero(~unbounded)
+        coll_idx = np.flatnonzero(unbounded)
+        if keep_idx.size == 0:
+            for c, j in enumerate(out_idx):
+                total_sumsq[:, c] = n_sim * cov[int(j), int(j)]
+            return total_sum, total_sumsq, bm_sum, bm_sumsq
+        if coll_idx.size > 0:
+            W, cond_var = _blup_from_keep(cov, keep_idx, coll_idx)
+            keep_pos = {int(j): i for i, j in enumerate(keep_idx)}
+            coll_pos = {int(j): i for i, j in enumerate(coll_idx)}
+            out_kind = np.empty(ncols, dtype=np.int64)
+            out_local = np.empty(ncols, dtype=np.int64)
+            for c, j in enumerate(out_idx):
+                j = int(j)
+                if unbounded[j]:
+                    out_kind[c] = 1
+                    out_local[c] = coll_pos[j]
+                else:
+                    out_kind[c] = 0
+                    out_local[c] = keep_pos[j]
+            lo_k = as_bounds(np.ascontiguousarray(
+                np.asarray(lowers)[:, keep_idx]))
+            hi_k = as_bounds(np.ascontiguousarray(
+                np.asarray(uppers)[:, keep_idx]))
+            P_k, sd_k = gibbs_params(cov[np.ix_(keep_idx, keep_idx)])
+            sd0_k = np.sqrt(np.diag(cov)[keep_idx])
+            _gibbs_estimate_batched_collapsed(
+                P_k, sd_k, np.ascontiguousarray(sd0_k),
+                lo_k, hi_k, out_kind, out_local, W, cond_var,
+                n_sim, burn_in, batch_size, n_batch, seeds,
+                total_sum, total_sumsq, bm_sum, bm_sumsq)
+            return total_sum, total_sumsq, bm_sum, bm_sumsq
+
     _gibbs_estimate_batched(np.ascontiguousarray(P), np.ascontiguousarray(sd),
                             np.ascontiguousarray(sd0),
                             as_bounds(lowers), as_bounds(uppers),
-                            np.asarray(out_idx, dtype=np.int64),
-                            int(n_sim), int(burn_in), int(batch_size),
-                            int(n_batch), np.asarray(seeds, dtype=np.int64),
-                            total_sum, total_sumsq, bm_sum, bm_sumsq)
+                            out_idx, n_sim, burn_in, batch_size, n_batch,
+                            seeds, total_sum, total_sumsq, bm_sum, bm_sumsq)
     return total_sum, total_sumsq, bm_sum, bm_sumsq
 
 

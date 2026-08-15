@@ -59,26 +59,26 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   grid (five seeds per cell), mean corr(PA, Gibbs) is 0.9977–0.9999. The
   stressful-pedigree benchmark remains
   at least 0.9984. PA and Gibbs also give indistinguishable downstream GWAS
-  results. In the 4-thread timing run, the PA object path is **203–492× faster**
+  results. In the 4-thread timing run, the PA object path is **384–488× faster**
   than grouped Gibbs across the tested sizes and pedigrees. The ratio is not
   thread-count-free: Gibbs is the parallel engine while the PA object path is
   largely serial, so fewer threads inflate the speed-up. Quote it with its
   thread count or not at all.
 - **ltpred Gibbs matches public LTFHPlus on the same families.** Against
-  LTFHPlus 2.2.0, corr = 0.9999 and RMSE = 0.0051 ± 0.0001 (200 nuclear
+  LTFHPlus 2.2.0, corr = 0.9999 and RMSE = 0.0041 ± 0.0001 (200 nuclear
   families, three cohorts, the R package's own Gibbs settings).
 - **Public PA is LTFGRS, not LTFHPlus.** LTFHPlus 2.2.0 is Gibbs-only.
   ltpred PA and LTFGRS 1.0.1 `method="PA"` agree at corr = 1.0000
   (RMSE 0.000087 ± 0.000008). Same-algorithm fold times on this
-  machine were **5.67 ± 0.07×** (LTFHPlus Gibbs / ltpred Gibbs) and
-  **1296 ± 17×** (LTFGRS PA / ltpred PA). Mixing algorithms, LTFHPlus /
-  ltpred PA is **7070 ± 97×**. Totals: 1-worker LTFHPlus took
-  10.12 ± 0.10 s (50.6 ± 0.5 ms/family) versus 1.785 ± 0.005 s
-  (8.92 ± 0.03 ms/family) for 4-thread ltpred Gibbs, 1.856 ± 0.024 s
-  (9.28 ± 0.12 ms/family) for LTFGRS PA, and 0.00143 ± 0.00001 s
-  (0.00716 ± 0.00004 ms/family) for ltpred PA. Isolated-process peak
-  RSS was 446.4 ± 1.2, 258.2 ± 0.2, 147.9 ± 0.1 and 147.2 ± 0.4 MiB
-  respectively (interpreter included). The 7070× figure is not
+  machine were **6.87 ± 0.12×** (LTFHPlus Gibbs / ltpred Gibbs) and
+  **1178 ± 157×** (LTFGRS PA / ltpred PA). Mixing algorithms, LTFHPlus /
+  ltpred PA is **6613 ± 800×**. Totals: 1-worker LTFHPlus took
+  10.66 ± 0.07 s (53.3 ± 0.4 ms/family) versus 1.552 ± 0.021 s
+  (7.76 ± 0.10 ms/family) for 4-thread ltpred Gibbs, 1.895 ± 0.052 s
+  (9.47 ± 0.26 ms/family) for LTFGRS PA, and 0.00167 ± 0.00022 s
+  (0.0083 ± 0.0011 ms/family) for ltpred PA. Isolated-process peak
+  RSS was 442.3 ± 1.5, 259.8 ± 0.9, 165.3 ± 16.6 and 147.9 ± 0.5 MiB
+  respectively (interpreter included). The 6613× figure is not
   "LT-FH++, but faster."
 - **Classic LT-FH improves genotype-GWAS signal without average null inflation.**
   Across three genotype/effect/cohort replicates, the same classic LT-FH model
@@ -154,7 +154,8 @@ replicates as 2.11 ± 0.15× — so treat their ordering as descriptive.
 
 Five warmed timings per point, reported as medians; Python 3.14.6, NumPy 2.4.6,
 SciPy 1.18.0, Numba 0.66.0, **4 Numba threads**, on an Apple M2 Pro (10 cores,
-arm64), h²=0.5, K=0.05, and 25,000 Gibbs draws. No other benchmark ran
+arm64), h²=0.5, K=0.05, and 25,000 Gibbs draws. This rerun includes the collapsed-genetic
+Gibbs path (untruncated `g` integrated out of the sweep). No other benchmark ran
 concurrently, but the machine was not otherwise idle: system processes held
 1-minute load average near 7–11 throughout. `benchmarks/run_manifest.jsonl`
 records the machine, resolved thread count and load for every run, so a timing
@@ -168,14 +169,14 @@ thread count. Four threads is the operating point this project now baselines on.
 
 | families | Gibbs families/s | PA object families/s | PA array families/s | object speed-up |
 |---:|---:|---:|---:|---:|
-| 500 | 296 | 71,264 | 1.93 M | 241× |
-| 1,000 | 295 | 73,863 | 2.65 M | 250× |
-| 2,000 | 300 | 73,319 | 3.55 M | 244× |
-| 4,000 | 299 | 78,229 | 3.79 M | 261× |
-| 8,000 | 305 | 71,878 | 3.76 M | 236× |
+| 500 | 517 | 213,603 | 2.86 M | 414× |
+| 1,000 | 523 | 214,961 | 3.93 M | 411× |
+| 2,000 | 514 | 218,460 | 5.38 M | 425× |
+| 4,000 | 521 | 206,697 | 6.27 M | 397× |
+| 8,000 | 524 | 228,398 | 6.53 M | 436× |
 
 The object path includes `Family`/`Member` bounds assembly and grouping. The
-array path receives already aligned, repeatedly reused arrays; its 1.2–3.8
+array path receives already aligned, repeatedly reused arrays; its 2.15–6.53
 million families/s is therefore a hot-kernel measurement, not end-to-end input
 preparation. Its very short calls also make cache and scheduler effects visible,
 so use the CSV IQRs rather than interpreting the non-monotone point rates.
@@ -184,15 +185,15 @@ so use the CSV IQRs rather than interpreting the non-monotone point rates.
 
 | relatives | structure | Gibbs time | PA object time | PA array time | object speed-up |
 |---:|---|---:|---:|---:|---:|
-| 2 | parents | 5.52 s | 0.0272 s | 0.00055 s | 203× |
-| 3 | + sibling | 6.78 s | 0.0278 s | 0.00071 s | 244× |
-| 5 | + two grandparents | 10.68 s | 0.0296 s | 0.00089 s | 361× |
-| 7 | extended | 12.61 s | 0.0348 s | 0.00114 s | 362× |
-| 10 | extended + aunts | 17.16 s | 0.0349 s | 0.00169 s | 492× |
+| 2 | parents | 2.85 s | 0.00742 s | 0.00032 s | 384× |
+| 3 | + sibling | 3.82 s | 0.00944 s | 0.00039 s | 405× |
+| 5 | + two grandparents | 5.82 s | 0.0132 s | 0.00058 s | 441× |
+| 7 | extended | 7.85 s | 0.0168 s | 0.00070 s | 468× |
+| 10 | extended + aunts | 11.02 s | 0.0226 s | 0.00093 s | 488× |
 
 The small PA times are not strictly monotone; five repeats quantify timing
 variation but do not abolish operating-system noise, and this run carried
-background load. The defensible claim is the observed **203–492×** object-path
+background load. The defensible claim is the observed **384–488×** object-path
 speed-up *at four threads on this machine* — not a universal hardware-independent
 constant, and not transferable to another thread count, since raising the thread
 count speeds Gibbs up far more than the largely serial PA object path.
@@ -1464,10 +1465,10 @@ interpreter and packages.
 
 | Estimator | corr vs LTFHPlus | RMSE vs LTFHPlus | total s / 200 fam. | ms / family | peak RSS (MiB) |
 |---|---:|---:|---:|---:|---:|
-| LTFHPlus Gibbs | — | — | 10.12 ± 0.10 | 50.6 ± 0.5 | 446.4 ± 1.2 |
-| LTFGRS PA | 0.9999 ± 0.0000 | 0.0045 ± 0.0003 | 1.856 ± 0.024 | 9.28 ± 0.12 | 258.2 ± 0.2 |
-| ltpred Gibbs | 0.9999 ± 0.0000 | 0.0051 ± 0.0001 | 1.785 ± 0.005 | 8.92 ± 0.03 | 147.9 ± 0.1 |
-| ltpred PA | 0.9999 ± 0.0000 | 0.0045 ± 0.0003 | 0.00143 ± 0.00001 | 0.00716 ± 0.00004 | 147.2 ± 0.4 |
+| LTFHPlus Gibbs | — | — | 10.66 ± 0.07 | 53.3 ± 0.4 | 442.3 ± 1.5 |
+| LTFGRS PA | 0.9999 ± 0.0000 | 0.0046 ± 0.0002 | 1.895 ± 0.052 | 9.47 ± 0.26 | 259.8 ± 0.9 |
+| ltpred Gibbs | 0.9999 ± 0.0000 | 0.0041 ± 0.0001 | 1.552 ± 0.021 | 7.76 ± 0.10 | 165.3 ± 16.6 |
+| ltpred PA | 0.9999 ± 0.0000 | 0.0046 ± 0.0002 | 0.00167 ± 0.00022 | 0.0083 ± 0.0011 | 147.9 ± 0.5 |
 
 The Gibbs scores agree at the scale of the Monte Carlo error (LTFHPlus
 reports `genetic_se` ≈ 0.004). The PA scores agree with each other much
@@ -1483,14 +1484,14 @@ Fold times are the mean ± SE of the three per-replicate ratios
 
 | Comparison | fold | same algorithm? |
 |---|---:|:---|
-| LTFHPlus Gibbs / ltpred Gibbs | 5.67 ± 0.07× | yes |
-| LTFGRS PA / ltpred PA | 1296 ± 17× | yes |
-| LTFHPlus Gibbs / ltpred PA | 7070 ± 97× | no |
-| LTFGRS PA / ltpred Gibbs | 1.04 ± 0.01× | no |
+| LTFHPlus Gibbs / ltpred Gibbs | 6.87 ± 0.12× | yes |
+| LTFGRS PA / ltpred PA | 1178 ± 157× | yes |
+| LTFHPlus Gibbs / ltpred PA | 6613 ± 800× | no |
+| LTFGRS PA / ltpred Gibbs | 1.22 ± 0.02× | no |
 
 The first row is Gibbs versus Gibbs across language and
 parallelisation. The second is the same sequential PA update in R
-versus compiled Python. The 7070× row mixes algorithms. None of
+versus compiled Python. The 6613× row mixes algorithms. None of
 these is a hardware-independent constant.
 Peak RSS at this n is mostly runtime: LTFHPlus Gibbs sits higher
 because the sampler retains 10⁵ draws; the two PA processes differ
@@ -1557,6 +1558,8 @@ script exits 2 if they are missing. LTFGRS is the PA arm.
   Stochastic-onset §16 numbers shifted slightly because the cohort
   generator now shares `ltpred.simulate._onset_times` (vectorised
   per-role draws); crossing cells were unchanged.
+- 2026-08-15: reran §2 scaling and the §30 LTFHPlus/LTFGRS lock after
+  collapsing untruncated genetic coordinates out of the Gibbs sweep.
 - 2026-08-15: locked LTFHPlus 2.2.0 Gibbs and LTFGRS 1.0.1 PA (§30),
   with isolated-process peak RSS and per-family times.
 

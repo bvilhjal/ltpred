@@ -644,8 +644,11 @@ one `prange`-parallel kernel that accumulates the mean and the batch-means SE
 **online** from streaming batch summaries (running sums and sums-of-squares) — no
 full `(n_sim × n_out)` sample array, so the Monte-Carlo-SE memory is `O(families)`
 regardless of `n_sim`, and each family seeds its own RNG so results are
-deterministic regardless of thread scheduling. Without Numba the identical code
-runs serially in pure Python.
+deterministic regardless of thread scheduling. Coordinates that are untruncated
+in every family of the group (the genetic rows) are integrated out of the
+sweep; the genetic mean is the Gaussian conditional mean given the sampled
+truncated liabilities. Without Numba the identical code runs serially in
+pure Python.
 
 ## Inference engine 2: Pearson–Aitken
 
@@ -682,15 +685,15 @@ applied this result sequentially to multifactorial threshold traits
 ([1974, *Biometrics*](https://pubmed.ncbi.nlm.nih.gov/4813384/)). On ltpred's
 separately observed family-member intervals **without the censoring mixture**, PA
 and Gibbs posterior-mean estimates had correlation ≥ 0.997 while PA ran
-203–492× faster than grouped Gibbs in the controlled 4-thread benchmark in
+384–488× faster than grouped Gibbs in the controlled 4-thread benchmark in
 this package. A locked comparison to R LTFHPlus 2.2.0 on the same classic
 LT-FH families gave corr(ltpred Gibbs, LTFHPlus) = 0.9999 and
-corr(PA, LTFHPlus) = 0.9999 (RMSE 0.0051). LTFHPlus is Gibbs-only; public
+corr(PA, LTFHPlus) = 0.9999 (RMSE 0.0041). LTFHPlus is Gibbs-only; public
 PA is LTFGRS 1.0.1, and ltpred PA matches it at RMSE 0.000087. On that
-machine same-algorithm fold times were 5.67× (LTFHPlus Gibbs / ltpred
-Gibbs; 50.6 vs 8.92 ms/family) and 1296× (LTFGRS PA / ltpred PA;
-9.28 vs 0.00716 ms/family). Isolated-process peak RSS (ldpred3 `wait4`
-launcher) was 446 MiB (LTFHPlus), 258 MiB (LTFGRS PA) and ~147 MiB
+machine same-algorithm fold times were 6.87× (LTFHPlus Gibbs / ltpred
+Gibbs; 53.3 vs 7.76 ms/family) and 1178× (LTFGRS PA / ltpred PA;
+9.47 vs 0.0083 ms/family). Isolated-process peak RSS (ldpred3 `wait4`
+launcher) was 442 MiB (LTFHPlus), 260 MiB (LTFGRS PA) and ~148–165 MiB
 (ltpred). PA versus LTFHPlus is a different algorithm, not a faster
 Gibbs. The PA-only mixture was not part of either comparison. Same
 grouping / `prange` structure as the Gibbs path.

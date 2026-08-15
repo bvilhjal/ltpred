@@ -28,7 +28,7 @@ def test_batched_kernel_matches_batch_means_single_round():
     nb = n_sim // b
     tot, tot_sq, bm_sum, bm_sumsq = gibbs_estimate_batched(
         P, sd, sd0, lowers, uppers, np.array([0, 1]), n_sim, 1000, b, nb,
-        np.array([7]))
+        np.array([7]), cov=cov)
     est = tot[0] / n_sim
     ss = bm_sumsq[0] - bm_sum[0] ** 2 / nb        # sum((Y - Ybar)^2)
     se = np.sqrt(b * ss / (nb - 1) / n_sim)
@@ -47,9 +47,57 @@ def test_batched_kernel_matches_batch_means_single_round():
     # posterior variance is a property of the target, not of how long we sampled
     tot2, tot_sq2, _, _ = gibbs_estimate_batched(
         P, sd, sd0, lowers, uppers, np.array([0, 1]), 4 * n_sim, 1000,
-        b, nb, np.array([7]))
+        b, nb, np.array([7]), cov=cov)
     var2 = tot_sq2[0] / (4 * n_sim) - (tot2[0] / (4 * n_sim)) ** 2
     assert var2 == pytest.approx(var, rel=0.05)
+
+
+@pytest.mark.jit_required
+def test_collapsed_genetic_matches_full_chain_mean():
+    # Public estimate path collapses unbounded g. The mean of E[g|y] equals
+    # the mean of sampled g; the streamed var still matches the PA update.
+    cov = np.array([[0.5, 0.5], [0.5, 1.0]])
+    t = float(stats.norm.isf(0.05))
+    lowers = np.array([[-np.inf, t], [-np.inf, -np.inf]])
+    uppers = np.array([[np.inf, np.inf], [np.inf, t]])
+    P, sd = gibbs_params(cov)
+    sd0 = np.sqrt(np.diag(cov))
+    n_sim, burn, seed = 30_000, 800, np.array([3, 4])
+    b = int(np.floor(np.sqrt(n_sim)))
+    nb = n_sim // b
+    kwargs = dict(lowers=lowers, uppers=uppers, out_idx=np.array([0, 1]),
+                  n_sim=n_sim, burn_in=burn, batch_size=b, n_batch=nb,
+                  seeds=seed)
+    tot_c, tsq_c, _, _ = gibbs_estimate_batched(
+        P, sd, sd0, cov=cov, collapse=True, **kwargs)
+    tot_f, tsq_f, _, _ = gibbs_estimate_batched(
+        P, sd, sd0, collapse=False, **kwargs)
+    est_c = tot_c / n_sim
+    est_f = tot_f / n_sim
+    var_c = tsq_c / n_sim - est_c ** 2
+    var_f = tsq_f / n_sim - est_f ** 2
+    np.testing.assert_allclose(est_c, est_f, atol=0.03)
+    np.testing.assert_allclose(var_c, var_f, atol=0.03)
+    imr = _imr(t)
+    assert est_c[0, 0] == pytest.approx(0.5 * imr, abs=0.03)
+    assert est_c[0, 1] == pytest.approx(imr, abs=0.03)
+
+
+def test_collapse_all_unbounded_is_the_prior():
+    cov = np.array([[0.5, 0.5], [0.5, 1.0]])
+    P, sd = gibbs_params(cov)
+    sd0 = np.sqrt(np.diag(cov))
+    lowers = np.full((4, 2), -np.inf)
+    uppers = np.full((4, 2), np.inf)
+    n_sim, b, nb = 20, 4, 5
+    tot, tsq, bm, bmsq = gibbs_estimate_batched(
+        P, sd, sd0, lowers, uppers, np.array([0, 1]), n_sim, 0, b, nb,
+        np.arange(4), cov=cov)
+    assert np.array_equal(tot, np.zeros((4, 2)))
+    np.testing.assert_allclose(
+        tsq / n_sim, np.broadcast_to(np.diag(cov), tsq.shape))
+    assert np.array_equal(bm, np.zeros((4, 2)))
+    assert np.array_equal(bmsq, np.zeros((4, 2)))
 
 
 def test_multi_round_pooling_matches_offline_batch_means():

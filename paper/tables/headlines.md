@@ -5,9 +5,9 @@
 | Quantity | Value | Setting |
 |---|---:|---|
 | Corr(PA, Gibbs) posterior means | 0.9977--0.9999 | 27-cell classic LT-FH grid; no mixture |
-| PA / grouped-Gibbs wall-clock | 203--492× | this package, 4 threads, object path |
-| LTFHPlus Gibbs / ltpred Gibbs wall-clock | 5.67 ± 0.07× | same algorithm; 200 nuclear families |
-| LTFGRS PA / ltpred PA wall-clock | 1296 ± 17× | same algorithm; 200 nuclear families |
+| PA / grouped-Gibbs wall-clock | 384--488× | this package, 4 threads, object path |
+| LTFHPlus Gibbs / ltpred Gibbs wall-clock | 6.87 ± 0.12× | same algorithm; 200 nuclear families |
+| LTFGRS PA / ltpred PA wall-clock | 1178 ± 157× | same algorithm; 200 nuclear families |
 | Causal-SNP NCP ratio vs case/control | 1.47 ± 0.04× | classic LT-FH; 10,000 probands, 30 causal SNPs |
 | LT-FH++ minus ADuLT NCP increment | +0.145 ± 0.015 | paired 95% CI half-width; known CIP, pinned onset |
 | λ_GC with cohort-blind family thresholds | 16.46 ± 0.40 | 4× prevalence trend over 30 y |
