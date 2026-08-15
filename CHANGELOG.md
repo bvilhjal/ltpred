@@ -6,6 +6,38 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Fixed
+
+- Estimation with `use_mixture=True` no longer raises when one role-structure
+  group contains no censored control of its own (e.g. an all-case family set
+  alongside families that do supply valid `K_i`/`K_pop`): the
+  at-least-one-valid-pair gate now runs once per call, not again per group.
+  Regression-tested; the public array estimator keeps its own gate (it has no
+  global pre-check).
+- Corrected the stale C/M-omission bias figures in `docs/algorithm.md` to the
+  committed `bench_couple_env.csv` values (+0.047/+0.101/+0.156 and
+  −0.005/+0.025/+0.034), and added `check_results` guards for both the
+  RESULTS.md omission table and that prose so it cannot drift again.
+- Labelled the PA-FGRS largest-shift "±" figures as 95% CI half-widths in
+  README, `docs/algorithm.md`, RESULTS.md, `index.html` and the methods report
+  (the RESULTS.md convention reserves a bare ± for SEs), updating the five
+  anchored guards to the new wording.
+- Fixed two `docs/algorithm.md` display details: the Gibbs conditional-SD
+  contraction now states the zero-in-slot-`j` embedding of `P[:, j]` it
+  presumes, and the PGS–family-history identity is the population `Corr`, not
+  `E[Corr]`.
+- Documented the kinship route's genetic-row scale explicitly: under
+  inbreeding the prepended `g` is the target's genetic liability over its
+  full-liability SD (variance `h2·A[t,t]/V[t,t]`), not the role-based
+  `Var(g) = h2` scale.
+
+### Added
+
+- Multi-trait Gibbs oracle test: with exactly one bounded coordinate the
+  posterior means match the closed-form truncated-normal conditional mean
+  across traits, the multi-trait counterpart of the single-trait
+  inverse-Mills oracles.
+
 ## 0.3.2 — 2026-08-15
 
 ### Changed

@@ -470,10 +470,10 @@ Cov(PGS, FH) = E[Cov(PGS, FH | g)] + Cov(E[PGS | g], E[FH | g])
              = a · b · √p.
 ```
 
-All variables standardised, so
+All variables standardised, so the population correlation is
 
 ```text
-E[Corr(PGS, FH)] = a · b · √p = √( R²_pgs · R²_fh · h²_SNP / h²_total ).
+Corr(PGS, FH) = a · b · √p = √( R²_pgs · R²_fh · h²_SNP / h²_total ).
 ```
 
 Limits: `h²_SNP = h²_total` gives `√(R²_pgs · R²_fh)`; a perfect family proxy
@@ -628,7 +628,8 @@ x_j  <-  mu_j + sd_j * Phi^-1( U( Phi((a_j - mu_j)/sd_j), Phi((b_j - mu_j)/sd_j)
 mu_j  =  P[:, j] . x         (conditional mean)
 ```
 
-`P[:, j] = Sigma[-j,-j]^-1 Sigma[-j, j]` (conditional-regression coefficients)
+`P[:, j] = Sigma[-j,-j]^-1 Sigma[-j, j]` (conditional-regression coefficients,
+embedded with a 0 in slot `j`)
 and `sd_j = sqrt(Sigma[jj] - P[:,j].Sigma[:,j])` depend only on `Sigma`, so they
 are precomputed once. Pinned coordinates (`a_j == b_j`) are held fixed. The
 posterior means of `g` (and `o`) are the sample averages.
@@ -730,7 +731,7 @@ assumes censoring is non-informative given the stratum.
 That independence assumption is now a generative arm
 (`simulate_under_LTM_single(..., onset_model="liability_dependent")`, default
 ρ = 0.6), not only a caveat. In RESULTS.md §16 three of ten paired Δcorr
-95% CIs exclude zero, but the largest shift is only −0.00034 ± 0.00011;
+95% CIs exclude zero, but the largest shift is only −0.00034 (95% CI ± 0.00011);
 the ranking effect is statistically detectable and practically negligible.
 The mixture still always lowers the calibration slope. What breaks is the *pin*,
 not the mixture: under partial onset dependence the lifetime interval sits
@@ -834,8 +835,8 @@ genes), whereas ignoring `M` biases `A` **much less** — mates have `A = 0`, so
 they carry little direct weight in the additive regression (a residual can remain
 from imputing under the misspecified model). In `bench_couple_env` (3000
 families, true `a² = 0.4`) the same shared-environment variance biases the
-additive-only `Â` by +0.04, +0.11, +0.16 as `s²` runs 0.1 → 0.2 → 0.3 when it is
-`C`, but only +0.00, +0.01, +0.04 when it is `M`. So `M` is worth fitting for its
+additive-only `Â` by +0.047, +0.101, +0.156 as `s²` runs 0.1 → 0.2 → 0.3 when it is
+`C`, but only −0.005, +0.025, +0.034 when it is `M`. So `M` is worth fitting for its
 own sake (quantifying/testing spousal resemblance) rather than to de-bias `h²`. A
 **dominance** component is deliberately not offered: in the current role-based
 design its sharing pattern is not separated reliably from additive and sibship

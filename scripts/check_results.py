@@ -586,6 +586,35 @@ def ascert_lee(scheme):
     return recompute
 
 
+def _couple_env_ignore_rows(path):
+    """The bench_couple_env omission panel, ordered by its s² column."""
+    rows = sorted((r for r in _rows(path) if r["panel"] == "ignore_bias"),
+                  key=lambda r: float(r["s2"]))
+    if len(rows) != 3:
+        raise ValueError(f"expected 3 ignore_bias rows, found {len(rows)}")
+    return rows
+
+
+def couple_env_omission_cells(path):
+    """C- and M-omission biases in Â with SDs, per s² = 0.1/0.2/0.3 cell.
+
+    Returns 12 values in table order: for each cell,
+    (C bias, C SD, M bias, M SD)."""
+    return tuple(v for r in _couple_env_ignore_rows(path)
+                 for v in (float(r["A_ignoreC_bias"]), float(r["A_ignoreC_sd"]),
+                           float(r["A_ignoreM_bias"]), float(r["A_ignoreM_sd"])))
+
+
+def couple_env_omission_bias_prose(path):
+    """The six omission-bias values algorithm.md quotes in its prose.
+
+    Prose order: the three C-omission biases, then the three M-omission
+    biases, each at s² = 0.1/0.2/0.3."""
+    rows = _couple_env_ignore_rows(path)
+    return (tuple(float(r["A_ignoreC_bias"]) for r in rows)
+            + tuple(float(r["A_ignoreM_bias"]) for r in rows))
+
+
 GUARDS = [
     Guard("ascertainment-dose-mild-prose", _ASCERT,
           ascert_dose_mild_rates_bias,
@@ -609,7 +638,7 @@ GUARDS = [
     Guard("mixture-largest-corr-shift-headline",
           "benchmarks/bench_pafgrs_mixture.csv",
           mixture_largest_abs_corr_shift,
-          r"largest shift is\s*only ([−-][\d.]+) ± (\d+(?:\.\d+)?)"),
+          r"largest shift is\s*only ([−-][\d.]+) \(95% CI ± (\d+(?:\.\d+)?)\)"),
     Guard("mixture-largest-corr-shift-verdict",
           "benchmarks/bench_pafgrs_mixture.csv",
           mixture_largest_abs_corr_shift,
@@ -617,23 +646,36 @@ GUARDS = [
     Guard("readme-mixture-largest-corr-shift",
           "benchmarks/bench_pafgrs_mixture.csv",
           mixture_largest_abs_corr_shift,
-          r"largest correlation shift is\s*only ([−-][\d.]+) ± (\d+(?:\.\d+)?)",
+          r"largest correlation shift is\s*only ([−-][\d.]+) \(95% CI ± (\d+(?:\.\d+)?)\)",
           document="README.md"),
     Guard("algorithm-mixture-largest-corr-shift",
           "benchmarks/bench_pafgrs_mixture.csv",
           mixture_largest_abs_corr_shift,
-          r"largest shift is only ([−-][\d.]+) ± (\d+(?:\.\d+)?)",
+          r"largest shift is only ([−-][\d.]+) \(95% CI ± (\d+(?:\.\d+)?)\)",
           document="docs/algorithm.md"),
     Guard("landing-mixture-largest-corr-shift",
           "benchmarks/bench_pafgrs_mixture.csv",
           mixture_largest_abs_corr_shift,
-          r"largest shift is only ([−-][\d.]+) ± (\d+(?:\.\d+)?)",
+          r"largest shift is only ([−-][\d.]+) \(95% CI ± (\d+(?:\.\d+)?)\)",
           document="index.html"),
     Guard("report-mixture-largest-corr-shift",
           "benchmarks/bench_pafgrs_mixture.csv",
           mixture_largest_abs_corr_shift,
-          r"largest being \$([-][\d.]+)\\pm ([\d.]+)\$",
+          r"largest being \$([-][\d.]+)\$ with a 95\\% CI half-width of \$([\d.]+)\$",
           document="report/ltpred_methods.tex"),
+    Guard("couple-env-omission-table",
+          "benchmarks/bench_couple_env.csv",
+          couple_env_omission_cells,
+          r"\| 0\.1 \| \+([\d.]+) \(([\d.]+)\) \| ([+-][\d.]+) \(([\d.]+)\) \|"
+          r"\n\| 0\.2 \| \+([\d.]+) \(([\d.]+)\) \| ([+-][\d.]+) \(([\d.]+)\) \|"
+          r"\n\| 0\.3 \| \+([\d.]+) \(([\d.]+)\) \| ([+-][\d.]+) \(([\d.]+)\) \|"),
+    Guard("algorithm-couple-env-omission-prose",
+          "benchmarks/bench_couple_env.csv",
+          couple_env_omission_bias_prose,
+          r"by \+([\d.]+), \+([\d.]+), \+([\d.]+) as `s²` runs 0\.1 → 0\.2 → 0\.3"
+          r" when it is\s*`C`, but only ([−-][\d.]+), \+([\d.]+), \+([\d.]+)"
+          r" when it is `M`",
+          document="docs/algorithm.md"),
     Guard("ascertainment-dose-unenriched", _ASCERT,
           ascert_dose_row(0.9, 1.1),
           r"^\| fitted h² \| ([\d.]+) \| [\d.]+ \| [\d.]+ \| 1\.000 \| 1\.000 \|$"),

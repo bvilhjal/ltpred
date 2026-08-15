@@ -468,6 +468,38 @@ def test_multitrait_rejects_unsupported_shared_environment_components(component)
         )
 
 
+@pytest.mark.jit_required
+def test_multitrait_gibbs_matches_single_truncation_closed_form():
+    """Multi-trait Gibbs against the closed form under one bounded coordinate.
+
+    With exactly one truncated coordinate the truncated-MVN conditional mean of
+    every other coordinate is exact in closed form,
+    ``E[x_j | x_i in (a, b)] = cov_ij / var_i * E[Z | Z in (a, b)]``, so a
+    converged Gibbs run must land on it. This is the multi-trait counterpart of
+    the single-trait inverse-Mills oracles."""
+    from ltpred.covariance import construct_covmat_multi
+
+    K = 0.10
+    t = float(stats.norm.isf(K))
+    lam = _imr(t)                                  # E[Z | Z > t]
+    rg = np.array([[1.0, 0.6], [0.6, 1.0]])
+    rp = np.array([[1.0, 0.5], [0.5, 1.0]])
+    # only trait 1's mother is a case; every other coordinate uninformative
+    fam = [Family("f", [Member("o", [-np.inf, -np.inf], [np.inf, np.inf]),
+                        Member("m", [t, -np.inf], [np.inf, np.inf])])]
+    cov = construct_covmat_multi(fam_vec=["o", "m"], add_ind=True,
+                                 genetic_corrmat=rg, full_corrmat=rp,
+                                 h2_vec=[0.5, 0.4]).matrix
+    # rows are phenotype-major: g1, o1, m1, g2, o2, m2; only m1 (row 2) is bounded
+    expected_g1 = cov[0, 2] / cov[2, 2] * lam
+    expected_g2 = cov[3, 2] / cov[2, 2] * lam
+    res = estimate_liability(fam, h2=[0.5, 0.4], genetic_corrmat=rg,
+                             full_corrmat=rp, out=("genetic",), tol=0.002,
+                             n_sim=100_000, burn_in=1000, seed=11)
+    assert abs(res.est["genetic_phenotype1"][0] - expected_g1) < 0.01
+    assert abs(res.est["genetic_phenotype2"][0] - expected_g2) < 0.01
+
+
 def test_use_mixture_without_K_raises():
     from ltpred.estimate import estimate_liability_pa_arrays
 
@@ -480,6 +512,27 @@ def test_use_mixture_without_K_raises():
             ["o"], np.array([[-np.inf]]), np.array([[t]]),
             K_i=np.array([[np.nan]]), K_pop=np.array([[np.nan]]),
             use_mixture=True)
+
+
+def test_use_mixture_case_only_structure_group_estimates():
+    """A structure group with no mixture pair of its own is not an error.
+
+    The at-least-one-pair gate is a property of the whole call (it already ran
+    on the flattened member list), not of each role-set group: an all-case
+    family — every ``K`` NaN because observed cases carry no censoring
+    mixture — must estimate alongside families that do supply valid pairs,
+    taking the plain truncated-normal fold for its case rows."""
+    t = float(stats.norm.isf(0.10))
+    control = Family("a", [Member("o", -np.inf, t, K_i=0.05, K_pop=0.10),
+                           Member("m", -np.inf, t, K_i=0.08, K_pop=0.10)])
+    cases = Family("b", [Member("o", t, np.inf), Member("s1", t, np.inf)])
+    res = estimate_liability([control, cases], h2=0.5, method="pa",
+                             use_mixture=True)
+    assert np.all(np.isfinite(res.est["genetic"]))
+    assert res.est["genetic"][1] > res.est["genetic"][0]   # two cases vs none
+    # the same all-case group alone (no valid pair anywhere) still raises
+    with pytest.raises(ValueError, match="at least one valid K_i/K_pop pair"):
+        estimate_liability([cases], h2=0.5, method="pa", use_mixture=True)
 
 
 @pytest.mark.parametrize(

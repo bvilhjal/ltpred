@@ -97,7 +97,7 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   against the `a·b·√p` prediction 0.2003 ± 0.0050 (`p = 1` by construction).
 - **The PA-FGRS mixture has a detectable but practically negligible ranking effect; case encoding dominates calibration.**
   Three of ten paired Δcorr 95% CIs exclude zero, but the largest shift is
-  only −0.00034 ± 0.00011. Under threshold crossing, pinned cases stay near
+  only −0.00034 (95% CI ± 0.00011). Under threshold crossing, pinned cases stay near
   slope 1. When onset only *tends* to track liability (ρ = 0.6), pinning
   over-conditions (slope 0.92 under heavy censoring). The lifetime interval
   under-conditions (slope up to 1.20); an age-specific case interval

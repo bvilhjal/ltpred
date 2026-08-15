@@ -215,7 +215,7 @@ reach a 1.47 ± 0.04× causal-SNP NCP ratio. Across matched **no-mixture** bound
 their posterior-mean estimates had correlation ≥ 0.997. These PA–Gibbs claims do
 not validate the PA-only censoring mixture. For that mixture, three of ten
 paired ranking contrasts exclude zero, but the largest correlation shift is
-only −0.00034 ± 0.00011: statistically detectable and practically
+only −0.00034 (95% CI ± 0.00011): statistically detectable and practically
 negligible. Pinning is calibrated only under
 threshold crossing. See
 [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md); real-LD runs use

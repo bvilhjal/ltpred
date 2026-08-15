@@ -537,9 +537,14 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
     covariance ``V = h2 * A + (1 - h2) * I`` and then divides row/column ``i`` by
     ``sqrt(V[i, i])``. This keeps every **full liability** ``o`` on the unit-variance
     threshold scale when inbreeding gives ``A[i, i] = 1 + F_i``; it is a no-op for
-    non-inbred pedigrees. When ``add_ind``, the similarly standardised **genetic
-    liability contribution** ``g`` of the ``target`` is prepended. Row order is
-    ``[g, o_0, …, o_{n-1}]``; the ``target``'s own full-liability row is labelled
+    non-inbred pedigrees. When ``add_ind``, the target's genetic liability divided
+    by that **same full-liability SD** is prepended as ``g``, so its variance is
+    ``h2 * A[t, t] / V[t, t]`` — equal to ``h2`` for a non-inbred target
+    (``A[t, t] = 1``) but strictly below the role-based ``Var(g) = h2 * A[t, t]``
+    under inbreeding. The kinship route's "genetic" estimates are therefore on the
+    ``sd(o_target)`` scale when the target is inbred, not the role-based ``g``
+    scale; rescale by ``sqrt(V[t, t])`` before comparing the two routes. Row order
+    is ``[g, o_0, …, o_{n-1}]``; the ``target``'s own full-liability row is labelled
     ``o`` and the rest ``rel<i>``. Returns a :class:`Covmat`.
 
     This is exactly the matrix the Gibbs / PA samplers consume, so a kinship-derived

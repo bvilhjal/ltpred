@@ -575,7 +575,8 @@ def _estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False
             families, idx, roles, dtype, use_mixture=use_mixture)
         group_est, group_var = _pa_from_role_arrays(
             roles, lowers, uppers, h2, out_coords, K_i=K_is, K_pop=K_pops,
-            use_mixture=use_mixture, c2=c2, m2=m2)
+            use_mixture=use_mixture, c2=c2, m2=m2,
+            mixture_require_pair=False)  # the global gate above already ran
         for slot, f in enumerate(idx):
             fam_ids[f] = families[f].fam_id
             pids[f] = group_pids[slot]
@@ -706,11 +707,17 @@ def _target_index(cov_roles, out_coord):
 
 
 def _pa_from_role_arrays(roles, lower, upper, h2, out_coords, K_i=None,
-                         K_pop=None, use_mixture=False, c2=None, m2=None):
+                         K_pop=None, use_mixture=False, c2=None, m2=None,
+                         mixture_require_pair=True):
     """PA estimates for one or more targets on same-structure role arrays.
 
-    ``roles`` labels the columns of ``lower``/``upper`` (no ``g`` — the
-    constructor adds it). Returns ``(est, var)`` dicts keyed by out-coord."""
+    ``roles`` labels the columns of ``lower``/``upper`` (no ``g`` -- the
+    constructor adds it). Returns ``(est, var)`` dicts keyed by out-coord.
+    ``mixture_require_pair=False`` skips the "at least one valid K pair" gate
+    for callers that already ran it globally over every family: a structure
+    group may legitimately contain no mixture pair of its own (e.g. every
+    family in the group is all-cases), so re-requiring one per group would
+    reject a call the global gate accepted."""
     roles = list(roles)
     _check_unique_role_labels(roles)
     lower = as_bounds(lower)
@@ -723,7 +730,8 @@ def _pa_from_role_arrays(roles, lower, upper, h2, out_coords, K_i=None,
     ki = kp = None
     if use_mixture:
         K_i, K_pop = validate_mixture_inputs(
-            K_i, K_pop, expected_shape=lower.shape, require_pair=True,
+            K_i, K_pop, expected_shape=lower.shape,
+            require_pair=mixture_require_pair,
             lower=lower, upper=upper,
             context="array estimator mixture inputs")
         ki, kp = _align_to_cov(
