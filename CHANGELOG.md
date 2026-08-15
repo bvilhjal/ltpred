@@ -20,6 +20,11 @@ version is 0 the public API may still change between minor releases.
 - Reran the 4-thread scaling grid and the LTFHPlus / LTFGRS lock after
   that collapse. Intra-package PA / Gibbs object-path speed-up is now
   384–488×; LTFHPlus Gibbs / ltpred Gibbs is 6.87 ± 0.12×.
+- Methods note and docs describe the collapsed sweep
+  (`Var(E[g|y])+Var(g|y)`). The leftover Implementation timing
+  paragraph now quotes the post-collapse array path
+  (2.15–6.53 M fam/s; 13–30× vs the object path), not the pre-collapse
+  203–492× / 1.2–3.8 M figures.
 
 ## 0.3.3 — 2026-08-15
 

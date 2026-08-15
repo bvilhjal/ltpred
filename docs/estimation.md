@@ -253,8 +253,8 @@ est, var = estimate_liability_pa_arrays(
 ```
 
 This runs the covariance construction once and the parallel PA kernel directly —
-21–52× faster than the object path in the current warmed timing grid, at
-1.2–3.8 million already-aligned families/s (and
+13–30× faster than the object path in the current warmed timing grid, at
+2.15–6.53 million already-aligned families/s (and
 `estimate_liability_gibbs_arrays` does the same for Gibbs, returning `(est, se)`).
 Control the thread count with `ltpred.set_num_threads(n)`, and warm up once (the
 first call JIT-compiles) before timing. Different family structures still need

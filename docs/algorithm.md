@@ -647,7 +647,8 @@ regardless of `n_sim`, and each family seeds its own RNG so results are
 deterministic regardless of thread scheduling. Coordinates that are untruncated
 in every family of the group (the genetic rows) are integrated out of the
 sweep; the genetic mean is the Gaussian conditional mean given the sampled
-truncated liabilities. Without Numba the identical code runs serially in
+truncated liabilities, and the reported posterior variance is
+`Var(E[g|y]) + Var(g|y)`. Without Numba the identical code runs serially in
 pure Python.
 
 ## Inference engine 2: Pearson–Aitken

@@ -278,7 +278,7 @@
       <div class="card">
         <div class="k">Scale</div>
         <h3>Biobank-ready performance</h3>
-        <p>Numba-JIT, <code>prange</code>-parallel kernels; families grouped by structure; streaming batch-means standard errors at O(F) memory; optional float32 bounds. <code>gibbs_estimate_batched</code> is imported from <code>ltpred.gibbs</code>. At four threads the ordinary PA engine ran ~57k–78k families/second on the object path, which includes bounds assembly and grouping; the array path reached 1.2–3.8 M families/s on already-aligned, repeatedly reused inputs — a hot-kernel rate, not end-to-end preparation.</p>
+        <p>Numba-JIT, <code>prange</code>-parallel kernels; families grouped by structure; streaming batch-means standard errors at O(F) memory; optional float32 bounds. <code>gibbs_estimate_batched</code> is imported from <code>ltpred.gibbs</code>. At four threads the ordinary PA engine ran ~89k–270k families/second on the object path, which includes bounds assembly and grouping; the array path reached 2.15–6.53 M families/s on already-aligned, repeatedly reused inputs — a hot-kernel rate, not end-to-end preparation. The Gibbs path integrates out untruncated genetic coordinates in each structure group.</p>
         <div class="fns"><span class="fn">pa_estimate_batched</span><span class="fn">gibbs_estimate_batched</span></div>
       </div>
       <div class="card">

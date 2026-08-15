@@ -68,8 +68,9 @@ liability-threshold model:
    case/control bounds with family history. LT-FH++ uses age-, birth-year- and
    sex-specific prevalence for the proband and relatives. ADuLT uses the same
    personalised construction for the proband alone, without family history.
-3. **Inference** — a **Gibbs** sampler (the sampling-based reference) or the deterministic
-   **Pearson–Aitken** (PA) engine turns the covariance and
+3. **Inference** — a **Gibbs** sampler (the sampling-based reference;
+   untruncated genetic coordinates are integrated out of the sweep) or the
+   deterministic **Pearson–Aitken** (PA) engine turns the covariance and
    intervals into an estimate of the posterior mean of the proband's genetic (`g`)
    and/or full (`o`) liability. PA has no Monte-Carlo error, but retains sequential
    approximation error, and ran 384–488× faster than grouped Gibbs in the

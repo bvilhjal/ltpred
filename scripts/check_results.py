@@ -215,6 +215,16 @@ def scaling_array_throughput_range(path):
     return (min(vals) / 1e6, max(vals) / 1e6)
 
 
+def scaling_array_vs_object_range(path):
+    vals = [float(r["pa_array_speedup"]) for r in _rows(path)]
+    return (min(vals), max(vals))
+
+
+def scaling_object_pa_rate_k_range(path):
+    vals = [float(r["fam_per_s_pa"]) for r in _rows(path)]
+    return (min(vals) / 1e3, max(vals) / 1e3)
+
+
 def scaling_nfam_500_row(path):
     row = _only(_rows(path), axis="n_fam", value="500")
     return (float(row["fam_per_s_gibbs"]), float(row["fam_per_s_pa"]),
@@ -922,6 +932,41 @@ GUARDS = [
           "benchmarks/bench_scaling.csv",
           scaling_nfam_500_row,
           r"^\| 500 \| (\d+) \| ([\d,]+) \| ([\d.]+) M \| (\d+)×"),
+    Guard("report-scaling-object-speedup",
+          "benchmarks/bench_scaling.csv",
+          scaling_object_speedup_range,
+          r"quotes a \$(\d+)\$--\$(\d+)\\times\$ object-path",
+          document="report/ltpred_methods.tex"),
+    Guard("report-scaling-array-throughput",
+          "benchmarks/bench_scaling.csv",
+          scaling_array_throughput_range,
+          r"ran at \$([\d.]+)\$--\$([\d.]+)\$\s+million families per second",
+          document="report/ltpred_methods.tex"),
+    Guard("report-scaling-array-vs-object",
+          "benchmarks/bench_scaling.csv",
+          scaling_array_vs_object_range,
+          r"another\s+\$(\d+)\$--\$(\d+)\\times\$ over the object path",
+          document="report/ltpred_methods.tex"),
+    Guard("estimation-array-speedup",
+          "benchmarks/bench_scaling.csv",
+          scaling_array_vs_object_range,
+          r"(\d+)–(\d+)× faster than the object path",
+          document="docs/estimation.md"),
+    Guard("estimation-array-throughput",
+          "benchmarks/bench_scaling.csv",
+          scaling_array_throughput_range,
+          r"at\s+([\d.]+)–([\d.]+) million already-aligned families/s",
+          document="docs/estimation.md"),
+    Guard("landing-object-pa-rate",
+          "benchmarks/bench_scaling.csv",
+          scaling_object_pa_rate_k_range,
+          r"ran ~([\d.]+)k–([\d.]+)k families/second on the object path",
+          document="index.html"),
+    Guard("landing-array-throughput",
+          "benchmarks/bench_scaling.csv",
+          scaling_array_throughput_range,
+          r"array path reached ([\d.]+)–([\d.]+) M families/s",
+          document="index.html"),
     Guard("gwas-power-ncp-ratio-headline",
           "benchmarks/bench_gwas_power.csv",
           gwas_power_ncp_gibbs,

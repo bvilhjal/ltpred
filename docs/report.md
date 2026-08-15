@@ -21,8 +21,9 @@ CSVs. A repository test checks that the inputs are current.
 
 The report states the estimand and assumptions first, then the
 liability-threshold model and BLUP identity, both inference engines,
-the implementation (grouping, streaming batch-means, object vs array
-path, posterior `var` vs estimator `se`), the population/IPW sampling
+the implementation (grouping, collapsed untruncated coordinates,
+streaming batch-means, object vs array path, posterior `var` vs
+estimator `se`), the population/IPW sampling
 contracts, and the load-bearing simulation tables — agreement
 and speed, GWAS NCP, personalisation, cohort confounding, calibration,
 PGS complementarity, the censoring mixture (including

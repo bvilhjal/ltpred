@@ -329,6 +329,13 @@ $Q=\Sigma^{-1}$:
 $\mathrm{sd}_j=\sqrt{1/Q_{jj}}$,
 $P_{ij}=-Q_{ij}/Q_{jj}$.
 Pinned coordinates are held.
+Coordinates that are untruncated in every family of a structure
+group (the genetic rows on the public path) are integrated out:
+the sweep is on the remaining truncated liabilities $y$, and the
+genetic mean is the Gaussian conditional $\E[g\mid y]$.
+The reported posterior variance is
+$\Var(\E[g\mid y])+\Var(g\mid y)$.
+The low-level chain \texttt{rtmvnorm\_gibbs} is not collapsed.
 Far-tail intervals cannot be drawn on the probability scale
 ($\Phi$ underflows near $|z|\approx 38.5$); those use a log-scale
 Rayleigh construction.
@@ -431,10 +438,15 @@ The array API receives already-aligned bounds and is the hot path.
 \paragraph{Gibbs.}
 The inner sweep is Numba-JIT'd and \texttt{prange}-parallel across
 families in a group.
+Untruncated coordinates that are free in every family of the
+group are integrated out of that sweep; genetic means are the
+Gaussian conditionals given the truncated draws.
 Batch-means summaries---running sums and sums of squares---are
 streamed, so Monte-Carlo-SE memory is $O(F)$ rather than
-$O(n_{\mathrm{sim}}F)$, and the posterior variance is the same
-streaming second moment.
+$O(n_{\mathrm{sim}}F)$.
+The posterior variance is the streamed second moment of the
+target, plus the constant residual variance of any collapsed
+coordinate.
 Each family carries its own RNG seed: the draw does not depend on
 which worker picked it up.
 Without Numba the identical code runs serially.
@@ -449,12 +461,12 @@ not a claim of smaller approximation error
 (Section~\ref{sec:pa}).
 
 \paragraph{What the timings measure.}
-Section~\ref{sec:results} quotes a $203$--$492\times$ object-path
+Section~\ref{sec:results} quotes a $384$--$488\times$ object-path
 speed-up of PA over grouped Gibbs at four threads.
 That includes Python-side assembly.
-The array path, on already-aligned inputs, ran at $1.2$--$3.8$
+The array path, on already-aligned inputs, ran at $2.15$--$6.53$
 million families per second in the same warmed run---another
-$21$--$52\times$ over the object path.
+$13$--$30\times$ over the object path.
 Those array rates are a hot-kernel measurement, not end-to-end
 register ingestion.
 
