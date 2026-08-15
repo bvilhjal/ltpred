@@ -45,7 +45,10 @@ python benchmarks/run_benchmark.py bench_accuracy.py -- --reps 5
 
 The wrapper appends one JSON object to `benchmarks/run_manifest.jsonl` with the
 exact command, UTC times, exit status, Git commit, tracked-diff hash, content
-hashes for untracked source files, package versions, and thread settings. It
+hashes for untracked source files, package versions, and thread settings. For a
+dirty tree it also stores the binary tracked patch and a ZIP of untracked source
+files under `benchmarks/run_sources/`; the hash alone is therefore not mistaken
+for a reproducible source bundle. It
 also records the machine the run happened on — architecture, CPU model, logical
 and physical core counts — and the thread count Numba actually resolved to, so
 timings taken on different hardware or a different Numba can be told apart

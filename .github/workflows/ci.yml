@@ -25,12 +25,39 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install (with the JIT + test + lint extras)
-        run: pip install -e ".[fast,test,lint]"
+      - name: Install (with the JIT + test extras)
+        run: pip install -e ".[fast,test]"
+      - name: Core tests
+        run: pytest -q tests
+
+  research:
+    # Checkout-only research code is unsupported by the package compatibility
+    # matrix.  Exercise it once on the current Linux stack without multiplying
+    # its cost across every supported Python/platform combination.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install (with the JIT + test extras)
+        run: pip install -e ".[fast,test]"
+      - name: Research tests
+        run: pytest -q research
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install lint dependency
+        run: pip install -e ".[lint]"
       - name: Lint (pyflakes gate)
         run: ruff check .
-      - name: Tests
-        run: pytest -q
 
   test-no-numba:
     # Numba is an OPTIONAL extra, so a plain `pip install ltpred` runs the pure
@@ -49,7 +76,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install WITHOUT the fast extra
-        run: pip install -e ".[test,lint]"
+        run: pip install -e ".[test]"
       - name: Assert the fallback is really in use
         run: python -c "from ltpred._numba import HAVE_NUMBA; assert not HAVE_NUMBA, 'numba leaked into the no-JIT job'"
       - name: Kernel tests on the pure-Python fallback
@@ -75,13 +102,11 @@ jobs:
           cache: pip
       - name: Install at the declared dependency floor
         run: |
-          pip install -e ".[test,lint]"
+          pip install -e ".[test]"
           pip install --force-reinstall "numpy==1.20.*" "scipy==1.6.*"
           python -c "import numpy, scipy; print(numpy.__version__, scipy.__version__)"
-      - name: Lint (pyflakes gate)
-        run: ruff check .
-      - name: Tests
-        run: pytest -q
+      - name: Core tests
+        run: pytest -q tests
 
   examples:
     # examples/*.py are the front door for new users and were previously run by
@@ -114,10 +139,8 @@ jobs:
           cache: pip
       - name: Install documentation dependencies
         run: pip install -e ".[docs]"
-      - name: Build documentation (strict)
-        run: mkdocs build --strict
       # `--strict` leaves link/anchor resolution at INFO, so it exits 0 on a
       # broken cross-reference. This also catches an unmatched code fence, which
       # silently renders following prose -- headings included -- as a code block.
-      - name: Check documentation integrity (fences, anchors)
+      - name: Build and check documentation (strict, fences, anchors)
         run: python scripts/check_docs.py

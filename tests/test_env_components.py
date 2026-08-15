@@ -49,10 +49,8 @@ class EstimationBehaviorTests(unittest.TestCase):
                                         pop_prev=0.1, n_sim=50, seed=1)
         base = estimate_liability(sim.families, h2=0.4)
         wired = estimate_liability(sim.families, h2=0.4, c2=0.1, m2=0.05)
-        e_base = np.asarray(base.est["genetic"] if hasattr(base, "est")
-                            else base.genetic)
-        e_wired = np.asarray(wired.est["genetic"] if hasattr(wired, "est")
-                             else wired.genetic)
+        e_base = np.asarray(base.est["genetic"])
+        e_wired = np.asarray(wired.est["genetic"])
         self.assertTrue(np.all(np.isfinite(e_wired)))
         self.assertFalse(np.allclose(e_base, e_wired))
 
@@ -78,8 +76,8 @@ class EstimationBehaviorTests(unittest.TestCase):
                                         pop_prev=0.1, n_sim=30, seed=2)
         a = estimate_liability(sim.families, h2=0.4)
         b = estimate_liability(sim.families, h2=0.4, c2=None, m2=None)
-        ea = np.asarray(a.est["genetic"] if hasattr(a, "est") else a.genetic)
-        eb = np.asarray(b.est["genetic"] if hasattr(b, "est") else b.genetic)
+        ea = np.asarray(a.est["genetic"])
+        eb = np.asarray(b.est["genetic"])
         np.testing.assert_allclose(ea, eb, rtol=0, atol=1e-12)
 
 

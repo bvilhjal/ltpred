@@ -203,12 +203,12 @@ def metrics(est, true_g):
 
 def run_arm(families, true_g, use_mixture, gibbs_subset=None):
     est = estimate_liability(families, h2=H2, use_mixture=use_mixture)
-    pa = np.asarray(est.est["genetic"] if hasattr(est, "est") else est.genetic)
+    pa = np.asarray(est.est["genetic"])
     out = {"pa": metrics(pa, true_g)}
     if gibbs_subset is not None:
         g = estimate_liability(families[:gibbs_subset], h2=H2, method="gibbs",
                                tol=0.03, n_sim=25_000, burn_in=800, seed=1)
-        ge = np.asarray(g.est["genetic"] if hasattr(g, "est") else g.genetic)
+        ge = np.asarray(g.est["genetic"])
         out["gibbs"] = metrics(ge, true_g[:gibbs_subset])
         out["pa_gibbs_corr"] = float(np.corrcoef(pa[:gibbs_subset], ge)[0, 1])
     return out

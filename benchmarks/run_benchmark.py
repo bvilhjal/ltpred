@@ -23,12 +23,14 @@ import shutil
 import subprocess
 import sys
 import time
+import zipfile
 
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 DEFAULT_MANIFEST = HERE / "run_manifest.jsonl"
 DEFAULT_LOG_DIR = HERE / "run_logs"
+DEFAULT_SOURCE_DIR = HERE / "run_sources"
 ARTIFACT_SUFFIXES = {".csv", ".png"}
 SOURCE_SUFFIXES = {
     "", ".c", ".cpp", ".h", ".ini", ".json", ".md", ".py", ".sh",
@@ -227,6 +229,28 @@ def _file_record(path):
     }
 
 
+def _source_snapshot(run_id, git_state, source_dir):
+    """Persist the exact dirty tracked and untracked source state for one run."""
+    diff = _git("diff", "--binary", "HEAD", text=False)
+    untracked = sorted(git_state["untracked_source_files"])
+    if not diff and not untracked:
+        return {}
+
+    source_dir.mkdir(parents=True, exist_ok=True)
+    snapshot = {}
+    if diff:
+        patch_path = source_dir / f"{run_id}.tracked.patch"
+        patch_path.write_bytes(diff)
+        snapshot["tracked_patch"] = _file_record(patch_path)
+    if untracked:
+        archive_path = source_dir / f"{run_id}.untracked.zip"
+        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for relative in untracked:
+                archive.write(ROOT / relative, arcname=relative)
+        snapshot["untracked_sources"] = _file_record(archive_path)
+    return snapshot
+
+
 def _parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -240,6 +264,12 @@ def _parse_args():
         type=Path,
         default=DEFAULT_LOG_DIR,
         help="stdout/stderr directory (default: benchmarks/run_logs)",
+    )
+    parser.add_argument(
+        "--source-dir",
+        type=Path,
+        default=DEFAULT_SOURCE_DIR,
+        help="dirty-source snapshots (default: benchmarks/run_sources)",
     )
     parser.add_argument("script", help="benchmark filename, for example bench_accuracy.py")
     parser.add_argument(
@@ -265,11 +295,13 @@ def main():
 
     started = datetime.now(timezone.utc)
     before = _artifact_state()
-    git_before = _git_state()
     run_id = (
         started.strftime("%Y%m%dT%H%M%S.%fZ")
         + f"-{script.stem}-{os.getpid()}"
     )
+    git_before = _git_state()
+    source_snapshot = _source_snapshot(
+        run_id, git_before, args.source_dir.expanduser().resolve())
     log_dir = args.log_dir.expanduser().resolve()
     log_dir.mkdir(parents=True, exist_ok=True)
     stdout_path = log_dir / f"{run_id}.stdout.log"
@@ -295,7 +327,7 @@ def main():
     sys.stderr.flush()
 
     record = {
-        "schema_version": 2,
+        "schema_version": 3,
         "script": str(script.relative_to(ROOT)),
         "command": command,
         "started_at_utc": started.isoformat(),
@@ -303,6 +335,7 @@ def main():
         "elapsed_seconds": elapsed,
         "exit_code": proc.returncode,
         "git_before": git_before,
+        "source_snapshot": source_snapshot,
         "environment": {
             "python": sys.version,
             "platform": platform.platform(),

@@ -134,6 +134,41 @@ def test_onset_resolution_applies_to_interval_cases_too():
     assert np.allclose(pin_lo[case], int_lo[case])
 
 
+@pytest.mark.parametrize("case_encoding", ["pin", "interval"])
+def test_rounded_threshold_crossing_bounds_contain_generating_liability(
+        case_encoding):
+    sim = simulate_under_LTM_single(
+        fam_vec=["m", "f"], h2=0.5, n_sim=3000, pop_prev=0.1,
+        use_age=True, seed=31, onset_model="threshold_crossing",
+        case_encoding=case_encoding, onset_resolution=1.0,
+    )
+    for i, family in enumerate(sim.families):
+        for member in family.members:
+            liability = sim.liabilities[i, sim.roles.index(member.role)]
+            assert member.lower <= liability + 1e-12
+            assert liability <= member.upper + 1e-12
+
+
+def test_exact_threshold_crossing_case_encoding_is_preserved():
+    kwargs = dict(
+        fam_vec=["m"], h2=0.5, n_sim=1000, pop_prev=0.1,
+        use_age=True, seed=32, onset_model="threshold_crossing",
+        onset_resolution=None,
+    )
+    pinned = simulate_under_LTM_single(case_encoding="pin", **kwargs)
+    interval = simulate_under_LTM_single(case_encoding="interval", **kwargs)
+    case = pinned.status["o"]
+    assert case.any()
+    for i in np.flatnonzero(case):
+        pin = next(m for m in pinned.families[i].members if m.role == "o")
+        one_sided = next(m for m in interval.families[i].members if m.role == "o")
+        true_liability = pinned.liabilities[i, pinned.roles.index("o")]
+        assert pin.lower == pytest.approx(true_liability, abs=1e-9)
+        assert pin.upper == pytest.approx(true_liability, abs=1e-9)
+        assert one_sided.lower == pytest.approx(true_liability, abs=1e-9)
+        assert one_sided.upper == np.inf
+
+
 @pytest.mark.parametrize("bad", [0.0, -1.0, np.nan, True])
 def test_onset_resolution_is_validated(bad):
     with pytest.raises((ValueError, TypeError), match="onset_resolution"):

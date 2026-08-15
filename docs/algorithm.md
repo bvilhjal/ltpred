@@ -394,9 +394,9 @@ fixed-variance **probit / threshold liability model with a pedigree random
 effect**, used primarily for *prediction* (of `g`) — the liability estimators
 condition on an assumed `h2`, CIP/prevalence model and relationship matrix. The
 heritability itself can optionally be **fit** from the same family data by
-data augmentation, but only for independent, non-overlapping families sampled
-from the population rather than through case or family-history ascertainment
-(see [Fitting the covariance](#fitting-the-covariance-heritability) below);
+data augmentation, but only for independent, non-overlapping families under the
+declared population or known-probability IPW sampling contracts (see
+[Fitting the covariance](#fitting-the-covariance-heritability) below);
 the CIP/prevalence model is always supplied.
 
 ## Connection to Sham's liability-threshold risk models
@@ -558,9 +558,10 @@ under heavy censoring). On the same families, replacing the pin with
 prevalence, where the pin adds another 0.01–0.02 in the squared-correlation
 proxy (RESULTS.md §3). Most of what onset contributes is the lower bound, not
 the point mass. When onset timing is uncertain or recorded only as a window,
-an interval encoding is the more honest likelihood: the lifetime interval
-conditions only on being affected, and the age-specific interval leaves the
-liability free above its edge. The
+an exact likelihood must integrate over the recording bin under an explicit
+onset model. The lifetime or age-specific liability interval is a conservative
+partial-information encoding: the lifetime interval conditions only on being
+affected, and the age-specific interval leaves liability free above its edge. The
 [real-data checklist](assumptions.md#real-data-checklist) already asks for the
 encoding choice to be recorded.
 
@@ -728,9 +729,10 @@ assumes censoring is non-informative given the stratum.
 
 That independence assumption is now a generative arm
 (`simulate_under_LTM_single(..., onset_model="liability_dependent")`, default
-ρ = 0.6), not only a caveat. In RESULTS.md §16 the mixture still has no
-measurable ranking cost (all ten paired Δcorr 95% CIs tighter than ±0.0002),
-and it still always lowers the calibration slope. What breaks is the *pin*,
+ρ = 0.6), not only a caveat. In RESULTS.md §16 three of ten paired Δcorr
+95% CIs exclude zero, but the largest shift is only −0.00034 ± 0.00011;
+the ranking effect is statistically detectable and practically negligible.
+The mixture still always lowers the calibration slope. What breaks is the *pin*,
 not the mixture: under partial onset dependence the lifetime interval sits
 between the crossing and stochastic extremes (MID slope 1.13), while pinning
 over-conditions (0.92). There is still no Gibbs implementation of the
@@ -747,24 +749,27 @@ data and alternates:
 
 **Sampling requirement.** The cross-product reconstruction below assumes
 independent, non-overlapping families sampled from the population observation
-model encoded by the bounds and prevalence. It does **not** model selection on
-the proband's or relatives' disease/family-history status. Case-control or
-family-history ascertainment therefore changes the latent cross-products and
-can severely bias the fit. Under such selection, supply an externally estimated
-population-scale `h2` or fit an explicit ascertainment model; neither more
-Gibbs iterations nor a different optimiser repairs a missing selection
+model encoded by the bounds and prevalence, either directly or reconstructed
+with valid IPW. Unmodelled case/control or family-history ascertainment changes
+the latent cross-products and can severely bias the fit. Under selection with
+unknown, misspecified, or zero inclusion probabilities, supply an externally
+estimated population-scale `h2` or fit an explicit ascertainment model; neither
+more Gibbs iterations nor a different optimiser repairs a missing selection
 likelihood.
 
 Two sampling modes are accepted. `sampling="population"` is the unascertained
-contract, and is **verified** rather than trusted: the thresholds imply
-`K = 1 - Phi(T)`, each role's case count is `Binomial(n_fam, K)` under that
-contract, and a gross departure raises. `sampling="ipw"` takes per-family
+contract, and is **screened for gross marginal inconsistency**: the thresholds
+imply `K = 1 - Phi(T)`, each role's case count is `Binomial(n_fam, K)` under that
+contract, and a gross departure raises. Passing this role-wise screen does not
+certify the joint family-pattern distribution. `sampling="ipw"` takes per-family
 `weights = 1 / P(family sampled)` and re-mixes the per-family moment
 contributions to population proportions — sound because the augmentation of a
 *given* family with *given* statuses is already the correct conditional law, and
-it is the **mix** that selection corrupts. It requires a strictly positive
-inclusion probability for every stratum; proband-ascertained designs have zero
-there and are rejected, since correct weights must reproduce `K` and none can.
+it is the **mix** that selection corrupts. It requires a known, strictly positive
+inclusion probability for every complete observed family-pattern stratum.
+Proband-ascertained designs have zero probability for unaffected probands and
+cannot be reweighted. The weighted marginal screen can falsify some bad weight
+sets; it is not a general positivity test.
 Omitting `sampling` still warns.
 
 1. **Augment** — one persistent truncated-MVN sweep per family under the current

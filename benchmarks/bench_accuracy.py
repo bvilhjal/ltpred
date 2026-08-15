@@ -38,7 +38,7 @@ import argparse
 
 import numpy as np
 
-from _common import simulate_families, estimate, get_plt
+from _common import estimate, get_plt, mean_se, simulate_families
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -61,13 +61,6 @@ def _metrics(est, true_g, status):
 METRICS = ("corr_gibbs", "corr_pa", "slope_gibbs", "slope_pa",
            "rmse_gibbs", "rmse_pa", "eff_n_proxy_gibbs", "eff_n_proxy_pa",
            "gibbs_pa_corr")
-
-
-def _mean_se(values):
-    """Across-seed mean and standard error (sd/sqrt(R)) of one metric."""
-    v = np.asarray(values, dtype=float)
-    se = v.std(ddof=1) / np.sqrt(v.size) if v.size > 1 else np.nan
-    return float(v.mean()), float(se)
 
 
 def run(n_fam, h2s, prevs, n_sim, seed, reps):
@@ -107,7 +100,7 @@ def run(n_fam, h2s, prevs, n_sim, seed, reps):
         sname, h2, prev = cell
         row = dict(structure=sname, h2=h2, prevalence=prev, reps=reps)
         for k in METRICS:
-            row[k], row[f"se_{k}"] = _mean_se(acc[cell][k])
+            row[k], row[f"se_{k}"] = mean_se(acc[cell][k])
         t_pair = np.asarray(timings[cell])
         row["t_gibbs"] = float(t_pair[:, 0].mean())
         row["t_pa"] = float(t_pair[:, 1].mean())

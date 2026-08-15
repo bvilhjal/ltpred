@@ -381,16 +381,18 @@ def _pa_batched_nomix(cov, lowers, uppers, est, var):
 
 
 def _validate_pa_covmat(covmat):
-    """Return ``covmat`` as float64 after a light shape/symmetry check.
+    """Return a supported positive-semidefinite covariance as float64.
 
     The PA counterpart of the Gibbs gate (:func:`ltpred.gibbs._validate_covmat`),
-    with the same scale-relative symmetry tolerance but **without** the strict
-    positive-definite check: the production paths already route through
-    :func:`ltpred.covariance.correct_positive_definite`, and PA's sequential
-    rank-1 updates never invert the supplied covariance."""
+    with the same scale-relative symmetry tolerance.  PA does not require strict
+    positive-definiteness, because its sequential rank-1 updates never invert the
+    supplied matrix, but it still requires a genuine covariance and positive
+    marginal variances for every coordinate that may be truncated."""
     cov = np.asarray(covmat, dtype=np.float64)
     if cov.ndim != 2 or cov.shape[0] != cov.shape[1]:
         raise ValueError("covmat must be square")
+    if cov.shape[0] == 0:
+        raise ValueError("covmat must contain at least one coordinate")
     if not np.all(np.isfinite(cov)):
         raise ValueError("covmat must contain only finite values")
     matrix_scale = float(np.max(np.abs(cov))) if cov.size else 1.0
@@ -400,6 +402,15 @@ def _validate_pa_covmat(covmat):
         raise ValueError(
             "covmat must be symmetric (maximum asymmetry "
             f"{asymmetry:.3g}, relative tolerance {symmetry_tolerance:.3g})")
+    diag = np.diag(cov)
+    if np.any(diag <= 0.0):
+        raise ValueError("covmat diagonal variances must be strictly positive")
+    min_eigenvalue = float(np.linalg.eigvalsh(cov)[0])
+    psd_tolerance = 1e-10 * max(matrix_scale, 1.0)
+    if min_eigenvalue < -psd_tolerance:
+        raise ValueError(
+            "covmat must be positive-semidefinite (minimum eigenvalue "
+            f"{min_eigenvalue:.3g}, tolerance {-psd_tolerance:.3g})")
     return cov
 
 

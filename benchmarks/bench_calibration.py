@@ -41,7 +41,7 @@ import argparse
 
 import numpy as np
 
-from _common import simulate_families, estimate, get_plt
+from _common import estimate, get_plt, mean_se, simulate_families
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -79,17 +79,10 @@ def calib(est, true_g, n_bins=10):
 KEYS = ("slope", "intercept", "corr", "cal_rmse", "top_ratio")
 
 
-def _mean_se(values):
-    """Across-seed mean and standard error (sd/sqrt(R)) of one metric."""
-    v = np.asarray(values, dtype=float)
-    se = v.std(ddof=1) / np.sqrt(v.size) if v.size > 1 else np.nan
-    return float(v.mean()), float(se)
-
-
 def _fill(row, eng, pairs, idx):
     """Aggregate metric ``idx`` of paired (Gibbs, PA) calib dicts into ``row``."""
     for key in KEYS:
-        row[f"{key}_{eng}"], row[f"se_{key}_{eng}"] = _mean_se(
+        row[f"{key}_{eng}"], row[f"se_{key}_{eng}"] = mean_se(
             [p[idx][key] for p in pairs])
 
 
@@ -155,7 +148,7 @@ def panel_misspec(n_fam, true_h2, assumed_grid, prev, seed, reps):
                    cal_rmse_gibbs="", se_cal_rmse_gibbs="", top_ratio_gibbs="",
                    se_top_ratio_gibbs="")
         for key in KEYS:
-            row[f"{key}_pa"], row[f"se_{key}_pa"] = _mean_se(
+            row[f"{key}_pa"], row[f"se_{key}_pa"] = mean_se(
                 [c[key] for c in acc[a_h2]])
         flag = "  <- true" if abs(a_h2 - true_h2) < 1e-9 else ""
         print("  assumed h2=%.2f | slope=%.3f±%.3f  corr=%.3f±%.3f  "

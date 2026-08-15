@@ -5,6 +5,20 @@ from __future__ import annotations
 import numpy as np
 
 
+def validate_binary(values, *, name="values", ndim=None):
+    """Return Boolean data after rejecting missing, sentinel, and non-binary codes."""
+    array = np.asarray(values)
+    if ndim is not None and array.ndim != ndim:
+        raise ValueError(f"{name} must be a {ndim}-dimensional array")
+    if array.dtype.kind == "b":
+        return array
+    if array.dtype.kind not in "iuf" or not np.all(np.isfinite(array)):
+        raise ValueError(f"{name} must contain only boolean or 0/1 values")
+    if np.any((array != 0) & (array != 1)):
+        raise ValueError(f"{name} must contain only boolean or 0/1 values")
+    return array.astype(bool)
+
+
 def validate_bounds(lower, upper, *, context="bounds"):
     """Validate liability truncation bounds without rejecting valid infinities.
 

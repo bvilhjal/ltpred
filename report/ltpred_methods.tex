@@ -5,7 +5,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath,amssymb,amsthm,bm}
-\usepackage{booktabs,array}
+\usepackage{booktabs,array,graphicx}
 \usepackage{microtype}
 \usepackage{setspace}
 \usepackage{xcolor}
@@ -35,8 +35,8 @@
   {\large Model, sequential approximation, and evidence in \texttt{ltpred}}}
 \author{Others (TBD) and Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
   {\small Aarhus University and SMARTbiomed}\\[0.35em]
-  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.3.1}}
-\date{14 August 2026}
+  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.3.2}}
+\date{15 August 2026}
 
 \begin{document}
 \maketitle
@@ -46,10 +46,11 @@
 \noindent
 The LT-FH family of methods replaces a case/control label with
 $\E[a_i\mid \text{family data}]$ under a Gaussian liability-threshold
-model. That is ordinary BLUP after the liabilities have been replaced
-by their truncated-normal means; the published names
-(LT-FH, LT-FH++, ADuLT, PA-FGRS) are different choices of the
-truncation region \(C_F\), not different genetic models.
+model. For rectangular observations that is ordinary BLUP after the
+liabilities have been replaced by their truncated-normal means.
+LT-FH, LT-FH++ and ADuLT choose different rectangles; PA-FGRS also
+permits a censoring mixture of truncated laws. These are observation
+models, not different genetic models.
 These notes fix the estimand, the observation-model menu, the
 exactness boundary of the Pearson--Aitken (PA) approximation, and
 the sampling conditions under which a pedigree Haseman--Elston
@@ -88,17 +89,20 @@ Write $a_i$ for the additive genetic liability of a designated
 proband, $\Var(a_i)=\h$ on the usual unit-liability scale, and
 $\ell_F$ for the vector of full liabilities on the people whose
 disease records are used (the proband may or may not be among them).
-The data determine a rectangle $C_F$---one interval per person---and
-the target is
+Let $D_F$ denote the complete observation model encoded by those
+records. The general target is
 \begin{equation}
   \mu_i
   \;=\;
-  \E\!\bigl[a_i \,\big|\, \ell_F\in C_F,\; A,\; \h,\; K(\,\cdot\,)\bigr],
+  \E\!\bigl[a_i \,\big|\, D_F,\; A,\; \h,\; K(\,\cdot\,)\bigr],
   \label{eq:estimand}
 \end{equation}
 where $A$ is the additive relationship matrix and $K(\,\cdot\,)$ is
 the prevalence or cumulative-incidence model that turns status and
-age into interval endpoints.
+age into interval endpoints or mixture weights. For LT-FH, LT-FH++
+and ADuLT, $D_F$ is the rectangular event $\ell_F\in C_F$, one interval
+per person. The PA-FGRS censoring mixture is a mixture of truncated
+laws and is not, in general, one rectangle.
 
 If $\ell_F$ were observed continuously, \eqref{eq:estimand} would be
 the selection index / animal-model BLUP
@@ -156,15 +160,16 @@ Here the target is the breeding value, used as a phenotype.
   arr/.style={-{Latex}, ltink, thick}
 ]
   \node[box] (data) {status, age,\\relatives};
-  \node[box, right=10mm of data] (thr) {$K(\,\cdot\,)$\\$\to$ $C_F$};
-  \node[box, right=10mm of thr] (tmvn) {$\E[\ell_F\mid C_F]$};
-  \node[box, right=10mm of tmvn] (blup) {$\E[a_i\mid C_F]$};
+  \node[box, right=10mm of data] (thr) {$K(\,\cdot\,)$\\$\to$ $D_F$};
+  \node[box, right=10mm of thr] (tmvn) {$\E[\ell_F\mid D_F]$};
+  \node[box, right=10mm of tmvn] (blup) {$\E[a_i\mid D_F]$};
   \draw[arr] (data) -- (thr);
   \draw[arr] (thr) -- (tmvn);
   \draw[arr] (tmvn) -- (blup);
 \end{tikzpicture}
-\caption{The published methods differ in how they build $C_F$.
-They share \eqref{eq:blup-trunc}.}
+\caption{The published methods differ in how they build $D_F$.
+Rectangular methods share \eqref{eq:blup-trunc}; PA-FGRS may instead
+use the mixture in \eqref{eq:mix}.}
 \label{fig:pipeline}
 \end{figure}
 
@@ -234,8 +239,8 @@ from $A$, not from those role labels.
 \section{The observation-model menu}
 \label{sec:obs}
 
-LT-FH, LT-FH++ and ADuLT are names for $C_F$, not for an inference
-algorithm.
+LT-FH, LT-FH++ and ADuLT are names for rectangular $D_F$, not for an
+inference algorithm.
 Gibbs and PA both apply to the first three.
 PA-FGRS, in the published specification and in the implementation,
 is PA-specific.
@@ -263,9 +268,11 @@ stratum and onset have identical liability---zero residual variance
 given $a_i$.
 The inverse map is then the identity: the observation \emph{is}
 the liability.
-When onset is a window, or $K$ is estimated, an interval
+When onset is recorded in a window, an exact likelihood must integrate
+over the recording bin under an explicit onset model. An interval
 $[T_i(a_i),\infty)$ or the lifetime interval $[T_{\mathrm{pop}},\infty)$
-is the more honest likelihood.
+is a conservative partial-information encoding, not that general
+likelihood.
 On the same simulated families, the interval keeps almost all of
 the onset increment except at $K=0.30$, where the pin adds another
 $0.01$--$0.02$ in the squared-correlation proxy.
@@ -399,9 +406,10 @@ eventually be cases, time-to-onset is independent of liability,
 and censoring is non-informative given the stratum.
 If higher liability advances onset, the not-yet-onset component is
 not the above-threshold tail assigned to it.
-A PA generative check at $\rho=0.6$ finds no ranking cost and the
-usual downward slope shift; the pin, not the mixture, is what
-breaks (Section~\ref{sec:results}).
+A PA generative check at $\rho=0.6$ finds statistically detectable
+but practically negligible ranking shifts and the usual downward
+slope shift; the pin, not the mixture, is what breaks materially
+(Section~\ref{sec:results}).
 There is still no Gibbs implementation of \eqref{eq:mix}.
 
 %----------------------------------------------------------------------
@@ -452,7 +460,7 @@ register ingestion.
 
 \paragraph{Two different uncertainties.}
 Write $\widehat{\mu}_i$ for the reported estimate of \eqref{eq:estimand}.
-Then $\mathtt{var}$ is $\Var(a_i\mid C_F)$, the posterior spread.
+Then $\mathtt{var}$ is $\Var(a_i\mid D_F)$, the posterior spread.
 It does not shrink with more Gibbs draws.
 $\mathtt{se}$ is the estimator's own error in $\widehat{\mu}_i$:
 batch-means Monte Carlo for Gibbs, identically zero for PA.
@@ -509,22 +517,25 @@ Across-cohort SD is $20$--$30\times$ larger
 
 Law of total expectation recovers
 $\E[\ell_i\ell_j]=\h A_{ij}$ from the augmented products only for
-independent, non-overlapping, unascertained families and a
-\emph{common} $T$ per trait.
+independent, non-overlapping families under the declared sampling
+contract and a \emph{common} $T$ per trait.
 Personalised or onset-pinned rectangles---even the internally
-coherent ones that prediction wants---drive \eqref{eq:he} to the
-$\h\sim 1$ boundary and invent a $C$ component.
-Those inputs are refused.
+coherent ones that prediction wants---are outside that identified
+moment design and are refused. This is an explicit contract,
+motivated by exploratory failures, not a current quantitative
+benchmark for personalised fitting.
 Ascertainment is not cured by more sweeps.
 The damage is severe and silent: on families selected through an
 affected proband with a \emph{true} $\h$ of zero, \eqref{eq:he}
-returns $\h=1.0$, and a realised case share only $1.17\times$ the
-prevalence the thresholds assert already inflates $\h$ by $+0.12$
+returns $\h=1.0$, and a realised case share of $6.4\%$ against an
+asserted $5.0\%$ ($1.27\times$) already inflates $\h$ by $+0.230$
 (Section~\ref{sec:ascertainment}).
-The claim is therefore checked rather than trusted: the supplied
+The claim is therefore screened for marginal inconsistency rather
+than taken entirely on trust: the supplied
 $T$ implies $K=1-\Phi(T)$, under population sampling each role's
 case count is $\mathrm{Binomial}(n_{\mathrm{fam}},K)$, and a gross
-departure is refused.
+departure is refused. Passing this role-wise screen does not certify
+the joint family-pattern distribution.
 The same remarks apply to the multiple HE fit of $(\h,c^{2},m^{2})$,
 where saturation shows up as an exhausted residual rather than a
 component at the clamp.
@@ -544,9 +555,11 @@ proportions and restores the estimator.
 Two conditions bind.
 \emph{Positivity}: a design that samples no family from some stratum
 has $\pi=0$ there, and no weight reconstructs what was never
-observed---proband ascertainment is exactly this case, and it is
-detected, because correct weights must reproduce $K$ and these
-cannot.
+observed---proband ascertainment is exactly this case. Selection on
+family history is IPW-correctable only if every complete observed
+family pattern has a known, strictly positive inclusion probability.
+The weighted role-marginal screen can falsify some wrong weight sets;
+it is not a general positivity test.
 \emph{Efficiency}: at $K=0.05$ a $50/50$ case/control cohort needs
 weights up to $19$, so the effective sample size falls well below
 the nominal one.
@@ -565,6 +578,11 @@ with one threshold, the pedigree HE is a reasonable moment
 estimator and is calibrated in that design
 (Section~\ref{sec:results}).
 Those are not the same analysis.
+The benchmark's ``Lee arm'' is only a diagnostic: it standardises
+each family role by its sample case rate, pools multi-relative HE
+moments, and applies the proband's sample fraction in \eqref{eq:lee}.
+It is not an implementation or empirical evaluation of conventional
+unrelated-sample LDSC or GREML.
 
 %----------------------------------------------------------------------
 \section{Evidence}
@@ -597,33 +615,7 @@ Independent SNPs throughout; no row uses the censoring mixture
 \eqref{eq:mix}.}
 \label{tab:headlines}
 \small
-\begin{tabular}{@{}llp{6.6cm}@{}}
-\toprule
-Claim & Number & Design \\
-\midrule
-PA--Gibbs agreement
-  & $0.9977$--$0.9999$
-  & $27$-cell classic LT-FH grid, no mixture \\
-Object-path speed-up
-  & $203$--$492\times$
-  & $4$ threads, this machine \\
-Classic LT-FH NCP
-  & $1.47\pm 0.04\times$
-  & $10{,}000$ probands, $30$ causal SNPs \\
-LT-FH++ minus ADuLT
-  & $+0.145\pm 0.015$
-  & paired $95\%$ CI; known CIP, pinned onset \\
-Cohort-blind $\lambda_{\mathrm{GC}}$
-  & $16.46\pm 0.40$
-  & $4\times$ prevalence trend / $30$\,y \\
-PGS $+$ LT-FH test $R^{2}$
-  & $0.339$ vs $0.236$, $0.170$
-  & held-out $a_i$; $p=1$ by construction \\
-IPW $50/50$ $\widehat{\h}$
-  & $0.495$ (from $1.000$)
-  & $N=10{,}000$, $K=0.05$, truth $0.5$ \\
-\bottomrule
-\end{tabular}
+\resizebox{\textwidth}{!}{\input{../paper/tables/headlines.tex}}
 \end{table}
 
 \subsection{The sequential approximation}
@@ -695,28 +687,7 @@ NCP uses $\overline{\chi^{2}}-1$.
 Power is the fraction of causal SNPs at $p<5\times 10^{-8}$.}
 \label{tab:gwas}
 \small
-\begin{tabular}{@{}lcccc@{}}
-\toprule
-Phenotype
-  & mean causal $\chi^{2}$
-  & NCP / c-c
-  & power
-  & $\lambda_{\mathrm{GC}}$ \\
-\midrule
-case/control
-  & $39.63\pm 2.19$ & $1.00\times$
-  & $41.1\pm 2.2\%$ & $1.011\pm 0.009$ \\
-LT-FH (Gibbs)
-  & $57.53\pm 1.87$ & $1.468\pm 0.040\times$
-  & $48.9\pm 4.0\%$ & $1.012\pm 0.019$ \\
-LT-FH (PA)
-  & $57.60\pm 1.91$ & $1.469\pm 0.039\times$
-  & $48.9\pm 4.0\%$ & $1.007\pm 0.021$ \\
-oracle $a_i$
-  & $337.37\pm 2.07$ & $8.77\pm 0.57\times$
-  & $75.6\pm 1.1\%$ & $1.047\pm 0.015$ \\
-\bottomrule
-\end{tabular}
+\resizebox{\textwidth}{!}{\input{../paper/tables/gwas_power.tex}}
 \end{table}
 \FloatBarrier
 
@@ -740,29 +711,7 @@ The last column is stratified-null $\lambda_{\mathrm{GC}}$ before
 and after the same covariate adjustment.}
 \label{tab:ltfhpp}
 \small
-\begin{tabular}{@{}lcccc@{}}
-\toprule
-Phenotype & adj.\ corr & adj.\ slope & NCP / c-c
-  & $\lambda$ raw${}\to{}$adj. \\
-\midrule
-case/control
-  & $0.586\pm 0.008$ & $1.123\pm 0.021$ & $1.000\times$
-  & $1.140\to 1.019$ \\
-ADuLT (no FH)
-  & $0.600\pm 0.008$ & $1.004\pm 0.018$ & $1.049\pm 0.004\times$
-  & $1.024\to 1.014$ \\
-classic LT-FH
-  & $0.629\pm 0.008$ & $1.183\pm 0.020$ & $1.149\pm 0.007\times$
-  & $1.131\to 0.990$ \\
-FH $+$ age CIP
-  & $0.639\pm 0.008$ & $1.009\pm 0.016$ & $1.189\pm 0.006\times$
-  & $0.998\to 1.018$ \\
-\textbf{LT-FH++}
-  & $\mathbf{0.640\pm 0.008}$ & $\mathbf{0.995\pm 0.015}$
-  & $\mathbf{1.194\pm 0.006\times}$
-  & $\mathbf{0.996\to 1.010}$ \\
-\bottomrule
-\end{tabular}
+\resizebox{\textwidth}{!}{\input{../paper/tables/integrated_panel.tex}}
 \end{table}
 
 The paired LT-FH++ minus ADuLT increment is
@@ -813,19 +762,7 @@ Three replicates.
 Truly independent null SNPs stay near $1$ for every method.}
 \label{tab:confound}
 \small
-\begin{tabular}{@{}cccc@{}}
-\toprule
-$R$ / $30$\,y
-  & FH $+$ cohort $K$
-  & single-$K$ FH
-  & case/control \\
-\midrule
-$1$ & $0.960\pm 0.012$ & $0.960\pm 0.012$ & $0.899\pm 0.034$ \\
-$2$ & $0.964\pm 0.054$ & $4.539\pm 0.253$ & $2.008\pm 0.257$ \\
-$3$ & $0.922\pm 0.057$ & $10.275\pm 0.078$ & $4.616\pm 0.220$ \\
-$4$ & $1.007\pm 0.040$ & $16.460\pm 0.399$ & $7.666\pm 0.094$ \\
-\bottomrule
-\end{tabular}
+\input{../paper/tables/confounding.tex}
 \end{table}
 
 At $R=1$ there is no trend-driven inflation.
@@ -887,20 +824,7 @@ $R^{2}$ is against true $a_i$.
 The joint model is OLS on the two scores.}
 \label{tab:pgs}
 \small
-\begin{tabular}{@{}lcc@{}}
-\toprule
-Score & $\Corr(\,\cdot\,,a_i)$ & $R^{2}$ \\
-\midrule
-case/control label
-  & $0.343\pm 0.007$ & $0.118\pm 0.005$ \\
-PGS
-  & $0.485\pm 0.009$ & $0.236\pm 0.009$ \\
-LT-FH (PA)
-  & $0.413\pm 0.003$ & $0.170\pm 0.003$ \\
-PGS $+$ LT-FH
-  & --- & $0.339\pm 0.009$ \\
-\bottomrule
-\end{tabular}
+\input{../paper/tables/pgs_comparison.tex}
 \end{table}
 
 Incremental $R^{2}$: $+0.104\pm 0.007$ for LT-FH over PGS,
@@ -963,16 +887,7 @@ The fitter's Monte Carlo SE is not a sampling SE.
 $\h$ under the design it is identified in.}
 \label{tab:h2}
 \small
-\begin{tabular}{@{}cccccc@{}}
-\toprule
-true $\h$ & mean & bias & emp.\ SD & MC SE & SD / MC SE \\
-\midrule
-$0.2$ & $0.201$ & $+0.001$ & $0.037$ & $0.0020$ & $19\times$ \\
-$0.4$ & $0.387$ & $-0.013$ & $0.055$ & $0.0022$ & $25\times$ \\
-$0.6$ & $0.577$ & $-0.023$ & $0.063$ & $0.0023$ & $28\times$ \\
-$0.8$ & $0.786$ & $-0.014$ & $0.061$ & $0.0026$ & $24\times$ \\
-\bottomrule
-\end{tabular}
+\input{../paper/tables/fit_heritability.tex}
 \end{table}
 
 Joint $A+C$ on the same design (mean, emp.\ SD):

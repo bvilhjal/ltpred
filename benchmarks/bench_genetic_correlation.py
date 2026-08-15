@@ -27,11 +27,10 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-from scipy.stats import chi2
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root: `research`
 
-from _common import get_plt, simulate_families_multi
+from _common import get_plt, sd_ci, simulate_families_multi
 from research.advanced_fitting import fit_genetic_correlation
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -39,13 +38,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FAM = ["m", "f", "s1", "s2"]
 H2 = [0.5, 0.4]
 RP_OFFDIAG = 0.2                       # phenotypic (full-liability) correlation
-
-
-def _sd_ci(sd, reps, alpha=0.05):
-    """Normal-theory confidence interval for an across-replicate SD."""
-    df = reps - 1
-    return (sd * np.sqrt(df / chi2.ppf(1.0 - alpha / 2.0, df)),
-            sd * np.sqrt(df / chi2.ppf(alpha / 2.0, df)))
 
 
 def fit_replicates(rg_val, n_fam, prev, reps, seed0, n_iter, burn_in):
@@ -140,7 +132,7 @@ def plot(panel_a, panel_b):
     ax[0].legend(fontsize=8)
     n = np.array([r["n_fam"] for r in panel_b], float)
     sdb = np.array([r["sd"] for r in panel_b])
-    ci = np.array([_sd_ci(r["sd"], r["reps"]) for r in panel_b])
+    ci = np.array([sd_ci(r["sd"], r["reps"]) for r in panel_b])
     ax[1].errorbar(n, sdb, yerr=np.vstack([sdb - ci[:, 0], ci[:, 1] - sdb]),
                    fmt="-o", capsize=3, label="across-replicate SD (95% CI)")
     ref = sdb[0] * np.sqrt(n[0] / n)

@@ -69,15 +69,17 @@ Use ltpred when you have, per proband:
 
     `fit_heritability` and `fit_variance_components` assume independent,
     non-overlapping families under one of two contracts:
-    `sampling="population"` for an unascertained sample — checked against your
-    observed case rates, not taken on trust — or `sampling="ipw"` with
+    `sampling="population"` for an unascertained sample — screened for gross
+    marginal case-rate inconsistency, though a passing screen is not proof of
+    population sampling — or `sampling="ipw"` with
     per-family `weights = 1 / P(family sampled)` when selection was on observed
     status with a known, strictly positive probability (case/control cohorts,
     biobank case enrichment).
 
-    Selection on **family history**, and any design that samples no families
-    from some stratum (ascertainment through an affected proband), cannot be
-    reweighted at all: those are rejected rather than fitted. See
+    Selection on **family history** is reweightable only when every complete
+    observed family pattern has a known, strictly positive inclusion
+    probability. Any design that samples no families from some stratum
+    (ascertainment through an affected proband) cannot be reweighted. See
     [Inference](inference.md#ascertained-samples).
 
 The output targets the posterior mean genetic liability of each proband (Gibbs by

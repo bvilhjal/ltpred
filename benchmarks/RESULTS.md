@@ -45,8 +45,8 @@ treated as current.
 Core fitter benchmarks (sections 5-9) use unascertained, population-sampled
 simulated families and characterise the fitters only under that supported
 contract. Section 29 measures the opposite case directly -- what those fitters
-return on ascertained samples -- and is the basis for the case-rate check that
-now verifies `sampling="population"` against the data.
+return on ascertained samples -- and is the basis for the marginal case-rate
+screen applied under `sampling="population"`.
 
 Metric names matter here. **NCP ratio** means a ratio of causal-SNP chi-square
 noncentrality components. **Eff-N proxy** means a squared-correlation ratio to
@@ -95,9 +95,9 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   **0.236 ± 0.009** (PGS), **0.170 ± 0.003** (classic LT-FH) and
   **0.339 ± 0.009** (OLS on both). Observed corr(PGS, LT-FH) is 0.2009 ± 0.0046
   against the `a·b·√p` prediction 0.2003 ± 0.0050 (`p = 1` by construction).
-- **The PA-FGRS mixture has no measurable ranking cost; case encoding dominates calibration.**
-  All ten paired Δcorr 95% CIs (including the liability-dependent onset arm)
-  are tighter than ±0.0002. Under threshold crossing, pinned cases stay near
+- **The PA-FGRS mixture has a detectable but practically negligible ranking effect; case encoding dominates calibration.**
+  Three of ten paired Δcorr 95% CIs exclude zero, but the largest shift is
+  only −0.00034 ± 0.00011. Under threshold crossing, pinned cases stay near
   slope 1. When onset only *tends* to track liability (ρ = 0.6), pinning
   over-conditions (slope 0.92 under heavy censoring). The lifetime interval
   under-conditions (slope up to 1.20); an age-specific case interval
@@ -619,13 +619,13 @@ identical cohorts; mean ± SE with t-based 95% CI half-width, 5 replicates):
 | dependent OLD | lifetime interval | -0.00007 ± 0.00004 (CI ± 0.00012) | -0.00812 ± 0.00014 (CI ± 0.00038) |
 | dependent OLD | pinned | -0.00006 ± 0.00005 (CI ± 0.00014) | -0.00724 ± 0.00016 (CI ± 0.00044) |
 
-### Verdict: behaves as intended here; no measurable correlation cost; case encoding dominates; pinning is not a free lunch
+### Verdict: behaves as intended here; detectable but negligible correlation shifts; case encoding dominates; pinning is not a free lunch
 
-- **No measurable correlation cost, now including the assumption-stress arm.**
-  All ten Δcorr CIs are tighter than ±0.0002. Several include zero. Those
-  that exclude zero put the cost at at most -0.00034, ~0.1% of the
-  correlation level. The mixture does not buy ranking, and it does not
-  spend it, even when its independence assumption is false.
+- **The correlation shifts are measurable but practically negligible.**
+  Three of ten Δcorr CIs exclude zero; the largest shift is
+  -0.00034 with a 95% CI half-width of 0.00011, about 0.1% of the
+  correlation level. The mixture therefore changes ranking slightly in some
+  cells, including when its independence assumption is false.
 - **Pinning is calibrated only under threshold crossing.** At ρ = 0.6 the
   pinned slope is 0.92 (MID) / 0.96 (OLD): onset is no longer the CIP
   inverse of liability, so a point mass at T(onset) over-conditions.
@@ -1378,10 +1378,12 @@ denominator of the Haseman-Elston ratio. Same grid, 10 replicates, N = 10,000:
 A 50/50 case/control cohort goes from pinned at 1.000 to 0.495 against a truth
 of 0.5. Two limits bound this:
 
-- **Positivity.** The three *undefined* rows sample no families at all from some
-  stratum, so inclusion probability is zero there and no weight reconstructs
-  what was never observed. This is detected rather than assumed: correct weights
-  must reproduce the asserted prevalence, and these cannot, so the fitter raises.
+- **Positivity.** The three *undefined* rows use deterministic rules that sample
+  no families at all from some complete status-pattern stratum, so no weight
+  reconstructs what was never observed. The benchmark identifies that from the
+  known selection rule and does not call the weighted fitter for those rows.
+  They are examples of zero-probability designs, not a claim that every form of
+  family-history selection is unweightable.
 - **Efficiency.** Weights reach 19× at K = 0.05, and the IPW SD (0.055) exceeds
   the population arm's (0.046). IPW buys accuracy with precision, and the cost
   grows as the enrichment does.
@@ -1394,12 +1396,15 @@ Measured directly (arm J), an observed-scale HE + Lee pipeline on the same
 ascertained cohorts lands at **0.211** (50/50) and **0.294** (20% enriched)
 against a truth of 0.5, and is itself +0.21 off under clean population sampling
 -- so it is not a drop-in replacement for the population-sampled fitter either.
-It does at least fail gracefully rather than manufacturing heritability.
+This arm standardises each family role by its sample case rate, pools
+multi-relative HE moments, and applies the proband's sample fraction in the Lee
+factor. It is an in-repository diagnostic, not an implementation or empirical
+evaluation of conventional unrelated-sample LDSC or GREML.
 
 ### What changed as a result
 
-`sampling="population"` is now verified against the data rather than taken on
-trust (`ltpred.fit._assert_population_case_rate`). The thresholds assert a
+`sampling="population"` is now screened for gross marginal inconsistency rather
+than taken entirely on trust (`ltpred.fit._assert_population_case_rate`). The thresholds assert a
 prevalence, and under population sampling each role's case count is
 Binomial(n_families, K), so a binomial z-test applies per role. All five
 phenotype-selected schemes above raise at z = +67 to +436 (at this section's
@@ -1419,10 +1424,10 @@ above shows that is not harmless.
 
 With `sampling="ipw"` the same test is applied to the **weighted** counts, using
 Kish's effective sample size so heavy weights widen the tolerance rather than
-manufacturing significance. That makes one check do two jobs: correct weights
-must re-mix the sample back to population proportions, so a failure means either
-the weights are wrong or a stratum had inclusion probability zero -- the
-positivity condition, tested the only way the data allows.
+manufacturing significance. A failure falsifies the proposed weights or
+sampling contract. Passing only establishes compatible role-wise case
+marginals; it does not certify joint family-pattern positivity or weight
+correctness.
 
 ## Historical report changes
 

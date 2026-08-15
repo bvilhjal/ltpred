@@ -18,9 +18,10 @@ Unsupported experimental inferential machinery lives in the checkout-only
     and a design that samples *no* families from some stratum cannot be
     reweighted at all.
 
-    `sampling="population"` is **verified against your data**, not taken on
-    trust. Your thresholds assert a prevalence, so each role's case rate is
-    compared with it and a gross mismatch raises. This is worth knowing because
+    `sampling="population"` is **screened for marginal inconsistency** with your
+    data, not taken entirely on trust. Your thresholds assert a prevalence, so
+    each role's case rate is compared with it and a gross mismatch raises. This
+    is worth knowing because
     the failure it guards is severe and silent: on ascertained families with a
     true `h²` of **0**, the unguarded fitter returns **`h² = 1.0`**
     ([RESULTS.md §29](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)).
@@ -57,12 +58,13 @@ is not a posterior draw and its mean is not a posterior mean.
 The pooled Haseman–Elston fixed point requires **one case/control threshold
 per trait**. Personalised (age-/CIP-specific) or onset-pinned LT-FH++ bounds —
 including the Quickstart's `age_thresholds` output, even when they are
-internally coherent — are **rejected**. On those inputs the fixed point runs
-to the \(h^2 \sim 1\) boundary and invents a spurious shared-environment
-component. Fit from common-threshold bounds (`prevalence_thresholds`), or
-bring an external liability-scale \(h^2\). Personalised bounds remain the
-intended input for `estimate_liability`, which conditions on \(h^2\) rather
-than fitting it. For onset-age-structured genetic correlation see
+internally coherent — are **rejected**. This is an identification contract,
+motivated by exploratory failures outside the common-threshold design, not a
+current quantitative benchmark for personalised fitting. Fit from
+common-threshold bounds (`prevalence_thresholds`), or bring an external
+liability-scale \(h^2\). Personalised bounds remain the intended input for
+`estimate_liability`, which conditions on \(h^2\) rather than fitting it. For
+onset-age-structured genetic correlation see
 `research.advanced_fitting.fit_genetic_correlation_decay`.
 
 ```python
@@ -103,10 +105,13 @@ It wraps any of the fitters: pass a `lambda` that returns the quantity of
 interest, such as the `"C"` component from
 `fit_variance_components(..., sampling="population")`, or a fit from
 `research.advanced_fitting`. Fix the estimator's `seed` so the spread reflects
-family sampling, not sampler noise. It costs `n_boot`+1 fits.
-The interval assumes iid, non-overlapping family clusters and a sampling design
-compatible with the fitted model. It is not automatically calibrated under
-case/control or family-history ascertainment, boundary parameters, or overlapping
+family sampling, not sampler noise. For IPW, pass `weights=weights` to
+`bootstrap_fit` and use a two-argument callable, `lambda f, w:
+fit_heritability(f, sampling="ipw", weights=w, seed=1).h2`; the helper resamples
+families and weights with the same indices. It costs `n_boot`+1 fits.
+The interval assumes iid, non-overlapping family clusters and either
+representative sampling or valid aligned IPW. It is not automatically calibrated
+for zero-probability selection strata, boundary parameters, or overlapping
 pedigrees. The `n_boot=100` call above is a computational example, not a
 recommended final precision: percentile endpoints can be visibly unstable with
 so few resamples. Increase `n_boot` until the SE and interval endpoints are stable
@@ -123,7 +128,7 @@ true `h²` = 0.5, K = 0.05, N = 4,000):
 |---|---:|---:|---:|---:|
 | fitted `h²` | 0.426 | 0.730 | 0.993 | 1.000 |
 
-A 5.8% case rate against an assumed 5.0% already inflates `h²` by 24%. This is
+A 6.4% case rate against an assumed 5.0% already inflates `h²` by +0.230. This is
 **bias, not noise**: it does not shrink with N (constant +0.500 from N = 2,500 to
 40,000) and it is not an unconverged run (the same value is reached from
 `h2_init` 0.05 and 0.95).
@@ -157,15 +162,21 @@ Two limits, and both matter:
 
 - **Positivity.** A design that samples no families from some stratum has
   `π = 0` there, and no weight reconstructs what was never observed.
-  Ascertainment through an affected proband is the standard example. This is
-  checked — correct weights must reproduce the asserted prevalence, and these
-  cannot — so it raises rather than returning a number.
+  Ascertainment through an affected proband is the standard example. The
+  benchmark labels such rows *undefined from the known design* before calling
+  the weighted fitter, because no finite valid weights exist. The fitter's
+  role-wise weighted case-rate screen can falsify some bad weights, but passing
+  it does **not** establish joint-pattern positivity or correct weights.
 - **Efficiency.** At K = 0.05 a 50/50 cohort needs weights up to 19×, so the
   effective sample size is far below the nominal one and the across-replicate SD
   grows accordingly. IPW buys accuracy with precision.
 
 Weights must be supplied by you from the sampling design; ltpred cannot infer
-them, and estimating `π` from a sampling frame adds its own error.
+them, and estimating `π` from a sampling frame adds its own error. Selection
+on family history is not categorically excluded: it is IPW-correctable only when
+the inclusion probability of every complete observed family pattern is known
+and strictly positive. Deterministic family-history selection usually violates
+that condition.
 
 !!! warning "What a scale correction cannot do"
 
@@ -178,6 +189,12 @@ them, and estimating `π` from a sampling frame adds its own error.
     transform. [`observed_to_liability_h2`](api.md) remains the right tool for
     its own job: converting an observed-scale `h²` that some other method
     produced.
+
+    Benchmark arm J is deliberately narrower: it standardises each role by its
+    sample case rate, pools multi-relative HE moments, and applies the proband's
+    sample fraction in the Lee factor. It is a diagnostic of that improvised
+    bridge, not an implementation or evaluation of conventional unrelated-
+    sample LDSC or GREML.
 
 ## Sensitivity to the assumed heritability
 

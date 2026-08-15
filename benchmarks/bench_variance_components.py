@@ -31,22 +31,14 @@ import time
 import argparse
 
 import numpy as np
-from scipy.stats import chi2
 
-from _common import get_plt, simulate_families_components
+from _common import get_plt, sd_ci, simulate_families_components
 from ltpred.fit import fit_variance_components
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # a full-sib-rich structure so C (identified from the full-sib excess) is powered
 STRUCT = ["m", "f", "s1", "s2", "s3", "s4"]
-
-
-def _sd_ci(sd, reps, alpha=0.05):
-    """Normal-theory confidence interval for an across-replicate SD."""
-    df = reps - 1
-    return (sd * np.sqrt(df / chi2.ppf(1.0 - alpha / 2.0, df)),
-            sd * np.sqrt(df / chi2.ppf(alpha / 2.0, df)))
 
 
 def fit_replicates(fam_vec, a2, c2, n_fam, prev, reps, seed0, n_iter, burn_in):
@@ -165,7 +157,7 @@ def plot(panel_a, fp, panel_c):
     # (c) SD of C vs N
     n = np.array([r["n_fam"] for r in panel_c], float)
     csd = np.array([r["C_sd"] for r in panel_c])
-    ci = np.array([_sd_ci(r["C_sd"], r["reps"]) for r in panel_c])
+    ci = np.array([sd_ci(r["C_sd"], r["reps"]) for r in panel_c])
     ax[2].errorbar(n, csd, yerr=np.vstack([csd - ci[:, 0], ci[:, 1] - csd]),
                    fmt="-o", capsize=3, label="across-replicate SD of C (95% CI)")
     ref = csd[0] * np.sqrt(n[0] / n)

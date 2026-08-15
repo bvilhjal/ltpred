@@ -66,6 +66,21 @@ def test_fit_preparers_reject_nan_and_reversed_bounds():
             prepare()
 
 
+def test_moment_fitters_reject_duplicate_roles():
+    families = [
+        Family(0, [Member("m", -np.inf, 1.0),
+                   Member("m", -np.inf, 1.0)])
+    ]
+    with pytest.raises(ValueError, match="duplicate role"):
+        fit_heritability(
+            families, n_iter=10, burn_in=6, inner_sweeps=1,
+            sampling="population")
+    with pytest.raises(ValueError, match="duplicate role"):
+        fit_variance_components(
+            families, ("A",), n_iter=10, burn_in=6, inner_sweeps=1,
+            sampling="population")
+
+
 def test_lone_probands_raise():
     # no relatives -> no related pairs -> h2 not identified
     t = 1.64
@@ -84,7 +99,7 @@ def test_variance_components_additive_matches_heritability():
     he = fit_heritability(
         sim.families, n_iter=500, burn_in=150, seed=1,
         sampling="population").h2
-    assert vc.components["A"] == pytest.approx(he, abs=0.05)
+    assert vc.components["A"] == pytest.approx(he, abs=1e-12)
     assert vc.residual == pytest.approx(1.0 - sum(vc.components.values()))
     assert vc.traces["A"].shape == (350,)
 
@@ -128,6 +143,8 @@ def test_variance_components_validates_input():
         fit_variance_components(sim.families, ("A", "D"), n_iter=50, burn_in=10)
     with pytest.raises(ValueError, match="duplicate"):
         fit_variance_components(sim.families, ("A", "A"), n_iter=50, burn_in=10)
+    with pytest.raises(ValueError, match="at least one component"):
+        fit_variance_components(sim.families, (), n_iter=50, burn_in=10)
     with pytest.raises(ValueError, match="burn_in"):
         fit_variance_components(sim.families, ("A",), n_iter=50)
     # C with no full-sib pairs -> not identified
@@ -218,6 +235,27 @@ def test_bootstrap_fit_rejects_changing_statistic_shape():
 
     with pytest.raises(ValueError, match="expected stable shape"):
         bootstrap_fit(families, changing_shape, n_boot=2, seed=0)
+
+
+def test_bootstrap_fit_resamples_ipw_weights_with_families():
+    from ltpred import bootstrap_fit
+
+    families = [Family(i) for i in range(5)]
+    weights = np.arange(1.0, 6.0)
+
+    def aligned_mean(sampled_families, sampled_weights):
+        expected = np.array([weights[fam.fam_id] for fam in sampled_families])
+        assert np.array_equal(sampled_weights, expected)
+        return sampled_weights.mean()
+
+    result = bootstrap_fit(
+        families, aligned_mean, weights=weights, n_boot=4, seed=0)
+    assert result.estimate == pytest.approx(weights.mean())
+    assert result.samples.shape == (4,)
+
+    with pytest.raises(ValueError, match="one entry per family"):
+        bootstrap_fit(
+            families, aligned_mean, weights=weights[:-1], n_boot=2, seed=0)
 
 
 def _sim_ac(fam, a2, c2, n, seed, prev=0.1):
@@ -421,11 +459,38 @@ def test_fit_heritability_validates_burn_in_and_h2_init():
         fit_heritability(sim.families, h2_init=1.5, n_iter=10, burn_in=6)
     with pytest.raises(ValueError, match="h2_init"):
         fit_heritability(sim.families, h2_init=-0.1, n_iter=10, burn_in=6)
+    with pytest.raises(TypeError, match="h2_init.*bool"):
+        fit_heritability(sim.families, h2_init=True, n_iter=10, burn_in=6)
     # valid inputs still run (4 post-burn-in samples is the batch_means minimum)
     res = fit_heritability(
         sim.families, h2_init=0.5, n_iter=10, burn_in=6,
         inner_sweeps=1, seed=1, sampling="population")
     assert np.isfinite(res.h2)
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "error"),
+    [
+        ("n_iter", True, TypeError),
+        ("n_iter", 10.0, TypeError),
+        ("n_iter", 0, ValueError),
+        ("burn_in", False, TypeError),
+        ("burn_in", 1.0, TypeError),
+        ("burn_in", -1, ValueError),
+        ("inner_sweeps", True, TypeError),
+        ("inner_sweeps", 1.0, TypeError),
+        ("inner_sweeps", 0, ValueError),
+    ],
+)
+def test_moment_fitters_require_strict_integer_iteration_controls(
+        name, value, error):
+    sim = simulate_under_LTM_single(
+        fam_vec=["m", "s1"], h2=0.5, n_sim=10, pop_prev=0.1, seed=1)
+    kwargs = {"n_iter": 10, "burn_in": 6, "inner_sweeps": 1, name: value}
+    with pytest.raises(error, match=name):
+        fit_heritability(sim.families, **kwargs)
+    with pytest.raises(error, match=name):
+        fit_variance_components(sim.families, ("A",), **kwargs)
 
 
 @pytest.mark.parametrize(
@@ -689,10 +754,10 @@ def test_ipw_recovers_h2_under_case_control_ascertainment():
     assert ipw < naive - 0.3
 
 
-def test_ipw_rejects_positivity_failure_even_with_weights():
-    # Ascertainment through an affected proband gives an entire stratum
-    # inclusion probability zero. Correct weights must reproduce the asserted
-    # prevalence, so the weighted case-rate check is also the positivity check.
+def test_ipw_marginal_check_rejects_gross_weighted_mismatch():
+    # Ascertainment through an affected proband makes even the proband marginal
+    # impossible to recalibrate with these weights. This falsifies the weighting
+    # design, although a passing marginal check would not prove joint positivity.
     from ltpred.thresholds import liability_threshold
     t = float(liability_threshold(0.05))
     roles = ["o", "m", "f", "s1"]
@@ -702,6 +767,21 @@ def test_ipw_rejects_positivity_failure_even_with_weights():
     with pytest.raises(ValueError, match="positivity failure"):
         fit_heritability(fams, n_iter=50, burn_in=10, sampling="ipw",
                          weights=np.ones(len(fams)))
+
+
+def test_ipw_marginal_check_does_not_claim_joint_positivity():
+    import ltpred.fit as fit_mod
+    from ltpred.thresholds import liability_threshold
+
+    # Both role marginals equal K exactly, but the observed sample has no
+    # discordant families. A marginal check cannot certify this joint design.
+    threshold = float(liability_threshold(0.1))
+    families = [
+        _cc_family(i, ["o", "m"], [i < 100, i < 100], threshold)
+        for i in range(1000)
+    ]
+    fit_mod._assert_population_case_rate(
+        families, 1, context="test", weights=np.ones(len(families)))
 
 
 def test_ipw_sampling_and_weights_must_agree():

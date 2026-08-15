@@ -204,7 +204,7 @@
     <p class="lede">A from-scratch Python implementation of LT-FH, LT-FH++, ADuLT and PA-FGRS. It turns a family's case/control status and ages of onset into a continuous, GWAS-ready estimate of each person's genetic liability; separate APIs fit variance-component models from family data.</p>
 
     <div class="meta">
-      <span class="chip">v<b>0.3.1</b></span>
+      <span class="chip">v<b>0.3.2</b></span>
       <span class="chip"><b>NumPy + SciPy</b> · Numba optional</span>
       <span class="chip">Python <b>≥3.9</b></span>
       <span class="chip">MIT</span>
@@ -266,7 +266,7 @@
       <div class="card">
         <div class="k">Fit</div>
         <h3>Variance components &amp; factors</h3>
-        <p>Estimate h² and shared-environment components (A + sibship C + couple M) by multiple Haseman–Elston, with family-cluster bootstrap intervals under their sampling assumptions. Both core fitters model independent, non-overlapping population-sampled families only, and now require <code>sampling="population"</code> as an explicit acknowledgement rather than assuming it silently; no ascertained-sample mode is implemented. Fitted C/M feed back into single-trait role/object and array predictors via the <code>c2</code>/<code>m2</code> arguments; the high-level multi-trait route rejects them until a cross-trait component covariance is defined. The MCEM likelihood fit, genetic-correlation and common-factor fits, and parametric-bootstrap tests live in the unsupported <code>research/</code> package (<code>research.advanced_fitting</code>).</p>
+        <p>Estimate h² and shared-environment components (A + sibship C + couple M) by multiple Haseman–Elston, with family-cluster bootstrap intervals under their sampling assumptions. Both core fitters require independent, non-overlapping families and an explicit contract: <code>sampling="population"</code> for an unascertained cohort, or <code>sampling="ipw"</code> with known, strictly positive family-level inclusion probabilities. The role-wise case-rate screen can falsify a grossly inconsistent sample or weight set; passing it does not certify joint-pattern positivity. Fitted C/M feed back into single-trait role/object and array predictors via the <code>c2</code>/<code>m2</code> arguments; the high-level multi-trait route rejects them until a cross-trait component covariance is defined. The MCEM likelihood fit, genetic-correlation and common-factor fits, and parametric-bootstrap tests live in the unsupported <code>research/</code> package (<code>research.advanced_fitting</code>).</p>
         <div class="fns"><span class="fn">fit_heritability</span><span class="fn">fit_variance_components</span><span class="fn">bootstrap_fit</span></div>
       </div>
       <div class="card">
@@ -284,7 +284,7 @@
       <div class="card">
         <div class="k">Validate</div>
         <h3>Twenty-seven reproducible benchmarks</h3>
-        <p>The simulation suite covers PA accuracy and speed, calibration, genomic control, scaling, power, model-fitting recovery, CIP estimation, pedigree inference and the end-to-end register pipeline. The PA-FGRS censoring mixture has a generative validation too: it behaves as intended in the tested designs, with mean correlations differing by at most 0.0005 — but paired uncertainty was not retained, so that is not a non-inferiority result. Its censoring correction is small at these settings; case encoding dominates calibration there. Runs go through a provenance wrapper that records the commit, tracked-diff hash and output hashes to a manifest.</p>
+        <p>The simulation suite covers PA accuracy and speed, calibration, genomic control, scaling, power, model-fitting recovery, CIP estimation, pedigree inference and the end-to-end register pipeline. The PA-FGRS censoring mixture has a generative validation too: three of ten paired correlation-shift confidence intervals exclude zero, but the largest shift is only −0.00034 ± 0.00011 — statistically detectable and practically negligible at these settings. Case encoding dominates calibration there. Runs go through a provenance wrapper that records the commit, tracked-diff hash and output hashes to a manifest.</p>
         <div class="fns"><span class="fn">benchmarks/</span><span class="fn">RESULTS.md</span><span class="fn">run_benchmark</span></div>
       </div>
     </div>

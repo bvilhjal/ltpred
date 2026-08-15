@@ -4,6 +4,26 @@ All notable changes to ltpred are recorded here. This project follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html); while the major
 version is 0 the public API may still change between minor releases.
 
+## Unreleased
+
+## 0.3.2 — 2026-08-15
+
+### Changed
+
+- Strictly validate binary phenotype and event indicators before constructing
+  thresholds, and encode rounded onset times as recording-bin bounds that
+  contain the generating liability.
+- Share one variance-component fitting engine between the heritability and
+  multi-component APIs; validate fitter controls; and keep family weights
+  aligned during bootstrap resampling.
+- Describe the population/IPW case-rate gate as a marginal inconsistency
+  screen, not as certification of joint-pattern positivity or weight validity.
+- Validate Pearson--Aitken covariance matrices as positive semidefinite with
+  strictly positive marginal variances.
+- Generate the report's load-bearing tables from benchmark CSVs, retain source
+  snapshots for future dirty benchmark runs, and remove redundant CI work,
+  compatibility branches, and orphan benchmark logs.
+
 ## 0.3.1 — 2026-08-14
 
 ### Added
@@ -19,20 +39,22 @@ version is 0 the public API may still change between minor releases.
   factor is invertible across that.
   Benchmarked: a 50/50 case/control cohort goes from h2 = 1.000 (pinned) to
   0.495 against a truth of 0.5, and 20%-enriched from 1.000 to 0.473.
-  Two limits, both enforced or reported rather than assumed. **Positivity** --
-  designs that sample no families from some stratum (ascertainment through an
-  affected proband) have inclusion probability zero there and raise, because
-  correct weights must reproduce the asserted prevalence and these cannot.
+  Two limits, both reported rather than assumed. **Positivity** -- designs that
+  sample no families from some complete status-pattern stratum (ascertainment
+  through an affected proband) have inclusion probability zero there. The
+  benchmark labels these designs undefined before calling the weighted fitter,
+  because no finite valid weights exist.
   **Efficiency** -- weights reach 19x at K = 0.05 with a 50/50 cohort, so the
   benchmark reports the inflated across-replicate SD next to the bias.
 - The case-rate check is weight-aware, using Kish's effective sample size
-  `(sum w)^2 / sum w^2`, so it does double duty: a validity check on the weights
-  and the only positivity check the data admits.
+  `(sum w)^2 / sum w^2`. It can falsify weights whose role-wise marginals do not
+  reproduce the asserted prevalence; passing does not establish joint-pattern
+  positivity or weight correctness.
 - `bench_ascertainment.py` arm G measures the IPW remedy through the real gate
   (the historical arms run under an explicit `unguarded()` context, since their
   purpose is to record what the number would have been without the check).
-- **`sampling="population"` is now verified against the data, not taken on
-  trust.** It used to check a string, so an ascertained cohort fitted straight
+- **`sampling="population"` is now screened for gross marginal inconsistency.**
+  It used to check a string, so an ascertained cohort fitted straight
   through to a fixed point at the clamp. The supplied thresholds already assert
   a prevalence, and under population sampling each role's case count is
   `Binomial(n_families, K)`, so `fit_heritability`,
@@ -72,7 +94,7 @@ version is 0 the public API may still change between minor releases.
   and speed, classic-LT-FH NCP, the LT-FH++/ADuLT increment, cohort
   confounding, calibration under a wrong `h²`, PGS complementarity,
   the PA-FGRS mixture, and ascertainment/IPW. Included in the source
-  distribution.
+  repository as versioned documentation.
 - **Gibbs now reports the posterior variance**, so both engines fill
   `LiabilityResult.var` and the two are directly comparable. The batched kernel
   streams a sum of squares alongside the existing mean and batch-mean
@@ -171,9 +193,10 @@ version is 0 the public API may still change between minor releases.
 - **The moment fitters again reject personalised/onset-pinned LT-FH++ bounds.**
   `fit_heritability` and `fit_variance_components` pool cross-products under a
   single-threshold-per-trait assumption; on personalised (age-/CIP-specific) or
-  onset-pinned bounds — even perfectly coherent ones — the fixed point runs to
-  the `h2 ~ 1` boundary and invents a spurious shared-environment component. A
-  guard rejecting those inputs had been removed and the docstrings rewritten to
+  onset-pinned bounds — even perfectly coherent ones — that moment design is
+  not identified. Exploratory failures motivated the contract, but are not a
+  current quantitative benchmark for personalised fitting. A guard rejecting
+  those inputs had been removed and the docstrings rewritten to
   claim such bounds "are accepted"; the guard is restored (the docstrings now
   state the requirement honestly) and extended to the `research/` pooled-moment
   fitters `fit_variance_components_mcem` and `fit_genetic_correlation`. The guard
@@ -436,10 +459,9 @@ package [LTFHPlus](https://github.com/EmilMiP/LTFHPlus).
 **The tagged 0.1.0 fitters enforce a common case/control threshold per trait.**
 `fit_heritability`, `fit_variance_components`, and
 `fit_genetic_correlation` reject person-specific, two-sided, or pinned bounds;
-the guard also precedes the variance-component likelihood aliases. The
-Unreleased changes above remove that geometry-only restriction while retaining
-ordinary bounds validation and documenting the caller's observation-model
-responsibility.
+the guard also precedes the variance-component likelihood aliases. Version
+0.2.0 briefly relaxed that restriction; version 0.3.1 restored it for the
+pooled-moment fitters as an explicit estimating-contract limitation.
 
 For the Haseman–Elston and genetic-correlation fits, reported `se` values are
 **within-dataset Monte-Carlo diagnostics**, not sampling standard errors. The

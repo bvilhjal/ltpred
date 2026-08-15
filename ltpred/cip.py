@@ -55,6 +55,8 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import ArrayLike
 
+from ._validation import validate_binary
+
 __all__ = ["CipCurve", "kaplan_meier_cip", "aalen_johansen_cip"]
 
 
@@ -144,10 +146,7 @@ def kaplan_meier_cip(age_entry: ArrayLike, age_exit: ArrayLike,
     is_event_raw = np.asarray(is_event)
     if is_event_raw.shape != age_entry.shape:
         raise ValueError("is_event must match the follow-up arrays' length")
-    if is_event_raw.dtype.kind not in "biu" or np.any(
-            (is_event_raw != 0) & (is_event_raw != 1)):
-        raise ValueError("is_event must contain only boolean or 0/1 values")
-    is_event = is_event_raw.astype(bool)
+    is_event = validate_binary(is_event_raw, name="is_event", ndim=1)
     if np.any(is_event & (age_exit == age_entry)):
         raise ValueError("zero-length follow-up cannot carry an event")
 

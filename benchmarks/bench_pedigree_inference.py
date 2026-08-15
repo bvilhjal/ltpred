@@ -166,8 +166,7 @@ def payoff_replicate(rng, n_est, n_founder_pairs):
                 lo, hi = rel_bounds[pid]
                 members.append(Member(role=role, lower=lo, upper=hi))
         est_role = estimate_liability([Family(fam_id=0, members=members)], h2=H2)
-        est_role = np.asarray(est_role.est["genetic"]
-                              if hasattr(est_role, "est") else est_role.genetic)
+        est_role = np.asarray(est_role.est["genetic"])
         ests_role.append(est_role[0])
 
     truths = np.array(truths)

@@ -111,7 +111,7 @@ def estimate(true_g, L, status, prev_assumed):
             members.append(Member(role=role, lower=lo, upper=hi))
         families.append(Family(fam_id=i, members=members))
     est = estimate_liability(families, h2=H2)
-    est = np.asarray(est.est["genetic"] if hasattr(est, "est") else est.genetic)
+    est = np.asarray(est.est["genetic"])
     corr = float(np.corrcoef(est, true_g)[0, 1])
     slope = float(np.polyfit(est, true_g, 1)[0])
     return corr, slope

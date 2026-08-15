@@ -9,6 +9,7 @@ from scripts.check_results import (
     run_guards,
     within_quoted_precision,
 )
+from scripts.make_results import generated_table_texts
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -88,3 +89,16 @@ def test_real_guard_list_passes_against_repo_artifacts():
     assert len(results) == len(GUARDS)
     failures = [(guard.name, detail) for guard, ok, detail in results if not ok]
     assert failures == []
+
+
+def test_generated_paper_tables_match_committed_artifacts():
+    stale = [str(path) for path, expected in generated_table_texts(ROOT)
+             if (ROOT / path).read_text(encoding="utf-8") != expected]
+    assert stale == [], "regenerate with: python scripts/make_results.py"
+
+
+def test_report_consumes_generated_load_bearing_tables():
+    report = (ROOT / "report/ltpred_methods.tex").read_text(encoding="utf-8")
+    for name in ("headlines", "gwas_power", "integrated_panel", "confounding",
+                 "pgs_comparison", "fit_heritability"):
+        assert rf"\input{{../paper/tables/{name}.tex}}" in report

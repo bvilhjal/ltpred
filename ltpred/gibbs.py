@@ -33,8 +33,7 @@ from ._numba import _jit, _jit_parallel, prange
 from ._mathfun import _norm_cdf, _norm_ppf
 from ._validation import validate_bounds
 
-__all__ = ["rtmvnorm_gibbs", "gibbs_params", "gibbs_estimate_batched",
-           "gibbs_advance"]
+__all__ = ["rtmvnorm_gibbs", "gibbs_params", "gibbs_estimate_batched"]
 
 # Numba's ``np.random`` state is tied to worker threads, so seeding the calling
 # thread cannot make a ``prange`` kernel scheduler-independent. Generate trusted

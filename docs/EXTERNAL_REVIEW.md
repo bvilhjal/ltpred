@@ -1,5 +1,10 @@
 # ltpred — independent review and future developments
 
+> **Archived review snapshot.** This document records the v0.3.0 tree described
+> below; its file locations, test counts, provenance status, and open findings
+> are historical. Use the current guide, roadmap, changelog, and benchmark report
+> for present behavior.
+
 Date: 2026-08-07
 Reviewer: independent review (requested by the project owner), of the working
 tree at commit `0e4b59b` (v0.3.0). This review supersedes the 2026-07-19 review

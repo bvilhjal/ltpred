@@ -30,6 +30,7 @@ import sys
 import time
 
 import numpy as np
+from scipy.stats import chi2
 
 # import ltpred from the repo root without installing it
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -43,6 +44,20 @@ from ltpred.thresholds import liability_threshold  # noqa: E402
 from ltpred.family import Family, Member                       # noqa: E402
 from ltpred.estimate import estimate_liability                 # noqa: E402
 from ltpred.fit import _component_matrix                       # noqa: E402
+
+
+def mean_se(values):
+    """Across-replicate mean and standard error ``sd / sqrt(R)``."""
+    values = np.asarray(values, dtype=float)
+    se = values.std(ddof=1) / np.sqrt(values.size) if values.size > 1 else np.nan
+    return float(values.mean()), float(se)
+
+
+def sd_ci(sd, reps, alpha=0.05):
+    """Chi-square confidence interval for an across-replicate standard deviation."""
+    df = reps - 1
+    return (sd * np.sqrt(df / chi2.ppf(1.0 - alpha / 2.0, df)),
+            sd * np.sqrt(df / chi2.ppf(alpha / 2.0, df)))
 
 
 # --------------------------------------------------------------------------- #

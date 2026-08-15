@@ -502,6 +502,15 @@ def mixture_dependent_mid_pin_slope(path):
     return (_mean_se(vals)[0],)
 
 
+def mixture_largest_abs_corr_shift(path):
+    """Largest absolute paired mixture-minus-no-mixture correlation shift."""
+    rows = [r for r in _rows(path) if r.get("row_type") == "paired_contrast"]
+    if not rows:
+        raise ValueError("no paired-contrast rows")
+    row = max(rows, key=lambda r: abs(float(r["delta_corr_pa"])))
+    return (float(row["delta_corr_pa"]), float(row["delta_corr_pa_ci95"]))
+
+
 def tetrachoric_falconer(path):
     row = _only(_rows(path), pair="falconer_h2")
     return (float(row["tetrachoric"]), float(row["se"]))
@@ -543,6 +552,26 @@ def ascert_dose_row(enrich_lo, enrich_hi):
     return recompute
 
 
+def ascert_dose_mild_summary(path):
+    """Realised rate, assumed rate, enrichment and bias in the mild-dose cell."""
+    rows = [r for r in _rows(path)
+            if r["arm"] == "dose" and r.get("enrichment")
+            and 1.15 <= float(r["enrichment"]) < 1.35]
+    row = _only(rows)
+    return (100.0 * float(row["case_frac"]), 100.0 * float(row["prev"]),
+            float(row["enrichment"]), float(row["bias"]))
+
+
+def ascert_dose_mild_rates_bias(path):
+    case_pct, prev_pct, _, bias = ascert_dose_mild_summary(path)
+    return case_pct, prev_pct, bias
+
+
+def ascert_dose_mild_enrichment_bias(path):
+    _, _, enrichment, bias = ascert_dose_mild_summary(path)
+    return enrichment, bias
+
+
 def ascert_specificity_total(path):
     """Total false positives across the specificity grid -- must be 0."""
     rows = [r for r in _rows(path) if r["arm"] == "specificity"]
@@ -558,6 +587,53 @@ def ascert_lee(scheme):
 
 
 GUARDS = [
+    Guard("ascertainment-dose-mild-prose", _ASCERT,
+          ascert_dose_mild_rates_bias,
+          r"A ([\d.]+)% case rate against an assumed ([\d.]+)% inflates h² by ([+]?\d+(?:\.\d+)?)"),
+    Guard("inference-ascertainment-dose-mild-prose", _ASCERT,
+          ascert_dose_mild_rates_bias,
+          r"A ([\d.]+)% case rate against an assumed ([\d.]+)% already inflates `h²` by ([+]?\d+(?:\.\d+)?)",
+          document="docs/inference.md"),
+    Guard("inference-ascertainment-enrichment-prose", _ASCERT,
+          ascert_dose_mild_enrichment_bias,
+          r"a ([\d.]+)× enrichment already inflates `h²` by\s*([+]?\d+(?:\.\d+)?)",
+          document="docs/inference.md"),
+    Guard("assumptions-ascertainment-dose-prose", _ASCERT,
+          ascert_dose_mild_enrichment_bias,
+          r"case rate only ([\d.]+)×\s*the assumed prevalence already inflates `h²` by ([+]?\d+(?:\.\d+)?)",
+          document="docs/assumptions.md"),
+    Guard("report-ascertainment-dose-prose", _ASCERT,
+          ascert_dose_mild_summary,
+          r"case share of \$([\d.]+)\\%\$ against an\s*asserted \$([\d.]+)\\%\$ \(\$([\d.]+)\\times\$\) already inflates \$\\h\$ by \$([+]?[\d.]+)\$",
+          document="report/ltpred_methods.tex"),
+    Guard("mixture-largest-corr-shift-headline",
+          "benchmarks/bench_pafgrs_mixture.csv",
+          mixture_largest_abs_corr_shift,
+          r"largest shift is\s*only ([−-][\d.]+) ± (\d+(?:\.\d+)?)"),
+    Guard("mixture-largest-corr-shift-verdict",
+          "benchmarks/bench_pafgrs_mixture.csv",
+          mixture_largest_abs_corr_shift,
+          r"largest shift is\s*([-][\d.]+) with a 95% CI half-width of (\d+(?:\.\d+)?)"),
+    Guard("readme-mixture-largest-corr-shift",
+          "benchmarks/bench_pafgrs_mixture.csv",
+          mixture_largest_abs_corr_shift,
+          r"largest correlation shift is\s*only ([−-][\d.]+) ± (\d+(?:\.\d+)?)",
+          document="README.md"),
+    Guard("algorithm-mixture-largest-corr-shift",
+          "benchmarks/bench_pafgrs_mixture.csv",
+          mixture_largest_abs_corr_shift,
+          r"largest shift is only ([−-][\d.]+) ± (\d+(?:\.\d+)?)",
+          document="docs/algorithm.md"),
+    Guard("landing-mixture-largest-corr-shift",
+          "benchmarks/bench_pafgrs_mixture.csv",
+          mixture_largest_abs_corr_shift,
+          r"largest shift is only ([−-][\d.]+) ± (\d+(?:\.\d+)?)",
+          document="index.html"),
+    Guard("report-mixture-largest-corr-shift",
+          "benchmarks/bench_pafgrs_mixture.csv",
+          mixture_largest_abs_corr_shift,
+          r"largest being \$([-][\d.]+)\\pm ([\d.]+)\$",
+          document="report/ltpred_methods.tex"),
     Guard("ascertainment-dose-unenriched", _ASCERT,
           ascert_dose_row(0.9, 1.1),
           r"^\| fitted h² \| ([\d.]+) \| [\d.]+ \| [\d.]+ \| 1\.000 \| 1\.000 \|$"),

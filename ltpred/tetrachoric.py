@@ -36,6 +36,8 @@ from scipy.optimize import minimize_scalar
 from scipy.special import ndtr, ndtri
 from scipy.stats import multivariate_normal
 
+from ._validation import validate_binary
+
 __all__ = ["TetrachoricResult", "tetrachoric", "tetrachoric_table",
            "tetrachoric_matrix"]
 
@@ -158,8 +160,8 @@ def tetrachoric(x: ArrayLike, y: ArrayLike, *,
         raise ValueError("x and y must be 1-D arrays of equal length")
     if x.size == 0:
         raise ValueError("need at least one pair")
-    xb = x.astype(bool)
-    yb = y.astype(bool)
+    xb = validate_binary(x, name="x", ndim=1)
+    yb = validate_binary(y, name="y", ndim=1)
     a = float(np.sum(xb & yb))
     b = float(np.sum(xb & ~yb))
     c = float(np.sum(~xb & yb))
@@ -185,7 +187,7 @@ def tetrachoric_matrix(X: ArrayLike, *, continuity_correction: bool = True,
     X = np.asarray(X)
     if X.ndim != 2:
         raise ValueError("X must be a 2-D (pairs, variables) array")
-    Xb = X.astype(bool)
+    Xb = validate_binary(X, name="X", ndim=2)
     m = Xb.shape[1]
     R = np.eye(m)
     Xi = Xb.astype(np.float64)

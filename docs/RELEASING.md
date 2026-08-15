@@ -28,9 +28,11 @@ Optionally add the same as a trusted publisher on
 1. Bump `__version__` in `ltpred/__init__.py` (the sole source of truth for the
    distribution; `pyproject.toml` reads it dynamically) and move the
    `## Unreleased` section of `CHANGELOG.md` under the new `## X.Y.Z — <date>`
-   heading. Two files carry the version independently of that attribute and
-   drift silently when missed: `CITATION.cff` (`version` and `date-released`)
-   and the landing page `index.html` (the hero version chip).
+   heading. Three files carry the version independently of that attribute and
+   drift silently when missed: `CITATION.cff` (`version` and `date-released`),
+   the landing page `index.html` (the hero version chip), and
+   `report/ltpred_methods.tex`. `tests/test_version_metadata.py` enforces the
+   version string across these surfaces.
 2. Confirm CI is green on `main` (tests on 3.9/3.12, `ruff`, strict docs build).
 3. Locally, sanity-check the artifacts with modern tooling:
    ```bash

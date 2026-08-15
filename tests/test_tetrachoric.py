@@ -85,6 +85,9 @@ class MleRecoveryTests(unittest.TestCase):
             tetrachoric_table(50, 0, 0, 50, continuity_correction=False)
         with self.assertRaisesRegex(ValueError, "equal length"):
             tetrachoric([0, 1], [0])
+        for invalid in ([0, -9], [0, 2], [0.0, np.nan], ["0", "1"]):
+            with self.assertRaisesRegex(ValueError, "boolean or 0/1"):
+                tetrachoric(invalid, [0, 1])
 
 
 class MatrixTests(unittest.TestCase):

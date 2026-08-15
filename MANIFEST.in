@@ -1,8 +1,8 @@
-# setuptools' default sdist carries the package, README, LICENSE and tests.
-# A release sdist should also carry its own provenance.
+# Keep the distribution lean: setuptools already carries the package, README,
+# and LICENSE. Release metadata belongs with it; tests and evidence capsules
+# remain versioned in the repository, where their full context lives.
 include CHANGELOG.md
 include CITATION.cff
-include benchmarks/bench_liability_scale.py
-include report/README.md
-include report/ltpred_methods.tex
-include report/ltpred_methods.pdf
+prune tests
+prune benchmarks
+prune report

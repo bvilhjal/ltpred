@@ -16,10 +16,11 @@ regression of the sampled liability cross-products on the additive relationship,
 
 pooled over all related pairs in all families, then damped
 ``h2 <- (1 - damp) h2 + damp h2_hat`` for cross-sweep stability. Conditional
-cross-products reconstruct population moments only for independent,
-unascertained population-sampled families. Case/control enrichment, selection
-on family history, and overlapping pedigrees change those moments; this module
-does not model that sampling process.
+cross-products reconstruct population moments directly for independent,
+unascertained population-sampled families. Known, strictly positive family-level
+selection probabilities can instead be handled by inverse-probability weighting;
+unknown probabilities, zero-probability strata, and overlapping pedigrees require
+an estimator that models the sampling process.
 
 :func:`fit_heritability` fits the single additive component. :func:`fit_variance_components`
 generalises the same data-augmentation to several components via a **multiple**
@@ -64,7 +65,7 @@ from ._validation import validate_bounds
 from .covariance import get_relatedness, _is_full_sib, _is_mates
 from .gibbs import (gibbs_params, gibbs_advance,
                     _init_chain, _FIXED_TOL, _seed_rng)
-from .estimate import _group_by_structure, batch_means
+from .estimate import _check_unique_roles, _group_by_structure, batch_means
 
 __all__ = ["FitResult", "fit_heritability", "VarCompResult",
            "fit_variance_components", "BootstrapResult", "bootstrap_fit"]
@@ -88,8 +89,8 @@ def _validate_population_sampling(sampling, context, *, weights=None):
         warnings.warn(
             f"{context} assumes independent, non-overlapping, unascertained "
             "population-sampled families. Case/control or family-history "
-            "ascertainment can drive moment estimates to the boundary; it is not "
-            "corrected by this fitter or by bootstrap_fit. Pass "
+            "ascertainment can drive moment estimates to the boundary unless "
+            "valid family-level inverse-probability weights are supplied. Pass "
             "sampling='population' only after verifying that contract, or "
             "sampling='ipw' with weights for a known selection probability.",
             RuntimeWarning, stacklevel=3)
@@ -187,15 +188,15 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None):
     precondition is violated, so the message names the observed and asserted
     rates rather than guessing the cause.
 
-    With ``weights`` (``sampling="ipw"``) the same test is applied to the
-    **weighted** case rate, and it then does double duty. Correct
-    inverse-probability weights re-mix the selected sample back to population
-    proportions, so the weighted rate must reproduce ``K``; if it does not, either
-    the weights are wrong or an entire stratum had inclusion probability zero and
-    no weighting can reconstruct it. That is the positivity condition, checked
-    the only way the data allows. The binomial SE uses Kish's effective sample
-    size ``(sum w)^2 / sum w^2``, so heavy weights correctly widen the tolerance
-    instead of manufacturing significance.
+    With ``weights`` (``sampling="ipw"``) the same **marginal-calibration** check
+    is applied to the weighted case rate. Correct inverse-probability weights must
+    re-mix each role's marginal rate back to ``K``, so failure falsifies the
+    supplied weighting design. Passing is necessary but not sufficient: matching
+    marginals cannot prove that every joint family-status stratum had positive
+    inclusion probability, nor that the weights reconstruct their joint
+    distribution. The binomial SE uses Kish's effective sample size
+    ``(sum w)^2 / sum w^2``, so heavy weights widen the tolerance instead of
+    manufacturing significance.
     """
     per_role = {}
     for fam_index, family in enumerate(families):
@@ -242,18 +243,17 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None):
     trait = "" if n_pheno == 1 else f" (trait {pheno})"
     if weights is not None:
         raise ValueError(
-            f"{context}: the WEIGHTED families are still not consistent with the "
-            f"supplied thresholds. Role {role!r}{trait} has a weighted affected "
+            f"{context}: the weighted marginal case rates are not consistent "
+            f"with the supplied thresholds. Role {role!r}{trait} has a weighted "
+            "affected "
             f"rate of {observed:.4f} (effective n {n}) against an asserted "
             f"population prevalence of {expected:.4f} -- a factor of {ratio:.2f} "
-            f"({z:+.1f} SD). Correct inverse-probability weights re-mix the "
-            "selected sample back to population proportions, so this means "
-            "either the weights are wrong, or an entire stratum had inclusion "
-            "probability zero (positivity failure) and no weighting can "
-            "reconstruct it. Families ascertained through an affected proband "
-            "are the standard example: with no unaffected-proband families "
-            "sampled, IPW is undefined and the design needs an estimator that "
-            "models the selection, not a reweighting of it.")
+            f"({z:+.1f} SD). This falsifies the supplied weighting design: the "
+            "weights may be wrong, the asserted prevalence may be wrong, or a "
+            "joint stratum may be missing (a positivity failure). Passing this "
+            "marginal check would not prove joint positivity or weight validity. "
+            "A design with a zero-probability stratum needs an estimator that "
+            "models selection, not a reweighting of the observed families.")
     raise ValueError(
         f"{context}: the supplied families are not consistent with "
         f"sampling='population'. Role {role!r}{trait} is affected in "
@@ -266,10 +266,11 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None):
         "h2 by +0.23 and 2x pins it at the boundary, and on ascertained data "
         "with true h2 = 0 the fitter returns h2 = 1.0. Either the cohort is "
         "ascertained (case/control, family-history or proband-affected "
-        "selection), which this estimator cannot correct, or the prevalence "
+        "selection), in which case use valid IPW for known, strictly positive "
+        "family-level selection probabilities or a selection model otherwise, "
+        "or the prevalence "
         "behind the thresholds is wrong for this sample. Fixing the thresholds "
-        "is a real fix; ascertainment needs an estimator that models the "
-        "sampling process. See benchmarks/RESULTS.md, ascertainment section.")
+        "is a real fix. See benchmarks/RESULTS.md, ascertainment section.")
 
 
 def _assert_common_thresholds(families, n_pheno, *, context):
@@ -279,17 +280,13 @@ def _assert_common_thresholds(families, n_pheno, *, context):
     them as estimates of ``h2 * A_ij``, which holds only when every augmented
     liability is a draw from the *same* ``N(0, 1)`` population -- i.e. when one
     threshold per trait separates cases from controls. **Personalised LT-FH++
-    bounds break that assumption**: an age-/CIP-specific threshold per person
-    (and an onset pin for cases) gives each augmented draw its own conditional
-    mean, the pooled cross-products stop estimating ``h2 * A``, and the fixed
-    point runs away to its ``1 - eps`` ceiling.
-
-    This is not a small bias, and it is *not* a matter of incoherent inputs: on
-    coherent simulated LT-FH++ data (the exact output of :func:`age_thresholds`)
-    with a true ``h2 = 0.5``, :func:`fit_heritability` returns ~1.0 and
-    :func:`fit_variance_components` reports ``A ~ 0.67`` with a wholly spurious
-    ``C ~ 0.33``. Returning those numbers silently is worse than refusing, so
-    this raises.
+    bounds fall outside that estimating contract**: an age-/CIP-specific
+    threshold per person (and an onset pin for cases) gives each augmented draw
+    its own conditional mean, so the pooled cross-products no longer have the
+    supported common-threshold interpretation. Exploratory failures motivated
+    this guard, but they do not establish a universal direction or magnitude of
+    bias for every personalised observation model. This implementation therefore
+    refuses the unsupported geometry rather than returning an uncertified fit.
 
     The prediction estimators (:func:`~ltpred.estimate.estimate_liability` and
     friends) are unaffected -- they *condition* on a supplied ``h2`` rather than
@@ -338,9 +335,9 @@ def _assert_common_thresholds(families, n_pheno, *, context):
     raise ValueError(
         f"{context}: found {', '.join(seen)}. The pooled Haseman-Elston fixed "
         "point assumes a single case/control threshold per trait, so "
-        "personalised (age-/CIP-specific) LT-FH++ bounds bias it badly -- on "
-        "coherent simulated data with h2 = 0.5 it returns ~1.0 and invents a "
-        "shared-environment component. Refusing rather than returning that. "
+        "personalised (age-/CIP-specific) LT-FH++ bounds fall outside that "
+        "estimating contract. Exploratory failures motivated this restriction, "
+        "but do not establish a universal bias direction or magnitude. "
         "Fit from common-threshold bounds (e.g. prevalence_thresholds) instead; "
         "to model onset-age structure explicitly use "
         "research.advanced_fitting.fit_genetic_correlation_decay, whose "
@@ -364,6 +361,42 @@ def _validate_update_controls(damp, eps):
     if not np.isfinite(eps) or not 1e-8 <= eps < 0.5:
         raise ValueError("eps must lie in [1e-8, 0.5)")
     return damp, eps
+
+
+def _validate_iteration_controls(n_iter, burn_in, inner_sweeps):
+    """Return strict integer controls for the stochastic fixed point."""
+    values = {}
+    for name, value, minimum in (("n_iter", n_iter, 1),
+                                 ("burn_in", burn_in, 0),
+                                 ("inner_sweeps", inner_sweeps, 1)):
+        if isinstance(value, (bool, np.bool_)):
+            raise TypeError(f"{name} must be an integer, not bool")
+        try:
+            value = operator.index(value)
+        except TypeError:
+            raise TypeError(f"{name} must be an integer") from None
+        if value < minimum:
+            qualifier = "positive" if minimum else "non-negative"
+            raise ValueError(f"{name} must be a {qualifier} integer")
+        values[name] = value
+    if values["burn_in"] >= values["n_iter"]:
+        raise ValueError(
+            f"burn_in ({values['burn_in']}) must be non-negative and "
+            f"< n_iter ({values['n_iter']})")
+    return values["n_iter"], values["burn_in"], values["inner_sweeps"]
+
+
+def _validate_h2_init(h2_init):
+    """Return a finite real initial heritability, rejecting Boolean aliases."""
+    if isinstance(h2_init, (bool, np.bool_)):
+        raise TypeError("h2_init must be a real number, not bool")
+    try:
+        h2_init = float(h2_init)
+    except (TypeError, ValueError):
+        raise TypeError("h2_init must be a real number") from None
+    if not np.isfinite(h2_init) or not 0.0 <= h2_init <= 1.0:
+        raise ValueError("h2_init must be in [0, 1]")
+    return h2_init
 
 
 @dataclass
@@ -391,41 +424,13 @@ class FitResult:
 
 
 def _prepare_group(families, idx, weights=None):
-    """Per-structure precompute: relationship matrix ``A``, related-pair list,
-    per-family bounds/fixed mask, per-family weights, and the initial chain
-    state ``x``."""
-    roles = sorted(m.role for m in families[idx[0]].members)
-    k = len(roles)
-    A = np.array([[get_relatedness(ri, rj, h2=1.0) for rj in roles] for ri in roles])
-    min_eig = float(np.linalg.eigvalsh(A).min()) if k else 0.0
-    if min_eig < -1e-8:
-        raise ValueError(
-            "the additive relationship kernel is not positive-semidefinite "
-            f"for these roles (minimum eigenvalue {min_eig:.3g}); check the "
-            "pedigree rather than repairing the theoretical relationships")
-    pairs = [(i, j, A[i, j]) for i in range(k) for j in range(i + 1, k)
-             if abs(A[i, j]) > 1e-12]
-    F = len(idx)
-    lowers = np.empty((F, k))
-    uppers = np.empty((F, k))
-    for slot, f in enumerate(idx):
-        members = sorted(families[f].members, key=lambda member: member.role)
-        for c, m in enumerate(members):
-            lowers[slot, c] = float(m.lower)
-            uppers[slot, c] = float(m.upper)
-    validate_bounds(lowers, uppers, context="heritability fit bounds")
-    fixed = np.ascontiguousarray((uppers - lowers) < _FIXED_TOL)
-    ones = np.ones(k)                # unit marginal SD: bounds are pre-standardised
-    x = np.empty((F, k))
-    for slot in range(F):
-        x[slot] = _init_chain(lowers[slot], uppers[slot], ones)
-    w = (np.ones(F) if weights is None
-         else np.asarray(weights, dtype=float)[list(idx)])
-    return dict(roles=roles, A=np.ascontiguousarray(A), pairs=pairs, k=k, F=F,
-                lowers=np.ascontiguousarray(lowers),
-                uppers=np.ascontiguousarray(uppers), fixed=fixed,
-                w=np.ascontiguousarray(w),
-                x=np.ascontiguousarray(x))
+    """Compatibility view of the shared one-component group preparation."""
+    group = _prepare_component_group(
+        families, idx, ("A",), weights, context="heritability fit bounds")
+    group["A"] = group["K"]["A"]
+    group["pairs"] = [(i, j, float(row[0]))
+                      for i, j, row in group["pairs"]]
+    return group
 
 
 def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
@@ -442,9 +447,9 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     covers selection on observed status with a known, strictly positive
     inclusion probability (below). Omitting ``sampling`` emits a compatibility
     warning; anything else raises. There is no ascertainment *likelihood* here,
-    so a design that reweighting cannot reach -- selection on family history, or
-    any stratum sampled with probability zero -- still produces severe boundary
-    bias, and is rejected rather than fitted.
+    so a design that reweighting cannot reach -- because family-level selection
+    probabilities are unknown or misspecified, or any joint stratum has
+    probability zero -- still produces severe boundary bias.
 
     That acknowledgement is now **checked against the data**, not merely taken on
     trust: the supplied thresholds assert a prevalence, and each role's case rate
@@ -467,13 +472,13 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     ``0.495`` against a truth of 0.5.
 
     Two limits, both real. **Positivity:** a design that samples no families from
-    some stratum -- ascertainment through an affected proband is the standard
-    example -- has inclusion probability zero there, and no weighting can
-    reconstruct what was never observed. That is checked, because correct weights
-    must reproduce the asserted prevalence, and it raises rather than returning a
-    number. **Efficiency:** weights reach 19x at K = 0.05 with a 50/50 cohort, so
-    the effective sample size is far below the nominal one; the benchmark reports
-    the inflated across-replicate SD alongside the bias.
+    some joint status stratum has inclusion probability zero there, and no
+    weighting can reconstruct what was never observed. The marginal case-rate
+    check can falsify many such designs, but passing it does not prove joint
+    positivity or weight validity. **Efficiency:** weights reach 19x at K = 0.05
+    with a 50/50 cohort, so the effective sample size is far below the nominal
+    one; the benchmark reports the inflated across-replicate SD alongside the
+    bias.
 
     The case-rate check has a stated blind spot: the enrichment it can detect is
     ``1 + 6*sqrt((1-K)/(K*n))``, which at K = 0.05 is ~1.67x at n = 1,500 and
@@ -498,58 +503,33 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     **Requires a common case/control threshold per trait.** The pooled
     Haseman-Elston fixed point assumes every augmented liability is drawn from
     the same ``N(0, 1)`` population, so personalised (age-/CIP-specific) or
-    onset-pinned LT-FH++ bounds — even perfectly coherent ones — bias it to the
-    ``h2 ~ 1`` boundary. Those inputs are **rejected**, not silently fitted (see
-    :func:`_assert_common_thresholds`). Fit from common-threshold bounds; the
+    onset-pinned LT-FH++ bounds — even perfectly coherent ones — fall outside
+    that estimating contract. Those inputs are **rejected**, not silently fitted
+    (see :func:`_assert_common_thresholds`). Fit from common-threshold bounds; the
     prediction path (:func:`~ltpred.estimate.estimate_liability`) is unaffected,
     since it conditions on ``h2`` rather than fitting it. Standard NaN and
     interval-order validation still applies."""
-    if int(burn_in) < 0 or int(burn_in) >= int(n_iter):
-        raise ValueError(f"burn_in ({burn_in}) must be non-negative and "
-                         f"< n_iter ({n_iter})")
-    if not 0.0 <= float(h2_init) <= 1.0:
-        raise ValueError("h2_init must be in [0, 1]")
+    n_iter, burn_in, inner_sweeps = _validate_iteration_controls(
+        n_iter, burn_in, inner_sweeps)
+    h2_init = _validate_h2_init(h2_init)
     damp, eps = _validate_update_controls(damp, eps)
     weights = _validate_weights(weights, len(families), "fit_heritability")
     _validate_population_sampling(sampling, "fit_heritability", weights=weights)
+    _check_unique_roles(families)
     _assert_common_thresholds(families, 1, context="fit_heritability")
     _assert_population_case_rate(families, 1, context="fit_heritability",
                                  weights=weights)
-    groups = [_prepare_group(families, idx, weights)
-              for _key, idx in _group_by_structure(families)]
-    # weighted denominator: sum_f w_f sum_pairs A_ij^2. With w == 1 this is the
-    # unweighted count, so the weighted and unweighted paths are one expression.
-    sxx = sum(sum(aij * aij for (_i, _j, aij) in g["pairs"]) * float(g["w"].sum())
-              for g in groups)
-    if sxx <= 0:
-        raise ValueError("no related pairs in the families — cannot fit h2 "
-                         "(need relatives, not lone probands).")
-
-    if seed is not None:
-        _seed_rng(seed)
-
-    h2 = float(h2_init)
-    trace = np.empty(int(n_iter))
-    for it in range(int(n_iter)):
-        sxy = 0.0
-        for g in groups:
-            k = g["k"]
-            sigma = (1.0 - h2) * np.eye(k) + h2 * g["A"]   # diag stays 1
-            P, sd = gibbs_params(sigma)
-            gibbs_advance(P, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
-                          int(inner_sweeps))
-            x = g["x"]
-            w = g["w"]
-            for (i, j, aij) in g["pairs"]:
-                sxy += aij * float(w @ (x[:, i] * x[:, j]))
-        h2_hat = min(max(sxy / sxx, eps), 1.0 - eps)
-        h2 = (1.0 - damp) * h2 + damp * h2_hat
-        trace[it] = h2
-
-    samples = trace[int(burn_in):].copy()
-    est, se = batch_means(samples)
+    trace, samples, est, se = _fit_component_engine(
+        families, ("A",), np.array([h2_init]), n_iter=n_iter,
+        burn_in=burn_in, inner_sweeps=inner_sweeps, damp=damp, seed=seed,
+        eps=eps, weights=weights, context="heritability fit bounds",
+        identification_error=(
+            "no related pairs in the families — cannot fit h2 "
+            "(need relatives, not lone probands)."))
+    trace = trace[:, 0].copy()
+    samples = samples[:, 0].copy()
     return FitResult(h2=float(est[0]), h2_se=float(se[0]), samples=samples,
-                     trace=trace, n_iter=int(n_iter), burn_in=int(burn_in))
+                     trace=trace, n_iter=n_iter, burn_in=burn_in)
 
 
 _COMPONENT_OFFDIAG = {
@@ -620,11 +600,8 @@ def _component_matrix(roles, comp):
     return K
 
 
-def _prepare_group_vc(families, idx, comps, weights=None):
-    """Per-structure precompute for the multi-component HE regression: each
-    component's relationship matrix ``K_c``, the list of related pairs with their
-    ``(K_c[i,j])_c`` predictor rows, per-family bounds / fixed mask, and the
-    initial chain state ``x``."""
+def _prepare_component_group(families, idx, comps, weights, *, context):
+    """Precompute one shared-structure group for the component engine."""
     roles = sorted(m.role for m in families[idx[0]].members)
     k = len(roles)
     F = len(idx)
@@ -645,7 +622,7 @@ def _prepare_group_vc(families, idx, comps, weights=None):
         for c, m in enumerate(members):
             lowers[slot, c] = float(m.lower)
             uppers[slot, c] = float(m.upper)
-    validate_bounds(lowers, uppers, context="variance-component fit bounds")
+    validate_bounds(lowers, uppers, context=context)
     fixed = np.ascontiguousarray((uppers - lowers) < _FIXED_TOL)
     ones = np.ones(k)                # unit marginal SD: bounds are pre-standardised
     x = np.empty((F, k))
@@ -653,11 +630,80 @@ def _prepare_group_vc(families, idx, comps, weights=None):
         x[slot] = _init_chain(lowers[slot], uppers[slot], ones)
     w = (np.ones(F) if weights is None
          else np.asarray(weights, dtype=float)[list(idx)])
-    return dict(roles=roles, k=k, F=F, K=K, pairs=pairs,
+    return dict(roles=roles, k=k, F=F, K=K, pairs=pairs, eye=np.eye(k),
                 lowers=np.ascontiguousarray(lowers),
                 uppers=np.ascontiguousarray(uppers), fixed=fixed,
                 w=np.ascontiguousarray(w),
                 x=np.ascontiguousarray(x))
+
+
+def _prepare_group_vc(families, idx, comps, weights=None):
+    """Compatibility wrapper around the shared component-group preparation."""
+    return _prepare_component_group(
+        families, idx, comps, weights, context="variance-component fit bounds")
+
+
+def _fit_component_engine(families, comps, initial, *, n_iter, burn_in,
+                          inner_sweeps, damp, seed, eps, weights, context,
+                          identification_error=None):
+    """Run the common collapsed-Gibbs/multiple-HE fixed-point engine."""
+    C = len(comps)
+    groups = [
+        _prepare_component_group(families, idx, comps, weights, context=context)
+        for _key, idx in _group_by_structure(families)
+    ]
+
+    # X'X is fixed across sweeps. With weights == 1 this is the ordinary
+    # unweighted pair design; IPW changes only each family's contribution.
+    XtX = np.zeros((C, C))
+    for group in groups:
+        family_weight = float(group["w"].sum())
+        for _i, _j, row in group["pairs"]:
+            XtX += family_weight * np.outer(row, row)
+    if np.linalg.matrix_rank(XtX, tol=1e-8) < C:
+        if identification_error is not None:
+            raise ValueError(identification_error)
+        raise ValueError(
+            "variance components not identified from these families — the "
+            "relationship design is rank-deficient (e.g. fitting 'C' with no "
+            "full-sib pairs, or no related pairs at all).")
+    # The scalar solve is exact division, preserving fit_heritability's original
+    # update. The tiny ridge stabilises only an identified multicomponent design.
+    XtX_reg = XtX if C == 1 else XtX + 1e-10 * np.eye(C)
+
+    if seed is not None:
+        _seed_rng(seed)
+
+    values = np.asarray(initial, dtype=float).copy()
+    trace = np.empty((n_iter, C))
+    for it in range(n_iter):
+        # Updates stay below 1 - eps. A user-supplied h2_init=1 retains the
+        # single-component fitter's historical first-iteration behaviour.
+        residual = max(1.0 - values.sum(), 0.0)
+        Xty = np.zeros(C)
+        for group in groups:
+            sigma = residual * group["eye"] + sum(
+                values[ci] * group["K"][component]
+                for ci, component in enumerate(comps))
+            precision, conditional_sd = gibbs_params(sigma)
+            gibbs_advance(
+                precision, conditional_sd, group["lowers"], group["uppers"],
+                group["fixed"], group["x"], inner_sweeps)
+            x = group["x"]
+            w = group["w"]
+            for i, j, row in group["pairs"]:
+                Xty += row * float(w @ (x[:, i] * x[:, j]))
+        estimate = (Xty / XtX_reg[0, 0] if C == 1
+                    else np.linalg.solve(XtX_reg, Xty))
+        estimate = np.clip(estimate, eps, 1.0 - eps)
+        if estimate.sum() > 1.0 - eps:
+            estimate *= (1.0 - eps) / estimate.sum()
+        values = (1.0 - damp) * values + damp * estimate
+        trace[it] = values
+
+    samples = trace[burn_in:].copy()
+    fitted, se = batch_means(samples)
+    return trace, samples, fitted, se
 
 
 def fit_variance_components(families: Sequence, components: Sequence[str] = ("A", "C"),
@@ -669,15 +715,15 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
     """Fit liability-scale variance components by a multiple Haseman-Elston regression.
 
     **Sampling contract:** like :func:`fit_heritability`, this supports
-    independent, non-overlapping, unascertained population-sampled families only.
-    Pass ``sampling="population"`` to acknowledge that contract, which is
-    verified against the observed case rates rather than taken on trust, or
-    ``sampling="ipw"`` with per-family ``weights`` for a design selected on
-    observed status with known positive inclusion probabilities (see
-    :func:`fit_heritability` for both, including the positivity and efficiency
-    limits). Without one of those, this fitter does not correct case/control or
-    family-history ascertainment; under it the components saturate, exhausting
-    the residual variance rather than sitting at the elementwise clamp.
+    independent, non-overlapping families sampled either directly from the
+    population or with known, strictly positive family-level selection
+    probabilities. Pass ``sampling="population"`` for the former, or
+    ``sampling="ipw"`` with reciprocal-probability ``weights`` for the latter (see
+    :func:`fit_heritability` for both, including the marginal-check, positivity,
+    and efficiency limits). Without one of those, this fitter does not correct
+    case/control or family-history ascertainment; under it the components
+    saturate, exhausting the residual variance rather than sitting at the
+    elementwise clamp.
 
     Generalises :func:`fit_heritability` from one component to several. Each sweep
     it (1) draws the latent liabilities from the **full family truncated-MVN**
@@ -726,11 +772,15 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
 
     **Requires a common case/control threshold per trait**, exactly as
     :func:`fit_heritability` does and for the same reason: personalised or
-    onset-pinned LT-FH++ bounds bias the pooled moment fit to the boundary (it
-    invents a spurious shared-environment component), so they are **rejected**
-    rather than silently fitted. Standard NaN and interval-order validation still
-    applies."""
-    comps = list(components)
+    onset-pinned LT-FH++ bounds fall outside the supported pooled-moment
+    estimating contract, so they are **rejected** rather than silently fitted.
+    Standard NaN and interval-order validation still applies."""
+    try:
+        comps = list(components)
+    except TypeError:
+        raise TypeError("components must be a non-empty sequence") from None
+    if not comps:
+        raise ValueError("components must contain at least one component")
     for c in comps:
         if c not in _COMPONENT_OFFDIAG:
             avail = ", ".join(_COMPONENT_OFFDIAG)
@@ -738,69 +788,29 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
                              "(dominance 'D' is not supported)")
     if len(set(comps)) != len(comps):
         raise ValueError(f"duplicate components in {components!r}")
-    if int(burn_in) < 0 or int(burn_in) >= int(n_iter):
-        raise ValueError(f"burn_in ({burn_in}) must be non-negative and "
-                         f"< n_iter ({n_iter})")
+    n_iter, burn_in, inner_sweeps = _validate_iteration_controls(
+        n_iter, burn_in, inner_sweeps)
     damp, eps = _validate_update_controls(damp, eps)
     weights = _validate_weights(weights, len(families),
                                 "fit_variance_components")
     _validate_population_sampling(sampling, "fit_variance_components",
                                   weights=weights)
+    _check_unique_roles(families)
     _assert_common_thresholds(families, 1, context="fit_variance_components")
     _assert_population_case_rate(families, 1,
                                  context="fit_variance_components",
                                  weights=weights)
     C = len(comps)
-    groups = [_prepare_group_vc(families, idx, comps, weights)
-              for _key, idx in _group_by_structure(families)]
-
-    # X'X is fixed across sweeps (depends only on the K_c and family counts); the
-    # sampled liabilities enter only through X'y. Precompute and factor it once.
-    XtX = np.zeros((C, C))
-    for g in groups:
-        for (_i, _j, row) in g["pairs"]:
-            XtX += float(g["w"].sum()) * np.outer(row, row)
-    if np.linalg.matrix_rank(XtX, tol=1e-8) < C:
-        raise ValueError(
-            "variance components not identified from these families — the "
-            "relationship design is rank-deficient (e.g. fitting 'C' with no "
-            "full-sib pairs, or no related pairs at all).")
-    XtX_reg = XtX + 1e-10 * np.eye(C)
-
-    if seed is not None:
-        _seed_rng(seed)
-
-    h2 = np.full(C, 0.5 / C)
-    trace = np.empty((int(n_iter), C))
-    for it in range(int(n_iter)):
-        e2 = max(1.0 - h2.sum(), eps)
-        Xty = np.zeros(C)
-        for g in groups:
-            k = g["k"]
-            sigma = e2 * np.eye(k) + sum(h2[ci] * g["K"][c]
-                                         for ci, c in enumerate(comps))
-            P, sd = gibbs_params(sigma)
-            gibbs_advance(P, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
-                          int(inner_sweeps))
-            x = g["x"]
-            w = g["w"]
-            for (i, j, row) in g["pairs"]:
-                Xty += row * float(w @ (x[:, i] * x[:, j]))
-        h2_hat = np.linalg.solve(XtX_reg, Xty)
-        h2_hat = np.clip(h2_hat, eps, 1.0 - eps)
-        if h2_hat.sum() > 1.0 - eps:                      # keep e2 > 0
-            h2_hat *= (1.0 - eps) / h2_hat.sum()
-        h2 = (1.0 - damp) * h2 + damp * h2_hat
-        trace[it] = h2
-
-    samples = trace[int(burn_in):]
-    est, se = batch_means(samples)
+    _trace, samples, est, se = _fit_component_engine(
+        families, comps, np.full(C, 0.5 / C), n_iter=n_iter,
+        burn_in=burn_in, inner_sweeps=inner_sweeps, damp=damp, seed=seed,
+        eps=eps, weights=weights, context="variance-component fit bounds")
     components_out = {c: float(est[ci]) for ci, c in enumerate(comps)}
     traces = {c: np.ascontiguousarray(samples[:, ci]) for ci, c in enumerate(comps)}
     return VarCompResult(components=components_out,
                          residual=float(1.0 - est.sum()),
                          se={c: float(se[ci]) for ci, c in enumerate(comps)},
-                         traces=traces, n_iter=int(n_iter), burn_in=int(burn_in))
+                         traces=traces, n_iter=n_iter, burn_in=burn_in)
 
 
 @dataclass
@@ -821,7 +831,8 @@ class BootstrapResult:
     samples: np.ndarray
 
 
-def bootstrap_fit(families: Sequence, estimator: Callable, *, n_boot: int = 100,
+def bootstrap_fit(families: Sequence, estimator: Callable, *,
+                  weights: ArrayLike | None = None, n_boot: int = 100,
                   seed: int | None = None,
                   ci_level: float = 0.95) -> BootstrapResult:
     """Approximate percentile uncertainty by **resampling family clusters**.
@@ -831,9 +842,9 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *, n_boot: int = 100,
     *within-dataset* Monte-Carlo diagnostic and can substantially understate
     sampling variability. This helper resamples families with replacement
     ``n_boot`` times and reports the refit SD and percentile interval. Its sampling
-    interpretation assumes independent, non-overlapping, representative family
-    clusters and a compatible ascertainment/model; it is not bias-corrected,
-    studentized, or automatically calibrated at boundaries.
+    interpretation assumes independent, non-overlapping family clusters and
+    either representative sampling or valid aligned IPW; it is not
+    bias-corrected, studentized, or automatically calibrated at boundaries.
 
     ``estimator`` is a callable ``families -> value`` returning the quantity of
     interest as a float or array, e.g.::
@@ -846,6 +857,17 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *, n_boot: int = 100,
                                           seed=1, sampling="population"
                                       ).components["C"])
 
+    For an IPW analysis, pass the original per-family ``weights`` and accept a
+    second argument in the estimator. The helper resamples the two arrays with
+    the same indices, preventing weights from becoming detached from their
+    families::
+
+        bootstrap_fit(
+            fams,
+            lambda f, w: fit_heritability(
+                f, sampling="ipw", weights=w, seed=1).h2,
+            weights=weights)
+
     Fix the estimator's internal ``seed`` so each refit is deterministic given its
     resample — then the bootstrap spread reflects family sampling, not the sampler's
     own Monte-Carlo noise. Returns a :class:`BootstrapResult`. Cost is ``n_boot + 1``
@@ -854,11 +876,14 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *, n_boot: int = 100,
     ``estimator`` must return a stable scalar/array shape. ``n_boot`` is an integer
     at least 2; substantially more than the default 100 may be needed for stable
     interval endpoints. ``seed`` follows NumPy ``default_rng`` semantics and seeds
-    only the resampling; ``ci_level`` sets the percentile interval."""
+    only the resampling; ``ci_level`` sets the percentile interval. When
+    ``weights`` is supplied, ``estimator`` is called as
+    ``estimator(families, weights)`` for both the point fit and every refit."""
     families = list(families)
     n = len(families)
     if n < 2:
         raise ValueError("need at least 2 families to bootstrap")
+    weights = _validate_weights(weights, n, "bootstrap_fit")
     if isinstance(n_boot, (bool, np.bool_)):
         raise TypeError("n_boot must be an integer >= 2, not bool")
     try:
@@ -870,11 +895,16 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *, n_boot: int = 100,
     if not 0.0 < ci_level < 1.0:
         raise ValueError("ci_level must be in (0, 1)")
     rng = np.random.default_rng(seed)
-    point = np.asarray(estimator(families), dtype=float)
+    point_value = (estimator(families) if weights is None
+                   else estimator(families, weights))
+    point = np.asarray(point_value, dtype=float)
     samples = np.empty((n_boot,) + point.shape, dtype=float)
     for b in range(n_boot):
         idx = rng.integers(0, n, size=n)
-        sample = np.asarray(estimator([families[i] for i in idx]), dtype=float)
+        sampled_families = [families[i] for i in idx]
+        sample_value = (estimator(sampled_families) if weights is None
+                        else estimator(sampled_families, weights[idx]))
+        sample = np.asarray(sample_value, dtype=float)
         if sample.shape != point.shape:
             raise ValueError(
                 f"estimator returned shape {sample.shape} for bootstrap resample "

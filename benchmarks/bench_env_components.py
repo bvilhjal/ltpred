@@ -52,8 +52,8 @@ FIT_KW = dict(n_iter=600, burn_in=200)
 
 def est_metrics(fams, true_g, true_o, **kw):
     res = estimate_liability(fams, h2=H2, out=("genetic", "full"), **kw)
-    g = np.asarray(res.est["genetic"] if hasattr(res, "est") else res.genetic)
-    o = np.asarray(res.est["full"] if hasattr(res, "est") else res.full)
+    g = np.asarray(res.est["genetic"])
+    o = np.asarray(res.est["full"])
     return (float(np.corrcoef(g, true_g)[0, 1]),
             float(np.polyfit(g, true_g, 1)[0]),
             float(np.corrcoef(o, true_o)[0, 1]))

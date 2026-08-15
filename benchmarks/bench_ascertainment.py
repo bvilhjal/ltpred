@@ -88,9 +88,8 @@ import argparse
 import contextlib
 
 import numpy as np
-from scipy.stats import chi2
 
-from _common import get_plt
+from _common import get_plt, sd_ci
 from ltpred.covariance import (construct_covmat_multi, correct_positive_definite,
                                get_relatedness)
 from ltpred.family import Family, Member
@@ -124,13 +123,6 @@ TARGET_CASE_FRAC = {"case_control": 0.5, "enriched_20": 0.2}
 # within this of either end is reported as pinned rather than estimated.
 _EPS = 1e-4
 _BOUNDARY_TOL = 1e-3
-
-
-def _sd_ci(sd, reps, alpha=0.05):
-    """Normal-theory confidence interval for an across-replicate SD."""
-    df = reps - 1
-    return (sd * np.sqrt(df / chi2.ppf(1.0 - alpha / 2.0, df)),
-            sd * np.sqrt(df / chi2.ppf(alpha / 2.0, df)))
 
 
 def _at_boundary(values):
@@ -482,7 +474,7 @@ def arm_h2(args, rows):
                 cfrac.append(st["case_frac"])
             fitted = np.asarray(fitted)
             sd = float(fitted.std(ddof=1)) if args.reps > 1 else float("nan")
-            lo, hi = _sd_ci(sd, args.reps) if args.reps > 1 else (np.nan, np.nan)
+            lo, hi = sd_ci(sd, args.reps) if args.reps > 1 else (np.nan, np.nan)
             bnd = _at_boundary(fitted)
             print(f"{struct:>10} {scheme:>15} {fitted.mean():8.3f} "
                   f"{fitted.mean() - args.h2:+8.3f} {sd:7.3f} {bnd:5.2f} "
@@ -528,7 +520,7 @@ def arm_ac(args, rows):
               f"{fc.mean():8.3f} {fc.mean() - args.c2:+8.3f} {sdc:7.3f} "
               f"{resid.mean():8.4f} {sat:5.2f}")
         for name, vals, truth, sd in (("A", fa, args.a2, sda), ("C", fc, args.c2, sdc)):
-            lo, hi = _sd_ci(sd, args.reps) if args.reps > 1 else (np.nan, np.nan)
+            lo, hi = sd_ci(sd, args.reps) if args.reps > 1 else (np.nan, np.nan)
             rows.append(dict(arm="AC", structure="sibship", scheme=scheme,
                              n_fam=args.n_fam, prev=args.prev, reps=args.reps,
                              target=name, truth=truth, fitted_mean=vals.mean(),
@@ -560,7 +552,7 @@ def arm_rg(args, rows):
             h2_.append(float(res.h2[1]))
         rg_hat = np.asarray(rg_hat)
         sd = float(rg_hat.std(ddof=1)) if args.reps > 1 else float("nan")
-        lo, hi = _sd_ci(sd, args.reps) if args.reps > 1 else (np.nan, np.nan)
+        lo, hi = sd_ci(sd, args.reps) if args.reps > 1 else (np.nan, np.nan)
         # rg = G / sqrt(h2_1 h2_2): if the per-trait h2 have run to the clamp
         # the ratio is mechanically squeezed toward a finite value, so a small
         # |bias| in rg means nothing without knowing whether its denominators
@@ -773,7 +765,7 @@ def arm_ipw(args, rows):
     conditional distribution; what selection breaks is the *mix* of families.
     That is what IPW repairs, so it is a better-matched remedy than a scale
     transform. This arm runs the real `sampling="ipw"` path -- no `unguarded()`
-    -- so it also exercises the positivity check.
+    -- so it also exercises the weighted marginal-calibration screen.
 
     Reported per scheme: the unweighted fit (what arms A-D measure), the IPW
     fit, and both across-replicate SDs, because the standard objection to IPW is

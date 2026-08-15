@@ -200,7 +200,7 @@ def main():
                                           upper=float(hi[0])))
                 fams.append(Family(fam_id=i, members=members))
             est = estimate_liability(fams, h2=H2)
-            est = np.asarray(est.est["genetic"] if hasattr(est, "est") else est.genetic)
+            est = np.asarray(est.est["genetic"])
             g = liab[:, 0]
             slopes.append(float(np.polyfit(est, g, 1)[0]))
             corrs.append(float(np.corrcoef(est, g)[0, 1]))

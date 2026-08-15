@@ -176,10 +176,11 @@ full-liability prediction on environmentally clustered families.
 For **case/control-enriched** samples with known inclusion probabilities, pass
 `sampling="ipw"` with per-family weights — see
 [Inference](inference.md#ascertained-samples) for the worked example and its two
-limits. For **family-history-selected** samples, and any design that samples no
-families from some stratum, reweighting is undefined: use externally estimated
-components or a fitter that models the sampling design. The family bootstrap
-does not correct ascertainment bias in either case.
+limits. A **family-history-selected** sample is reweightable only if every
+complete observed family pattern has a known, strictly positive inclusion
+probability. When probabilities are unknown or misspecified, or any stratum has
+zero probability, use externally estimated components or a fitter that models
+the sampling design. The family bootstrap does not correct ascertainment bias.
 
 ## Choosing Gibbs vs Pearson–Aitken
 

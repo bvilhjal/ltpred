@@ -66,17 +66,19 @@ and [Inference](inference.md#variance-components-a-c-m).
 
 The family-data fitters assume **independent, non-overlapping families**, and
 one of two sampling contracts. `sampling="population"` for an unascertained
-sample — now *verified* against your data, since the thresholds assert a
-prevalence the observed case rates must match. `sampling="ipw"` with per-family
+sample — now *screened for gross marginal inconsistency* with your data, since
+the thresholds assert a prevalence the observed case rates should match.
+`sampling="ipw"` with per-family
 `weights` for a sample selected on observed status with a **known, strictly
 positive** inclusion probability (case/control cohorts, biobank case
 enrichment); see [Inference](inference.md#ascertained-samples).
 
-Everything else invalidates the iid-family moments, and bootstrap does not
-correct it: overlapping pedigrees, selection on family history, and any design
-that samples *no* families from some stratum — ascertainment through an
-affected proband being the standard example, where inclusion probability is
-zero for unaffected probands and no weighting can reconstruct them. The
+Overlapping pedigrees invalidate the iid-family moments, and bootstrap does not
+correct selection bias. Selection on family history can be reweighted only when
+the inclusion probability of every complete observed family pattern is known
+and strictly positive. A design that samples *no* families from some stratum
+cannot be corrected — ascertainment through an affected proband is the standard
+example, where inclusion probability is zero for unaffected probands. The
 severity is worth internalising: on ascertained families with a **true `h²` of
 0**, the unguarded fitter returns **`h² = 1.0`**, and a case rate only 1.27×
 the assumed prevalence already inflates `h²` by +0.23
@@ -126,7 +128,8 @@ Before running a production analysis:
     `sampling="population"` for an unascertained sample, or `sampling="ipw"`
     with `weights = 1 / P(family sampled)` when selection was on observed status
     with a known positive probability for every stratum. Check that your
-    observed case rates actually match the prevalence behind your thresholds —
+    observed case rates plausibly match the prevalence behind your thresholds —
+    this is a marginal diagnostic, not proof of joint-pattern positivity —
     the fitter now checks this for you and raises, but a mismatch may equally
     mean the prevalence is wrong rather than the sample selected. Neither
     contract covers proband-ascertained families; those need an estimator that

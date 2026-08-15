@@ -127,6 +127,39 @@ def _record_onset(aoo, onset_resolution):
     return round(aoo / onset_resolution) * onset_resolution
 
 
+def _threshold_crossing_case_bounds(aoo, current_age, onset_resolution,
+                                    case_encoding, pop_prev, mid_point, slope):
+    """Bounds implied by an exact or nearest-grid crossing age.
+
+    If a register reports ``r`` to the nearest grid width ``w``, the latent
+    onset lies in ``[r - w/2, r + w/2]``.  The liability threshold decreases
+    with age, so this age bin maps to the reversed liability interval
+    ``[T(r + w/2), T(r - w/2)]``.  At the age-zero clamp the upper liability is
+    unbounded.  ``case_encoding='interval'`` deliberately keeps only the
+    conservative lower edge, preserving its one-sided semantics.
+    """
+    if onset_resolution is None:
+        thr = float(convert_age_to_thresh(
+            aoo, pop_prev=pop_prev, mid_point=mid_point, slope=slope))
+        return (thr, np.inf) if case_encoding == "interval" else (thr, thr)
+
+    recorded = _record_onset(aoo, onset_resolution)
+    half_width = onset_resolution / 2.0
+    # Observed case status also says onset preceded the current/censoring age.
+    latest_onset = min(recorded + half_width, current_age)
+    lower = float(convert_age_to_thresh(
+        latest_onset, pop_prev=pop_prev, mid_point=mid_point, slope=slope))
+    if case_encoding == "interval":
+        return lower, np.inf
+
+    earliest_onset = recorded - half_width
+    if earliest_onset <= 0.0:
+        return lower, np.inf
+    upper = float(convert_age_to_thresh(
+        earliest_onset, pop_prev=pop_prev, mid_point=mid_point, slope=slope))
+    return lower, upper
+
+
 def _validate_onset_resolution(onset_resolution):
     if onset_resolution is None:
         return None
@@ -255,14 +288,14 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
 
     ``onset_resolution`` is the grid a register is taken to **record** onset on,
     in years (default ``1.0``, whole years; ``None`` records the exact simulated
-    onset). Case bounds are built from the recorded value under both ``"pin"``
-    and ``"interval"``, so the two encodings describe the same observation
-    process. This matters when the simulation is used as an oracle: under
-    ``threshold_crossing`` a pin reproduces the true liability only with
-    ``onset_resolution=None``, and even then only up to the age-0 clamp in the
-    CIP inverse, which caps the recoverable liability at the extreme tail. At the default one-year grid the pinned
-    bound sits within roughly 0.02 of the simulated liability (about 2% of its
-    SD), which is a floor on any measured recovery — realistic, but not zero."""
+    onset). Under ``threshold_crossing``, a finite recording grid is represented
+    by its full age bin. A ``"pin"`` therefore becomes the corresponding
+    two-sided liability interval, while ``"interval"`` keeps its one-sided
+    meaning but uses the bin's conservative lower edge. Both contain the
+    generating liability. With ``onset_resolution=None``, the old exact-onset
+    behavior is preserved: ``"pin"`` is a point and ``"interval"`` starts at
+    that point. The age-0 clamp remains an upper-open liability interval because
+    arbitrarily high liabilities map to onset age zero."""
     onset_resolution = _validate_onset_resolution(onset_resolution)
     onset_model, case_encoding, onset_rho = _resolve_age_options(
         use_age, onset_model, case_encoding, onset_rho)
@@ -302,6 +335,10 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
                 aoo = float(onset[r][i])
                 if case_encoding == "lifetime":
                     lower, upper = t, np.inf
+                elif onset_model == "threshold_crossing":
+                    lower, upper = _threshold_crossing_case_bounds(
+                        aoo, ages[r][i], onset_resolution, case_encoding,
+                        pop_prev, mid_point, slope)
                 else:
                     # An observed case has a finite onset at or before their
                     # current age; the guard covers only a direct call with a

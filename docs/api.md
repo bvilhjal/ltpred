@@ -13,7 +13,7 @@ is also a top-level export.
 | function | purpose |
 |---|---|
 | `estimate_liability` | end-to-end estimator (PA inference by default for one trait, Gibbs for multi-trait) |
-| `fit_heritability` | **fit** liability-scale `h²` from independent, non-overlapping families; `sampling="population"` (unascertained, verified against your observed case rates) or `sampling="ipw"` with `weights = 1 / P(family sampled)` for a known-probability selected design |
+| `fit_heritability` | **fit** liability-scale `h²` from independent, non-overlapping families; `sampling="population"` (unascertained, screened for gross marginal case-rate inconsistency but not certified) or `sampling="ipw"` with `weights = 1 / P(family sampled)` for a known, strictly positive selected design |
 | `prevalence_thresholds` / `age_thresholds` | classic or personalised pinned bounds; family rows determine LT-FH++ vs ADuLT |
 | `pa_thresholds` | age-specific interval-case and PA-FGRS censored-control-mixture inputs; an age-dependent variant, not base PA-FGRS, exact PA-FGRS_ADT, or a requirement merely to use the PA engine |
 | `thresholds_from_cip` | bounds from an empirical (population) CIP curve — `case_mode="interval"` is likewise an age-dependent PA-FGRS-style variant rather than exact PA-FGRS_ADT; endpoint values are held constant outside its age grid |
@@ -54,8 +54,9 @@ follow NumPy's `default_rng` contract.
 | `rtmvnorm_gibbs` | truncated-MVN Gibbs sampler; covariance must be strictly positive-definite |
 | `convert_age_to_cir` / `convert_age_to_thresh` / … | age ↔ incidence ↔ threshold |
 
-PA accepts a symmetric positive-semidefinite covariance. Gibbs requires strict
-positive-definiteness because it forms precision-based conditional variances.
+PA accepts a symmetric positive-semidefinite covariance with strictly positive
+marginal variances. Gibbs requires strict positive-definiteness because it forms
+precision-based conditional variances.
 The sex-limited and genetic-nurture covariance constructors live in the
 checkout-only `research/covariance_extensions.py`.
 

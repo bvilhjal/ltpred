@@ -490,12 +490,13 @@ def test_pa_entry_points_validate_bounds():
     [(np.array([[np.nan, 0.0], [0.0, 1.0]]), "finite"),
      (np.array([[np.inf, 0.0], [0.0, 1.0]]), "finite"),
      (np.array([[1.0, 0.9], [0.1, 1.0]]), "symmetric"),
+     (np.array([[1.0, 2.0], [2.0, 1.0]]), "positive-semidefinite"),
+     (np.diag([1.0, 0.0]), "strictly positive"),
      (np.zeros((2, 3)), "square")],
 )
 def test_pa_entry_points_validate_covariance(cov, match):
-    # a light check (square / finite / scale-relative symmetric) -- deliberately
-    # NOT the strict Gibbs PD gate: production paths route through
-    # correct_positive_definite upstream and PA never inverts the covariance
+    # Unlike Gibbs, PA accepts singular PSD matrices, but an indefinite matrix is
+    # not a covariance and zero marginal variance is unsupported by truncation.
     lo, hi = [-np.inf, 1.0], [np.inf, np.inf]
     with pytest.raises(ValueError, match=match):
         pa_algorithm(cov, lo, hi)
@@ -504,7 +505,7 @@ def test_pa_entry_points_validate_covariance(cov, match):
 
 
 def test_pa_accepts_merely_psd_covariance():
-    # pin the light-check design: a singular but symmetric covariance still runs
+    # A singular PSD covariance with positive marginal variances remains valid.
     psd = np.ones((2, 2))
     est, var = pa_algorithm(psd, [-np.inf, 1.0], [np.inf, np.inf])
     assert np.isfinite(est) and np.isfinite(var)

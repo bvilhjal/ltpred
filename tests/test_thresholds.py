@@ -54,6 +54,46 @@ def test_prevalence_thresholds():
     assert np.array_equal(upper, np.where(status, np.inf, t))
 
 
+@pytest.mark.parametrize(
+    "status",
+    [np.array([False, True]), np.array([0, 1]), np.array([0.0, 1.0])],
+)
+def test_threshold_builders_accept_boolean_or_exact_binary_status(status):
+    age = np.array([40.0, 70.0])
+    cip_ages = np.array([0.0, 100.0])
+    cip_values = np.array([0.0, 0.2])
+    expected = np.array([False, True])
+
+    lower, _ = prevalence_thresholds(status)
+    assert np.array_equal(np.isfinite(lower), expected)
+    lower, _ = age_thresholds(status, age)
+    assert np.array_equal(np.isfinite(lower), expected)
+    lower, _, _, _ = pa_thresholds(status, age)
+    assert np.array_equal(np.isfinite(lower), expected)
+    lower, _, _, _ = thresholds_from_cip(
+        status, age, cip_ages, cip_values)
+    assert np.array_equal(np.isfinite(lower), expected)
+
+
+@pytest.mark.parametrize(
+    "status",
+    [np.array([0.0, np.nan]), [-9, 0], [0, 2], [[0, 1]], 1, ["0", "1"]],
+)
+def test_threshold_builders_reject_invalid_status_codes_and_shapes(status):
+    n = max(1, np.asarray(status).size)
+    age = np.linspace(40.0, 70.0, n)
+    builders = (
+        lambda: prevalence_thresholds(status),
+        lambda: age_thresholds(status, age),
+        lambda: pa_thresholds(status, age),
+        lambda: thresholds_from_cip(
+            status, age, [0.0, 100.0], [0.0, 0.2]),
+    )
+    for build in builders:
+        with pytest.raises(ValueError, match="status"):
+            build()
+
+
 def test_thresholds_from_cip_matches_manual():
     # an empirical CIP curve; interpolate and threshold
     cip_ages = np.array([0, 40, 80])
