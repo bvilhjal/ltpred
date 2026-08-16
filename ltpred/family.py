@@ -76,7 +76,9 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
     ``upper`` and optionally ``pid``). Records sharing a ``fam_id`` become one
     :class:`Family`; family order follows first appearance. For the multi-trait
     model pass ``lower``/``upper`` as 2-D (rows x phenotypes). ``K_i``/``K_pop`` are
-    optional per-row columns for the Pearson-Aitken censored-control mixture."""
+    optional per-row columns for the Pearson-Aitken censored-control mixture.
+    Missing (NaN/None) ``fam_id`` values are rejected: they cannot group records
+    and would otherwise fragment silently into one-member families."""
     fam_id = np.asarray(fam_id)
     role = np.asarray(role, dtype=object)
     lower = np.asarray(lower, dtype=float)
@@ -89,6 +91,23 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
     n = len(fam_id)
     if not (len(role) == n == lower.shape[0] == upper.shape[0]):
         raise ValueError("fam_id, role, lower and upper must share length")
+    if lower.shape != upper.shape:
+        raise ValueError(
+            f"lower and upper must have the same shape; got {lower.shape} "
+            f"and {upper.shape}")
+    if fam_id.dtype.kind == "f":
+        missing = ~np.isfinite(fam_id)
+    elif fam_id.dtype == object:
+        missing = np.array([x is None or (isinstance(x, float)
+                                          and not np.isfinite(x))
+                            for x in fam_id])
+    else:
+        missing = np.zeros(n, dtype=bool)
+    if np.any(missing):
+        raise ValueError(
+            "fam_id must not contain NaN/None: a missing id cannot group "
+            "records and would silently fragment them into one-member "
+            "families")
 
     order = []
     groups = {}

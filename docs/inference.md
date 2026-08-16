@@ -31,8 +31,9 @@ Unsupported experimental inferential machinery lives in the checkout-only
     reports the observed and asserted rates rather than assuming ascertainment.
 
     **It is a guard, not a certificate.** The enrichment it can detect is
-    `1 + 6·√((1−K)/(K·n))` — at K = 0.05 that is ~1.67× at N = 1,500 and
-    ~1.26× at N = 10,000. Milder enrichment passes silently, and the
+    `max(1 + 6·√((1−K)/(K·n)), 1.15)×` — the z-score gate is combined with a
+    15% rate-ratio floor. At K = 0.05 that is ~1.67× at N = 1,500 and
+    ~1.26× at N = 10,000, with the 1.15× floor binding for N ≳ 30,000. Milder enrichment passes silently, and the
     dose-response below shows a 1.27× enrichment already inflates `h²` by
     +0.23. Passing this check is not evidence that your sample is
     population-sampled.
@@ -210,9 +211,10 @@ scores = [estimate_liability(families, h2=h).est["genetic"] for h in grid]
 min_corr = np.corrcoef(scores)[np.triu_indices(len(grid), 1)].min()
 ```
 
-In the documented benchmark this worst-case cross-setting correlation was high
-(≈0.97 across `h² 0.2–0.8` for the tested pedigree): changing the assumed `h²`
-acted mostly like a near-linear
+In the calibration benchmark (§12 of `benchmarks/RESULTS.md`) the ranking is
+barely touched by a wrong `h²`: corr(est, true g) stays in 0.429–0.431 across
+assumed `h²` 0.2–0.8 while the calibration slope sweeps from 2.24 to 0.68 —
+changing the assumed `h²` acts mostly like a near-linear
 rescaling of the liability score. This is an empirical sensitivity result, not
 rank invariance or a guarantee for other structures. A low cross-setting
 correlation is the signal to obtain a better external `h²`, or—only when the

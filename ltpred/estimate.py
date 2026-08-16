@@ -206,7 +206,9 @@ def batch_means(samples: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     """Batch-means estimate and Monte-Carlo SE of column means (Jones et al. 2006).
 
     Splits ``n`` samples into ``a = n // b`` consecutive batches of size
-    ``b = floor(sqrt(n))``, then ``se = sqrt(b * var(batch_means) / n)``. Accepts a
+    ``b = floor(sqrt(n))``, then ``se = sqrt(b * var(batch_means) / (a*b))``
+    — the denominator is the ``a*b`` draws that actually enter the batches,
+    matching R ``batchmeans::bmmat``. Accepts a
     1-D or 2-D ``(n, ncols)`` array and returns ``(est, se)`` arrays over columns.
     Port of R ``batchmeans::bmmat`` -- the rule LTFHPlus uses to decide the Gibbs
     sampler has converged. (The estimator computes the same quantity online inside
@@ -226,7 +228,7 @@ def batch_means(samples: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     batch_mean = used.mean(axis=1)             # (a, ncols)
     mu = batch_mean.mean(axis=0)               # (ncols,)
     sigma2 = b * np.sum((batch_mean - mu) ** 2, axis=0) / (a - 1)
-    se = np.sqrt(sigma2 / n)
+    se = np.sqrt(sigma2 / (a * b))
     est = x.mean(axis=0)
     return est, se
 
@@ -327,7 +329,9 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
             # sum((Y - Ybar)^2) = S2 - S1^2 / M  (pooled over rounds, batch size b)
             ss = bm_s2[f] - bm_s1[f] ** 2 / m
             sigma2 = b * ss / (m - 1)
-            se[f] = np.sqrt(np.maximum(sigma2, 0.0) / total_n[f])
+            # batchmeans convention: the SE denominator is the m*b draws that
+            # enter the batches, not the total kept draws (n_sim >= nb*b).
+            se[f] = np.sqrt(np.maximum(sigma2, 0.0) / (m * b))
             est[f] = tot[f] / total_n[f]
             # E[x^2] - E[x]^2 over every retained draw; a pinned (fixed)
             # coordinate gives exactly 0, and rounding cannot make a variance
@@ -723,6 +727,10 @@ def _pa_from_role_arrays(roles, lower, upper, h2, out_coords, K_i=None,
     _check_unique_role_labels(roles)
     lower = as_bounds(lower)
     upper = as_bounds(upper)
+    if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
+        raise ValueError(
+            f"lower and upper must be (n_families, {len(roles)}) -- one "
+            f"column per role {roles}; got {lower.shape} and {upper.shape}")
     validate_bounds(lower, upper, context="array estimator bounds")
     cov_obj, cov = _single_trait_cov(
         roles, h2, c2, m2, "Pearson-Aitken estimation", canonical=True)
@@ -757,6 +765,10 @@ def _gibbs_from_role_arrays(roles, lower, upper, h2, out_coords, seeds,
     _check_unique_role_labels(roles)
     lower = as_bounds(lower)
     upper = as_bounds(upper)
+    if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
+        raise ValueError(
+            f"lower and upper must be (n_families, {len(roles)}) -- one "
+            f"column per role {roles}; got {lower.shape} and {upper.shape}")
     validate_bounds(lower, upper, context="array estimator bounds")
     cov_obj, cov = _single_trait_cov(roles, h2, c2, m2, "Gibbs sampling")
     lo, hi = _align_to_cov(roles, cov_obj.roles, (lower, upper),
@@ -870,7 +882,7 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
                                     K_i: ArrayLike | None = None,
                                     K_pop: ArrayLike | None = None,
                                     use_mixture: bool = False
-                                    ) -> tuple[np.ndarray, np.ndarray]:
+                                    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Estimate a target individual's liability from an **arbitrary pedigree**.
 
     The kinship-based counterpart of the array estimators: instead of the fixed role
@@ -888,9 +900,11 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
     family-history GWAS phenotype) or ``"full"`` (``E[l_o | own interval and
     relatives]`` on both engines). ``method=None`` uses the
     deterministic Pearson-Aitken engine, matching the main single-trait default;
-    pass ``method="gibbs"`` for reference sampling. Returns ``(est, uncertainty)``,
-    where the second array is PA's approximate conditional variance or the Gibbs
-    Monte-Carlo SE, respectively.
+    pass ``method="gibbs"`` for reference sampling. Returns ``(est, se, var)``:
+    ``se`` is the Monte-Carlo SE of ``est`` (exactly zero under PA, which is
+    deterministic — that means *no sampling error*, not no approximation error),
+    and ``var`` is the posterior (conditional) variance of the target liability
+    on both engines.
     ``use_mixture=True`` with per-member ``K_i``/``K_pop`` (same shape as
     ``lower``) runs the PA-FGRS censored-control mixture; Gibbs does not
     implement it. Each array has length ``n_families``. The covariance is built by
@@ -928,22 +942,26 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
 
     if method_name == "pearson-aitken":
         if not use_mixture:
-            return pa_estimate_batched(cov, lo, hi, target=tgt)
-        K_i, K_pop = validate_mixture_inputs(
-            K_i, K_pop, expected_shape=lower.shape, require_pair=True,
-            lower=lower, upper=upper,
-            context="kinship estimator mixture inputs")
-        nan_g = np.full((F, 1), np.nan, dtype=as_bounds(K_i).dtype)
-        ki = np.ascontiguousarray(np.concatenate([nan_g, as_bounds(K_i)], axis=1))
-        kp = np.ascontiguousarray(np.concatenate(
-            [np.full((F, 1), np.nan, dtype=as_bounds(K_pop).dtype),
-             as_bounds(K_pop)], axis=1))
-        return pa_estimate_batched(cov, lo, hi, target=tgt, K_is=ki, K_pops=kp)
+            est, var = pa_estimate_batched(cov, lo, hi, target=tgt)
+        else:
+            K_i, K_pop = validate_mixture_inputs(
+                K_i, K_pop, expected_shape=lower.shape, require_pair=True,
+                lower=lower, upper=upper,
+                context="kinship estimator mixture inputs")
+            nan_g = np.full((F, 1), np.nan, dtype=as_bounds(K_i).dtype)
+            ki = np.ascontiguousarray(np.concatenate([nan_g, as_bounds(K_i)], axis=1))
+            kp = np.ascontiguousarray(np.concatenate(
+                [np.full((F, 1), np.nan, dtype=as_bounds(K_pop).dtype),
+                 as_bounds(K_pop)], axis=1))
+            est, var = pa_estimate_batched(cov, lo, hi, target=tgt,
+                                           K_is=ki, K_pops=kp)
+        # PA is deterministic: no Monte-Carlo error, so se is exactly zero.
+        return est, np.zeros_like(est), var
 
     seeds = _base_seeds(seed, F, max_rounds)
-    est, se, _var = _estimate_group(cov, [tgt], lo, hi, seeds, tol, n_sim,
-                                    burn_in, max_rounds)
-    return est[:, 0], se[:, 0]
+    est, se, var = _estimate_group(cov, [tgt], lo, hi, seeds, tol, n_sim,
+                                   burn_in, max_rounds)
+    return est[:, 0], se[:, 0], var[:, 0]
 
 
 def estimate_liability(families: Sequence, h2: ArrayLike = 0.5, *,
@@ -996,7 +1014,12 @@ def estimate_liability(families: Sequence, h2: ArrayLike = 0.5, *,
     estimation. ``dtype=np.float32`` stores the per-family
     liability bounds in single precision (half the memory) — useful at biobank
     scale. For Gibbs, ``seed`` must be a non-boolean integer in
-    ``[0, 2**32 - 1]`` or ``None``; PA ignores it."""
+    ``[0, 2**32 - 1]`` or ``None``; PA ignores it. The same applies to ``tol``,
+    ``n_sim``, ``burn_in`` and ``max_rounds``: they steer the Gibbs sampler's
+    convergence loop and are not read on the deterministic PA path."""
+    if (np.ndim(h2) > 0 and np.size(h2) == 1 and genetic_corrmat is None
+            and full_corrmat is None):
+        h2 = float(np.ravel(h2)[0])   # a length-1 h2 is a scalar request
     is_multi = np.ndim(h2) > 0 or genetic_corrmat is not None or full_corrmat is not None
 
     # default: PA (single trait), Gibbs (multi, PA can't)

@@ -57,8 +57,8 @@ class SmokeTests(unittest.TestCase):
         lo, hi, _, _ = thresholds_from_cip(status[midx], age[midx],
                                            CIP_AGES, CIP_VALUES, k_pop=None)
         _, A = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
-        e, v = estimate_liability_from_kinship(A, lo[None, :], hi[None, :],
-                                               h2=0.5, target=0)
+        e, _, v = estimate_liability_from_kinship(A, lo[None, :], hi[None, :],
+                                                  h2=0.5, target=0)
         self.assertAlmostEqual(out.est[0], e[0], places=12)
         self.assertAlmostEqual(out.var[0], v[0], places=12)
 
@@ -99,8 +99,8 @@ class FamilywiseCensoringTests(unittest.TestCase):
         lo, hi, _, _ = thresholds_from_cip(st, ag, CIP_AGES, CIP_VALUES)
         lo[0], hi[0] = -np.inf, np.inf
         _, A = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
-        e, _ = estimate_liability_from_kinship(A, lo[None, :], hi[None, :],
-                                               h2=0.5, target=0)
+        e, _, _ = estimate_liability_from_kinship(A, lo[None, :], hi[None, :],
+                                                  h2=0.5, target=0)
         self.assertAlmostEqual(out.est[0], e[0], places=12)
 
     def test_censoring_changes_the_estimate(self):
@@ -127,6 +127,12 @@ class StrataTests(unittest.TestCase):
                                    strata=strata,
                                    cip_by_stratum={"A": curve_a, "B": curve_b})
         self.assertTrue(np.isfinite(out.est[0]))
+        # "differ" must be asserted: a run that silently ignored
+        # cip_by_stratum would reproduce the single-curve estimate
+        plain = estimate_liabilities(IDS, FATHER, MOTHER,
+                                     probands=["o"], status=status, age=age,
+                                     cip_ages=CIP_AGES, cip_values=CIP_VALUES)
+        self.assertNotAlmostEqual(out.est[0], plain.est[0], places=6)
 
 
 class ValidationTests(unittest.TestCase):

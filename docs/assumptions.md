@@ -5,8 +5,9 @@ run, and the common mistakes.
 
 ## Modelling assumptions
 
-The high-level predictor uses **additive genetic sharing only**: every
-off-diagonal entry is `shared_DNA × h²`. It assumes jointly Gaussian liabilities,
+By default, the high-level predictor uses **additive genetic sharing only**: every
+off-diagonal entry is `shared_DNA × h²` (the optional `c2`/`m2` shared-environment
+components below add their own off-diagonals). It assumes jointly Gaussian liabilities,
 correct relationships and diagnoses, and correctly specified prevalence/CIPs and
 liability-scale `h²`. Under its standard model, individual-specific residuals are
 independent of relatives' additive genetic values and of each other.

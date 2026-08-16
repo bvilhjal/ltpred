@@ -22,6 +22,12 @@ censoring mixture is not included in the PA–Gibbs comparisons below.
 - **Provenance limit:** these checked-in values are historical artifacts. They
   do not automatically validate later source changes, including a dirty working
   tree. Claims should be refreshed after numerical or benchmark-source changes.
+  Two specific gaps: four committed CSVs (`bench_pgs_comparison.csv`,
+  `bench_pedigree_inference.csv`, `bench_register_pipeline.csv` and
+  `bench_ascertainment_h2null.csv`) have no manifest entry recording their
+  production; and the 40 schema-2 manifest entries record only a hash of the
+  tracked diff, not its content, so their exact source state is unrecoverable
+  (schema-3 runs archive the patch under `run_sources/`).
 - **Future runs:** use
   `python benchmarks/run_benchmark.py SCRIPT -- [ARGS]`; it appends the exact
   command, environment, exit status, Git commit, tracked-diff hash, content
@@ -58,7 +64,7 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
 - **PA is the right default for the tested single-trait, no-mixture work.** Across the 27-cell accuracy
   grid (five seeds per cell), mean corr(PA, Gibbs) is 0.9977–0.9999. The
   stressful-pedigree benchmark remains
-  at least 0.9984. PA and Gibbs also give indistinguishable downstream GWAS
+  at least 0.9981 (worst single-seed 0.99813). PA and Gibbs also give indistinguishable downstream GWAS
   results. In the 4-thread timing run, the PA object path is **384–488× faster**
   than grouped Gibbs across the tested sizes and pedigrees. The ratio is not
   thread-count-free: Gibbs is the parallel engine while the PA object path is
@@ -77,8 +83,9 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   (7.76 ± 0.10 ms/family) for 4-thread ltpred Gibbs, 1.895 ± 0.052 s
   (9.47 ± 0.26 ms/family) for LTFGRS PA, and 0.00167 ± 0.00022 s
   (0.0083 ± 0.0011 ms/family) for ltpred PA. Isolated-process peak
-  RSS was 442.3 ± 1.5, 259.8 ± 0.9, 165.3 ± 16.6 and 147.9 ± 0.5 MiB
-  respectively (interpreter included). The 6613× figure is not
+  RSS was 442.3 ± 1.5, 259.8 ± 0.9, 165.3 ± 16.6 and 147.9 ± 0.5 MiB —
+  LTFHPlus, LTFGRS PA, ltpred Gibbs and ltpred PA respectively
+  (interpreter included). The 6613× figure is not
   "LT-FH++, but faster."
 - **Classic LT-FH improves genotype-GWAS signal without average null inflation.**
   Across three genotype/effect/cohort replicates, the same classic LT-FH model
@@ -98,7 +105,7 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   tweak.
 - **Sex-specific CIP improves stratum calibration, not proven adjusted power.**
   In a prespecified sex-only scenario, correct sex curves close the female-minus-
-  male mean-score-error gap by **0.05091 ± 0.00096** (paired 95% CI), while the
+  male mean-score-error gap by **0.05092 ± 0.00096** (paired 95% CI), while the
   adjusted NCP-ratio increment is **0.0040 ± 0.0046** and remains unresolved.
 - **A correctly specified posterior mean is self-calibrating; a wrong h² is not.**
   On the classic-LT-FH grid, calibration slope sits on 1 (e.g. 1.006 ± 0.008 at
@@ -156,8 +163,8 @@ Five warmed timings per point, reported as medians; Python 3.14.6, NumPy 2.4.6,
 SciPy 1.18.0, Numba 0.66.0, **4 Numba threads**, on an Apple M2 Pro (10 cores,
 arm64), h²=0.5, K=0.05, and 25,000 Gibbs draws. This rerun includes the collapsed-genetic
 Gibbs path (untruncated `g` integrated out of the sweep). No other benchmark ran
-concurrently, but the machine was not otherwise idle: system processes held
-1-minute load average near 7–11 throughout. `benchmarks/run_manifest.jsonl`
+concurrently, but the machine was not otherwise idle: the recorded 1-minute
+load average moved from 2.56 to 5.86 during the run. `benchmarks/run_manifest.jsonl`
 records the machine, resolved thread count and load for every run, so a timing
 taken under load is identifiable rather than silently slow.
 
@@ -560,8 +567,8 @@ The adjusted ranking and NCP-ratio increments are small and unresolved:
 (paired 95% CIs).
 The calibration benefit is decisive because the paired errors are highly
 correlated: adding the correct sex curve shifts female error by
--0.03689 ± 0.00041 and male error by +0.01401 ± 0.00064, closing the
-female-minus-male error gap by **0.05091 ± 0.00096**.
+-0.03691 ± 0.00040 and male error by +0.01401 ± 0.00064, closing the
+female-minus-male error gap by **0.05092 ± 0.00096**.
 
 On the first two 300-family, no-mixture main-panel cross-checks, PA/Gibbs agreement is
 0.999901. Gibbs reaches the requested MCSE tolerance for every score (maximum
@@ -952,7 +959,7 @@ with true h2 = 0.4, sibship c2 = 0.15 and couple m2 = 0.15 (5 replicates of
 - **Full-liability prediction sharpens**: corr(E[l_o | family], truth) rises
   0.284 -> 0.297 when the environment is modelled.
 - **The fit->wire loop works end to end**: fitted components (A 0.45, C 0.13,
-  M 0.17 vs truth 0.4/0.15/0.15) give the same calibration as the oracle.
+  M 0.16 vs truth 0.4/0.15/0.15) give the same calibration as the oracle.
 - Ranking is untouched (corr(g) flat), consistent with every other benchmark.
 
 ## 25. Onset-age-structured genetic correlation (`bench_aod_decay.py`)

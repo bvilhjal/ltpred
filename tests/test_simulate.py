@@ -250,3 +250,12 @@ def test_child_roles_get_the_child_age_range():
     assert _age_range("s12") == (10, 60)
     assert _age_range("mgm") == (65, 95)
     assert _age_range("mau3") == (40, 80)
+
+
+def test_pin_encoding_warns_without_threshold_crossing():
+    # under stochastic/liability-dependent onset, T(onset) is not the case's
+    # liability, so the pin fabricates information (review 2026-08, F21)
+    with pytest.warns(UserWarning, match="pin"):
+        simulate_under_LTM_single(fam_vec=["m"], n_sim=5, use_age=True,
+                                  onset_model="stochastic",
+                                  case_encoding="pin", seed=1)

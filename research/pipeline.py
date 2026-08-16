@@ -186,8 +186,8 @@ def estimate_liabilities(ids, father, mother, *, probands, status, age,
             lo[0], hi[0] = -np.inf, np.inf      # uninformative proband bound
 
         _, A = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
-        e, v = estimate_liability_from_kinship(A, lo[None, :], hi[None, :],
-                                               h2=h2, target=0)
+        e, _, v = estimate_liability_from_kinship(A, lo[None, :], hi[None, :],
+                                                  h2=h2, target=0)
         est[k] = e[0]
         var[k] = v[0]
         n_rel[k] = m - 1

@@ -17,6 +17,62 @@ version is 0 the public API may still change between minor releases.
   numbered equations for the estimand and BLUP identity, and
   Algorithms G (Gibbs), P (Pearson–Aitken) and M (mixture) as
   named numbered steps in `docs/algorithm.md` and the methods note.
+- **Breaking:** `estimate_liability_from_kinship` now returns
+  `(est, se, var)` on both engines — `se` the Monte-Carlo SE (exactly
+  zero under PA) and `var` the posterior variance — instead of a
+  two-array `(est, uncertainty)` whose second element changed meaning
+  with `method`.
+- The Gibbs batch-means Monte-Carlo SE now divides by the draws that
+  actually enter the batches (the R `batchmeans::bmmat` convention)
+  rather than all retained draws; the difference is 0.07% at the
+  default `n_sim = 100,000`.
+- RESULTS.md corrections from the 2026-08 review
+  (`docs/REVIEW_2026-08.md`): the stress-pedigree PA–Gibbs headline is
+  0.9981 (worst single seed 0.99813; the 0.9984 figure quoted the first
+  seed), the sex-CIP gap closure is 0.05092 (female shift −0.03691),
+  the peak-RSS sentence names each method, and the §2 load-average and
+  §24 M-component figures match their run logs. New guards in
+  `scripts/check_results.py` pin all of them.
+
+### Added
+
+- `tests/test_r_lock.py`: locked LTFHPlus 2.2.0 / LTFGRS 1.0.1 reference
+  scores on a committed 48-family table, checked in pytest (no R
+  needed at test time), so a numerical regression in the port fails the
+  suite instead of waiting for an opt-in benchmark rerun.
+- `tests/test_pgs_fh_identities.py`: Monte-Carlo verification of the
+  PGS × family-history correlation and joint-R² identities quoted in
+  `docs/algorithm.md`.
+- CI: 3.10/3.11 and a free-threaded 3.14t leg in the test matrix, and a
+  build job that builds the sdist/wheel, twine-checks them, installs
+  the wheel and smoke-imports it outside the source tree.
+- `docs/REVIEW_2026-08.md`: the 2026-08 independent review.
+
+### Fixed
+
+- `families_from_columns` rejects missing (NaN/None) `fam_id` values
+  instead of silently fragmenting records into one-member families, and
+  validates that `lower`/`upper` shapes match.
+- The array estimators (`estimate_liability_pa_arrays` /
+  `estimate_liability_gibbs_arrays`) validate the column count against
+  `roles`; extra columns were silently dropped and short inputs failed
+  with a raw `IndexError`.
+- `validate_bounds` rejects coincident infinite bounds
+  (`lower == upper == ±inf`), which previously produced NaN Gibbs draws.
+- A length-1 vector `h2` is treated as a scalar single-trait request
+  instead of routing to the multi-trait error.
+- `simulate_under_LTM_single` warns when `case_encoding="pin"` is
+  combined with a non-threshold-crossing onset model (the pin records
+  information the generating process does not contain).
+- `aalen_johansen_cip` accepts integral float `event_type` arrays,
+  matching `kaplan_meier_cip`.
+- `extract_pedigree` rejects non-integer `max_degree` instead of
+  silently truncating it.
+- The CI oldest-deps job runs the kernel test selection instead of the
+  full suite on the pure-Python fallback (the full suite took hours
+  without the JIT).
+- The research pipeline's stratified-CIP test now asserts that
+  stratification changes the estimate; it previously could not fail.
 
 ## 0.3.4 — 2026-08-15
 

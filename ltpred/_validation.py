@@ -22,9 +22,10 @@ def validate_binary(values, *, name="values", ndim=None):
 def validate_bounds(lower, upper, *, context="bounds"):
     """Validate liability truncation bounds without rejecting valid infinities.
 
-    Infinite endpoints and exact point pins are valid. NaN endpoints and
-    reversed intervals are not: both can otherwise reach a fixed-coordinate
-    mask or numerical kernel and silently change the statistical model.
+    Infinite endpoints and finite point pins are valid. NaN endpoints,
+    reversed intervals, and coincident *infinite* bounds are not: they can
+    otherwise reach a fixed-coordinate mask or numerical kernel and silently
+    change the statistical model.
     """
     lower = np.asarray(lower)
     upper = np.asarray(upper)
@@ -44,6 +45,11 @@ def validate_bounds(lower, upper, *, context="bounds"):
         raise ValueError(
             f"{context}: upper must be >= lower at every coordinate; reversed "
             f"bounds at indices {locations}")
+    infinite_pin = (lower == upper) & ~np.isfinite(lower)
+    if np.any(infinite_pin):
+        raise ValueError(
+            f"{context}: a point pin (lower == upper) must be finite; a "
+            "coincident infinite bound is not an observation")
 
 
 def validate_mixture_inputs(K_i, K_pop, *, expected_shape=None,

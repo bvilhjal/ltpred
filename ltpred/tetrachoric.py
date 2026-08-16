@@ -49,7 +49,9 @@ _CDF_TOL = 1e-10
 class TetrachoricResult:
     """One tetrachoric estimate.
 
-    ``rho`` the MLE; ``se`` the observed-information standard error;
+    ``rho`` the MLE; ``se`` the observed-information standard error,
+    conditional on the estimated marginal thresholds and Wald-shaped, so it is
+    optimistic near the ``|rho| -> 1`` boundary and in small samples;
     ``thresholds`` the two marginal thresholds; ``n`` the observed pair count
     (the raw table total, never inflated by the continuity correction);
     ``corrected`` whether the 0.5 continuity correction was applied to a

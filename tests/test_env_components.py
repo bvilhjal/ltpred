@@ -83,3 +83,21 @@ class EstimationBehaviorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_pa_estimation_under_c2_matches_closed_form():
+    # pinning a full sib at v is exact Gaussian conditioning:
+    # E[o | s1 = v] = (0.5*h2 + c2)*v and E[g | s1 = v] = 0.5*h2*v
+    # (review 2026-08, F36: first exact oracle for estimation under c2)
+    import pytest
+    from ltpred import estimate_liability_pa_arrays
+    h2, c2, v = 0.4, 0.1, 1.1
+    lower = np.array([[-np.inf, v]])
+    upper = np.array([[np.inf, v]])
+    est_o, var_o = estimate_liability_pa_arrays(["o", "s1"], lower, upper,
+                                                h2=h2, c2=c2, out="full")
+    assert est_o[0] == pytest.approx((0.5 * h2 + c2) * v, abs=1e-12)
+    assert var_o[0] == pytest.approx(1.0 - (0.5 * h2 + c2) ** 2, abs=1e-12)
+    est_g, var_g = estimate_liability_pa_arrays(["o", "s1"], lower, upper,
+                                                h2=h2, c2=c2, out="genetic")
+    assert est_g[0] == pytest.approx(0.5 * h2 * v, abs=1e-12)

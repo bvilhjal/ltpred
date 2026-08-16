@@ -80,8 +80,9 @@ father = ["f", "mgf", None, "f", None, None]      # None / unlisted = unknown fo
 mother = ["m", "mgm", None, "m", None, None]
 _, A = kinship_from_pedigree(ids, father, mother)
 # lower/upper are (n_families, n_individuals) in `ids` order (from a threshold builder)
-gen, var = estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0)
-# Pearson-Aitken is the default; pass method="gibbs" to receive Monte-Carlo SE instead.
+gen, se, var = estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0)
+# Pearson-Aitken is the default (its se is exactly 0 — no Monte-Carlo error);
+# pass method="gibbs" for a sampler-based se. var is the posterior variance on both.
 ```
 
 This high-level arbitrary-kinship function accepts `A`, `lower`/`upper`, and

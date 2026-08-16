@@ -120,8 +120,8 @@ def payoff_replicate(rng, n_est, n_founder_pairs):
         status = liab[1:] > thr
         lower = np.where(status, thr, -np.inf)
         upper = np.where(status, np.inf, thr)
-        est_all, _ = estimate_liability_from_kinship(A_sub, lower[None, :],
-                                                     upper[None, :], h2=H2)
+        est_all, _, _ = estimate_liability_from_kinship(A_sub, lower[None, :],
+                                                        upper[None, :], h2=H2)
         truths.append(liab[0])
         ests_all.append(est_all[0])
 

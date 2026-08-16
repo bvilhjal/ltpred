@@ -184,3 +184,19 @@ class AalenJohansenGuardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_aalen_johansen_accepts_integral_float_event_type():
+    # registry columns often load as float; KM accepted them, AJ now does too
+    # (review 2026-08, F23)
+    import pytest
+    from ltpred import aalen_johansen_cip
+    entry = np.zeros(6)
+    exit_ = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    as_int = np.array([1, 0, 2, 1, 0, 2])
+    ref = aalen_johansen_cip(entry, exit_, as_int, cause=1)
+    via_float = aalen_johansen_cip(entry, exit_, as_int.astype(float), cause=1)
+    np.testing.assert_allclose(via_float.values, ref.values)
+    with pytest.raises(ValueError, match="integer code"):
+        aalen_johansen_cip(entry[:3], exit_[:3], np.array([1.0, 0.5, 2.0]),
+                           cause=1)

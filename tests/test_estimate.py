@@ -283,9 +283,9 @@ def test_estimate_from_kinship_matches_role_based():
         byrole = {m.role: m for m in fam.members}
         for c, r in enumerate(ids):
             lower[fi, c], upper[fi, c] = byrole[r].lower, byrole[r].upper
-    kin, _ = estimate_liability_from_kinship(A, lower, upper, h2=h2, target=0,
-                                             out="genetic", method="gibbs",
-                                             n_sim=20000, burn_in=500, seed=1)
+    kin, _, _ = estimate_liability_from_kinship(A, lower, upper, h2=h2, target=0,
+                                                out="genetic", method="gibbs",
+                                                n_sim=20000, burn_in=500, seed=1)
     # identical covariance + identical seeds -> identical draws
     assert np.corrcoef(role.est["genetic"], kin)[0, 1] > 0.999
     assert np.max(np.abs(role.est["genetic"] - kin)) < 1e-9
@@ -328,9 +328,9 @@ def test_kinship_estimator_accepts_pa_mixture():
     for j in range(2):
         lo, hi, ki, kp = pa_thresholds(status[:, j], age[:, j], pop_prev=0.1)
         lower[:, j], upper[:, j], K_i[:, j], K_pop[:, j] = lo, hi, ki, kp
-    est_mix, var_mix = estimate_liability_from_kinship(
+    est_mix, _, var_mix = estimate_liability_from_kinship(
         A, lower, upper, h2=0.5, use_mixture=True, K_i=K_i, K_pop=K_pop)
-    est_plain, _ = estimate_liability_from_kinship(A, lower, upper, h2=0.5)
+    est_plain, _, _ = estimate_liability_from_kinship(A, lower, upper, h2=0.5)
     assert np.all(np.isfinite(est_mix))
     assert np.all(var_mix >= 0)
     # first family is two censored controls: the mixture should raise the score
@@ -785,3 +785,101 @@ def test_gibbs_reports_posterior_variance_alongside_the_mc_error():
         assert big.var[name][0] == pytest.approx(small.var[name][0], rel=0.05)
         assert big.se[name][0] < 0.5 * small.se[name][0]
         assert pa.se[name][0] == 0.0
+
+
+def test_families_from_columns_rejects_missing_fam_id():
+    # NaN != NaN, so a missing id would otherwise fragment silently into
+    # one-member families (review 2026-08, F3)
+    with pytest.raises(ValueError, match="fam_id"):
+        families_from_columns(fam_id=[1.0, np.nan, np.nan, 1.0],
+                              role=["o", "m", "m", "f"],
+                              lower=np.zeros(4), upper=np.ones(4))
+    with pytest.raises(ValueError, match="fam_id"):
+        families_from_columns(fam_id=["a", None, "a"],
+                              role=["o", "m", "f"],
+                              lower=np.zeros(3), upper=np.ones(3))
+
+
+def test_families_from_columns_rejects_mismatched_bound_shapes():
+    with pytest.raises(ValueError, match="same shape"):
+        families_from_columns(fam_id=[1, 1], role=["o", "m"],
+                              lower=np.zeros(2), upper=np.ones((2, 1)))
+
+
+def test_array_estimators_validate_column_count():
+    # extra columns must not be silently dropped and short or 1-D inputs must
+    # not surface a raw IndexError (review 2026-08, F4)
+    from ltpred import estimate_liability_pa_arrays
+    from ltpred import estimate_liability_gibbs_arrays
+    t = float(stats.norm.isf(0.05))
+    lower = np.array([[t, -np.inf, -np.inf]])
+    upper = np.array([[np.inf, t, t]])
+    wide_lo = np.hstack([lower, [[0.0]]])
+    wide_hi = np.hstack([upper, [[1.0]]])
+    with pytest.raises(ValueError, match="one column per role"):
+        estimate_liability_pa_arrays(["o", "m", "f"], wide_lo, wide_hi, h2=0.5)
+    with pytest.raises(ValueError, match="one column per role"):
+        estimate_liability_pa_arrays(["o", "m", "f"], lower[:, :2],
+                                     upper[:, :2], h2=0.5)
+    with pytest.raises(ValueError, match="one column per role"):
+        estimate_liability_pa_arrays(["o", "m", "f"], lower[0], upper[0],
+                                     h2=0.5)
+    with pytest.raises(ValueError, match="one column per role"):
+        estimate_liability_gibbs_arrays(["o", "m", "f"], wide_lo, wide_hi,
+                                        h2=0.5, n_sim=100, seed=1)
+
+
+def test_kinship_estimator_returns_est_se_var_on_both_engines():
+    # the second array used to change statistical meaning with `method`
+    # (review 2026-08, F6); both engines now return (est, se, var)
+    from ltpred import estimate_liability_from_kinship
+    A = np.array([[1.0, 0.5], [0.5, 1.0]])
+    lower = np.array([[1.6, -np.inf]])
+    upper = np.array([[np.inf, 1.6]])
+    est, se, var = estimate_liability_from_kinship(A, lower, upper, h2=0.5,
+                                                   method="pa")
+    assert se[0] == 0.0            # deterministic PA: no Monte-Carlo error
+    assert var[0] > 0.0            # posterior variance, reported by both engines
+    est_g, se_g, var_g = estimate_liability_from_kinship(
+        A, lower, upper, h2=0.5, method="gibbs", n_sim=20_000, burn_in=500,
+        seed=1)
+    assert se_g[0] > 0.0
+    assert var_g[0] == pytest.approx(var[0], rel=0.05)
+    # PA carries a sequential-approximation error, so the engines agree to
+    # better than a percent but not to Monte-Carlo precision
+    assert est_g[0] == pytest.approx(est[0], abs=0.02)
+
+
+def test_length_one_h2_is_a_single_trait_request():
+    fam = Family("f1", [Member("o", 1.6, np.inf), Member("m", -np.inf, 1.6)])
+    scalar = estimate_liability([fam], h2=0.5)
+    vector = estimate_liability([fam], h2=[0.5])
+    assert vector.est["genetic"] == pytest.approx(scalar.est["genetic"])
+
+
+def test_batch_means_se_uses_batched_draw_count():
+    # the bmmat SE divides by the a*b draws that enter the batches, not by the
+    # full retained n (review 2026-08, F18); n = 10 tiles as a = 3, b = 3
+    x = np.arange(10, dtype=float)
+    _, se = batch_means(x)
+    batch_mean = x[:9].reshape(3, 3).mean(axis=1)
+    sigma2 = 3.0 * np.sum((batch_mean - batch_mean.mean()) ** 2) / 2
+    assert se[0] == pytest.approx(np.sqrt(sigma2 / 9.0))
+
+
+def test_multi_trait_var_reports_posterior_variance():
+    # pin trait A of the proband's own liability: Var(g_A | o_A = v) has the
+    # closed form h2_A - h2_A^2, and trait B keeps positive variance
+    # (review 2026-08, F36)
+    h2 = [0.5, 0.4]
+    gcorr = np.array([[1.0, 0.3], [0.3, 1.0]])
+    fcorr = np.array([[1.0, 0.2], [0.2, 1.0]])
+    fam = Family("f1", [
+        Member("o", lower=[1.2, -np.inf], upper=[1.2, np.inf]),
+    ])
+    res = _estimate_liability_multi([fam], h2_vec=h2, genetic_corrmat=gcorr,
+                                    full_corrmat=fcorr, phen_names=["A", "B"],
+                                    out=("genetic",), tol=0.05,
+                                    n_sim=20_000, burn_in=500, seed=3)
+    assert res.var["genetic_A"][0] == pytest.approx(0.5 - 0.5 ** 2, abs=0.02)
+    assert res.var["genetic_B"][0] > 0.0

@@ -143,6 +143,9 @@ def extract_pedigree(graph: ParentGraph, proband: object,
     included. A parent not present in the records at all is an unknown
     founder, as :func:`~ltpred.covariance.kinship_from_pedigree` expects.
     """
+    if isinstance(max_degree, bool) or not isinstance(max_degree,
+                                                       (int, np.integer)):
+        raise TypeError("max_degree must be an integer")
     if max_degree < 1:
         raise ValueError("max_degree must be at least 1")
     start = graph.index.get(proband)
@@ -151,7 +154,7 @@ def extract_pedigree(graph: ParentGraph, proband: object,
 
     degree = {start: 0}
     frontier = [start]
-    for step in range(1, int(max_degree) + 1):
+    for step in range(1, max_degree + 1):
         nxt = []
         for i in frontier:
             for j in graph.children[i]:

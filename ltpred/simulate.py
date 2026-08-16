@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+import warnings
 
 import numpy as np
 
@@ -213,6 +214,13 @@ def _resolve_age_options(use_age, onset_model, case_encoding, onset_rho=None):
     elif onset_rho is not None:
         raise ValueError(
             "onset_rho applies only when onset_model='liability_dependent'")
+    if case_encoding == "pin" and onset_model != "threshold_crossing":
+        warnings.warn(
+            f"case_encoding='pin' with onset_model={onset_model!r} pins each "
+            "case at T(onset), but under this onset model onset is not "
+            "deterministic given liability, so the pin records information the "
+            "generating process does not contain (use 'interval' or "
+            "'lifetime')", stacklevel=2)
     return onset_model, case_encoding, onset_rho
 
 

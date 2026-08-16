@@ -118,8 +118,7 @@ bounds to `(-inf, inf)` and estimate from family history alone.
 Combining this family-derived score with a SNP polygenic score is a **separate
 downstream prediction model**, not an operation performed by ltpred. Hujoel et al.
 found that a target-population-fitted PRS-plus-family-history model improved disease
-prediction across the UK Biobank target populations they studied, and preferred a
-logistic combination when clinical covariates were included
+prediction across the UK Biobank target populations they studied
 ([2022, *Cell Genomics*](https://doi.org/10.1016/j.xgen.2022.100152)). For five
 psychiatric disorders, Dybdahl Krebs et al. found PA-FGRS and PGS to be weakly
 correlated but complementary; their theory explains this as two noisy estimates of

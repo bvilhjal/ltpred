@@ -33,7 +33,7 @@ Optionally add the same as a trusted publisher on
    the landing page `index.html` (the hero version chip), and
    `report/ltpred_methods.tex`. `tests/test_version_metadata.py` enforces the
    version string across these surfaces.
-2. Confirm CI is green on `main` (tests on 3.9/3.12, `ruff`, strict docs build).
+2. Confirm CI is green on `main` (tests on 3.9–3.13, macOS 3.12 and 3.14t, `ruff`, strict docs build, wheel build).
 3. Locally, sanity-check the artifacts with modern tooling:
    ```bash
    python -m pip install --upgrade build "twine>=6.1" "packaging>=24.2"

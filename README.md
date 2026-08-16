@@ -22,7 +22,8 @@ efficient than the two public R packages. Same-algorithm wall-clock
 ratios on the locked 200-family cohort were **6.87×** (LTFHPlus 2.2.0
 Gibbs / ltpred Gibbs) and **1178×** (LTFGRS 1.0.1 PA / ltpred PA).
 Those are implementation comparisons, not a claim that PA is a faster
-Gibbs; LTFHPlus is Gibbs-only and public PA is LTFGRS.
+Gibbs; LTFHPlus is Gibbs-only and the public PA implementations are LTFGRS
+(benchmarked here) and the original PAFGRS package.
 
 Given each individual's case/control status, age and their relatives' statuses,
 ltpred estimates with Gibbs—or sequentially approximates with PA—the **posterior
@@ -85,8 +86,9 @@ liability-threshold model:
    `genetic` posterior-mean estimates had correlation ≥ 0.997 on those
    benchmarked structures. Against public LTFHPlus 2.2.0 on the same
    families, both engines had correlation 0.9999 with the R Gibbs scores
-   (RMSE 0.0041). LTFHPlus is Gibbs-only; public PA is LTFGRS 1.0.1, and
-   ltpred PA matches it at RMSE 0.000087. Same-algorithm fold times:
+   (RMSE 0.0041 Gibbs, 0.0046 PA). LTFHPlus is Gibbs-only; public PA
+   implementations include LTFGRS 1.0.1 (benchmarked here) and the original
+   PAFGRS package: ltpred PA matches LTFGRS at RMSE 0.000087. Same-algorithm fold times:
    LTFHPlus Gibbs / ltpred Gibbs = 6.87× (53.3 vs 7.76 ms/family);
    LTFGRS PA / ltpred PA = 1178× (9.47 vs 0.0083 ms/family).
    Isolated-process peak RSS was 442 MiB (LTFHPlus), 260 MiB (LTFGRS PA)
@@ -226,7 +228,7 @@ relatives: it reaches a 1.049 ± 0.004× adjusted causal-SNP NCP ratio, versus
 +0.1454 ± 0.0154 NCP-ratio units
 (95% CI half-width). Full LT-FH++ has calibration slope 0.995 ± 0.015. A
 prespecified sex-CIP panel separately shows removal of a
-0.05091 ± 0.00096 female–male score-error gap, while its adjusted power increment
+0.05092 ± 0.00096 female–male score-error gap, while its adjusted power increment
 remains unresolved. In the replicated classic-LT-FH GWAS, PA and Gibbs both
 reach a 1.47 ± 0.04× causal-SNP NCP ratio. Across matched **no-mixture** bounds,
 their posterior-mean estimates had correlation ≥ 0.997. These PA–Gibbs claims do

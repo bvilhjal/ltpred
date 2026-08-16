@@ -686,6 +686,39 @@ def couple_env_omission_bias_prose(path):
             + tuple(float(r["A_ignoreM_bias"]) for r in rows))
 
 
+def pa_robustness_worst_agree(path):
+    """Worst single-seed PA-Gibbs agreement across the stress regimes.
+
+    The run log prints only the first seed; the guard recomputes from the
+    CSV so the headline cannot drift above the worst seed again."""
+    rows = [r for r in _rows(path) if r["panel"] == "regime"]
+    worst = min(float(r["agree"]) for r in rows)
+    return (worst, worst)
+
+
+def _sex_isolation_contrast(path):
+    """The paired sex-CIP contrast row of the personalisation benchmark."""
+    return _only(_rows(path), row_type="paired_contrast",
+                 panel="sex_isolation",
+                 comparison="FH + age + sex CIP - FH + age CIP")
+
+
+def sex_cip_gap(path):
+    """Gap closure and its CI half-width, quoted as magnitudes."""
+    row = _sex_isolation_contrast(path)
+    return (abs(float(row["delta_mean_error_sex_gap_raw"])),
+            float(row["delta_mean_error_sex_gap_raw_ci95"]))
+
+
+def sex_cip_shifts(path):
+    """Female/male error shifts with their CI half-widths, in prose order."""
+    row = _sex_isolation_contrast(path)
+    return (float(row["delta_mean_error_female_raw"]),
+            float(row["delta_mean_error_female_raw_ci95"]),
+            float(row["delta_mean_error_male_raw"]),
+            float(row["delta_mean_error_male_raw_ci95"]))
+
+
 GUARDS = [
     Guard("ascertainment-dose-mild-prose", _ASCERT,
           ascert_dose_mild_rates_bias,
@@ -1058,6 +1091,34 @@ GUARDS = [
           register_own_outcome_delta_corr,
           r"paired\s*\(c\)-\(a\) Δcorr \*\*\+([\d.]+) ± ([\d.]+)\*\*, 95% CI\s*"
           r"\[\+([\d.]+), \+([\d.]+)\]"),
+    Guard("pa-robustness-worst-agreement-headline",
+          "benchmarks/bench_pa_robustness.csv",
+          pa_robustness_worst_agree,
+          r"stressful-pedigree benchmark remains\s+at least ([\d.]+) "
+          r"\(worst single-seed ([\d.]+)\)"),
+    Guard("pa-robustness-worst-agreement-s14",
+          "benchmarks/bench_pa_robustness.csv",
+          lambda p: pa_robustness_worst_agree(p)[:1],
+          r"worst single-seed PA–Gibbs agreement is ([\d.]+)"),
+    Guard("report-pa-robustness-worst-agreement",
+          "benchmarks/bench_pa_robustness.csv",
+          lambda p: pa_robustness_worst_agree(p)[:1],
+          r"Stress pedigrees remain \$\\ge ([\d.]+)\$",
+          document="report/ltpred_methods.tex"),
+    Guard("sex-cip-gap-closure",
+          "benchmarks/bench_ltfhpp_personalization.csv",
+          sex_cip_gap,
+          r"error gap by \*\*([\d.]+) ± ([\d.]+)\*\*"),
+    Guard("sex-cip-error-shifts",
+          "benchmarks/bench_ltfhpp_personalization.csv",
+          sex_cip_shifts,
+          r"shifts female error by\s+([-−]?[\d.]+) ± ([\d.]+) and male error "
+          r"by\s+([+]?[\d.]+) ± ([\d.]+)"),
+    Guard("readme-sex-cip-gap-closure",
+          "benchmarks/bench_ltfhpp_personalization.csv",
+          sex_cip_gap,
+          r"removal of a\s+([\d.]+) ± ([\d.]+) female–male score-error gap",
+          document="README.md"),
 ]
 
 

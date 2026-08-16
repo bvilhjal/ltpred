@@ -348,7 +348,8 @@ directly.
 
 Everywhere else in ltpred, sex enters through the **threshold**: a sex-specific
 CIP gives each person their own `T`. That is where it belongs for calibration,
-but recall the factorisation `g0 = w' mu` with `w = V^-1 c`. The weights `w`
+but the predictor factorises as `g0 = w' mu`, with `mu` the vector of
+folded truncated means and `w = V^-1 c` the BLUP weights. The weights `w`
 depend on heritability and kinship only — they are threshold-free. So a
 sex-specific threshold moves `mu` and can reorder scores through the truncated
 means, but it never changes how much weight a relative carries.
@@ -562,8 +563,8 @@ to `(a² + b² − 2a²b²)/(1 − a²b²)`). This is exactly the empirical pict
 Hujoel et al. (2022, *Cell Genomics*) — PGS and family history combine with
 large gains despite a small mutual correlation — and of Dybdahl Krebs et al.
 (2026, *AJHG*), who report PA-FGRS and PGS weakly correlated yet
-complementary, "consistent with both being noisy estimates of the same
-additive genetic liability" — i.e. the formula above.
+complementary, consistent with both being "noisy measures of additive
+genetic liability" — i.e. the formula above.
 
 **Caveats.** When conditional independence fails, the first term in the law of
 total covariance is a residual contribution:
@@ -577,10 +578,11 @@ hand. Large non-Gaussian effects weaken the Gaussian conditioning step, though
 the moment identity survives for scores linear in `s`/`g` with independent
 errors.
 
-Both identities above are verified numerically to Monte-Carlo precision
-(simulated `s`, two noisy linear predictors, four
-`(h²_SNP/h²_total, R²_pgs, R²_fh)` settings; correlation and joint `R²`
-recovered to ~1e-3).
+Both identities above are verified numerically: the correlation identity
+inside the full GWAS design (`bench_pgs_comparison.py`, §28 of RESULTS.md:
+observed 0.2009 ± 0.0046 vs theory 0.2003 ± 0.0050), and both identities to
+Monte-Carlo precision in `tests/test_pgs_fh_identities.py` (two noisy linear
+predictors, four `(h²_SNP/h²_total, R²_pgs, R²_fh)` settings).
 
 ## Thresholds: status, age, onset — and personalisation by sex and birth cohort
 
@@ -819,8 +821,9 @@ correlation ≥ 0.997 while PA ran 384–488× faster than grouped Gibbs
 in the controlled 4-thread benchmark in this package. A locked
 comparison to R LTFHPlus 2.2.0 on the same classic LT-FH families
 gave corr(ltpred Gibbs, LTFHPlus) = 0.9999 and corr(PA, LTFHPlus) =
-0.9999 (RMSE 0.0041). LTFHPlus is Gibbs-only; public PA is LTFGRS
-1.0.1, and ltpred PA matches it at RMSE 0.000087. On that machine
+0.9999 (RMSE 0.0041 Gibbs, 0.0046 PA). LTFHPlus is Gibbs-only; public PA
+implementations include LTFGRS 1.0.1 (benchmarked here) and the original
+PAFGRS package; ltpred PA matches LTFGRS at RMSE 0.000087. On that machine
 same-algorithm fold times were 6.87× (LTFHPlus Gibbs / ltpred Gibbs;
 53.3 vs 7.76 ms/family) and 1178× (LTFGRS PA / ltpred PA; 9.47 vs
 0.0083 ms/family). Isolated-process peak RSS (ldpred3 `wait4`

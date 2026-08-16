@@ -217,7 +217,11 @@ def aalen_johansen_cip(age_entry: ArrayLike, age_exit: ArrayLike,
     if event_type.shape != age_entry.shape:
         raise ValueError("event_type must match the follow-up arrays' length")
     if not np.issubdtype(event_type.dtype, np.integer):
-        raise ValueError("event_type must be an integer code array")
+        if (event_type.dtype.kind == "f" and np.all(np.isfinite(event_type))
+                and np.all(event_type == np.floor(event_type))):
+            event_type = event_type.astype(np.int64)
+        else:
+            raise ValueError("event_type must be an integer code array")
     if np.any(event_type < 0):
         raise ValueError("event_type must be nonnegative")
     if isinstance(cause, (bool, np.bool_)):

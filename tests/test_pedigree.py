@@ -129,3 +129,16 @@ class KinshipIntegrationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_extract_pedigree_rejects_noninteger_max_degree():
+    # 2.9 used to truncate silently to 2 (review 2026-08, F24)
+    import pytest
+    from ltpred.pedigree import build_parent_graph, extract_pedigree
+    g = build_parent_graph(["o", "m"], ["f", None], ["m", None])
+    with pytest.raises(TypeError, match="integer"):
+        extract_pedigree(g, "o", max_degree=2.9)
+    with pytest.raises(TypeError, match="integer"):
+        extract_pedigree(g, "o", max_degree=True)
+    ped = extract_pedigree(g, "o", max_degree=np.int64(2))
+    assert "m" in ped.ids
