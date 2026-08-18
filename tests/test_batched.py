@@ -341,11 +341,37 @@ def test_multi_trait_full_output_smoke():
 @pytest.mark.parametrize("method", ["pa", "gibbs"])
 def test_family_without_proband_own_status_estimates(method):
     # no member with role "o": the proband's own liability is inserted as
-    # uninformative, so the estimate is driven by the relatives alone
+    # uninformative, so the estimate is driven by the relatives alone.
+    #
+    # Asserting only isfinite here would pass against an implementation that
+    # discarded every relative and returned the prior mean 0, so pin the value
+    # instead. With a single truncated relative PA is exact, and the whole
+    # family reduces to one Pearson-Aitken fold:
+    #     E[g | l_m > t] = Cov(g, l_m)/Var(l_m) * E[l_m | l_m > t]
+    #                    = (h2/2) * phi(t)/(1 - Phi(t)).
+    h2 = 0.5
     t = float(stats.norm.isf(0.05))
-    fam = Family("f", [Member("m", t, np.inf), Member("f", -np.inf, t)])
-    kwargs = (dict(n_sim=10_000, burn_in=200, tol=0.1, seed=1)
+    lam = float(stats.norm.pdf(t) / stats.norm.sf(t))       # inverse Mills ratio
+    expected = (h2 / 2.0) * lam
+    kwargs = (dict(n_sim=40_000, burn_in=500, tol=0.002, seed=1)
               if method == "gibbs" else {})
-    res = estimate_liability([fam], h2=0.5, method=method,
-                             out=("genetic",), **kwargs)
-    assert np.isfinite(res.est["genetic"][0])
+    atol = 0.02 if method == "gibbs" else 1e-9              # Monte-Carlo slack
+
+    one = Family("f", [Member("m", t, np.inf)])
+    got = estimate_liability([one], h2=h2, method=method,
+                             out=("genetic",), **kwargs).est["genetic"][0]
+    assert got == pytest.approx(expected, abs=atol)
+
+    # ...and the relatives must actually drive the sign: an affected pair pulls
+    # the genetic estimate up, an unaffected pair pulls it down, and the mixed
+    # family lands strictly between. This ordering is what fails if the
+    # relative rows stop reaching the covariance.
+    def est(members):
+        return estimate_liability([Family("f", members)], h2=h2, method=method,
+                                  out=("genetic",), **kwargs).est["genetic"][0]
+
+    both_cases = est([Member("m", t, np.inf), Member("f", t, np.inf)])
+    mixed = est([Member("m", t, np.inf), Member("f", -np.inf, t)])
+    both_controls = est([Member("m", -np.inf, t), Member("f", -np.inf, t)])
+    assert both_controls < 0.0 < mixed < both_cases
+    assert both_cases - both_controls > 0.5

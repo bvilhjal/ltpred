@@ -932,8 +932,13 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
 
     return DecayGenCorrResult(h2=h2_est, rg=rg, re=re, rp=rp,
                               genetic_cov=G_est, env_cov=env_est,
-                              se={"h2": h2_se, "rg": rg_se, "re": re_se,
-                                  "rp": rp_se},
+                              # reshape to (P, P) like fit_genetic_correlation:
+                              # GenCorrResult.se["rg"] is a matrix, and callers
+                              # index it as se["rg"][i, j].
+                              se={"h2": h2_se,
+                                  "rg": rg_se.reshape(P, P),
+                                  "re": re_se.reshape(P, P),
+                                  "rp": rp_se.reshape(P, P)},
                               phen_names=list(phen_names),
                               traces={"h2": tr_h2[tail], "rg": tr_rg[tail],
                                       "re": tr_re[tail], "rp": tr_rp[tail],
@@ -1392,7 +1397,9 @@ def fit_genetic_factor(genetic, n_factors=1, *, phen_names=None, weights=None,
 
     ``weights`` optionally supplies a ``(P, P)`` inverse-variance weight matrix for a
     diagonally-weighted (DWLS) fit — e.g. ``1 / se²`` of each ``r_g`` — instead of the
-    unweighted (ULS) default. Because the within-dataset ``se`` from
+    unweighted (ULS) default. Only the off-diagonal is used (and validated): the
+    ``r_g`` diagonal is the constant 1, so its ``se`` is exactly 0 and ``1 / se²``
+    is ``+inf`` there, which is accepted and ignored. Because the within-dataset ``se`` from
     :func:`fit_genetic_correlation` understates the true sampling variability, prefer
     weights (and uncertainty on the loadings) from bootstrapping the whole
     ``fit_genetic_correlation`` → ``fit_genetic_factor`` pipeline over families
@@ -1438,10 +1445,19 @@ def fit_genetic_factor(genetic, n_factors=1, *, phen_names=None, weights=None,
         weights = np.asarray(weights, dtype=float)
         if weights.shape != (P, P):
             raise ValueError("weights must be a (P, P) matrix")
-        if (not np.all(np.isfinite(weights)) or
-                not np.allclose(weights, weights.T, rtol=1e-7, atol=1e-10) or
-                np.any(weights < 0.0)):
-            raise ValueError("weights must be finite, symmetric, and non-negative")
+        # Check the off-diagonal only: `_minres_loadings` zeroes the diagonal
+        # (the objective is off-diagonal), and the natural DWLS recipe
+        # `1 / se**2` is +inf on the diagonal because `se["rg"]` is exactly 0
+        # there -- the r_g diagonal is the constant 1 across the whole trace.
+        # Rejecting on entries the fit discards made the documented recipe
+        # unusable as written.
+        off = ~np.eye(P, dtype=bool)
+        if (not np.all(np.isfinite(weights[off])) or
+                not np.allclose(weights, weights.T, rtol=1e-7, atol=1e-10,
+                                equal_nan=True) or
+                np.any(weights[off] < 0.0)):
+            raise ValueError("weights must be finite, symmetric, and "
+                             "non-negative off the diagonal")
 
     M = 0.5 * (M + M.T)                             # symmetrise, then standardise
     input_correlation = bool(np.allclose(np.diag(M), 1.0, atol=1e-6))

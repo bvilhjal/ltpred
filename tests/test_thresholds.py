@@ -185,3 +185,36 @@ def test_liability_threshold_validates_elementwise():
     # valid arrays still map elementwise
     t = liability_threshold(np.array([0.05, 0.10]))
     assert np.allclose(t, [stats.norm.isf(0.05), stats.norm.isf(0.10)])
+
+
+@pytest.mark.parametrize("K", [1e-8, 1e-12, 1e-16, 1e-17, 1e-100, 1e-300])
+def test_liability_threshold_survives_the_far_tail(K):
+    # liability_threshold used to compute norm_ppf(1.0 - K); that subtraction
+    # discards the tail below ~1e-16 and returns +inf for K <= 1.1e-16, even
+    # though _validate_pop_prev admits the whole open interval (0, 1). The
+    # identity Phi^-1(1-K) = -Phi^-1(K) is exact and cancellation-free.
+    got = float(liability_threshold(K))
+    assert np.isfinite(got)
+    assert got == pytest.approx(float(stats.norm.isf(K)), rel=1e-12)
+
+
+def test_liability_threshold_unchanged_in_the_ordinary_range():
+    # ...and the rewrite must not move any value users actually see.
+    for K in (0.5, 0.1, 0.05, 0.01, 0.001, 1e-4):
+        assert float(liability_threshold(K)) == pytest.approx(
+            float(stats.norm.isf(K)), rel=1e-15)
+
+
+def test_age_thresholds_finite_for_young_ages_at_legal_parameters():
+    # pop_prev=0.1 with slope=1.0 is a legal combination, but the old
+    # 1.0 - cir cancellation made the implied CIR underflow at young ages, so
+    # a case pinned at age 20 got the degenerate bound pair (inf, inf).
+    ages = np.array([10.0, 15.0, 20.0, 25.0, 30.0])
+    thr = convert_age_to_thresh(ages, pop_prev=0.1, slope=1.0)
+    assert np.all(np.isfinite(thr))
+    assert np.all(np.diff(thr) < 0)          # older -> lower threshold
+
+    lower, upper = age_thresholds(np.array([1, 0]), np.array([20.0, 20.0]),
+                                  pop_prev=0.1, slope=1.0)
+    assert np.all(np.isfinite(lower[:1]))    # the case pin
+    assert np.isfinite(upper[0]) and np.isfinite(upper[1])

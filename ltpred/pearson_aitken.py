@@ -274,7 +274,7 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     use_mix = (not math.isnan(K_pop)) and (not math.isnan(K_i)) and \
         (upper != math.inf or lower == upper)
     if use_mix:
-        split = _norm_ppf(1.0 - K_pop)          # lifetime threshold thr_pop
+        split = -_norm_ppf(K_pop)               # lifetime threshold thr_pop
         cdf_pop = _norm_cdf((split - mu) / sd)
         # denom = P(control) + P(eventual case not yet onset); both terms >= 0, so
         # denom == 0 requires cdf_pop underflowing to 0 (extreme conditional mean)
@@ -431,6 +431,15 @@ def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
     d = cov.shape[0]
     lower = np.asarray(lower, dtype=np.float64)
     upper = np.asarray(upper, dtype=np.float64)
+    # `lower[order]` below is a fancy index by a length-d permutation: a longer
+    # bounds vector would have its tail silently dropped (a confident wrong
+    # estimate) and a shorter one would raise a bare IndexError.
+    if lower.shape != (d,) or upper.shape != (d,):
+        raise ValueError(
+            f"lower and upper must each have shape ({d},) to match the "
+            f"covariance; got {lower.shape} and {upper.shape}")
+    if not 0 <= target < d:
+        raise ValueError(f"target must be in [0, {d}); got {target}")
     order = np.concatenate(([target], np.delete(np.arange(d), target)))
     cov = np.ascontiguousarray(cov[np.ix_(order, order)])
     lo, hi = lower[order], upper[order]
@@ -461,6 +470,18 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
     lowers = as_bounds(lowers)             # keeps float32 to halve memory
     uppers = as_bounds(uppers)
     F = lowers.shape[0]
+    # Same fancy-index hazard as pa_algorithm, one dimension up: extra columns
+    # are dropped without complaint, short ones raise a bare IndexError.
+    if lowers.ndim != 2 or lowers.shape[1] != d:
+        raise ValueError(
+            f"lowers must have shape (F, {d}) to match the covariance; got "
+            f"{lowers.shape}")
+    if lowers.shape != uppers.shape:
+        raise ValueError(
+            f"lowers and uppers must have the same shape; got {lowers.shape} "
+            f"and {uppers.shape}")
+    if not 0 <= target < d:
+        raise ValueError(f"target must be in [0, {d}); got {target}")
     order = np.concatenate(([target], np.delete(np.arange(d), target)))
     cov = np.ascontiguousarray(cov[np.ix_(order, order)])
     lo, hi = np.ascontiguousarray(lowers[:, order]), np.ascontiguousarray(uppers[:, order])

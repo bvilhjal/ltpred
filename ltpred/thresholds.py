@@ -54,7 +54,10 @@ def _validate_status(status):
 
 def liability_threshold(pop_prev: ArrayLike) -> np.ndarray | np.floating:
     """Single-prevalence liability threshold ``T = Phi^-1(1 - K)``."""
-    return norm_ppf(1.0 - _validate_pop_prev(pop_prev))
+    # -ppf(K), not ppf(1-K): the subtraction 1.0 - K discards the tail below
+    # ~1e-16 and returns +inf for K <= 1.1e-16, even though _validate_pop_prev
+    # admits the whole open interval. Phi^-1(1-K) = -Phi^-1(K) exactly.
+    return -norm_ppf(_validate_pop_prev(pop_prev))
 
 
 def convert_age_to_cir(age: ArrayLike, pop_prev: ArrayLike = 0.1,
@@ -96,7 +99,7 @@ def convert_age_to_thresh(age: ArrayLike, pop_prev: ArrayLike = 0.1,
     age = np.asarray(age, dtype=float)
     cir = convert_age_to_cir(age, pop_prev=pop_prev, mid_point=mid_point,
                              slope=slope)
-    return norm_ppf(1.0 - cir)
+    return -norm_ppf(cir)          # -ppf(p) avoids the 1-p tail cancellation
 
 
 def convert_liability_to_aoo(liability: ArrayLike, pop_prev: ArrayLike = 0.1,
@@ -276,7 +279,7 @@ def thresholds_from_cip(status: ArrayLike, age: ArrayLike, cip_ages: ArrayLike,
 
     cip = np.interp(age, cip_ages, cip_values)          # CIP at each person's age
     cip = np.clip(cip, min_cip, kpop)
-    thr = norm_ppf(1.0 - cip)
+    thr = -norm_ppf(cip)           # -ppf(p) avoids the 1-p tail cancellation
 
     lower = np.where(status, thr, -np.inf)
     if case_mode == "pin":

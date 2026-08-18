@@ -563,7 +563,7 @@ without retrofitting the integrated parameters after seeing its result.
 | FH + age + sex CIP (ablation) | 0.6307 ± 0.0080 | 1.296 ± 0.016× | -0.0068 ± 0.0087 | -0.0002 ± 0.0084 |
 
 The adjusted ranking and NCP-ratio increments are small and unresolved:
-Δcorr = +0.00097 ± 0.00110 and ΔNCP ratio = +0.0040 ± 0.0046
+Δcorr = +0.00097 ± 0.00111 and ΔNCP ratio = +0.0040 ± 0.0046
 (paired 95% CIs).
 The calibration benefit is decisive because the paired errors are highly
 correlated: adding the correct sex curve shifts female error by
@@ -690,8 +690,10 @@ prevalence 0.1, true h2 = 0.5, C = 0):
 - **`bootstrap_fit` interval coverage:** 24/25 = 96% coverage of the true
   h2 = 0.5 at nominal 95% (Clopper–Pearson 95% CI 0.796–0.999). The bootstrap SE is
   mildly conservative: mean 0.168 vs across-dataset SD 0.132 (ratio 1.27),
-  consistent with the slight over-coverage -- and, per the ROADMAP, the
-  internal `h2_se` understates that sampling SD by >20x, so the bootstrap
+  consistent with the slight over-coverage. The internal `h2_se` is a
+  within-dataset Monte-Carlo diagnostic and substantially understates the
+  across-dataset sampling SD (`ltpred/fit.py` `FitResult`; the >5x gap is
+  locked by `test_bootstrap_fit_scalar_and_calibration`), so the bootstrap
   remains the right route.
 - **MCEM OPG SE:** mean reported SE 0.127 vs across-dataset SD 0.136 (ratio
   0.93); point estimate mean A = 0.502 (truth 0.5). The approximate
@@ -797,7 +799,7 @@ value; rep 0 marks the single-run parts).
   paired all-minus-named-role contrast is **+0.0714 ± 0.0064**, 95% CI
   [+0.054, +0.089] -- the gain over the role grammar is real and stable
   across populations (ratio of means 1.14; the two scores correlate
-  0.898 ± 0.007). Which relatives you include matters, consistent with the
+  0.8979 ± 0.0065). Which relatives you include matters, consistent with the
   LT-FGRS package (Pedersen et al.).
 - **Scale:** 3,000 extractions at degree 3 in 0.17 s (single-run timing,
   ~0.06 ms per proband); per-proband neighborhoods stay small (tens of

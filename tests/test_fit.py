@@ -813,10 +813,26 @@ def test_ipw_weights_pass_through_variance_components():
     roles = ["o", "m", "f", "s1", "s2", "s3"]
     rng = np.random.default_rng(8)
     fams = [_cc_family(i, roles, rng.random(6) < 0.1, t) for i in range(600)]
-    res = fit_variance_components(fams, ("A", "C"), n_iter=120, burn_in=40,
-                                  seed=1, sampling="ipw",
-                                  weights=np.ones(len(fams)))
-    assert 0.0 <= res.components["A"] <= 1.0
+    kw = dict(n_iter=120, burn_in=40, seed=1)
+    # `0 <= A <= 1` would be a tautology: the engine clips every iterate into
+    # [eps, 1-eps] and averages, so the bound holds for any result that returns
+    # at all. Assert the two things that actually characterise the IPW path.
+    #
+    # 1. Uniform weights must reproduce population sampling exactly -- the
+    #    reweighting is the identity when every family carries equal weight.
+    pop = fit_variance_components(fams, ("A", "C"), sampling="population", **kw)
+    uni = fit_variance_components(fams, ("A", "C"), sampling="ipw",
+                                  weights=np.ones(len(fams)), **kw)
+    for comp in ("A", "C"):
+        assert uni.components[comp] == pytest.approx(pop.components[comp],
+                                                     abs=1e-12)
+    # 2. ...and non-uniform weights must actually reach the estimator. Without
+    #    this, an implementation that accepted `weights` and dropped it would
+    #    satisfy every other assertion here.
+    skew = np.where(np.arange(len(fams)) % 2 == 0, 3.0, 0.25)
+    res = fit_variance_components(fams, ("A", "C"), sampling="ipw",
+                                  weights=skew, **kw)
+    assert abs(res.components["C"] - uni.components["C"]) > 1e-3
 
 
 def test_unknown_sampling_mode_names_the_supported_ones():

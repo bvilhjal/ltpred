@@ -159,3 +159,16 @@ def test_feeds_the_covariance_level_pa_api():
     assert np.isfinite(est[0])
     # conditioning on a low-liability mother must pull the proband's g down
     assert est[0] < 0.0
+
+
+def test_sex_limited_rejects_contradictory_g_and_o():
+    # `g` is `o`'s genetic component, not a second person. _resolve_sexes only
+    # copied o onto g when g was absent, so an explicit disagreeing pair was
+    # accepted and the matrix then applied one sex's heritability to the target
+    # row and the other's to the same individual's full liability.
+    from research.covariance_extensions import _resolve_sexes
+    with pytest.raises(ValueError, match=r"sex\['g'\] and sex\['o'\] must agree"):
+        _resolve_sexes(["g", "o", "m"], {"g": "F", "o": "M"})
+    # agreeing pairs, and the o-only form, still resolve
+    assert _resolve_sexes(["g", "o"], {"g": "M", "o": "M"}) == ["M", "M"]
+    assert _resolve_sexes(["g", "o"], {"o": "F"}) == ["F", "F"]

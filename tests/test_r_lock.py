@@ -57,9 +57,14 @@ def test_pa_matches_locked_ltfgrs_scores():
     r_est = _aligned(families, _r_scores("ltfgrs_pa.csv"))
     ours = estimate_liability(families, h2=0.5).est["genetic"]
     corr, rmse = _corr_rmse(ours, r_est)
-    # the 200-family benchmark lock is corr 1.0000 / RMSE 0.000087
-    assert corr > 0.99999
-    assert rmse < 1e-3
+    # The 200-family benchmark lock is corr 1.0000 / RMSE 0.000087, and this
+    # 48-family fixture measures corr 0.99999999 / RMSE 2.53e-5. PA is
+    # deterministic -- no Monte-Carlo slack to absorb -- so the band is set
+    # just wide enough for platform float noise. A looser rmse < 1e-3 would
+    # have licensed a systematic multiplicative bias in every PA score while
+    # still passing, which is exactly what this fixture exists to catch.
+    assert corr > 0.9999999
+    assert rmse < 1e-4
 
 
 @pytest.mark.jit_required

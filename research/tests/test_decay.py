@@ -383,3 +383,16 @@ class GradientTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_decay_gencorr_se_matrices_match_the_parent_shape():
+    # fit_genetic_correlation_decay omitted the .reshape(P, P) that
+    # fit_genetic_correlation applies, so se["rg"] came back as a flat (P*P,)
+    # vector while the identically-named field on the parent GenCorrResult is
+    # a (P, P) matrix -- se["rg"][i, j] raised IndexError on the decay result.
+    r = fit_genetic_correlation_decay(_simulate(120, seed=5), n_em=8,
+                                      n_starts=1, seed=1)
+    P = len(r.h2)
+    for key in ("rg", "re", "rp"):
+        assert r.se[key].shape == (P, P), f"se[{key!r}] is {r.se[key].shape}"
+        _ = r.se[key][0, 1]                   # the indexing that used to fail

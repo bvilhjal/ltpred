@@ -50,6 +50,14 @@ def _resolve_sexes(roles, sex):
             raise ValueError(
                 f"sex[{role!r}] must be 'F' or 'M', got {value!r}")
         given[key] = val
+    if "g" in given and "o" in given and given["g"] != given["o"]:
+        # g is o's genetic component, not a second person: letting them differ
+        # would silently apply one sex's heritability to the target row and the
+        # other's to the same individual's full liability.
+        raise ValueError(
+            f"sex['g'] and sex['o'] must agree -- g is the genetic component "
+            f"of o, the same person; got {given['g']!r} and {given['o']!r}. "
+            f"Pass only sex['o'].")
     if "g" not in given and "o" in given:
         given["g"] = given["o"]
 

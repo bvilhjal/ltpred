@@ -65,6 +65,23 @@ class Family:
     members: list = field(default_factory=list)
 
 
+# Textual stand-ins for a missing id, as emitted by pandas/R CSV writers.
+_MISSING_IDS = frozenset({"", ".", "na", "n/a", "nan", "none", "null", "<na>"})
+
+
+def _is_missing_id(x: object) -> bool:
+    """True when ``x`` cannot serve as a grouping key."""
+    if x is None:
+        return True
+    if isinstance(x, float) and not np.isfinite(x):
+        return True
+    if isinstance(x, bytes):
+        x = x.decode("utf-8", "replace")
+    if isinstance(x, str):
+        return x.strip().lower() in _MISSING_IDS
+    return False
+
+
 def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
                           upper: ArrayLike, pid: ArrayLike | None = None,
                           K_i: ArrayLike | None = None,
@@ -95,17 +112,30 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
         raise ValueError(
             f"lower and upper must have the same shape; got {lower.shape} "
             f"and {upper.shape}")
+    # The optional columns are indexed positionally alongside the mandatory
+    # ones below, so an over-long column would be silently truncated to the
+    # first n rows -- a wrong-but-finite estimate -- and a short one would die
+    # with a bare IndexError far from the cause.
+    for _name, _col in (("pid", pid), ("K_i", K_i),
+                        ("K_pop", K_pop), ("aod", aod)):
+        if _col is not None and _col.shape[0] != n:
+            raise ValueError(
+                f"{_name} must have length {n} to match fam_id; got "
+                f"{_col.shape[0]}")
     if fam_id.dtype.kind == "f":
         missing = ~np.isfinite(fam_id)
-    elif fam_id.dtype == object:
-        missing = np.array([x is None or (isinstance(x, float)
-                                          and not np.isfinite(x))
-                            for x in fam_id])
+    elif fam_id.dtype.kind in ("U", "S", "O"):
+        # String ids need the textual sentinels a CSV loader produces. These
+        # are worse than a float NaN: NaN != NaN fragments records into
+        # singletons, whereas every "" or "NA" compares *equal* and merges
+        # unrelated probands into one family.
+        missing = np.array([_is_missing_id(x) for x in fam_id], dtype=bool)
     else:
         missing = np.zeros(n, dtype=bool)
     if np.any(missing):
         raise ValueError(
-            "fam_id must not contain NaN/None: a missing id cannot group "
+            "fam_id must not contain missing values (NaN, None, or an "
+            "empty/NA string): a missing id cannot group "
             "records and would silently fragment them into one-member "
             "families")
 

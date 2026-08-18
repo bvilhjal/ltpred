@@ -8,6 +8,16 @@ version is 0 the public API may still change between minor releases.
 
 ### Changed
 
+- Declared support matches what CI tests: added the 3.14 trove
+  classifier, and replaced `Operating System :: OS Independent` with
+  Linux and macOS, which are the platforms actually exercised.
+- RESULTS.md: §15 Δcorr CI half-width is 0.00111 (was 0.00110), §20
+  quotes the between-arm correlation as 0.8979 ± 0.0065 (0.898 ± 0.007
+  double-rounded a 0.0065 SE up), and §17 no longer cites the ROADMAP
+  for a ">20x" `h2_se` figure the ROADMAP no longer contains and that
+  no artifact can reproduce — §17 is log-only. It now cites the
+  `FitResult` caveat and the `>5x` bound locked in
+  `test_bootstrap_fit_scalar_and_calibration`.
 - README and the methods note now state that the code and
   documentation were written together with AI.
 - README and the methods note now state that ltpred is much more
@@ -47,9 +57,59 @@ version is 0 the public API may still change between minor releases.
   build job that builds the sdist/wheel, twine-checks them, installs
   the wheel and smoke-imports it outside the source tree.
 - `docs/REVIEW_2026-08.md`: the 2026-08 independent review.
+- Two guards pinning previously unguarded RESULTS.md prose: the §15
+  sex-CIP adjusted Δcorr/ΔNCP increments and the §20 between-arm score
+  correlation. Both were verified to fail against the pre-correction
+  digits.
+- Regression tests for every fix above, plus stronger oracles replacing
+  four assertions that could not fail: the relatives-only predictor is
+  now pinned to the closed form `E[g | l_m > t] = (h2/2) * phi(t)/(1-Phi(t))`
+  (exact under PA for a single truncation), the IPW variance-components
+  test asserts that uniform weights reproduce population sampling and
+  that skewed weights change the answer, the Kaplan-Meier test compares
+  against the textbook product-limit form, and the PA R-lock band is
+  tightened from `rmse < 1e-3` to `< 1e-4` against a measured 2.53e-5.
 
 ### Fixed
 
+- **CI had not run since the previous commit:** the `test` job's
+  `runs-on: ${{ matrix.os }}` was absorbed into the end of a comment
+  line while the matrix was being extended, so the job had no
+  `runs-on` and GitHub rejected the whole workflow file. Every job —
+  including the new build job and the R-lock leg added alongside it —
+  was silently skipped.
+- Threshold helpers no longer lose the far tail. `liability_threshold`,
+  `convert_age_to_thresh`, `thresholds_from_cip`, `observed_to_liability_h2`
+  and the PA mixture split computed `Phi^-1(1 - p)`; that subtraction
+  discards the tail below ~1e-16 and returned `+inf` for `p <= 1.1e-16`,
+  so a legal `pop_prev = 0.1, slope = 1.0` gave a case at age 20 the
+  degenerate pin `(inf, inf)`. They now use the exact, cancellation-free
+  identity `Phi^-1(1 - p) = -Phi^-1(p)`, matching `scipy.stats.norm.isf`
+  to zero error down to `p = 1e-300` and leaving the ordinary range
+  unchanged.
+- `families_from_columns` length-checks the optional `pid`, `K_i`,
+  `K_pop` and `aod` columns, which are indexed positionally: an
+  over-long column was silently truncated (shifting mixture estimates)
+  and a short one raised a bare `IndexError`.
+- `families_from_columns` also rejects *textual* missing `fam_id`
+  sentinels (`""`, `"NA"`, `"nan"`, `"None"`, `"null"`, `"."`,
+  whitespace). These are worse than `NaN`: `NaN != NaN` fragments
+  records into singletons, whereas every `""` compares equal and
+  **merges** unrelated probands into one family.
+- `pa_algorithm` and `pa_estimate_batched` validate the bounds shape
+  against the covariance and the `target` index. The previous fix
+  reached only the private role-array helpers, so the public entry
+  points still dropped bound columns past `d` without complaint.
+- `research.covariance_extensions`: a `sex` mapping whose `'g'` and
+  `'o'` disagree is rejected rather than accepted — `g` is `o`'s
+  genetic component, not a second person.
+- `research.advanced_fitting`: `fit_genetic_correlation_decay` reshapes
+  its `se["rg"]`/`["re"]`/`["rp"]` to `(P, P)`, matching the parent
+  `GenCorrResult`; they were flat `(P*P,)` vectors, so `se["rg"][i, j]`
+  raised. `fit_genetic_factor` validates only the off-diagonal of
+  `weights`, so the documented `1 / se**2` DWLS recipe — `+inf` on the
+  diagonal because the `r_g` diagonal is the constant 1 — is accepted
+  and ignored, as `_minres_loadings` already intended.
 - `families_from_columns` rejects missing (NaN/None) `fam_id` values
   instead of silently fragmenting records into one-member families, and
   validates that `lower`/`upper` shapes match.

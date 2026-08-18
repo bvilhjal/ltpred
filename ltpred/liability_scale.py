@@ -46,7 +46,7 @@ def _z_density(pop_prev):
     pop_prev = np.asarray(pop_prev, dtype=float)
     if np.any((pop_prev <= 0) | (pop_prev >= 1)):
         raise ValueError("pop_prev must lie in (0, 1)")
-    t = norm_ppf(1.0 - pop_prev)
+    t = -norm_ppf(pop_prev)        # -ppf(p) avoids the 1-p tail cancellation
     return pop_prev, np.exp(-0.5 * t * t) / np.sqrt(2.0 * np.pi)
 
 

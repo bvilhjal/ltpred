@@ -511,3 +511,43 @@ def test_pa_accepts_merely_psd_covariance():
     assert np.isfinite(est) and np.isfinite(var)
     est, var = pa_estimate_batched(psd, [[-np.inf, 1.0]], [[np.inf, np.inf]])
     assert np.isfinite(est[0]) and np.isfinite(var[0])
+
+
+@pytest.mark.parametrize("fn", ["pa_algorithm", "pa_estimate_batched"])
+@pytest.mark.parametrize("delta", [-2, +2])
+def test_pa_entry_points_check_bounds_width(fn, delta):
+    # Both public entry points fancy-index the bounds by a length-d
+    # permutation. Before this check an over-wide bounds vector had its tail
+    # silently dropped -- a confident wrong estimate on exactly the path where
+    # a mis-packed column matrix is most likely -- and a short one raised a
+    # bare IndexError. The F4 fix reached only the private role-array helpers.
+    cov = np.eye(4) * 1.0
+    cov[0, 1] = cov[1, 0] = 0.4
+    d = cov.shape[0] + delta
+    lo = np.full(d, -np.inf)
+    hi = np.full(d, np.inf)
+    with pytest.raises(ValueError, match=r"shape"):
+        if fn == "pa_algorithm":
+            pa_algorithm(cov, lo, hi)
+        else:
+            pa_estimate_batched(cov, lo[None, :], hi[None, :])
+
+
+@pytest.mark.parametrize("target", [-1, 4, 99])
+def test_pa_entry_points_check_target_range(target):
+    # An out-of-range target used to reach np.delete/np.ix_ and fail obscurely.
+    cov = np.eye(4)
+    lo, hi = np.full(4, -np.inf), np.full(4, np.inf)
+    with pytest.raises(ValueError, match="target"):
+        pa_algorithm(cov, lo, hi, target=target)
+    with pytest.raises(ValueError, match="target"):
+        pa_estimate_batched(cov, lo[None, :], hi[None, :], target=target)
+
+
+def test_pa_batched_rejects_1d_bounds():
+    # (F,) instead of (F, d) is the natural single-family slip; it previously
+    # produced an IndexError from inside the kernel.
+    cov = np.eye(3)
+    lo, hi = np.full(3, -np.inf), np.full(3, np.inf)
+    with pytest.raises(ValueError, match=r"shape \(F, 3\)"):
+        pa_estimate_batched(cov, lo, hi)

@@ -800,6 +800,41 @@ def test_families_from_columns_rejects_missing_fam_id():
                               lower=np.zeros(3), upper=np.ones(3))
 
 
+@pytest.mark.parametrize("sentinel", ["", "  ", "NA", "nan", "None", "null", "."])
+def test_families_from_columns_rejects_string_missing_fam_id(sentinel):
+    # The F3 fix caught NaN/None but not the textual sentinels a CSV loader
+    # produces. Those are worse than NaN: NaN != NaN fragments records into
+    # singletons, whereas every "" or "NA" compares EQUAL and merges unrelated
+    # probands into one family -- a wrong-but-finite score with no signal.
+    with pytest.raises(ValueError, match="fam_id"):
+        families_from_columns(fam_id=["a", sentinel, sentinel, "a"],
+                              role=["o", "m", "m", "f"],
+                              lower=np.zeros(4), upper=np.ones(4))
+
+
+@pytest.mark.parametrize("name", ["pid", "K_i", "K_pop", "aod"])
+@pytest.mark.parametrize("bad_len", [2, 8])
+def test_families_from_columns_length_checks_optional_columns(name, bad_len):
+    # The optional columns are indexed positionally alongside the mandatory
+    # ones, so before this check an over-long column was silently truncated to
+    # the first n rows (shifting mixture estimates) and a short one raised a
+    # bare IndexError from deep inside the loop.
+    kw = dict(fam_id=["a", "a", "b", "b"], role=["o", "m", "o", "m"],
+              lower=np.zeros(4), upper=np.ones(4))
+    fill = ["p"] * bad_len if name == "pid" else np.full(bad_len, 0.1)
+    with pytest.raises(ValueError, match=name):
+        families_from_columns(**kw, **{name: fill})
+
+
+def test_families_from_columns_keeps_legitimate_string_ids():
+    # ...and the sentinel check must not swallow real ids that merely look
+    # wordy. "NAME" is not "NA".
+    fams = families_from_columns(fam_id=["NAME", "NAME", "0", "0"],
+                                 role=["o", "m", "o", "m"],
+                                 lower=np.zeros(4), upper=np.ones(4))
+    assert [f.fam_id for f in fams] == ["NAME", "0"]
+
+
 def test_families_from_columns_rejects_mismatched_bound_shapes():
     with pytest.raises(ValueError, match="same shape"):
         families_from_columns(fam_id=[1, 1], role=["o", "m"],

@@ -10,7 +10,8 @@ jobs:
     # `fast` extra installed: the JIT-compiled path. Kept on both ends of the
     # supported range plus macOS, because Numba's threading layer and `prange`
     # scheduling are the most platform-sensitive part of the package. The 3.14t
-    # leg covers the free-threaded interpreter the benchmarks run on.    runs-on: ${{ matrix.os }}
+    # leg covers the free-threaded interpreter the benchmarks run on.
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:

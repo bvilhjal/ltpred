@@ -34,6 +34,21 @@ class KaplanMeierTests(unittest.TestCase):
         self.assertTrue(np.all(np.diff(c.values) >= 0))
         self.assertTrue(np.all(c.values >= 0) and np.all(c.values < 1.0 + 1e-12))
         self.assertTrue(np.all(c.se >= 0))
+        # Monotone + bounded + se >= 0 are all satisfied by the constant-zero
+        # curve, so on their own they cannot tell a working estimator from one
+        # that returns zeros. Pin the level against the textbook product-limit
+        # form S(t) = prod_{t_i <= t} (1 - d_i / n_i), CIP = 1 - S.
+        order = np.argsort(exit)
+        surv, ref = 1.0, {}
+        for i, (t, e) in enumerate(zip(exit[order], ev[order])):
+            if e:
+                surv *= 1.0 - 1.0 / (n - i)      # one event per distinct time
+            ref[t] = 1.0 - surv
+        expected = np.array([ref[t] for t in c.ages])
+        np.testing.assert_allclose(c.values, expected, atol=1e-12)
+        # ...and the curve must genuinely rise, so a flat estimator fails even
+        # if the oracle above were ever loosened.
+        self.assertGreater(c.values[-1] - c.values[0], 0.5)
 
     def test_validation(self):
         with self.assertRaisesRegex(ValueError, "equal length"):

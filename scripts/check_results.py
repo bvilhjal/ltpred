@@ -719,6 +719,23 @@ def sex_cip_shifts(path):
             float(row["delta_mean_error_male_raw_ci95"]))
 
 
+def sex_cip_adjusted_increments(path):
+    """The adjusted Δcorr / ΔNCP increments and their paired CI half-widths.
+
+    These sit one line below the guarded gap-closure figures and were the last
+    unguarded numbers of the sex-isolation panel."""
+    row = _sex_isolation_contrast(path)
+    return (float(row["delta_corr_g_adjusted"]),
+            float(row["delta_corr_g_adjusted_ci95"]),
+            float(row["delta_effN_vs_cc_adjusted"]),
+            float(row["delta_effN_vs_cc_adjusted_ci95"]))
+
+
+def pedigree_payoff_between_arm_corr(path):
+    """Correlation between the two pedigree-payoff scores, mean and SE."""
+    return tuple(_mean_se(_metric_values(path, "part2_corr_between_arms")))
+
+
 GUARDS = [
     Guard("ascertainment-dose-mild-prose", _ASCERT,
           ascert_dose_mild_rates_bias,
@@ -1114,6 +1131,15 @@ GUARDS = [
           sex_cip_shifts,
           r"shifts female error by\s+([-−]?[\d.]+) ± ([\d.]+) and male error "
           r"by\s+([+]?[\d.]+) ± ([\d.]+)"),
+    Guard("sex-cip-adjusted-increments",
+          "benchmarks/bench_ltfhpp_personalization.csv",
+          sex_cip_adjusted_increments,
+          r"Δcorr = ([+]?[\d.]+) ± ([\d.]+) and ΔNCP ratio = "
+          r"([+]?[\d.]+) ± ([\d.]+)"),
+    Guard("pedigree-payoff-between-arm-corr",
+          "benchmarks/bench_pedigree_inference.csv",
+          pedigree_payoff_between_arm_corr,
+          r"the two scores correlate\s+([\d.]+) ± ([\d.]+)\)"),
     Guard("readme-sex-cip-gap-closure",
           "benchmarks/bench_ltfhpp_personalization.csv",
           sex_cip_gap,
