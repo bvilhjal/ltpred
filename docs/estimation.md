@@ -76,7 +76,7 @@ Multi-trait columns are suffixed with the phenotype name, e.g.
 score = res.genetic             # use this as your GWAS phenotype / risk score
 ```
 
-> **`out="full"` is \(\mathbb{E}[l_o \mid\) own interval and relatives\(]\)**
+> **`out="full"` is E[l_o | own interval and relatives]**
 > on both engines. Pearson–Aitken applies the target's own bound after the
 > relative fold (an unbounded `g` is a no-op). A lone case therefore gives a
 > positive PA `full`, matching Gibbs, not zero. Omit role `o` or set its
@@ -102,7 +102,7 @@ family-history analogue of a BLUP / selection-index breeding value (see
   from relatives' phenotypes and the assumed relationship matrix.
 - **Not an absolute disease risk.** It lives on the liability scale; turning it
   into a risk needs the threshold/CIP model on top.
-- **A conditional estimate.** the liability estimators *condition* on an assumed
+- **A conditional estimate.** The liability estimators *condition* on an assumed
   `h2`, prevalence/CIP model and family covariance; they do not estimate the CIPs
   internally. (`h2` itself can optionally be fit from the family data with
   `fit_heritability` — see [Inference](inference.md).)

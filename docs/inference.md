@@ -63,8 +63,8 @@ internally coherent — are **rejected**. This is an identification contract,
 motivated by exploratory failures outside the common-threshold design, not a
 current quantitative benchmark for personalised fitting. Fit from
 common-threshold bounds (`prevalence_thresholds`), or bring an external
-liability-scale \(h^2\). Personalised bounds remain the intended input for
-`estimate_liability`, which conditions on \(h^2\) rather than fitting it. For
+liability-scale `h²`. Personalised bounds remain the intended input for
+`estimate_liability`, which conditions on `h²` rather than fitting it. For
 onset-age-structured genetic correlation see
 `research.advanced_fitting.fit_genetic_correlation_decay`.
 
