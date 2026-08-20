@@ -34,8 +34,8 @@ Unsupported experimental inferential machinery lives in the checkout-only
     `max(1 + 6·√((1−K)/(K·n)), 1.15)×` — the z-score gate is combined with a
     15% rate-ratio floor. At K = 0.05 that is ~1.67× at N = 1,500 and
     ~1.26× at N = 10,000, with the 1.15× floor binding for N ≳ 30,000. Milder enrichment passes silently, and the
-    dose-response below shows a 1.27× enrichment already inflates `h²` by
-    +0.23. Passing this check is not evidence that your sample is
+    dose-response below shows a 1.51× enrichment already inflates `h²` by
+    +0.48. Passing this check is not evidence that your sample is
     population-sampled.
 
 The meaning of a reported `se` depends on the method. For the
@@ -123,15 +123,15 @@ for your analysis, and report the number of successful refits.
 Selection on phenotype is the failure mode these fitters are least robust to,
 and the tolerance is much tighter than intuition suggests. From the
 dose-response in `benchmarks/bench_ascertainment.py` (nuclear families,
-true `h²` = 0.5, K = 0.05, N = 4,000):
+true `h²` = 0.5, K = 0.05, N = 2,000):
 
-| realised case share ÷ assumed K | 0.98× | 1.27× | 1.49× | ≥ 2× |
+| realised case share ÷ assumed K | 0.95× | 1.51× | 1.96× | ≥ 2× |
 |---|---:|---:|---:|---:|
-| fitted `h²` | 0.426 | 0.730 | 0.993 | 1.000 |
+| fitted `h²` | 0.420 | 0.984 | 0.998 | 1.000 |
 
-A 6.4% case rate against an assumed 5.0% already inflates `h²` by +0.230. This is
-**bias, not noise**: it does not shrink with N (constant +0.500 from N = 2,500 to
-40,000) and it is not an unconverged run (the same value is reached from
+A 7.6% case rate against an assumed 5.0% already inflates `h²` by +0.48. This is
+**bias, not noise**: it does not shrink with N (constant +0.500 from N = 1,000 to
+10,000) and it is not an unconverged run (the same value is reached from
 `h2_init` 0.05 and 0.95).
 
 ### When you can correct it: `sampling="ipw"`
@@ -156,8 +156,8 @@ Why this is the right shape of correction: the liability augmentation for a
 *given* family with *given* statuses is already the correct conditional
 distribution. What selection breaks is the **mix** of families, and weighting
 re-mixes them to population proportions. Benchmarked, this takes a 50/50
-case/control cohort from `h² = 1.000` (pinned) back to **0.495** against a truth
-of 0.5, and a 20%-enriched cohort from 1.000 to **0.473**.
+case/control cohort from `h² = 1.000` (pinned) back to **0.468** against a truth
+of 0.5, and a 20%-enriched cohort from 1.000 to **0.521**.
 
 Two limits, and both matter:
 

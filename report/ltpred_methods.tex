@@ -56,7 +56,7 @@ exactness boundary of the Pearson--Aitken (PA) approximation, and
 the sampling conditions under which a pedigree Haseman--Elston
 fit recovers \(\h\).
 Simulation under the model's own generative assumptions gives
-$\Corr(\mathrm{PA},\mathrm{Gibbs})\ge 0.9977$ without the censoring
+$\Corr(\mathrm{PA},\mathrm{Gibbs})\ge 0.9995$ without the censoring
 mixture, a classic-LT-FH causal-SNP noncentrality ratio of
 $1.47\pm 0.04\times$ over case/control (independent SNPs), and a
 paired $+0.145\pm 0.015$ LT-FH++ increment over matched ADuLT when
@@ -74,8 +74,8 @@ They are not estimates of clinical utility.
 On the locked comparison to the two public R packages
 (Section~\ref{sec:ltfhplus}), ltpred is much more computationally
 efficient at the same algorithm: LTFHPlus Gibbs takes
-$6.87\pm 0.12\times$ the ltpred Gibbs wall-clock, and LTFGRS PA
-takes $1178\pm 157\times$ the ltpred PA wall-clock.
+$6.98\pm 0.00\times$ the ltpred Gibbs wall-clock, and LTFGRS PA
+takes $1473\pm 19\times$ the ltpred PA wall-clock.
 \end{abstract}
 
 \vspace{0.4em}
@@ -482,12 +482,12 @@ not a claim of smaller approximation error
 (Section~\ref{sec:pa}).
 
 \paragraph{What the timings measure.}
-Section~\ref{sec:results} quotes a $384$--$488\times$ object-path
+Section~\ref{sec:results} quotes a $392$--$518\times$ object-path
 speed-up of PA over grouped Gibbs at four threads.
 That includes Python-side assembly.
-The array path, on already-aligned inputs, ran at $2.15$--$6.53$
+The array path, on already-aligned inputs, ran at $2.02$--$6.29$
 million families per second in the same warmed run---another
-$13$--$30\times$ over the object path.
+$13$--$29\times$ over the object path.
 Those array rates are a hot-kernel measurement, not end-to-end
 register ingestion.
 
@@ -560,8 +560,8 @@ benchmark for personalised fitting.
 Ascertainment is not cured by more sweeps.
 The damage is severe and silent: on families selected through an
 affected proband with a \emph{true} $\h$ of zero, \eqref{eq:he}
-returns $\h=1.0$, and a realised case share of $6.4\%$ against an
-asserted $5.0\%$ ($1.27\times$) already inflates $\h$ by $+0.230$
+returns $\h=1.0$, and a realised case share of $7.6\%$ against an
+asserted $5.0\%$ ($1.51\times$) already inflates $\h$ by $+0.484$
 (Section~\ref{sec:ascertainment}).
 The claim is therefore screened for marginal inconsistency rather
 than taken entirely on trust: the supplied
@@ -624,7 +624,7 @@ unrelated-sample LDSC or GREML.
 Unless noted, $\pm$ is the SE of a mean across independent simulated
 cohorts.
 The numbers below are from committed benchmark artifacts
-(campaigns of 31~July, 1~August and 10--15~August 2026).
+(campaigns of 31~July, 1~August, 10--15 and 20~August 2026).
 They do not automatically validate later code.
 Every GWAS panel uses independent SNPs; a real-LD run has not been
 done.
@@ -661,8 +661,8 @@ Independent SNPs throughout; no row uses the censoring mixture
 On a $27$-cell grid of classic LT-FH rectangles
 (three family structures $\times$ three $\h$ $\times$ three $K$;
 five cohorts of $1{,}500$ families),
-$\Corr(\mathrm{PA},\mathrm{Gibbs})$ is $0.9977$--$0.9999$.
-Stress pedigrees remain $\ge 0.9981$ (worst single seed $0.99813$).
+$\Corr(\mathrm{PA},\mathrm{Gibbs})$ is $0.9995$--$1.0000$.
+Stress pedigrees remain $\ge 0.9992$ (worst single seed $0.99916$).
 Table~\ref{tab:acc} is the $\h=0.5$, $K=0.05$ slice.
 Calibration slopes of correctly specified PA sit on $1$ to within
 simulation error (e.g.\ $1.006\pm 0.008$ at $K=0.05$, parents + two
@@ -673,7 +673,7 @@ It is not a licence to treat PA and Gibbs as interchangeable once
 \eqref{eq:mix} is on.
 
 At four threads on one machine the object-path PA sweep is
-$384$--$488\times$ faster than grouped Gibbs
+$392$--$518\times$ faster than grouped Gibbs
 ($2{,}000$ families, $25{,}000$ draws).
 The ratio moves with thread count because Gibbs is the parallel
 engine.
@@ -698,13 +698,13 @@ eff-$N$ / c-c & $\Corr(\mathrm{PA},\mathrm{Gibbs})$ \\
 \midrule
 parents
   & $0.382\pm 0.009$ & $0.382\pm 0.009$
-  & $1.36\pm 0.03\times$ & $0.9997$ \\
+  & $1.36\pm 0.03\times$ & $0.9999$ \\
 parents + 2 sibs
   & $0.437\pm 0.009$ & $0.437\pm 0.009$
-  & $1.66\pm 0.07\times$ & $0.9997$ \\
+  & $1.66\pm 0.07\times$ & $0.9999$ \\
 extended
-  & $0.419\pm 0.014$ & $0.420\pm 0.014$
-  & $1.71\pm 0.09\times$ & $0.9997$ \\
+  & $0.420\pm 0.014$ & $0.420\pm 0.014$
+  & $1.71\pm 0.09\times$ & $0.9999$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -744,17 +744,17 @@ Estimator & corr vs LTFHPlus & RMSE
 \midrule
 LTFHPlus Gibbs
   & --- & ---
-  & $10.66\pm 0.07$ & $53.3\pm 0.4$ & $442.3\pm 1.5$ \\
+  & $10.59\pm 0.06$ & $53.0\pm 0.3$ & $443.6\pm 1.3$ \\
 LTFGRS PA
-  & $0.9999\pm 0.0000$ & $0.0046\pm 0.0002$
-  & $1.895\pm 0.052$ & $9.47\pm 0.26$ & $259.8\pm 0.9$ \\
+  & $0.9999\pm 0.0000$ & $0.0045\pm 0.0002$
+  & $1.907\pm 0.013$ & $9.54\pm 0.07$ & $260.0\pm 1.2$ \\
 ltpred Gibbs
   & $0.9999\pm 0.0000$ & $0.0041\pm 0.0001$
-  & $1.552\pm 0.021$ & $7.76\pm 0.10$ & $165.3\pm 16.6$ \\
+  & $1.517\pm 0.010$ & $7.58\pm 0.05$ & $180.8\pm 0.1$ \\
 ltpred PA
-  & $0.9999\pm 0.0000$ & $0.0046\pm 0.0002$
-  & $0.00167\pm 0.00022$ & $0.0083\pm 0.0011$
-  & $147.9\pm 0.5$ \\
+  & $0.9999\pm 0.0000$ & $0.0045\pm 0.0002$
+  & $0.00130\pm 0.00001$ & $0.0065\pm 0.0000$
+  & $179.6\pm 0.3$ \\
 \bottomrule
 \end{tabular}}
 \end{table}
@@ -766,11 +766,11 @@ update, not two approximations.
 
 Table~\ref{tab:ltfhplus-fold} is the fold-time lock
 (mean of the three per-replicate ratios, not the ratio of the means).
-Same-algorithm: LTFHPlus Gibbs is $6.87\pm 0.12\times$ the ltpred
-Gibbs wall-clock; LTFGRS PA is $1178\pm 157\times$ the ltpred PA
+Same-algorithm: LTFHPlus Gibbs is $6.98\pm 0.00\times$ the ltpred
+Gibbs wall-clock; LTFGRS PA is $1473\pm 19\times$ the ltpred PA
 wall-clock (R \texttt{future\_lapply} versus compiled Python, not a
 different update).
-Mixing algorithms, LTFHPlus / ltpred PA is $6613\pm 800\times$;
+Mixing algorithms, LTFHPlus / ltpred PA is $8179\pm 71\times$;
 that is not ``LT-FH++, but faster.''
 The mixture \eqref{eq:mix} is not in this comparison.
 
@@ -786,13 +786,13 @@ $200$ nuclear families; one R \texttt{future} worker; four Numba threads.}
 Comparison & fold & same algorithm \\
 \midrule
 LTFHPlus Gibbs / ltpred Gibbs
-  & $6.87\pm 0.12\times$ & yes \\
+  & $6.98\pm 0.00\times$ & yes \\
 LTFGRS PA / ltpred PA
-  & $1178\pm 157\times$ & yes \\
+  & $1473\pm 19\times$ & yes \\
 LTFHPlus Gibbs / ltpred PA
-  & $6613\pm 800\times$ & no \\
+  & $8179\pm 71\times$ & no \\
 LTFGRS PA / ltpred Gibbs
-  & $1.22\pm 0.02\times$ & no \\
+  & $1.26\pm 0.02\times$ & no \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1036,7 +1036,7 @@ $0.2$, and $r_g=0.6$ as $0.598$ (SD $0.071$).
 \subsection{What selection does to the same fit}
 \label{sec:ascertainment}
 
-Ten replicates, $10{,}000$ analysed families, $K=0.05$, true
+Five replicates, $3{,}000$ analysed families, $K=0.05$, true
 $\h=0.5$, nuclear pedigrees.
 Each replicate draws a population, applies one selection rule, and
 fits the selected subset; only the rule differs between rows.
@@ -1056,12 +1056,12 @@ undefined.}
 \toprule
 selection & case share & unweighted $\widehat{\h}$ & IPW $\widehat{\h}$ \\
 \midrule
-none (population)      & $0.050$ & $0.523$ & --- \\
-random $50\%$ (control)& $0.049$ & $0.506$ & --- \\
-$50/50$ case/control   & $0.499$ & $1.000$ & $0.495$ \\
-$20\%$ case-enriched   & $0.199$ & $1.000$ & $0.473$ \\
+none (population)      & $0.051$ & $0.515$ & --- \\
+random $50\%$ (control)& $0.050$ & $0.602$ & --- \\
+$50/50$ case/control   & $0.495$ & $1.000$ & $0.468$ \\
+$20\%$ case-enriched   & $0.198$ & $1.000$ & $0.521$ \\
 affected proband       & $1.000$ & $1.000$ & $\dagger$ \\
-any affected member    & $0.293$ & $1.000$ & $\dagger$ \\
+any affected member    & $0.291$ & $1.000$ & $\dagger$ \\
 affected relative only & $0.000$ & $1.000$ & $\dagger$ \\
 \bottomrule
 \end{tabular}
@@ -1074,7 +1074,7 @@ the control $0.025$, while all five selected designs return
 $1.000$---complete heritability in a population with none.
 
 It is bias, not variance, and not an unfinished chain.
-The gap is $+0.500$ at $N=2{,}500$, $10{,}000$ and $40{,}000$ while
+The gap is $+0.500$ at $N=1{,}000$, $3{,}000$ and $10{,}000$ while
 the population arm's shrinks toward zero; the same $0.9999$ is
 reached from $\h_{\mathrm{init}}\in\{0.05,0.5,0.95\}$, so the
 iteration climbs to the ceiling from below rather than failing to
@@ -1082,7 +1082,7 @@ leave a high start.
 
 The clamp censors the magnitude.
 Evaluating \eqref{eq:he} on the selected families' own liabilities
-is uncensored and gives $1.68$ under proband ascertainment,
+is uncensored and gives $1.69$ under proband ascertainment,
 $3.4\times$ the truth.
 That statistic is a decomposition and \emph{not} the mechanism: at
 $\h=0$ it sits near zero while the fitter reports $1.0$.

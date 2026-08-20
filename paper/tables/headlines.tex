@@ -1,17 +1,17 @@
-% Generated from committed benchmark CSVs; static snapshot (generator removed 2026-08).
+% Regenerated 2026-08-20 from committed CSVs; static snapshot (generator removed 2026-08).
 % Headline quantities
 \begin{tabular}{@{}p{0.40\textwidth}rp{0.32\textwidth}@{}}
 \toprule
 Quantity & Value & Setting \\
 \midrule
-Corr(PA, Gibbs) posterior means & 0.9977--0.9999 & 27-cell classic LT-FH grid; no mixture \\
-PA / grouped-Gibbs wall-clock & 384--488$\times$ & this package, 4 threads, object path \\
-LTFHPlus Gibbs / ltpred Gibbs wall-clock & 6.87 $\pm$ 0.12$\times$ & same algorithm; 200 nuclear families \\
-LTFGRS PA / ltpred PA wall-clock & 1178 $\pm$ 157$\times$ & same algorithm; 200 nuclear families \\
+Corr(PA, Gibbs) posterior means & 0.9995--1.0000 & 27-cell classic LT-FH grid; no mixture \\
+PA / grouped-Gibbs wall-clock & 392--518$\times$ & this package, 4 threads, object path \\
+LTFHPlus Gibbs / ltpred Gibbs wall-clock & 6.98 $\pm$ 0.00$\times$ & same algorithm; 200 nuclear families \\
+LTFGRS PA / ltpred PA wall-clock & 1473 $\pm$ 19$\times$ & same algorithm; 200 nuclear families \\
 Causal-SNP NCP ratio vs case/control & 1.47 $\pm$ 0.04$\times$ & classic LT-FH; 10,000 probands, 30 causal SNPs \\
 LT-FH++ minus ADuLT NCP increment & +0.145 $\pm$ 0.015 & paired 95\% CI half-width; known CIP, pinned onset \\
 $\lambda_{\mathrm{GC}}$ with cohort-blind family thresholds & 16.46 $\pm$ 0.40 & 4$\times$ prevalence trend over 30 y \\
 Test $R^2$ of PGS+LT-FH / PGS / LT-FH & 0.339 / 0.236 / 0.170 & held-out genetic liability \\
-IPW-recovered $h^2$ (unweighted was 1.000) & 0.495 & 50/50 case-control; N = 10,000; truth 0.5 \\
+IPW-recovered $h^2$ (unweighted was 1.000) & 0.468 & 50/50 case-control; N = 10,000; truth 0.5 \\
 \bottomrule
 \end{tabular}

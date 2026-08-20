@@ -817,18 +817,18 @@ pin, and a sequential two-moment approximation thereafter.
 
 On separately observed family-member intervals **without the
 censoring mixture**, PA and Gibbs posterior-mean estimates had
-correlation ≥ 0.997 while PA ran 384–488× faster than grouped Gibbs
+correlation ≥ 0.997 while PA ran 392–518× faster than grouped Gibbs
 in the controlled 4-thread benchmark in this package. A locked
 comparison to R LTFHPlus 2.2.0 on the same classic LT-FH families
 gave corr(ltpred Gibbs, LTFHPlus) = 0.9999 and corr(PA, LTFHPlus) =
 0.9999 (RMSE 0.0041 Gibbs, 0.0046 PA). LTFHPlus is Gibbs-only; public PA
 implementations include LTFGRS 1.0.1 (benchmarked here) and the original
 PAFGRS package; ltpred PA matches LTFGRS at RMSE 0.000087. On that machine
-same-algorithm fold times were 6.87× (LTFHPlus Gibbs / ltpred Gibbs;
-53.3 vs 7.76 ms/family) and 1178× (LTFGRS PA / ltpred PA; 9.47 vs
-0.0083 ms/family). Isolated-process peak RSS (ldpred3 `wait4`
-launcher) was 442 MiB (LTFHPlus), 260 MiB (LTFGRS PA) and
-~148–165 MiB (ltpred). PA versus LTFHPlus is a different algorithm,
+same-algorithm fold times were 6.98× (LTFHPlus Gibbs / ltpred Gibbs;
+53.0 vs 7.58 ms/family) and 1473× (LTFGRS PA / ltpred PA; 9.54 vs
+0.0065 ms/family). Isolated-process peak RSS (ldpred3 `wait4`
+launcher) was 444 MiB (LTFHPlus), 260 MiB (LTFGRS PA) and
+~180–181 MiB (ltpred). PA versus LTFHPlus is a different algorithm,
 not a faster Gibbs. The PA-only mixture was not part of either
 comparison. The same grouping / `prange` structure as Algorithm G
 applies.
@@ -949,7 +949,7 @@ settles at the `h2` consistent with the observed familial resemblance — a
 threshold-model variance-component estimate from pedigree affection data (in the
 Sorensen–Gianola / Bayesian animal-model tradition; the moment-with-damping update
 is the bipred-style analogue of a full conjugate step). In the repository
-benchmark of unascertained simulated families, bias across `h2 = 0.3–0.8` was
+benchmark of unascertained simulated families, bias across `h2 = 0.2–0.8` was
 small relative to the across-dataset SD, but larger than the within-fit
 Monte-Carlo error in some settings. The reported `h2_se` is the
 *within-dataset* Monte-Carlo error; sampling variability across datasets is
@@ -1138,8 +1138,8 @@ covariance `A G K` is purely genetic here, since environment is not shared acros
 relatives), but only **data-rich** designs pin it down: the repository kill-test
 (`benchmarks/bench_aod_decay.py`) recovers both `rho_g` and `lam` well at
 `n_fam ~ 2500` (`r_g ~ 0.51-0.53`, `lam ~ 0.041` vs true 0.5 / 0.04; `lam ~ 0.001`
-under the scalar null, and `r_g ~ 0.005` at the `r_g = 0` null), but at
-`n_fam ~ 1200` both run high (`~0.62` / `~0.064`) -- the ridge makes the model
+under the scalar null, and `r_g ~ 0.009` at the `r_g = 0` null), but at
+`n_fam ~ 1000` both run high (`~0.58` / `~0.063`) -- the ridge makes the model
 **data-hungry**, converging only as `n` grows into the thousands with several
 dozen EM iterations, and the across-replicate SD of `r_g` is ~0.11-0.18 even at
 `n_fam = 2500`, so single estimates carry wide intervals. With few families or

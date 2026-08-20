@@ -1,20 +1,26 @@
 # ltpred benchmark results
 
-Historical results from the 30 local benchmark scripts in this directory
-(`bench_aod_decay_robustness.py` is reported as a subsection of section 25).
-Bounds
+Historical results from the local benchmark scripts in this directory (26
+scripts since the 2026-08 consolidation; the retired standalone scripts are
+reported as subsections or merged panels of their targets -- see the notes in
+sections 3, 11, 24, 25, 26 and 27). Bounds
 distinguish non-personalised, personalised pinned and interval-case encodings;
 family-history inclusion distinguishes LT-FH++ (with relatives) from ADuLT
 (index person only). Gibbs and Pearson–Aitken (PA) are alternative inference
 engines for those bounds. PA-FGRS is a separate PA-specific specification; its
 censoring mixture is not included in the PA–Gibbs comparisons below.
 
-- **Snapshot:** assembled from focused runs on 2026-07-31, 2026-08-01 and
+- **Snapshot:** the stored artifacts were regenerated in place by a full-suite
+  rerun of all 26 scripts on 2026-08-20 at v0.4.0 (every script completed
+  cleanly), in the environment recorded below, with Numba at 8 threads except
+  `bench_scaling.py` and `bench_ltfhplus_compare.py` at 4. The report was
+  previously assembled from focused runs on 2026-07-31, 2026-08-01 and
   2026-08-14/15, each recorded at the time in a run manifest (removed in the
-  2026-08 lean-down); this was not one atomic
-  rerun of all 30 scripts. The first 14-section campaign was generated on
-  2026-07-14. **The 2026-08-14/15 reruns used a different interpreter from the
-  environment recorded below** (Python 3.10.20, NumPy 1.26.4, SciPy 1.15.3).
+  2026-08 lean-down); the first 14-section campaign was generated on
+  2026-07-14, and the 2026-08-14/15 reruns used a different interpreter
+  (Python 3.10.20, NumPy 1.26.4, SciPy 1.15.3). Sections whose numbers the
+  2026-08-20 rerun reproduced within sampling error were left as recorded;
+  the per-section notes and the change log at the end mark the exceptions.
 - **Recorded environment for the stored artifacts:** Python 3.14.6
   (free-threading), NumPy 2.4.6, SciPy 1.18.0, Numba 0.66.0, 10 logical cores
   (Apple M2 Pro, arm64).
@@ -36,9 +42,8 @@ independent simulated cohorts. Tables labelled SD instead report the empirical
 across-cohort standard deviation; tables labelled 95% CI report a half-width.
 Some diagnostic grids remain single-seed illustrations; those are identified
 rather than dressed up as certainty. The saved sex-limitation and nurture
-tables used normal `1.96 × SE` half-widths; their source scripts now use
-small-sample t half-widths and must be rerun before those interval fields are
-treated as current.
+tables previously held normal `1.96 × SE` half-widths; the 2026-08-20 rerun
+regenerated them with the scripts' small-sample t half-widths.
 
 Core fitter benchmarks (sections 5-9) use unascertained, population-sampled
 simulated families and characterise the fitters only under that supported
@@ -54,9 +59,9 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
 ## Headline findings
 
 - **PA is the right default for the tested single-trait, no-mixture work.** Across the 27-cell accuracy
-  grid (five seeds per cell), mean corr(PA, Gibbs) is 0.9977–0.9999. The
+  grid (five seeds per cell), mean corr(PA, Gibbs) is 0.9995–1.0000. The
   stressful-pedigree benchmark remains
-  at least 0.9981 (worst single-seed 0.99813). PA and Gibbs also give indistinguishable downstream GWAS
+  at least 0.9991 (worst single-seed 0.99916). PA and Gibbs also give indistinguishable downstream GWAS
   results. In the 4-thread timing run, the PA object path is **384–488× faster**
   than grouped Gibbs across the tested sizes and pedigrees. The ratio is not
   thread-count-free: Gibbs is the parallel engine while the PA object path is
@@ -68,16 +73,16 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
 - **Public PA is LTFGRS, not LTFHPlus.** LTFHPlus 2.2.0 is Gibbs-only.
   ltpred PA and LTFGRS 1.0.1 `method="PA"` agree at corr = 1.0000
   (RMSE 0.000087 ± 0.000008). Same-algorithm fold times on this
-  machine were **6.87 ± 0.12×** (LTFHPlus Gibbs / ltpred Gibbs) and
-  **1178 ± 157×** (LTFGRS PA / ltpred PA). Mixing algorithms, LTFHPlus /
-  ltpred PA is **6613 ± 800×**. Totals: 1-worker LTFHPlus took
-  10.66 ± 0.07 s (53.3 ± 0.4 ms/family) versus 1.552 ± 0.021 s
-  (7.76 ± 0.10 ms/family) for 4-thread ltpred Gibbs, 1.895 ± 0.052 s
-  (9.47 ± 0.26 ms/family) for LTFGRS PA, and 0.00167 ± 0.00022 s
-  (0.0083 ± 0.0011 ms/family) for ltpred PA. Isolated-process peak
-  RSS was 442.3 ± 1.5, 259.8 ± 0.9, 165.3 ± 16.6 and 147.9 ± 0.5 MiB —
+  machine were **6.984 ± 0.003×** (LTFHPlus Gibbs / ltpred Gibbs) and
+  **1473 ± 19×** (LTFGRS PA / ltpred PA). Mixing algorithms, LTFHPlus /
+  ltpred PA is **8179 ± 71×**. Totals: 1-worker LTFHPlus took
+  10.59 ± 0.06 s (53.0 ± 0.3 ms/family) versus 1.517 ± 0.010 s
+  (7.58 ± 0.05 ms/family) for 4-thread ltpred Gibbs, 1.907 ± 0.013 s
+  (9.54 ± 0.07 ms/family) for LTFGRS PA, and 0.00130 ± 0.00001 s
+  (0.00648 ± 0.00005 ms/family) for ltpred PA. Isolated-process peak
+  RSS was 443.6 ± 1.3, 260.0 ± 1.2, 180.8 ± 0.2 and 179.6 ± 0.3 MiB —
   LTFHPlus, LTFGRS PA, ltpred Gibbs and ltpred PA respectively
-  (interpreter included). The 6613× figure is not
+  (interpreter included). The 8179× figure is not
   "LT-FH++, but faster."
 - **Classic LT-FH improves genotype-GWAS signal without average null inflation.**
   Across three genotype/effect/cohort replicates, the same classic LT-FH model
@@ -88,7 +93,7 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   adjusted causal-SNP NCP ratio over case/control and full LT-FH++ reaches
   **1.194 ± 0.006×**. The paired LT-FH++ minus ADuLT increment is
   **+0.1454 ± 0.0154** NCP-ratio units (95% CI half-width). Full LT-FH++ has
-  adjusted calibration slope **0.995 ± 0.015** and PA/Gibbs agreement 0.99990.
+  adjusted calibration slope **0.995 ± 0.015** and PA/Gibbs agreement 0.99996.
 - **Cohort-blind family thresholds inflate stratified-null λ_GC; cohort-aware thresholds do not.**
   At a 4× lifetime-prevalence trend per 30 birth years, single-K family
   thresholds reach **16.460 ± 0.399**; the same family model with cohort-specific
@@ -136,11 +141,11 @@ unchanged from the former single-seed grid. At h²=0.5 and K=0.05:
 
 | Family structure | corr Gibbs | corr PA | PA squared-correlation eff-N proxy / case-control | corr(PA, Gibbs) |
 |---|---:|---:|---:|---:|
-| parents | 0.382 ± 0.009 | 0.382 ± 0.009 | 1.36 ± 0.03× | 0.9997 |
-| parents + 2 siblings | 0.437 ± 0.009 | 0.437 ± 0.009 | 1.66 ± 0.07× | 0.9997 |
-| extended | 0.419 ± 0.014 | 0.420 ± 0.014 | 1.71 ± 0.09× | 0.9997 |
+| parents | 0.382 ± 0.009 | 0.382 ± 0.009 | 1.36 ± 0.03× | 0.9999 |
+| parents + 2 siblings | 0.437 ± 0.009 | 0.437 ± 0.009 | 1.66 ± 0.07× | 0.9999 |
+| extended | 0.419 ± 0.014 | 0.420 ± 0.014 | 1.71 ± 0.09× | 0.9999 |
 
-Across all 27 cells, the mean PA–Gibbs agreement is 0.9977–0.9999 with
+Across all 27 cells, the mean PA–Gibbs agreement is 0.9995–1.0000 with
 across-seed SEs of at most 0.0001 (bare means shown). Absolute accuracy
 increases with prevalence, heritability, and informative relatives.
 Relative gain over a case/control label is often largest for rarer
@@ -157,8 +162,9 @@ arm64), h²=0.5, K=0.05, and 25,000 Gibbs draws. This rerun includes the collaps
 Gibbs path (untruncated `g` integrated out of the sweep). No other benchmark ran
 concurrently, but the machine was not otherwise idle: the recorded 1-minute
 load average moved from 2.56 to 5.86 during the run. `benchmarks/run_manifest.jsonl`
-records the machine, resolved thread count and load for every run, so a timing
-taken under load is identifiable rather than silently slow.
+used to record the machine, resolved thread count and load for every run, so a
+timing taken under load was identifiable rather than silently slow; the
+manifest was removed in the 2026-08 lean-down.
 
 These supersede an earlier 10-thread reference (315–510×) taken on different
 hardware and a different stack, which does not reproduce on this machine at any
@@ -205,7 +211,8 @@ array APIs separately.
 ## 3. Age-of-onset information (`bench_age_onset.py`)
 
 *Script merged into `bench_fh_prediction.py` panel (e) in the 2026-08
-consolidation; this section's numbers came from the standalone script.*
+consolidation; the numbers below are from the v0.4.0 rerun of the merged
+panel.*
 
 Three independent cohorts per cell, 3,000 families, eight
 relatives. Gibbs is a first-replicate cross-check only (`gibbs_reps=1`).
@@ -215,19 +222,19 @@ point). Onset is the CIP inverse of true liability.
 
 | h² | K | classic | pin | interval | pin / classic | interval / classic |
 |---:|---:|---:|---:|---:|---:|---:|
-| 0.5 | 0.05 | 0.430 ± 0.004 | 0.433 ± 0.004 | 0.433 ± 0.004 | 1.018 ± 0.006× | 1.017 ± 0.005× |
-| 0.5 | 0.30 | 0.638 ± 0.005 | 0.666 ± 0.004 | 0.662 ± 0.004 | 1.089 ± 0.005× | 1.076 ± 0.003× |
-| 0.8 | 0.30 | 0.740 ± 0.003 | 0.774 ± 0.004 | 0.767 ± 0.004 | 1.093 ± 0.002× | 1.073 ± 0.001× |
+| 0.5 | 0.05 | 0.431 ± 0.001 | 0.436 ± 0.001 | 0.436 ± 0.001 | 1.024 ± 0.009× | 1.023 ± 0.007× |
+| 0.5 | 0.30 | 0.642 ± 0.006 | 0.669 ± 0.005 | 0.665 ± 0.005 | 1.086 ± 0.006× | 1.074 ± 0.004× |
+| 0.8 | 0.30 | 0.747 ± 0.001 | 0.779 ± 0.001 | 0.772 ± 0.000 | 1.086 ± 0.006× | 1.069 ± 0.003× |
 
 All three columns use PA and condition on the same family; Gibbs is only the
 first-replicate agreement check on the pin. This is an LT-FH++ age-component
 ablation over classic LT-FH, not ADuLT and not raw case/control. Mean pin /
-classic squared-correlation eff-N proxy over the eight-cell grid is 1.041×;
-interval / classic is 1.036×. At low prevalence pin and interval are
+classic squared-correlation eff-N proxy over the eight-cell grid is 1.039×;
+interval / classic is 1.034×. At low prevalence pin and interval are
 indistinguishable. At K = 0.30 the pin adds a further ~0.01–0.02× over the
 interval: most of the onset increment is knowing the case is at least that
 extreme, not the pin-equals-liability identity. Minimum first-replicate
-PA/Gibbs agreement is 0.99897.
+PA/Gibbs agreement is 0.99971.
 
 ## 4. Replicated classic-LT-FH genotype GWAS (`bench_gwas_power.py`)
 
@@ -316,22 +323,27 @@ The last two columns are the fitted parameters behind those predictions.
 
 | true c² | accuracy, ignore C | accuracy, fit A+C | paired gain ± 95% CI | fitted h², ignore C | fitted h², fit A+C |
 |---:|---:|---:|---:|---:|---:|
-| 0.0 | 0.53251 | 0.53238 | -0.00013 ± 0.00041 | 0.502 | 0.492 |
-| 0.1 | 0.49899 | 0.49996 | +0.00096 ± 0.00061 | 0.550 | 0.468 |
-| 0.2 | 0.48869 | 0.49226 | +0.00357 ± 0.00144 | 0.643 | 0.469 |
-| 0.3 | 0.47059 | 0.47649 | +0.00590 ± 0.00231 | 0.748 | 0.478 |
+| 0.0 | 0.53276 | 0.53264 | -0.00012 ± 0.00040 | 0.502 | 0.492 |
+| 0.1 | 0.49920 | 0.50017 | +0.00097 ± 0.00063 | 0.550 | 0.468 |
+| 0.2 | 0.48888 | 0.49246 | +0.00358 ± 0.00146 | 0.643 | 0.469 |
+| 0.3 | 0.47083 | 0.47671 | +0.00588 ± 0.00236 | 0.748 | 0.478 |
 
 At c²=0.3, the paired gains with 2, 4, and 6 full siblings are respectively
-+0.00266 ± 0.00342, +0.00636 ± 0.00574, and +0.00829 ± 0.00658 (95% CI
++0.00265 ± 0.00346, +0.00627 ± 0.00564, and +0.00814 ± 0.00616 (95% CI
 half-widths). More relatives help identify C, but four replicates are too few to
 claim monotone gain with sibship size.
 
 The benchmark retains per-family Gibbs MCSEs and warns when estimates miss the
 requested tolerance, and the stored rows carry that instrumentation: across the
-four fitted models the per-model MCSE maxima span 0.0093–0.0200, with zero
+four fitted models the per-model MCSE maxima span 0.0048–0.0120, with zero
 nonfinite and zero unconverged estimates in every cell. The canonical run took
-542 s (`run_manifest.jsonl`), not the ~30 minutes an earlier transcription of
-this paragraph claimed.
+542 s (recorded in the since-removed run manifest), not the ~30 minutes an
+earlier transcription of this paragraph claimed.
+
+The merged script's panel (c) repeats the §24 public-API C/M wiring check:
+fitted A/C/M = 0.427/0.142/0.150 against truth 0.4/0.15/0.15, calibration
+slope restored from 0.927 to 0.986, and corr(o) ≈ 0.60 under the current
+`estimate_liability(out="full")` semantics (§24).
 
 The predictive increment is intentionally evaluated as a paired difference on
 the same cohorts. Its main practical value is smaller than the parameter-
@@ -405,7 +417,8 @@ cohorts:
 ## 11. Genetic factor diagnostic (`bench_genetic_factor.py`)
 
 *Script merged into `bench_genetic_correlation.py` panel (c) in the 2026-08
-consolidation; this section's numbers came from the standalone script.*
+consolidation; the v0.4.0 rerun of the merged panel reproduces every number
+below unchanged.*
 
 Fifteen independent cohorts, 3,000 families, five traits. Under planted
 one-factor truth, loadings 0.8/0.7/0.6/0.5/0.4 are recovered as
@@ -487,12 +500,12 @@ Three independent seeds per grid cell; values are the across-seed mean ± SE
 
 | regime | corr(PA, Gibbs) | corr(PA, true g) | corr(Gibbs, true g) |
 |---|---:|---:|---:|
-| baseline | 0.999707 ± 0.000011 | 0.438 ± 0.005 | 0.438 ± 0.005 |
-| large pedigree | 0.999709 ± 0.000004 | 0.465 ± 0.011 | 0.465 ± 0.011 |
-| rare, K=0.005 | 0.998262 ± 0.000088 | 0.216 ± 0.007 | 0.216 ± 0.008 |
-| densely affected | 0.999096 ± 0.000022 | 0.486 ± 0.002 | 0.487 ± 0.002 |
+| baseline | 0.999912 ± 0.000004 | 0.438 ± 0.005 | 0.438 ± 0.005 |
+| large pedigree | 0.999879 ± 0.0000003 | 0.465 ± 0.011 | 0.465 ± 0.011 |
+| rare, K=0.005 | 0.999504 ± 0.000025 | 0.216 ± 0.007 | 0.216 ± 0.007 |
+| densely affected | 0.999189 ± 0.000020 | 0.486 ± 0.002 | 0.487 ± 0.002 |
 
-The worst single-seed PA–Gibbs agreement is 0.99813 (rare, K=0.005).
+The worst single-seed PA–Gibbs agreement is 0.99916 (densely affected).
 
 Fold-order spread as a percentage of the between-proband score SD
 (across-seed mean ± SE):
@@ -571,9 +584,9 @@ correlated: adding the correct sex curve shifts female error by
 female-minus-male error gap by **0.05092 ± 0.00096**.
 
 On the first two 300-family, no-mixture main-panel cross-checks, PA/Gibbs agreement is
-0.999901. Gibbs reaches the requested MCSE tolerance for every score (maximum
-MCSE 0.0090 at tolerance 0.03); PA-vs-Gibbs normalized RMSE is 0.0174 score SD,
-the Gibbs-on-PA slope is 0.990, and the mean difference is -0.0019.
+0.999964. Gibbs reaches the requested MCSE tolerance for every score (maximum
+MCSE 0.0049 at tolerance 0.03); PA-vs-Gibbs normalized RMSE is 0.0132 score SD,
+the Gibbs-on-PA slope is 0.990, and the mean difference is -0.0018.
 
 ## 16. PA-FGRS censoring-mixture validation (`bench_pafgrs_mixture.py`)
 
@@ -605,11 +618,11 @@ Threshold-crossing observation model:
 | pinned case + no-mixture | 0.3337 ± 0.0048 | 0.9977 ± 0.0109 | 0.4770 ± 0.0034 | 0.9885 ± 0.0057 |
 | pinned case + mixture | 0.3337 ± 0.0048 | 0.9766 ± 0.0109 | 0.4769 ± 0.0034 | 0.9811 ± 0.0057 |
 
-(Gibbs cross-check on base + no-mixture: corr(PA, Gibbs) 0.9992 / 0.9998,
+(Gibbs cross-check on base + no-mixture: corr(PA, Gibbs) 0.9998 / 0.9999,
 matching slopes 1.2192 / 1.0217 -- the MID slope > 1 is the case encoding's
 information loss, not a PA artifact. Under the stochastic-onset model
-corr(PA, Gibbs) is 0.9992 / 0.9998 with matching slopes 1.0685 / 0.9845.
-Under liability-dependent onset, 0.9992 / 0.9998 with slopes 1.1419 / 1.0127.)
+corr(PA, Gibbs) is 0.9998 / 0.9999 with matching slopes 1.0685 / 0.9845.
+Under liability-dependent onset, 0.9998 / 0.9999 with slopes 1.1419 / 1.0127.)
 
 Stochastic-onset observation model:
 
@@ -940,11 +953,10 @@ Crohn's Table 3 fixture (0.61 -> 0.22).
 ## 24. Environment components in estimation (`bench_env_components.py`)
 
 *Script merged into `bench_shared_env.py` panel (c) in the 2026-08
-consolidation; the corr(g)/slope(g) numbers below reproduce exactly under the
-merged panel. Note: corr(o) now reports ≈0.60 instead of the 0.28–0.30 below
-because `estimate_liability(out="full")` changed semantics after these numbers
-were recorded (the proband's own bound is applied after the relative fold);
-the wiring-gain direction is unchanged.*
+consolidation; the numbers below are from the v0.4.0 rerun of the merged
+panel. corr(o) reads ≈0.60 rather than the 0.28–0.30 recorded before the
+`estimate_liability(out="full")` semantics change (the proband's own bound is
+now applied after the relative fold); the wiring-gain direction is unchanged.*
 
 The sibship (C) and couple (M) shared-environment components fitted by
 `fit_variance_components` are now wired into liability estimation:
@@ -958,17 +970,17 @@ with true h2 = 0.4, sibship c2 = 0.15 and couple m2 = 0.15 (5 replicates of
 
 | arm | corr(g) | slope(g) | corr(o) |
 |---|---|---|---|
-| additive-only (misspecified) | 0.454 | 0.927 | 0.284 |
-| oracle-wired (c2/m2 at truth) | 0.455 | 0.986 | 0.297 |
-| fitted-wired (fit then wire) | 0.455 | 0.983 | 0.296 |
+| additive-only (misspecified) | 0.454 | 0.927 | 0.605 |
+| oracle-wired (c2/m2 at truth) | 0.455 | 0.986 | 0.608 |
+| fitted-wired (fit then wire) | 0.455 | 0.983 | 0.607 |
 
 - **Calibration restored**: the additive-only model over-credits environmental
   clustering to genetics (slope 0.93, over-dispersed); wiring recalibrates to
   0.99 -- the algorithm doc's "sharper genetic estimate" promise, measured.
 - **Full-liability prediction sharpens**: corr(E[l_o | family], truth) rises
-  0.284 -> 0.297 when the environment is modelled.
-- **The fit->wire loop works end to end**: fitted components (A 0.45, C 0.13,
-  M 0.16 vs truth 0.4/0.15/0.15) give the same calibration as the oracle.
+  0.605 -> 0.608 when the environment is modelled.
+- **The fit->wire loop works end to end**: fitted components (A 0.43, C 0.14,
+  M 0.15 vs truth 0.4/0.15/0.15) give the same calibration as the oracle.
 - Ranking is untouched (corr(g) flat), consistent with every other benchmark.
 
 ## 25. Onset-age-structured genetic correlation (`bench_aod_decay.py`)
@@ -1038,8 +1050,8 @@ sex-limited covariance, so the proband's genetic liability is known exactly.
 Proband and sibling sexes are balanced across the four cells. `K_female = 0.05`,
 `K_male = 0.10`; 3 replicates of 2,000 families. Four arms, all scored by
 `corr(estimate, true g)` and the calibration slope `regress(true on estimate)`:
-the stored `±` values are the original normal 95% half-widths. The script now
-uses t half-widths; rerun it before quoting its intervals as current.
+the stored `±` values are t-based 95% half-widths, reproduced unchanged by the
+v0.4.0 rerun as panel (a) of `bench_covariance_extensions.py`.
 
 | arm | thresholds | covariance |
 |---|---|---|
@@ -1136,9 +1148,9 @@ environment. This benchmark asks what a nurture-blind analysis costs.
 
 Families (proband + both parents + one full sib) are drawn from the **true**
 path model, so the direct value `A_o` is known exactly. `h2 = 0.4` (direct),
-`K = 0.05`; 5 replicates of 3,000 families. The stored `±` values are the
-original normal 95% half-widths; the script now uses t half-widths and requires
-a rerun for current intervals. Four estimators are scored against `A_o`:
+`K = 0.05`; 5 replicates of 3,000 families. The stored `±` values are t-based
+95% half-widths, reproduced unchanged by the v0.4.0 rerun as panel (b) of
+`bench_covariance_extensions.py`. Four estimators are scored against `A_o`:
 
 | arm | covariance |
 |---|---|
@@ -1279,27 +1291,32 @@ straight through.
 
 Each replicate draws a **population** under a known model, applies one selection
 rule, and fits the selected subset. Only the selection rule differs between
-rows: model, analysed N, thresholds and fitter settings are held fixed. Ten
-replicates, N = 10,000 analysed families, K = 0.05, true h² = 0.5, n_iter = 1500.
+rows: model, analysed N, thresholds and fitter settings are held fixed. Five
+replicates, N = 3,000 analysed families, K = 0.05, true h² = 0.5, n_iter = 800
+-- the moderate default since the 2026-08 consolidation; the former campaign
+grid (10 replicates, N = 10,000, n_iter = 1500) remains available under
+`--full`.
 `random_50` keeps half the population *independently of phenotype* and is the
 negative control: it exercises the identical chunked accept/reject, redraw and
 truncation path, so it isolates selection-on-phenotype from the harness.
 
 | scheme | realised case share | fitted h² (nuclear) | fitted h² (sibship) |
 |---|---:|---:|---:|
-| population | 0.050 | 0.523 (SD 0.055) | 0.511 (SD 0.030) |
-| random_50 *(negative control)* | 0.049 | 0.506 (SD 0.083) | 0.499 (SD 0.035) |
+| population | 0.051 | 0.515 (SD 0.147) | 0.566 (SD 0.056) |
+| random_50 *(negative control)* | 0.050 | 0.602 (SD 0.139) | 0.543 (SD 0.049) |
 | proband_case | 1.000 | **1.000** | **1.000** |
-| case_control | 0.499 | **1.000** | **1.000** |
-| enriched_20 | 0.199 | **1.000** | **1.000** |
-| family_history | 0.293 | **1.000** | **1.000** |
+| case_control | 0.495 | **1.000** | **1.000** |
+| enriched_20 | 0.198 | **1.000** | **1.000** |
+| family_history | 0.291 | **1.000** | **1.000** |
 | fh_proband_control | 0.000 | **1.000** | **1.000** |
 
 Every phenotype-selected scheme is pinned at the clamp in every replicate
 (boundary fraction 1.00, across-replicate SD 0.000). The population and
-negative-control arms are not.
+negative-control arms are not. Case shares shown are the nuclear arm's; the
+sibship arm realises the same shares except `family_history` (0.219).
 
-**The strongest cell is true h² = 0** (`--h2 0.0`, 5 replicates, nuclear):
+**The strongest cell is true h² = 0** (`--h2 0.0`, 5 replicates, nuclear;
+pre-consolidation grid -- the moderate default does not include this arm):
 population returns 0.018 and `random_50` 0.025, while `proband_case`,
 `case_control`, `enriched_20`, `family_history` and `fh_proband_control` **all
 return 1.000**. Selecting families on phenotype makes the fitter report complete
@@ -1312,20 +1329,20 @@ the simplex, so the diagnostic is the exhausted residual, not a component at
 
 | scheme | A | C | residual | saturated |
 |---|---:|---:|---:|---:|
-| population | 0.399 | 0.188 | 0.414 | 0.00 |
-| random_50 | 0.408 | 0.186 | 0.406 | 0.00 |
+| population | 0.428 | 0.203 | 0.369 | 0.00 |
+| random_50 | 0.427 | 0.209 | 0.364 | 0.00 |
 | proband_case | 0.500 | 0.500 | **0.0001** | 1.00 |
-| case_control | 0.464 | 0.536 | **0.0001** | 1.00 |
-| enriched_20 | 0.479 | 0.521 | **0.0001** | 1.00 |
-| family_history | 0.590 | 0.410 | **0.0001** | 1.00 |
-| fh_proband_control | 0.824 | 0.176 | **0.0001** | 1.00 |
+| case_control | 0.498 | 0.502 | **0.0001** | 1.00 |
+| enriched_20 | 0.500 | 0.499 | **0.0001** | 1.00 |
+| family_history | 0.594 | 0.406 | **0.0001** | 1.00 |
+| fh_proband_control | 0.832 | 0.168 | **0.0001** | 1.00 |
 
 A + C sums to 1 - eps under every ascertained scheme: the whole liability
 variance is consumed. Reading the components alone would hide this, which is
 why the CSV carries `residual`.
 
 **Genetic correlation** (ascertained on trait 1, true r_g = 0.5) inherits it:
-population recovers 0.499 with per-trait h² of 0.524/0.509 and no pinning;
+population stays unpinned at 0.381 (SD 0.033) with per-trait h² of 0.504/0.518;
 `proband_case` and `case_control` return r_g = 1.000 with **both** per-trait h²
 at 1.000. Since r_g = G/sqrt(h²₁h²₂), that 1.000 is a ratio of two pinned
 denominators, not an estimate -- hence the `h2pin` column.
@@ -1334,17 +1351,18 @@ denominators, not an estimate -- hence the `h2pin` column.
 
 Three checks, because "the estimate is wrong" has several innocent explanations:
 
-- **More data does not help.** Across N = 2,500 / 10,000 / 40,000 the population
-  bias is +0.042 / -0.005 / +0.010 (shrinking, SD 0.028 → 0.016) while
+- **More data does not help.** Across N = 1,000 / 3,000 / 10,000 the population
+  bias is -0.077 / -0.066 / +0.013 (SD 0.254 → 0.033) while
   `proband_case` holds at **+0.500 / +0.500 / +0.500**. Sampling noise shrinks
   as 1/√N; this does not.
-- **It has converged.** `population` gives 0.474 / 0.483 / 0.483 at n_iter =
-  500 / 1500 / 4000; `proband_case` gives 0.9999 at all three with a trace-tail
+- **It has converged.** `population` gives 0.477 / 0.450 / 0.468 at n_iter =
+  250 / 800 / 2000; `proband_case` gives 0.9999 at all three with a trace-tail
   slope of 0. Decisively, multi-start: `proband_case` reaches 0.9999 from
   h2_init = 0.05, 0.5 and 0.95 alike (spread 0.0) -- it *climbs* to the ceiling
   from below rather than failing to leave a high start.
 - **It is not the harness.** `random_50` selects half the population through the
-  identical code path and recovers h² (+0.006 nuclear, -0.001 sibship).
+  identical code path and recovers h² within this grid's noise (+0.102 nuclear,
+  +0.043 sibship; across-replicate SD 0.139 / 0.049).
 
 ### How wrong, and how little it takes
 
@@ -1354,17 +1372,18 @@ liabilities is uncensored (nuclear):
 
 | scheme | HE moment | × truth | centered |
 |---|---:|---:|---:|
-| population | 0.508 | 1.02 | 0.508 |
-| random_50 | 0.507 | 1.01 | 0.507 |
-| proband_case | 1.679 | **3.36** | 0.199 |
-| case_control | 1.065 | 2.13 | 0.736 |
-| enriched_20 | 0.681 | 1.36 | 0.644 |
-| family_history | 1.083 | 2.17 | -0.056 |
-| fh_proband_control | 0.839 | 1.68 | 0.009 |
+| population | 0.507 | 1.01 | 0.507 |
+| random_50 | 0.517 | 1.03 | 0.517 |
+| proband_case | 1.688 | **3.38** | 0.202 |
+| case_control | 1.048 | 2.10 | 0.725 |
+| enriched_20 | 0.685 | 1.37 | 0.652 |
+| family_history | 1.094 | 2.19 | -0.047 |
+| fh_proband_control | 0.828 | 1.66 | 0.010 |
 
 **This is a decomposition, not the mechanism, and must not be read as one.** At
-true h² = 0 every ascertained scheme still fits 1.000 while this statistic sits
-at ~0 (`proband_case` +0.006) or negative (`family_history` -0.107, and -0.562
+true h² = 0 (pre-consolidation `--h2 0.0` arm) every ascertained scheme still
+fits 1.000 while this statistic sits at ~0 (`proband_case` +0.006) or negative
+(`family_history` -0.107, and -0.562
 once centered -- centering makes it *worse*). The fitter never sees these
 liabilities; it sees truncated-MVN draws conditional on the selected status
 pattern, so under proband ascertainment every augmented proband is redrawn above
@@ -1373,21 +1392,21 @@ whatever the truth. The runaway is augmentation feedback, which a complete-data
 statistic cannot see.
 
 The tolerance is far tighter than intuition suggests (arm H; nuclear,
-N = 4,000, 3 replicates, realised shares against an assumed K = 0.05):
+N = 2,000, 2 replicates, realised shares against an assumed K = 0.05):
 
-| enrichment | 0.98× | 1.27× | 1.49× | 2.00× | ≥ 2.5× |
+| enrichment | 0.95× | 1.51× | 1.96× | 2.92× | 4.10× |
 |---|---:|---:|---:|---:|---:|
-| fitted h² | 0.426 | 0.730 | 0.993 | 1.000 | 1.000 |
-| bias | -0.074 | **+0.230** | **+0.493** | +0.500 | +0.500 |
-| across-rep SD | 0.055 | 0.087 | 0.004 | 0.000 | 0.000 |
+| fitted h² | 0.420 | 0.984 | 0.998 | 1.000 | 1.000 |
+| bias | -0.080 | **+0.484** | **+0.498** | +0.500 | +0.500 |
+| across-rep SD | 0.070 | 0.001 | 0.001 | 0.000 | 0.000 |
 
-A 6.4% case rate against an assumed 5.0% inflates h² by +0.23. The curve is
-steep and its middle is the noisy part -- three replicates at N = 4,000 carry an
-SD near 0.09 there -- so read the shape, not any single cell: mild enrichment is
-already damaging, and by 2× the estimate is pinned. The unenriched cell sits at
-0.426 rather than 0.5, which is this arm's small-N noise floor (N = 4,000, SD
-0.055), not a bias of the fitter; the N = 10,000 population arm above recovers
-0.523.
+A 7.6% case rate against an assumed 5.0% already inflates h² by +0.48, and by
+2× the estimate is at the clamp. The curve is steep, and on this grid the
+enriched cells saturate in both replicates, so read the shape, not any single
+cell: mild enrichment is already damaging. The unenriched cell sits at 0.420
+rather than 0.5, which is this arm's small-N noise floor (N = 2,000, 2
+replicates, SD 0.070), not a bias of the fitter; the N = 10,000 population arm
+above recovers 0.513.
 
 ### The correction, where one exists
 
@@ -1396,19 +1415,19 @@ given a family's statuses, its truncated-MVN draw is already the correct
 conditional law. So re-mixing by inverse probability of inclusion is a
 better-matched remedy than any scale transform. `sampling="ipw"` with
 per-family `weights = 1/P(sampled)` weights both the numerator and the
-denominator of the Haseman-Elston ratio. Same grid, 10 replicates, N = 10,000:
+denominator of the Haseman-Elston ratio. Same grid, 5 replicates, N = 3,000:
 
 | scheme | max weight | unweighted | **IPW** | bias | SD (IPW) |
 |---|---:|---:|---:|---:|---:|
-| population | 1.0 | 0.484 | 0.484 | −0.016 | 0.046 |
-| random_50 | 1.0 | 0.456 | 0.456 | −0.044 | 0.036 |
-| case_control | 19.0 | **1.000** | **0.495** | −0.005 | 0.055 |
-| enriched_20 | 4.7 | **1.000** | **0.473** | −0.027 | 0.012 |
+| population | 1.0 | 0.481 | 0.481 | −0.019 | 0.088 |
+| random_50 | 1.0 | 0.469 | 0.469 | −0.031 | 0.123 |
+| case_control | 19.0 | **1.000** | **0.468** | −0.032 | 0.099 |
+| enriched_20 | 4.7 | **1.000** | **0.521** | +0.021 | 0.040 |
 | proband_case | — | 1.000 | *undefined* | — | — |
 | family_history | — | 1.000 | *undefined* | — | — |
 | fh_proband_control | — | 1.000 | *undefined* | — | — |
 
-A 50/50 case/control cohort goes from pinned at 1.000 to 0.495 against a truth
+A 50/50 case/control cohort goes from pinned at 1.000 to 0.468 against a truth
 of 0.5. Two limits bound this:
 
 - **Positivity.** The three *undefined* rows use deterministic rules that sample
@@ -1417,8 +1436,8 @@ of 0.5. Two limits bound this:
   known selection rule and does not call the weighted fitter for those rows.
   They are examples of zero-probability designs, not a claim that every form of
   family-history selection is unweightable.
-- **Efficiency.** Weights reach 19× at K = 0.05, and the IPW SD (0.055) exceeds
-  the population arm's (0.046). IPW buys accuracy with precision, and the cost
+- **Efficiency.** Weights reach 19× at K = 0.05, and the IPW SD (0.099) exceeds
+  the population arm's (0.088). IPW buys accuracy with precision, and the cost
   grows as the enrichment does.
 
 A Lee et al. observed→liability factor cannot substitute. It is a multiplicative
@@ -1426,8 +1445,8 @@ function of (K, P) alone, while at fixed K a true h² of 0.5 and of 0.0 **both**
 produce 1.000 -- no invertible constant maps both back. It also transforms an
 *observed-scale* estimate, and this fitter is already on the liability scale.
 Measured directly (arm J), an observed-scale HE + Lee pipeline on the same
-ascertained cohorts lands at **0.211** (50/50) and **0.294** (20% enriched)
-against a truth of 0.5, and is itself +0.21 off under clean population sampling
+ascertained cohorts lands at **0.224** (50/50) and **0.332** (20% enriched)
+against a truth of 0.5, and is itself +0.23 off under clean population sampling
 -- so it is not a drop-in replacement for the population-sampled fitter either.
 This arm standardises each family role by its sample case rate, pools
 multi-relative HE moments, and applies the proband's sample fraction in the Lee
@@ -1440,9 +1459,10 @@ evaluation of conventional unrelated-sample LDSC or GREML.
 than taken entirely on trust (`ltpred.fit._assert_population_case_rate`). The thresholds assert a
 prevalence, and under population sampling each role's case count is
 Binomial(n_families, K), so a binomial z-test applies per role. All five
-phenotype-selected schemes above raise at z = +67 to +436 (at this section's
-N = 10,000; the same schemes give +43 to +276 at N = 4,000). Arm I is the
-specificity half: 12 unascertained cohorts across N ∈ {500 … 10,000} and
+phenotype-selected schemes above raise at z = +67 to +436 (computed on the
+pre-consolidation N = 10,000 campaign grid; the same schemes give +43 to +276
+at N = 4,000). Arm I is the
+specificity half: 6 unascertained cohorts across N ∈ {500 … 10,000} and
 K ∈ {0.02 … 0.20}, **0 false positives**.
 The bar is deliberately conservative (z ≥ 6 and a ratio outside [1/1.15, 1.15]):
 `bootstrap_fit` resamples are centred on the cohort's rate rather than on K, so
@@ -1450,7 +1470,8 @@ their z carries the cohort's own sampling error as an offset, and a z ≥ 4 bar
 fired on a legitimate 1,500-family cohort. The cost is power at small N.
 Detectable enrichment is the ratio at which |z| reaches the bar,
 `1 + 6·√((1−K)/(K·n))`, so it depends on the prevalence as well as N: at this
-section's K = 0.05 it is **~1.67× at N = 1,500** and ~1.26× at N = 10,000 (at
+section's K = 0.05 it is **~1.48× at this section's N = 3,000**, ~1.67× at
+N = 1,500 and ~1.26× at N = 10,000 (at
 K = 0.10 it would be ~1.46× and ~1.18×). So the check catches the catastrophic
 designs and does **not** certify population sampling. Mild enrichment on a small cohort still passes, and the dose-response
 above shows that is not harmless.
@@ -1481,10 +1502,10 @@ interpreter and packages.
 
 | Estimator | corr vs LTFHPlus | RMSE vs LTFHPlus | total s / 200 fam. | ms / family | peak RSS (MiB) |
 |---|---:|---:|---:|---:|---:|
-| LTFHPlus Gibbs | — | — | 10.66 ± 0.07 | 53.3 ± 0.4 | 442.3 ± 1.5 |
-| LTFGRS PA | 0.9999 ± 0.0000 | 0.0046 ± 0.0002 | 1.895 ± 0.052 | 9.47 ± 0.26 | 259.8 ± 0.9 |
-| ltpred Gibbs | 0.9999 ± 0.0000 | 0.0041 ± 0.0001 | 1.552 ± 0.021 | 7.76 ± 0.10 | 165.3 ± 16.6 |
-| ltpred PA | 0.9999 ± 0.0000 | 0.0046 ± 0.0002 | 0.00167 ± 0.00022 | 0.0083 ± 0.0011 | 147.9 ± 0.5 |
+| LTFHPlus Gibbs | — | — | 10.59 ± 0.06 | 53.0 ± 0.3 | 443.6 ± 1.3 |
+| LTFGRS PA | 0.9999 ± 0.0000 | 0.0046 ± 0.0002 | 1.907 ± 0.013 | 9.54 ± 0.07 | 260.0 ± 1.2 |
+| ltpred Gibbs | 0.9999 ± 0.0000 | 0.0041 ± 0.0001 | 1.517 ± 0.010 | 7.58 ± 0.05 | 180.8 ± 0.2 |
+| ltpred PA | 0.9999 ± 0.0000 | 0.0046 ± 0.0002 | 0.00130 ± 0.00001 | 0.00648 ± 0.00005 | 179.6 ± 0.3 |
 
 The Gibbs scores agree at the scale of the Monte Carlo error (LTFHPlus
 reports `genetic_se` ≈ 0.004). The PA scores agree with each other much
@@ -1500,14 +1521,14 @@ Fold times are the mean ± SE of the three per-replicate ratios
 
 | Comparison | fold | same algorithm? |
 |---|---:|:---|
-| LTFHPlus Gibbs / ltpred Gibbs | 6.87 ± 0.12× | yes |
-| LTFGRS PA / ltpred PA | 1178 ± 157× | yes |
-| LTFHPlus Gibbs / ltpred PA | 6613 ± 800× | no |
-| LTFGRS PA / ltpred Gibbs | 1.22 ± 0.02× | no |
+| LTFHPlus Gibbs / ltpred Gibbs | 6.984 ± 0.003× | yes |
+| LTFGRS PA / ltpred PA | 1473 ± 19× | yes |
+| LTFHPlus Gibbs / ltpred PA | 8179 ± 71× | no |
+| LTFGRS PA / ltpred Gibbs | 1.26 ± 0.02× | no |
 
 The first row is Gibbs versus Gibbs across language and
 parallelisation. The second is the same sequential PA update in R
-versus compiled Python. The 6613× row mixes algorithms. None of
+versus compiled Python. The 8179× row mixes algorithms. None of
 these is a hardware-independent constant.
 
 **Parallelisation is not equally distributed across those rows**, so the
@@ -1517,27 +1538,27 @@ Numba threads = 1):
 
 | Comparison | fold at 4 threads | fold at 1 thread |
 |---|---:|---:|
-| LTFHPlus Gibbs / ltpred Gibbs | 6.87 ± 0.12× | **1.833 ± 0.025×** |
-| LTFGRS PA / ltpred PA | 1178 ± 157× | **1624 ± 36×** |
+| LTFHPlus Gibbs / ltpred Gibbs | 6.984 ± 0.003× | **1.833 ± 0.025×** |
+| LTFGRS PA / ltpred PA | 1473 ± 19× | **1624 ± 36×** |
 
 The 1-thread column is 12 replicates
-(`bench_ltfhplus_compare_1thread.csv`, in `run_manifest.jsonl`). **Treat its
+(`bench_ltfhplus_compare_1thread.csv`). **Treat its
 ± as replicate scatter, not measurement uncertainty:** the host carried a
 load average near 20 on 10 cores during that run, and three independent
 repeats of the same configuration returned Gibbs folds of 1.82, 1.66 and
 1.83 — spread well outside any single run's own SE. What survives that is
 the comparison, not the third digit. All three arms are single-threaded
 there, so contention inflates them together and the ratio is far more robust
-than the absolute times; the qualitative conclusion (most of the 6.87× is
+than the absolute times; the qualitative conclusion (most of the 6.98× is
 the thread asymmetry) holds across every repeat. The 4-thread column carries
 the same exposure in the other direction, since a 4-thread arm loses more to
 contention than its 1-thread competitors. A quiet-host rerun of both
 configurations back to back would settle the digits.
 
-ltpred's Gibbs is `prange`-parallel over families, so most of the 6.87× is
+ltpred's Gibbs is `prange`-parallel over families, so most of the 6.98× is
 the 4:1 resource asymmetry rather than implementation: matched at one
 thread the gap is 1.82×. PA is effectively serial, so its fold does not
-track the thread count and the 1178× figure is if anything conservative.
+track the thread count and the 1473× figure is if anything conservative.
 Both quantities are legitimate and they answer different questions — the
 4-thread rows are what a user gets at each package's defaults, since the
 `future` plan is sequential by default, while the 1-thread rows isolate the
@@ -1611,6 +1632,20 @@ script exits 2 if they are missing. LTFGRS is the PA arm.
   collapsing untruncated genetic coordinates out of the Gibbs sweep.
 - 2026-08-15: locked LTFHPlus 2.2.0 Gibbs and LTFGRS 1.0.1 PA (§30),
   with isolated-process peak RSS and per-family times.
+- 2026-08-20: full-suite rerun of all 26 scripts at v0.4.0 in the recorded
+  environment (Numba at 8 threads; `bench_scaling.py` and
+  `bench_ltfhplus_compare.py` at 4), with the committed CSVs regenerated in
+  place. Sections not mentioned here or above reproduced their recorded
+  values within sampling error and were left untouched. Refreshed: the §1
+  and §14 PA–Gibbs agreement figures and the §15/§16 Gibbs cross-checks,
+  which had been recorded before the 2026-08-15 collapsed-genetic Gibbs
+  sweep and all moved up (§14's worst single seed is now in the
+  densely-affected regime); and the §30 timing, peak-RSS and fold fields,
+  which now come from the recorded Python 3.14.6 free-threading interpreter
+  (the accuracy lock is unchanged; the ltpred-arm RSS rose with the
+  interpreter). The merged-panel sections (§3, §8, §11, §24–§27, §29) were
+  re-derived from the same artifacts, and the §26–§27 interval fields are
+  now t-based, closing the earlier rerun caveat.
 
 ## Remaining limitations
 
@@ -1633,10 +1668,9 @@ script exits 2 if they are missing. LTFGRS is the PA arm.
   benchmark (section 16) now includes a liability-dependent onset arm;
   its censoring correction is small at the tested settings, and case
   encoding dominates calibration there.
-- Sex-limitation and nurture interval fields (§26–27) still use the
-  stored normal 95% half-widths; the scripts now emit t half-widths and
-  those two tables need a rerun before the interval columns are treated
-  as current.
+- Sex-limitation and nurture interval fields (§26–27) were refreshed in the
+  v0.4.0 rerun of `bench_covariance_extensions.py`, which emits t-based 95%
+  half-widths; the tabulated values reproduce the stored ones unchanged.
 - The lightweight GWAS helper uses the large-sample `n * r²` score statistic.
   A finite-sample regression test would use residual degrees of freedom and the
   `r² / (1-r²)` correction; the matched NCP ratios are robust to this
