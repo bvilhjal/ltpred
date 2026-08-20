@@ -200,9 +200,10 @@ and tetrachoric-correlation diagnostics
 (`ltpred.tetrachoric`) for liability correlations straight from 2x2
 case/control tables.
 
-Demoted research machinery lives in the unsupported **`research/` package** at
-the repository root (importable as `research.<module>` from a checkout; it is
-not part of the installed distribution): the end-to-end register pipeline
+Demoted research machinery lives in the dormant, unmaintained **`research/`
+package** at the repository root (importable as `research.<module>` from a
+checkout; it is not part of the installed distribution and no longer runs in
+CI): the end-to-end register pipeline
 (`research.pipeline`), and in `research.advanced_fitting` the genetic-correlation,
 onset-age-decay, common-factor and genetic-nurture fits, the MCEM
 variance-component fit, and the parametric-bootstrap significance tests, plus

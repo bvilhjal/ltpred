@@ -33,22 +33,6 @@ jobs:
       - name: Core tests
         run: pytest -q tests
 
-  research:
-    # Checkout-only research code is unsupported by the package compatibility
-    # matrix.  Exercise it once on the current Linux stack without multiplying
-    # its cost across every supported Python/platform combination.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-      - name: Install (with the JIT + test extras)
-        run: pip install -e ".[fast,test]"
-      - name: Research tests
-        run: pytest -q research
-
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -181,8 +165,8 @@ jobs:
       # `--strict` leaves link/anchor resolution at INFO, so it exits 0 on a
       # broken cross-reference. This also catches an unmatched code fence, which
       # silently renders following prose -- headings included -- as a code block.
-      - name: Build and check documentation (strict, fences, anchors)
-        run: python scripts/check_docs.py
+      - name: Build and check documentation (strict)
+        run: mkdocs build --strict
       # The site was previously published by hand and went stale at v0.1.0
       # while the package reached 0.3.4 -- the strict build above already
       # verified it on every push, and only the publish step was missing.

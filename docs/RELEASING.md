@@ -29,10 +29,8 @@ Optionally add the same as a trusted publisher on
    distribution; `pyproject.toml` reads it dynamically) and move the
    `## Unreleased` section of `CHANGELOG.md` under the new `## X.Y.Z — <date>`
    heading. Three files carry the version independently of that attribute and
-   drift silently when missed: `CITATION.cff` (`version` and `date-released`),
-   the landing page `index.html` (the hero version chip), and
-   `report/ltpred_methods.tex`. `tests/test_version_metadata.py` enforces the
-   version string across these surfaces.
+   drift silently when missed: `CITATION.cff` (`version` and `date-released`)
+   and `report/ltpred_methods.tex`.
 2. Confirm CI is green on `main` (tests on 3.9–3.13, macOS 3.12 and 3.14t, `ruff`, strict docs build, wheel build).
 3. Locally, sanity-check the artifacts with modern tooling:
    ```bash

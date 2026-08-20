@@ -1,6 +1,0 @@
-robustness probes: n_fam=2000 reps=2 n_em=35 (true rg=0.5)
-  A_kernel_misspec   | rg=+0.552  h2=[0.548,0.568]  lam_x=0.0443   [59s]  (truth gauss lam=0.05, fit ou)
-  B_shared_env       | rg=+0.333  h2=[0.624,0.690]  lam_x=0.0382   [58s]  (truth ou lam=0.04 + shared env c2=0.1)
-  B0_reference       | rg=+0.499  h2=[0.366,0.496]  lam_x=0.0482   [56s]  (truth ou lam=0.04, no shared env)
-
-wrote bench_aod_decay_robustness.csv

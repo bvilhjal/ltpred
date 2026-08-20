@@ -15,7 +15,8 @@ moment fitting. See the [guide](guide.md), [algorithm](algorithm.md), and
 [assumptions](assumptions.md) for the exact contracts.
 
 Experimental covariance models, selection-aware fitting, genetic-correlation
-fitting, factor models, and the register pipeline remain under `research/`.
+fitting, factor models, and the register pipeline remain under `research/`,
+which is dormant and unmaintained (not run in CI or the test suite).
 They are importable from a checkout but are deliberately absent from wheels.
 
 ## Priorities
@@ -60,5 +61,7 @@ They are importable from a checkout but are deliberately absent from wheels.
 A research capability moves into `ltpred/` only after its estimand and
 observation model are documented, invalid inputs fail clearly, known-truth
 simulation covers calibration as well as ranking, runtime and memory are
-measured on a representative scale, and the public path has tests and generated
-evidence guards. Until then, experimental code stays experimental.
+measured on a representative scale, and the public path has tests and
+committed benchmark evidence. Until then, experimental code stays experimental
+— and `research/` currently has no maintainer, so graduation is hypothetical
+rather than scheduled.

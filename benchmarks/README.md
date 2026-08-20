@@ -37,30 +37,6 @@ summary CSV: `bench_cip_estimation.py`, `bench_liability_scale.py`, and
 write long-format `rep, metric, value` CSVs (`--reps` independent
 populations/registers; rep 0 marks single-run parts).
 
-For a provenance record, run a benchmark through the lightweight wrapper:
-
-```bash
-python benchmarks/run_benchmark.py bench_accuracy.py -- --reps 5
-```
-
-The wrapper appends one JSON object to `benchmarks/run_manifest.jsonl` with the
-exact command, UTC times, exit status, Git commit, tracked-diff hash, content
-hashes for untracked source files, package versions, and thread settings. For a
-dirty tree it also stores the binary tracked patch and a ZIP of untracked source
-files under `benchmarks/run_sources/`; the hash alone is therefore not mistaken
-for a reproducible source bundle. It
-also records the machine the run happened on — architecture, CPU model, logical
-and physical core counts — and the thread count Numba actually resolved to, so
-timings taken on different hardware or a different Numba can be told apart
-rather than compared blind. The `ltpred` version comes from the checkout the
-benchmarks import, not from installed distribution metadata, which can be a
-stale `egg-info` left over from an earlier build. It
-captures stdout and stderr in run-specific logs and records their SHA-256
-hashes alongside hashes of changed top-level `bench_*.{csv,png}` artifacts.
-Custom output paths are not discovered automatically. The manifest is
-generated at run time; it records a run but does not make results valid after
-their source or numerical dependencies change.
-
 Two gain metrics appear below. Genotype-GWAS panels report **causal-SNP NCP
 ratios**, based on `mean chi² - 1`. Prediction-only panels report
 **squared-correlation effective-N proxies**. These answer related but different
@@ -78,11 +54,9 @@ numerically identical, just slower). Each script takes CLI flags (`--reps`,
 
 Two conda environments split the work:
 
-- **`ltpred314`** — package verification: pytest, ruff, and the docs gates
-  (`python scripts/check_docs.py`, `mkdocs build --strict`). Deliberately
-  dependency-minimal (stdlib + NumPy), CI-equivalent; the
-  `scripts/check_results.py` and `scripts/make_results.py` artifact guards
-  also run here (stdlib `csv` only, no pandas).
+- **`ltpred314`** — package verification: pytest, ruff, and the docs gate
+  (`mkdocs build --strict`). Deliberately dependency-minimal (stdlib + NumPy),
+  CI-equivalent.
 - **`ldpred3`** — benchmark analysis and paper artifacts: pandas, matplotlib,
   and the optional ldpred3 PGS backend used by the PGS-comparison arm.
 
@@ -168,8 +142,5 @@ plus a minimal PLINK `.bed` reader for the HAPNEST path.
   `OMP_NUM_THREADS` too so linked numerical libraries use the same limit.
 - Checked-in CSVs and [`RESULTS.md`](RESULTS.md) are historical artifacts.
   Their claims apply only to their recorded designs and provenance, not
-  automatically to the current source tree.
-- `python scripts/check_results.py` re-derives the RESULTS.md headline values
-  from these CSVs and the `run_logs/` logs and fails on any mismatch;
-  `python scripts/make_results.py` renders paper-ready tables from the same
-  CSVs into `paper/tables/` (generated, do not hand-edit).
+  automatically to the current source tree. The numerical claims are no
+  longer machine-guarded; verify them against the CSVs when quoting them.

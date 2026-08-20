@@ -1,8 +1,0 @@
-== cohort confounding & λ_GC (h2=0.50, K=0.05, m+f+s1+s2, 2000 SNPs / 1000 stratified) ==
-  λ_GC on cohort-correlated null SNPs — should stay ≈1 only if cohort-aware
-  R=1.0/30y | stratified-null λ_GC: cohort-aware=0.96±0.01  single-K=0.96±0.01  case/control=0.90±0.03 | (unstratified cohort-aware=0.99±0.05)
-  R=2.0/30y | stratified-null λ_GC: cohort-aware=0.96±0.05  single-K=4.54±0.25  case/control=2.01±0.26 | (unstratified cohort-aware=1.01±0.02)
-  R=3.0/30y | stratified-null λ_GC: cohort-aware=0.92±0.06  single-K=10.28±0.08  case/control=4.62±0.22 | (unstratified cohort-aware=0.99±0.02)
-  R=4.0/30y | stratified-null λ_GC: cohort-aware=1.01±0.04  single-K=16.46±0.40  case/control=7.67±0.09 | (unstratified cohort-aware=0.94±0.04)
-
-wrote bench_confounding.csv and bench_confounding.png

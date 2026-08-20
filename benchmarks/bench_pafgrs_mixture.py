@@ -77,7 +77,7 @@ mixture-minus-no-mixture differences per replicate are reported as mean +/-
 across-replicate SE with a t-based 95% CI (the bench_ltfhpp_personalization
 convention), which is what the "no correlation cost" question needs.
 
-Run:  python benchmarks/run_benchmark.py bench_pafgrs_mixture.py
+Run:  python benchmarks/bench_pafgrs_mixture.py
 """
 
 from __future__ import annotations

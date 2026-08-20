@@ -10,30 +10,22 @@ engines for those bounds. PA-FGRS is a separate PA-specific specification; its
 censoring mixture is not included in the PA–Gibbs comparisons below.
 
 - **Snapshot:** assembled from focused runs on 2026-07-31, 2026-08-01 and
-  2026-08-14/15, each recorded in `run_manifest.jsonl`; this was not one atomic
+  2026-08-14/15, each recorded at the time in a run manifest (removed in the
+  2026-08 lean-down); this was not one atomic
   rerun of all 30 scripts. The first 14-section campaign was generated on
   2026-07-14. **The 2026-08-14/15 reruns used a different interpreter from the
-  environment recorded below** (Python 3.10.20, NumPy 1.26.4, SciPy 1.15.3);
-  `run_manifest.jsonl` records the per-run environment and is authoritative.
+  environment recorded below** (Python 3.10.20, NumPy 1.26.4, SciPy 1.15.3).
 - **Recorded environment for the stored artifacts:** Python 3.14.6
   (free-threading), NumPy 2.4.6, SciPy 1.18.0, Numba 0.66.0, 10 logical cores
-  (Apple M2 Pro, arm64), with the full machine-readable environment, command,
-  and Git state recorded per run in `run_manifest.jsonl`.
+  (Apple M2 Pro, arm64).
 - **Provenance limit:** these checked-in values are historical artifacts. They
   do not automatically validate later source changes, including a dirty working
   tree. Claims should be refreshed after numerical or benchmark-source changes.
-  Two specific gaps: four committed CSVs (`bench_pgs_comparison.csv`,
-  `bench_pedigree_inference.csv`, `bench_register_pipeline.csv` and
-  `bench_ascertainment_h2null.csv`) have no manifest entry recording their
-  production; and the 40 schema-2 manifest entries record only a hash of the
-  tracked diff, not its content, so their exact source state is unrecoverable
-  (schema-3 runs archive the patch under `run_sources/`).
-- **Future runs:** use
-  `python benchmarks/run_benchmark.py SCRIPT -- [ARGS]`; it appends the exact
-  command, environment, exit status, Git commit, tracked-diff hash, content
-  hashes for untracked source files, captured stdout/stderr log hashes, and
-  hashes of changed top-level `bench_*.{csv,png}` artifacts to
-  `run_manifest.jsonl`. Custom output paths are not discovered automatically.
+  The per-run provenance manifest and captured logs were removed in the
+  2026-08 lean-down, so the exact source state of older runs is unrecoverable.
+- **Future runs:** run the scripts directly,
+  `python benchmarks/bench_<name>.py -- [ARGS]`, and record the command,
+  environment, and Git commit alongside any artifact you commit.
   Set `NUMBA_NUM_THREADS` and, where needed, `OMP_NUM_THREADS` explicitly.
 - **External-data exception:** the HAPNEST real-LD path was not run because it
   requires an external multi-GB dataset; it remains opt-in in
@@ -1635,8 +1627,6 @@ script exits 2 if they are missing. LTFGRS is the PA arm.
   `r² / (1-r²)` correction; the matched NCP ratios are robust to this
   small approximation, but genome-wide discovery counts are only illustrative.
 - Most benchmark scripts still write canonical artifacts unconditionally. The
-  integrated-personalization script accepts `--output-prefix`, and the common
-  `run_benchmark.py` wrapper now records source/environment provenance and
-  hashes changed top-level `bench_*.{csv,png}` artifacts. Custom-path outputs
-  must be preserved and hashed separately. Historical artifacts predating that
-  wrapper remain incompletely attributable.
+  integrated-personalization script accepts `--output-prefix`; custom-path
+  outputs must be preserved separately. Historical artifacts remain
+  incompletely attributable.

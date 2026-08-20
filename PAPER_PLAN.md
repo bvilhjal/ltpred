@@ -35,15 +35,15 @@ from the linked benchmark report, which is checked against committed artifacts.
 
 ## Reproducibility rules
 
-- Generate tables with `scripts/make_results.py`; do not transcribe numerical
-  cells into the manuscript.
-- Guard prose-level numerical claims with `scripts/check_results.py`.
-- Run changed benchmarks through `benchmarks/run_benchmark.py`. A dirty-tree run
-  must retain its tracked patch and untracked-source bundle; a clean committed
-  run is preferred for final evidence.
-- Record the manuscript commit, software environment, seeds, command, and
-  artifact hashes in the evidence capsule.
-- Describe unsupported `research/` results as exploratory.
+- Do not transcribe numerical cells into the manuscript; the tables in
+  `paper/tables/` were generated from the committed benchmark CSVs (the
+  generator script was removed in the 2026-08 lean-down; regenerate by hand
+  from the CSVs if a table needs updating).
+- Prose-level numerical claims are no longer machine-guarded; verify them
+  against the committed CSVs when editing.
+- Record the manuscript commit, software environment, seeds, and command for
+  each benchmark run in `benchmarks/RESULTS.md`.
+- Describe dormant `research/` results as exploratory.
 
 ## Writing order
 

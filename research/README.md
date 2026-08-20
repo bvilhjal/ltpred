@@ -3,7 +3,12 @@
 Unsupported research code that was split out of the lean `ltpred` core
 package. Nothing here is shipped in the wheel; import it as
 `research.<module>` from a repository checkout (repo root on `sys.path`,
-e.g. run from the repo root or via the pytest `pythonpath = ["."]` setting).
+e.g. run from the repo root).
+
+**Status: dormant and unmaintained.** This code is kept for reference but is
+no longer exercised in CI or by the test suite (`testpaths` in
+`pyproject.toml` covers only `tests/`). It may drift out of sync with the
+core package at any time.
 
 Layout:
 

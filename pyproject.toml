@@ -50,7 +50,8 @@ packages = ["ltpred"]
 version = { attr = "ltpred.__version__" }
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "research"]
+# research/ is dormant and unmaintained; only the core suite runs.
+testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
     # Correct without Numba, but sampling-dominated: ~100x slower on the

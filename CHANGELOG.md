@@ -6,6 +6,24 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Removed
+
+- Repository lean-down. Removed the prose-number guard machinery
+  (`scripts/check_results.py`, `scripts/check_docs.py`,
+  `scripts/make_results.py`; the whole `scripts/` directory), the benchmark
+  provenance capsules (`benchmarks/run_benchmark.py`, `run_manifest.jsonl`,
+  `run_logs/`, `run_sources/`, `reference_env.json`), and the meta/hygiene
+  tests that pinned them (`tests/test_check_results.py`,
+  `tests/test_check_docs.py`, `tests/test_version_metadata.py`,
+  `tests/test_run_benchmark.py`), plus `tests/test_pgs_fh_identities.py`,
+  which tested no package code. Benchmark CSVs, RESULTS.md, `paper/`, and
+  `report/` remain as static, historical documentation.
+- Deleted the tracked landing page `index.html`; the mkdocs site remains the
+  documentation face.
+- `research/` is now dormant and unmaintained: removed from `testpaths` and
+  from CI. The code stays in the repository for reference but may drift out
+  of sync with the core package.
+
 ### Changed
 
 - Declared support matches what CI tests: added the 3.14 trove

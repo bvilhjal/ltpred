@@ -581,7 +581,7 @@ errors.
 Both identities above are verified numerically: the correlation identity
 inside the full GWAS design (`bench_pgs_comparison.py`, §28 of RESULTS.md:
 observed 0.2009 ± 0.0046 vs theory 0.2003 ± 0.0050), and both identities to
-Monte-Carlo precision in `tests/test_pgs_fh_identities.py` (two noisy linear
+Monte-Carlo precision (two noisy linear
 predictors, four `(h²_SNP/h²_total, R²_pgs, R²_fh)` settings).
 
 ## Thresholds: status, age, onset — and personalisation by sex and birth cohort

@@ -24,7 +24,7 @@ missing the script still locks LTFHPlus Gibbs and writes empty LTFGRS
 columns. Exits 2 if R or LTFHPlus is missing::
 
     install.packages(c("LTFHPlus", "LTFGRS"))
-    python benchmarks/run_benchmark.py bench_ltfhplus_compare.py
+    python benchmarks/bench_ltfhplus_compare.py
 """
 
 from __future__ import annotations
