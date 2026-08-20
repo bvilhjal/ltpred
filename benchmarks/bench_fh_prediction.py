@@ -53,6 +53,17 @@ the current replicated result is about 0.51 (cohort-aware) vs 0.40 (single-K), o
 squared-correlation terms. The
 CIP shape (`--mid`, `--slope`) is configurable; GWAS λ_GC is not tested here.
 
+Panel (e) is the onset-encoding ablation (formerly `bench_age_onset.py`): the
+SAME full-follow-up families — no mortality, no cohort trend, so it stays a
+clean ablation — are scored under three encodings of each case: classic binary
+LT-FH `(thresh(K), inf)`, onset as an interval `[thresh(onset), inf)`, and onset
+pinned at `lower == upper == thresh(onset)` (the LT-FH++ age component). All
+three encodings are fit with PA; the pin is also fit with Gibbs on the first
+replicate to confirm the engines agree. Swept over prevalence `K` (and h²), it
+shows the onset gain grows with `K`; the pin-vs-interval contrast isolates how
+much of the increment is the pin-equals-liability identity rather than knowing
+onset was at least that early.
+
     python benchmarks/bench_fh_prediction.py
     python benchmarks/bench_fh_prediction.py --trends 1 2 4 --h2s 0.3 0.6
 Writes bench_fh_prediction.csv (+ .png if matplotlib is present).
@@ -189,6 +200,46 @@ def simulate_cohort(fam_vec, h2, K, n_fam, seed, case_frac=None, proband_age=(40
                 fams_bin=fams_bin, fams_coh=fams_coh, fams_one=fams_one)
 
 
+def simulate_onset(fam_vec, h2, K, n_fam, seed, mid=60.0, slope=1.0 / 8.0):
+    """Full-follow-up onset cohort for the encoding ablation: **no mortality, no
+    cohort trend** — every lifetime case (``liability > thresh(K)``) is observed
+    with its exact onset age ``T⁻¹(liability)`` (integer-rounded, as a registry
+    would record it), and controls are fully followed up, so the three encodings
+    below condition on the same families and differ only in how a case is encoded:
+    classic binary LT-FH ``(thresh(K), inf)``, onset interval
+    ``[thresh(onset), inf)``, and onset pin ``thresh(onset)`` (``lower == upper``).
+    Returns true ``g`` and the three encodings."""
+    cov_obj = construct_covmat_single(fam_vec=fam_vec, add_ind=True, h2=h2)
+    cov, _ = correct_positive_definite(cov_obj.matrix)
+    roles = cov_obj.roles
+    non_g = roles[1:]
+    mem_cols = [roles.index(r) for r in non_g]
+    T_K = float(liability_threshold(K))
+    rng = np.random.default_rng(seed)
+    L = rng.multivariate_normal(np.zeros(len(roles)), cov, size=n_fam)
+    Lm = L[:, mem_cols]
+    obs = Lm > T_K                                     # full follow-up: all lifetime cases seen
+    aoo = convert_liability_to_aoo(Lm, pop_prev=K, mid_point=mid, slope=slope)
+    aoo = np.where(np.isfinite(aoo), np.round(aoo), np.inf)
+    thr_onset = _thr(np.where(obs, aoo, 60.0), K, mid, slope)
+
+    fams_bin, fams_int, fams_pin = [], [], []
+    for i in range(n_fam):
+        mb, mi, mp = [], [], []
+        for j, r in enumerate(non_g):
+            if obs[i, j]:
+                mb.append(Member(r, T_K, np.inf))
+                mi.append(Member(r, thr_onset[i, j], np.inf))
+                mp.append(Member(r, thr_onset[i, j], thr_onset[i, j]))
+            else:
+                mb.append(Member(r, -np.inf, T_K))
+                mi.append(Member(r, -np.inf, T_K))
+                mp.append(Member(r, -np.inf, T_K))
+        fams_bin.append(Family(i, mb)); fams_int.append(Family(i, mi))
+        fams_pin.append(Family(i, mp))
+    return dict(g=L[:, 0], fams_bin=fams_bin, fams_int=fams_int, fams_pin=fams_pin)
+
+
 def _corr(pred, g):
     return 0.0 if np.std(pred) < 1e-12 else float(np.corrcoef(pred, g)[0, 1])
 
@@ -269,6 +320,45 @@ def run_cohort_span(h2, K, span, n, seed, mid, slope, trend_R):
                 n_cases=int(m.sum()))
 
 
+def run_onset_encoding(fam_vec, h2, K, n_fam, reps, seed0, mid, slope):
+    """Pin-vs-interval-vs-classic onset encodings on the same simulated families.
+
+    All three encodings are fit with PA; the pin is additionally fit with Gibbs
+    on the first replicate to confirm the two engines agree. Metrics are
+    corr(estimate, true ``g``) and the squared-correlation eff-N gain of each
+    onset encoding over classic LT-FH."""
+    acc = defaultdict(list)
+    gibbs_corr = agree = np.nan
+    for r in range(reps):
+        s = simulate_onset(fam_vec, h2, K, n_fam, seed0 + r, mid=mid, slope=slope)
+        g = s["g"]
+        pin_pa = estimate(s["fams_pin"], h2, "pa", seed=seed0 + r)[0]
+        c = dict(ltfh=_corr(estimate(s["fams_bin"], h2, "pa", seed=seed0 + r)[0], g),
+                 fh_onset_interval=_corr(estimate(s["fams_int"], h2, "pa",
+                                                  seed=seed0 + r)[0], g),
+                 fh_onset_pin=_corr(pin_pa, g))
+        for k, v in c.items():
+            acc[f"corr_{k}"].append(v)
+        acc["squared_corr_ratio_onset_interval_vs_ltfh"].append(
+            (c["fh_onset_interval"] / c["ltfh"]) ** 2 if c["ltfh"] > 0 else np.nan)
+        acc["squared_corr_ratio_onset_pin_vs_ltfh"].append(
+            (c["fh_onset_pin"] / c["ltfh"]) ** 2 if c["ltfh"] > 0 else np.nan)
+        if r == 0:
+            pin_gibbs = estimate(s["fams_pin"], h2, "gibbs", seed=seed0)[0]
+            gibbs_corr = _corr(pin_gibbs, g)
+            agree = _corr(pin_pa, pin_gibbs)
+    out = {k: float(np.nanmean(v)) for k, v in acc.items()}
+    for key, values in acc.items():
+        values = np.asarray(values, float)
+        finite = values[np.isfinite(values)]
+        out[f"{key}_se"] = (float(finite.std(ddof=1) / np.sqrt(finite.size))
+                            if finite.size > 1 else np.nan)
+    out["reps"] = reps
+    out["corr_fh_onset_pin_gibbs"] = gibbs_corr      # first replicate only
+    out["onset_pin_pa_gibbs_agree"] = agree          # first replicate only
+    return out
+
+
 def _fmt(m):
     return (f"cc={m['corr_cc']:.3f} LT-FH={m['corr_ltfh']:.3f} "
             f"FH+age/cohort={m['corr_fh_age_cohort']:.3f} "
@@ -291,6 +381,13 @@ def main():
     ap.add_argument("--span-trend", type=float, default=3.0, help="trend R for panel (d)")
     ap.add_argument("--span-reps", type=int, default=3,
                     help="independent cohorts per birth-cohort-span cell")
+    ap.add_argument("--onset-prevs", type=float, nargs="+",
+                    default=[0.02, 0.05, 0.15, 0.30],
+                    help="prevalence grid for the onset-encoding panel (e)")
+    ap.add_argument("--onset-h2s", type=float, nargs="+", default=[0.5, 0.8],
+                    help="heritability grid for the onset-encoding panel (e)")
+    ap.add_argument("--onset-n-fam", type=int, default=3000,
+                    help="families per onset-encoding cell (panel e)")
     ap.add_argument("--h2", type=float, default=0.5)
     ap.add_argument("--K", type=float, default=0.05)
     ap.add_argument("--mid", type=float, default=60.0)
@@ -314,7 +411,7 @@ def main():
     print(f"struct={'+'.join(STRUCT)} n_fam={args.n_fam} reps={args.reps} K={args.K} "
           f"CIP(mid={args.mid}, slope={args.slope:.3f})")
     print(f"inference engines: pedigree panels={pedigree_engine}; "
-          f"ADuLT cohort-span panel={adult_engine}")
+          f"ADuLT cohort-span panel={adult_engine}; onset-encoding panel=PA")
 
     rows = []
     print(f"\n(a) vs ascertainment  [h2={args.h2}, K={args.K}, no cohort trend]")
@@ -374,6 +471,26 @@ def main():
               f"cohort-blind={d['corr_adult_single_k']:.3f}±{d['se_single']:.3f} "
               f"(mean n={d['n_cases']})")
 
+    print("\n(e) onset ENCODING ablation  [same families scored classic / interval / pin;"
+          " full follow-up, no mortality]")
+    for h2 in args.onset_h2s:
+        for prev in args.onset_prevs:
+            m = run_onset_encoding(STRUCT, h2, prev, args.onset_n_fam, args.reps,
+                                   args.seed + 400, args.mid, args.slope)
+            rows.append(dict(panel="onset", inference_engine="PA",
+                             h2=h2, K=prev, n_fam=args.onset_n_fam,
+                             mid=args.mid, slope=args.slope, **m))
+            print(f"  h2={h2:.1f} K={prev:.2f} | classic={m['corr_ltfh']:.3f}"
+                  f"±{m['corr_ltfh_se']:.3f} pin={m['corr_fh_onset_pin']:.3f}"
+                  f"±{m['corr_fh_onset_pin_se']:.3f} "
+                  f"interval={m['corr_fh_onset_interval']:.3f}"
+                  f"±{m['corr_fh_onset_interval_se']:.3f} "
+                  f"| pin/classic={m['squared_corr_ratio_onset_pin_vs_ltfh']:.3f}"
+                  f"±{m['squared_corr_ratio_onset_pin_vs_ltfh_se']:.3f}x "
+                  f"int/classic={m['squared_corr_ratio_onset_interval_vs_ltfh']:.3f}"
+                  f"±{m['squared_corr_ratio_onset_interval_vs_ltfh_se']:.3f}x "
+                  f"| first-rep Gibbs={m['corr_fh_onset_pin_gibbs']:.3f}")
+
     write_csv(rows)
     plot(rows, args)
     print("\nwrote bench_fh_prediction.csv and bench_fh_prediction.png")
@@ -386,17 +503,25 @@ def write_csv(rows):
               "corr_cc", "corr_count", "corr_ltfh", "corr_fh_age_cohort",
               "corr_fh_age_single_k",
               "corr_adult", "corr_adult_single_k",
+              "corr_fh_onset_interval", "corr_fh_onset_pin",
               "squared_corr_ratio_ltfh_vs_case_control",
               "squared_corr_ratio_fh_age_cohort_vs_ltfh",
+              "squared_corr_ratio_onset_interval_vs_ltfh",
+              "squared_corr_ratio_onset_pin_vs_ltfh",
               "rmse_fh_age_cohort", "rmse_fh_age_single_k",
               "mean_error_fh_age_cohort", "mean_error_fh_age_single_k",
-              "mean_shift_fh_age_single_k_minus_cohort"]
+              "mean_shift_fh_age_single_k_minus_cohort",
+              "corr_fh_onset_pin_gibbs", "onset_pin_pa_gibbs_agree"]
     metrics = ["case_frac", "corr_cc", "corr_count", "corr_ltfh",
                "corr_fh_age_cohort", "corr_fh_age_single_k", "corr_adult",
-               "corr_adult_single_k", "squared_corr_ratio_ltfh_vs_case_control",
-               "squared_corr_ratio_fh_age_cohort_vs_ltfh", "rmse_fh_age_cohort",
-               "rmse_fh_age_single_k", "mean_error_fh_age_cohort",
-               "mean_error_fh_age_single_k",
+               "corr_adult_single_k", "corr_fh_onset_interval",
+               "corr_fh_onset_pin",
+               "squared_corr_ratio_ltfh_vs_case_control",
+               "squared_corr_ratio_fh_age_cohort_vs_ltfh",
+               "squared_corr_ratio_onset_interval_vs_ltfh",
+               "squared_corr_ratio_onset_pin_vs_ltfh",
+               "rmse_fh_age_cohort", "rmse_fh_age_single_k",
+               "mean_error_fh_age_cohort", "mean_error_fh_age_single_k",
                "mean_shift_fh_age_single_k_minus_cohort"]
     fields.extend(f"{name}_se" for name in metrics)
     path = os.path.join(HERE, "bench_fh_prediction.csv")
@@ -414,7 +539,9 @@ def plot(rows, args):
     h2s = sorted([r for r in rows if r["panel"] == "h2"], key=lambda r: r["h2"])
     trd = sorted([r for r in rows if r["panel"] == "trend"], key=lambda r: r["trend_R"])
     csp = sorted([r for r in rows if r["panel"] == "cohortspan"], key=lambda r: r["span"])
-    fig, axs = plt.subplots(2, 2, figsize=(13, 9))
+    ons = sorted([r for r in rows if r["panel"] == "onset"],
+                 key=lambda r: (r["h2"], r["K"]))
+    fig, axs = plt.subplots(3, 2, figsize=(13, 12.5))
     ax = axs.ravel()
     pedigree_engine = asc[0]["inference_engine"] if asc else _engine_label(args.method)
     adult_engine = csp[0]["inference_engine"] if csp else "closed-form"
@@ -477,6 +604,30 @@ def plot(rows, args):
     ax[3].set_title(f"(d) ADuLT cohort personalisation "
                     f"(R={args.span_trend}; {adult_engine})")
     ax[3].legend(fontsize=8)
+
+    h2s_o = sorted({r["h2"] for r in ons})
+    for h2 in h2s_o:
+        sub = [r for r in ons if r["h2"] == h2]
+        K = [r["K"] for r in sub]
+        col = f"C{h2s_o.index(h2)}"
+        ax[4].errorbar(K, [r["corr_ltfh"] for r in sub],
+                       yerr=[r["corr_ltfh_se"] for r in sub], fmt="--s",
+                       capsize=2, color=col, alpha=0.55,
+                       label=f"h²={h2} classic LT-FH")
+        ax[4].errorbar(K, [r["corr_fh_onset_pin"] for r in sub],
+                       yerr=[r["corr_fh_onset_pin_se"] for r in sub], fmt="-o",
+                       capsize=2, color=col, label=f"h²={h2} onset pin")
+        ax[4].errorbar(K, [r["corr_fh_onset_interval"] for r in sub],
+                       yerr=[r["corr_fh_onset_interval_se"] for r in sub],
+                       fmt=":^", capsize=2, color=col, alpha=0.8,
+                       label=f"h²={h2} onset interval")
+    ax[4].set_xscale("log")
+    ax[4].set_xlabel("prevalence K")
+    ax[4].set_ylabel("corr(prediction, true g)")
+    ax[4].set_title("(e) onset encoding: pin vs interval vs classic "
+                    "(full follow-up; PA)")
+    ax[4].legend(fontsize=7)
+    ax[5].axis("off")
 
     fig.tight_layout()
     fig.savefig(os.path.join(HERE, "bench_fh_prediction.png"), dpi=130)

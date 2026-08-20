@@ -10,8 +10,11 @@ decile of genetic liability?) rather than only as a GWAS phenotype (where it is
 standardised anyway). Truth ``g`` is known from the simulation, so it reports:
 
   (a) **calibration when correctly specified** — slope, intercept and a decile
-      calibration curve (mean true g vs mean estimate per decile) for Gibbs and PA;
-      both should sit on the diagonal;
+      calibration curve (mean true g vs mean estimate per decile) for the PA
+      estimate; it should sit on the diagonal. PA-only by design: PA-vs-Gibbs
+      agreement at these settings is already established by ``bench_accuracy.py``
+      and ``bench_pa_robustness.py``, so the Gibbs arm (and its ~30 sampler
+      runs per full sweep) was dropped from this benchmark;
   (b) **calibration vs an assumed-h² that is wrong** — sweep the ``h²`` handed to the
       estimator away from the truth. The headline: ``corr`` barely moves (ranking is
       robust) while the **slope tilts** — assume
@@ -21,17 +24,19 @@ standardised anyway). Truth ``g`` is known from the simulation, so it reports:
       off the diagonal as the assumed h² moves.
 
 Each cell is replicated on ``--reps`` independent seeds (default 5); replicate
-``r`` uses ``--seed + r`` for both the cohort simulation and the Gibbs sampler,
-so the historical single-seed configuration is replicate 0. Reported values are
+``r`` uses ``--seed + r`` for the cohort simulation, so the historical
+single-seed configuration is replicate 0. Reported values are
 across-seed means with standard errors (sd/sqrt(reps)); the decile curves are
-averaged across seeds. Per-cell settings are unchanged (3,000 families, 25,000
-Gibbs draws), so the means are directly comparable to the former single-seed
-numbers.
+averaged across seeds. Per-cell settings are unchanged (3,000 families), so
+the PA means are directly comparable to the former single-seed numbers.
 
     python benchmarks/bench_calibration.py
     python benchmarks/bench_calibration.py --n-fam 5000 --true-h2 0.5 --reps 3
 Writes bench_calibration.csv (+ .png if matplotlib is present). Metric columns
-are across-seed means with matching ``se_`` columns.
+are across-seed means with matching ``se_`` columns. The CSV keeps the
+historical ``*_gibbs`` columns so old and new files share a schema; with the
+Gibbs arm dropped they are NaN in the panel-``correct`` rows (and empty in the
+panel-``misspec`` rows, as before).
 """
 
 import os
@@ -79,42 +84,41 @@ def calib(est, true_g, n_bins=10):
 KEYS = ("slope", "intercept", "corr", "cal_rmse", "top_ratio")
 
 
-def _fill(row, eng, pairs, idx):
-    """Aggregate metric ``idx`` of paired (Gibbs, PA) calib dicts into ``row``."""
+def _fill(row, eng, calibs):
+    """Aggregate calibration dicts ``calibs`` into metric/se columns of ``row``."""
     for key in KEYS:
         row[f"{key}_{eng}"], row[f"se_{key}_{eng}"] = mean_se(
-            [p[idx][key] for p in pairs])
+            [c[key] for c in calibs])
 
 
-def panel_correct(n_fam, h2, prevs, n_sim, seed, reps):
-    """(a) Calibration of the correctly-specified estimate (Gibbs and PA)."""
-    print("== (a) calibration when correctly specified (h2=%.2f, %d seeds) =="
-          % (h2, reps))
+def panel_correct(n_fam, h2, prevs, seed, reps):
+    """(a) Calibration of the correctly-specified estimate (PA only).
+
+    Gibbs is not run here — PA-vs-Gibbs agreement at these settings is covered
+    by bench_accuracy.py and bench_pa_robustness.py. The historical ``*_gibbs``
+    CSV columns are kept for schema compatibility and filled with NaN."""
+    print("== (a) calibration when correctly specified (PA, h2=%.2f, %d seeds)"
+          " ==" % (h2, reps))
     acc = {(s, p): [] for s in STRUCTURES for p in prevs}
     for rep in range(reps):
         print("  replicate %d/%d (seed %d)" % (rep + 1, reps, seed + rep))
         for sname, fam_vec in STRUCTURES.items():
             for prev in prevs:
                 sim = simulate_families(fam_vec, h2, prev, n_fam, seed + rep)
-                g = sim.genetic
-                gib, _ = estimate(sim.families, h2, "gibbs", n_sim=n_sim,
-                                  seed=seed + rep)
                 pa, _ = estimate(sim.families, h2, "pearson-aitken")
-                acc[(sname, prev)].append((calib(gib, g), calib(pa, g)))
+                acc[(sname, prev)].append(calib(pa, sim.genetic))
     rows = []
-    for (sname, prev), pairs in acc.items():
+    nan = float("nan")
+    for (sname, prev), calibs in acc.items():
         row = dict(panel="correct", structure=sname, prevalence=prev,
-                   assumed_h2=h2, true_h2=h2, reps=reps)
-        _fill(row, "gibbs", pairs, 0)
-        _fill(row, "pa", pairs, 1)
-        print("  %-13s K=%.2f | slope Gibbs=%.3f±%.3f PA=%.3f±%.3f | "
-              "intercept=%+.3f±%.3f | corr=%.3f±%.3f | "
-              "top-decile realised/pred=%.3f±%.3f"
-              % (sname, prev, row["slope_gibbs"], row["se_slope_gibbs"],
-                 row["slope_pa"], row["se_slope_pa"], row["intercept_gibbs"],
-                 row["se_intercept_gibbs"], row["corr_gibbs"],
-                 row["se_corr_gibbs"], row["top_ratio_gibbs"],
-                 row["se_top_ratio_gibbs"]))
+                   assumed_h2=h2, true_h2=h2, reps=reps,
+                   **{f"{p}{k}_gibbs": nan for p in ("", "se_") for k in KEYS})
+        _fill(row, "pa", calibs)
+        print("  %-13s K=%.2f | slope PA=%.3f±%.3f | intercept=%+.3f±%.3f | "
+              "corr=%.3f±%.3f | top-decile realised/pred=%.3f±%.3f"
+              % (sname, prev, row["slope_pa"], row["se_slope_pa"],
+                 row["intercept_pa"], row["se_intercept_pa"], row["corr_pa"],
+                 row["se_corr_pa"], row["top_ratio_pa"], row["se_top_ratio_pa"]))
         rows.append(row)
     return rows
 
@@ -171,7 +175,6 @@ def main():
     ap.add_argument("--assumed", type=float, nargs="+",
                     default=[0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
     ap.add_argument("--misspec-prev", type=float, default=0.05)
-    ap.add_argument("--n-sim", type=int, default=25_000)
     ap.add_argument("--reps", type=int, default=5,
                     help="independent seeds per cell (seed, seed+1, ...)")
     ap.add_argument("--seed", type=int, default=1)
@@ -181,9 +184,9 @@ def main():
 
     t_start = time.perf_counter()
     estimate(simulate_families(["m", "f", "s1"], 0.5, 0.1, 40, 0).families, 0.5,
-             "gibbs", n_sim=500, seed=0)                 # warm JIT
+             "pearson-aitken")                           # warm JIT
 
-    rows = panel_correct(args.n_fam, args.true_h2, args.prev, args.n_sim,
+    rows = panel_correct(args.n_fam, args.true_h2, args.prev,
                          args.seed, args.reps)
     mrows, curves = panel_misspec(args.n_fam, args.true_h2, args.assumed,
                                   args.misspec_prev, args.seed, args.reps)

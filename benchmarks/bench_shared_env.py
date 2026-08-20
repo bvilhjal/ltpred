@@ -23,6 +23,16 @@ genetic-liability score under several models and reports corr(estimate, true `g`
 
 Swept over the true c². At c²=0 all four coincide (a sanity check).
 
+Panel **(c)** runs the same idea through the **public** API (merged from the
+former `bench_env_components.py`; its seeds and design are preserved): families
+simulated with sibship (`C`) and couple (`M`) shared environment via
+`construct_covmat_single(h2, c2, m2)`, then `estimate_liability(..., c2=, m2=)`
+with the components omitted (additive-only, misspecified), wired at the truth
+(oracle-wired), or wired from `fit_variance_components(("A", "C", "M"))`
+(fitted-wired). It reports corr(g), the calibration slope of the genetic
+estimate, and corr of the full-liability prediction E[l_o | family] with the
+true full liability.
+
     python benchmarks/bench_shared_env.py
     python benchmarks/bench_shared_env.py --c2 0 0.1 0.2 0.3 --n-fam 3000
 Writes bench_shared_env.csv (+ .png if matplotlib is present).
@@ -37,15 +47,25 @@ import numpy as np
 from scipy.stats import t as student_t
 
 from _common import get_plt, simulate_families_components
-from ltpred.covariance import get_relatedness, correct_positive_definite
+from ltpred.covariance import (construct_covmat_single, get_relatedness,
+                               correct_positive_definite)
 from ltpred.fit import _component_matrix, fit_heritability, fit_variance_components
-from ltpred.estimate import _estimate_group
+from ltpred.estimate import _estimate_group, estimate_liability
+from ltpred.family import Family, Member
+from ltpred.thresholds import liability_threshold
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 TARGET = 0                                   # estimate the proband's genetic liability
 GIBBS_TOL = 0.02
 GIBBS_MAX_ROUNDS = 20
+
+# Panel (c): public-API C/M wiring arm (merged from bench_env_components.py).
+# Family structure, seed schedule and fit settings are frozen so the numbers
+# stay comparable to the historical bench_env_components results.
+WIRE_FAM_VEC = ["m", "f", "s1", "s2"]
+WIRE_SEED = 20260719
+WIRE_FIT_KW = dict(n_iter=600, burn_in=200)
 
 
 def roles_with_sibs(n_sib):
@@ -172,6 +192,72 @@ def run_setting(roles, h2, c2, n_fam, prev, reps, n_sim, burn_in, seed0):
     return m
 
 
+def wire_metrics(fams, true_g, true_o, h2, **kw):
+    """corr(g), calibration slope(g) and corr(o) from the public estimator."""
+    res = estimate_liability(fams, h2=h2, out=("genetic", "full"), **kw)
+    g = np.asarray(res.est["genetic"])
+    o = np.asarray(res.est["full"])
+    return (float(np.corrcoef(g, true_g)[0, 1]),
+            float(np.polyfit(g, true_g, 1)[0]),
+            float(np.corrcoef(o, true_o)[0, 1]))
+
+
+def run_wiring(h2, c2, m2, prev, n_fam, reps):
+    """Panel (c): the public-API wiring contrast, including the M component.
+
+    Families (proband + parents + two sibs) are simulated with true additive
+    genetics plus sibship (C) and couple (M) shared environment from
+    ``construct_covmat_single(h2, c2, m2)``, then estimated through the public
+    ``estimate_liability(..., c2=, m2=)`` API under three arms: additive-only
+    (misspecified), oracle-wired (c2/m2 at the truth) and fitted-wired
+    (components from ``fit_variance_components(("A", "C", "M"))``). Seed
+    schedule and fit settings preserved from bench_env_components.py."""
+    cov_obj = construct_covmat_single(fam_vec=WIRE_FAM_VEC, h2=h2, c2=c2, m2=m2)
+    roles = cov_obj.roles                      # g, o, m, f, s1, s2
+    cov = cov_obj.matrix
+    thr = float(liability_threshold(prev))
+    arms = ("additive-only", "oracle-wired", "fitted-wired")
+    acc = {a: [] for a in arms}
+    fitted = []
+    for rep in range(reps):
+        rng = np.random.default_rng(np.random.PCG64(WIRE_SEED + 41 * rep))
+        liab = rng.multivariate_normal(np.zeros(len(roles)), cov, size=n_fam)
+        status = {r: liab[:, roles.index(r)] > thr for r in roles if r != "g"}
+        fams = []
+        for i in range(n_fam):
+            fams.append(Family(fam_id=i, members=[
+                Member(role=r, lower=thr if status[r][i] else -np.inf,
+                       upper=np.inf if status[r][i] else thr)
+                for r in roles if r != "g"]))
+        true_g = liab[:, roles.index("g")]
+        true_o = liab[:, roles.index("o")]
+        acc["additive-only"].append(wire_metrics(fams, true_g, true_o, h2))
+        acc["oracle-wired"].append(wire_metrics(fams, true_g, true_o, h2,
+                                                c2=c2, m2=m2))
+        fit = fit_variance_components(
+            fams, ("A", "C", "M"), sampling="population", seed=rep,
+            **WIRE_FIT_KW)
+        c2_hat = float(fit.components.get("C", 0.0))
+        m2_hat = float(fit.components.get("M", 0.0))
+        fitted.append((float(fit.components["A"]), c2_hat, m2_hat))
+        acc["fitted-wired"].append(
+            wire_metrics(fams, true_g, true_o, h2, c2=c2_hat, m2=m2_hat))
+    m = {"reps": reps, "n_fam": n_fam, "m2": m2}
+    keys = {"additive-only": "wire_add", "oracle-wired": "wire_oracle",
+            "fitted-wired": "wire_fitted"}
+    for arm, key in keys.items():
+        for j, met in enumerate(("corrg", "slopeg", "corro")):
+            mean, sd, se, _ci = _mean_uncertainty([v[j] for v in acc[arm]])
+            m[f"{key}_{met}"] = mean
+            m[f"{key}_{met}_sd"] = sd
+            m[f"{key}_{met}_se"] = se
+    for j, comp in enumerate("ACM"):
+        mean, sd, _se, _ci = _mean_uncertainty([f[j] for f in fitted])
+        m[f"wire_fit_{comp}"] = mean
+        m[f"wire_fit_{comp}_sd"] = sd
+    return m
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--c2", type=float, nargs="+", default=[0.0, 0.1, 0.2, 0.3])
@@ -183,6 +269,14 @@ def main():
     ap.add_argument("--reps", type=int, default=4)
     ap.add_argument("--n-sim", type=int, default=20000)
     ap.add_argument("--burn-in", type=int, default=600)
+    ap.add_argument("--wire-h2", type=float, default=0.4,
+                    help="panel (c): true h2 (bench_env_components design)")
+    ap.add_argument("--wire-c2", type=float, default=0.15,
+                    help="panel (c): true sibship environment c2")
+    ap.add_argument("--wire-m2", type=float, default=0.15,
+                    help="panel (c): true couple environment m2")
+    ap.add_argument("--wire-fams", type=int, default=4000)
+    ap.add_argument("--wire-reps", type=int, default=5)
     ap.add_argument("--seed", type=int, default=100)
     args = ap.parse_args()
     h2 = args.h2
@@ -193,6 +287,13 @@ def main():
         ap.error("all --c2 and --c2-for-sibs values must be finite and nonnegative")
     if np.any(h2 + tested_c2 > 1):
         ap.error("--h2 + c2 must be <= 1 for every tested shared-environment setting")
+    if not 0.0 < args.wire_h2 <= 1.0:
+        ap.error("--wire-h2 must be in (0, 1]")
+    for flag, value in (("--wire-c2", args.wire_c2), ("--wire-m2", args.wire_m2)):
+        if not np.isfinite(value) or value < 0:
+            ap.error(f"{flag} must be finite and nonnegative")
+    if args.wire_h2 + args.wire_c2 + args.wire_m2 > 1:
+        ap.error("--wire-h2 + --wire-c2 + --wire-m2 must be <= 1")
     kw = dict(n_fam=args.n_fam, prev=args.prev, reps=args.reps, n_sim=args.n_sim,
               burn_in=args.burn_in)
 
@@ -202,6 +303,10 @@ def main():
     estimate_g(fw, ROLES, h2, warm_c2, n_sim=2000, burn_in=200, seed=0)
     fit_variance_components(
         fw, ("A", "C"), sampling="population", n_iter=20, burn_in=5
+    )
+    estimate_liability(fw, h2=h2, out=("genetic", "full"), c2=warm_c2)  # PA path
+    fit_variance_components(
+        fw, ("A", "C", "M"), sampling="population", n_iter=20, burn_in=5
     )
 
     print(f"h2={h2} n_fam={args.n_fam} reps={args.reps}  corr(estimate, true genetic liability)")
@@ -213,7 +318,7 @@ def main():
     rows_c2 = []
     for c2 in args.c2:
         m = run_setting(roles_with_sibs(3), h2, c2, seed0=args.seed, **kw)
-        rows_c2.append(dict(panel="c2", c2=c2, n_sib=3, **m))
+        rows_c2.append(dict(panel="c2", c2=c2, n_sib=3, n_fam=args.n_fam, **m))
         print(f"{c2:5.2f} | {m['add_true']:15.4f} {m['add_fit']:13.4f} {m['ace_fit']:9.4f} "
               f"{m['ace_oracle']:11.4f} | {m['gain']:+.4f} ± {m['gain_ci95']:.4f}   "
               f"({m['h2_add']:.2f},{m['h2_ace']:.2f},{m['c2_ace']:.2f})")
@@ -226,11 +331,26 @@ def main():
     rows_sib = []
     for ns in args.sibs:
         m = run_setting(roles_with_sibs(ns), h2, cf, seed0=args.seed + 500, **kw)
-        rows_sib.append(dict(panel="sibs", c2=cf, n_sib=ns, **m))
+        rows_sib.append(dict(panel="sibs", c2=cf, n_sib=ns, n_fam=args.n_fam, **m))
         print(f"{ns:5d} | {m['add_fit']:13.4f} {m['ace_fit']:9.4f} {m['ace_oracle']:11.4f} | "
               f"{m['gain']:+.4f} ± {m['gain_ci95']:.4f}")
 
-    write_csv(rows_c2 + rows_sib)
+    # (c) public-API wiring of C/M into estimation ------------------------------
+    wh2, wc2, wm2 = args.wire_h2, args.wire_c2, args.wire_m2
+    print(f"\n(c) public-API C/M wiring  [estimate_liability(c2=, m2=); "
+          f"{args.wire_fams} fams, h2={wh2} c2={wc2} m2={wm2}]")
+    mw = run_wiring(wh2, wc2, wm2, args.prev, args.wire_fams, args.wire_reps)
+    rows_wire = [dict(panel="wiring", c2=wc2, n_sib=2, **mw)]
+    print(f"  fitted A/C/M = {mw['wire_fit_A']:.3f}/{mw['wire_fit_C']:.3f}/"
+          f"{mw['wire_fit_M']:.3f}  (truth {wh2}/{wc2}/{wm2})")
+    print(f"  {'arm':16s} {'corr(g)':>8s} {'slope(g)':>9s} {'corr(o)':>8s}   (± SE)")
+    for arm, key in (("additive-only", "wire_add"), ("oracle-wired", "wire_oracle"),
+                     ("fitted-wired", "wire_fitted")):
+        print(f"  {arm:16s} {mw[key + '_corrg']:8.4f} {mw[key + '_slopeg']:9.4f} "
+              f"{mw[key + '_corro']:8.4f}   (± {mw[key + '_corrg_se']:.3f}/"
+              f"{mw[key + '_slopeg_se']:.3f}/{mw[key + '_corro_se']:.3f})")
+
+    write_csv(rows_c2 + rows_sib + rows_wire)
     plot(rows_c2, rows_sib, h2)
     print("\nwrote bench_shared_env.csv and bench_shared_env.png")
 
@@ -247,6 +367,13 @@ def write_csv(rows):
                        f"{name}_unconverged"])
     fields.extend(["mcse_max", "nonfinite", "unconverged"])
     fields.extend(["h2_add", "h2_ace", "c2_ace"])
+    # panel (c) wiring columns (merged from bench_env_components.py)
+    fields.extend(["n_fam", "m2"])
+    for name in ("wire_add", "wire_oracle", "wire_fitted"):
+        for met in ("corrg", "slopeg", "corro"):
+            fields.extend([f"{name}_{met}", f"{name}_{met}_sd", f"{name}_{met}_se"])
+    for comp in "ACM":
+        fields.extend([f"wire_fit_{comp}", f"wire_fit_{comp}_sd"])
     with open(os.path.join(HERE, "bench_shared_env.csv"), "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
         w.writeheader()

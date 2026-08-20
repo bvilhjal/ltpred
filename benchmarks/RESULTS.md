@@ -204,6 +204,9 @@ array APIs separately.
 
 ## 3. Age-of-onset information (`bench_age_onset.py`)
 
+*Script merged into `bench_fh_prediction.py` panel (e) in the 2026-08
+consolidation; this section's numbers came from the standalone script.*
+
 Three independent cohorts per cell, 3,000 families, eight
 relatives. Gibbs is a first-replicate cross-check only (`gibbs_reps=1`).
 The same simulated families are scored three ways: classic LT-FH (lifetime
@@ -401,6 +404,9 @@ cohorts:
 
 ## 11. Genetic factor diagnostic (`bench_genetic_factor.py`)
 
+*Script merged into `bench_genetic_correlation.py` panel (c) in the 2026-08
+consolidation; this section's numbers came from the standalone script.*
+
 Fifteen independent cohorts, 3,000 families, five traits. Under planted
 one-factor truth, loadings 0.8/0.7/0.6/0.5/0.4 are recovered as
 0.809/0.695/0.596/0.522/0.411, with SD 0.052–0.088.
@@ -430,7 +436,9 @@ across-seed means ± SE. Correctly specified PA:
 | extended | 0.20 | 1.002 ± 0.007 | 0.595 ± 0.006 | 1.007 ± 0.004 |
 
 Every slope mean is within 1.3 SE of 1 and every PA intercept within 0.01
-of 0; Gibbs and PA slope means agree within 0.01 cell for cell. The former
+of 0 (Gibbs and PA slope means agreed within 0.01 cell for cell in the
+historical run; the panel is now PA-only, with Gibbs-agreement evidence in
+§1 and §14). The former
 single-seed outlier (extended pedigree, K=0.01, slope 0.916) replicates as
 0.989 ± 0.027 — mostly cohort noise. One departure does replicate: at
 K=0.01 with the extended pedigree the top-decile realised/predicted ratio
@@ -931,6 +939,13 @@ Crohn's Table 3 fixture (0.61 -> 0.22).
 
 ## 24. Environment components in estimation (`bench_env_components.py`)
 
+*Script merged into `bench_shared_env.py` panel (c) in the 2026-08
+consolidation; the corr(g)/slope(g) numbers below reproduce exactly under the
+merged panel. Note: corr(o) now reports ≈0.60 instead of the 0.28–0.30 below
+because `estimate_liability(out="full")` changed semantics after these numbers
+were recorded (the proband's own bound is applied after the relative fold);
+the wiring-gain direction is unchanged.*
+
 The sibship (C) and couple (M) shared-environment components fitted by
 `fit_variance_components` are now wired into liability estimation:
 `construct_covmat_single(..., c2=..., m2=...)` and the supported estimator
@@ -994,7 +1009,7 @@ fitted with `n_em = 45`, `n_draw = 100`, 3 replicates per cell:
   SD of `r_g` is ~0.11-0.18, so any single estimate carries a wide interval;
   use `bootstrap_fit` for sampling uncertainty.
 
-### Robustness (adversarial probes, `bench_aod_decay_robustness.py`)
+### Robustness (adversarial probes, formerly `bench_aod_decay_robustness.py`, now `bench_aod_decay.py --robustness`)
 
 The main grid is *circular* (the simulator draws from exactly the fitted
 covariance), so it cannot reveal misspecification. Two adversarial arms probe it
@@ -1011,7 +1026,7 @@ covariance), so it cannot reveal misspecification. Two adversarial arms probe it
   traits with household effects will be mis-estimated -- the most important
   caveat for application.
 
-## 26. Sex in the covariance vs sex in the thresholds (`bench_sex_limitation.py`)
+## 26. Sex in the covariance vs sex in the thresholds (`bench_sex_limitation.py`, now panel (a) of `bench_covariance_extensions.py`)
 
 `construct_covmat_sex_limited` lets sex enter `Sigma` (sex-specific `h2`, a
 cross-sex genetic correlation `rg`) rather than only the thresholds. The algebra
@@ -1113,7 +1128,7 @@ rather than fitted parameters. Nothing here estimates `h2_F`, `h2_M` or `rg`,
 so the "sex in Sigma (true)" arm is a ceiling that a real analysis reaches only
 as well as its parameter estimates allow.
 
-## 27. Ignoring genetic nurture (`bench_nurture.py`)
+## 27. Ignoring genetic nurture (`bench_nurture.py`, now panel (b) of `bench_covariance_extensions.py`)
 
 `construct_covmat_nurture` separates a proband's **direct** additive value from
 the **indirect** path by which the parents' genotypes shape the rearing

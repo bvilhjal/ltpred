@@ -1042,29 +1042,29 @@ def plot(rows, tag=""):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--reps", type=int, default=10)
-    p.add_argument("--n-fam", type=int, default=10_000)
+    p.add_argument("--reps", type=int, default=5)
+    p.add_argument("--n-fam", type=int, default=3_000)
     p.add_argument("--prev", type=float, default=0.05)
     p.add_argument("--h2", type=float, default=0.5)
     p.add_argument("--a2", type=float, default=0.4)
     p.add_argument("--c2", type=float, default=0.2)
     p.add_argument("--rg", type=float, default=0.5)
     p.add_argument("--rp", type=float, default=0.3)
-    p.add_argument("--n-iter", type=int, default=1500)
-    p.add_argument("--burn-in", type=int, default=500)
+    p.add_argument("--n-iter", type=int, default=800)
+    p.add_argument("--burn-in", type=int, default=250)
     p.add_argument("--seed", type=int, default=20260814)
     p.add_argument("--scale-n", type=int, nargs="+",
-                   default=[2500, 10_000, 40_000])
-    p.add_argument("--scale-reps", type=int, default=5)
+                   default=[1000, 3_000, 10_000])
+    p.add_argument("--scale-reps", type=int, default=3)
     p.add_argument("--converge-iters", type=int, nargs="+",
-                   default=[500, 1500, 4000])
+                   default=[250, 800, 2000])
     p.add_argument("--converge-starts", type=float, nargs="+",
                    default=[0.05, 0.5, 0.95])
     p.add_argument("--dose-targets", type=float, nargs="+",
-                   default=[0.05, 0.06, 0.075, 0.10, 0.125, 0.15, 0.20])
-    p.add_argument("--dose-n", type=int, default=4000)
-    p.add_argument("--dose-reps", type=int, default=3)
-    p.add_argument("--spec-reps", type=int, default=2)
+                   default=[0.05, 0.075, 0.10, 0.15, 0.20])
+    p.add_argument("--dose-n", type=int, default=2000)
+    p.add_argument("--dose-reps", type=int, default=2)
+    p.add_argument("--spec-reps", type=int, default=1)
     p.add_argument("--lee-schemes", nargs="+",
                    default=["population", "case_control", "enriched_20"],
                    choices=list(SCHEMES))
@@ -1085,10 +1085,21 @@ def main():
                         "pass (e.g. --h2 0) does not overwrite the main grid")
     p.add_argument("--quick", action="store_true",
                    help="tiny grid for a smoke run")
+    p.add_argument("--full", action="store_true",
+                   help="campaign-scale grid (the pre-0.4.0 defaults: "
+                        "10 reps x 10k families x 1500 iterations, scale to "
+                        "40k families; hours of runtime)")
     args = p.parse_args()
     if not hasattr(args, "spec_grid"):
         args.spec_grid = [(500, 0.05), (1500, 0.10), (4000, 0.05),
                           (4000, 0.20), (10_000, 0.02), (10_000, 0.10)]
+
+    if args.full:
+        args.reps, args.n_fam, args.n_iter, args.burn_in = 10, 10_000, 1500, 500
+        args.scale_n, args.scale_reps = [2500, 10_000, 40_000], 5
+        args.converge_iters = [500, 1500, 4000]
+        args.dose_targets = [0.05, 0.06, 0.075, 0.10, 0.125, 0.15, 0.20]
+        args.dose_n, args.dose_reps, args.spec_reps = 4000, 3, 2
 
     if args.quick:
         args.reps, args.n_fam, args.n_iter, args.burn_in = 2, 800, 200, 60

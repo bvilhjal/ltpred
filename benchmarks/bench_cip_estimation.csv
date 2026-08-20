@@ -5,7 +5,7 @@ aj_mortality,max_abs_err_crude,0.0016670509132238331
 km_mortality,max_abs_err_crude,0.02181664626149396
 km_mortality,max_abs_err_marginal,0.0019224415468733769
 aj_delayed_entry,max_abs_err_crude,0.0018941297956098224
-e2e_oracle,slope,1.0015193979503267
+e2e_oracle,slope,1.0015193979503272
 e2e_oracle,corr,0.3860506850222241
-e2e_estimated,slope,0.9969164408557779
+e2e_estimated,slope,0.9969164408557772
 e2e_estimated,corr,0.3860571824964148

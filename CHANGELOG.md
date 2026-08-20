@@ -6,6 +6,8 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.4.0 — 2026-08-20
+
 ### Removed
 
 - Repository lean-down. Removed the prose-number guard machinery
@@ -23,6 +25,23 @@ version is 0 the public API may still change between minor releases.
 - `research/` is now dormant and unmaintained: removed from `testpaths` and
   from CI. The code stays in the repository for reference but may drift out
   of sync with the core package.
+- Benchmark suite consolidated from 31 to 26 scripts; no evidence was lost —
+  the absorbed scripts live on as panels of their merge targets, and their
+  committed CSV/PNG artifacts stay in place:
+  - `bench_aod_decay_robustness.py` → panel (d) of `bench_aod_decay.py`
+    (`--robustness`, on by default).
+  - `bench_age_onset.py` → panel (e) of `bench_fh_prediction.py`.
+  - `bench_env_components.py` → panel (c) of `bench_shared_env.py`.
+  - `bench_genetic_factor.py` → panel (c) of `bench_genetic_correlation.py`.
+  - `bench_sex_limitation.py` + `bench_nurture.py` → the two panels of the
+    new `bench_covariance_extensions.py` (CSV/PNG names unchanged).
+- `bench_calibration.py` panel (a) is now PA-only; the Gibbs-agreement
+  evidence lives in `bench_accuracy.py` and `bench_pa_robustness.py`. The
+  `*_gibbs` CSV columns are still written but carry NaN in `correct` rows.
+- `bench_ascertainment.py` default grid reduced to a moderate run
+  (5 reps x 3,000 families x 800 iterations; was 10 x 10,000 x 1500, which
+  took hours and was killed by the OS under memory pressure). The historical
+  campaign settings remain available via the new `--full` flag.
 
 ### Changed
 

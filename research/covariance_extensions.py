@@ -3,8 +3,8 @@
 **Unsupported research code.** These constructors were split out of
 ``ltpred.covariance``: nothing in the ``ltpred`` estimation path calls them,
 they are not shipped in the wheel, and they may change or disappear without
-notice. They are kept because ``benchmarks/bench_sex_limitation.py`` and
-``benchmarks/bench_nurture.py`` exercise them; the private imports from
+notice. They are kept because ``benchmarks/bench_covariance_extensions.py``
+exercises them; the private imports from
 ``ltpred.covariance`` are deliberate.
 
 - :func:`construct_covmat_sex_limited` -- one trait under a **sex-limitation**

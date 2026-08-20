@@ -200,7 +200,7 @@ front doors accept them: `estimate_liability` with scalar `h2`,
 `fit_variance_components` can be fed straight back into single-trait liability
 estimation. The high-level multi-trait route rejects nonzero `c2`/`m2` until an
 explicit cross-trait component covariance is defined.
-Validated in `benchmarks/bench_env_components.py`: wiring recalibrates the
+Validated in `benchmarks/bench_shared_env.py` panel (c): wiring recalibrates the
 genetic estimate (slope 0.93 -> 0.99) and sharpens the full-liability
 prediction. Arbitrary user-supplied kernels still go through the covariance-
 level entry points (`rtmvnorm_gibbs`, `pa_algorithm`, `pa_estimate_batched`),
@@ -1146,7 +1146,8 @@ dozen EM iterations, and the across-replicate SD of `r_g` is ~0.11-0.18 even at
 little onset-age spread within relative pairs the estimates are noisy and
 ridge-dominated; use the scalar model there.
 
-Two robustness caveats matter for application (`benchmarks/bench_aod_decay_robustness.py`).
+Two robustness caveats matter for application (`benchmarks/bench_aod_decay.py`
+panel (d), `--robustness`).
 The fitted amplitude is **robust to the kernel shape** (fitting OU to Gaussian-decay
 data still gives `r_g ~ 0.55` vs true 0.5), so the OU default is not a fragile
 choice. But the model is **fragile to unmodelled shared family environment**: it
@@ -1220,7 +1221,8 @@ general the usual parameter count requires
 communality constraints can still prevent an exact representation. As with the
 `r_g` estimate itself the loadings carry no inference of their own — bootstrap the whole
 `fit_genetic_correlation → fit_genetic_factor` pipeline over families for uncertainty,
-since the within-dataset `se` understates it. `benchmarks/bench_genetic_factor.py`
+since the within-dataset `se` understates it. `benchmarks/bench_genetic_correlation.py`
+panel (c)
 recovers planted loadings end-to-end and shows `srmr` rising when a one-factor model
 is fit to two-factor data.
 
