@@ -56,6 +56,11 @@ version is 0 the public API may still change between minor releases.
 - CI: 3.10/3.11 and a free-threaded 3.14t leg in the test matrix, and a
   build job that builds the sdist/wheel, twine-checks them, installs
   the wheel and smoke-imports it outside the source tree.
+- CI: the `docs` job now publishes to GitHub Pages with `mkdocs
+  gh-deploy` on pushes to `main`. The strict build already ran on every
+  push; only the publish step was missing, so the site had gone stale at
+  v0.1.0 while the package reached 0.3.4. Pull requests still get the
+  check without touching the live site.
 - `docs/REVIEW_2026-08.md`: the 2026-08 independent review.
 - Two guards pinning previously unguarded RESULTS.md prose: the §15
   sex-CIP adjusted Δcorr/ΔNCP increments and the §20 between-arm score

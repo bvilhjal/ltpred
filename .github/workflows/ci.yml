@@ -166,8 +166,12 @@ jobs:
 
   docs:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write        # `mkdocs gh-deploy` pushes to the gh-pages branch
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # gh-deploy needs the gh-pages ref, not a shallow clone
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -179,3 +183,14 @@ jobs:
       # silently renders following prose -- headings included -- as a code block.
       - name: Build and check documentation (strict, fences, anchors)
         run: python scripts/check_docs.py
+      # The site was previously published by hand and went stale at v0.1.0
+      # while the package reached 0.3.4 -- the strict build above already
+      # verified it on every push, and only the publish step was missing.
+      # Deploy on pushes to main only, so pull requests still get the check
+      # without touching the live site.
+      - name: Publish to GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdocs gh-deploy --force

@@ -17,13 +17,22 @@ age-censored-control mixture; the age-specific case-interval convenience helpers
 are documented separately as a PA-FGRS-style variant, not as an exact
 implementation of the paper's PA-FGRS_ADT specification.
 
-On matched classic LT-FH families, ltpred is much more computationally
-efficient than the two public R packages. Same-algorithm wall-clock
-ratios on the locked 200-family cohort were **6.87×** (LTFHPlus 2.2.0
-Gibbs / ltpred Gibbs) and **1178×** (LTFGRS 1.0.1 PA / ltpred PA).
-Those are implementation comparisons, not a claim that PA is a faster
-Gibbs; LTFHPlus is Gibbs-only and the public PA implementations are LTFGRS
-(benchmarked here) and the original PAFGRS package.
+On matched classic LT-FH families, ltpred is more computationally
+efficient than the two public R packages. Same-algorithm wall-clock ratios
+on the locked 200-family cohort were **6.87×** (LTFHPlus 2.2.0 Gibbs /
+ltpred Gibbs) and **1178×** (LTFGRS 1.0.1 PA / ltpred PA), each package at
+its own default parallelism — ltpred on 4 Numba threads, both R packages on
+1 `future` worker (their sequential default).
+
+Those two folds are not the same kind of number. ltpred's Gibbs is
+`prange`-parallel over families, so most of its fold is the 4:1 resource
+asymmetry: at one thread it is 28.7 ms/family against LTFHPlus's 53.3, a
+**1.85×** implementation gap. PA is effectively serial (0.0061 ms/family at
+one thread versus 0.0055 at four), so **1178× is an implementation
+comparison** and is unaffected by the thread count. Neither is a claim that
+PA is a faster Gibbs: LTFHPlus is Gibbs-only, and the public PA
+implementations are LTFGRS (benchmarked here) and the original PAFGRS
+package.
 
 Given each individual's case/control status, age and their relatives' statuses,
 ltpred estimates with Gibbs—or sequentially approximates with PA—the **posterior
