@@ -984,14 +984,15 @@ def estimate_liability(families: Sequence, h2: ArrayLike = 0.5, *,
     ``method`` selects the inference engine; the **default** (``None``) picks the
     deterministic **Pearson-Aitken (PA)** estimator for a single trait. Across the
     benchmark's tested no-mixture structures, PA and Gibbs posterior-mean estimates
-    had correlation at least ``0.997`` and PA ran 384–488× faster than
+    had correlation at least ``0.997`` and PA ran 392–518× faster than
     grouped Gibbs at four threads on the no-mixture benchmark grid in this
     package. On a locked comparison to R LTFHPlus 2.2.0 (same families,
     same bounds, LTFHPlus's Gibbs settings) both engines had correlation
-    0.9999 with the R Gibbs scores. LTFHPlus is Gibbs-only; public PA is
+    0.9999 with the R Gibbs scores (RMSE ``0.0041`` Gibbs, ``0.0045`` PA).
+    LTFHPlus is Gibbs-only; public PA is
     LTFGRS 1.0.1, and ltpred PA matches it at RMSE ``0.000087``.
-    Same-algorithm fold times on that lock were 6.87× (LTFHPlus Gibbs /
-    ltpred Gibbs) and 1178× (LTFGRS PA / ltpred PA). The dispatcher
+    Same-algorithm fold times on that lock were 6.79× (LTFHPlus Gibbs /
+    ltpred Gibbs) and 1418× (LTFGRS PA / ltpred PA). The dispatcher
     falls back to the **Gibbs**
     sampler for the multi-trait model, which PA does not support.
     That path collapses untruncated genetic coordinates out of the

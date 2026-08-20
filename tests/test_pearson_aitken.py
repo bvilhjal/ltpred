@@ -301,6 +301,16 @@ def test_public_pa_allows_nan_nan_at_unused_coordinates():
     assert np.isfinite(est) and np.isfinite(var)
 
 
+def test_public_pa_rejects_K_pair_on_observed_case_without_global_gate():
+    """A supplied pair on upper=+inf is invalid even when require_pair is false."""
+    t = float(stats.norm.isf(0.10))
+    cov = np.array([[0.5, 0.5], [0.5, 1.0]])
+    with pytest.raises(ValueError, match=r"upper == \+inf"):
+        pa_algorithm(
+            cov, [-np.inf, t], [np.inf, np.inf], target=0,
+            K_i=[np.nan, 0.02], K_pop=[np.nan, 0.10])
+
+
 def test_pa_algorithm_normalises_float16_mixture_inputs_for_numba():
     t = float(stats.norm.isf(0.10))
     cov = np.array([[0.5, 0.5], [0.5, 1.0]])

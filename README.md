@@ -19,8 +19,8 @@ implementation of the paper's PA-FGRS_ADT specification.
 
 On matched classic LT-FH families, ltpred is more computationally
 efficient than the two public R packages. Same-algorithm wall-clock ratios
-on the locked 200-family cohort were **6.98×** (LTFHPlus 2.2.0 Gibbs /
-ltpred Gibbs) and **1473×** (LTFGRS 1.0.1 PA / ltpred PA), each package at
+on the locked 200-family cohort were **6.79×** (LTFHPlus 2.2.0 Gibbs /
+ltpred Gibbs) and **1418×** (LTFGRS 1.0.1 PA / ltpred PA), each package at
 its own default parallelism — ltpred on 4 Numba threads, both R packages on
 1 `future` worker (their sequential default).
 
@@ -28,12 +28,11 @@ Those two folds are not the same kind of number, and re-running the whole
 comparison with **both sides at one thread** separates them
 (`bench_ltfhplus_compare_1thread.csv`). ltpred's Gibbs is `prange`-parallel
 over families, so most of its fold is the 4:1 resource asymmetry: matched at
-one thread it is about **1.8×**, not 6.98×. PA is effectively serial, so its
-fold does not depend on the thread count — matched at one thread it is
-**>1500×**, i.e. the 1473× figure is if anything conservative. (RESULTS
-section 30 gives both columns and the measurement caveat; the ± there is
-replicate scatter on a loaded host, so read the comparison rather than the
-last digit.) Neither is a claim that PA is a faster Gibbs: LTFHPlus is
+one thread it is **1.75×**, not 6.79×. PA is effectively serial, and its
+fold is essentially unchanged at one thread (**1425×**) and four (**1418×**).
+(RESULTS section 30 gives both columns and the measurement caveat; the ± there
+is across-replicate scatter, and per-replicate load was not recorded.) Neither
+is a claim that PA is a faster Gibbs: LTFHPlus is
 Gibbs-only, and the public PA implementations are LTFGRS (benchmarked here)
 and the original PAFGRS package.
 
@@ -98,13 +97,13 @@ liability-threshold model:
    `genetic` posterior-mean estimates had correlation ≥ 0.997 on those
    benchmarked structures. Against public LTFHPlus 2.2.0 on the same
    families, both engines had correlation 0.9999 with the R Gibbs scores
-   (RMSE 0.0041 Gibbs, 0.0045 PA). LTFHPlus is Gibbs-only; public PA
+   (RMSE 0.0041 Gibbs, 0.0046 PA). LTFHPlus is Gibbs-only; public PA
    implementations include LTFGRS 1.0.1 (benchmarked here) and the original
    PAFGRS package: ltpred PA matches LTFGRS at RMSE 0.000087. Same-algorithm fold times:
-   LTFHPlus Gibbs / ltpred Gibbs = 6.98× (52.97 vs 7.58 ms/family);
-   LTFGRS PA / ltpred PA = 1473× (9.54 vs 0.0065 ms/family).
-   Isolated-process peak RSS was 444 MiB (LTFHPlus), 260 MiB (LTFGRS PA)
-   and ~180 MiB (ltpred). PA versus LTFHPlus is a different algorithm,
+   LTFHPlus Gibbs / ltpred Gibbs = 6.79× (51.33 vs 7.57 ms/family);
+   LTFGRS PA / ltpred PA = 1418× (9.01 vs 0.0064 ms/family).
+   Isolated-process peak RSS was 441 MiB (LTFHPlus), 260 MiB (LTFGRS PA)
+   and ~179–180 MiB (ltpred). PA versus LTFHPlus is a different algorithm,
    not a faster Gibbs. The PA-FGRS censoring mixture is PA-only and was
    not part of either comparison.
 

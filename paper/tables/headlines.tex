@@ -6,12 +6,12 @@ Quantity & Value & Setting \\
 \midrule
 Corr(PA, Gibbs) posterior means & 0.9995--1.0000 & 27-cell classic LT-FH grid; no mixture \\
 PA / grouped-Gibbs wall-clock & 392--518$\times$ & this package, 4 threads, object path \\
-LTFHPlus Gibbs / ltpred Gibbs wall-clock & 6.98 $\pm$ 0.00$\times$ & same algorithm; 200 nuclear families \\
-LTFGRS PA / ltpred PA wall-clock & 1473 $\pm$ 19$\times$ & same algorithm; 200 nuclear families \\
+LTFHPlus Gibbs / ltpred Gibbs wall-clock & 6.79 $\pm$ 0.08$\times$ & same algorithm; 200 nuclear families \\
+LTFGRS PA / ltpred PA wall-clock & 1418 $\pm$ 30$\times$ & same algorithm; 200 nuclear families \\
 Causal-SNP NCP ratio vs case/control & 1.47 $\pm$ 0.04$\times$ & classic LT-FH; 10,000 probands, 30 causal SNPs \\
 LT-FH++ minus ADuLT NCP increment & +0.145 $\pm$ 0.015 & paired 95\% CI half-width; known CIP, pinned onset \\
 $\lambda_{\mathrm{GC}}$ with cohort-blind family thresholds & 16.46 $\pm$ 0.40 & 4$\times$ prevalence trend over 30 y \\
-Test $R^2$ of PGS+LT-FH / PGS / LT-FH & 0.339 / 0.236 / 0.170 & held-out genetic liability \\
-IPW-recovered $h^2$ (unweighted was 1.000) & 0.468 & 50/50 case-control; N = 10,000; truth 0.5 \\
+Test $R^2$ of PGS+LT-FH / PGS / LT-FH & 0.338 / 0.236 / 0.170 & cross-fitted on held-out genetic liability \\
+IPW-recovered $h^2$ (unweighted was 1.000) & 0.468 & 50/50 case-control; N = 3,000; truth 0.5 \\
 \bottomrule
 \end{tabular}

@@ -469,7 +469,7 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     *given* family with *given* statuses is already correct, and it is the
     **mix** of families that selection breaks. In the repository benchmark this
     takes a 50/50 case/control cohort from ``h2 = 1.000`` (pinned) back to
-    ``0.495`` against a truth of 0.5.
+    ``0.468`` against a truth of 0.5 (five replicates of 3,000 families).
 
     Two limits, both real. **Positivity:** a design that samples no families from
     some joint status stratum has inclusion probability zero there, and no

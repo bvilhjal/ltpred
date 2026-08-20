@@ -73,7 +73,7 @@ def _is_missing_id(x: object) -> bool:
     """True when ``x`` cannot serve as a grouping key."""
     if x is None:
         return True
-    if isinstance(x, float) and not np.isfinite(x):
+    if isinstance(x, (float, np.floating)) and not np.isfinite(x):
         return True
     if isinstance(x, bytes):
         x = x.decode("utf-8", "replace")
@@ -94,8 +94,9 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
     :class:`Family`; family order follows first appearance. For the multi-trait
     model pass ``lower``/``upper`` as 2-D (rows x phenotypes). ``K_i``/``K_pop`` are
     optional per-row columns for the Pearson-Aitken censored-control mixture.
-    Missing (NaN/None) ``fam_id`` values are rejected: they cannot group records
-    and would otherwise fragment silently into one-member families."""
+    Missing or non-finite numeric ``fam_id`` values are rejected: they cannot
+    group records and would otherwise fragment silently into one-member families.
+    """
     fam_id = np.asarray(fam_id)
     role = np.asarray(role, dtype=object)
     lower = np.asarray(lower, dtype=float)
@@ -134,8 +135,8 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
         missing = np.zeros(n, dtype=bool)
     if np.any(missing):
         raise ValueError(
-            "fam_id must not contain missing values (NaN, None, or an "
-            "empty/NA string): a missing id cannot group "
+            "fam_id must not contain missing values (a non-finite number, None, "
+            "or an empty/NA string): a missing id cannot group "
             "records and would silently fragment them into one-member "
             "families")
 

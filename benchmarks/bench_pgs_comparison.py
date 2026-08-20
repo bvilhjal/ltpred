@@ -9,9 +9,11 @@ relatives drawn conditional on it), but the cohort is split 50/50:
     case/control label (and, for the GWAS-power arms, on the LT-FH estimate and
     the oracle ``g``); the case/control summary statistics define the PGS
     weights.
-  * TEST is never touched by the GWAS or the weight fitting.  The PGS is scored
-    there, the family-history (LT-FH) estimate is computed there, and both are
-    evaluated against the held-out true genetic liability.
+  * TEST is never touched by the GWAS or the PGS weight fitting.  The PGS is
+    scored there, the family-history (LT-FH) estimate is computed there, and
+    both are evaluated against the held-out true genetic liability.  The joint
+    combiner is fit by deterministic cross-fitting within TEST, so each
+    proband's joint prediction is fit without that proband's true liability.
 
 Arms (all evaluated on TEST unless noted):
 
@@ -34,9 +36,10 @@ Arms (all evaluated on TEST unless noted):
      train cohort) and scores the test cohort via
      ``ldpred3.run_ldpred3_prs`` + ``score_from_weights``; it needs the
      ``ldpred3`` package importable (the ldpred3 conda env, not ltpred314).
-  4. PGS + LT-FH joint -- OLS of the held-out true ``g`` on both scores;
-     reports the joint R^2, the incremental R^2 of each score over the other,
-     and corr(PGS, LT-FH).
+  4. PGS + LT-FH joint -- cross-fitted OLS of the held-out true ``g`` on both
+     scores.  Each test fold is predicted by coefficients fit on the other
+     test folds; reports squared-correlation R^2, the incremental R^2 of each
+     score over the other, and corr(PGS, LT-FH).
 
 Theory check.  docs/algorithm.md ("Expected correlation between a PGS and the
 family-history score") gives, under a conditionally-independent measurement
@@ -192,17 +195,53 @@ def _family_bounds(families):
     return roles, lower, upper
 
 
-def _r2_joint(g, s1, s2):
-    """R^2 of OLS of ``g`` on ``[1, s1, s2]``."""
-    Z = np.column_stack([np.ones(len(g)), s1, s2])
-    beta, *_ = np.linalg.lstsq(Z, g, rcond=None)
-    return float(1.0 - np.var(g - Z @ beta) / np.var(g))
-
-
 def _corr(a, b):
     if np.std(a) == 0 or np.std(b) == 0:
         return np.nan
     return float(np.corrcoef(a, b)[0, 1])
+
+
+def _cross_fitted_joint_predictions(g, s1, s2, n_folds, seed):
+    """Return deterministic out-of-fold predictions from the joint OLS.
+
+    The discovery cohort has already been excluded.  This second layer of
+    sample splitting keeps each test proband's true ``g`` out of the OLS fit
+    used to predict that proband.
+    """
+    g = np.asarray(g, dtype=np.float64)
+    s1 = np.asarray(s1, dtype=np.float64)
+    s2 = np.asarray(s2, dtype=np.float64)
+    if g.ndim != 1 or s1.shape != g.shape or s2.shape != g.shape:
+        raise ValueError("g, s1, and s2 must be one-dimensional and aligned")
+    if not 2 <= n_folds <= len(g):
+        raise ValueError("n_folds must be between 2 and the test sample size")
+
+    order = np.random.default_rng(seed).permutation(len(g))
+    fold_id = np.empty(len(g), dtype=np.int64)
+    fold_id[order] = np.arange(len(g)) % n_folds
+    prediction = np.empty(len(g), dtype=np.float64)
+    Z = np.column_stack([np.ones(len(g)), s1, s2])
+    for fold in range(n_folds):
+        evaluate = fold_id == fold
+        fit = ~evaluate
+        beta, *_ = np.linalg.lstsq(Z[fit], g[fit], rcond=None)
+        prediction[evaluate] = Z[evaluate] @ beta
+    return prediction
+
+
+def _cross_fitted_joint_r2(g, s1, s2, n_folds, seed):
+    """Squared-correlation R^2 of the joint OLS out-of-fold predictions."""
+    prediction = _cross_fitted_joint_predictions(
+        g, s1, s2, n_folds=n_folds, seed=seed)
+    corr = _corr(prediction, g)
+    return corr * corr
+
+
+def _joint_crossfit_seed(seed, rep):
+    """Derive a replicate-specific stream independent of simulation streams."""
+    state = np.random.SeedSequence(
+        [seed, rep, 0x4A4F494E]).generate_state(1, dtype=np.uint32)
+    return int(state[0])
 
 
 def run_rep(args, rep):
@@ -263,7 +302,9 @@ def run_rep(args, rep):
     a = _corr(pgs, g_te)              # Corr(PGS, g); s = g here (p = 1)
     b = _corr(fh_te, g_te)            # Corr(FH, g)
     r2_pgs, r2_fh = a * a, b * b
-    r2_joint = _r2_joint(g_te, pgs, fh_te)
+    joint_seed = _joint_crossfit_seed(args.seed, rep)
+    r2_joint = _cross_fitted_joint_r2(
+        g_te, pgs, fh_te, args.joint_folds, joint_seed)
 
     by_arm[PGS] = row(PGS)
     by_arm[PGS]["corr_g"], by_arm[PGS]["r2_g"] = a, r2_pgs
@@ -274,6 +315,7 @@ def run_rep(args, rep):
     by_arm[JOINT] = row(JOINT)
     r = by_arm[JOINT]
     r["r2_g"] = r2_joint
+    r["joint_seed"] = joint_seed
     r["incr_r2_pgs_over_fh"] = r2_joint - r2_fh
     r["incr_r2_fh_over_pgs"] = r2_joint - r2_pgs
     r["corr_pgs_fh"] = _corr(pgs, fh_te)
@@ -360,7 +402,8 @@ def aggregate(replicate_rows):
 def write_csv(rows, args):
     fields = ["row_type", "rep", "arm", "comparison", "metric",
               "n_fam", "m_snps", "n_causal", "h2", "prev", "fam",
-              "train_frac", "pgs_backend", "seed",
+              "train_frac", "pgs_backend", "seed", "joint_fit_design",
+              "joint_folds", "joint_seed",
               "corr_g", "r2_g", "mean_chi2_causal", "ncp_ratio_vs_cc",
               "lambda_gc", "corr_pgs_fh", "theory_corr_pgs_fh",
               "incr_r2_pgs_over_fh", "incr_r2_fh_over_pgs",
@@ -368,7 +411,9 @@ def write_csv(rows, args):
     meta = dict(n_fam=args.n_fam, m_snps=args.m_snps, n_causal=args.n_causal,
                 h2=args.h2, prev=args.prev, fam="+".join(args.fam),
                 train_frac=args.train_frac, pgs_backend=args.pgs_backend,
-                seed=args.seed)
+                seed=args.seed,
+                joint_fit_design="seeded_shuffled_test_kfold_ols",
+                joint_folds=args.joint_folds)
     path = os.path.join(HERE, "bench_pgs_comparison.csv")
     with open(path, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n",
@@ -454,6 +499,8 @@ def main():
     ap.add_argument("--fam", nargs="+", default=["m", "f", "s1"])
     ap.add_argument("--train-frac", type=float, default=0.5,
                     help="cohort fraction used for the discovery GWAS / PGS fit")
+    ap.add_argument("--joint-folds", type=int, default=2,
+                    help="cross-fitting folds for the joint OLS within test")
     ap.add_argument("--pgs-backend", choices=["numpy", "ldpred3"],
                     default="numpy",
                     help="numpy: self-contained Z-scored marginal weights; "
@@ -477,8 +524,11 @@ def main():
     if args.m_snps < args.n_causal + 20:
         ap.error("--m-snps must leave at least 20 null SNPs for lambda_GC")
     n_train = int(round(args.train_frac * args.n_fam))
-    if n_train < 10 or args.n_fam - n_train < 10:
+    n_test = args.n_fam - n_train
+    if n_train < 10 or n_test < 10:
         ap.error("--n-fam/--train-frac must give at least 10 train and 10 test")
+    if not 2 <= args.joint_folds <= n_test:
+        ap.error("--joint-folds must be between 2 and the test sample size")
 
     replicate_rows = []
     for rep in range(args.reps):

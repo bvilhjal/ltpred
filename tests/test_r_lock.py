@@ -51,6 +51,14 @@ def _corr_rmse(a, b):
             float(np.sqrt(np.mean((a - b) ** 2))))
 
 
+def test_ltfhplus_fixture_records_seed():
+    with open(FIXTURES / "ltfhplus_gibbs.csv", newline="",
+              encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    assert {int(r["seed"]) for r in rows} == {20260816}
+    assert all(r["r_version"] and r["rng_kind"] for r in rows)
+
+
 def test_pa_matches_locked_ltfgrs_scores():
     from ltpred import estimate_liability
     families = _fixture_families()

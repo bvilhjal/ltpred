@@ -161,7 +161,9 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install documentation dependencies
-        run: pip install -e ".[docs]"
+        run: pip install -e ".[docs]" "pypdf>=4"
+      - name: Check benchmark claims and tracked report
+        run: python scripts/check_evidence.py
       # `--strict` leaves link/anchor resolution at INFO, so it exits 0 on a
       # broken cross-reference. This also catches an unmatched code fence, which
       # silently renders following prose -- headings included -- as a code block.

@@ -22,10 +22,10 @@ NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=4 python benchmarks/bench_scaling.py
 NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=4 python benchmarks/bench_gwas_power.py
 ```
 
-Timing runs also want an otherwise-quiet machine. The manifest records the load
-average, so check it before quoting a number: `bench_scaling`'s current figures
-were taken at 1-minute load ~7–11 on a 10-core box and are correspondingly
-conservative.
+Timing runs also want an otherwise-quiet machine. Record the load average beside
+the command before quoting a number: `bench_scaling`'s current figures were
+taken while the 1-minute load moved from 2.56 to 5.86 on a 10-core box. The old
+automatic run manifest was removed in the 2026-08 lean-down.
 
 Most scripts write a `.csv` and, if matplotlib is present, a `.png`. The
 following scripts print focused diagnostics to stdout and also write a
@@ -92,7 +92,7 @@ Rows marked **unsupported research** import checkout-only APIs from
 | `bench_liability_scale.py` | probit residual-scale variance and observed-to-liability transformations, including null-adjusted summary-statistic estimates |
 | `bench_aod_decay.py` | **unsupported research:** onset-age-dependent genetic-correlation fitting under the fitted covariance model; panel (d) (`--robustness`, on by default) is the adversarial probe set: wrong kernels and unmodelled shared family environment (→ `bench_aod_decay.{csv,png}`) |
 | `bench_covariance_extensions.py` | **unsupported research:** two panels over the extended covariance constructors — (a) sex-specific covariance versus sex-specific thresholds, including matched same-sex/cross-sex mechanisms (→ `bench_sex_limitation.{csv,png}`); (b) direct-effect scoring and moment-heritability distortion under genetic nurture (→ `bench_nurture.{csv,png}`) |
-| `bench_pgs_comparison.py` | **PGS baseline and the PGS + family-history joint model** with an honest 50/50 train/test split: the PGS is trained on the train case/control GWAS (self-contained numpy Z-scored marginal weights; optional `--pgs-backend ldpred3` fits LDpred3-auto via saved weights, needing the optional ldpred3 package) and scored on held-out test probands — causal-SNP NCP ratios on train, R² against held-out true `g` on test, joint-model incremental R²s, and corr(PGS, LT-FH) checked against the `a·b·√p` theory prediction (→ `bench_pgs_comparison.{csv,png}`) |
+| `bench_pgs_comparison.py` | **PGS baseline and the PGS + family-history joint model** with an honest 50/50 train/test split: the PGS is trained on the train case/control GWAS (self-contained numpy Z-scored marginal weights; optional `--pgs-backend ldpred3` fits LDpred3-auto via saved weights, needing the optional ldpred3 package) and scored on held-out test probands; the joint OLS is cross-fitted within the test half — causal-SNP NCP ratios on train, R² against held-out true `g` on test, joint-model incremental R²s, and corr(PGS, LT-FH) checked against the `a·b·√p` theory prediction (→ `bench_pgs_comparison.{csv,png}`) |
 
 `_common.py` holds the shared simulation, estimation, GWAS and plotting helpers,
 plus a minimal PLINK `.bed` reader for the HAPNEST path.
@@ -137,5 +137,6 @@ plus a minimal PLINK `.bed` reader for the HAPNEST path.
   `OMP_NUM_THREADS` too so linked numerical libraries use the same limit.
 - Checked-in CSVs and [`RESULTS.md`](RESULTS.md) are historical artifacts.
   Their claims apply only to their recorded designs and provenance, not
-  automatically to the current source tree. The numerical claims are no
-  longer machine-guarded; verify them against the CSVs when quoting them.
+  automatically to the current source tree. `scripts/check_evidence.py` pins
+  the release-defining scaling, IPW and R-lock claims; verify other numbers
+  against their CSVs when quoting them.

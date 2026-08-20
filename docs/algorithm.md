@@ -578,11 +578,12 @@ hand. Large non-Gaussian effects weaken the Gaussian conditioning step, though
 the moment identity survives for scores linear in `s`/`g` with independent
 errors.
 
-Both identities above are verified numerically: the correlation identity
-inside the full GWAS design (`bench_pgs_comparison.py`, §28 of RESULTS.md:
-observed 0.2009 ± 0.0046 vs theory 0.2003 ± 0.0050), and both identities to
-Monte-Carlo precision (two noisy linear
-predictors, four `(h²_SNP/h²_total, R²_pgs, R²_fh)` settings).
+The correlation identity is verified inside the full GWAS design
+(`bench_pgs_comparison.py`, §28 of RESULTS.md: observed 0.2009 ± 0.0046 vs
+theory 0.2003 ± 0.0050). The joint model is evaluated by two-fold cross-fitting
+and improves held-out R² from 0.236 (PGS) and 0.170 (LT-FH) to 0.338; that is an
+empirical complementarity check, not a separate numerical verification of the
+closed-form joint-R² identity.
 
 ## Thresholds: status, age, onset — and personalisation by sex and birth cohort
 
@@ -824,11 +825,11 @@ gave corr(ltpred Gibbs, LTFHPlus) = 0.9999 and corr(PA, LTFHPlus) =
 0.9999 (RMSE 0.0041 Gibbs, 0.0046 PA). LTFHPlus is Gibbs-only; public PA
 implementations include LTFGRS 1.0.1 (benchmarked here) and the original
 PAFGRS package; ltpred PA matches LTFGRS at RMSE 0.000087. On that machine
-same-algorithm fold times were 6.98× (LTFHPlus Gibbs / ltpred Gibbs;
-53.0 vs 7.58 ms/family) and 1473× (LTFGRS PA / ltpred PA; 9.54 vs
-0.0065 ms/family). Isolated-process peak RSS (ldpred3 `wait4`
-launcher) was 444 MiB (LTFHPlus), 260 MiB (LTFGRS PA) and
-~180–181 MiB (ltpred). PA versus LTFHPlus is a different algorithm,
+same-algorithm fold times were 6.79× (LTFHPlus Gibbs / ltpred Gibbs;
+51.3 vs 7.57 ms/family) and 1418× (LTFGRS PA / ltpred PA; 9.01 vs
+0.0064 ms/family). Isolated-process peak RSS (ldpred3 `wait4`
+launcher) was 441 MiB (LTFHPlus), 260 MiB (LTFGRS PA) and
+~179–180 MiB (ltpred). PA versus LTFHPlus is a different algorithm,
 not a faster Gibbs. The PA-only mixture was not part of either
 comparison. The same grouping / `prange` structure as Algorithm G
 applies.

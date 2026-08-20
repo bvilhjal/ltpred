@@ -216,7 +216,7 @@ test a different, no-mixture observation model
 | error | batch-means MC SE (`res.se`) | no Monte-Carlo error (`res.se` is `0`), but a non-zero sequential moment-approximation error |
 | posterior variance | `Var(G_i \| family)` in `res.var`, from the retained draws | `Var(G_i \| family)` in `res.var`, as a sequential-moment approximation |
 | exactness | exact in the limit of infinite draws | exact for 1 truncation, close approx for families |
-| speed | ~180–690 families/s (4 threads) | ~92k–270k families/s — **392–518× faster than Gibbs in this package** across tested sizes/structures, at the same 4 threads. Versus the public R packages on the locked 200-family cohort, each at its default parallelism (ltpred 4 Numba threads, R 1 `future` worker): **6.98×** vs LTFHPlus Gibbs and **1473×** vs LTFGRS PA. Only the second is an implementation comparison. Re-run with both sides at one thread, the LTFHPlus/Gibbs fold is about **1.8×** while LTFGRS/PA is **>1500×** — Gibbs is `prange`-parallel so its fold tracks the thread count, PA is serial so its fold does not (RESULTS §30 for both columns and the load caveat) |
+| speed | ~180–690 families/s (4 threads) | ~92k–270k families/s — **392–518× faster than Gibbs in this package** across tested sizes/structures, at the same 4 threads. Versus the public R packages on the locked 200-family cohort, each at its default parallelism (ltpred 4 Numba threads, R 1 `future` worker): **6.79×** vs LTFHPlus Gibbs and **1418×** vs LTFGRS PA. Only the second is an implementation comparison. Re-run with both sides at one thread, the LTFHPlus/Gibbs fold is **1.75×** while LTFGRS/PA is **1425×** — Gibbs is `prange`-parallel so its fold tracks the thread count, PA is serial so its fold does not (RESULTS §30 for both columns and the load caveat) |
 | censoring mixture | not implemented | `use_mixture=True` |
 
 A locked comparison to R LTFHPlus 2.2.0 and LTFGRS 1.0.1 on the same
@@ -224,7 +224,7 @@ classic LT-FH families is in
 [`RESULTS.md` §30](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md):
 both engines had correlation 0.9999 with the R Gibbs scores; ltpred PA
 and LTFGRS PA agree at RMSE 0.000087. Same-algorithm fold times were
-6.98× versus LTFHPlus Gibbs and 1473× versus LTFGRS PA. Total and
+6.79× versus LTFHPlus Gibbs and 1418× versus LTFGRS PA. Total and
 per-family times, and isolated-process peak RSS, are in that section.
 
 The intra-package speed and agreement comparisons use ordinary bounds without the censoring

@@ -18,11 +18,14 @@ Rebuild (requires [Tectonic](https://tectonic-typesetting.github.io/)):
 ```bash
 cd report
 tectonic -X compile ltpred_methods.tex
+cd ..
+python scripts/check_evidence.py
 ```
 
-Six load-bearing report tables are LaTeX inputs generated from the
-committed benchmark CSVs (the generator script was removed in the 2026-08
-lean-down), so their cells should not be transcribed into the report by hand.
+Six load-bearing report tables are static LaTeX inputs derived from the
+committed benchmark CSVs (the full generator was removed in the 2026-08
+lean-down). The compact evidence check covers the release-defining rows and
+also rejects a report source or included table newer than the tracked PDF.
 
 The PDF is tracked as repository documentation. The lean source distribution
 omits the report because it is not a runtime dependency of the installed

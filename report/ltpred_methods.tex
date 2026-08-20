@@ -33,9 +33,9 @@
   {\LARGE\bfseries Posterior mean genetic liability\\[0.15em]
   from family history}\\[0.55em]
   {\large Model, sequential approximation, and evidence in \texttt{ltpred}}}
-\author{Others (TBD) and Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
+\author{Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
   {\small Aarhus University and SMARTbiomed}\\[0.35em]
-  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.4.0}}
+  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.4.1}}
 \date{20 August 2026}
 
 \begin{document}
@@ -64,7 +64,7 @@ onset is a deterministic function of liability and the CIP is known.
 The same personalised thresholds that supply that increment also
 remove a simulated cohort-confounding $\lambda_{\mathrm{GC}}$ of
 $16.46\pm 0.40$ (Table~\ref{tab:confound}).
-A PGS and $\mu_i$ remain complementary: joint test $R^{2}=0.339$
+A PGS and $\mu_i$ remain complementary: joint test $R^{2}=0.338$
 against $0.236$ and $0.170$ (Table~\ref{tab:pgs}).
 The GWAS and personalisation figures are upper bounds relative to
 register data: a pin-versus-interval ablation keeps almost all of
@@ -74,8 +74,8 @@ They are not estimates of clinical utility.
 On the locked comparison to the two public R packages
 (Section~\ref{sec:ltfhplus}), ltpred is much more computationally
 efficient at the same algorithm: LTFHPlus Gibbs takes
-$6.98\pm 0.00\times$ the ltpred Gibbs wall-clock, and LTFGRS PA
-takes $1473\pm 19\times$ the ltpred PA wall-clock.
+$6.79\pm 0.08\times$ the ltpred Gibbs wall-clock, and LTFGRS PA
+takes $1418\pm 30\times$ the ltpred PA wall-clock.
 \end{abstract}
 
 \vspace{0.4em}
@@ -718,6 +718,8 @@ The same classic LT-FH rectangles, three cohorts of $200$ nuclear
 families, $\h=0.5$, $K=0.05$, and LTFHPlus 2.2.0's own Gibbs
 settings ($n_{\mathrm{sim}}=10^{5}$, burn-in $1000$,
 $\mathrm{tol}=0.01$).
+The artifact records distinct LTFHPlus seeds per replicate, runtime
+versions, and resolved R/Numba/OMP/OpenBLAS thread settings.
 LTFHPlus 2.2.0 is Gibbs-only.
 Public Pearson--Aitken is LTFGRS 1.0.1
 (\texttt{method="PA"}, \texttt{useMixture=FALSE}).
@@ -744,17 +746,17 @@ Estimator & corr vs LTFHPlus & RMSE
 \midrule
 LTFHPlus Gibbs
   & --- & ---
-  & $10.59\pm 0.06$ & $53.0\pm 0.3$ & $443.6\pm 1.3$ \\
+  & $10.27\pm 0.06$ & $51.33\pm 0.28$ & $440.7\pm 0.7$ \\
 LTFGRS PA
-  & $0.9999\pm 0.0000$ & $0.0045\pm 0.0002$
-  & $1.907\pm 0.013$ & $9.54\pm 0.07$ & $260.0\pm 1.2$ \\
+  & $0.9999\pm 0.0000$ & $0.0046\pm 0.0003$
+  & $1.802\pm 0.011$ & $9.01\pm 0.05$ & $259.8\pm 0.7$ \\
 ltpred Gibbs
-  & $0.9999\pm 0.0000$ & $0.0041\pm 0.0001$
-  & $1.517\pm 0.010$ & $7.58\pm 0.05$ & $180.8\pm 0.1$ \\
+  & $0.9999\pm 0.0000$ & $0.0041\pm 0.0002$
+  & $1.513\pm 0.012$ & $7.57\pm 0.06$ & $180.1\pm 0.1$ \\
 ltpred PA
-  & $0.9999\pm 0.0000$ & $0.0045\pm 0.0002$
-  & $0.00130\pm 0.00001$ & $0.0065\pm 0.0000$
-  & $179.6\pm 0.3$ \\
+  & $0.9999\pm 0.0000$ & $0.0046\pm 0.0003$
+  & $0.00127\pm 0.00003$ & $0.0064\pm 0.0002$
+  & $178.7\pm 0.3$ \\
 \bottomrule
 \end{tabular}}
 \end{table}
@@ -766,11 +768,11 @@ update, not two approximations.
 
 Table~\ref{tab:ltfhplus-fold} is the fold-time lock
 (mean of the three per-replicate ratios, not the ratio of the means).
-Same-algorithm: LTFHPlus Gibbs is $6.98\pm 0.00\times$ the ltpred
-Gibbs wall-clock; LTFGRS PA is $1473\pm 19\times$ the ltpred PA
+Same-algorithm: LTFHPlus Gibbs is $6.79\pm 0.08\times$ the ltpred
+Gibbs wall-clock; LTFGRS PA is $1418\pm 30\times$ the ltpred PA
 wall-clock (R \texttt{future\_lapply} versus compiled Python, not a
 different update).
-Mixing algorithms, LTFHPlus / ltpred PA is $8179\pm 71\times$;
+Mixing algorithms, LTFHPlus / ltpred PA is $8086\pm 250\times$;
 that is not ``LT-FH++, but faster.''
 The mixture \eqref{eq:mix} is not in this comparison.
 
@@ -786,16 +788,23 @@ $200$ nuclear families; one R \texttt{future} worker; four Numba threads.}
 Comparison & fold & same algorithm \\
 \midrule
 LTFHPlus Gibbs / ltpred Gibbs
-  & $6.98\pm 0.00\times$ & yes \\
+  & $6.79\pm 0.08\times$ & yes \\
 LTFGRS PA / ltpred PA
-  & $1473\pm 19\times$ & yes \\
+  & $1418\pm 30\times$ & yes \\
 LTFHPlus Gibbs / ltpred PA
-  & $8179\pm 71\times$ & no \\
+  & $8086\pm 250\times$ & no \\
 LTFGRS PA / ltpred Gibbs
-  & $1.26\pm 0.02\times$ & no \\
+  & $1.19\pm 0.01\times$ & no \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+A matched one-thread rerun over $12$ independently seeded replicates gives
+$1.751\pm 0.012\times$ for LTFHPlus Gibbs / ltpred Gibbs and
+$1425\pm 22\times$ for LTFGRS PA / ltpred PA.  Thus most of the
+four-thread Gibbs fold is the $4{:}1$ resource asymmetry, whereas the
+serial PA fold is essentially unchanged.  Per-replicate load was not
+recorded, so these remain machine-specific ratios.
 
 \subsection{Classic LT-FH as a GWAS phenotype}
 
@@ -950,14 +959,14 @@ Table~\ref{tab:pgs} is scored against held-out $a_i$.
 \centering
 \caption{PGS and classic LT-FH on a held-out test half.
 $R^{2}$ is against true $a_i$.
-The joint model is OLS on the two scores.}
+The joint model is two-fold cross-fitted OLS on the two scores.}
 \label{tab:pgs}
 \small
 \input{../paper/tables/pgs_comparison.tex}
 \end{table}
 
-Incremental $R^{2}$: $+0.104\pm 0.007$ for LT-FH over PGS,
-$+0.169\pm 0.019$ for PGS over LT-FH
+Incremental $R^{2}$: $+0.103\pm 0.007$ for LT-FH over PGS,
+$+0.168\pm 0.018$ for PGS over LT-FH
 ($95\%$ CI half-widths).
 Observed $\Corr(\mathrm{PGS},\mu)=0.2009\pm 0.0046$ against
 \eqref{eq:pgs-fh} at $p=1$ ($0.2003\pm 0.0050$).

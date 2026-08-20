@@ -28,11 +28,18 @@ Optionally add the same as a trusted publisher on
 1. Bump `__version__` in `ltpred/__init__.py` (the sole source of truth for the
    distribution; `pyproject.toml` reads it dynamically) and move the
    `## Unreleased` section of `CHANGELOG.md` under the new `## X.Y.Z — <date>`
-   heading. Three files carry the version independently of that attribute and
+   heading. Two files carry the version independently of that attribute and
    drift silently when missed: `CITATION.cff` (`version` and `date-released`)
    and `report/ltpred_methods.tex`.
 2. Confirm CI is green on `main` (tests on 3.9–3.13, macOS 3.12 and 3.14t, `ruff`, strict docs build, wheel build).
-3. Locally, sanity-check the artifacts with modern tooling:
+3. Rebuild the tracked methods PDF and check its release-defining claims against
+   the committed CSVs:
+   ```bash
+   cd report && tectonic -X compile ltpred_methods.tex && cd ..
+   python -m pip install "pypdf>=4"
+   python scripts/check_evidence.py
+   ```
+4. Locally, sanity-check the package artifacts with modern tooling:
    ```bash
    python -m pip install --upgrade build "twine>=6.1" "packaging>=24.2"
    python -m build
@@ -41,8 +48,8 @@ Optionally add the same as a trusted publisher on
    Older `packaging` (< 24.2) reports the PEP 639 `License-Expression` /
    `License-File` fields as malformed even though the metadata is valid; upgrade
    `packaging` rather than changing the license metadata.
-4. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-5. Create a GitHub Release for that tag. Publishing the release triggers
+5. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+6. Create a GitHub Release for that tag. Publishing the release triggers
    `publish.yml`, which rebuilds, re-runs `twine check`, and uploads to PyPI
    through the trusted publisher.
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from ._mathfun import norm_ppf
+
 
 def validate_binary(values, *, name="values", ndim=None):
     """Return Boolean data after rejecting missing, sentinel, and non-binary codes."""
@@ -67,7 +69,11 @@ def validate_mixture_inputs(K_i, K_pop, *, expected_shape=None,
     When the observation ``lower``/``upper`` bounds are supplied, a K pair on a
     pinned row (``lower == upper``) is rejected: a pinned observation needs no
     censoring mixture, and K's there can invert the mixture interval and produce
-    NaN moments.
+    NaN moments. A supplied pair is only meaningful on a censored-control row
+    with a finite upper bound; supplying one on an observed case or unbounded row
+    is rejected. The row's lower bound must be below the lifetime split
+    ``Phi^-1(1 - K_pop)``. When ``require_pair`` is true, at least one such active
+    row is required.
     """
     shape = None if expected_shape is None else tuple(expected_shape)
 
@@ -117,7 +123,22 @@ def validate_mixture_inputs(K_i, K_pop, *, expected_shape=None,
                 f"{context}: K_i/K_pop on a pinned row (lower == upper) is not "
                 "meaningful -- a pinned observation needs no censoring mixture; "
                 "use NaN/NaN there")
-    if require_pair and not np.any(supplied):
+        if np.any(supplied & (upper == np.inf)):
+            raise ValueError(
+                f"{context}: K_i/K_pop must be NaN/NaN on observed-case or "
+                "unbounded rows (upper == +inf); the censoring mixture is only "
+                "defined for controls with a finite upper bound")
+        active = supplied & np.isfinite(upper)
+        split = -norm_ppf(K_pop)
+        invalid_active = active & (lower >= split)
+        if np.any(invalid_active):
+            raise ValueError(
+                f"{context}: every active censored-control row must satisfy "
+                "lower < Phi^-1(1 - K_pop)")
+    else:
+        active = supplied
+    if require_pair and not np.any(active):
         raise ValueError(
-            f"{context}: use_mixture=True requires at least one valid K_i/K_pop pair")
+            f"{context}: use_mixture=True requires at least one active "
+            "censored-control K_i/K_pop pair")
     return K_i, K_pop

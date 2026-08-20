@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import csv
 import os
+import platform
 import shutil
 import sys
 import tempfile
@@ -47,8 +48,12 @@ R_LTFHPLUS = os.path.join(HERE, "ltfhplus_compare.R")
 R_LTFGRS = os.path.join(HERE, "ltfgrs_compare.R")
 
 try:
+    import numba
     from numba import get_num_threads
+    NUMBA_VERSION = numba.__version__
 except ImportError:  # pragma: no cover
+    NUMBA_VERSION = ""
+
     def get_num_threads():
         return 1
 
@@ -293,13 +298,21 @@ def main():
             families_to_tbl(families, tbl)
 
             r_out = os.path.join(tmp, f"r_ltfh_{rep}.csv")
+            r_seed = args.seed + 3000 + rep
             helper_log, peak_ltfh = run_r_helper(
-                R_LTFHPLUS, tbl, r_out, H2, TOL, args.workers)
+                R_LTFHPLUS, tbl, r_out, H2, TOL, args.workers,
+                extra=(str(r_seed),))
             print(helper_log.rstrip())
             r_by_fam, r_s, r_meta = read_scores(r_out)
             r_est = align(families, r_by_fam)
             r_ver = r_meta.get("ltfhplus_version", ltfh_ver)
             r_workers = int(float(r_meta.get("workers", args.workers)))
+            if "seed" not in r_meta:
+                raise RuntimeError("LTFHPlus output did not record its RNG seed")
+            recorded_r_seed = int(float(r_meta["seed"]))
+            if recorded_r_seed != r_seed:
+                raise RuntimeError(
+                    f"LTFHPlus recorded seed {recorded_r_seed}, expected {r_seed}")
 
             peak_ltfgrs = ""
             ltfgrs_s = float("nan")
@@ -352,8 +365,16 @@ def main():
                 rep=rep, n_fam=args.n_fam, h2=H2, prevalence=PREV,
                 tol=TOL, n_sim=N_SIM, burn_in=BURN_IN,
                 ltfhplus_version=r_ver, ltfhplus_workers=r_workers,
+                ltfhplus_seed=recorded_r_seed,
+                r_version=r_meta.get("r_version", ""),
+                r_rng_kind=r_meta.get("rng_kind", ""),
                 ltfgrs_version=ltfgrs_ver or "",
+                python_version=platform.python_version(),
+                numpy_version=np.__version__, numba_version=NUMBA_VERSION,
                 numba_threads=get_num_threads(),
+                omp_num_threads=os.environ.get("OMP_NUM_THREADS", ""),
+                openblas_num_threads=os.environ.get(
+                    "OPENBLAS_NUM_THREADS", ""),
                 seconds_ltfhplus=r_s, seconds_ltfgrs_pa=ltfgrs_s,
                 seconds_ltpred_gibbs=gibbs_s, seconds_ltpred_pa=pa_s,
                 ms_per_fam_ltfhplus=1000.0 * r_s / args.n_fam,

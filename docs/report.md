@@ -12,12 +12,15 @@ Rebuild with [Tectonic](https://tectonic-typesetting.github.io/):
 ```bash
 cd report
 tectonic -X compile ltpred_methods.tex
+cd ..
+python scripts/check_evidence.py
 ```
 
 The cross-benchmark headline, GWAS, integrated-personalisation, confounding, PGS
 and heritability tables are generated LaTeX inputs from the committed benchmark
-CSVs (the generator script was removed in the 2026-08 lean-down; the tables are
-now static snapshots).
+CSVs (the full generator was removed in the 2026-08 lean-down; the tables are
+now static snapshots). A compact release check pins the headline rows and
+rejects a report source or included table newer than the tracked PDF.
 
 The report states the estimand and assumptions first, then the
 liability-threshold model and BLUP identity, Algorithms G

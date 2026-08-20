@@ -6,13 +6,24 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.4.1 — 2026-08-20
+
+### Fixed
+
+- Reconciled the v0.4 benchmark ledger, public documentation and tracked methods
+  PDF with the committed CSV artifacts, and added a compact CI/release check for
+  the release-defining scaling, IPW and public-R-lock claims.
+- Hardened mixture, missing-family-ID and finite-input validation; made the PGS
+  joint-score evaluation genuinely held out; and made the stochastic R lock
+  reproducible. Each defect now has a focused regression test.
+
 ## 0.4.0 — 2026-08-20
 
 ### Removed
 
-- Repository lean-down. Removed the prose-number guard machinery
+- Repository lean-down. Removed the comprehensive prose-number guard machinery
   (`scripts/check_results.py`, `scripts/check_docs.py`,
-  `scripts/make_results.py`; the whole `scripts/` directory), the benchmark
+  `scripts/make_results.py`), the benchmark
   provenance capsules (`benchmarks/run_benchmark.py`, `run_manifest.jsonl`,
   `run_logs/`, `run_sources/`, `reference_env.json`), and the meta/hygiene
   tests that pinned them (`tests/test_check_results.py`,
@@ -59,7 +70,7 @@ version is 0 the public API may still change between minor releases.
   documentation were written together with AI.
 - README and the methods note now state that ltpred is much more
   computationally efficient than LTFHPlus and LTFGRS, quoting the
-  locked same-algorithm fold times (6.87× Gibbs, 1178× PA).
+  current locked same-algorithm fold times (6.79× Gibbs, 1418× PA).
 - Rewrote the method and algorithm documentation in Knuth style:
   numbered equations for the estimand and BLUP identity, and
   Algorithms G (Gibbs), P (Pearson–Aitken) and M (mixture) as
@@ -78,8 +89,7 @@ version is 0 the public API may still change between minor releases.
   0.9981 (worst single seed 0.99813; the 0.9984 figure quoted the first
   seed), the sex-CIP gap closure is 0.05092 (female shift −0.03691),
   the peak-RSS sentence names each method, and the §2 load-average and
-  §24 M-component figures match their run logs. New guards in
-  `scripts/check_results.py` pin all of them.
+  §24 M-component figures match their recorded artifacts.
 
 ### Added
 

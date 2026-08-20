@@ -7,4 +7,4 @@
 | case/control label | 0.343 ± 0.007 | 0.118 ± 0.005 |
 | PGS | 0.485 ± 0.009 | 0.236 ± 0.009 |
 | LT-FH (PA) | 0.413 ± 0.003 | 0.170 ± 0.003 |
-| PGS + LT-FH joint (OLS) | — | 0.339 ± 0.009 |
+| PGS + LT-FH joint (cross-fitted OLS) | — | 0.338 ± 0.009 |

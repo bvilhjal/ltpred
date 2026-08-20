@@ -505,13 +505,54 @@ def test_use_mixture_without_K_raises():
 
     t = float(stats.norm.isf(0.05))
     fam = Family("f", [Member("o", -np.inf, t), Member("m", -np.inf, t)])  # no K_i
-    with pytest.raises(ValueError, match="at least one valid K_i/K_pop pair"):
+    with pytest.raises(ValueError, match="at least one active censored-control"):
         estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
-    with pytest.raises(ValueError, match="at least one valid K_i/K_pop pair"):
+    with pytest.raises(ValueError, match="at least one active censored-control"):
         estimate_liability_pa_arrays(
             ["o"], np.array([[-np.inf]]), np.array([[t]]),
             K_i=np.array([[np.nan]]), K_pop=np.array([[np.nan]]),
             use_mixture=True)
+
+
+@pytest.mark.parametrize("lower", [-np.inf, 1.0])
+def test_mixture_rejects_pair_on_case_or_unbounded_row(lower):
+    """K pairs are invalid, rather than merely inactive, when upper is +inf."""
+    from ltpred.estimate import estimate_liability_pa_arrays
+
+    fam = Family("f", [Member("o", lower, np.inf, K_i=0.02, K_pop=0.10)])
+    with pytest.raises(ValueError, match=r"upper == \+inf"):
+        estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
+    with pytest.raises(ValueError, match=r"upper == \+inf"):
+        estimate_liability_pa_arrays(
+            ["o"], np.array([[lower]]), np.array([[np.inf]]),
+            K_i=np.array([[0.02]]), K_pop=np.array([[0.10]]),
+            use_mixture=True)
+
+
+@pytest.mark.parametrize("lower", [2.0, float(stats.norm.isf(0.10))])
+def test_mixture_rejects_control_lower_not_below_lifetime_split(lower):
+    """An active control's lower bound must leave a lifetime-control component."""
+    from ltpred.estimate import estimate_liability_pa_arrays
+
+    upper = 3.0
+    fam = Family("f", [Member("o", lower, upper, K_i=0.02, K_pop=0.10)])
+    match = r"lower < Phi\^-1\(1 - K_pop\)"
+    with pytest.raises(ValueError, match=match):
+        estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
+    with pytest.raises(ValueError, match=match):
+        estimate_liability_pa_arrays(
+            ["o"], np.array([[lower]]), np.array([[upper]]),
+            K_i=np.array([[0.02]]), K_pop=np.array([[0.10]]),
+            use_mixture=True)
+
+
+def test_mixture_rejects_case_pair_even_when_an_active_control_exists():
+    """The global active-row gate must not hide a bad pair on another row."""
+    t = float(stats.norm.isf(0.10))
+    fam = Family("f", [Member("o", -np.inf, t, K_i=0.02, K_pop=0.10),
+                       Member("m", t, np.inf, K_i=0.05, K_pop=0.10)])
+    with pytest.raises(ValueError, match=r"upper == \+inf"):
+        estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
 
 
 def test_use_mixture_case_only_structure_group_estimates():
@@ -531,7 +572,7 @@ def test_use_mixture_case_only_structure_group_estimates():
     assert np.all(np.isfinite(res.est["genetic"]))
     assert res.est["genetic"][1] > res.est["genetic"][0]   # two cases vs none
     # the same all-case group alone (no valid pair anywhere) still raises
-    with pytest.raises(ValueError, match="at least one valid K_i/K_pop pair"):
+    with pytest.raises(ValueError, match="at least one active censored-control"):
         estimate_liability([cases], h2=0.5, method="pa", use_mixture=True)
 
 
@@ -798,6 +839,27 @@ def test_families_from_columns_rejects_missing_fam_id():
         families_from_columns(fam_id=["a", None, "a"],
                               role=["o", "m", "f"],
                               lower=np.zeros(3), upper=np.ones(3))
+
+
+@pytest.mark.parametrize(
+    "sentinel",
+    [np.float16(np.nan), np.float32(np.nan), np.float64(np.nan),
+     np.float16(np.inf), np.float32(-np.inf), np.float64(np.inf)],
+)
+def test_families_from_columns_rejects_numpy_nonfinite_object_ids(sentinel):
+    fam_id = np.array(["a", sentinel, "a"], dtype=object)
+    with pytest.raises(ValueError, match="fam_id"):
+        families_from_columns(fam_id=fam_id, role=["o", "m", "f"],
+                              lower=np.zeros(3), upper=np.ones(3))
+
+
+def test_families_from_columns_keeps_finite_numpy_numeric_object_ids():
+    fam_id = np.array([np.float32(1.5), np.float64(1.5), "2", "2"],
+                      dtype=object)
+    fams = families_from_columns(fam_id=fam_id, role=["o", "m", "o", "m"],
+                                 lower=np.zeros(4), upper=np.ones(4))
+    assert [family.fam_id for family in fams] == [np.float32(1.5), "2"]
+    assert [len(family.members) for family in fams] == [2, 2]
 
 
 @pytest.mark.parametrize("sentinel", ["", "  ", "NA", "nan", "None", "null", "."])

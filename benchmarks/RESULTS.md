@@ -62,7 +62,7 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   grid (five seeds per cell), mean corr(PA, Gibbs) is 0.9995–1.0000. The
   stressful-pedigree benchmark remains
   at least 0.9991 (worst single-seed 0.99916). PA and Gibbs also give indistinguishable downstream GWAS
-  results. In the 4-thread timing run, the PA object path is **384–488× faster**
+  results. In the 4-thread timing run, the PA object path is **392–518× faster**
   than grouped Gibbs across the tested sizes and pedigrees. The ratio is not
   thread-count-free: Gibbs is the parallel engine while the PA object path is
   largely serial, so fewer threads inflate the speed-up. Quote it with its
@@ -73,16 +73,16 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
 - **Public PA is LTFGRS, not LTFHPlus.** LTFHPlus 2.2.0 is Gibbs-only.
   ltpred PA and LTFGRS 1.0.1 `method="PA"` agree at corr = 1.0000
   (RMSE 0.000087 ± 0.000008). Same-algorithm fold times on this
-  machine were **6.984 ± 0.003×** (LTFHPlus Gibbs / ltpred Gibbs) and
-  **1473 ± 19×** (LTFGRS PA / ltpred PA). Mixing algorithms, LTFHPlus /
-  ltpred PA is **8179 ± 71×**. Totals: 1-worker LTFHPlus took
-  10.59 ± 0.06 s (53.0 ± 0.3 ms/family) versus 1.517 ± 0.010 s
-  (7.58 ± 0.05 ms/family) for 4-thread ltpred Gibbs, 1.907 ± 0.013 s
-  (9.54 ± 0.07 ms/family) for LTFGRS PA, and 0.00130 ± 0.00001 s
-  (0.00648 ± 0.00005 ms/family) for ltpred PA. Isolated-process peak
-  RSS was 443.6 ± 1.3, 260.0 ± 1.2, 180.8 ± 0.2 and 179.6 ± 0.3 MiB —
+  machine were **6.786 ± 0.079×** (LTFHPlus Gibbs / ltpred Gibbs) and
+  **1418 ± 30×** (LTFGRS PA / ltpred PA). Mixing algorithms, LTFHPlus /
+  ltpred PA is **8086 ± 250×**. Totals: 1-worker LTFHPlus took
+  10.27 ± 0.06 s (51.33 ± 0.28 ms/family) versus 1.513 ± 0.012 s
+  (7.57 ± 0.06 ms/family) for 4-thread ltpred Gibbs, 1.802 ± 0.011 s
+  (9.01 ± 0.05 ms/family) for LTFGRS PA, and 0.00127 ± 0.00003 s
+  (0.00636 ± 0.00017 ms/family) for ltpred PA. Isolated-process peak
+  RSS was 440.7 ± 0.7, 259.8 ± 0.7, 180.1 ± 0.1 and 178.7 ± 0.3 MiB —
   LTFHPlus, LTFGRS PA, ltpred Gibbs and ltpred PA respectively
-  (interpreter included). The 8179× figure is not
+  (interpreter included). The 8086× figure is not
   "LT-FH++, but faster."
 - **Classic LT-FH improves genotype-GWAS signal without average null inflation.**
   Across three genotype/effect/cohort replicates, the same classic LT-FH model
@@ -113,7 +113,8 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
 - **A PGS and the family-history score are complementary.**
   On a 50/50 train/test split, test R² against held-out g is
   **0.236 ± 0.009** (PGS), **0.170 ± 0.003** (classic LT-FH) and
-  **0.339 ± 0.009** (OLS on both). Observed corr(PGS, LT-FH) is 0.2009 ± 0.0046
+  **0.338 ± 0.009** (two-fold cross-fitted OLS on both). Observed corr(PGS,
+  LT-FH) is 0.2009 ± 0.0046
   against the `a·b·√p` prediction 0.2003 ± 0.0050 (`p = 1` by construction).
 - **The PA-FGRS mixture has a detectable but practically negligible ranking effect; case encoding dominates calibration.**
   Three of ten paired Δcorr 95% CIs exclude zero, but the largest shift is
@@ -125,8 +126,9 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
 - **Phenotype ascertainment pins the heritability fitter at the clamp.**
   At true h² = 0 every phenotype-selected design returns h² = 1.0. Inverse-
   probability weighting recovers a 50/50 case/control cohort from 1.000 to
-  **0.495** (truth 0.5; weights up to 19) and a 20%-enriched cohort to
-  **0.473**. Designs with a zero inclusion probability in some stratum cannot
+  **0.468** (truth 0.5; weights up to 19) and a 20%-enriched cohort to
+  **0.521** in the current 3,000-family grid. Designs with a zero inclusion
+  probability in some stratum cannot
   be reweighted.
 - **Variance-component point estimates need sampling uncertainty.** The fitter's
   reported Monte Carlo SE is much smaller than empirical across-cohort SD. Use
@@ -143,7 +145,7 @@ unchanged from the former single-seed grid. At h²=0.5 and K=0.05:
 |---|---:|---:|---:|---:|
 | parents | 0.382 ± 0.009 | 0.382 ± 0.009 | 1.36 ± 0.03× | 0.9999 |
 | parents + 2 siblings | 0.437 ± 0.009 | 0.437 ± 0.009 | 1.66 ± 0.07× | 0.9999 |
-| extended | 0.419 ± 0.014 | 0.420 ± 0.014 | 1.71 ± 0.09× | 0.9999 |
+| extended | 0.420 ± 0.014 | 0.420 ± 0.014 | 1.71 ± 0.09× | 0.9999 |
 
 Across all 27 cells, the mean PA–Gibbs agreement is 0.9995–1.0000 with
 across-seed SEs of at most 0.0001 (bare means shown). Absolute accuracy
@@ -174,14 +176,14 @@ thread count. Four threads is the operating point this project now baselines on.
 
 | families | Gibbs families/s | PA object families/s | PA array families/s | object speed-up |
 |---:|---:|---:|---:|---:|
-| 500 | 517 | 213,603 | 2.86 M | 414× |
-| 1,000 | 523 | 214,961 | 3.93 M | 411× |
-| 2,000 | 514 | 218,460 | 5.38 M | 425× |
-| 4,000 | 521 | 206,697 | 6.27 M | 397× |
-| 8,000 | 524 | 228,398 | 6.53 M | 436× |
+| 500 | 504 | 207,980 | 2.63 M | 412× |
+| 1,000 | 512 | 215,713 | 3.74 M | 421× |
+| 2,000 | 503 | 218,190 | 5.05 M | 434× |
+| 4,000 | 506 | 220,534 | 5.53 M | 436× |
+| 8,000 | 512 | 219,743 | 6.29 M | 429× |
 
 The object path includes `Family`/`Member` bounds assembly and grouping. The
-array path receives already aligned, repeatedly reused arrays; its 2.15–6.53
+array path receives already aligned, repeatedly reused arrays; its 2.63–6.29
 million families/s is therefore a hot-kernel measurement, not end-to-end input
 preparation. Its very short calls also make cache and scheduler effects visible,
 so use the CSV IQRs rather than interpreting the non-monotone point rates.
@@ -190,15 +192,15 @@ so use the CSV IQRs rather than interpreting the non-monotone point rates.
 
 | relatives | structure | Gibbs time | PA object time | PA array time | object speed-up |
 |---:|---|---:|---:|---:|---:|
-| 2 | parents | 2.85 s | 0.00742 s | 0.00032 s | 384× |
-| 3 | + sibling | 3.82 s | 0.00944 s | 0.00039 s | 405× |
-| 5 | + two grandparents | 5.82 s | 0.0132 s | 0.00058 s | 441× |
-| 7 | extended | 7.85 s | 0.0168 s | 0.00070 s | 468× |
-| 10 | extended + aunts | 11.02 s | 0.0226 s | 0.00093 s | 488× |
+| 2 | parents | 2.91 s | 0.00741 s | 0.00034 s | 392× |
+| 3 | + sibling | 3.92 s | 0.00919 s | 0.00042 s | 427× |
+| 5 | + two grandparents | 5.95 s | 0.0128 s | 0.00058 s | 463× |
+| 7 | extended | 8.02 s | 0.0166 s | 0.00073 s | 483× |
+| 10 | extended + aunts | 11.24 s | 0.0217 s | 0.00099 s | 518× |
 
 The small PA times are not strictly monotone; five repeats quantify timing
 variation but do not abolish operating-system noise, and this run carried
-background load. The defensible claim is the observed **384–488×** object-path
+background load. The defensible claim is the observed **392–518×** object-path
 speed-up *at four threads on this machine* — not a universal hardware-independent
 constant, and not transferable to another thread count, since raising the thread
 count speeds Gibbs up far more than the largely serial PA object path.
@@ -1215,7 +1217,9 @@ train/test split. Five independent genotype/effect/cohort replicates; each has
 parents plus one sibling — the `bench_gwas_power.py` generative framework. Each
 replicate is split 50/50: the discovery GWAS and the PGS weight fit use only
 the 5,000 train probands, and everything predictive is scored on the 5,000
-held-out test probands. There is no in-sample scoring.
+held-out test probands. The two-score combiner is itself two-fold cross-fitted
+within that test half: each subject is scored by coefficients fitted on the
+opposite fold, so no subject is scored by a combiner trained on its own `g`.
 
 The PGS is trained on the train case/control GWAS as marginal Z-scored
 weights `w_j = √n · corr(x_j, y)` (the default self-contained numpy backend).
@@ -1249,12 +1253,12 @@ Prediction arms on the test cohort, against the held-out true genetic value:
 | case/control label | 0.343 ± 0.007 | 0.118 ± 0.005 |
 | PGS | 0.485 ± 0.009 | 0.236 ± 0.009 |
 | LT-FH (PA) | 0.413 ± 0.003 | 0.170 ± 0.003 |
-| PGS + LT-FH joint (OLS on both) | — | 0.339 ± 0.009 |
+| PGS + LT-FH joint (cross-fitted OLS) | — | 0.338 ± 0.009 |
 
 The PGS beats the raw label (paired ΔR² = **+0.1176 ± 0.0199**), LT-FH beats
 case/control on correlation (paired Δcorr = +0.0694 ± 0.0104), and the joint
 model beats either score alone: the incremental R² of the PGS over LT-FH is
-**+0.1689 ± 0.0188** and of LT-FH over the PGS is **+0.1036 ± 0.0071** (paired
+**+0.1677 ± 0.0182** and of LT-FH over the PGS is **+0.1025 ± 0.0075** (paired
 95% CI half-widths, section-15 style; the LT-FH-vs-case/control NCP-ratio
 increment is +0.4464 ± 0.0638).
 
@@ -1492,6 +1496,8 @@ LTFHPlus 2.2.0 is Gibbs-only. Public Pearson–Aitken is LTFGRS 1.0.1
 (`estimate_liability(..., method="PA", useMixture=FALSE)`). `±` is the
 across-replicate SE. Numba used 4 threads; both R packages used 1
 `future` worker (sequential plan).
+The CSV records LTFHPlus's distinct seed for each replicate, R/Python/NumPy/
+Numba versions, and the resolved R/Numba/OMP/OpenBLAS thread settings.
 
 Wall-clock is the estimator call after in-process warmup, as a cohort
 total and as milliseconds per family (total / 200). Peak RSS is the
@@ -1502,10 +1508,10 @@ interpreter and packages.
 
 | Estimator | corr vs LTFHPlus | RMSE vs LTFHPlus | total s / 200 fam. | ms / family | peak RSS (MiB) |
 |---|---:|---:|---:|---:|---:|
-| LTFHPlus Gibbs | — | — | 10.59 ± 0.06 | 53.0 ± 0.3 | 443.6 ± 1.3 |
-| LTFGRS PA | 0.9999 ± 0.0000 | 0.0046 ± 0.0002 | 1.907 ± 0.013 | 9.54 ± 0.07 | 260.0 ± 1.2 |
-| ltpred Gibbs | 0.9999 ± 0.0000 | 0.0041 ± 0.0001 | 1.517 ± 0.010 | 7.58 ± 0.05 | 180.8 ± 0.2 |
-| ltpred PA | 0.9999 ± 0.0000 | 0.0046 ± 0.0002 | 0.00130 ± 0.00001 | 0.00648 ± 0.00005 | 179.6 ± 0.3 |
+| LTFHPlus Gibbs | — | — | 10.27 ± 0.06 | 51.33 ± 0.28 | 440.7 ± 0.7 |
+| LTFGRS PA | 0.9999 ± 0.0000 | 0.0046 ± 0.0003 | 1.802 ± 0.011 | 9.01 ± 0.05 | 259.8 ± 0.7 |
+| ltpred Gibbs | 0.9999 ± 0.0000 | 0.0041 ± 0.0002 | 1.513 ± 0.012 | 7.57 ± 0.06 | 180.1 ± 0.1 |
+| ltpred PA | 0.9999 ± 0.0000 | 0.0046 ± 0.0003 | 0.00127 ± 0.00003 | 0.00636 ± 0.00017 | 178.7 ± 0.3 |
 
 The Gibbs scores agree at the scale of the Monte Carlo error (LTFHPlus
 reports `genetic_se` ≈ 0.004). The PA scores agree with each other much
@@ -1521,14 +1527,14 @@ Fold times are the mean ± SE of the three per-replicate ratios
 
 | Comparison | fold | same algorithm? |
 |---|---:|:---|
-| LTFHPlus Gibbs / ltpred Gibbs | 6.984 ± 0.003× | yes |
-| LTFGRS PA / ltpred PA | 1473 ± 19× | yes |
-| LTFHPlus Gibbs / ltpred PA | 8179 ± 71× | no |
-| LTFGRS PA / ltpred Gibbs | 1.26 ± 0.02× | no |
+| LTFHPlus Gibbs / ltpred Gibbs | 6.786 ± 0.079× | yes |
+| LTFGRS PA / ltpred PA | 1418 ± 30× | yes |
+| LTFHPlus Gibbs / ltpred PA | 8086 ± 250× | no |
+| LTFGRS PA / ltpred Gibbs | 1.19 ± 0.01× | no |
 
 The first row is Gibbs versus Gibbs across language and
 parallelisation. The second is the same sequential PA update in R
-versus compiled Python. The 8179× row mixes algorithms. None of
+versus compiled Python. The 8086× row mixes algorithms. None of
 these is a hardware-independent constant.
 
 **Parallelisation is not equally distributed across those rows**, so the
@@ -1538,27 +1544,21 @@ Numba threads = 1):
 
 | Comparison | fold at 4 threads | fold at 1 thread |
 |---|---:|---:|
-| LTFHPlus Gibbs / ltpred Gibbs | 6.984 ± 0.003× | **1.833 ± 0.025×** |
-| LTFGRS PA / ltpred PA | 1473 ± 19× | **1624 ± 36×** |
+| LTFHPlus Gibbs / ltpred Gibbs | 6.786 ± 0.079× | **1.751 ± 0.012×** |
+| LTFGRS PA / ltpred PA | 1418 ± 30× | **1425 ± 22×** |
 
-The 1-thread column is 12 replicates
-(`bench_ltfhplus_compare_1thread.csv`). **Treat its
-± as replicate scatter, not measurement uncertainty:** the host carried a
-load average near 20 on 10 cores during that run, and three independent
-repeats of the same configuration returned Gibbs folds of 1.82, 1.66 and
-1.83 — spread well outside any single run's own SE. What survives that is
-the comparison, not the third digit. All three arms are single-threaded
-there, so contention inflates them together and the ratio is far more robust
-than the absolute times; the qualitative conclusion (most of the 6.98× is
-the thread asymmetry) holds across every repeat. The 4-thread column carries
-the same exposure in the other direction, since a 4-thread arm loses more to
-contention than its 1-thread competitors. A quiet-host rerun of both
-configurations back to back would settle the digits.
+The 1-thread column is 12 independently seeded replicates
+(`bench_ltfhplus_compare_1thread.csv`). Its `±` is across-replicate scatter,
+not a universal measurement uncertainty. All arms are single-threaded there,
+so the ratio is more portable than the absolute times, but it remains a
+machine-specific measurement.
+Per-replicate load was not recorded for this rerun, so the digits cannot be
+attributed to a particular load profile.
 
-ltpred's Gibbs is `prange`-parallel over families, so most of the 6.98× is
+ltpred's Gibbs is `prange`-parallel over families, so most of the 6.79× is
 the 4:1 resource asymmetry rather than implementation: matched at one
-thread the gap is 1.82×. PA is effectively serial, so its fold does not
-track the thread count and the 1473× figure is if anything conservative.
+thread the gap is 1.75×. PA is effectively serial, and its fold is essentially
+unchanged at one thread (1425×) and four (1418×).
 Both quantities are legitimate and they answer different questions — the
 4-thread rows are what a user gets at each package's defaults, since the
 `future` plan is sequential by default, while the 1-thread rows isolate the
