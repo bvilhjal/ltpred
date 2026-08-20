@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import hashlib
+import sysconfig
 from importlib import metadata
 import json
 import os
@@ -86,6 +87,54 @@ def _git_state():
         "tracked_diff_sha256": None if diff is None else _sha256_bytes(diff),
         "untracked_source_files": untracked_source,
     }
+
+
+REFERENCE_ENV = ROOT / "benchmarks" / "reference_env.json"
+
+
+def _minor(version):
+    """Major.minor of a version string, or None."""
+    return None if not version else ".".join(str(version).split(".")[:2])
+
+
+def _env_fingerprint():
+    """The interpreter properties a benchmark timing or artifact depends on."""
+    versions = _package_versions()
+    return {
+        "python": ".".join(map(str, sys.version_info[:2])),
+        "free_threading": bool(sysconfig.get_config_var("Py_GIL_DISABLED")),
+        "packages": {name: _minor(versions.get(name))
+                     for name in ("numpy", "scipy", "numba")},
+    }
+
+
+def _env_mismatches(reference=None):
+    """Differences between this interpreter and the declared reference.
+
+    The manifest has always *recorded* the interpreter, but recording is not
+    checking: a run launched with a bare `python` lands on whatever the PATH
+    resolves to -- on the author's machine a 3.10 GIL build with NumPy 1.26,
+    against the 3.14 free-threading, NumPy 2.4 stack RESULTS.md declares --
+    and the only trace is a manifest field nobody diffs. Timings and any
+    thread-sensitive result are then not comparable with the committed
+    artifacts, silently. Compared at major.minor so patch bumps do not trip.
+    """
+    if reference is None:
+        if not REFERENCE_ENV.exists():
+            return []
+        reference = json.loads(REFERENCE_ENV.read_text(encoding="utf-8"))
+    actual = _env_fingerprint()
+    out = []
+    if reference.get("python") != actual["python"]:
+        out.append(f"python {actual['python']} (reference {reference.get('python')})")
+    if bool(reference.get("free_threading")) != actual["free_threading"]:
+        out.append(f"free-threading={actual['free_threading']} "
+                   f"(reference {bool(reference.get('free_threading'))})")
+    for name, want in (reference.get("packages") or {}).items():
+        got = actual["packages"].get(name)
+        if want != got:
+            out.append(f"{name} {got} (reference {want})")
+    return out
 
 
 def _package_versions():
@@ -271,7 +320,22 @@ def _parse_args():
         default=DEFAULT_SOURCE_DIR,
         help="dirty-source snapshots (default: benchmarks/run_sources)",
     )
-    parser.add_argument("script", help="benchmark filename, for example bench_accuracy.py")
+    parser.add_argument(
+        "--allow-env-mismatch",
+        action="store_true",
+        help="run even though this interpreter differs from "
+             "benchmarks/reference_env.json; the override is recorded in the "
+             "manifest so the resulting artifact is not mistaken for a "
+             "reference-environment run",
+    )
+    parser.add_argument(
+        "--write-reference-env",
+        action="store_true",
+        help="rewrite benchmarks/reference_env.json from this interpreter and "
+             "exit (use when the project deliberately moves stack)",
+    )
+    parser.add_argument("script", nargs="?",
+                        help="benchmark filename, for example bench_accuracy.py")
     parser.add_argument(
         "benchmark_args",
         nargs=argparse.REMAINDER,
@@ -280,8 +344,25 @@ def _parse_args():
     return parser.parse_args()
 
 
+def _write_reference_env():
+    """Re-declare the reference stack from this interpreter."""
+    existing = (json.loads(REFERENCE_ENV.read_text(encoding="utf-8"))
+                if REFERENCE_ENV.exists() else {})
+    record = {"_comment": existing.get("_comment", []), **_env_fingerprint()}
+    REFERENCE_ENV.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    print(f"wrote {REFERENCE_ENV.relative_to(ROOT)}: "
+          f"python {record['python']}, free-threading={record['free_threading']}, "
+          + ", ".join(f"{k} {v}" for k, v in record["packages"].items()))
+
+
 def main():
     args = _parse_args()
+    if args.write_reference_env:
+        _write_reference_env()
+        return
+    if not args.script:
+        raise SystemExit("run_benchmark: a benchmark script is required "
+                         "(or use --write-reference-env)")
     script = (HERE / args.script).resolve()
     if script.parent != HERE or not script.name.startswith("bench_") or script.suffix != ".py":
         raise SystemExit("script must be a benchmarks/bench_*.py file")
@@ -291,6 +372,20 @@ def main():
     benchmark_args = list(args.benchmark_args)
     if benchmark_args[:1] == ["--"]:
         benchmark_args = benchmark_args[1:]
+    mismatches = _env_mismatches()
+    if mismatches and not args.allow_env_mismatch:
+        raise SystemExit(
+            "run_benchmark: this interpreter does not match "
+            f"{REFERENCE_ENV.relative_to(ROOT)}:\n  "
+            + "\n  ".join(mismatches)
+            + f"\n\ninterpreter: {sys.executable}\n"
+            "A bare `python` usually resolves to a different environment than "
+            "the one the committed artifacts were produced under, which makes "
+            "timings and thread-sensitive results incomparable without "
+            "anything visible going wrong. Re-run with the reference "
+            "interpreter, or pass --allow-env-mismatch to proceed and have "
+            "the override recorded in the manifest.")
+
     command = [sys.executable, str(script), *benchmark_args]
 
     started = datetime.now(timezone.utc)
@@ -343,6 +438,11 @@ def main():
             "numba_runtime": _numba_runtime(),
             "load_average": {"before": load_before, "after": load_after},
             "packages": _package_versions(),
+            "reference_env": {
+                "matches": not mismatches,
+                "mismatches": mismatches,
+                "override_used": bool(args.allow_env_mismatch and mismatches),
+            },
             "thread_settings": {
                 name: os.environ.get(name)
                 for name in ("NUMBA_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS")

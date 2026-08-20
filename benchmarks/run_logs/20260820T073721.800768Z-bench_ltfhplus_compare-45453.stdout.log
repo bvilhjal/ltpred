@@ -1,0 +1,221 @@
+Locked LTFHPlus / LTFGRS comparison
+LTFHPlus 2.2.0  LTFGRS 1.0.1  Rscript=/usr/local/bin/Rscript
+n_fam=200  reps=12  fam=m+f+s1  h2=0.5  K=0.05  tol=0.01  n_sim=100000  burn_in=1000
+R future workers=1  Numba threads=1
+Estimand: posterior-mean genetic liability on classic LT-FH bounds.
+LTFHPlus is Gibbs-only. Public PA is LTFGRS method=PA.
+Peak RSS: isolated process via _peak_launcher (wait4, not parent floor).
+
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=14.219
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=2.7710
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0016
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=8.9772
+rep 0: corr(Gibbs,LTFHPlus)=0.99989  corr(PA,LTFHPlus)=0.99991  corr(PA,LTFGRS)=1.00000  t LTFGRS=2.771s  RMSE(Gibbs,R)=0.0042  t R=14.22s  t Gibbs=8.98s  t PA=0.002s  RSS MiB LTFHPlus=458.8  LTFGRS=263.7  Gibbs=179.4  PA=178.8
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=12.011
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=2.1010
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0013
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=6.1992
+rep 1: corr(Gibbs,LTFHPlus)=0.99994  corr(PA,LTFHPlus)=0.99994  corr(PA,LTFGRS)=1.00000  t LTFGRS=2.101s  RMSE(Gibbs,R)=0.0039  t R=12.01s  t Gibbs=6.20s  t PA=0.001s  RSS MiB LTFHPlus=427.5  LTFGRS=263.9  Gibbs=179.4  PA=179.3
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=11.013
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=2.1800
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0013
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=6.0029
+rep 2: corr(Gibbs,LTFHPlus)=0.99991  corr(PA,LTFHPlus)=0.99992  corr(PA,LTFGRS)=1.00000  t LTFGRS=2.180s  RMSE(Gibbs,R)=0.0041  t R=11.01s  t Gibbs=6.00s  t PA=0.001s  RSS MiB LTFHPlus=444.4  LTFGRS=263.2  Gibbs=179.0  PA=179.3
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=10.827
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=1.9870
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0013
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=5.8982
+rep 3: corr(Gibbs,LTFHPlus)=0.99993  corr(PA,LTFHPlus)=0.99993  corr(PA,LTFGRS)=1.00000  t LTFGRS=1.987s  RMSE(Gibbs,R)=0.0040  t R=10.83s  t Gibbs=5.90s  t PA=0.001s  RSS MiB LTFHPlus=444.0  LTFGRS=263.1  Gibbs=179.4  PA=178.8
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=10.747
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=2.0320
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0012
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=5.9305
+rep 4: corr(Gibbs,LTFHPlus)=0.99989  corr(PA,LTFHPlus)=0.99990  corr(PA,LTFGRS)=1.00000  t LTFGRS=2.032s  RMSE(Gibbs,R)=0.0041  t R=10.75s  t Gibbs=5.93s  t PA=0.001s  RSS MiB LTFHPlus=440.1  LTFGRS=263.2  Gibbs=179.5  PA=178.7
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=11.535
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=2.0900
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0013
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=6.0484
+rep 5: corr(Gibbs,LTFHPlus)=0.99986  corr(PA,LTFHPlus)=0.99989  corr(PA,LTFGRS)=1.00000  t LTFGRS=2.090s  RMSE(Gibbs,R)=0.0041  t R=11.54s  t Gibbs=6.05s  t PA=0.001s  RSS MiB LTFHPlus=419.7  LTFGRS=263.2  Gibbs=180.1  PA=178.9
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=10.991
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=2.4220
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0013
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=5.8817
+rep 6: corr(Gibbs,LTFHPlus)=0.99984  corr(PA,LTFHPlus)=0.99986  corr(PA,LTFGRS)=1.00000  t LTFGRS=2.422s  RMSE(Gibbs,R)=0.0039  t R=10.99s  t Gibbs=5.88s  t PA=0.001s  RSS MiB LTFHPlus=439.8  LTFGRS=263.2  Gibbs=179.5  PA=178.1
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=10.906
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=2.1310
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0014
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=5.9312
+rep 7: corr(Gibbs,LTFHPlus)=0.99993  corr(PA,LTFHPlus)=0.99994  corr(PA,LTFGRS)=1.00000  t LTFGRS=2.131s  RMSE(Gibbs,R)=0.0040  t R=10.91s  t Gibbs=5.93s  t PA=0.001s  RSS MiB LTFHPlus=444.1  LTFGRS=263.4  Gibbs=179.1  PA=179.3
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=11.183
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=2.1110
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0013
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=5.9514
+rep 8: corr(Gibbs,LTFHPlus)=0.99992  corr(PA,LTFHPlus)=0.99993  corr(PA,LTFGRS)=1.00000  t LTFGRS=2.111s  RMSE(Gibbs,R)=0.0040  t R=11.18s  t Gibbs=5.95s  t PA=0.001s  RSS MiB LTFHPlus=440.4  LTFGRS=263.2  Gibbs=178.8  PA=178.2
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=10.839
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=2.0880
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0012
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=5.9399
+rep 9: corr(Gibbs,LTFHPlus)=0.99993  corr(PA,LTFHPlus)=0.99993  corr(PA,LTFGRS)=1.00000  t LTFGRS=2.088s  RMSE(Gibbs,R)=0.0040  t R=10.84s  t Gibbs=5.94s  t PA=0.001s  RSS MiB LTFHPlus=443.9  LTFGRS=263.2  Gibbs=179.4  PA=178.6
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=10.876
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=2.0540
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0015
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=5.9237
+rep 10: corr(Gibbs,LTFHPlus)=0.99990  corr(PA,LTFHPlus)=0.99992  corr(PA,LTFGRS)=1.00000  t LTFGRS=2.054s  RMSE(Gibbs,R)=0.0041  t R=10.88s  t Gibbs=5.92s  t PA=0.002s  RSS MiB LTFHPlus=440.5  LTFGRS=263.0  Gibbs=179.6  PA=178.5
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFHPlus 2.2.0  workers=1  families=200  seconds=10.861
+Warning message:
+package ‘future’ was built under R version 4.6.1 
+The number of workers is 1
+
+LTFGRS 1.0.1  method=PA  workers=1  families=200  seconds=2.0690
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred pa  families=200  seconds=0.0013
+OMP: Info #276: omp_set_nested routine deprecated, please use omp_set_max_active_levels instead.
+ltpred gibbs  families=200  seconds=5.9123
+rep 11: corr(Gibbs,LTFHPlus)=0.99988  corr(PA,LTFHPlus)=0.99991  corr(PA,LTFGRS)=1.00000  t LTFGRS=2.069s  RMSE(Gibbs,R)=0.0044  t R=10.86s  t Gibbs=5.91s  t PA=0.001s  RSS MiB LTFHPlus=439.9  LTFGRS=264.3  Gibbs=179.1  PA=178.9
+
+Across-replicate mean ± SE
+  corr(ltpred Gibbs, LTFHPlus)         0.9999 ± 0.0000
+  corr(ltpred PA, LTFHPlus)            0.9999 ± 0.0000
+  corr(ltpred PA, LTFGRS PA)           1.0000 ± 0.0000
+  RMSE(ltpred Gibbs, LTFHPlus)         0.0041 ± 0.0000
+  RMSE(ltpred PA, LTFGRS PA)           0.0001 ± 0.0000
+  LTFHPlus seconds (total)             11.3340 ± 0.2824
+  LTFHPlus ms / family                 56.6700 ± 1.4121
+  LTFGRS PA seconds (total)            2.1697 ± 0.0630
+  LTFGRS PA ms / family                10.8483 ± 0.3150
+  ltpred Gibbs seconds (total)         6.2164 ± 0.2522
+  ltpred Gibbs ms / family             31.0819 ± 1.2611
+  ltpred PA seconds (total)            0.0013 ± 0.0000
+  ltpred PA ms / family                0.0067 ± 0.0002
+  LTFHPlus peak RSS bytes              440.27 ± 2.74 MiB
+  LTFGRS PA peak RSS bytes             263.38 ± 0.11 MiB
+  ltpred Gibbs peak RSS bytes          179.37 ± 0.09 MiB
+  ltpred PA peak RSS bytes             178.78 ± 0.11 MiB
+  fold LTFHPlus / ltpred Gibbs         1.8329 ± 0.0250
+  fold LTFGRS PA / ltpred PA           1624.4310 ± 36.0728
+  fold LTFHPlus / ltpred PA            8491.6922 ± 174.2432
+  fold LTFGRS PA / ltpred Gibbs        0.3508 ± 0.0068
+
+Fold times on this machine (mean of per-replicate ratios; R workers=1, Numba threads=1):
+  LTFHPlus / ltpred Gibbs = 1.83 ± 0.02  (same algorithm)
+  LTFGRS PA / ltpred PA   = 1624.4 ± 36.1  (same algorithm)
+  LTFHPlus / ltpred PA    = 8492 ± 174  (mixes algorithms)
+These are not hardware-independent constants.
+Peak RSS is the isolated child via wait4; it includes the
+interpreter and packages, not just the estimator scratch.
+
+wrote bench_ltfhplus_compare_1thread.csv

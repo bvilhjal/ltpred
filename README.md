@@ -24,15 +24,18 @@ ltpred Gibbs) and **1178×** (LTFGRS 1.0.1 PA / ltpred PA), each package at
 its own default parallelism — ltpred on 4 Numba threads, both R packages on
 1 `future` worker (their sequential default).
 
-Those two folds are not the same kind of number. ltpred's Gibbs is
-`prange`-parallel over families, so most of its fold is the 4:1 resource
-asymmetry: at one thread it is 28.7 ms/family against LTFHPlus's 53.3, a
-**1.85×** implementation gap. PA is effectively serial (0.0061 ms/family at
-one thread versus 0.0055 at four), so **1178× is an implementation
-comparison** and is unaffected by the thread count. Neither is a claim that
-PA is a faster Gibbs: LTFHPlus is Gibbs-only, and the public PA
-implementations are LTFGRS (benchmarked here) and the original PAFGRS
-package.
+Those two folds are not the same kind of number, and re-running the whole
+comparison with **both sides at one thread** separates them
+(`bench_ltfhplus_compare_1thread.csv`). ltpred's Gibbs is `prange`-parallel
+over families, so most of its fold is the 4:1 resource asymmetry: matched at
+one thread it is about **1.8×**, not 6.87×. PA is effectively serial, so its
+fold does not depend on the thread count — matched at one thread it is
+**>1500×**, i.e. the 1178× figure is if anything conservative. (RESULTS
+section 30 gives both columns and the measurement caveat; the ± there is
+replicate scatter on a loaded host, so read the comparison rather than the
+last digit.) Neither is a claim that PA is a faster Gibbs: LTFHPlus is
+Gibbs-only, and the public PA implementations are LTFGRS (benchmarked here)
+and the original PAFGRS package.
 
 Given each individual's case/control status, age and their relatives' statuses,
 ltpred estimates with Gibbs—or sequentially approximates with PA—the **posterior

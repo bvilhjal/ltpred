@@ -1502,6 +1502,39 @@ The first row is Gibbs versus Gibbs across language and
 parallelisation. The second is the same sequential PA update in R
 versus compiled Python. The 6613× row mixes algorithms. None of
 these is a hardware-independent constant.
+
+**Parallelisation is not equally distributed across those rows**, so the
+whole comparison was re-run with both sides at one thread
+(`bench_ltfhplus_compare_1thread.csv`, same three cohorts, R workers = 1,
+Numba threads = 1):
+
+| Comparison | fold at 4 threads | fold at 1 thread |
+|---|---:|---:|
+| LTFHPlus Gibbs / ltpred Gibbs | 6.87 ± 0.12× | **1.833 ± 0.025×** |
+| LTFGRS PA / ltpred PA | 1178 ± 157× | **1624 ± 36×** |
+
+The 1-thread column is 12 replicates
+(`bench_ltfhplus_compare_1thread.csv`, in `run_manifest.jsonl`). **Treat its
+± as replicate scatter, not measurement uncertainty:** the host carried a
+load average near 20 on 10 cores during that run, and three independent
+repeats of the same configuration returned Gibbs folds of 1.82, 1.66 and
+1.83 — spread well outside any single run's own SE. What survives that is
+the comparison, not the third digit. All three arms are single-threaded
+there, so contention inflates them together and the ratio is far more robust
+than the absolute times; the qualitative conclusion (most of the 6.87× is
+the thread asymmetry) holds across every repeat. The 4-thread column carries
+the same exposure in the other direction, since a 4-thread arm loses more to
+contention than its 1-thread competitors. A quiet-host rerun of both
+configurations back to back would settle the digits.
+
+ltpred's Gibbs is `prange`-parallel over families, so most of the 6.87× is
+the 4:1 resource asymmetry rather than implementation: matched at one
+thread the gap is 1.82×. PA is effectively serial, so its fold does not
+track the thread count and the 1178× figure is if anything conservative.
+Both quantities are legitimate and they answer different questions — the
+4-thread rows are what a user gets at each package's defaults, since the
+`future` plan is sequential by default, while the 1-thread rows isolate the
+implementation. Quote whichever, with its thread count.
 Peak RSS at this n is mostly runtime: LTFHPlus Gibbs sits higher
 because the sampler retains 10⁵ draws; the two PA processes differ
 mainly in R versus Python heaps. Opt-in: requires R and LTFHPlus; the

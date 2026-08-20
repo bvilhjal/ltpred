@@ -736,7 +736,27 @@ def pedigree_payoff_between_arm_corr(path):
     return tuple(_mean_se(_metric_values(path, "part2_corr_between_arms")))
 
 
+def ltfhplus_folds_1thread(path):
+    """The two same-algorithm folds re-measured with both sides single-threaded.
+
+    Guards the matched-resource columns of RESULTS section 30. The 4-thread
+    folds are guarded separately; keeping both anchored is the point, since the
+    pair is what shows which fold is thread-sensitive.
+    """
+    rows = _rows(path)
+    gibbs = _mean_se([float(r["fold_ltfhplus_over_gibbs"]) for r in rows])
+    pa = _mean_se([float(r["fold_ltfgrs_over_pa"]) for r in rows])
+    return (gibbs[0], gibbs[1], pa[0], pa[1])
+
+
 GUARDS = [
+    Guard("ltfhplus-fold-times-1thread",
+          "benchmarks/bench_ltfhplus_compare_1thread.csv",
+          ltfhplus_folds_1thread,
+          r"\| LTFHPlus Gibbs / ltpred Gibbs \| 6\.87 ± 0\.12× \| "
+          r"\*\*([\d.]+) ± ([\d.]+)×\*\* \|\s*\n"
+          r"\| LTFGRS PA / ltpred PA \| 1178 ± 157× \| "
+          r"\*\*([\d.]+) ± ([\d.]+)×\*\* \|"),
     Guard("ascertainment-dose-mild-prose", _ASCERT,
           ascert_dose_mild_rates_bias,
           r"A ([\d.]+)% case rate against an assumed ([\d.]+)% inflates h² by ([+]?\d+(?:\.\d+)?)"),

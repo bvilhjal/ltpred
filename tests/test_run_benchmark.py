@@ -35,3 +35,32 @@ def test_clean_source_snapshot_writes_nothing(tmp_path, monkeypatch):
 
     assert record == {}
     assert not (tmp_path / "snapshots").exists()
+
+
+def test_env_mismatch_detects_a_different_interpreter_stack():
+    # The manifest always *recorded* the interpreter, but recording is not
+    # checking: a bare `python` resolves to whatever the PATH offers, and on a
+    # typical dev box that is a different Python and NumPy from the one the
+    # committed artifacts were produced under. Timings and thread-sensitive
+    # results are then incomparable with nothing visibly wrong.
+    reference = {
+        "python": "3.14",
+        "free_threading": True,
+        "packages": {"numpy": "2.4", "scipy": "1.18", "numba": "0.66"},
+    }
+    assert run_benchmark._env_mismatches(reference=run_benchmark._env_fingerprint()) == []
+
+    wrong = dict(reference, python="3.10", free_threading=False,
+                 packages={**reference["packages"], "numpy": "1.26"})
+    found = " ".join(run_benchmark._env_mismatches(reference=wrong))
+    assert "python" in found and "free-threading" in found and "numpy" in found
+
+
+def test_reference_env_file_matches_the_running_stack():
+    # The committed declaration must describe the environment the project
+    # actually benchmarks in, or the guard protects nothing.
+    import json
+    assert run_benchmark.REFERENCE_ENV.exists()
+    ref = json.loads(run_benchmark.REFERENCE_ENV.read_text(encoding="utf-8"))
+    for key in ("python", "free_threading", "packages"):
+        assert key in ref
