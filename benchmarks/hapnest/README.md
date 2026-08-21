@@ -39,8 +39,14 @@ names are stable but the YAML nesting can shift between versions.
 ## Step 2 — run the benchmark on the real-LD genotypes
 
 ```bash
-NUMBA_NUM_THREADS=10 OMP_NUM_THREADS=10 python benchmarks/bench_gwas_power.py \
-    --plink data/output/synthetic \
+NUMBA_NUM_THREADS=10 OMP_NUM_THREADS=10 \
+  python benchmarks/run_benchmark.py \
+    --input data/output/synthetic.bed \
+    --input data/output/synthetic.bim \
+    --input data/output/synthetic.fam \
+    --artifact bench_gwas_power.csv \
+    --artifact bench_gwas_power.png \
+    bench_gwas_power.py -- --plink data/output/synthetic \
     --n-fam 10000 --n-causal 30 --h2 0.5 --prev 0.05
 ```
 

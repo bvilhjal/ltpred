@@ -154,7 +154,8 @@ def age_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike = 0.1,
                                 mid_point=mid_point, slope=slope)
     thr = np.asarray(thr, dtype=float)
     lower = np.where(status, thr, -np.inf)
-    upper = np.where(status, thr, thr)
+    # Both pinned cases and censored controls end at their age threshold.
+    upper = np.broadcast_to(thr, lower.shape).copy()
     return lower, upper
 
 
@@ -283,7 +284,7 @@ def thresholds_from_cip(status: ArrayLike, age: ArrayLike, cip_ages: ArrayLike,
 
     lower = np.where(status, thr, -np.inf)
     if case_mode == "pin":
-        upper = np.where(status, thr, thr)
+        upper = thr.copy()
     else:
         upper = np.where(status, np.inf, thr)
     K_i = np.where(status, np.nan, cip)

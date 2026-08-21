@@ -21,6 +21,8 @@ censoring mixture is not included in the PA–Gibbs comparisons below.
   (Python 3.10.20, NumPy 1.26.4, SciPy 1.15.3). Sections whose numbers the
   2026-08-20 rerun reproduced within sampling error were left as recorded;
   the per-section notes and the change log at the end mark the exceptions.
+  The R-package lock and PGS-comparison artifacts were subsequently refreshed
+  for v0.4.1; the historical provenance limit below applies to those runs too.
 - **Recorded environment for the stored artifacts:** Python 3.14.6
   (free-threading), NumPy 2.4.6, SciPy 1.18.0, Numba 0.66.0, 10 logical cores
   (Apple M2 Pro, arm64).
@@ -29,9 +31,15 @@ censoring mixture is not included in the PA–Gibbs comparisons below.
   tree. Claims should be refreshed after numerical or benchmark-source changes.
   The per-run provenance manifest and captured logs were removed in the
   2026-08 lean-down, so the exact source state of older runs is unrecoverable.
-- **Future runs:** run the scripts directly,
-  `python benchmarks/bench_<name>.py -- [ARGS]`, and record the command,
-  environment, and Git commit alongside any artifact you commit.
+- **Future runs:** use
+  `python benchmarks/run_benchmark.py --artifact bench_<name>.csv bench_<name>.py -- [ARGS]`.
+  Repeat `--artifact` for every retained CSV/PNG.
+  The wrapper appends the clean source commit, exact command,
+  environment/thread settings, machine profile, exit status, and
+  declared-artifact hashes to `run_manifest.jsonl`.
+  Commit the corresponding row with any regenerated artifact.
+  Declare external data with repeatable `--input FILE` so its content hash
+  travels with the result.
   Set `NUMBA_NUM_THREADS` and, where needed, `OMP_NUM_THREADS` explicitly.
 - **External-data exception:** the HAPNEST real-LD path was not run because it
   requires an external multi-GB dataset; it remains opt-in in

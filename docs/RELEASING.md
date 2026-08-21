@@ -33,7 +33,10 @@ Optionally add the same as a trusted publisher on
    and `report/ltpred_methods.tex`.
 2. Confirm CI is green on `main` (tests on 3.9–3.13, macOS 3.12 and 3.14t, `ruff`, strict docs build, wheel build).
 3. Rebuild the tracked methods PDF and check its release-defining claims against
-   the committed CSVs:
+   the committed CSVs. If a benchmark artifact must change, first commit its
+   source, then regenerate it through `benchmarks/run_benchmark.py` with each
+   retained output named by `--artifact`; commit the resulting JSONL provenance
+   row with the artifact. Never backfill a source commit after a run.
    ```bash
    cd report && tectonic -X compile ltpred_methods.tex && cd ..
    python -m pip install "pypdf>=4"

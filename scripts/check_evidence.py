@@ -151,6 +151,18 @@ def check_r_lock():
         "pa_one": f"{pa_one:.0f} ± {pa_one_se:.0f}×",
     }
 
+    gibbs_rmse, _ = mean_se(rows, "rmse_gibbs_ltfhplus")
+    pa_rmse, _ = mean_se(rows, "rmse_pa_ltfhplus")
+    ltfgrs_rmse, _ = mean_se(rows, "rmse_pa_ltfgrs")
+    require(
+        ROOT / "ltpred/estimate.py",
+        f"RMSE ``{gibbs_rmse:.4f}`` Gibbs, ``{pa_rmse:.4f}`` PA",
+        f"RMSE ``{ltfgrs_rmse:.6f}``",
+    )
+    for path in [ROOT / "README.md", ROOT / "docs/algorithm.md"]:
+        require(path, f"RMSE {gibbs_rmse:.4f} Gibbs, {pa_rmse:.4f} PA",
+                f"RMSE {ltfgrs_rmse:.6f}")
+
     for path in [ROOT / "README.md", ROOT / "docs/estimation.md"]:
         require(path, f"{gibbs:.2f}×", f"{pa:.0f}×",
                 f"{gibbs_one:.2f}×", f"{pa_one:.0f}×")
@@ -303,7 +315,8 @@ def main():
     pgs = check_pgs()
     check_report(version, release_date, scaling, r_lock, pgs)
     print(
-        f"Evidence current: scaling {scaling[0]}; IPW {cc}/{en} (N={n_fam:,}); "
+        f"Evidence artifacts internally consistent: scaling {scaling[0]}; "
+        f"IPW {cc}/{en} (N={n_fam:,}); "
         f"R locks {r_lock['details']['gibbs']} and {r_lock['details']['pa']}; "
         f"PGS {pgs['headline']}; PDF v{version}."
     )

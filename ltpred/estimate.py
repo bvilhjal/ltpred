@@ -553,14 +553,23 @@ def _estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False
     _check_unique_roles(families)
     _warn_empty_families(families)
     if use_mixture:
-        members = [member for family in families for member in family.members]
-        K_i = [np.nan if member.K_i is None else member.K_i for member in members]
-        K_pop = [np.nan if member.K_pop is None else member.K_pop for member in members]
+        n_members = sum(len(family.members) for family in families)
+        lower = np.empty(n_members)
+        upper = np.empty(n_members)
+        K_i, K_pop = [], []
+        slot = 0
+        for family in families:
+            for member in family.members:
+                lower[slot], upper[slot] = _scalar_member_bounds(
+                    member, family.fam_id)
+                K_i.append(np.nan if member.K_i is None else member.K_i)
+                K_pop.append(np.nan if member.K_pop is None else member.K_pop)
+                slot += 1
         validate_mixture_inputs(
-            K_i, K_pop, expected_shape=(len(members),), require_pair=True,
-            lower=[float(member.lower) for member in members],
-            upper=[float(member.upper) for member in members],
+            K_i, K_pop, expected_shape=(n_members,), require_pair=True,
+            lower=lower, upper=upper,
             context="family mixture inputs")
+        del K_i, K_pop, lower, upper
     dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
     names = [_OUT_NAMES[c] for c in out_coords]
@@ -778,6 +787,18 @@ def _gibbs_from_role_arrays(roles, lower, upper, h2, out_coords, seeds,
                            max_rounds)
 
 
+def _scalar_member_bounds(member, fam_id):
+    """Return one member's single-trait bounds with the public shape error."""
+    lo = np.asarray(member.lower, dtype=float)
+    hi = np.asarray(member.upper, dtype=float)
+    if lo.size != 1 or hi.size != 1:
+        raise ValueError(
+            f"family {fam_id!r} has length-{max(lo.size, hi.size)} bounds; "
+            "the single-trait estimator needs scalar bounds per member -- "
+            "use estimate_liability's multi-trait model")
+    return float(lo.reshape(())), float(hi.reshape(()))
+
+
 def _stack_object_members(families, idx, roles, dtype, use_mixture=False):
     """Stack one structure group's member scalars into ``(F, len(roles))`` arrays.
 
@@ -794,15 +815,8 @@ def _stack_object_members(families, idx, roles, dtype, use_mixture=False):
         by_role = {m.role: m for m in fam.members}
         for j, role in enumerate(roles):
             member = by_role[role]
-            lo = np.asarray(member.lower, dtype=float)
-            hi = np.asarray(member.upper, dtype=float)
-            if lo.size != 1 or hi.size != 1:
-                raise ValueError(
-                    f"family {fam.fam_id!r} has length-{max(lo.size, hi.size)} "
-                    "bounds; the single-trait estimator needs scalar bounds per "
-                    "member -- use estimate_liability's multi-trait model")
-            lowers[slot, j] = float(lo.reshape(()))
-            uppers[slot, j] = float(hi.reshape(()))
+            lowers[slot, j], uppers[slot, j] = _scalar_member_bounds(
+                member, fam.fam_id)
             if use_mixture:
                 K_is[slot, j] = (np.nan if member.K_i is None
                                  else float(member.K_i))
@@ -988,7 +1002,7 @@ def estimate_liability(families: Sequence, h2: ArrayLike = 0.5, *,
     grouped Gibbs at four threads on the no-mixture benchmark grid in this
     package. On a locked comparison to R LTFHPlus 2.2.0 (same families,
     same bounds, LTFHPlus's Gibbs settings) both engines had correlation
-    0.9999 with the R Gibbs scores (RMSE ``0.0041`` Gibbs, ``0.0045`` PA).
+    0.9999 with the R Gibbs scores (RMSE ``0.0041`` Gibbs, ``0.0046`` PA).
     LTFHPlus is Gibbs-only; public PA is
     LTFGRS 1.0.1, and ltpred PA matches it at RMSE ``0.000087``.
     Same-algorithm fold times on that lock were 6.79× (LTFHPlus Gibbs /

@@ -6,6 +6,21 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.4.2 — 2026-08-21
+
+### Fixed
+
+- Preserve the single-trait scalar-bound diagnostic when the PA censoring
+  mixture is enabled, and correct the documented PA-versus-LTFHPlus RMSE to
+  0.0046. The evidence gate now derives and checks both R-lock RMSE values.
+
+### Changed
+
+- Restore lean prospective benchmark provenance: retained artifacts and
+  external inputs are hashed in one JSONL row together with the clean source
+  commit, command, runtime stack, thread settings, machine profile and run
+  status. Historical artifacts remain explicitly unattributed.
+
 ## 0.4.1 — 2026-08-20
 
 ### Fixed

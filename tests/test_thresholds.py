@@ -156,6 +156,14 @@ def test_age_thresholds_case_pinned_control_open():
     assert lower[1] == -np.inf and np.isfinite(upper[1])
 
 
+def test_age_thresholds_broadcast_scalar_age_to_status_shape():
+    lower, upper = age_thresholds([1, 0], 50.0, pop_prev=0.1)
+    threshold = float(convert_age_to_thresh(50.0, pop_prev=0.1))
+    assert lower.shape == upper.shape == (2,)
+    assert np.array_equal(upper, [threshold, threshold])
+    assert upper.flags.writeable
+
+
 @pytest.mark.parametrize("prev", [0.0, 1.0, -0.1, 1.5])
 def test_simple_threshold_helpers_reject_degenerate_prevalence(prev):
     # liability_threshold(0) = +inf and (1) = -inf flowed silently into bounds

@@ -16,16 +16,37 @@ letting Numba take every core: a speed-up is only interpretable alongside the
 thread count it was measured at, because Gibbs is parallel while the PA object
 path is largely serial.
 
+Use the provenance wrapper whenever regenerated output will be committed. It
+appends one JSON object to `run_manifest.jsonl` with the clean source commit,
+exact command, runtime stack, thread settings, machine profile, exit status, and
+hashes of declared CSV/PNG artifacts:
+
 ```bash
-python benchmarks/bench_accuracy.py
-NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=4 python benchmarks/bench_scaling.py
-NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=4 python benchmarks/bench_gwas_power.py
+python benchmarks/run_benchmark.py --artifact bench_accuracy.csv \
+  --artifact bench_accuracy.png bench_accuracy.py
+NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=4 \
+  python benchmarks/run_benchmark.py --artifact bench_scaling.csv \
+    --artifact bench_scaling.png bench_scaling.py
+NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=4 \
+  python benchmarks/run_benchmark.py --artifact bench_gwas_power.csv \
+    --artifact bench_gwas_power.png bench_gwas_power.py
 ```
+
+The wrapper ignores existing benchmark outputs when checking source cleanliness,
+so several scripts can be rerun before committing one campaign. It refuses all
+other source changes: commit those first, or use direct script invocation for an
+exploratory run whose output will not be retained. Declare every retained output
+with repeatable `--artifact`; this records its hash even when a deterministic
+rerun reproduces the existing bytes exactly.
+
+For external inputs, add repeatable `--input FILE` arguments; the wrapper hashes
+them before the run and rejects a run if they change while it is executing. A
+PLINK prefix therefore needs three declarations (`.bed`, `.bim`, and `.fam`).
 
 Timing runs also want an otherwise-quiet machine. Record the load average beside
 the command before quoting a number: `bench_scaling`'s current figures were
-taken while the 1-minute load moved from 2.56 to 5.86 on a 10-core box. The old
-automatic run manifest was removed in the 2026-08 lean-down.
+taken while the 1-minute load moved from 2.56 to 5.86 on a 10-core box. The lean
+wrapper restores prospective provenance without the removed log/source archives.
 
 Most scripts write a `.csv` and, if matplotlib is present, a `.png`. The
 following scripts print focused diagnostics to stdout and also write a
@@ -137,6 +158,6 @@ plus a minimal PLINK `.bed` reader for the HAPNEST path.
   `OMP_NUM_THREADS` too so linked numerical libraries use the same limit.
 - Checked-in CSVs and [`RESULTS.md`](RESULTS.md) are historical artifacts.
   Their claims apply only to their recorded designs and provenance, not
-  automatically to the current source tree. `scripts/check_evidence.py` pins
-  the release-defining scaling, IPW and R-lock claims; verify other numbers
-  against their CSVs when quoting them.
+  automatically to the current source tree. `scripts/check_evidence.py`
+  reconciles the release-defining scaling, IPW, R-lock and PGS claims with their
+  stored artifacts; verify other numbers against their CSVs when quoting them.

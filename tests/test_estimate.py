@@ -514,6 +514,15 @@ def test_use_mixture_without_K_raises():
             use_mixture=True)
 
 
+@pytest.mark.parametrize("bound_type", [list, np.asarray])
+def test_mixture_vector_bounds_get_single_trait_shape_error(bound_type):
+    fam = Family(
+        "f", [Member("o", bound_type([-np.inf, -np.inf]),
+                           bound_type([1.0, 1.0]), K_i=0.05, K_pop=0.10)])
+    with pytest.raises(ValueError, match="single-trait estimator needs scalar bounds"):
+        estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
+
+
 @pytest.mark.parametrize("lower", [-np.inf, 1.0])
 def test_mixture_rejects_pair_on_case_or_unbounded_row(lower):
     """K pairs are invalid, rather than merely inactive, when upper is +inf."""

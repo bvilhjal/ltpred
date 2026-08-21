@@ -21,3 +21,7 @@ site/
 .venv/
 venv/
 env/
+
+# Local benchmark data (for example HAPNEST PLINK files)
+/data/
+/*.sif
