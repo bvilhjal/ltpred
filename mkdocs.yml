@@ -8,9 +8,14 @@ docs_dir: docs
 
 theme:
   name: material
+  custom_dir: docs/overrides
   logo: assets/logo.svg
   favicon: assets/logo.svg
+  font:
+    text: Source Sans 3
+    code: Roboto Mono
   features:
+    - announce.dismiss
     - navigation.sections
     - navigation.top
     - navigation.tracking
@@ -19,11 +24,15 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -57,7 +66,23 @@ markdown_extensions:
   - toc:
       permalink: true
 
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/solid/globe
+      link: https://smartbiomed.dk/
+      name: Pioneer Centre for SMARTbiomed
+    - icon: fontawesome/brands/github
+      link: https://github.com/bvilhjal/ltpred
+      name: ltpred on GitHub
+
+copyright: >
+  Pioneer Centre for SMARTbiomed ·
+  <a href="https://smartbiomed.dk/">smartbiomed.dk</a> ·
+  Aarhus University · University of Copenhagen · University of Oxford
+
 extra_css:
+  - stylesheets/smartbiomed.css
   - https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css
 
 extra_javascript:

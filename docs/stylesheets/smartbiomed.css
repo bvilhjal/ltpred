@@ -1,0 +1,90 @@
+/* Visual language from https://smartbiomed.dk/ (Aarhus University
+ * Delphinus / AU Admins template): teal #008197 header and footer,
+ * navy #002546 text and dark bars, light #f4f3f4 cards, 5px radii.
+ * AU Passata is not redistributable; Source Sans 3 is the public stand-in
+ * set in mkdocs.yml. */
+
+:root {
+  --md-primary-fg-color: #008197;
+  --md-primary-fg-color--light: #2aa8bc;
+  --md-primary-fg-color--dark: #00667a;
+  --md-accent-fg-color: #003d85;
+  --md-accent-fg-color--transparent: rgba(0, 61, 133, 0.12);
+  --md-typeset-a-color: #008197;
+  --md-default-fg-color: #002546;
+  --md-default-fg-color--light: #3d5368;
+  --md-default-fg-color--lighter: #7a8a99;
+  --md-default-bg-color: #ffffff;
+  --md-footer-bg-color: #008197;
+  --md-footer-bg-color--dark: #00667a;
+  --md-footer-fg-color: #ffffff;
+  --md-footer-fg-color--light: #ececec;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #008197;
+  --md-primary-fg-color--light: #2aa8bc;
+  --md-primary-fg-color--dark: #00667a;
+  --md-accent-fg-color: #7fd4e0;
+  --md-typeset-a-color: #7fd4e0;
+  --md-default-fg-color: #e8eef2;
+  --md-default-bg-color: #002546;
+  --md-footer-bg-color: #008197;
+  --md-footer-bg-color--dark: #001a32;
+}
+
+.md-header,
+.md-tabs {
+  background-color: #008197;
+}
+
+.md-banner {
+  background-color: #002546;
+  color: #fff;
+}
+
+.md-banner a {
+  color: #7fd4e0;
+}
+
+.md-banner a:hover {
+  color: #fff;
+}
+
+.md-footer {
+  background-color: #008197;
+}
+
+.md-footer-meta {
+  background-color: #00667a;
+}
+
+.md-typeset h1 {
+  color: #002546;
+  font-weight: 700;
+}
+
+[data-md-color-scheme="slate"] .md-typeset h1 {
+  color: #e8eef2;
+}
+
+.md-typeset .admonition,
+.md-typeset details,
+.md-typeset pre,
+.md-typeset .md-button,
+.md-typeset table:not([class]) {
+  border-radius: 5px;
+}
+
+.md-typeset .admonition.example,
+.md-typeset details.example {
+  border-color: #008197;
+}
+
+.md-copyright a {
+  color: #ececec;
+}
+
+.md-copyright a:hover {
+  color: #fff;
+}

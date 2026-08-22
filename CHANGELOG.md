@@ -25,7 +25,9 @@ version is 0 the public API may still change between minor releases.
 - A user vignette (`docs/vignette.md`, runnable as `examples/vignette.py`):
   simulate a nuclear-family cohort, estimate LT-FH scores, compare encodings,
   and map the same steps onto a column table. The page is part of the MkDocs
-  site (`/vignette/`); KaTeX renders the equations.
+  site (`/vignette/`); KaTeX renders the equations. The docs site uses the
+  SMARTbiomed / Aarhus University teal–navy palette from
+  [smartbiomed.dk](https://smartbiomed.dk/).
 
 ### Changed
 
