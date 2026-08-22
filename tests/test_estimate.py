@@ -789,27 +789,23 @@ def test_member_role_g_is_rejected_on_object_and_array_paths():
                                         burn_in=0)
 
 
-def test_family_without_members_warns_instead_of_a_silent_zero():
+def test_family_without_members_raises_instead_of_a_silent_zero():
     # A family with no observed rows has nothing to condition on, so every
-    # engine correctly returns the prior mean 0 -- which is indistinguishable in
-    # the output from a real estimate near zero. In practice it means a join
-    # dropped the rows, so it must be said out loud.
+    # engine would return the prior mean 0 -- indistinguishable from a real
+    # estimate near zero. A join that dropped the rows must not leave that
+    # zero in a GWAS phenotype.
     t = float(stats.norm.isf(0.05))
     fams = [Family("empty", []),
             Family("ok", [Member("o", t, np.inf), Member("m", -np.inf, t)])]
     for method in ("pa", "gibbs"):
-        with pytest.warns(RuntimeWarning, match="no members"):
-            res = estimate_liability(fams, h2=0.5, method=method,
-                                     n_sim=20_000, burn_in=200, seed=1)
-        # the prior mean: exactly 0 for the deterministic engine, 0 up to
-        # Monte-Carlo noise for the sampler
-        assert abs(res.est["genetic"][0]) < 0.05
-        assert res.est["genetic"][1] > 0.3
+        with pytest.raises(ValueError, match="no members"):
+            estimate_liability(fams, h2=0.5, method=method,
+                               n_sim=200, burn_in=0, seed=1)
 
-    # the ordinary path stays silent
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        estimate_liability(fams[1:], h2=0.5)
+        res = estimate_liability(fams[1:], h2=0.5)
+    assert res.est["genetic"][0] > 0.3
 
 
 def test_gibbs_reports_posterior_variance_alongside_the_mc_error():

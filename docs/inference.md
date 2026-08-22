@@ -10,7 +10,10 @@ Unsupported experimental inferential machinery lives in the checkout-only
 !!! danger "Supported sampling contract"
 
     `fit_heritability` and `fit_variance_components` assume independent,
-    non-overlapping families. For **unascertained** samples pass
+    non-overlapping families. When members carry `pid`, a person who appears
+    in more than one family (distinct `fam_id`) is rejected; use
+    `estimate_liability` for per-proband scores on overlapping register
+    pedigrees. For **unascertained** samples pass
     `sampling="population"`; for a sample **selected on observed status with a
     known, strictly positive inclusion probability** pass `sampling="ipw"` with
     per-family `weights` (see [Ascertained samples](#ascertained-samples)).

@@ -89,6 +89,21 @@ def check_scaling():
     return speed_range, lo, hi
 
 
+def check_pa_robustness():
+    rows = csv_rows("bench_pa_robustness.csv")
+    agrees = [float(row["agree"]) for row in rows if row.get("agree")]
+    if not agrees:
+        raise AssertionError("bench_pa_robustness.csv has no agreement values")
+    worst = min(agrees)
+    # Four-decimal *floor*, not round: 0.99916 rounds to 0.9992, which is how
+    # the methods note previously contradicted its own worst-seed parenthetical.
+    floor = f"{int(worst * 10_000) / 10_000:.4f}"
+    seed5 = f"{worst:.5f}"
+    require(RESULTS, f"at least {floor}", f"worst single-seed {seed5}")
+    require(REPORT_TEX, f"$\\ge {floor}$", seed5)
+    return floor, seed5
+
+
 def check_ipw():
     rows = csv_rows("bench_ascertainment.csv")
     case_control = one(rows, arm="ipw", scheme="case_control")
@@ -248,7 +263,7 @@ def last_commit(path):
     return result.stdout.strip()
 
 
-def check_report(version, release_date, scaling, r_lock, pgs):
+def check_report(version, release_date, scaling, r_lock, pgs, pa_robust):
     try:
         from pypdf import PdfReader
     except ImportError as exc:
@@ -268,6 +283,7 @@ def check_report(version, release_date, scaling, r_lock, pgs):
         re.escape(f"{r_lock['pa_one']:.0f}"),
         re.escape(f"{pgs['joint']:.3f}"), re.escape(f"{pgs['pgs']:.3f}"),
         re.escape(f"{pgs['fh']:.3f}"),
+        re.escape(pa_robust[0]), re.escape(pa_robust[1]),
     ]
     for pattern in patterns:
         if not re.search(pattern, text):
@@ -310,12 +326,14 @@ def version_and_date():
 def main():
     version, release_date = version_and_date()
     scaling = check_scaling()
+    pa_robust = check_pa_robustness()
     cc, en, n_fam = check_ipw()
     r_lock = check_r_lock()
     pgs = check_pgs()
-    check_report(version, release_date, scaling, r_lock, pgs)
+    check_report(version, release_date, scaling, r_lock, pgs, pa_robust)
     print(
         f"Evidence artifacts internally consistent: scaling {scaling[0]}; "
+        f"PA stress floor {pa_robust[0]} (worst {pa_robust[1]}); "
         f"IPW {cc}/{en} (N={n_fam:,}); "
         f"R locks {r_lock['details']['gibbs']} and {r_lock['details']['pa']}; "
         f"PGS {pgs['headline']}; PDF v{version}."

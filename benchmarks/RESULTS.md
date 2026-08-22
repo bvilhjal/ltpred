@@ -93,13 +93,14 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   (interpreter included). The 8086× figure is not
   "LT-FH++, but faster."
 - **Classic LT-FH improves genotype-GWAS signal without average null inflation.**
-  Across three genotype/effect/cohort replicates, the same classic LT-FH model
-  inferred by either PA or Gibbs delivers a causal-SNP NCP ratio of
-  **1.47 ± 0.04×** over case/control.
+  Across three genotype/effect/cohort replicates on **independent SNPs**, the same
+  classic LT-FH model inferred by either PA or Gibbs delivers a causal-SNP NCP
+  ratio of **1.47 ± 0.04×** over case/control. These NCP ratios are not a
+  real-LD result; HAPNEST remains opt-in and unrun.
 - **Full personalised LT-FH++ adds family-history value beyond matched ADuLT.**
   With identical age/sex/cohort proband bounds, ADuLT reaches **1.049 ± 0.004×**
   adjusted causal-SNP NCP ratio over case/control and full LT-FH++ reaches
-  **1.194 ± 0.006×**. The paired LT-FH++ minus ADuLT increment is
+  **1.194 ± 0.006×** (same independent-SNP design). The paired LT-FH++ minus ADuLT increment is
   **+0.1454 ± 0.0154** NCP-ratio units (95% CI half-width). Full LT-FH++ has
   adjusted calibration slope **0.995 ± 0.015** and PA/Gibbs agreement 0.99996.
 - **Cohort-blind family thresholds inflate stratified-null λ_GC; cohort-aware thresholds do not.**

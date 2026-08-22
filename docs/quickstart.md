@@ -97,6 +97,7 @@ The score is not an absolute disease-risk probability.
 
 | you want to… | see |
 |---|---|
+| a longer working tour with simulated ground truth | [Vignette](vignette.md) |
 | understand roles, pedigrees, CIPs, real-data prep | [Data preparation](data-preparation.md) |
 | choose Gibbs vs PA, scale to biobank size, multi-trait, GWAS export | [Estimation](estimation.md) |
 | fit `h²` or A/C/M from population-sampled or reweighted selected families | [Inference](inference.md) |

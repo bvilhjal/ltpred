@@ -65,7 +65,9 @@ from ._validation import validate_bounds
 from .covariance import get_relatedness, _is_full_sib, _is_mates
 from .gibbs import (gibbs_params, gibbs_advance,
                     _init_chain, _FIXED_TOL, _seed_rng)
-from .estimate import _check_unique_roles, _group_by_structure, batch_means
+from .family import _is_missing_id
+from .estimate import (_assert_nonempty_families, _check_unique_roles,
+                       _group_by_structure, batch_means)
 
 __all__ = ["FitResult", "fit_heritability", "VarCompResult",
            "fit_variance_components", "BootstrapResult", "bootstrap_fit"]
@@ -133,6 +135,65 @@ def _validate_weights(weights, n_families, context):
             "family that could not have been sampled, which is a positivity "
             "failure rather than something to down-weight")
     return w
+
+
+def _pid_key(pid):
+    """Hashable identity for a member ``pid``, or ``None`` if it is missing.
+
+    Missing values cannot witness overlap. Numpy scalars are unwrapped so
+    ``np.int64(1)`` and ``1`` compare equal. Unhashable objects fall back to
+    ``str`` rather than crashing the check.
+    """
+    if _is_missing_id(pid):
+        return None
+    if isinstance(pid, np.generic):
+        pid = pid.item()
+        if _is_missing_id(pid):
+            return None
+    if isinstance(pid, bytes):
+        pid = pid.decode("utf-8", "replace")
+    if isinstance(pid, str):
+        pid = pid.strip()
+        if _is_missing_id(pid):
+            return None
+        return pid
+    try:
+        hash(pid)
+    except TypeError:
+        return str(pid)
+    return pid
+
+
+def _assert_nonoverlapping_pids(families, context):
+    """Reject a person (by ``pid``) who appears in more than one family.
+
+    The moment fitters treat families as iid clusters. A register extraction
+    that places the same parent in many probands' families is the intended
+    *prediction* design and an invalid *fitting* design. Members without a
+    ``pid`` cannot be checked, so a pid-less input is unchanged. Two copies of
+    the same ``fam_id`` (bootstrap resampling with replacement) are one
+    cluster, not two overlapping pedigrees.
+    """
+    seen = {}
+    for family in families:
+        local = set()
+        for member in family.members:
+            key = _pid_key(member.pid)
+            if key is None:
+                continue
+            if key in local:
+                raise ValueError(
+                    f"{context}: pid {member.pid!r} appears more than once in "
+                    f"family {family.fam_id!r}")
+            local.add(key)
+            previous = seen.get(key)
+            if previous is not None and previous != family.fam_id:
+                raise ValueError(
+                    f"{context}: pid {member.pid!r} appears in families "
+                    f"{previous!r} and {family.fam_id!r}; the moment fitters "
+                    "require non-overlapping families. Use estimate_liability "
+                    "for per-proband scores on overlapping register pedigrees.")
+            seen[key] = family.fam_id
 
 
 #: Thresholds for the case-rate check, calibrated from BOTH sides.
@@ -459,6 +520,9 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     ``h2 = 1.0``. The check is deliberately conservative, so it catches the
     catastrophic designs rather than certifying population sampling; mild
     enrichment on a small cohort still passes and remains your responsibility.
+    When members carry ``pid``, a person who appears in more than one family
+    (distinct ``fam_id``) is rejected; prediction on overlapping register
+    pedigrees is :func:`~ltpred.estimate.estimate_liability`.
 
     **Selected samples:** ``sampling="ipw"`` with per-family ``weights`` handles
     selection on observed status when the inclusion probability is known and
@@ -516,6 +580,8 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     weights = _validate_weights(weights, len(families), "fit_heritability")
     _validate_population_sampling(sampling, "fit_heritability", weights=weights)
     _check_unique_roles(families)
+    _assert_nonempty_families(families)
+    _assert_nonoverlapping_pids(families, "fit_heritability")
     _assert_common_thresholds(families, 1, context="fit_heritability")
     _assert_population_case_rate(families, 1, context="fit_heritability",
                                  weights=weights)
@@ -720,7 +786,7 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
     probabilities. Pass ``sampling="population"`` for the former, or
     ``sampling="ipw"`` with reciprocal-probability ``weights`` for the latter (see
     :func:`fit_heritability` for both, including the marginal-check, positivity,
-    and efficiency limits). Without one of those, this fitter does not correct
+    pid-overlap, and efficiency limits). Without one of those, this fitter does not correct
     case/control or family-history ascertainment; under it the components
     saturate, exhausting the residual variance rather than sitting at the
     elementwise clamp.
@@ -796,6 +862,8 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
     _validate_population_sampling(sampling, "fit_variance_components",
                                   weights=weights)
     _check_unique_roles(families)
+    _assert_nonempty_families(families)
+    _assert_nonoverlapping_pids(families, "fit_variance_components")
     _assert_common_thresholds(families, 1, context="fit_variance_components")
     _assert_population_case_rate(families, 1,
                                  context="fit_variance_components",

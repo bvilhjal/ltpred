@@ -2,7 +2,8 @@
 
 How to turn a registry-style status/age table into the inputs `estimate_liability`
 needs: families of members with liability bounds. For the end-to-end flow first, see
-the [quickstart](quickstart.md); this page is the reference for each piece.
+the [quickstart](quickstart.md) or the longer [vignette](vignette.md); this page
+is the reference for each piece.
 
 ## Inputs
 

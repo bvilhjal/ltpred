@@ -1,6 +1,9 @@
 site_name: ltpred
 site_description: LT-FH++ with family history and family-free ADuLT in Python
+site_url: https://bvilhjal.github.io/ltpred/
 repo_url: https://github.com/bvilhjal/ltpred
+repo_name: bvilhjal/ltpred
+edit_uri: edit/main/docs/
 docs_dir: docs
 
 theme:
@@ -10,6 +13,7 @@ theme:
   features:
     - navigation.sections
     - navigation.top
+    - navigation.tracking
     - content.code.copy
     - toc.follow
   palette:
@@ -28,6 +32,7 @@ nav:
   - Overview: index.md
   - Choose a method: guide.md
   - Quickstart: quickstart.md
+  - Vignette: vignette.md
   - Workflow:
       - Data preparation: data-preparation.md
       - CIP estimation: cip-estimation.md
@@ -44,10 +49,21 @@ nav:
 markdown_extensions:
   - admonition
   - tables
+  - pymdownx.details
   - pymdownx.highlight
   - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
   - toc:
       permalink: true
+
+extra_css:
+  - https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js
+  - javascripts/katex.js
 
 plugins:
   - search

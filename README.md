@@ -1,5 +1,8 @@
 # ltpred
 
+**[Vignette (HTML, with equations)](https://bvilhjal.github.io/ltpred/vignette/)**
+· [markdown source](docs/vignette.md)
+
 **ltpred** is a Python implementation of **LT-FH++**, extending the original
 **LT-FH** family-history phenotype
 ([Hujoel et al. 2020, *Nature Genetics*](https://doi.org/10.1038/s41588-020-0613-6))
@@ -61,6 +64,8 @@ classification, omit the proband's role `o` or give it uninformative
 ## Documentation
 
 - **User guide** — the [quickstart](docs/quickstart.md) (a complete run), then
+  the [vignette](https://bvilhjal.github.io/ltpred/vignette/) (webpage: simulate,
+  score, encodings, your own table; source [docs/vignette.md](docs/vignette.md)),
   [data preparation](docs/data-preparation.md), [CIP estimation](docs/cip-estimation.md),
   [estimation](docs/estimation.md),
   [inference](docs/inference.md), [assumptions & checklist](docs/assumptions.md),
@@ -234,7 +239,8 @@ automatic validation of later source changes; see the provenance header and
 rerun instructions in [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md). The
 integrated LT-FH++ benchmark includes age-, sex-, and
 cohort-dependent CIP, coherent onset/censoring, ascertainment, and a genotype
-GWAS. A matched ADuLT arm keeps the same personalised proband bounds but removes
+GWAS on **independent SNPs** (real-LD remains the opt-in HAPNEST path, not run).
+A matched ADuLT arm keeps the same personalised proband bounds but removes
 relatives: it reaches a 1.049 ± 0.004× adjusted causal-SNP NCP ratio, versus
 1.194 ± 0.006× for full LT-FH++; the paired family-history increment is
 +0.1454 ± 0.0154 NCP-ratio units
@@ -242,7 +248,7 @@ relatives: it reaches a 1.049 ± 0.004× adjusted causal-SNP NCP ratio, versus
 prespecified sex-CIP panel separately shows removal of a
 0.05092 ± 0.00096 female–male score-error gap, while its adjusted power increment
 remains unresolved. In the replicated classic-LT-FH GWAS, PA and Gibbs both
-reach a 1.47 ± 0.04× causal-SNP NCP ratio. Across matched **no-mixture** bounds,
+reach a 1.47 ± 0.04× causal-SNP NCP ratio on the same independent-SNP design. Across matched **no-mixture** bounds,
 their posterior-mean estimates had correlation ≥ 0.997. These PA–Gibbs claims do
 not validate the PA-only censoring mixture. For that mixture, three of ten
 paired ranking contrasts exclude zero, but the largest correlation shift is

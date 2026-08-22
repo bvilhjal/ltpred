@@ -344,25 +344,24 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
     return est, se, var
 
 
-def _warn_empty_families(families):
-    """Warn when a family carries no observed member at all.
+def _assert_nonempty_families(families):
+    """Reject a family that carries no observed member at all.
 
-    Such a family has nothing to condition on, so every estimator correctly
-    returns the prior mean 0 — indistinguishable in the output from a genuine
+    Such a family has nothing to condition on, so every estimator would
+    return the prior mean 0 — indistinguishable in the output from a genuine
     estimate that happens to land near zero. In practice it almost always means
-    a join dropped the rows rather than that the proband is truly unobserved, so
-    say so rather than emitting a silent zero into a GWAS phenotype."""
+    a join dropped the rows rather than that the proband is truly unobserved.
+    A warning used to leave that zero in the GWAS phenotype if it was ignored.
+    """
     empty = [fam.fam_id for fam in families if not fam.members]
     if empty:
         shown = ", ".join(repr(fid) for fid in empty[:5])
         more = "" if len(empty) <= 5 else f", ... (+{len(empty) - 5} more)"
-        warnings.warn(
+        raise ValueError(
             f"{len(empty)} of {len(families)} families have no members "
-            f"({shown}{more}); with nothing to condition on their estimate is "
-            "the prior mean 0, not an informative score — check that the "
-            # 4, not 3: the chain is _warn_empty_families -> the per-model
-            # estimator -> estimate_liability -> the user's call
-            "member rows were joined in.", RuntimeWarning, stacklevel=4)
+            f"({shown}{more}); with nothing to condition on the estimate "
+            "would be the prior mean 0, indistinguishable from a real score. "
+            "Drop those families or fix the join that dropped their member rows.")
 
 
 def _check_unique_roles(families):
@@ -494,7 +493,7 @@ def _estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01, n_s
     cost. ``seed`` must be a non-boolean integer in ``[0, 2**32 - 1]`` or ``None``.
     Returns a :class:`LiabilityResult` whose arrays line up with ``families``."""
     _check_unique_roles(families)
-    _warn_empty_families(families)
+    _assert_nonempty_families(families)
     dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
     names = [_OUT_NAMES[c] for c in out_coords]
@@ -551,7 +550,7 @@ def _estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False
     :class:`LiabilityResult` with ``se = 0`` and PA approximations to conditional
     variances in ``var``."""
     _check_unique_roles(families)
-    _warn_empty_families(families)
+    _assert_nonempty_families(families)
     if use_mixture:
         n_members = sum(len(family.members) for family in families)
         lower = np.empty(n_members)
@@ -626,7 +625,7 @@ def _estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
             f"phen_names contains duplicates {phen_names!r}; each phenotype "
             "needs a distinct name")
     _check_unique_roles(families)
-    _warn_empty_families(families)
+    _assert_nonempty_families(families)
     _validate_multitrait_bounds(families, n_pheno)
     dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)

@@ -34,6 +34,7 @@ The guide is split into short, task-focused pages:
 | page | what's in it |
 |---|---|
 | **[Quickstart](quickstart.md)** | one complete runnable analysis, start to finish |
+| **[Vignette](vignette.md)** | longer working tour: simulate, score, encodings, your own table |
 | **[Data preparation](data-preparation.md)** | inputs, role grammar, arbitrary pedigrees, threshold builders, CIPs, getting `h²` |
 | **[CIP estimation](cip-estimation.md)** | estimating cumulative incidence from follow-up records (Kaplan-Meier, Aalen-Johansen), estimands, stratification |
 | **[Estimation](estimation.md)** | running the estimator, reading the result, Gibbs vs PA, scaling, multi-trait, GWAS export |
@@ -47,9 +48,11 @@ they are not installed with ltpred.
 
 See [algorithm.md](algorithm.md) for the model and the estimators, and the
 [benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
-for model and engine comparisons. For runnable end-to-end scripts see
+for model and engine comparisons. For a longer working tour see the [vignette](vignette.md)
+([`examples/vignette.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py)).
+Other runnable scripts:
 [`examples/registry_pipeline.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/registry_pipeline.py)
-(a core status/age-to-score example) and
+(status/age table to a score) and
 [`examples/ltfh_power_demo.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/ltfh_power_demo.py).
 
 ## When to use ltpred
@@ -68,7 +71,8 @@ Use ltpred when you have, per proband:
 !!! warning "Family-data fitting needs a declared sampling design"
 
     `fit_heritability` and `fit_variance_components` assume independent,
-    non-overlapping families under one of two contracts:
+    non-overlapping families under one of two contracts (a `pid` that appears
+    in more than one family is rejected):
     `sampling="population"` for an unascertained sample — screened for gross
     marginal case-rate inconsistency, though a passing screen is not proof of
     population sampling — or `sampling="ipw"` with

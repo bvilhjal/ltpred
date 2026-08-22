@@ -89,6 +89,59 @@ def test_lone_probands_raise():
         fit_heritability(fams, n_iter=50, burn_in=10, sampling="population")
 
 
+def test_empty_family_raises_before_fitting():
+    t = 1.64
+    fams = [Family(0, [Member("o", -np.inf, t), Member("m", t, np.inf)]),
+            Family(1, [])]
+    with pytest.raises(ValueError, match="no members"):
+        fit_heritability(fams, n_iter=10, burn_in=4, sampling="population")
+    with pytest.raises(ValueError, match="no members"):
+        fit_variance_components(
+            fams, ("A",), n_iter=10, burn_in=4, sampling="population")
+
+
+def test_overlapping_pids_raise_and_unique_or_missing_pids_pass():
+    # A shared mother across two fam_ids is the register-extraction pattern:
+    # valid for per-proband scores, invalid for the iid-family moment fit.
+    t = 1.64
+    overlap = [
+        Family(0, [Member("o", -np.inf, t, pid="p0"),
+                   Member("m", t, np.inf, pid="mom")]),
+        Family(1, [Member("o", t, np.inf, pid="p1"),
+                   Member("m", -np.inf, t, pid="mom")]),
+    ]
+    with pytest.raises(ValueError, match="appears in families"):
+        fit_heritability(overlap, n_iter=10, burn_in=4, sampling="population")
+    with pytest.raises(ValueError, match="appears in families"):
+        fit_variance_components(
+            overlap, ("A",), n_iter=10, burn_in=4, sampling="population")
+
+    twice = [Family(0, [Member("o", -np.inf, t, pid="same"),
+                        Member("m", t, np.inf, pid="same")])]
+    with pytest.raises(ValueError, match="more than once"):
+        fit_heritability(twice, n_iter=10, burn_in=4, sampling="population")
+
+    # numpy scalar vs python int must still count as one person
+    overlap_np = [
+        Family(0, [Member("o", -np.inf, t, pid=np.int64(10)),
+                   Member("m", t, np.inf, pid=np.int64(99))]),
+        Family(1, [Member("o", t, np.inf, pid=11),
+                   Member("m", -np.inf, t, pid=99)]),
+    ]
+    with pytest.raises(ValueError, match="appears in families"):
+        fit_heritability(overlap_np, n_iter=10, burn_in=4, sampling="population")
+
+    unique = [Family(i, [Member("o", -np.inf, t, pid=f"p{i}"),
+                         Member("m", t, np.inf, pid=f"m{i}")])
+              for i in range(2)]
+    fit_heritability(unique, n_iter=20, burn_in=6, inner_sweeps=1,
+                     sampling="population")
+    pidless = [Family(i, [Member("o", -np.inf, t), Member("m", t, np.inf)])
+               for i in range(2)]
+    fit_heritability(pidless, n_iter=20, burn_in=6, inner_sweeps=1,
+                     sampling="population")
+
+
 def test_variance_components_additive_matches_heritability():
     # single-component fit == fit_heritability (same data-augmentation)
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,

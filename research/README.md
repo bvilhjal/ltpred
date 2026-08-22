@@ -21,8 +21,9 @@ Layout:
   effects.
 - `pipeline.py` — the end-to-end register pipeline (trio records -> pedigree
   -> CIP thresholds -> kinship-estimated scores).
-- `tests/` — the test suites for the above, moved from `tests/`. They run in
-  CI alongside the core suite (`testpaths` in `pyproject.toml`).
+- `tests/` — tests for the above, moved from `tests/`. They are **not**
+  collected: `testpaths` in `pyproject.toml` covers only `tests/`, and CI
+  does not run this directory.
 
 Graduation rule: a capability moves into `ltpred` proper only when it is
 wired into the core estimation path and benchmarked.

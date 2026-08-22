@@ -6,6 +6,32 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Fixed
+
+- Methods note stress-pedigree PA–Gibbs floor is 0.9991 (CSV minimum 0.99916),
+  not 0.9992. `scripts/check_evidence.py` now recomputes the floor from
+  `bench_pa_robustness.csv`.
+- `fit_heritability` and `fit_variance_components` reject a `pid` that appears
+  in more than one family (or twice in one family). Overlapping register
+  pedigrees remain valid for `estimate_liability`. Bootstrap copies of the
+  same `fam_id` are not treated as overlap. Members without a `pid` cannot be
+  checked.
+- A family with no members now raises rather than warning and returning the
+  prior mean 0 (a silent-looking GWAS phenotype if the warning was ignored).
+- `research/README.md` no longer claims its tests run in CI.
+
+### Added
+
+- A user vignette (`docs/vignette.md`, runnable as `examples/vignette.py`):
+  simulate a nuclear-family cohort, estimate LT-FH scores, compare encodings,
+  and map the same steps onto a column table. The page is part of the MkDocs
+  site (`/vignette/`); KaTeX renders the equations.
+
+### Changed
+
+- README, RESULTS.md, and the headline tables state that the genotype-GWAS
+  NCP ratios are independent-SNP results.
+
 ## 0.4.2 — 2026-08-21
 
 ### Fixed

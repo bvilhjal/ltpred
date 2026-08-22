@@ -66,7 +66,8 @@ cross-trait component covariance; see
 and [Inference](inference.md#variance-components-a-c-m).
 
 The family-data fitters assume **independent, non-overlapping families**, and
-one of two sampling contracts. `sampling="population"` for an unascertained
+one of two sampling contracts. When members carry `pid`, a person who appears
+in more than one family is rejected rather than silently pooled. `sampling="population"` for an unascertained
 sample — now *screened for gross marginal inconsistency* with your data, since
 the thresholds assert a prevalence the observed case rates should match.
 `sampling="ipw"` with per-family
@@ -125,7 +126,8 @@ Before running a production analysis:
      phenotype, case-control imbalance, and tail behaviour
      ([Zhuang et al. 2022](https://doi.org/10.1093/bioinformatics/btac459)).
 12. For built-in family-data **fitting or bootstrap inference**, require
-    independent, non-overlapping families, and match the contract to the design:
+    independent, non-overlapping families (a `pid` that appears in more than
+    one family is rejected), and match the contract to the design:
     `sampling="population"` for an unascertained sample, or `sampling="ipw"`
     with `weights = 1 / P(family sampled)` when selection was on observed status
     with a known positive probability for every stratum. Check that your
