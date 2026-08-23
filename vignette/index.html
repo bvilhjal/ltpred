@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A working tour of ltpred — simulate families, estimate genetic liability, and map the same steps onto your own table.">
+        <meta name="description" content="How to run ltpred — h², pedigree, CIP, family history, estimate, GWAS.">
       
       
       
@@ -84,7 +84,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#vignette-from-family-history-to-a-gwas-phenotype" class="md-skip">
+        <a href="#vignette-how-to-run-ltpred" class="md-skip">
           Skip to content
         </a>
       
@@ -405,10 +405,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-is-being-estimated" class="md-nav__link">
+  <a href="#before-software" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What is being estimated
+        Before software
       
     </span>
   </a>
@@ -416,10 +416,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#1-simulate-a-cohort-you-can-check" class="md-nav__link">
+  <a href="#0-heritability-and-covariances" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Simulate a cohort you can check
+        0. Heritability and covariances
       
     </span>
   </a>
@@ -427,10 +427,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-estimate-then-read-est-se-and-var" class="md-nav__link">
+  <a href="#1-pedigree" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Estimate, then read est, se and var
+        1. Pedigree
       
     </span>
   </a>
@@ -438,10 +438,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-why-not-just-use-casecontrol" class="md-nav__link">
+  <a href="#2-cip-or-lifetime-prevalence" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Why not just use case/control?
+        2. CIP or lifetime prevalence
       
     </span>
   </a>
@@ -449,10 +449,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-the-probands-own-diagnosis-is-optional" class="md-nav__link">
+  <a href="#3-family-history-records" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. The proband's own diagnosis is optional
+        3. Family-history records
       
     </span>
   </a>
@@ -460,10 +460,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-adult-is-the-same-construction-without-relatives" class="md-nav__link">
+  <a href="#4-estimate-mu_i" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. ADuLT is the same construction without relatives
+        4. Estimate \(\mu_i\)
       
     </span>
   </a>
@@ -471,10 +471,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-cross-check-pa-with-gibbs-on-a-subset" class="md-nav__link">
+  <a href="#5-hand-the-score-to-a-gwas" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Cross-check PA with Gibbs on a subset
+        5. Hand the score to a GWAS
       
     </span>
   </a>
@@ -482,87 +482,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-bring-your-own-table" class="md-nav__link">
+  <a href="#stand-in-cohort-simulated-classic-lt-fh" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. Bring your own table
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#8-arbitrary-pedigrees-the-kinship-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        8. Arbitrary pedigrees: the kinship path
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#9-getting-h2-onto-the-liability-scale" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        9. Getting \(h^2\) onto the liability scale
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#10-fitting-h2-from-the-family-data-only-under-a-sampling-contract" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        10. Fitting \(h^2\) from the family data — only under a sampling contract
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#11-age-cip-and-what-lt-fh-actually-requires" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        11. Age, CIP, and what “LT-FH++” actually requires
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#12-pa-fgrs-briefly" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        12. PA-FGRS, briefly
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#13-handing-the-score-to-a-gwas" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        13. Handing the score to a GWAS
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#14-mistakes-this-tour-is-designed-to-prevent" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        14. Mistakes this tour is designed to prevent
+        Stand-in cohort (simulated classic LT-FH)
       
     </span>
   </a>
@@ -1044,10 +967,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-is-being-estimated" class="md-nav__link">
+  <a href="#before-software" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What is being estimated
+        Before software
       
     </span>
   </a>
@@ -1055,10 +978,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#1-simulate-a-cohort-you-can-check" class="md-nav__link">
+  <a href="#0-heritability-and-covariances" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Simulate a cohort you can check
+        0. Heritability and covariances
       
     </span>
   </a>
@@ -1066,10 +989,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-estimate-then-read-est-se-and-var" class="md-nav__link">
+  <a href="#1-pedigree" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Estimate, then read est, se and var
+        1. Pedigree
       
     </span>
   </a>
@@ -1077,10 +1000,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-why-not-just-use-casecontrol" class="md-nav__link">
+  <a href="#2-cip-or-lifetime-prevalence" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Why not just use case/control?
+        2. CIP or lifetime prevalence
       
     </span>
   </a>
@@ -1088,10 +1011,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-the-probands-own-diagnosis-is-optional" class="md-nav__link">
+  <a href="#3-family-history-records" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. The proband's own diagnosis is optional
+        3. Family-history records
       
     </span>
   </a>
@@ -1099,10 +1022,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-adult-is-the-same-construction-without-relatives" class="md-nav__link">
+  <a href="#4-estimate-mu_i" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. ADuLT is the same construction without relatives
+        4. Estimate \(\mu_i\)
       
     </span>
   </a>
@@ -1110,10 +1033,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-cross-check-pa-with-gibbs-on-a-subset" class="md-nav__link">
+  <a href="#5-hand-the-score-to-a-gwas" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Cross-check PA with Gibbs on a subset
+        5. Hand the score to a GWAS
       
     </span>
   </a>
@@ -1121,87 +1044,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-bring-your-own-table" class="md-nav__link">
+  <a href="#stand-in-cohort-simulated-classic-lt-fh" class="md-nav__link">
     <span class="md-ellipsis">
       
-        7. Bring your own table
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#8-arbitrary-pedigrees-the-kinship-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        8. Arbitrary pedigrees: the kinship path
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#9-getting-h2-onto-the-liability-scale" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        9. Getting \(h^2\) onto the liability scale
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#10-fitting-h2-from-the-family-data-only-under-a-sampling-contract" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        10. Fitting \(h^2\) from the family data — only under a sampling contract
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#11-age-cip-and-what-lt-fh-actually-requires" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        11. Age, CIP, and what “LT-FH++” actually requires
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#12-pa-fgrs-briefly" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        12. PA-FGRS, briefly
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#13-handing-the-score-to-a-gwas" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        13. Handing the score to a GWAS
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#14-mistakes-this-tour-is-designed-to-prevent" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        14. Mistakes this tour is designed to prevent
+        Stand-in cohort (simulated classic LT-FH)
       
     </span>
   </a>
@@ -1239,387 +1085,240 @@
   
 
 
-<h1 id="vignette-from-family-history-to-a-gwas-phenotype">Vignette: from family history to a GWAS phenotype<a class="headerlink" href="#vignette-from-family-history-to-a-gwas-phenotype" title="Permanent link">&para;</a></h1>
-<p>This page is a working tour of <strong>ltpred</strong>. It is longer than the
-<a href="../quickstart/">quickstart</a> and shorter than the reference pages. You will
-simulate a small nuclear-family cohort, estimate each proband's posterior mean
-genetic liability, see why that score is not the same thing as case/control
-status, and then map the same steps onto a table you bring yourself.</p>
-<p>On the documentation site this is a webpage
-(<a href="https://bvilhjal.github.io/ltpred/vignette/">/vignette/</a>).
-From a checkout:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[docs,fast]"</span>
-mkdocs<span class="w"> </span>serve<span class="w">                 </span><span class="c1"># http://127.0.0.1:8000/ltpred/vignette/</span>
-python<span class="w"> </span>examples/vignette.py<span class="w">  </span><span class="c1"># the calculations quoted below</span>
-</code></pre></div>
-<p>The numbers quoted below are what that script printed with the committed seed.
-They are a teaching sample, not a benchmark. Real analyses need
-population-representative cumulative incidence, a liability-scale <span class="arithmatex">\(h^2\)</span>, and
-the <a href="../assumptions/">checklist</a>.</p>
-<details class="example">
-<summary>Output of <code>python examples/vignette.py</code> (seed 1)</summary>
-<div class="highlight"><pre><span></span><code>== 1. Simulate a classic LT-FH cohort ==
-families 800; liability-scale h2 0.5; prevalence 0.05
-proband case rate 0.055
-
-== 2. Posterior mean genetic liability (PA, the default) ==
-score mean 0.004  sd 0.297
-PA se is identically 0 (deterministic): 0.0
-one case    score +0.947  posterior var 0.271
-one control score -0.119  posterior var 0.430
-
-== 3. The score tracks true g better than 0/1 status ==
-corr(case/control, true g) 0.342
-corr(LT-FH PA,     true g) 0.419
-squared-corr eff-N proxy   1.50x
-
-== 4. Own status is a modelling choice, not a requirement ==
-corr(relatives-only, true g) 0.268
-
-== 5. ADuLT is the same bounds with no relative rows ==
-corr(ADuLT, true g) 0.342
-
-== 6. Gibbs agrees with PA on these rectangles ==
-corr(PA, Gibbs) on 80 families 0.9997
-Gibbs MC se (median) 0.0066
-
-== 7. Bring-your-own columns (same families, rebuilt) ==
-max |rebuilt - original| 0.00e+00
-
-== 8. Kinship path matches the role grammar on this pedigree ==
-max |kinship PA - role PA| 5.64e-04
-
-== 9. Liability-scale h2 (Falconer / Lee) ==
-parent-offspring tetrachoric 0.237  (Falconer 2*rho = 0.474; truth 0.5)
-Lee: observed-scale 0.20 at K=0.05 -&gt; liability-scale 0.893
-
-== 10. Fit h2 only on independent, unascertained families ==
-fitted h2 0.363  (truth 0.5; within-dataset MC se 0.0060)
-
-== 11. Age-aware tutorial encoding (not full LT-FH++) ==
-corr(age-aware PA, true g) 0.261  (case/control 0.122)
-</code></pre></div>
-</details>
-<h2 id="what-is-being-estimated">What is being estimated<a class="headerlink" href="#what-is-being-estimated" title="Permanent link">&para;</a></h2>
-<p>Write <span class="arithmatex">\(\ell\)</span> for a person's full liability, <span class="arithmatex">\(a\)</span> for its additive genetic
-part, and <span class="arithmatex">\(e\)</span> for an independent environmental part. On the unit-liability
-scale</p>
+<h1 id="vignette-how-to-run-ltpred">Vignette: how to run ltpred<a class="headerlink" href="#vignette-how-to-run-ltpred" title="Permanent link">&para;</a></h1>
+<p>ltpred estimates each proband's posterior mean genetic liability</p>
 <div class="arithmatex">\[
-\ell = a + e,
-\qquad
-a \sim N(0, h^2),
-\qquad
-e \sim N(0, 1-h^2),
-\qquad
-\ell \sim N(0, 1).
+\mu_i = \mathbb{E}\bigl[a_i \mid D_F,\, A,\, h^2,\, K(\cdot)\bigr]
+\tag{1}
 \]</div>
-<p>A case is <span class="arithmatex">\(\ell &gt; T\)</span>. With lifetime prevalence <span class="arithmatex">\(K\)</span>,</p>
-<div class="arithmatex">\[
-T = \Phi^{-1}(1-K).
-\]</div>
-<p>Let <span class="arithmatex">\(i\)</span> be a designated proband, <span class="arithmatex">\(A\)</span> the additive relationship matrix of the
-people whose records are used, and <span class="arithmatex">\(K(\cdot)\)</span> the prevalence or CIP map that
-turns status and age into interval endpoints (or mixture weights). Write
-<span class="arithmatex">\(\ell_F\)</span> for the vector of full liabilities and <span class="arithmatex">\(D_F\)</span> for the observation
-model encoded by the records. The target is</p>
-<div class="arithmatex">\[
-\mu_i = \mathbb{E}\bigl[a_i \mid D_F,\, A,\, h^2,\, K(\cdot)\bigr].
-\]</div>
-<p>If <span class="arithmatex">\(\ell_F\)</span> were observed continuously this would be the selection-index /
-animal-model BLUP</p>
-<div class="arithmatex">\[
-\mathbb{E}[a_i \mid \ell_F]
-  = \mathrm{Cov}(a_i, \ell_F)\, \mathrm{Var}(\ell_F)^{-1} \ell_F.
-\]</div>
-<p>Disease records give a rectangle <span class="arithmatex">\(\ell_F \in C_F\)</span> (or a mixture of truncated
-laws, for PA-FGRS censored controls). Under joint normality the BLUP weights
-are unchanged and only the right-hand side is replaced by a truncated mean:</p>
-<div class="arithmatex">\[
-\mathbb{E}[a_i \mid \ell_F \in C_F]
-  = \mathrm{Cov}(a_i, \ell_F)\, \mathrm{Var}(\ell_F)^{-1}\,
-    \mathbb{E}[\ell_F \mid \ell_F \in C_F].
-\]</div>
-<p>Gibbs estimates that truncated mean by sampling. Pearson–Aitken approximates
-the same sequential moment updates. Neither output is a SNP polygenic score,
-and neither is an absolute lifetime risk.</p>
-<p>The names <strong>LT-FH</strong>, <strong>LT-FH++</strong>, <strong>ADuLT</strong> and <strong>PA-FGRS</strong> choose <span class="arithmatex">\(D_F\)</span>
-(which people are observed, and how ages enter). <strong>Gibbs</strong> and
-<strong>Pearson–Aitken (PA)</strong> are the engines that compute <span class="arithmatex">\(\mu_i\)</span>. PA is the
-single-trait default.</p>
+<p>and writes it as the <code>genetic</code> column. That column is a GWAS phenotype. It
+is not a SNP polygenic score and not an absolute risk. Pearson–Aitken (PA)
+is the single-trait default; Gibbs is the sampler.</p>
+<p>The run is the six steps in Table 1. You are not missing a hidden software
+step. Diagnosis definition is first, but it is not an ltpred call. After
+the inputs (steps 0–3) you still have to <strong>estimate</strong> (step 4) and then
+hand the score to a <strong>GWAS</strong> (step 5). ADuLT skips relatives in steps 1
+and 3. Classic LT-FH uses one lifetime <span class="arithmatex">\(K\)</span> in step 2 instead of a CIP
+curve. Two-trait work adds a genetic covariance in step 0 and uses Gibbs
+in step 4.</p>
+<p><strong>Table 1.</strong> What to do, in order. Steps 0–3 can be prepared in parallel;
+the Lee conversion of an observed-scale <span class="arithmatex">\(h^2\)</span> is the exception, because it
+needs a population <span class="arithmatex">\(K\)</span> from step 2.</p>
 <table>
 <thead>
 <tr>
-<th>Model</th>
-<th>Records you condition on</th>
-<th>Typical helper</th>
+<th>Step</th>
+<th>You supply</th>
+<th>ltpred</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Classic LT-FH</td>
-<td>Relatives + optional own status; one lifetime threshold</td>
-<td><code>prevalence_thresholds</code></td>
+<td>—</td>
+<td>Case definition, who the probands are</td>
+<td>not software</td>
 </tr>
 <tr>
-<td>LT-FH++</td>
-<td>Same people; age/sex/cohort-specific CIP</td>
-<td><code>thresholds_from_cip(..., case_mode="pin")</code></td>
+<td>0</td>
+<td>Liability-scale <span class="arithmatex">\(h^2\)</span>; optional <span class="arithmatex">\(c^2\)</span>, <span class="arithmatex">\(m^2\)</span>; two-trait <span class="arithmatex">\(r_g\)</span></td>
+<td><code>observed_to_liability_h2</code>, <code>tetrachoric</code>; optionally <code>fit_heritability</code></td>
 </tr>
 <tr>
-<td>ADuLT</td>
-<td>Proband only; same personalised CIP</td>
-<td>same helper, role <code>o</code> rows only</td>
+<td>1</td>
+<td>Who is related to whom</td>
+<td>roles, or <code>kinship_from_pedigree</code> / <code>extract_pedigree</code></td>
 </tr>
 <tr>
-<td>Base PA-FGRS</td>
-<td>Lifetime case interval; censored-control mixture</td>
-<td><code>prevalence_thresholds</code> + <code>use_mixture=True</code></td>
+<td>2</td>
+<td>Prevalence or CIP <span class="arithmatex">\(K(\cdot)\)</span></td>
+<td><code>prevalence_thresholds</code> or <code>thresholds_from_cip</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Status and ages (family history)</td>
+<td><code>families_from_columns</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>—</td>
+<td><code>estimate_liability</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Genotyped sample</td>
+<td>join <code>pids</code>, residualize; GWAS is elsewhere</td>
 </tr>
 </tbody>
 </table>
-<p>LT-FH is
-<a href="https://doi.org/10.1038/s41588-020-0613-6">Hujoel et al. 2020</a>;
-LT-FH++ is
-<a href="https://doi.org/10.1016/j.ajhg.2022.01.009">Pedersen et al. 2022</a>;
-ADuLT is
-<a href="https://doi.org/10.1038/s41467-023-41210-z">Pedersen et al. 2023</a>;
-PA-FGRS is
-<a href="https://doi.org/10.1016/j.ajhg.2024.09.009">Dybdahl Krebs et al. 2024</a>.</p>
-<h2 id="1-simulate-a-cohort-you-can-check">1. Simulate a cohort you can check<a class="headerlink" href="#1-simulate-a-cohort-you-can-check" title="Permanent link">&para;</a></h2>
-<p>The simulator draws jointly normal liabilities, thresholds them at prevalence
-<span class="arithmatex">\(K\)</span>, and returns ready-to-estimate <code>Family</code> objects plus the true genetic
-liability <span class="arithmatex">\(g\)</span>. <code>use_age=False</code> is classic LT-FH: one threshold, no onset.</p>
+<p>A compact script that prints the numbers below is
+<a href="https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py"><code>examples/vignette.py</code></a>
+(<code>pip install -e ".[fast]"</code> then <code>python examples/vignette.py</code>). Quoted
+figures use seed 1, <span class="arithmatex">\(n=800\)</span> nuclear families, true <span class="arithmatex">\(h^2=0.5\)</span>, <span class="arithmatex">\(K=0.05\)</span>.
+They check the API; they are not a benchmark. On real data, skip the
+simulator and start from your table.</p>
+<h2 id="before-software">Before software<a class="headerlink" href="#before-software" title="Permanent link">&para;</a></h2>
+<p>Fix a case definition, follow-up, and a family-history source that you are
+willing to defend
+(<a href="../assumptions/#real-data-checklist">checklist</a>). Decide who the
+<strong>probands</strong> are (usually the genotyped people). Decide whether <span class="arithmatex">\(\mu_i\)</span>
+will be a GWAS phenotype built from that diagnosis (own status in <span class="arithmatex">\(D_F\)</span>)
+or a relatives-only predictor of it (own status out). That decision is
+used in step 3; it is not a later toggle on the estimator.</p>
+<h2 id="0-heritability-and-covariances">0. Heritability and covariances<a class="headerlink" href="#0-heritability-and-covariances" title="Permanent link">&para;</a></h2>
+<p><code>estimate_liability</code> <strong>conditions</strong> on <span class="arithmatex">\(h^2\)</span>. Pass a <strong>liability-scale</strong>
+value. An observed-scale number mis-calibrates <span class="arithmatex">\(\hat{\mu}_i\)</span> (ranking is
+more robust than the scale).</p>
+<p>Prefer an external estimate. A first-degree check is Falconer's
+<span class="arithmatex">\(h^2 \approx 2\rho_{\mathrm{tet}}\)</span>. The Lee map from an observed-scale
+estimate in a <strong>population</strong> sample is</p>
+<div class="arithmatex">\[
+h^2_{\mathrm{liab}}
+  = h^2_{\mathrm{obs}} \cdot \frac{K(1-K)}{\varphi(T)^2},
+  \qquad
+  T=\Phi^{-1}(1-K).
+\tag{2}
+\]</div>
+<p><span class="arithmatex">\(K\)</span> here is the same population prevalence as step 2 (the CIP plateau, or
+the single lifetime <span class="arithmatex">\(K\)</span> of classic LT-FH). If the GWAS over-samples cases,
+pass that fraction as <code>prop_cases</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">tetrachoric</span><span class="p">,</span> <span class="n">observed_to_liability_h2</span>
+
+<span class="n">po</span> <span class="o">=</span> <span class="n">tetrachoric</span><span class="p">(</span><span class="n">status_o</span><span class="p">,</span> <span class="n">status_m</span><span class="p">)</span>   <span class="c1"># parent–offspring statuses</span>
+<span class="mi">2</span> <span class="o">*</span> <span class="n">po</span><span class="o">.</span><span class="n">rho</span>
+<span class="nb">float</span><span class="p">(</span><span class="n">observed_to_liability_h2</span><span class="p">(</span><span class="mf">0.20</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.05</span><span class="p">))</span>  <span class="c1"># 0.893 at K = 0.05</span>
+</code></pre></div>
+<p>On the simulated cohort below, <span class="arithmatex">\(\rho_{\mathrm{tet}}=0.237\)</span> so
+<span class="arithmatex">\(2\rho_{\mathrm{tet}}=0.474\)</span> against truth <span class="arithmatex">\(0.5\)</span>.</p>
+<p>Optional sibship <span class="arithmatex">\(c^2\)</span> and couple <span class="arithmatex">\(m^2\)</span> go on the single-trait estimator
+as <code>c2</code> / <code>m2</code> (<span class="arithmatex">\(h^2+c^2+m^2\le 1\)</span>). Two traits need liability-scale
+heritabilities <strong>and</strong> a genetic correlation: pass vector <code>h2</code>,
+<code>genetic_corrmat</code>, and <code>full_corrmat</code> (Gibbs only).</p>
+<p>Fitting <span class="arithmatex">\(h^2\)</span> or <span class="arithmatex">\(A{+}C{+}M\)</span> from the <strong>same</strong> families is a different
+contract: independent, non-overlapping pedigrees, <code>sampling="population"</code>
+or <code>sampling="ipw"</code> with known positive inclusion probabilities. A <code>pid</code>
+in two <code>fam_id</code>s is rejected. Unguarded ascertainment pins <span class="arithmatex">\(\hat{h}^2=1\)</span>
+even when the truth is 0. Details: <a href="../inference/">Inference</a>.</p>
+<h2 id="1-pedigree">1. Pedigree<a class="headerlink" href="#1-pedigree" title="Permanent link">&para;</a></h2>
+<p>You need <span class="arithmatex">\(A\)</span>, the additive relationships among the people whose records
+enter <span class="arithmatex">\(D_F\)</span>. Two routes.</p>
+<p><strong>Role grammar</strong> (nuclear and common extended families). Each label is
+relative to the proband: <code>o</code> (optional own status), <code>m</code>/<code>f</code>, <code>s1</code>/<code>s2</code>,
+grandparents <code>mgm</code>/<code>pgf</code>, half-sibs <code>mhs1</code>/<code>phs1</code>, avuncular <code>mau1</code>/<code>pau1</code>,
+children <code>c1.1</code>. Number repeats. Same-side half-sibs are treated as full
+sibs of each other — use the kinship path if that is false
+(<a href="../data-preparation/#role-grammar">role grammar</a>).</p>
+<p><strong>Parent pointers</strong>, for cousins, inbreeding, or messy second parents:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">kinship_from_pedigree</span><span class="p">,</span> <span class="n">extract_pedigree</span><span class="p">,</span> <span class="n">build_parent_graph</span>
+
+<span class="n">_</span><span class="p">,</span> <span class="n">A</span> <span class="o">=</span> <span class="n">kinship_from_pedigree</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">father</span><span class="p">,</span> <span class="n">mother</span><span class="p">)</span>
+<span class="c1"># from population trio records:</span>
+<span class="n">graph</span> <span class="o">=</span> <span class="n">build_parent_graph</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">father</span><span class="p">,</span> <span class="n">mother</span><span class="p">)</span>
+<span class="n">ped</span> <span class="o">=</span> <span class="n">extract_pedigree</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">proband_id</span><span class="p">,</span> <span class="n">max_degree</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</code></pre></div>
+<p>Scoring may use overlapping extracted pedigrees (one per proband). Fitting
+<span class="arithmatex">\(h^2\)</span> in step 0 may not. ADuLT has no relatives: skip this step.</p>
+<h2 id="2-cip-or-lifetime-prevalence">2. CIP or lifetime prevalence<a class="headerlink" href="#2-cip-or-lifetime-prevalence" title="Permanent link">&para;</a></h2>
+<p>Thresholds give the interval for each observed liability. Classic LT-FH
+uses one <span class="arithmatex">\(T=\Phi^{-1}(1-K)\)</span>. LT-FH++ and ADuLT use a person-specific CIP</p>
+<div class="arithmatex">\[
+T_i = \Phi^{-1}\bigl(1 - K(t_i; s_i, b_i)\bigr),
+\tag{3}
+\]</div>
+<p>with <span class="arithmatex">\(t_i\)</span> the age of onset for a case and the age at last follow-up for a
+control. Use a <strong>population</strong> curve, stratified by sex, birth year, and
+ancestry where incidence differs — not the logistic demo helper and not a
+biobank case fraction. Competing death: Aalen–Johansen, not Kaplan–Meier
+that treats death as censoring (<a href="../cip-estimation/">CIP estimation</a>).
+Cover every analysed age; pass <code>k_pop</code> unless the last CIP value is a
+defensible lifetime prevalence.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">prevalence_thresholds</span><span class="p">,</span> <span class="n">thresholds_from_cip</span><span class="p">,</span>
+    <span class="n">kaplan_meier_cip</span><span class="p">,</span> <span class="n">aalen_johansen_cip</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># classic LT-FH: one K</span>
+<span class="n">lower</span><span class="p">,</span> <span class="n">upper</span> <span class="o">=</span> <span class="n">prevalence_thresholds</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="n">K</span><span class="p">)</span>
+
+<span class="c1"># LT-FH++ / ADuLT: one call per stratum</span>
+<span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">K_i</span><span class="p">,</span> <span class="n">K_pop</span> <span class="o">=</span> <span class="n">thresholds_from_cip</span><span class="p">(</span>
+    <span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">cip_ages</span><span class="p">,</span> <span class="n">cip_values</span><span class="p">,</span> <span class="n">k_pop</span><span class="o">=</span><span class="n">lifetime_K</span><span class="p">,</span> <span class="n">case_mode</span><span class="o">=</span><span class="s2">"pin"</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p><code>case_mode="pin"</code> is the LT-FH++ encoding (a case is a point mass at
+<span class="arithmatex">\(T_i\)</span>). Pin only when onset is the CIP inverse of liability. Most of the
+onset information survives <span class="arithmatex">\([T_i,\infty)\)</span>. Base PA-FGRS instead uses the
+<strong>lifetime</strong> case interval <span class="arithmatex">\([\Phi^{-1}(1-K_{\mathrm{pop}}),\infty)\)</span> and
+puts age into a censored control's mixture weight <span class="arithmatex">\(K_i\)</span>.</p>
+<h2 id="3-family-history-records">3. Family-history records<a class="headerlink" href="#3-family-history-records" title="Permanent link">&para;</a></h2>
+<p>One row per observed person: <code>fam_id</code>, <code>role</code> (or a kinship column order),
+<code>status</code>, <code>age</code>. Missing <code>fam_id</code> and duplicate roles in a family are
+rejected. Join these records to the pedigree from step 1; the thresholds
+from step 2 are the <code>lower</code> / <code>upper</code> columns.</p>
+<p>Include role <code>o</code> when <span class="arithmatex">\(\mu_i\)</span> is a GWAS phenotype built from that
+diagnosis. Omit <code>o</code>, or give it <span class="arithmatex">\((-\infty,\infty)\)</span>, when the same
+diagnosis is later the prediction target. ADuLT with <code>o</code> unbound has
+nothing left to condition on.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">families_from_columns</span>
+
+<span class="n">families</span> <span class="o">=</span> <span class="n">families_from_columns</span><span class="p">(</span>
+    <span class="n">fam_id</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">pid</span><span class="o">=</span><span class="n">pid</span><span class="p">,</span>
+    <span class="n">K_i</span><span class="o">=</span><span class="n">K_i</span><span class="p">,</span> <span class="n">K_pop</span><span class="o">=</span><span class="n">K_pop</span><span class="p">,</span>   <span class="c1"># only for use_mixture=True</span>
+<span class="p">)</span>
+</code></pre></div>
+<h2 id="4-estimate-mu_i">4. Estimate <span class="arithmatex">\(\mu_i\)</span><a class="headerlink" href="#4-estimate-mu_i" title="Permanent link">&para;</a></h2>
+<p>This is the ltpred run. Everything above is input.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability</span>
+
+<span class="n">res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span>          <span class="c1"># PA, single trait</span>
+<span class="c1"># res = estimate_liability(families, h2=h2, method="gibbs", seed=1)</span>
+<span class="c1"># res = estimate_liability(families, h2=h2, use_mixture=True)</span>
+<span class="n">score</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">genetic</span>                                <span class="c1"># aligned to res.pids</span>
+</code></pre></div>
+<ul>
+<li><code>res.se["genetic"]</code> is Monte-Carlo error in <span class="arithmatex">\(\hat{\mu}_i\)</span> (exactly 0
+  under PA).</li>
+<li><code>res.var["genetic"]</code> is <span class="arithmatex">\(\mathrm{Var}(a_i\mid D_F)\)</span>, which does not
+  shrink with more draws.</li>
+</ul>
+<p>PA is the default for one trait. Use Gibbs for a Monte-Carlo SE, multiple
+traits, or an unusual no-mixture pedigree. The PA-FGRS mixture is PA-only.
+The kinship entry point is <code>estimate_liability_from_kinship(A, lower,
+upper, h2=h2, target=0)</code>.</p>
+<p>With relatives and a personalised CIP this is LT-FH++; with only role <code>o</code>
+it is ADuLT; with one lifetime <span class="arithmatex">\(T\)</span> and relatives it is classic LT-FH.</p>
+<h2 id="5-hand-the-score-to-a-gwas">5. Hand the score to a GWAS<a class="headerlink" href="#5-hand-the-score-to-a-gwas" title="Permanent link">&para;</a></h2>
+<p>Join <code>res.pids</code> to genotyped IDs. Residualize for sex, cohort, PCs, and
+batch, or put them in a mixed model. Prefer an association method that
+handles relatedness if related targets remain. ltpred does not run the
+GWAS. Combining <span class="arithmatex">\(\mu_i\)</span> with a PGS is a downstream model
+(<a href="https://doi.org/10.1016/j.xgen.2022.100152">Hujoel et al. 2022</a>;
+<a href="https://doi.org/10.1016/j.ajhg.2025.11.016">Dybdahl Krebs et al. 2026</a>).</p>
+<h2 id="stand-in-cohort-simulated-classic-lt-fh">Stand-in cohort (simulated classic LT-FH)<a class="headerlink" href="#stand-in-cohort-simulated-classic-lt-fh" title="Permanent link">&para;</a></h2>
+<p>The script builds a nuclear cohort so the calls above have something to
+chew. <code>use_age=False</code> is classic LT-FH: one <span class="arithmatex">\(K\)</span>, not a CIP. On real data
+this block is your table, not a simulator.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate_under_LTM_single</span><span class="p">,</span> <span class="n">estimate_liability</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 
 <span class="n">h2</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">n_fam</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mi">800</span>
 <span class="n">sim</span> <span class="o">=</span> <span class="n">simulate_under_LTM_single</span><span class="p">(</span>
     <span class="n">fam_vec</span><span class="o">=</span><span class="p">[</span><span class="s2">"m"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">,</span> <span class="s2">"s1"</span><span class="p">],</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="n">K</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="n">n_fam</span><span class="p">,</span>
     <span class="n">use_age</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="n">status</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">status</span><span class="p">[</span><span class="s2">"o"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>   <span class="c1"># proband 0/1</span>
+<span class="n">pa</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span>
+<span class="n">status</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">status</span><span class="p">[</span><span class="s2">"o"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
 <span class="n">true_g</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">genetic</span>
-</code></pre></div>
-<p>Each family is a proband (<code>o</code>) plus mother, father and one sibling. Roles are
-always relative to the proband; see the
-<a href="../data-preparation/#role-grammar">role grammar</a>.</p>
-<h2 id="2-estimate-then-read-est-se-and-var">2. Estimate, then read <code>est</code>, <code>se</code> and <code>var</code><a class="headerlink" href="#2-estimate-then-read-est-se-and-var" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="n">pa</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span>   <span class="c1"># PA is the single-trait default</span>
-<span class="n">score</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">genetic</span>                             <span class="c1"># == pa.est["genetic"]</span>
-</code></pre></div>
-<p><code>h2</code> must be <strong>liability-scale</strong>. <code>score</code> is aligned to <code>pa.pids</code>, not to the
-input row order.</p>
-<p>Two uncertainty fields are easy to mix up:</p>
-<ul>
-<li><code>pa.se["genetic"]</code> is the <strong>estimator's</strong> numerical error. PA is
-  deterministic, so this is exactly 0. Zero Monte-Carlo error is not zero
-  approximation error.</li>
-<li><code>pa.var["genetic"]</code> is the <strong>posterior</strong> variance <span class="arithmatex">\(\mathrm{Var}(a_i \mid D_F)\)</span>.
-  An affected relative shrinks it; it does not shrink if you draw more Gibbs
-  samples.</li>
-</ul>
-<p>On this seed an affected proband scored <span class="arithmatex">\(+0.947\)</span> with posterior variance
-<span class="arithmatex">\(0.271\)</span>; an unaffected one scored <span class="arithmatex">\(-0.119\)</span> with variance <span class="arithmatex">\(0.430\)</span>.</p>
-<h2 id="3-why-not-just-use-casecontrol">3. Why not just use case/control?<a class="headerlink" href="#3-why-not-just-use-casecontrol" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">corr</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
-    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
-
-<span class="n">r_cc</span> <span class="o">=</span> <span class="n">corr</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">true_g</span><span class="p">)</span>
-<span class="n">r_pa</span> <span class="o">=</span> <span class="n">corr</span><span class="p">(</span><span class="n">score</span><span class="p">,</span> <span class="n">true_g</span><span class="p">)</span>
-<span class="p">(</span><span class="n">r_pa</span> <span class="o">/</span> <span class="n">r_cc</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>    <span class="c1"># squared-corr effective-N proxy, not a GWAS NCP ratio</span>
+<span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">true_g</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>       <span class="c1"># 0.342</span>
+<span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">genetic</span><span class="p">,</span> <span class="n">true_g</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>   <span class="c1"># 0.419</span>
 </code></pre></div>
-<p>Here that was <span class="arithmatex">\(0.342\)</span> versus <span class="arithmatex">\(0.419\)</span>, a <span class="arithmatex">\(1.50\times\)</span> proxy. Family
-history is information about <span class="arithmatex">\(a_i\)</span> that the 0/1 label throws away. The
-proxy is useful for ranking; it is not the causal-SNP noncentrality ratio
-in <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS.md</a>.</p>
-<h2 id="4-the-probands-own-diagnosis-is-optional">4. The proband's own diagnosis is optional<a class="headerlink" href="#4-the-probands-own-diagnosis-is-optional" title="Permanent link">&para;</a></h2>
-<p>Role <code>o</code> is an observation you may include or drop. Include it when the
-score is a <strong>GWAS phenotype constructed from that diagnosis</strong>. Omit it, or
-give it bounds <span class="arithmatex">\((-\infty, \infty)\)</span>, when the same diagnosis is later the outcome
-you will predict — otherwise <span class="arithmatex">\(D_F\)</span> contains the answer.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">Family</span>
-
-<span class="n">relatives_only</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="n">Family</span><span class="p">(</span><span class="n">fam</span><span class="o">.</span><span class="n">fam_id</span><span class="p">,</span> <span class="p">[</span><span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">fam</span><span class="o">.</span><span class="n">members</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">role</span> <span class="o">!=</span> <span class="s2">"o"</span><span class="p">])</span>
-    <span class="k">for</span> <span class="n">fam</span> <span class="ow">in</span> <span class="n">sim</span><span class="o">.</span><span class="n">families</span>
-<span class="p">]</span>
-<span class="n">rel</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">relatives_only</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span>
-<span class="n">corr</span><span class="p">(</span><span class="n">rel</span><span class="o">.</span><span class="n">genetic</span><span class="p">,</span> <span class="n">true_g</span><span class="p">)</span>    <span class="c1"># 0.268 on this seed: weaker, no leakage</span>
-</code></pre></div>
-<h2 id="5-adult-is-the-same-construction-without-relatives">5. ADuLT is the same construction without relatives<a class="headerlink" href="#5-adult-is-the-same-construction-without-relatives" title="Permanent link">&para;</a></h2>
-<p>Keep only role <code>o</code>. With a <strong>single lifetime threshold</strong>, ADuLT is a
-monotone map of case/control status, so it cannot beat the 0/1 label
-(both correlations were <span class="arithmatex">\(0.342\)</span> here). ADuLT earns its keep when the
-proband's threshold is personalised by age, sex and cohort.</p>
-<div class="highlight"><pre><span></span><code><span class="n">adult_fams</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="n">Family</span><span class="p">(</span><span class="n">fam</span><span class="o">.</span><span class="n">fam_id</span><span class="p">,</span> <span class="p">[</span><span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">fam</span><span class="o">.</span><span class="n">members</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">role</span> <span class="o">==</span> <span class="s2">"o"</span><span class="p">])</span>
-    <span class="k">for</span> <span class="n">fam</span> <span class="ow">in</span> <span class="n">sim</span><span class="o">.</span><span class="n">families</span>
-<span class="p">]</span>
-<span class="n">adult</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">adult_fams</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span>
-</code></pre></div>
-<h2 id="6-cross-check-pa-with-gibbs-on-a-subset">6. Cross-check PA with Gibbs on a subset<a class="headerlink" href="#6-cross-check-pa-with-gibbs-on-a-subset" title="Permanent link">&para;</a></h2>
-<p>On classic rectangles PA and Gibbs posterior means agree closely. Gibbs is
-the sampler you want for a Monte-Carlo SE, for multiple traits, or when a
-pedigree is unusual. It does not implement the PA-FGRS mixture.</p>
-<div class="highlight"><pre><span></span><code><span class="n">gibbs</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span>
-    <span class="n">sim</span><span class="o">.</span><span class="n">families</span><span class="p">[:</span><span class="mi">80</span><span class="p">],</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"gibbs"</span><span class="p">,</span>
-    <span class="n">tol</span><span class="o">=</span><span class="mf">0.03</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">8_000</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="n">corr</span><span class="p">(</span><span class="n">score</span><span class="p">[:</span><span class="mi">80</span><span class="p">],</span> <span class="n">gibbs</span><span class="o">.</span><span class="n">genetic</span><span class="p">)</span>     <span class="c1"># 0.9997 here</span>
-<span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">gibbs</span><span class="o">.</span><span class="n">se</span><span class="p">[</span><span class="s2">"genetic"</span><span class="p">])</span>      <span class="c1"># Monte-Carlo SE of the mean, not var</span>
-</code></pre></div>
-<h2 id="7-bring-your-own-table">7. Bring your own table<a class="headerlink" href="#7-bring-your-own-table" title="Permanent link">&para;</a></h2>
-<p>Production input is a long table: one row per observed person, grouped by
-<code>fam_id</code>. Rebuild the same simulated families from columns to see the
-plumbing. <code>prevalence_thresholds</code> is classic LT-FH; it is <strong>not</strong> the
-logistic tutorial helper.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">prevalence_thresholds</span><span class="p">,</span> <span class="n">families_from_columns</span>
-
-<span class="n">fam_id</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">st</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[]</span>
-<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">fam</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">families</span><span class="p">):</span>
-    <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">fam</span><span class="o">.</span><span class="n">members</span><span class="p">:</span>
-        <span class="n">fam_id</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"fam</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-        <span class="n">role</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">role</span><span class="p">)</span>
-        <span class="n">st</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">lower</span><span class="p">)))</span>   <span class="c1"># 1 = case</span>
-
-<span class="n">lower</span><span class="p">,</span> <span class="n">upper</span> <span class="o">=</span> <span class="n">prevalence_thresholds</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">st</span><span class="p">),</span> <span class="n">pop_prev</span><span class="o">=</span><span class="n">K</span><span class="p">)</span>
-<span class="n">families</span> <span class="o">=</span> <span class="n">families_from_columns</span><span class="p">(</span><span class="n">fam_id</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">)</span>
-<span class="n">score</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span><span class="o">.</span><span class="n">genetic</span>
-</code></pre></div>
-<p>Replace the loop with your CSV. Missing <code>fam_id</code> values are rejected (they
-cannot group rows). Duplicate roles inside a family (two rows both <code>s1</code>)
-are rejected; number repeated siblings <code>s1</code>, <code>s2</code>.</p>
-<div class="admonition warning">
-<p class="admonition-title">The logistic <code>age_thresholds</code> helper is tutorial-only</p>
-<p>For register data call <code>thresholds_from_cip</code> once per sex × birth-year
-× ancestry stratum with a <strong>population</strong> CIP, not a biobank case fraction.
-See <a href="../data-preparation/#a-real-register-data-recipe">data preparation</a>
-and <a href="../cip-estimation/">CIP estimation</a>.</p>
-</div>
-<h2 id="8-arbitrary-pedigrees-the-kinship-path">8. Arbitrary pedigrees: the kinship path<a class="headerlink" href="#8-arbitrary-pedigrees-the-kinship-path" title="Permanent link">&para;</a></h2>
-<p>When relatives do not fit the role grammar (cousins, inbreeding, messy
-second parents), build the additive relationship matrix from parent
-pointers.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">kinship_from_pedigree</span><span class="p">,</span> <span class="n">estimate_liability_from_kinship</span>
-
-<span class="n">ids</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"o"</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">,</span> <span class="s2">"s1"</span><span class="p">]</span>
-<span class="n">_</span><span class="p">,</span> <span class="n">A</span> <span class="o">=</span> <span class="n">kinship_from_pedigree</span><span class="p">(</span>
-    <span class="n">ids</span><span class="p">,</span>
-    <span class="n">father</span><span class="o">=</span><span class="p">[</span><span class="s2">"f"</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">],</span>
-    <span class="n">mother</span><span class="o">=</span><span class="p">[</span><span class="s2">"m"</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">],</span>
-<span class="p">)</span>
-<span class="c1"># lower/upper have shape (n_families, 4) in `ids` order</span>
-<span class="n">est</span><span class="p">,</span> <span class="n">se</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">estimate_liability_from_kinship</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-</code></pre></div>
-<p>On this nuclear pedigree the two paths agreed to a few <span class="arithmatex">\(10^{-4}\)</span>. Pearson–
-Aitken is a sequential two-moment approximation: a change of fold order is
-not Gibbs error. Use the kinship path when the recorded parents disagree
-with a role-grammar convention (in particular, same-side half-sibs).</p>
-<h2 id="9-getting-h2-onto-the-liability-scale">9. Getting <span class="arithmatex">\(h^2\)</span> onto the liability scale<a class="headerlink" href="#9-getting-h2-onto-the-liability-scale" title="Permanent link">&para;</a></h2>
-<p>The estimator conditions on <span class="arithmatex">\(h^2\)</span>. Passing an observed-scale value as if
-it were liability-scale mis-calibrates the score (ranking is more robust
-than the scale; see RESULTS §12).</p>
-<p>A quick relative-pair check is Falconer's route: twice the parent–offspring
-tetrachoric. On this seed that was <span class="arithmatex">\(2 \times 0.237 = 0.474\)</span> against truth
-<span class="arithmatex">\(0.5\)</span>. The Lee conversion of an observed-scale estimate <span class="arithmatex">\(h^2_{\mathrm{obs}}\)</span>
-in a population sample with prevalence <span class="arithmatex">\(K\)</span> is</p>
-<div class="arithmatex">\[
-h^2_{\mathrm{liab}}
-  = h^2_{\mathrm{obs}} \cdot \frac{K(1-K)}{\phi(T)^2},
-  \qquad
-  T = \Phi^{-1}(1-K),
-\]</div>
-<p>which at <span class="arithmatex">\(K = 0.05\)</span> sends <span class="arithmatex">\(0.20\)</span> to <span class="arithmatex">\(0.893\)</span>. If the study over-samples
-cases, pass that fraction as <code>prop_cases</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">tetrachoric</span><span class="p">,</span> <span class="n">observed_to_liability_h2</span>
-
-<span class="n">po</span> <span class="o">=</span> <span class="n">tetrachoric</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">status</span><span class="p">[</span><span class="s2">"o"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">sim</span><span class="o">.</span><span class="n">status</span><span class="p">[</span><span class="s2">"m"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
-<span class="mi">2</span> <span class="o">*</span> <span class="n">po</span><span class="o">.</span><span class="n">rho</span>
-<span class="nb">float</span><span class="p">(</span><span class="n">observed_to_liability_h2</span><span class="p">(</span><span class="mf">0.20</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="n">K</span><span class="p">))</span>   <span class="c1"># 0.893 at K = 0.05</span>
-</code></pre></div>
-<p>Prefer an external liability-scale estimate when you have one.</p>
-<h2 id="10-fitting-h2-from-the-family-data-only-under-a-sampling-contract">10. Fitting <span class="arithmatex">\(h^2\)</span> from the family data — only under a sampling contract<a class="headerlink" href="#10-fitting-h2-from-the-family-data-only-under-a-sampling-contract" title="Permanent link">&para;</a></h2>
-<p><code>fit_heritability</code> is optional. It assumes <strong>independent, non-overlapping</strong>
-families, either unascertained (<code>sampling="population"</code>) or selected with
-known positive inclusion probabilities (<code>sampling="ipw"</code>). A <code>pid</code> that
-appears in two different <code>fam_id</code>s is rejected: that is the usual register
-extraction, valid for <strong>scoring</strong>, invalid for <strong>fitting</strong>.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_heritability</span>
-
-<span class="n">fit</span> <span class="o">=</span> <span class="n">fit_heritability</span><span class="p">(</span>
-    <span class="n">sim</span><span class="o">.</span><span class="n">families</span><span class="p">,</span> <span class="n">n_iter</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sampling</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="n">fit</span><span class="o">.</span><span class="n">h2</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">h2_se</span>
-</code></pre></div>
-<p>On this 800-family, <span class="arithmatex">\(K=0.05\)</span> draw the point estimate was <span class="arithmatex">\(0.363\)</span> against
-truth <span class="arithmatex">\(0.5\)</span>, while <code>h2_se</code> was <span class="arithmatex">\(0.006\)</span>. That standard error is a
-<strong>within-dataset Monte-Carlo diagnostic</strong>. It is not a sampling interval.
-With a few hundred nuclear families at this prevalence the across-cohort SD
-is much larger. Use an external <span class="arithmatex">\(h^2\)</span> unless you have met the contract in
-<a href="../inference/">Inference</a>.</p>
-<div class="admonition danger">
-<p class="admonition-title">Do not fit on case-enriched extracts without IPW</p>
-<p>Unguarded ascertainment pins <span class="arithmatex">\(\hat{h}^2\)</span> at 1, even when the true value
-is 0. Proband-ascertained designs cannot be reweighted at all.</p>
-</div>
-<h2 id="11-age-cip-and-what-lt-fh-actually-requires">11. Age, CIP, and what “LT-FH++” actually requires<a class="headerlink" href="#11-age-cip-and-what-lt-fh-actually-requires" title="Permanent link">&para;</a></h2>
-<p><code>simulate_under_LTM_single(..., use_age=True)</code> plus <code>age_thresholds</code> is an
-<strong>age-only tutorial</strong>. Full LT-FH++ needs a CIP that varies with sex and
-birth cohort as well, estimated from a representative source:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">thresholds_from_cip</span><span class="p">,</span> <span class="n">families_from_columns</span><span class="p">,</span> <span class="n">estimate_liability</span>
-
-<span class="c1"># one stratum shown; loop over sex × birth-year × ancestry in production</span>
-<span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">K_i</span><span class="p">,</span> <span class="n">K_pop</span> <span class="o">=</span> <span class="n">thresholds_from_cip</span><span class="p">(</span>
-    <span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">cip_ages</span><span class="p">,</span> <span class="n">cip_values</span><span class="p">,</span> <span class="n">k_pop</span><span class="o">=</span><span class="n">lifetime_K</span><span class="p">,</span> <span class="n">case_mode</span><span class="o">=</span><span class="s2">"pin"</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="n">families</span> <span class="o">=</span> <span class="n">families_from_columns</span><span class="p">(</span>
-    <span class="n">fam_id</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">pid</span><span class="o">=</span><span class="n">pid</span><span class="p">,</span> <span class="n">K_i</span><span class="o">=</span><span class="n">K_i</span><span class="p">,</span> <span class="n">K_pop</span><span class="o">=</span><span class="n">K_pop</span><span class="p">,</span>
-<span class="p">)</span>
-<span class="n">res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span>          <span class="c1"># LT-FH++ if relatives are present</span>
-<span class="c1"># res = estimate_liability(proband_only, h2=h2)    # ADuLT if they are not</span>
-</code></pre></div>
-<p><code>case_mode="pin"</code> is the LT-FH++ / ADuLT encoding. Pin only when you believe
-onset is the CIP inverse of liability; under partial onset dependence the
-pin over-conditions. Most of the onset information survives the interval
-<span class="arithmatex">\([T(\mathrm{onset}), \infty)\)</span>.</p>
-<p>Competing death needs an Aalen–Johansen CIP, not a Kaplan–Meier that treats
-death as censoring. Details: <a href="../cip-estimation/">CIP estimation</a>.</p>
-<h2 id="12-pa-fgrs-briefly">12. PA-FGRS, briefly<a class="headerlink" href="#12-pa-fgrs-briefly" title="Permanent link">&para;</a></h2>
-<p>Base PA-FGRS (Krebs et al. 2024) is not “turn on PA”. Observed cases use the
-<strong>lifetime</strong> interval <span class="arithmatex">\([\Phi^{-1}(1-K_{\mathrm{pop}}), \infty)\)</span>. Age enters a
-censored control through the mixture weight <span class="arithmatex">\(K_i\)</span>, via <code>use_mixture=True</code>.
-The helper <code>pa_thresholds</code> is an age-dependent <strong>variant</strong>, not that paper's
-case encoding and not PA-FGRS_ADT. Gibbs has no mixture.</p>
-<div class="highlight"><pre><span></span><code><span class="n">res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span>
-    <span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">,</span> <span class="n">use_mixture</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>     <span class="c1"># needs K_i / K_pop on censored controls</span>
-<span class="p">)</span>
-</code></pre></div>
-<h2 id="13-handing-the-score-to-a-gwas">13. Handing the score to a GWAS<a class="headerlink" href="#13-handing-the-score-to-a-gwas" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Join <code>res.pids</code> to the genotyped sample IDs. Do not assume input-row order.</li>
-<li>Residualize for sex, birth cohort, ancestry PCs, batch, and other design
-   covariates <strong>before</strong> association, or put them in the GWAS mixed model.</li>
-<li>Prefer a mixed-model association method if related targets remain
-   (<a href="../estimation/#using-the-estimate-in-a-gwas">estimation</a>).</li>
-<li>The score is a quantitative phenotype. ltpred does not run the GWAS.</li>
-</ol>
-<p>Combining the family-history score with a PGS is a <strong>downstream</strong> model
-(<a href="https://doi.org/10.1016/j.xgen.2022.100152">Hujoel et al. 2022</a>;
-<a href="https://doi.org/10.1016/j.ajhg.2025.11.016">Dybdahl Krebs et al. 2026</a>).</p>
-<h2 id="14-mistakes-this-tour-is-designed-to-prevent">14. Mistakes this tour is designed to prevent<a class="headerlink" href="#14-mistakes-this-tour-is-designed-to-prevent" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Passing <strong>observed-scale</strong> <span class="arithmatex">\(h^2\)</span> as <code>h2=</code>.</li>
-<li>Using <code>age_thresholds</code> (one logistic curve) and calling the analysis LT-FH++.</li>
-<li>Conditioning on role <code>o</code> and then using the score to <strong>predict</strong> that
-  same diagnosis.</li>
-<li>Fitting <span class="arithmatex">\(h^2\)</span> on overlapping register pedigrees or on a case/control
-  extract without <code>sampling="ipw"</code> and valid weights.</li>
-<li>Treating <code>res.se</code> as posterior uncertainty, or <code>res.var</code> as a standard
-  error of the mean.</li>
-<li>Equating <code>pa_thresholds</code> with published PA-FGRS.</li>
-<li>Quoting an independent-SNP simulation NCP ratio as a real-LD GWAS gain.</li>
-</ul>
+<p>An affected proband: <span class="arithmatex">\(\hat{\mu}_i=+0.947\)</span>, posterior variance <span class="arithmatex">\(0.271\)</span>.
+An unaffected one: <span class="arithmatex">\(\hat{\mu}_i=-0.119\)</span>, variance <span class="arithmatex">\(0.430\)</span>. Relatives only
+(no role <code>o</code>): <span class="arithmatex">\(\operatorname{Corr}=0.268\)</span>. ADuLT at one lifetime <span class="arithmatex">\(T\)</span>
+matches the 0/1 label (<span class="arithmatex">\(\operatorname{Corr}=0.342\)</span>). PA versus Gibbs on 80
+families: <span class="arithmatex">\(\operatorname{Corr}=0.9997\)</span>. Rebuilding the same families from
+columns, and scoring them through <code>kinship_from_pedigree</code>, recovers the
+role-grammar PA scores to numerical noise.</p>
 <h2 id="where-to-go-next">Where to go next<a class="headerlink" href="#where-to-go-next" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1638,28 +1337,28 @@ case encoding and not PA-FGRS_ADT. Gibbs has no mixture.</p>
 <td><a href="../guide/">Choose a method</a></td>
 </tr>
 <tr>
-<td>Roles, CIPs, real tables</td>
+<td>Roles, trios, real tables</td>
 <td><a href="../data-preparation/">Data preparation</a></td>
+</tr>
+<tr>
+<td>Kaplan–Meier / Aalen–Johansen</td>
+<td><a href="../cip-estimation/">CIP estimation</a></td>
 </tr>
 <tr>
 <td>Engines, scaling, GWAS export</td>
 <td><a href="../estimation/">Estimation</a></td>
 </tr>
 <tr>
-<td>Fitting <span class="arithmatex">\(h^2\)</span> / A+C+M</td>
+<td>Fitting <span class="arithmatex">\(h^2\)</span> / <span class="arithmatex">\(A{+}C{+}M\)</span></td>
 <td><a href="../inference/">Inference</a></td>
 </tr>
 <tr>
-<td>Assumptions and pre-flight list</td>
+<td>Pre-flight list</td>
 <td><a href="../assumptions/">Assumptions &amp; checklist</a></td>
 </tr>
 <tr>
-<td>Estimand and Algorithms G, P, M</td>
+<td>Maths of (1)</td>
 <td><a href="../algorithm/">Algorithm</a></td>
-</tr>
-<tr>
-<td>Simulation evidence</td>
-<td><a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS.md</a></td>
 </tr>
 </tbody>
 </table>
