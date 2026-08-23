@@ -64,8 +64,9 @@ classification, omit the proband's role `o` or give it uninformative
 ## Documentation
 
 - **User guide** — the [quickstart](docs/quickstart.md) (a complete run), then
-  the [vignette](https://bvilhjal.github.io/ltpred/vignette/) (webpage: simulate,
-  score, encodings, your own table; source [docs/vignette.md](docs/vignette.md)),
+  the [vignette](https://bvilhjal.github.io/ltpred/vignette/) (how to run:
+  h², pedigree, CIP, family history, estimate, GWAS; source
+  [docs/vignette.md](docs/vignette.md)),
   [data preparation](docs/data-preparation.md), [CIP estimation](docs/cip-estimation.md),
   [estimation](docs/estimation.md),
   [inference](docs/inference.md), [assumptions & checklist](docs/assumptions.md),

@@ -9,9 +9,9 @@ family-history, age-of-onset and registry-scale analyses.
 - **[Choose a method](guide.md)** — identify the appropriate model, bounds and
   inference engine.
 - **[Quickstart](quickstart.md)** — run the estimator on a small tutorial dataset.
-- **[Vignette](vignette.md)** — a longer working tour, with rendered equations:
-  simulate, score, compare encodings, then map the same steps onto your own
-  table. Live page: [bvilhjal.github.io/ltpred/vignette](https://bvilhjal.github.io/ltpred/vignette/).
+- **[Vignette](vignette.md)** — how to run ltpred: $h^2$, pedigree, CIP,
+  family history, estimate, GWAS. Live page:
+  [bvilhjal.github.io/ltpred/vignette](https://bvilhjal.github.io/ltpred/vignette/).
 - **[Workflow pages](data-preparation.md)** — prepare data, estimate scores and
   understand the population-sampling-only fitting contract.
 - **[API reference](api.md)** — inspect the public workflow and advanced APIs.
