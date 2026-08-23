@@ -5,8 +5,7 @@ description: A working tour of ltpred — simulate families, estimate genetic li
 
 # Vignette: from family history to a GWAS phenotype
 
-This page is a working tour of **ltpred**, a methods package of the Pioneer
-Centre for [SMARTbiomed](https://smartbiomed.dk/). It is longer than the
+This page is a working tour of **ltpred**. It is longer than the
 [quickstart](quickstart.md) and shorter than the reference pages. You will
 simulate a small nuclear-family cohort, estimate each proband's posterior mean
 genetic liability, see why that score is not the same thing as case/control

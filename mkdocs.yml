@@ -8,14 +8,12 @@ docs_dir: docs
 
 theme:
   name: material
-  custom_dir: docs/overrides
   logo: assets/logo.svg
   favicon: assets/logo.svg
   font:
     text: Source Sans 3
     code: Roboto Mono
   features:
-    - announce.dismiss
     - navigation.sections
     - navigation.top
     - navigation.tracking
@@ -71,15 +69,14 @@ extra:
   social:
     - icon: fontawesome/solid/globe
       link: https://smartbiomed.dk/
-      name: Pioneer Centre for SMARTbiomed
+      name: SMARTbiomed
     - icon: fontawesome/brands/github
       link: https://github.com/bvilhjal/ltpred
       name: ltpred on GitHub
 
 copyright: >
-  Pioneer Centre for SMARTbiomed ·
-  <a href="https://smartbiomed.dk/">smartbiomed.dk</a> ·
-  Aarhus University · University of Copenhagen · University of Oxford
+  Developed with the support of
+  <a href="https://smartbiomed.dk/">SMARTbiomed</a>.
 
 extra_css:
   - stylesheets/smartbiomed.css

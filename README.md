@@ -2,7 +2,6 @@
 
 **[Vignette (HTML, with equations)](https://bvilhjal.github.io/ltpred/vignette/)**
 · [markdown source](docs/vignette.md)
-· [SMARTbiomed](https://smartbiomed.dk/)
 
 **ltpred** is a Python implementation of **LT-FH++**, extending the original
 **LT-FH** family-history phenotype
@@ -261,7 +260,8 @@ threshold crossing. See
 
 ## Development
 
-The code and documentation were written together with AI.
+The code and documentation were written together with AI. Developed with the
+support of [SMARTbiomed](https://smartbiomed.dk/).
 
 ## License
 

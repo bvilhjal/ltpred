@@ -4,10 +4,6 @@ ltpred is a Python toolkit for estimating genetic liability under the
 liability-threshold model. It implements LT-FH, LT-FH++, ADuLT and PA-FGRS for
 family-history, age-of-onset and registry-scale analyses.
 
-It is developed in the Pioneer Centre for
-[SMARTbiomed](https://smartbiomed.dk/) (Aarhus University, University of
-Copenhagen, and University of Oxford).
-
 ## Start here
 
 - **[Choose a method](guide.md)** — identify the appropriate model, bounds and
@@ -31,3 +27,5 @@ Unsupported experimental fitters and the register pipeline live in the source
 checkout's
 [`research/` directory](https://github.com/bvilhjal/ltpred/tree/main/research);
 they are not installed with ltpred.
+
+Developed with the support of [SMARTbiomed](https://smartbiomed.dk/).
