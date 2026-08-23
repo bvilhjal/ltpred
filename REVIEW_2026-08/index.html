@@ -1,0 +1,1532 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+      
+      
+      
+        <link rel="canonical" href="https://bvilhjal.github.io/ltpred/REVIEW_2026-08/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Independent review of ltpred v0.3.4 (2026-08) - ltpred</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+3:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Source Sans 3";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/smartbiomed.css">
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#independent-review-of-ltpred-v034-2026-08" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+              <button class="md-banner__button md-icon" aria-label="Don't show this again">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              </button>
+            
+            
+  A methods package of the Pioneer Centre for
+  <a href="https://smartbiomed.dk/">SMARTbiomed</a>
+  · Aarhus University · University of Copenhagen · University of Oxford
+
+          </div>
+          
+            <script>var el=document.querySelector("[data-md-component=announce]");if(el){var content=el.querySelector(".md-typeset");__md_hash(content.innerHTML)===__md_get("__announce")&&(el.hidden=!0)}</script>
+          
+        </aside>
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ltpred" class="md-header__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ltpred
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Independent review of ltpred v0.3.4 (2026-08)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ltpred" class="md-nav__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../assets/logo.svg" alt="logo">
+
+    </a>
+    ltpred
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choose a method
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vignette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vignette
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflow
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-preparation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data preparation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cip-estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CIP estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fitting the model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assumptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assumptions & checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm & model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ROADMAP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-scope-and-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Scope and method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-verdicts-by-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Verdicts by area
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-the-headline-claims-assessed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. The headline claims, assessed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-limitations-of-this-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Limitations of this review
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="independent-review-of-ltpred-v034-2026-08">Independent review of ltpred v0.3.4 (2026-08)<a class="headerlink" href="#independent-review-of-ltpred-v034-2026-08" title="Permanent link">&para;</a></h1>
+<p>A read-only, peer-review-style audit of the statistical core, the estimation and
+fitting APIs, the supporting numerics, the test and CI machinery, the benchmark
+evidence base, the documentation, and the literature positioning. This review
+covers the tree at commit <code>cf8cc99</code> (v0.3.4); it follows, and is independent of,
+the archived v0.3.0 review in <code>EXTERNAL_REVIEW.md</code>. No files were modified by
+the review.</p>
+<h2 id="1-scope-and-method">1. Scope and method<a class="headerlink" href="#1-scope-and-method" title="Permanent link">&para;</a></h2>
+<p>The review proceeded in three stages. First, the project's own gates were run:
+the full test suite, the linter, the evidence guards, and a strict documentation
+build (Table 1). Second, seven areas were reviewed in parallel against the
+primary sources: the code, <code>docs/algorithm.md</code>, the benchmark artifacts in
+<code>benchmarks/</code>, and the published literature. Third, every finding reported here
+at tiers T1 and T2 was re-verified independently against the code or the
+artifacts — each number quoted below was recomputed from the committed CSVs or
+reproduced by execution. Severity tiers: <strong>T1</strong>, correctness or scientific
+validity; <strong>T2</strong>, robustness, evidence integrity, or maintainability; <strong>T3</strong>,
+style, clarity, or polish.</p>
+<p><em>Table 1. Baseline checks run on the review machine (macOS, Apple silicon;
+conda env <code>ltpred314</code>: CPython 3.14.6 free-threading, NumPy 2.4.6, SciPy
+1.18.0, Numba 0.66.0, pytest 9.1.1, ruff 0.16.1).</em></p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Test suite</td>
+<td><code>pytest -q</code> (tests + research)</td>
+<td>714 passed, 1 skipped, 196 s</td>
+</tr>
+<tr>
+<td>Lint</td>
+<td><code>ruff check .</code></td>
+<td>clean</td>
+</tr>
+<tr>
+<td>Evidence guards</td>
+<td><code>scripts/check_results.py</code></td>
+<td>83/83 guards ok</td>
+</tr>
+<tr>
+<td>Docs</td>
+<td><code>mkdocs build --strict</code> (isolated venv, mkdocs-material ≥ 9)</td>
+<td>builds clean</td>
+</tr>
+</tbody>
+</table>
+<p>The one local caveat: no conda env on the machine has mkdocs installed, so
+<code>scripts/check_docs.py</code> fails at its anchor half with "No module named mkdocs".
+The strict build itself passes in an isolated venv; the guard failure is an
+environment gap, not a documentation defect. (<code>check_docs.py</code> failing hard when
+mkdocs is absent is arguably correct behaviour for a guard.)</p>
+<h2 id="2-verdicts-by-area">2. Verdicts by area<a class="headerlink" href="#2-verdicts-by-area" title="Permanent link">&para;</a></h2>
+<p><strong>Statistical core (<code>covariance.py</code>, <code>thresholds.py</code>, <code>pearson_aitken.py</code>,
+<code>gibbs.py</code>).</strong> Correct. The bound conventions (case/control orientation,
+onset pins, interval censoring), the Pearson–Aitken rank-1 update, the
+censoring-mixture weights, the precision-form Gibbs full conditionals, and the
+new collapsed sweep were verified against <code>docs/algorithm.md</code> eqs. (1)–(11),
+against closed-form truncated-normal conditionals, and against
+<code>scipy.stats.truncnorm</code>/high-precision references, including the far-tail
+regimes (|z| ≈ 38.5 handoff) and near-degenerate intervals. Kinship
+coefficients, the tabular method (including inbreeding), and the PD correction
+were checked on hand-built pedigrees. Cross-engine agreement on probe families
+matches within Monte-Carlo error.</p>
+<p><strong>Estimation and fitting (<code>estimate.py</code>, <code>fit.py</code>, <code>simulate.py</code>).</strong> Sound.
+The <code>LiabilityResult</code> separation of Monte-Carlo SE (<code>se</code>, shrinks with draws)
+from posterior variance (<code>var</code>, does not) is the statistically right
+bookkeeping and is documented candidly. The contract gates (multi-trait vs
+<code>c2</code>/<code>m2</code>, Gibbs vs mixture) behave as documented with no silently-accepting
+path found. The IPW construction is a correct Horvitz–Thompson weighting over
+families, and the case-rate screen, the Haseman–Elston-type fixed-point
+fitter, and the family-cluster bootstrap all match their documentation. The
+three onset models in <code>simulate.py</code> were verified numerically against their
+specification.</p>
+<p><strong>Supporting numerics (<code>cip.py</code>, <code>tetrachoric.py</code>, <code>liability_scale.py</code>,
+<code>_mathfun.py</code>, <code>_numba.py</code>, <code>pedigree.py</code>, <code>family.py</code>).</strong> Correct where it
+matters. Kaplan–Meier and Aalen–Johansen estimates <em>and</em> their Greenwood/Aalen
+standard errors match R <code>survival</code>/<code>cmprsk</code> to all printed digits under ties,
+delayed entry, and risk-set exhaustion; the tetrachoric MLE matches <code>polycor</code>
+to ~1e-5; the Lee et al. liability-scale transforms round-trip exactly; AS 241
+matches <code>scipy.special.ndtri</code> to 6e-16 relative error down to p = 1e-300; the
+Numba JIT kernels are bit-identical to the pure-Python fallback.</p>
+<p><strong>Tests and CI.</strong> The oracle quality is high: closed forms, locked R outputs,
+and machine-precision kernel checks, with justified tolerances and disciplined
+seeding. The guard machinery genuinely recomputes from artifacts (no
+circularity found). Gaps are in CI coverage and in one vacuous research test
+(F2), plus the absence of a build/packaging leg and of an R-lock regression
+fixture (F15, F16).</p>
+<p><strong>Evidence base.</strong> Strong and honest in the main. All load-bearing guarded
+claims recompute exactly from the committed artifacts (83/83 guards), nearly
+every headline number carries the right kind of uncertainty (Monte-Carlo SE vs
+sampling variability is separated explicitly and repeatedly), and the
+interpretation is restrained — the λ_GC = 16.46 result is framed as a
+deliberate confounding demonstration, power claims carry their simulation
+regime, and speedups carry their thread count. The defects found are one stale
+superlative (F1), a few last-digit/ordering transcription slips in unguarded
+prose (F7, F8, F17), and provenance gaps concentrated in the pre-schema-3
+history (F9, F10).</p>
+<p><strong>Documentation.</strong> Accurate against the code: every documented parameter name
+and default checked matched; the quickstart executes verbatim; the equations
+and Algorithms G/P/M match the implementations step for step. Two numerical
+claims in the docs lack artifacts (F11, F12).</p>
+<p><strong>Literature positioning.</strong> Fair and accurate. Every load-bearing citation was
+verified against the publisher record — Pedersen et al. 2022 (AJHG 109:417–432,
+LT-FH++), Pedersen et al. 2023 (Nat Commun 14:5553, ADuLT), Dybdahl Krebs et
+al. 2024 (AJHG 111:2494–2509, PA-FGRS), Hujoel et al. 2020 (Nat Genet
+52:541–547, LT-FH), Hujoel et al. 2022 (Cell Genomics 2:100152), and the
+forward-looking Dybdahl Krebs et al. 2026 (AJHG 113:184–201, DOI
+10.1016/j.ajhg.2025.11.016 — confirmed real; the 2025 in the DOI is the epub
+year). No misattribution: PA is consistently credited to Krebs et al. 2024,
+and the repo even reports Hujoel 2020's <em>unfavourable</em> PA comparison rather
+than cherry-picking. <code>CITATION.cff</code> is correct entry by entry. The defects are
+cosmetic (F33–F35).</p>
+<h2 id="3-findings">3. Findings<a class="headerlink" href="#3-findings" title="Permanent link">&para;</a></h2>
+<p><em>Table 2. T1 findings (correctness / scientific validity). Both are narrow;
+neither indicts a published headline conclusion beyond the sentence quoted.</em></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Location</th>
+<th>Finding</th>
+<th>Evidence</th>
+<th>Recommended action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F1</td>
+<td><code>benchmarks/RESULTS.md:60-61</code>; <code>report/ltpred_methods.tex:665</code></td>
+<td>The headline "stressful-pedigree benchmark remains at least 0.9984" is not supported by its artifact — and is contradicted by §14 of the same document ("worst single-seed … 0.99813", line 488).</td>
+<td><code>bench_pa_robustness.csv</code> rare-K (K=0.005) per-seed agreements: 0.998429, 0.998131, 0.998225 → min <strong>0.998131</strong>, mean <strong>0.998262</strong> (recomputed; regime means in the §14 table reproduce exactly). The error traces to the run log printing only the first seed (<code>PA&lt;-&gt;Gibbs=0.9984</code>). No guard covers this figure. (The <code>0.9984</code> in <code>paper/tables/accuracy_grid.*</code> is a different, legitimate artifact.)</td>
+<td>Correct the headline to "at least 0.9981" (or quote 0.99813 worst-seed) in both files; add a guard recomputing min/mean regime agreement from the CSV.</td>
+</tr>
+<tr>
+<td>F2</td>
+<td><code>research/tests/test_pipeline.py:119-129</code></td>
+<td><code>test_stratified_cips_run_and_differ</code> cannot fail under a wrong implementation: its only assertion is <code>np.isfinite(out.est[0])</code>, so an implementation that silently ignored <code>cip_by_stratum</code> would pass. This is the only test of the strata path.</td>
+<td>Read directly; the sibling test at lines 106–116 (<code>test_censoring_changes_the_estimate</code>) shows the intended "must differ" pattern.</td>
+<td>Assert the stratified estimate differs from the unstratified one (or equals a hand-computed two-curve reference).</td>
+</tr>
+</tbody>
+</table>
+<p><em>Table 3. T2 findings (robustness, evidence integrity, maintainability).</em></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Location</th>
+<th>Finding</th>
+<th>Evidence</th>
+<th>Recommended action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F3</td>
+<td><code>ltpred/family.py:96-100</code></td>
+<td>NaN <code>fam_id</code> silently fragments records into singleton "families": each NaN key compares unequal to itself, so grouping produces one family per NaN row. In a registry pipeline, missing IDs thus become relative-less estimates without any signal.</td>
+<td>Reproduced: <code>fam_id=[1.0, nan, nan, 1.0]</code> yields 3 families (two singleton NaN families), not 2 or an error.</td>
+<td>Reject non-finite <code>fam_id</code> in <code>families_from_columns</code> with a clear error.</td>
+</tr>
+<tr>
+<td>F4</td>
+<td><code>ltpred/estimate.py:669-688</code> (<code>_align_to_cov</code>)</td>
+<td>The biobank-scale array APIs never check <code>n_columns == len(roles)</code>: extra columns are silently ignored; short inputs fail with a raw <code>IndexError</code>. A mis-packed column matrix yields silently wrong liability scores on exactly the path where packing errors are most likely.</td>
+<td>Code read: columns are mapped purely by role-name index; agent's live repro: a 5-column bounds matrix with 3 roles returns an estimate from the first 3 columns without complaint.</td>
+<td>Add <code>shape == (F, len(roles))</code> checks in <code>_pa_from_role_arrays</code> / <code>_gibbs_from_role_arrays</code>.</td>
+</tr>
+<tr>
+<td>F5</td>
+<td><code>ltpred/_validation.py:22-46</code>, <code>ltpred/gibbs.py:744-746</code></td>
+<td>Coincident <em>infinite</em> bounds (<code>lower == upper == ±inf</code>) pass validation and yield NaN Gibbs draws, propagating a NaN posterior mean. Unreachable from the threshold helpers (prevalences are confined to (0,1)), hence T2.</td>
+<td>Reproduced: <code>rtmvnorm_gibbs(np.eye(1), [inf], [inf], seed=1)</code> returns all-NaN with only a <code>RuntimeWarning</code>.</td>
+<td>Reject coincident non-finite bounds in <code>validate_bounds</code>.</td>
+</tr>
+<tr>
+<td>F6</td>
+<td><code>ltpred/estimate.py:929-946</code></td>
+<td><code>estimate_liability_from_kinship</code> returns <code>(est, var)</code> under PA but <code>(est, se)</code> under Gibbs — the second positional element changes statistical meaning (posterior variance vs Monte-Carlo SE, &gt;100× different in magnitude) with <code>method</code>. The Gibbs branch computes <code>var</code> and discards it (<code>_var</code>, line 944). Disclosed in the docstring, but it invites exactly the confusion <code>LiabilityResult</code> was built to prevent.</td>
+<td>Code read; agent verified the magnitude gap live (0.2882 vs 0.0017 on the same pedigree).</td>
+<td>Return <code>(est, se, var)</code> from both branches, or return a <code>LiabilityResult</code>-like object.</td>
+</tr>
+<tr>
+<td>F7</td>
+<td><code>benchmarks/RESULTS.md:101, 561-564</code>; <code>README.md:229</code></td>
+<td>Sex-CIP gap-closure quoted as <strong>0.05091</strong> ± 0.00096 and female shift as <strong>−0.03689</strong>; the artifact gives −0.0509182 ± 0.000958 and −0.036906 ± 0.000405, which round to <strong>0.05092</strong> and <strong>−0.03691</strong>. Wrong in the last quoted digit; unguarded.</td>
+<td>Recomputed from the paired-contrast row and independently re-paired from the 5 replicate rows (identical).</td>
+<td>Fix the digits in the three locations; extend <code>check_results.py</code> to the sex-isolation contrast rows.</td>
+</tr>
+<tr>
+<td>F8</td>
+<td><code>benchmarks/RESULTS.md:77-81</code></td>
+<td>The "respectively" clause misattributes peak RSS: the sentence order (LTFHPlus, ltpred Gibbs, LTFGRS PA, ltpred PA) maps 259.8 MiB to ltpred Gibbs and 165.3 to LTFGRS PA; the artifact says the reverse. (The §30 table is correct.)</td>
+<td>Recomputed from <code>bench_ltfhplus_compare.csv</code>: LTFHPlus 442.3, LTFGRS PA 259.8, ltpred Gibbs 165.3, ltpred PA 147.9 MiB.</td>
+<td>Reorder the prose or the numbers.</td>
+</tr>
+<tr>
+<td>F9</td>
+<td><code>benchmarks/run_manifest.jsonl</code></td>
+<td>Provenance gaps. (a) Four committed CSVs — <code>bench_pgs_comparison.csv</code>, <code>bench_pedigree_inference.csv</code>, <code>bench_register_pipeline.csv</code>, <code>bench_ascertainment_h2null.csv</code> — have no manifest entry recording their production. (b) 40 of 44 recorded runs are schema-2 dirty-tree entries whose <code>tracked_diff_sha256</code> hashes a diff whose content is not retained; only the 4 schema-3 runs of 2026-08-15 have recoverable source snapshots.</td>
+<td>Parsed all 44 manifest entries; zero <code>changed_artifacts</code> hits for the four CSVs. RESULTS.md's "Provenance limit" bullet partially discloses (b).</td>
+<td>Re-run the four artifacts through <code>run_benchmark.py</code> on a clean tree (or document the regeneration); state in RESULTS.md that schema-2 source state is unrecoverable.</td>
+</tr>
+<tr>
+<td>F10</td>
+<td><code>benchmarks/RESULTS.md:158-161</code></td>
+<td>The §2 sentence "system processes held 1-minute load average near 7–11 throughout" describes the superseded 2026-08-01 run (recorded 6.67 → 10.92), not the canonical 2026-08-15 run that produced the committed <code>bench_scaling.csv</code> (recorded <strong>2.56 → 5.86</strong>). Benign direction — the canonical run was quieter than claimed.</td>
+<td>Manifest <code>load_average</code> fields for both runs (quoted).</td>
+<td>Update the sentence to the canonical run's recorded load.</td>
+</tr>
+<tr>
+<td>F11</td>
+<td><code>docs/inference.md:213-216</code></td>
+<td>The "≈0.97 cross-setting correlation" (scores correlated across an assumed-h² grid) has no artifact: <code>bench_calibration.py</code> computes only <code>corrcoef(est, true_g)</code>; no committed benchmark computes the cross-setting correlation. The qualitative claim (ranking robust, scale fragile) is supported by §12; the number is not.</td>
+<td>Read the benchmark; repo-wide search for the computation finds nothing.</td>
+<td>Add the cross-setting correlation to <code>bench_calibration.py</code>/§12 with a guard, or reword to cite §12's corr-stability (0.429–0.431) and slope sweep without the 0.97 figure.</td>
+</tr>
+<tr>
+<td>F12</td>
+<td><code>docs/algorithm.md:580-583</code></td>
+<td>"Both identities above are verified numerically to Monte-Carlo precision (… four settings … recovered to ~1e-3)" — no such four-setting verification exists in <code>tests/</code>, <code>benchmarks/</code>, or <code>scripts/</code>. What exists (§28) verifies the <em>correlation</em> identity at CI half-width 0.016, and never tests the <code>R²_joint</code> identity.</td>
+<td>Repo-wide search for the verification code finds nothing; §28 numbers recomputed (observed 0.2009 ± 0.0046 vs theory 0.2003 ± 0.0050).</td>
+<td>Reword to cite §28 at its actual precision, and either add the small four-setting check as a test/benchmark or drop the claim for <code>R²_joint</code>.</td>
+</tr>
+<tr>
+<td>F13</td>
+<td><code>.github/workflows/ci.yml:92-109</code></td>
+<td>The <code>oldest-deps</code> job installs without numba and then runs the <em>entire</em> <code>tests/</code> suite (524 tests), including all 12 <code>jit_required</code> tests and the sampling-heavy fit tests — plausibly 1–3+ hours per push, contradicting the marker's stated policy ("too sampling-heavy to run without the Numba JIT").</td>
+<td>Read ci.yml; agent measured <code>test_variance_components_recovers_A_and_C</code> at 7.4 s with numba vs &gt;300 s without.</td>
+<td>Add <code>-m "not jit_required"</code> and/or reuse the no-numba job's kernel-file list, keeping a small seeded subset for floor-version coverage.</td>
+</tr>
+<tr>
+<td>F14</td>
+<td><code>.github/workflows/ci.yml:16-21</code>; <code>pyproject.toml</code> classifiers</td>
+<td>Declared support (3.9–3.13, unbounded <code>&gt;=3.9</code>, "OS Independent") exceeds tested coverage: 3.10/3.11 never run; no 3.14 or free-threaded leg although the project's own benchmark environment is CPython 3.14.6 free-threading (and the free-threading-sensitive code — thread-local seed streams, <code>prange</code> — is exactly what it would exercise); Windows untested.</td>
+<td>Read both files; benchmark env from <code>run_manifest.jsonl</code>.</td>
+<td>Add 3.10/3.11 (cheap) and one 3.14t leg if 3.14 is de-facto supported, or cap/document support.</td>
+</tr>
+<tr>
+<td>F15</td>
+<td><code>.github/workflows/ci.yml</code></td>
+<td>No packaging/build verification anywhere: tests run from the source tree (<code>pythonpath = ["."]</code>), and no job builds an sdist/wheel. A broken distribution (dropped <code>py.typed</code>, omitted module, <code>version = {attr}</code> failure) would not be caught.</td>
+<td>Read ci.yml (6 jobs: test, research, lint, test-no-numba, oldest-deps, examples, docs).</td>
+<td>Add a <code>python -m build</code> + install-from-wheel + smoke-import job.</td>
+</tr>
+<tr>
+<td>F16</td>
+<td><code>benchmarks/bench_ltfhplus_compare.csv</code>; ci.yml</td>
+<td>The R lock (corr 0.9999 vs LTFHPlus 2.2.0; RMSE 0.000087 vs LTFGRS 1.0.1) exists only as a committed artifact: the R scripts are never run in CI and no pytest re-verifies the port against R output. A numerical regression in the Python port would pass the whole suite as long as nobody re-runs the benchmark. Defensible (R in CI is heavy) but should be a stated residual risk.</td>
+<td>Read ci.yml; the lock scripts are opt-in.</td>
+<td>Commit a small locked R-output fixture (a few dozen families) and assert reproduction within tolerance in pytest.</td>
+</tr>
+</tbody>
+</table>
+<p><em>Table 4. T3 findings (style, clarity, polish). Locations verified against the
+tree unless noted.</em></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Location</th>
+<th>Finding</th>
+<th>Recommended action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F17</td>
+<td><code>README.md:87-88</code>; <code>docs/algorithm.md:820-822</code></td>
+<td>"Both engines had correlation 0.9999 with the R Gibbs scores (RMSE 0.0041)": 0.0041 is the <em>Gibbs</em> figure (recomputed 0.004136); PA vs LTFHPlus is 0.0046 (recomputed 0.004621).</td>
+<td>Quote both RMSEs or drop the parenthetical.</td>
+</tr>
+<tr>
+<td>F18</td>
+<td><code>ltpred/estimate.py:295-330</code></td>
+<td>Batch-means SE divides by all retained draws (<code>total_n += n_sim</code>) while the batches cover only <code>nb*b ≤ n_sim</code> of them; R's <code>batchmeans::bmmat</code> (the cited source) uses <code>n = a*b</code>. SE understated by √(nb·b/n_sim): 0.07% at the default n_sim=100k, ~5% at n_sim=10.</td>
+<td>Use <code>nb*b</code> per round in the SE denominator.</td>
+</tr>
+<tr>
+<td>F19</td>
+<td><code>ltpred/estimate.py:949-1011</code></td>
+<td>Gibbs-only controls (<code>tol</code>, <code>n_sim</code>, <code>burn_in</code>, <code>max_rounds</code>, <code>seed</code>) are accepted but silently ignored on the default PA path; only <code>seed</code> carries a note.</td>
+<td>One docstring sentence, or a warning when non-default values meet the PA engine.</td>
+</tr>
+<tr>
+<td>F20</td>
+<td><code>ltpred/estimate.py:1000</code></td>
+<td><code>np.ndim(h2) &gt; 0</code> routes any non-scalar <code>h2</code> — including length-1 — into the multi-trait branch, yielding a confusing "needs genetic_corrmat" error for a numerically single-trait request.</td>
+<td>Treat size-1 <code>h2</code> as scalar, or special-case the message.</td>
+</tr>
+<tr>
+<td>F21</td>
+<td><code>ltpred/simulate.py:336-352</code></td>
+<td><code>case_encoding="pin"</code> is accepted with <code>onset_model="stochastic"</code>/<code>"liability_dependent"</code>, fabricating liability information the generating process does not contain (acknowledged in a code comment; defaults are correct).</td>
+<td>Warn when <code>"pin"</code> combines with a non-threshold-crossing onset model.</td>
+</tr>
+<tr>
+<td>F22</td>
+<td><code>ltpred/tetrachoric.py:147-149</code></td>
+<td>The reported SE inverts the observed information with thresholds fixed at the marginal estimates (a few-percent understatement; 94% empirical nominal-95 coverage in the agent's 200-replicate probe), and the Wald form degrades near</td>
+<td>ρ</td>
+</tr>
+<tr>
+<td>F23</td>
+<td><code>ltpred/cip.py:149 vs 219</code></td>
+<td><code>aalen_johansen_cip</code> requires integer-dtype <code>event_type</code> while <code>kaplan_meier_cip</code> accepts float 0/1 arrays — an inconsistency users hit when switching estimators on float-loaded registry columns.</td>
+<td>Accept integral float arrays in AJ, or document the asymmetry.</td>
+</tr>
+<tr>
+<td>F24</td>
+<td><code>ltpred/pedigree.py:154</code></td>
+<td><code>int(max_degree)</code> silently truncates a non-integer (<code>2.9</code> → 2).</td>
+<td>Explicit integer validation.</td>
+</tr>
+<tr>
+<td>F25</td>
+<td><code>ltpred/family.py:90</code></td>
+<td>Only the first dimension of <code>lower</code>/<code>upper</code> is length-checked; a 1-D/2-D mismatch passes and fails later with a less local message.</td>
+<td>Check <code>lower.shape == upper.shape</code>.</td>
+</tr>
+<tr>
+<td>F26</td>
+<td><code>docs/RELEASING.md:36</code></td>
+<td>"tests on 3.9/3.12" is stale: CI runs 3.9/3.12/3.13 + macOS 3.12.</td>
+<td>Update the version list.</td>
+</tr>
+<tr>
+<td>F27</td>
+<td><code>docs/algorithm.md:351</code></td>
+<td>"recall the factorisation <code>g0 = w' mu</code> with <code>w = V^-1 c</code>" — the <code>w'μ</code> notation is never introduced earlier and <code>g0</code> appears only here; "recall" points to nothing.</td>
+<td>Introduce the notation at eqs. (4)/(5) or define inline.</td>
+</tr>
+<tr>
+<td>F28</td>
+<td><code>docs/assumptions.md:8</code></td>
+<td>"The high-level predictor uses additive genetic sharing only" is true for the default only; <code>c2</code>/<code>m2</code> add environmental off-diagonals two paragraphs later.</td>
+<td>Prepend "By default,".</td>
+</tr>
+<tr>
+<td>F29</td>
+<td><code>docs/inference.md:33-35</code></td>
+<td>The detectable-enrichment formula omits the <code>_CASE_RATE_RATIO_TOL = 1.15</code> floor (<code>fit.py:165</code>): for K = 0.05 and n ≳ 30,400 the binding threshold is 1.15×, not the formula's value.</td>
+<td>Note the <code>max(formula, 1.15×)</code> floor.</td>
+</tr>
+<tr>
+<td>F30</td>
+<td><code>benchmarks/RESULTS.md:955</code></td>
+<td>"M 0.17 vs truth 0.15": the hash-matched run log gives 0.163 (rounds to 0.16). §24 is log-only (no CSV, no guard).</td>
+<td>Fix the digit; consider a CSV for §24.</td>
+</tr>
+<tr>
+<td>F31</td>
+<td><code>benchmarks/RESULTS.md</code> §26/§27</td>
+<td>Stored CIs are normal (1.96×SE) over 3–5 replicates; t-criticals would be 2.2–4.3× wider. Disclosed twice in the document, but the narrow intervals are what a skimming reader absorbs.</td>
+<td>Switch to t-intervals, or move the disclosure next to the tables.</td>
+</tr>
+<tr>
+<td>F32</td>
+<td><code>.github/workflows/ci.yml:69</code></td>
+<td>Comment says "That is ~285 tests"; actual collection is 297 (verified with <code>--collect-only</code>).</td>
+<td>Update the count or drop the number.</td>
+</tr>
+<tr>
+<td>F33</td>
+<td><code>docs/algorithm.md:563-566</code></td>
+<td>Quotation marks around a paraphrase of Dybdahl Krebs et al. 2026: the paper says "noisy <em>measures</em> of additive genetic liability", not "noisy <em>estimates</em> of the same additive genetic liability".</td>
+<td>Quote verbatim or drop the quotation marks.</td>
+</tr>
+<tr>
+<td>F34</td>
+<td><code>README.md:25, 88</code>; <code>docs/algorithm.md:822</code>; <code>docs/estimation.md:223-228</code></td>
+<td>"Public PA is LTFGRS" omits the original <code>BioPsyk/PAFGRS</code> R package released with Krebs et al. 2024.</td>
+<td>"Public PA implementations include LTFGRS (benchmarked here) and the original PAFGRS package."</td>
+</tr>
+<tr>
+<td>F35</td>
+<td><code>docs/estimation.md:120-123</code></td>
+<td>The clause that Hujoel et al. 2022 "preferred a logistic combination when clinical covariates were included" could not be verified from the accessible text (publisher full text paywalled). The core claim (PRS+FH combination improves prediction) is verified.</td>
+<td>Confirm against the paper's STAR Methods or soften the sentence.</td>
+</tr>
+<tr>
+<td>F36</td>
+<td><code>tests/</code> (several)</td>
+<td>Small untested branches: the <code>families_from_columns</code> length-mismatch error; multi-trait <code>var</code> values (smoke-only); <code>gibbs_advance_moment</code> (used by the research MCEM, only indirect coverage); no closed-form oracle for estimation under <code>c2</code>/<code>m2</code>.</td>
+<td>Four small targeted tests.</td>
+</tr>
+<tr>
+<td>F37</td>
+<td><code>scripts/check_results.py</code> coverage</td>
+<td>Guard-coverage gaps (structural, no live error): paired-contrast guards recompute from stored contrast rows rather than re-pairing replicates; §8, §10, §11, §19, §25, §27 have CSVs but no guards; §17, §18, §24 are log-only.</td>
+<td>Extend guards as artifacts are touched; re-pair from replicate rows.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-the-headline-claims-assessed">4. The headline claims, assessed<a class="headerlink" href="#4-the-headline-claims-assessed" title="Permanent link">&para;</a></h2>
+<p><em>Table 5. Each headline claim of <code>benchmarks/RESULTS.md</code>, traced to its
+artifact and recomputed. "Supported" means the quoted value and its stated
+uncertainty reproduce from the committed CSV at quoted precision.</em></p>
+<table>
+<thead>
+<tr>
+<th>Claim</th>
+<th>Verdict</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>corr(PA, Gibbs) 0.9977–0.9999 across the 27-cell grid</td>
+<td>Supported</td>
+<td>Recomputed range 0.997677–0.999900.</td>
+</tr>
+<tr>
+<td>Stress pedigrees ≥ 0.9984</td>
+<td><strong>Not supported (F1)</strong></td>
+<td>Artifact: worst seed 0.998131, mean 0.998262.</td>
+</tr>
+<tr>
+<td>Gibbs ≈ LTFHPlus 2.2.0: corr 0.9999, RMSE 0.0041 ± 0.0001</td>
+<td>Supported</td>
+<td>0.999913 ± 0.000008; 0.004136 ± 0.000116.</td>
+</tr>
+<tr>
+<td>PA ≈ LTFGRS 1.0.1: corr 1.0000, RMSE 0.000087 ± 0.000008</td>
+<td>Supported</td>
+<td>Recomputed from 3 replicate rows.</td>
+</tr>
+<tr>
+<td>Fold times 6.87 ± 0.12× / 1178 ± 157×; mixed 6613 ± 800×</td>
+<td>Reproduces; framing since corrected</td>
+<td>The values re-derive from the CSV, and the algorithm-mixing caveat ("not 'LT-FH++, but faster'") is right. What this row missed is that the two same-algorithm folds were measured at 4 Numba threads against 1 <code>future</code> worker, and only one of them is thread-sensitive: re-run matched at one thread, LTFHPlus/Gibbs is about 1.8× (not 6.87×) while LTFGRS/PA exceeds 1500×. Recomputing a number from its artifact cannot detect a resource asymmetry in how the artifact was produced; §30 now carries both columns.</td>
+</tr>
+<tr>
+<td>PA 384–488× faster than grouped Gibbs (4 threads)</td>
+<td>Supported</td>
+<td>Thread-count caveat stated.</td>
+</tr>
+<tr>
+<td>Classic LT-FH NCP ratio 1.47 ± 0.04×</td>
+<td>Supported</td>
+<td>1.468 ± 0.040 (Gibbs), 1.469 ± 0.039 (PA).</td>
+</tr>
+<tr>
+<td>ADuLT 1.049 vs LT-FH++ 1.194; increment +0.1454 ± 0.0154</td>
+<td>Supported</td>
+<td>Independently re-paired from the 10 replicate rows; slope 0.995 ± 0.015.</td>
+</tr>
+<tr>
+<td>Cohort-blind λ_GC 16.460 ± 0.399 vs cohort-aware 1.007 ± 0.040</td>
+<td>Supported</td>
+<td>Framed as a confounding demonstration, not a method failure — the honest reading.</td>
+</tr>
+<tr>
+<td>Sex-CIP gap closure 0.05091 ± 0.00096; ΔNCP unresolved (0.0040 ± 0.0046)</td>
+<td>Digit error (F7); conclusion sound</td>
+<td>Artifact 0.05092; the unresolved-power statement is appropriately candid.</td>
+</tr>
+<tr>
+<td>PGS ⊕ LT-FH: R² 0.236 + 0.170 → 0.339; corr 0.2009 ± 0.0046 vs theory 0.2003 ± 0.0050</td>
+<td>Supported</td>
+<td>Consistent with the a·b·√p identity; the doc's stronger verification claim is F12.</td>
+</tr>
+<tr>
+<td>Mixture max Δcorr −0.00034 ± 0.00011</td>
+<td>Supported</td>
+<td>Detectable but practically negligible — stated as such.</td>
+</tr>
+<tr>
+<td>IPW ascertainment: ĥ² 0.495 vs truth 0.5 (case/control), 0.473 (enriched)</td>
+<td>Supported</td>
+<td>0.4945 recomputed; positivity and efficiency limits disclosed.</td>
+</tr>
+</tbody>
+</table>
+<p>Two interpretation remarks. First, the effect sizes are reported with the
+<em>right</em> uncertainty almost everywhere — Monte-Carlo SEs for simulation means,
+paired intervals for few-replicate contrasts — and the document repeatedly
+warns against substituting one for the other (§5's SD/MC-SE ratio discussion is
+exemplary). Second, the claims most at risk of over-reading are precisely the
+ones this review flags: a stale superlative (F1) and unguarded transcriptions
+(F7, F8, F17). The guard system works; these fell through its gaps.</p>
+<h2 id="5-limitations-of-this-review">5. Limitations of this review<a class="headerlink" href="#5-limitations-of-this-review" title="Permanent link">&para;</a></h2>
+<ol>
+<li>No benchmark was re-run end to end; claims were verified by recomputation
+   from the committed artifacts and provenance files. The R locks in
+   particular were not re-executed (F16 covers the implication). This is a
+   structural blind spot, not merely an economy: recomputation establishes
+   that a number follows from its artifact, and is silent on whether the
+   <em>experiment</em> behind the artifact was like-for-like. The fold-time row of
+   Table 5 is the worked example — 6.87 ± 0.12× re-derives exactly and was
+   still not the implementation comparison its label promised, because
+   ltpred ran on four threads and the R packages on one worker. Comparability
+   has to be audited by re-running under matched conditions, which is what
+   <code>bench_ltfhplus_compare_1thread.csv</code> now does.</li>
+<li>The <code>research/</code> package was reviewed at the level of its tests and public
+   contracts, not by a full theoretical audit of its EM/MCEM derivations.</li>
+<li>Literature verification used the publisher records accessible on
+   2026-08-16; one sub-clause (F35) could not be confirmed from accessible
+   text and is flagged rather than asserted false.</li>
+<li>Numerical probes were run on one machine and one stack (Table 1); nothing
+   here speaks to Windows or to NumPy/SciPy floors beyond what CI covers.</li>
+</ol>
+<h2 id="6-summary">6. Summary<a class="headerlink" href="#6-summary" title="Permanent link">&para;</a></h2>
+<p>The statistical core is correct, the numerics are verified against independent
+references, the test oracles are sound, the evidence discipline is real, and
+the literature framing is fair. The two T1 findings are narrow: one stale
+headline number contradicted by its own artifact (F1), and one vacuous
+research test (F2). The T2 findings cluster in three places: silent-failure
+modes at input boundaries (F3–F6), transcription and provenance gaps in the
+unguarded prose of the evidence ledger (F7–F12), and CI coverage short of the
+declared support matrix (F13–F16). All are individually small; together they
+are the natural next hardening pass for a project whose own guard philosophy —
+"claims carry their evidence" — most of these findings simply extend.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Pioneer Centre for SMARTbiomed · <a href="https://smartbiomed.dk/">smartbiomed.dk</a> · Aarhus University · University of Copenhagen · University of Oxford
+
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://smartbiomed.dk/" target="_blank" rel="noopener" title="Pioneer Centre for SMARTbiomed" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/bvilhjal/ltpred" target="_blank" rel="noopener" title="ltpred on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["announce.dismiss", "navigation.sections", "navigation.top", "navigation.tracking", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+      
+        <script src="../javascripts/katex.js"></script>
+      
+    
+  </body>
+</html>

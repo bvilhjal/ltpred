@@ -10,6 +10,8 @@
       
       
       
+        <link rel="canonical" href="https://bvilhjal.github.io/ltpred/estimation/">
+      
       
         <link rel="prev" href="../cip-estimation/">
       
@@ -20,8 +22,8 @@
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <link rel="icon" href="../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -29,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -46,12 +48,16 @@
         
         
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
-        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+3:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Source Sans 3";--md-code-font:"Roboto Mono"}</style>
       
     
     
       <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/smartbiomed.css">
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
     
     <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -69,7 +75,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -85,6 +91,25 @@
     </div>
     <div data-md-component="announce">
       
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+              <button class="md-banner__button md-icon" aria-label="Don't show this again">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              </button>
+            
+            
+  A methods package of the Pioneer Centre for
+  <a href="https://smartbiomed.dk/">SMARTbiomed</a>
+  · Aarhus University · University of Copenhagen · University of Oxford
+
+          </div>
+          
+            <script>var el=document.querySelector("[data-md-component=announce]");if(el){var content=el.querySelector(".md-typeset");__md_hash(content.innerHTML)===__md_get("__announce")&&(el.hidden=!0)}</script>
+          
+        </aside>
+      
     </div>
     
     
@@ -96,8 +121,7 @@
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href=".." title="ltpred" class="md-header__button md-logo" aria-label="ltpred" data-md-component="logo">
       
-  
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <img src="../assets/logo.svg" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -127,7 +151,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -137,7 +161,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -200,7 +224,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    GitHub
+    bvilhjal/ltpred
   </div>
 </a>
       </div>
@@ -232,8 +256,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href=".." title="ltpred" class="md-nav__button md-logo" aria-label="ltpred" data-md-component="logo">
       
-  
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <img src="../assets/logo.svg" alt="logo">
 
     </a>
     ltpred
@@ -246,12 +269,39 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    GitHub
+    bvilhjal/ltpred
   </div>
 </a>
     </div>
   
   <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
     
       
       
@@ -267,7 +317,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
+    Choose a method
   
 
     
@@ -314,6 +364,87 @@
   
   
     <li class="md-nav__item">
+      <a href="../vignette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vignette
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflow
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../data-preparation/" class="md-nav__link">
         
   
@@ -333,9 +464,10 @@
     </li>
   
 
-    
-      
-      
+              
+            
+              
+                
   
   
   
@@ -360,9 +492,10 @@
     </li>
   
 
-    
-      
-      
+              
+            
+              
+                
   
   
     
@@ -550,9 +683,10 @@
     </li>
   
 
-    
-      
-      
+              
+            
+              
+                
   
   
   
@@ -565,7 +699,7 @@
   <span class="md-ellipsis">
     
   
-    Inference
+    Fitting the model
   
 
     
@@ -577,9 +711,10 @@
     </li>
   
 
-    
-      
-      
+              
+            
+              
+                
   
   
   
@@ -604,9 +739,69 @@
     </li>
   
 
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
     
       
       
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
   
   
   
@@ -631,9 +826,38 @@
     </li>
   
 
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
     
-      
-      
+  
+    Technical report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
   
   
   
@@ -658,9 +882,69 @@
     </li>
   
 
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
     
       
       
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
   
   
   
@@ -682,6 +966,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -856,8 +1148,8 @@ scaling up. Assumes you already have families with liability bounds — see
 <p>From flat columns (the common path):</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">families_from_columns</span>
 <span class="n">families</span> <span class="o">=</span> <span class="n">families_from_columns</span><span class="p">(</span>
-    <span class="n">fam_id</span><span class="o">=</span><span class="n">fam_id</span><span class="p">,</span>          <span class="c1"># e.g. [&quot;A&quot;,&quot;A&quot;,&quot;A&quot;,&quot;B&quot;,&quot;B&quot;, ...]</span>
-    <span class="n">role</span><span class="o">=</span><span class="n">role</span><span class="p">,</span>              <span class="c1"># e.g. [&quot;o&quot;,&quot;m&quot;,&quot;f&quot;,&quot;o&quot;,&quot;s1&quot;, ...]</span>
+    <span class="n">fam_id</span><span class="o">=</span><span class="n">fam_id</span><span class="p">,</span>          <span class="c1"># e.g. ["A","A","A","B","B", ...]</span>
+    <span class="n">role</span><span class="o">=</span><span class="n">role</span><span class="p">,</span>              <span class="c1"># e.g. ["o","m","f","o","s1", ...]</span>
     <span class="n">lower</span><span class="o">=</span><span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="n">upper</span><span class="p">,</span>
     <span class="n">pid</span><span class="o">=</span><span class="n">pid</span><span class="p">,</span>                <span class="c1"># optional</span>
     <span class="c1"># K_i=K_i, K_pop=K_pop, # only for the PA mixture</span>
@@ -871,7 +1163,7 @@ diagnosis-derived GWAS phenotype; omit or unbind it when predicting/classifying
 that same diagnosis, or the outcome leaks into the score.</p>
 <h2 id="running-the-estimator">Running the estimator<a class="headerlink" href="#running-the-estimator" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability</span>
-<span class="n">res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;genetic&quot;</span><span class="p">,))</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="p">(</span><span class="s2">"genetic"</span><span class="p">,))</span>
 </code></pre></div>
 <ul>
 <li><code>h2</code> — liability-scale heritability (scalar; a vector selects the multi-trait
@@ -920,29 +1212,31 @@ that same diagnosis, or the outcome leaks into the score.</p>
 </tr>
 <tr>
 <td><code>res.se["genetic"]</code></td>
-<td>Gibbs: Monte-Carlo standard error of the mean; PA: <code>0</code></td>
+<td>the <strong>estimator's own numerical error</strong> in <code>res.est</code> — Gibbs: batch-means Monte-Carlo standard error of the mean, which shrinks as you sample more; PA: <code>0</code>, because it is deterministic (not because it is exact)</td>
 </tr>
 <tr>
 <td><code>res.var["genetic"]</code></td>
-<td>PA only: sequential-moment approximation to the conditional variance <code>Var(G_i \| family)</code> — residual uncertainty about <code>G_i</code>, <strong>not</strong> a standard error of the estimate (<code>None</code> for Gibbs)</td>
+<td>the <strong>posterior</strong> conditional variance <code>Var(G_i \| family)</code> — how uncertain this proband's liability is given their family. Reported by <strong>both</strong> engines: Gibbs as the Monte-Carlo variance of its retained draws, PA as its sequential-moment approximation. It does <strong>not</strong> shrink as you sample more, and it is <strong>not</strong> a standard error of the estimate</td>
 </tr>
 </tbody>
 </table>
+<p>The two are different quantities and neither substitutes for the other: <code>var</code>
+describes the proband, <code>se</code> describes the calculation. On a seven-observation
+family fold PA's <code>var</code> sits within 5% of the sampler's
+(<code>tests/test_pearson_aitken.py::test_pa_conditional_variance_matches_gibbs_multi_truncation</code>).</p>
 <p><code>res.genetic</code> is shorthand for <code>res.est["genetic"]</code> (the usual single-trait output).
 Multi-trait columns are suffixed with the phenotype name, e.g.
 <code>res.est["genetic_height"]</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="n">score</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">genetic</span>             <span class="c1"># use this as your GWAS phenotype / risk score</span>
 </code></pre></div>
 <blockquote>
-<p><strong><code>out="full"</code> differs between the methods.</strong> For <strong>Gibbs</strong>, <code>full</code> is
-<code>E[l_o | own status, relatives]</code> — the proband's full liability conditioned on
-everything, including their own interval. For <strong>Pearson–Aitken</strong>, the full
-liability is the <em>target</em> of the sweep and so is <strong>not</strong> conditioned on its own
-observed interval; <code>full</code> there means "the proband's full liability predicted
-from the relatives". They are not the same quantity (e.g. a case with no
-relatives gives a positive Gibbs <code>full</code> but a <code>0</code> PA <code>full</code>). The canonical GWAS
-phenotype is <code>out="genetic"</code>, where the two agree; if you specifically want the
-own-status-conditioned full liability, use Gibbs.</p>
+<p><strong><code>out="full"</code> is E[l_o | own interval and relatives]</strong>
+on both engines. Pearson–Aitken applies the target's own bound after the
+relative fold (an unbounded <code>g</code> is a no-op). A lone case therefore gives a
+positive PA <code>full</code>, matching Gibbs, not zero. Omit role <code>o</code> or set its
+bounds to <code>(-inf, inf)</code> when you want a relatives-only predictor — the
+same rule as for prospective prediction. The canonical GWAS phenotype is
+still <code>out="genetic"</code>.</p>
 </blockquote>
 <h3 id="what-the-score-is-and-is-not">What the score is — and is not<a class="headerlink" href="#what-the-score-is-and-is-not" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>Estimand:  mu_i = E[ additive genetic liability of proband i
@@ -959,7 +1253,7 @@ family-history analogue of a BLUP / selection-index breeding value (see
   from relatives' phenotypes and the assumed relationship matrix.</li>
 <li><strong>Not an absolute disease risk.</strong> It lives on the liability scale; turning it
   into a risk needs the threshold/CIP model on top.</li>
-<li><strong>A conditional estimate.</strong> the liability estimators <em>condition</em> on an assumed
+<li><strong>A conditional estimate.</strong> The liability estimators <em>condition</em> on an assumed
   <code>h2</code>, prevalence/CIP model and family covariance; they do not estimate the CIPs
   internally. (<code>h2</code> itself can optionally be fit from the family data with
   <code>fit_heritability</code> — see <a href="../inference/">Inference</a>.)</li>
@@ -974,8 +1268,7 @@ bounds to <code>(-inf, inf)</code> and estimate from family history alone.</p>
 <p>Combining this family-derived score with a SNP polygenic score is a <strong>separate
 downstream prediction model</strong>, not an operation performed by ltpred. Hujoel et al.
 found that a target-population-fitted PRS-plus-family-history model improved disease
-prediction across the UK Biobank target populations they studied, and preferred a
-logistic combination when clinical covariates were included
+prediction across the UK Biobank target populations they studied
 (<a href="https://doi.org/10.1016/j.xgen.2022.100152">2022, <em>Cell Genomics</em></a>). For five
 psychiatric disorders, Dybdahl Krebs et al. found PA-FGRS and PGS to be weakly
 correlated but complementary; their theory explains this as two noisy estimates of
@@ -996,29 +1289,56 @@ Var(l_i)      = h2 + c2 + m2 + e2 = 1               (residual e2 absorbs)
 </code></pre></div>
 <p>so <code>h2 + c2 + m2 &lt;= 1</code> must hold. The genetic target still couples to
 relatives only through <code>h2 * A</code> — <code>g</code> remains a <em>genetic</em> liability.</p>
-<p>Fit the components from the same families and wire them straight back in:</p>
+<p>If the families are independent and non-overlapping, and you can declare their
+sampling design (unascertained, or selected on observed status with known
+inclusion probabilities — see <a href="../inference/#ascertained-samples">Inference</a>),
+fit the components and wire them back in:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability</span><span class="p">,</span> <span class="n">fit_variance_components</span>
 
-<span class="n">fit</span> <span class="o">=</span> <span class="n">fit_variance_components</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="s2">&quot;M&quot;</span><span class="p">))</span>
-<span class="n">res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;A&quot;</span><span class="p">],</span>
-                         <span class="n">c2</span><span class="o">=</span><span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
-                         <span class="n">m2</span><span class="o">=</span><span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;M&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+<span class="n">fit</span> <span class="o">=</span> <span class="n">fit_variance_components</span><span class="p">(</span>
+    <span class="n">families</span><span class="p">,</span> <span class="p">(</span><span class="s2">"A"</span><span class="p">,</span> <span class="s2">"C"</span><span class="p">,</span> <span class="s2">"M"</span><span class="p">),</span> <span class="n">sampling</span><span class="o">=</span><span class="s2">"population"</span>
+<span class="p">)</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">"A"</span><span class="p">],</span>
+                         <span class="n">c2</span><span class="o">=</span><span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"C"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                         <span class="n">m2</span><span class="o">=</span><span class="n">fit</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"M"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
 </code></pre></div>
 <p>Or pass known values directly: <code>estimate_liability(families, h2=0.4, c2=0.15,
-m2=0.1)</code>. The <code>c2</code>/<code>m2</code> arguments exist on every estimator entry point
-(<code>estimate_liability</code>, <code>estimate_liability_single</code>, <code>estimate_liability_pa</code>,
-<code>estimate_liability_pa_arrays</code>, <code>estimate_liability_gibbs_arrays</code>); the
-kinship/arbitrary-pedigree path does not take them yet — assemble its
-covariance yourself. Validated in
+m2=0.1)</code>. The <code>c2</code>/<code>m2</code> arguments are supported by the single-trait role/object
+and array entry points (<code>estimate_liability</code> with scalar <code>h2</code>,
+<code>estimate_liability_pa_arrays</code>, <code>estimate_liability_gibbs_arrays</code>). The
+high-level multi-trait route rejects nonzero components until their cross-trait
+covariance is defined; the kinship/arbitrary-pedigree path likewise requires
+you to assemble its covariance explicitly. Validated in
 <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">benchmarks/RESULTS.md</a> (section 24): wiring
 recalibrates the genetic estimate (slope 0.93 -&gt; 0.99) and sharpens
 full-liability prediction on environmentally clustered families.</p>
+<p>For <strong>case/control-enriched</strong> samples with known inclusion probabilities, pass
+<code>sampling="ipw"</code> with per-family weights — see
+<a href="../inference/#ascertained-samples">Inference</a> for the worked example and its two
+limits. A <strong>family-history-selected</strong> sample is reweightable only if every
+complete observed family pattern has a known, strictly positive inclusion
+probability. When probabilities are unknown or misspecified, or any stratum has
+zero probability, use externally estimated components or a fitter that models
+the sampling design. The family bootstrap does not correct ascertainment bias.</p>
 <h2 id="choosing-gibbs-vs-pearsonaitken">Choosing Gibbs vs Pearson–Aitken<a class="headerlink" href="#choosing-gibbs-vs-pearsonaitken" title="Permanent link">&para;</a></h2>
-<p>Both target the same posterior-liability idea, but Pearson–Aitken is a
-deterministic <em>approximation</em>: it is exact for a single observed truncation. In
-the benchmarked <strong>no-mixture</strong> family structures, PA and Gibbs posterior-mean
-<code>genetic</code> estimates had correlation ≥ 0.997. For unusual pedigrees — very large, densely
-affected, or heavily truncated — treat Gibbs as the reference and cross-check.</p>
+<p>Both engines return an estimate of the same target
+<code>μ_i = E[a_i | D_F]</code>
+(<a href="../algorithm/#the-estimand">algorithm.md</a>, equation (3)).
+Write Algorithm G for the truncated-MVN Gibbs sampler and
+Algorithm P for the Pearson–Aitken sequential-selection sweep
+(<a href="../algorithm/#inference-engine-1-gibbs-sampler">algorithm.md</a>).
+G is exact in the limit of infinite draws. P is exact for a single
+interval or a pin, and a two-moment approximation thereafter.</p>
+<p>In the benchmarked <strong>no-mixture</strong> family structures, PA and Gibbs
+posterior-mean <code>genetic</code> estimates had correlation ≥ 0.997. For
+unusual pedigrees — very large, densely affected, or heavily
+truncated — treat Algorithm G as the reference and cross-check.
+Algorithm P is fold-order dependent; the estimator canonicalizes
+each family to a sorted role order before folding (a
+reproducibility choice, not an accuracy one), and
+<code>benchmarks/bench_pa_robustness.py</code> puts the spread across fold orders at a
+median &lt; 0.12% and p95 &lt; 3.4% of the between-proband score SD on the stress
+pedigrees.</p>
 <p>Hujoel et al.'s original LT-FH study reported a less favourable Pearson–Aitken
 comparison for UK Biobank's aggregate sibling question (at least one sibling
 affected). That union event is not equivalent to separately observed per-sibling
@@ -1036,13 +1356,18 @@ test a different, no-mixture observation model
 <tbody>
 <tr>
 <td>kind</td>
-<td>Monte-Carlo (truncated-MVN sampler)</td>
+<td>Monte-Carlo truncated-MVN sampler; untruncated genetic coordinates are collapsed out of the sweep</td>
 <td>deterministic sequential-selection approximation</td>
 </tr>
 <tr>
 <td>error</td>
 <td>batch-means MC SE (<code>res.se</code>)</td>
-<td>no Monte-Carlo error, but a non-zero sequential moment-approximation error; gives <code>Var(G_i \| family)</code> in <code>res.var</code></td>
+<td>no Monte-Carlo error (<code>res.se</code> is <code>0</code>), but a non-zero sequential moment-approximation error</td>
+</tr>
+<tr>
+<td>posterior variance</td>
+<td><code>Var(G_i \| family)</code> in <code>res.var</code>, from the retained draws</td>
+<td><code>Var(G_i \| family)</code> in <code>res.var</code>, as a sequential-moment approximation</td>
 </tr>
 <tr>
 <td>exactness</td>
@@ -1051,8 +1376,8 @@ test a different, no-mixture observation model
 </tr>
 <tr>
 <td>speed</td>
-<td>~300–990 families/s (10 threads)</td>
-<td>~152k–310k families/s — <strong>315–510× faster</strong> across tested sizes/structures</td>
+<td>~180–690 families/s (4 threads)</td>
+<td>~92k–270k families/s — <strong>392–518× faster than Gibbs in this package</strong> across tested sizes/structures, at the same 4 threads. Versus the public R packages on the locked 200-family cohort, each at its default parallelism (ltpred 4 Numba threads, R 1 <code>future</code> worker): <strong>6.79×</strong> vs LTFHPlus Gibbs and <strong>1418×</strong> vs LTFGRS PA. Only the second is an implementation comparison. Re-run with both sides at one thread, the LTFHPlus/Gibbs fold is <strong>1.75×</strong> while LTFGRS/PA is <strong>1425×</strong> — Gibbs is <code>prange</code>-parallel so its fold tracks the thread count, PA is serial so its fold does not (RESULTS §30 for both columns and the load caveat)</td>
 </tr>
 <tr>
 <td>censoring mixture</td>
@@ -1061,7 +1386,14 @@ test a different, no-mixture observation model
 </tr>
 </tbody>
 </table>
-<p>The speed and agreement comparisons use ordinary bounds without the censoring
+<p>A locked comparison to R LTFHPlus 2.2.0 and LTFGRS 1.0.1 on the same
+classic LT-FH families is in
+<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md"><code>RESULTS.md</code> §30</a>:
+both engines had correlation 0.9999 with the R Gibbs scores; ltpred PA
+and LTFGRS PA agree at RMSE 0.000087. Same-algorithm fold times were
+6.79× versus LTFHPlus Gibbs and 1418× versus LTFGRS PA. Total and
+per-family times, and isolated-process peak RSS, are in that section.</p>
+<p>The intra-package speed and agreement comparisons use ordinary bounds without the censoring
 mixture. Those rates are machine-specific medians from five warmed timings per point;
 <code>benchmarks/RESULTS.md</code> reports the configuration and IQR-backed grid. Treat the
 range as evidence about scale, not a hardware promise.</p>
@@ -1083,13 +1415,13 @@ Skip the objects with the <strong>array API</strong>, which takes already-aligne
 <span class="c1"># roles shared by the cohort (o + relatives; g is added). lower/upper are</span>
 <span class="c1"># (n_families, len(roles)) aligned to `roles` — build them straight from columns.</span>
 <span class="n">est</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">estimate_liability_pa_arrays</span><span class="p">(</span>
-    <span class="n">roles</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="s2">&quot;m&quot;</span><span class="p">,</span> <span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="s2">&quot;s1&quot;</span><span class="p">],</span> <span class="n">lower</span><span class="o">=</span><span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-    <span class="n">out</span><span class="o">=</span><span class="s2">&quot;genetic&quot;</span><span class="p">,</span>                       <span class="c1"># or use_mixture=True with K_i=, K_pop=</span>
+    <span class="n">roles</span><span class="o">=</span><span class="p">[</span><span class="s2">"o"</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">,</span> <span class="s2">"s1"</span><span class="p">],</span> <span class="n">lower</span><span class="o">=</span><span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">out</span><span class="o">=</span><span class="s2">"genetic"</span><span class="p">,</span>                       <span class="c1"># or use_mixture=True with K_i=, K_pop=</span>
 <span class="p">)</span>
 </code></pre></div>
 <p>This runs the covariance construction once and the parallel PA kernel directly —
-6–31× faster than the object path in the current warmed timing grid, at
-1.6–8.6 million already-aligned families/s (and
+13–29× faster than the object path in the current warmed timing grid, at
+2.02–6.29 million already-aligned families/s (and
 <code>estimate_liability_gibbs_arrays</code> does the same for Gibbs, returning <code>(est, se)</code>).
 Control the thread count with <code>ltpred.set_num_threads(n)</code>, and warm up once (the
 first call JIT-compiles) before timing. Different family structures still need
@@ -1099,16 +1431,16 @@ internally); <code>lower</code> and <code>upper</code> are both <code>(n_familie
 <code>roles[j]</code>. A relative that is <strong>absent or uninformative</strong> for a given family is
 encoded as the full real line — <code>lower = -np.inf</code>, <code>upper = np.inf</code> — so every row
 carries the same <code>k</code> columns even when some relatives are missing:</p>
-<div class="highlight"><pre><span></span><code><span class="n">roles</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;o&quot;</span><span class="p">,</span> <span class="s2">&quot;m&quot;</span><span class="p">,</span> <span class="s2">&quot;f&quot;</span><span class="p">,</span> <span class="s2">&quot;s1&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><span class="n">roles</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"o"</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">,</span> <span class="s2">"s1"</span><span class="p">]</span>
 <span class="k">assert</span> <span class="n">lower</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">upper</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="n">n_families</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">roles</span><span class="p">))</span>
-<span class="n">lower</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">upper</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>     <span class="c1"># family i&#39;s father unobserved</span>
+<span class="n">lower</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="n">upper</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>     <span class="c1"># family i's father unobserved</span>
 </code></pre></div>
 <p><strong>Memory: <code>dtype=np.float32</code>.</strong> The memory that scales at biobank size is the
 per-family <code>(n_families, len(roles))</code> bounds (<code>lower</code>/<code>upper</code>, and <code>K_i</code>/<code>K_pop</code>),
 not the tiny per-structure covariance. Store them in single precision to halve
-that footprint — pass <code>dtype=np.float32</code> to <code>estimate_liability</code> (and the
-<code>_single</code>/<code>_multi</code>/<code>_pa</code> variants), or simply hand the array API <code>float32</code> bound
-arrays; it keeps them float32. The covariance, conditional-regression factors and
+that footprint — pass <code>dtype=np.float32</code> to <code>estimate_liability</code>, or hand either
+array API <code>float32</code> bound arrays; they remain float32. The covariance,
+conditional-regression factors and
 Monte-Carlo accumulators stay float64, so the estimates match the float64 result
 to ~1e-5 (float32 rounding of the thresholds only). Quantising the <em>covariance</em>
 itself (à la ldpred3's int8 LD) would not help here — it is a small <code>d×d</code> matrix
@@ -1122,10 +1454,10 @@ shared per structure, kilobytes total, and it is used in a matrix inverse.</p>
     <span class="n">h2</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">],</span>
     <span class="n">genetic_corrmat</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.4</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]),</span>
     <span class="n">full_corrmat</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]),</span>
-    <span class="n">phen_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">],</span>
-    <span class="n">out</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;genetic&quot;</span><span class="p">,),</span>
+    <span class="n">phen_names</span><span class="o">=</span><span class="p">[</span><span class="s2">"A"</span><span class="p">,</span> <span class="s2">"B"</span><span class="p">],</span>
+    <span class="n">out</span><span class="o">=</span><span class="p">(</span><span class="s2">"genetic"</span><span class="p">,),</span>
 <span class="p">)</span>
-<span class="n">res</span><span class="o">.</span><span class="n">est</span><span class="p">[</span><span class="s2">&quot;genetic_A&quot;</span><span class="p">],</span> <span class="n">res</span><span class="o">.</span><span class="n">est</span><span class="p">[</span><span class="s2">&quot;genetic_B&quot;</span><span class="p">]</span>
+<span class="n">res</span><span class="o">.</span><span class="n">est</span><span class="p">[</span><span class="s2">"genetic_A"</span><span class="p">],</span> <span class="n">res</span><span class="o">.</span><span class="n">est</span><span class="p">[</span><span class="s2">"genetic_B"</span><span class="p">]</span>
 </code></pre></div>
 <p>The three covariance inputs must define one coherent model. With
 <code>D = diag(sqrt(h2))</code>, the genetic covariance <code>G = D @ genetic_corrmat @ D</code> and
@@ -1134,8 +1466,10 @@ semi-definite; both correlation matrices must also be symmetric with unit
 diagonal. Incoherent inputs now raise instead of being silently changed.</p>
 <p>Multi-trait borrows strength across genetically correlated diseases. It is
 Gibbs-only — the default picks Gibbs automatically for multiple traits, and an
-explicit <code>method="pearson-aitken"</code> here raises <code>NotImplementedError</code>. To estimate
-the genetic correlation itself, see <a href="../inference/#genetic-correlation-between-traits">Inference</a>.</p>
+explicit <code>method="pearson-aitken"</code> here raises <code>NotImplementedError</code>.
+Experimental genetic-correlation fitting is available only in the checkout's
+unsupported <code>research/</code> package; see
+<a href="../inference/#unsupported-research-prototypes">Inference</a>.</p>
 <h2 id="using-the-estimate-in-a-gwas">Using the estimate in a GWAS<a class="headerlink" href="#using-the-estimate-in-a-gwas" title="Permanent link">&para;</a></h2>
 <p>The genetic-liability estimate is a quantitative phenotype — feed it to any
 continuous-outcome GWAS. As with any quantitative GWAS, <strong>residualize the
@@ -1154,7 +1488,7 @@ is centered on the population mean, but in an ascertained sample it may not be
 mean-zero until you center/residualize.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Xs: (n_indiv, m_snp) column-standardized genotypes, aligned to res.pids</span>
 <span class="c1"># In practice regress out covariates first (or fit an LMM); simple sketch:</span>
-<span class="n">y</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">est</span><span class="p">[</span><span class="s2">&quot;genetic&quot;</span><span class="p">]</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">est</span><span class="p">[</span><span class="s2">"genetic"</span><span class="p">]</span>
 <span class="n">y</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">-</span> <span class="n">y</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="o">/</span> <span class="n">y</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>                     <span class="c1"># center + scale (after covariate residualization)</span>
 <span class="n">chi2</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">*</span> <span class="p">((</span><span class="n">Xs</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">y</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span>       <span class="c1"># 1-df association statistic per SNP</span>
 </code></pre></div>
@@ -1201,7 +1535,7 @@ misspecification.</p>
 <tr>
 <td><code>c2</code>, <code>m2</code></td>
 <td style="text-align: right;"><code>None</code> (0)</td>
-<td>sibship (<code>C</code>) / couple (<code>M</code>) shared-environment components; <code>h2 + c2 + m2 &lt;= 1</code></td>
+<td>single-trait only: sibship (<code>C</code>) / couple (<code>M</code>) shared-environment components; <code>h2 + c2 + m2 &lt;= 1</code></td>
 </tr>
 <tr>
 <td><code>tol</code></td>
@@ -1266,10 +1600,31 @@ typical families. PA ignores all Gibbs options.</p>
     <div class="md-footer-meta__inner md-grid">
       <div class="md-copyright">
   
+    <div class="md-copyright__highlight">
+      Pioneer Centre for SMARTbiomed · <a href="https://smartbiomed.dk/">smartbiomed.dk</a> · Aarhus University · University of Copenhagen · University of Oxford
+
+    </div>
   
-    Made with
-    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
-      Material for MkDocs
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://smartbiomed.dk/" target="_blank" rel="noopener" title="Pioneer Centre for SMARTbiomed" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/bvilhjal/ltpred" target="_blank" rel="noopener" title="ltpred on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
     </a>
   
 </div>
@@ -1287,10 +1642,16 @@ typical families. PA ignores all Gibbs options.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["announce.dismiss", "navigation.sections", "navigation.top", "navigation.tracking", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+      
+        <script src="../javascripts/katex.js"></script>
       
     
   </body>

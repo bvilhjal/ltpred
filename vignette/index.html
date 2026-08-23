@@ -1,0 +1,1778 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A working tour of ltpred — simulate families, estimate genetic liability, and map the same steps onto your own table.">
+      
+      
+      
+        <link rel="canonical" href="https://bvilhjal.github.io/ltpred/vignette/">
+      
+      
+        <link rel="prev" href="../quickstart/">
+      
+      
+        <link rel="next" href="../data-preparation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Vignette - ltpred</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+3:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Source Sans 3";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/smartbiomed.css">
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#vignette-from-family-history-to-a-gwas-phenotype" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+              <button class="md-banner__button md-icon" aria-label="Don't show this again">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              </button>
+            
+            
+  A methods package of the Pioneer Centre for
+  <a href="https://smartbiomed.dk/">SMARTbiomed</a>
+  · Aarhus University · University of Copenhagen · University of Oxford
+
+          </div>
+          
+            <script>var el=document.querySelector("[data-md-component=announce]");if(el){var content=el.querySelector(".md-typeset");__md_hash(content.innerHTML)===__md_get("__announce")&&(el.hidden=!0)}</script>
+          
+        </aside>
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ltpred" class="md-header__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ltpred
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Vignette
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ltpred" class="md-nav__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../assets/logo.svg" alt="logo">
+
+    </a>
+    ltpred
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choose a method
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vignette
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vignette
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-being-estimated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is being estimated
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-simulate-a-cohort-you-can-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Simulate a cohort you can check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-estimate-then-read-est-se-and-var" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Estimate, then read est, se and var
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-why-not-just-use-casecontrol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Why not just use case/control?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-the-probands-own-diagnosis-is-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. The proband's own diagnosis is optional
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-adult-is-the-same-construction-without-relatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. ADuLT is the same construction without relatives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-cross-check-pa-with-gibbs-on-a-subset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Cross-check PA with Gibbs on a subset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-bring-your-own-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Bring your own table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-arbitrary-pedigrees-the-kinship-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Arbitrary pedigrees: the kinship path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-getting-h2-onto-the-liability-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Getting \(h^2\) onto the liability scale
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-fitting-h2-from-the-family-data-only-under-a-sampling-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Fitting \(h^2\) from the family data — only under a sampling contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-age-cip-and-what-lt-fh-actually-requires" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Age, CIP, and what “LT-FH++” actually requires
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-pa-fgrs-briefly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. PA-FGRS, briefly
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-handing-the-score-to-a-gwas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Handing the score to a GWAS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-mistakes-this-tour-is-designed-to-prevent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Mistakes this tour is designed to prevent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-to-go-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where to go next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflow
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-preparation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data preparation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cip-estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CIP estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fitting the model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assumptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assumptions & checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm & model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ROADMAP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-being-estimated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is being estimated
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-simulate-a-cohort-you-can-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Simulate a cohort you can check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-estimate-then-read-est-se-and-var" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Estimate, then read est, se and var
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-why-not-just-use-casecontrol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Why not just use case/control?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-the-probands-own-diagnosis-is-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. The proband's own diagnosis is optional
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-adult-is-the-same-construction-without-relatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. ADuLT is the same construction without relatives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-cross-check-pa-with-gibbs-on-a-subset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Cross-check PA with Gibbs on a subset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-bring-your-own-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Bring your own table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-arbitrary-pedigrees-the-kinship-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Arbitrary pedigrees: the kinship path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-getting-h2-onto-the-liability-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Getting \(h^2\) onto the liability scale
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-fitting-h2-from-the-family-data-only-under-a-sampling-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Fitting \(h^2\) from the family data — only under a sampling contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-age-cip-and-what-lt-fh-actually-requires" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Age, CIP, and what “LT-FH++” actually requires
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-pa-fgrs-briefly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. PA-FGRS, briefly
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-handing-the-score-to-a-gwas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Handing the score to a GWAS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-mistakes-this-tour-is-designed-to-prevent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Mistakes this tour is designed to prevent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-to-go-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where to go next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="vignette-from-family-history-to-a-gwas-phenotype">Vignette: from family history to a GWAS phenotype<a class="headerlink" href="#vignette-from-family-history-to-a-gwas-phenotype" title="Permanent link">&para;</a></h1>
+<p>This page is a working tour of <strong>ltpred</strong>, a methods package of the Pioneer
+Centre for <a href="https://smartbiomed.dk/">SMARTbiomed</a>. It is longer than the
+<a href="../quickstart/">quickstart</a> and shorter than the reference pages. You will
+simulate a small nuclear-family cohort, estimate each proband's posterior mean
+genetic liability, see why that score is not the same thing as case/control
+status, and then map the same steps onto a table you bring yourself.</p>
+<p>On the documentation site this is a webpage
+(<a href="https://bvilhjal.github.io/ltpred/vignette/">/vignette/</a>).
+From a checkout:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[docs,fast]"</span>
+mkdocs<span class="w"> </span>serve<span class="w">                 </span><span class="c1"># http://127.0.0.1:8000/ltpred/vignette/</span>
+python<span class="w"> </span>examples/vignette.py<span class="w">  </span><span class="c1"># the calculations quoted below</span>
+</code></pre></div>
+<p>The numbers quoted below are what that script printed with the committed seed.
+They are a teaching sample, not a benchmark. Real analyses need
+population-representative cumulative incidence, a liability-scale <span class="arithmatex">\(h^2\)</span>, and
+the <a href="../assumptions/">checklist</a>.</p>
+<details class="example">
+<summary>Output of <code>python examples/vignette.py</code> (seed 1)</summary>
+<div class="highlight"><pre><span></span><code>== 1. Simulate a classic LT-FH cohort ==
+families 800; liability-scale h2 0.5; prevalence 0.05
+proband case rate 0.055
+
+== 2. Posterior mean genetic liability (PA, the default) ==
+score mean 0.004  sd 0.297
+PA se is identically 0 (deterministic): 0.0
+one case    score +0.947  posterior var 0.271
+one control score -0.119  posterior var 0.430
+
+== 3. The score tracks true g better than 0/1 status ==
+corr(case/control, true g) 0.342
+corr(LT-FH PA,     true g) 0.419
+squared-corr eff-N proxy   1.50x
+
+== 4. Own status is a modelling choice, not a requirement ==
+corr(relatives-only, true g) 0.268
+
+== 5. ADuLT is the same bounds with no relative rows ==
+corr(ADuLT, true g) 0.342
+
+== 6. Gibbs agrees with PA on these rectangles ==
+corr(PA, Gibbs) on 80 families 0.9997
+Gibbs MC se (median) 0.0066
+
+== 7. Bring-your-own columns (same families, rebuilt) ==
+max |rebuilt - original| 0.00e+00
+
+== 8. Kinship path matches the role grammar on this pedigree ==
+max |kinship PA - role PA| 5.64e-04
+
+== 9. Liability-scale h2 (Falconer / Lee) ==
+parent-offspring tetrachoric 0.237  (Falconer 2*rho = 0.474; truth 0.5)
+Lee: observed-scale 0.20 at K=0.05 -&gt; liability-scale 0.893
+
+== 10. Fit h2 only on independent, unascertained families ==
+fitted h2 0.363  (truth 0.5; within-dataset MC se 0.0060)
+
+== 11. Age-aware tutorial encoding (not full LT-FH++) ==
+corr(age-aware PA, true g) 0.261  (case/control 0.122)
+</code></pre></div>
+</details>
+<h2 id="what-is-being-estimated">What is being estimated<a class="headerlink" href="#what-is-being-estimated" title="Permanent link">&para;</a></h2>
+<p>Write <span class="arithmatex">\(\ell\)</span> for a person's full liability, <span class="arithmatex">\(a\)</span> for its additive genetic
+part, and <span class="arithmatex">\(e\)</span> for an independent environmental part. On the unit-liability
+scale</p>
+<div class="arithmatex">\[
+\ell = a + e,
+\qquad
+a \sim N(0, h^2),
+\qquad
+e \sim N(0, 1-h^2),
+\qquad
+\ell \sim N(0, 1).
+\]</div>
+<p>A case is <span class="arithmatex">\(\ell &gt; T\)</span>. With lifetime prevalence <span class="arithmatex">\(K\)</span>,</p>
+<div class="arithmatex">\[
+T = \Phi^{-1}(1-K).
+\]</div>
+<p>Let <span class="arithmatex">\(i\)</span> be a designated proband, <span class="arithmatex">\(A\)</span> the additive relationship matrix of the
+people whose records are used, and <span class="arithmatex">\(K(\cdot)\)</span> the prevalence or CIP map that
+turns status and age into interval endpoints (or mixture weights). Write
+<span class="arithmatex">\(\ell_F\)</span> for the vector of full liabilities and <span class="arithmatex">\(D_F\)</span> for the observation
+model encoded by the records. The target is</p>
+<div class="arithmatex">\[
+\mu_i = \mathbb{E}\bigl[a_i \mid D_F,\, A,\, h^2,\, K(\cdot)\bigr].
+\]</div>
+<p>If <span class="arithmatex">\(\ell_F\)</span> were observed continuously this would be the selection-index /
+animal-model BLUP</p>
+<div class="arithmatex">\[
+\mathbb{E}[a_i \mid \ell_F]
+  = \mathrm{Cov}(a_i, \ell_F)\, \mathrm{Var}(\ell_F)^{-1} \ell_F.
+\]</div>
+<p>Disease records give a rectangle <span class="arithmatex">\(\ell_F \in C_F\)</span> (or a mixture of truncated
+laws, for PA-FGRS censored controls). Under joint normality the BLUP weights
+are unchanged and only the right-hand side is replaced by a truncated mean:</p>
+<div class="arithmatex">\[
+\mathbb{E}[a_i \mid \ell_F \in C_F]
+  = \mathrm{Cov}(a_i, \ell_F)\, \mathrm{Var}(\ell_F)^{-1}\,
+    \mathbb{E}[\ell_F \mid \ell_F \in C_F].
+\]</div>
+<p>Gibbs estimates that truncated mean by sampling. Pearson–Aitken approximates
+the same sequential moment updates. Neither output is a SNP polygenic score,
+and neither is an absolute lifetime risk.</p>
+<p>The names <strong>LT-FH</strong>, <strong>LT-FH++</strong>, <strong>ADuLT</strong> and <strong>PA-FGRS</strong> choose <span class="arithmatex">\(D_F\)</span>
+(which people are observed, and how ages enter). <strong>Gibbs</strong> and
+<strong>Pearson–Aitken (PA)</strong> are the engines that compute <span class="arithmatex">\(\mu_i\)</span>. PA is the
+single-trait default.</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Records you condition on</th>
+<th>Typical helper</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Classic LT-FH</td>
+<td>Relatives + optional own status; one lifetime threshold</td>
+<td><code>prevalence_thresholds</code></td>
+</tr>
+<tr>
+<td>LT-FH++</td>
+<td>Same people; age/sex/cohort-specific CIP</td>
+<td><code>thresholds_from_cip(..., case_mode="pin")</code></td>
+</tr>
+<tr>
+<td>ADuLT</td>
+<td>Proband only; same personalised CIP</td>
+<td>same helper, role <code>o</code> rows only</td>
+</tr>
+<tr>
+<td>Base PA-FGRS</td>
+<td>Lifetime case interval; censored-control mixture</td>
+<td><code>prevalence_thresholds</code> + <code>use_mixture=True</code></td>
+</tr>
+</tbody>
+</table>
+<p>LT-FH is
+<a href="https://doi.org/10.1038/s41588-020-0613-6">Hujoel et al. 2020</a>;
+LT-FH++ is
+<a href="https://doi.org/10.1016/j.ajhg.2022.01.009">Pedersen et al. 2022</a>;
+ADuLT is
+<a href="https://doi.org/10.1038/s41467-023-41210-z">Pedersen et al. 2023</a>;
+PA-FGRS is
+<a href="https://doi.org/10.1016/j.ajhg.2024.09.009">Dybdahl Krebs et al. 2024</a>.</p>
+<h2 id="1-simulate-a-cohort-you-can-check">1. Simulate a cohort you can check<a class="headerlink" href="#1-simulate-a-cohort-you-can-check" title="Permanent link">&para;</a></h2>
+<p>The simulator draws jointly normal liabilities, thresholds them at prevalence
+<span class="arithmatex">\(K\)</span>, and returns ready-to-estimate <code>Family</code> objects plus the true genetic
+liability <span class="arithmatex">\(g\)</span>. <code>use_age=False</code> is classic LT-FH: one threshold, no onset.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate_under_LTM_single</span><span class="p">,</span> <span class="n">estimate_liability</span>
+
+<span class="n">h2</span><span class="p">,</span> <span class="n">K</span><span class="p">,</span> <span class="n">n_fam</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mi">800</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">simulate_under_LTM_single</span><span class="p">(</span>
+    <span class="n">fam_vec</span><span class="o">=</span><span class="p">[</span><span class="s2">"m"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">,</span> <span class="s2">"s1"</span><span class="p">],</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="n">K</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="n">n_fam</span><span class="p">,</span>
+    <span class="n">use_age</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">status</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">status</span><span class="p">[</span><span class="s2">"o"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>   <span class="c1"># proband 0/1</span>
+<span class="n">true_g</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">genetic</span>
+</code></pre></div>
+<p>Each family is a proband (<code>o</code>) plus mother, father and one sibling. Roles are
+always relative to the proband; see the
+<a href="../data-preparation/#role-grammar">role grammar</a>.</p>
+<h2 id="2-estimate-then-read-est-se-and-var">2. Estimate, then read <code>est</code>, <code>se</code> and <code>var</code><a class="headerlink" href="#2-estimate-then-read-est-se-and-var" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">pa</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span>   <span class="c1"># PA is the single-trait default</span>
+<span class="n">score</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">genetic</span>                             <span class="c1"># == pa.est["genetic"]</span>
+</code></pre></div>
+<p><code>h2</code> must be <strong>liability-scale</strong>. <code>score</code> is aligned to <code>pa.pids</code>, not to the
+input row order.</p>
+<p>Two uncertainty fields are easy to mix up:</p>
+<ul>
+<li><code>pa.se["genetic"]</code> is the <strong>estimator's</strong> numerical error. PA is
+  deterministic, so this is exactly 0. Zero Monte-Carlo error is not zero
+  approximation error.</li>
+<li><code>pa.var["genetic"]</code> is the <strong>posterior</strong> variance <span class="arithmatex">\(\mathrm{Var}(a_i \mid D_F)\)</span>.
+  An affected relative shrinks it; it does not shrink if you draw more Gibbs
+  samples.</li>
+</ul>
+<p>On this seed an affected proband scored <span class="arithmatex">\(+0.947\)</span> with posterior variance
+<span class="arithmatex">\(0.271\)</span>; an unaffected one scored <span class="arithmatex">\(-0.119\)</span> with variance <span class="arithmatex">\(0.430\)</span>.</p>
+<h2 id="3-why-not-just-use-casecontrol">3. Why not just use case/control?<a class="headerlink" href="#3-why-not-just-use-casecontrol" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">corr</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+<span class="n">r_cc</span> <span class="o">=</span> <span class="n">corr</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">true_g</span><span class="p">)</span>
+<span class="n">r_pa</span> <span class="o">=</span> <span class="n">corr</span><span class="p">(</span><span class="n">score</span><span class="p">,</span> <span class="n">true_g</span><span class="p">)</span>
+<span class="p">(</span><span class="n">r_pa</span> <span class="o">/</span> <span class="n">r_cc</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>    <span class="c1"># squared-corr effective-N proxy, not a GWAS NCP ratio</span>
+</code></pre></div>
+<p>Here that was <span class="arithmatex">\(0.342\)</span> versus <span class="arithmatex">\(0.419\)</span>, a <span class="arithmatex">\(1.50\times\)</span> proxy. Family
+history is information about <span class="arithmatex">\(a_i\)</span> that the 0/1 label throws away. The
+proxy is useful for ranking; it is not the causal-SNP noncentrality ratio
+in <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS.md</a>.</p>
+<h2 id="4-the-probands-own-diagnosis-is-optional">4. The proband's own diagnosis is optional<a class="headerlink" href="#4-the-probands-own-diagnosis-is-optional" title="Permanent link">&para;</a></h2>
+<p>Role <code>o</code> is an observation you may include or drop. Include it when the
+score is a <strong>GWAS phenotype constructed from that diagnosis</strong>. Omit it, or
+give it bounds <span class="arithmatex">\((-\infty, \infty)\)</span>, when the same diagnosis is later the outcome
+you will predict — otherwise <span class="arithmatex">\(D_F\)</span> contains the answer.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">Family</span>
+
+<span class="n">relatives_only</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">Family</span><span class="p">(</span><span class="n">fam</span><span class="o">.</span><span class="n">fam_id</span><span class="p">,</span> <span class="p">[</span><span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">fam</span><span class="o">.</span><span class="n">members</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">role</span> <span class="o">!=</span> <span class="s2">"o"</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">fam</span> <span class="ow">in</span> <span class="n">sim</span><span class="o">.</span><span class="n">families</span>
+<span class="p">]</span>
+<span class="n">rel</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">relatives_only</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span>
+<span class="n">corr</span><span class="p">(</span><span class="n">rel</span><span class="o">.</span><span class="n">genetic</span><span class="p">,</span> <span class="n">true_g</span><span class="p">)</span>    <span class="c1"># 0.268 on this seed: weaker, no leakage</span>
+</code></pre></div>
+<h2 id="5-adult-is-the-same-construction-without-relatives">5. ADuLT is the same construction without relatives<a class="headerlink" href="#5-adult-is-the-same-construction-without-relatives" title="Permanent link">&para;</a></h2>
+<p>Keep only role <code>o</code>. With a <strong>single lifetime threshold</strong>, ADuLT is a
+monotone map of case/control status, so it cannot beat the 0/1 label
+(both correlations were <span class="arithmatex">\(0.342\)</span> here). ADuLT earns its keep when the
+proband's threshold is personalised by age, sex and cohort.</p>
+<div class="highlight"><pre><span></span><code><span class="n">adult_fams</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">Family</span><span class="p">(</span><span class="n">fam</span><span class="o">.</span><span class="n">fam_id</span><span class="p">,</span> <span class="p">[</span><span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">fam</span><span class="o">.</span><span class="n">members</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">role</span> <span class="o">==</span> <span class="s2">"o"</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">fam</span> <span class="ow">in</span> <span class="n">sim</span><span class="o">.</span><span class="n">families</span>
+<span class="p">]</span>
+<span class="n">adult</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">adult_fams</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="6-cross-check-pa-with-gibbs-on-a-subset">6. Cross-check PA with Gibbs on a subset<a class="headerlink" href="#6-cross-check-pa-with-gibbs-on-a-subset" title="Permanent link">&para;</a></h2>
+<p>On classic rectangles PA and Gibbs posterior means agree closely. Gibbs is
+the sampler you want for a Monte-Carlo SE, for multiple traits, or when a
+pedigree is unusual. It does not implement the PA-FGRS mixture.</p>
+<div class="highlight"><pre><span></span><code><span class="n">gibbs</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">families</span><span class="p">[:</span><span class="mi">80</span><span class="p">],</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"gibbs"</span><span class="p">,</span>
+    <span class="n">tol</span><span class="o">=</span><span class="mf">0.03</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">8_000</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">corr</span><span class="p">(</span><span class="n">score</span><span class="p">[:</span><span class="mi">80</span><span class="p">],</span> <span class="n">gibbs</span><span class="o">.</span><span class="n">genetic</span><span class="p">)</span>     <span class="c1"># 0.9997 here</span>
+<span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">gibbs</span><span class="o">.</span><span class="n">se</span><span class="p">[</span><span class="s2">"genetic"</span><span class="p">])</span>      <span class="c1"># Monte-Carlo SE of the mean, not var</span>
+</code></pre></div>
+<h2 id="7-bring-your-own-table">7. Bring your own table<a class="headerlink" href="#7-bring-your-own-table" title="Permanent link">&para;</a></h2>
+<p>Production input is a long table: one row per observed person, grouped by
+<code>fam_id</code>. Rebuild the same simulated families from columns to see the
+plumbing. <code>prevalence_thresholds</code> is classic LT-FH; it is <strong>not</strong> the
+logistic tutorial helper.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">prevalence_thresholds</span><span class="p">,</span> <span class="n">families_from_columns</span>
+
+<span class="n">fam_id</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">st</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">fam</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">families</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">fam</span><span class="o">.</span><span class="n">members</span><span class="p">:</span>
+        <span class="n">fam_id</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"fam</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">role</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">role</span><span class="p">)</span>
+        <span class="n">st</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">lower</span><span class="p">)))</span>   <span class="c1"># 1 = case</span>
+
+<span class="n">lower</span><span class="p">,</span> <span class="n">upper</span> <span class="o">=</span> <span class="n">prevalence_thresholds</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">st</span><span class="p">),</span> <span class="n">pop_prev</span><span class="o">=</span><span class="n">K</span><span class="p">)</span>
+<span class="n">families</span> <span class="o">=</span> <span class="n">families_from_columns</span><span class="p">(</span><span class="n">fam_id</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">)</span>
+<span class="n">score</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span><span class="o">.</span><span class="n">genetic</span>
+</code></pre></div>
+<p>Replace the loop with your CSV. Missing <code>fam_id</code> values are rejected (they
+cannot group rows). Duplicate roles inside a family (two rows both <code>s1</code>)
+are rejected; number repeated siblings <code>s1</code>, <code>s2</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">The logistic <code>age_thresholds</code> helper is tutorial-only</p>
+<p>For register data call <code>thresholds_from_cip</code> once per sex × birth-year
+× ancestry stratum with a <strong>population</strong> CIP, not a biobank case fraction.
+See <a href="../data-preparation/#a-real-register-data-recipe">data preparation</a>
+and <a href="../cip-estimation/">CIP estimation</a>.</p>
+</div>
+<h2 id="8-arbitrary-pedigrees-the-kinship-path">8. Arbitrary pedigrees: the kinship path<a class="headerlink" href="#8-arbitrary-pedigrees-the-kinship-path" title="Permanent link">&para;</a></h2>
+<p>When relatives do not fit the role grammar (cousins, inbreeding, messy
+second parents), build the additive relationship matrix from parent
+pointers.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">kinship_from_pedigree</span><span class="p">,</span> <span class="n">estimate_liability_from_kinship</span>
+
+<span class="n">ids</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"o"</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">,</span> <span class="s2">"s1"</span><span class="p">]</span>
+<span class="n">_</span><span class="p">,</span> <span class="n">A</span> <span class="o">=</span> <span class="n">kinship_from_pedigree</span><span class="p">(</span>
+    <span class="n">ids</span><span class="p">,</span>
+    <span class="n">father</span><span class="o">=</span><span class="p">[</span><span class="s2">"f"</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">],</span>
+    <span class="n">mother</span><span class="o">=</span><span class="p">[</span><span class="s2">"m"</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">],</span>
+<span class="p">)</span>
+<span class="c1"># lower/upper have shape (n_families, 4) in `ids` order</span>
+<span class="n">est</span><span class="p">,</span> <span class="n">se</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">estimate_liability_from_kinship</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</code></pre></div>
+<p>On this nuclear pedigree the two paths agreed to a few <span class="arithmatex">\(10^{-4}\)</span>. Pearson–
+Aitken is a sequential two-moment approximation: a change of fold order is
+not Gibbs error. Use the kinship path when the recorded parents disagree
+with a role-grammar convention (in particular, same-side half-sibs).</p>
+<h2 id="9-getting-h2-onto-the-liability-scale">9. Getting <span class="arithmatex">\(h^2\)</span> onto the liability scale<a class="headerlink" href="#9-getting-h2-onto-the-liability-scale" title="Permanent link">&para;</a></h2>
+<p>The estimator conditions on <span class="arithmatex">\(h^2\)</span>. Passing an observed-scale value as if
+it were liability-scale mis-calibrates the score (ranking is more robust
+than the scale; see RESULTS §12).</p>
+<p>A quick relative-pair check is Falconer's route: twice the parent–offspring
+tetrachoric. On this seed that was <span class="arithmatex">\(2 \times 0.237 = 0.474\)</span> against truth
+<span class="arithmatex">\(0.5\)</span>. The Lee conversion of an observed-scale estimate <span class="arithmatex">\(h^2_{\mathrm{obs}}\)</span>
+in a population sample with prevalence <span class="arithmatex">\(K\)</span> is</p>
+<div class="arithmatex">\[
+h^2_{\mathrm{liab}}
+  = h^2_{\mathrm{obs}} \cdot \frac{K(1-K)}{\phi(T)^2},
+  \qquad
+  T = \Phi^{-1}(1-K),
+\]</div>
+<p>which at <span class="arithmatex">\(K = 0.05\)</span> sends <span class="arithmatex">\(0.20\)</span> to <span class="arithmatex">\(0.893\)</span>. If the study over-samples
+cases, pass that fraction as <code>prop_cases</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">tetrachoric</span><span class="p">,</span> <span class="n">observed_to_liability_h2</span>
+
+<span class="n">po</span> <span class="o">=</span> <span class="n">tetrachoric</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">status</span><span class="p">[</span><span class="s2">"o"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">sim</span><span class="o">.</span><span class="n">status</span><span class="p">[</span><span class="s2">"m"</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+<span class="mi">2</span> <span class="o">*</span> <span class="n">po</span><span class="o">.</span><span class="n">rho</span>
+<span class="nb">float</span><span class="p">(</span><span class="n">observed_to_liability_h2</span><span class="p">(</span><span class="mf">0.20</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="n">K</span><span class="p">))</span>   <span class="c1"># 0.893 at K = 0.05</span>
+</code></pre></div>
+<p>Prefer an external liability-scale estimate when you have one.</p>
+<h2 id="10-fitting-h2-from-the-family-data-only-under-a-sampling-contract">10. Fitting <span class="arithmatex">\(h^2\)</span> from the family data — only under a sampling contract<a class="headerlink" href="#10-fitting-h2-from-the-family-data-only-under-a-sampling-contract" title="Permanent link">&para;</a></h2>
+<p><code>fit_heritability</code> is optional. It assumes <strong>independent, non-overlapping</strong>
+families, either unascertained (<code>sampling="population"</code>) or selected with
+known positive inclusion probabilities (<code>sampling="ipw"</code>). A <code>pid</code> that
+appears in two different <code>fam_id</code>s is rejected: that is the usual register
+extraction, valid for <strong>scoring</strong>, invalid for <strong>fitting</strong>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_heritability</span>
+
+<span class="n">fit</span> <span class="o">=</span> <span class="n">fit_heritability</span><span class="p">(</span>
+    <span class="n">sim</span><span class="o">.</span><span class="n">families</span><span class="p">,</span> <span class="n">n_iter</span><span class="o">=</span><span class="mi">250</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sampling</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">fit</span><span class="o">.</span><span class="n">h2</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">h2_se</span>
+</code></pre></div>
+<p>On this 800-family, <span class="arithmatex">\(K=0.05\)</span> draw the point estimate was <span class="arithmatex">\(0.363\)</span> against
+truth <span class="arithmatex">\(0.5\)</span>, while <code>h2_se</code> was <span class="arithmatex">\(0.006\)</span>. That standard error is a
+<strong>within-dataset Monte-Carlo diagnostic</strong>. It is not a sampling interval.
+With a few hundred nuclear families at this prevalence the across-cohort SD
+is much larger. Use an external <span class="arithmatex">\(h^2\)</span> unless you have met the contract in
+<a href="../inference/">Inference</a>.</p>
+<div class="admonition danger">
+<p class="admonition-title">Do not fit on case-enriched extracts without IPW</p>
+<p>Unguarded ascertainment pins <span class="arithmatex">\(\hat{h}^2\)</span> at 1, even when the true value
+is 0. Proband-ascertained designs cannot be reweighted at all.</p>
+</div>
+<h2 id="11-age-cip-and-what-lt-fh-actually-requires">11. Age, CIP, and what “LT-FH++” actually requires<a class="headerlink" href="#11-age-cip-and-what-lt-fh-actually-requires" title="Permanent link">&para;</a></h2>
+<p><code>simulate_under_LTM_single(..., use_age=True)</code> plus <code>age_thresholds</code> is an
+<strong>age-only tutorial</strong>. Full LT-FH++ needs a CIP that varies with sex and
+birth cohort as well, estimated from a representative source:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">thresholds_from_cip</span><span class="p">,</span> <span class="n">families_from_columns</span><span class="p">,</span> <span class="n">estimate_liability</span>
+
+<span class="c1"># one stratum shown; loop over sex × birth-year × ancestry in production</span>
+<span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">K_i</span><span class="p">,</span> <span class="n">K_pop</span> <span class="o">=</span> <span class="n">thresholds_from_cip</span><span class="p">(</span>
+    <span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">cip_ages</span><span class="p">,</span> <span class="n">cip_values</span><span class="p">,</span> <span class="n">k_pop</span><span class="o">=</span><span class="n">lifetime_K</span><span class="p">,</span> <span class="n">case_mode</span><span class="o">=</span><span class="s2">"pin"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">families</span> <span class="o">=</span> <span class="n">families_from_columns</span><span class="p">(</span>
+    <span class="n">fam_id</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">pid</span><span class="o">=</span><span class="n">pid</span><span class="p">,</span> <span class="n">K_i</span><span class="o">=</span><span class="n">K_i</span><span class="p">,</span> <span class="n">K_pop</span><span class="o">=</span><span class="n">K_pop</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span>          <span class="c1"># LT-FH++ if relatives are present</span>
+<span class="c1"># res = estimate_liability(proband_only, h2=h2)    # ADuLT if they are not</span>
+</code></pre></div>
+<p><code>case_mode="pin"</code> is the LT-FH++ / ADuLT encoding. Pin only when you believe
+onset is the CIP inverse of liability; under partial onset dependence the
+pin over-conditions. Most of the onset information survives the interval
+<span class="arithmatex">\([T(\mathrm{onset}), \infty)\)</span>.</p>
+<p>Competing death needs an Aalen–Johansen CIP, not a Kaplan–Meier that treats
+death as censoring. Details: <a href="../cip-estimation/">CIP estimation</a>.</p>
+<h2 id="12-pa-fgrs-briefly">12. PA-FGRS, briefly<a class="headerlink" href="#12-pa-fgrs-briefly" title="Permanent link">&para;</a></h2>
+<p>Base PA-FGRS (Krebs et al. 2024) is not “turn on PA”. Observed cases use the
+<strong>lifetime</strong> interval <span class="arithmatex">\([\Phi^{-1}(1-K_{\mathrm{pop}}), \infty)\)</span>. Age enters a
+censored control through the mixture weight <span class="arithmatex">\(K_i\)</span>, via <code>use_mixture=True</code>.
+The helper <code>pa_thresholds</code> is an age-dependent <strong>variant</strong>, not that paper's
+case encoding and not PA-FGRS_ADT. Gibbs has no mixture.</p>
+<div class="highlight"><pre><span></span><code><span class="n">res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span>
+    <span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">,</span> <span class="n">use_mixture</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>     <span class="c1"># needs K_i / K_pop on censored controls</span>
+<span class="p">)</span>
+</code></pre></div>
+<h2 id="13-handing-the-score-to-a-gwas">13. Handing the score to a GWAS<a class="headerlink" href="#13-handing-the-score-to-a-gwas" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Join <code>res.pids</code> to the genotyped sample IDs. Do not assume input-row order.</li>
+<li>Residualize for sex, birth cohort, ancestry PCs, batch, and other design
+   covariates <strong>before</strong> association, or put them in the GWAS mixed model.</li>
+<li>Prefer a mixed-model association method if related targets remain
+   (<a href="../estimation/#using-the-estimate-in-a-gwas">estimation</a>).</li>
+<li>The score is a quantitative phenotype. ltpred does not run the GWAS.</li>
+</ol>
+<p>Combining the family-history score with a PGS is a <strong>downstream</strong> model
+(<a href="https://doi.org/10.1016/j.xgen.2022.100152">Hujoel et al. 2022</a>;
+<a href="https://doi.org/10.1016/j.ajhg.2025.11.016">Dybdahl Krebs et al. 2026</a>).</p>
+<h2 id="14-mistakes-this-tour-is-designed-to-prevent">14. Mistakes this tour is designed to prevent<a class="headerlink" href="#14-mistakes-this-tour-is-designed-to-prevent" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Passing <strong>observed-scale</strong> <span class="arithmatex">\(h^2\)</span> as <code>h2=</code>.</li>
+<li>Using <code>age_thresholds</code> (one logistic curve) and calling the analysis LT-FH++.</li>
+<li>Conditioning on role <code>o</code> and then using the score to <strong>predict</strong> that
+  same diagnosis.</li>
+<li>Fitting <span class="arithmatex">\(h^2\)</span> on overlapping register pedigrees or on a case/control
+  extract without <code>sampling="ipw"</code> and valid weights.</li>
+<li>Treating <code>res.se</code> as posterior uncertainty, or <code>res.var</code> as a standard
+  error of the mean.</li>
+<li>Equating <code>pa_thresholds</code> with published PA-FGRS.</li>
+<li>Quoting an independent-SNP simulation NCP ratio as a real-LD GWAS gain.</li>
+</ul>
+<h2 id="where-to-go-next">Where to go next<a class="headerlink" href="#where-to-go-next" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One-page copy-paste</td>
+<td><a href="../quickstart/">Quickstart</a></td>
+</tr>
+<tr>
+<td>Which model to run</td>
+<td><a href="../guide/">Choose a method</a></td>
+</tr>
+<tr>
+<td>Roles, CIPs, real tables</td>
+<td><a href="../data-preparation/">Data preparation</a></td>
+</tr>
+<tr>
+<td>Engines, scaling, GWAS export</td>
+<td><a href="../estimation/">Estimation</a></td>
+</tr>
+<tr>
+<td>Fitting <span class="arithmatex">\(h^2\)</span> / A+C+M</td>
+<td><a href="../inference/">Inference</a></td>
+</tr>
+<tr>
+<td>Assumptions and pre-flight list</td>
+<td><a href="../assumptions/">Assumptions &amp; checklist</a></td>
+</tr>
+<tr>
+<td>Estimand and Algorithms G, P, M</td>
+<td><a href="../algorithm/">Algorithm</a></td>
+</tr>
+<tr>
+<td>Simulation evidence</td>
+<td><a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS.md</a></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Pioneer Centre for SMARTbiomed · <a href="https://smartbiomed.dk/">smartbiomed.dk</a> · Aarhus University · University of Copenhagen · University of Oxford
+
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://smartbiomed.dk/" target="_blank" rel="noopener" title="Pioneer Centre for SMARTbiomed" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/bvilhjal/ltpred" target="_blank" rel="noopener" title="ltpred on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["announce.dismiss", "navigation.sections", "navigation.top", "navigation.tracking", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+      
+        <script src="../javascripts/katex.js"></script>
+      
+    
+  </body>
+</html>

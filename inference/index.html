@@ -10,6 +10,8 @@
       
       
       
+        <link rel="canonical" href="https://bvilhjal.github.io/ltpred/inference/">
+      
       
         <link rel="prev" href="../estimation/">
       
@@ -20,16 +22,16 @@
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <link rel="icon" href="../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Inference - ltpred</title>
+        <title>Fitting the model - ltpred</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -46,12 +48,16 @@
         
         
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
-        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+3:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Source Sans 3";--md-code-font:"Roboto Mono"}</style>
       
     
     
       <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/smartbiomed.css">
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
     
     <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -69,7 +75,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -85,6 +91,25 @@
     </div>
     <div data-md-component="announce">
       
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+              <button class="md-banner__button md-icon" aria-label="Don't show this again">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              </button>
+            
+            
+  A methods package of the Pioneer Centre for
+  <a href="https://smartbiomed.dk/">SMARTbiomed</a>
+  · Aarhus University · University of Copenhagen · University of Oxford
+
+          </div>
+          
+            <script>var el=document.querySelector("[data-md-component=announce]");if(el){var content=el.querySelector(".md-typeset");__md_hash(content.innerHTML)===__md_get("__announce")&&(el.hidden=!0)}</script>
+          
+        </aside>
+      
     </div>
     
     
@@ -96,8 +121,7 @@
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href=".." title="ltpred" class="md-header__button md-logo" aria-label="ltpred" data-md-component="logo">
       
-  
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <img src="../assets/logo.svg" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -114,7 +138,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Inference
+              Fitting the model
             
           </span>
         </div>
@@ -127,7 +151,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -137,7 +161,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -200,7 +224,7 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    GitHub
+    bvilhjal/ltpred
   </div>
 </a>
       </div>
@@ -232,8 +256,7 @@
   <label class="md-nav__title" for="__drawer">
     <a href=".." title="ltpred" class="md-nav__button md-logo" aria-label="ltpred" data-md-component="logo">
       
-  
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <img src="../assets/logo.svg" alt="logo">
 
     </a>
     ltpred
@@ -246,12 +269,39 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
-    GitHub
+    bvilhjal/ltpred
   </div>
 </a>
     </div>
   
   <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
     
       
       
@@ -267,7 +317,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
+    Choose a method
   
 
     
@@ -314,6 +364,87 @@
   
   
     <li class="md-nav__item">
+      <a href="../vignette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vignette
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflow
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../data-preparation/" class="md-nav__link">
         
   
@@ -333,9 +464,10 @@
     </li>
   
 
-    
-      
-      
+              
+            
+              
+                
   
   
   
@@ -360,9 +492,10 @@
     </li>
   
 
-    
-      
-      
+              
+            
+              
+                
   
   
   
@@ -387,9 +520,10 @@
     </li>
   
 
-    
-      
-      
+              
+            
+              
+                
   
   
     
@@ -411,7 +545,7 @@
   <span class="md-ellipsis">
     
   
-    Inference
+    Fitting the model
   
 
     
@@ -429,7 +563,7 @@
   <span class="md-ellipsis">
     
   
-    Inference
+    Fitting the model
   
 
     
@@ -483,6 +617,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ascertained-samples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ascertained samples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Ascertained samples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-you-can-correct-it-samplingipw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When you can correct it: sampling="ipw"
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sensitivity-to-the-assumed-heritability" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -502,52 +664,13 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Variance components (A / C / M)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#onset-age-decay" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Onset-age decay
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
-  <a href="#genetic-correlation-between-traits" class="md-nav__link">
+  <a href="#unsupported-research-prototypes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Genetic correlation between traits
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#a-genetic-common-factor-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        A genetic common-factor model
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#is-a-component-correlation-significant" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Is a component / correlation significant?
+        Unsupported research prototypes
       
     </span>
   </a>
@@ -561,9 +684,10 @@
     </li>
   
 
-    
-      
-      
+              
+            
+              
+                
   
   
   
@@ -588,9 +712,69 @@
     </li>
   
 
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
     
       
       
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
   
   
   
@@ -615,9 +799,38 @@
     </li>
   
 
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
     
-      
-      
+  
+    Technical report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
   
   
   
@@ -642,9 +855,69 @@
     </li>
   
 
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
     
       
       
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
   
   
   
@@ -666,6 +939,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -725,6 +1006,34 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#ascertained-samples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ascertained samples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Ascertained samples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-you-can-correct-it-samplingipw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When you can correct it: sampling="ipw"
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#sensitivity-to-the-assumed-heritability" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -744,52 +1053,13 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Variance components (A / C / M)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#onset-age-decay" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Onset-age decay
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
 </li>
       
         <li class="md-nav__item">
-  <a href="#genetic-correlation-between-traits" class="md-nav__link">
+  <a href="#unsupported-research-prototypes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Genetic correlation between traits
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#a-genetic-common-factor-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        A genetic common-factor model
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#is-a-component-correlation-significant" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Is a component / correlation significant?
+        Unsupported research prototypes
       
     </span>
   </a>
@@ -818,28 +1088,74 @@
 
 <h1 id="inference">Inference<a class="headerlink" href="#inference" title="Permanent link">&para;</a></h1>
 <p>Beyond estimating each proband's liability, ltpred can <strong>fit the model</strong> from the
-family data: the liability-scale heritability, shared-environment variance
-components, the genetic correlation between traits, a common-factor model over
-those correlations, and parametric-bootstrap significance tests. These are optional
-— skip straight to <a href="../estimation/">estimation</a> if you already have an <code>h²</code>.</p>
-<p>The meaning of a reported <code>se</code> depends on the method. For the default
+family data: the liability-scale heritability and the shared-environment variance
+components. These are optional
+— skip straight to <a href="../estimation/">estimation</a> if you already have an <code>h²</code>.
+Unsupported experimental inferential machinery lives in the checkout-only
+<code>research/</code> package; see <a href="#unsupported-research-prototypes">Unsupported research prototypes</a>.</p>
+<div class="admonition danger">
+<p class="admonition-title">Supported sampling contract</p>
+<p><code>fit_heritability</code> and <code>fit_variance_components</code> assume independent,
+non-overlapping families. When members carry <code>pid</code>, a person who appears
+in more than one family (distinct <code>fam_id</code>) is rejected; use
+<code>estimate_liability</code> for per-proband scores on overlapping register
+pedigrees. For <strong>unascertained</strong> samples pass
+<code>sampling="population"</code>; for a sample <strong>selected on observed status with a
+known, strictly positive inclusion probability</strong> pass <code>sampling="ipw"</code> with
+per-family <code>weights</code> (see <a href="#ascertained-samples">Ascertained samples</a>).
+Nothing else is supported: <code>bootstrap_fit</code> does not repair selection bias,
+and a design that samples <em>no</em> families from some stratum cannot be
+reweighted at all.</p>
+<p><code>sampling="population"</code> is <strong>screened for marginal inconsistency</strong> with your
+data, not taken entirely on trust. Your thresholds assert a prevalence, so
+each role's case rate is compared with it and a gross mismatch raises. This
+is worth knowing because
+the failure it guards is severe and silent: on ascertained families with a
+true <code>h²</code> of <strong>0</strong>, the unguarded fitter returns <strong><code>h² = 1.0</code></strong>
+(<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS.md §29</a>).</p>
+<p>A failure is equally consistent with an honestly sampled cohort analysed
+with the <strong>wrong prevalence</strong> — a real and fixable cause — so the error
+reports the observed and asserted rates rather than assuming ascertainment.</p>
+<p><strong>It is a guard, not a certificate.</strong> The enrichment it can detect is
+<code>max(1 + 6·√((1−K)/(K·n)), 1.15)×</code> — the z-score gate is combined with a
+15% rate-ratio floor. At K = 0.05 that is ~1.67× at N = 1,500 and
+~1.26× at N = 10,000, with the 1.15× floor binding for N ≳ 30,000. Milder enrichment passes silently, and the
+dose-response below shows a 1.51× enrichment already inflates <code>h²</code> by
++0.48. Passing this check is not evidence that your sample is
+population-sampled.</p>
+</div>
+<p>The meaning of a reported <code>se</code> depends on the method. For the
 Haseman–Elston/data-augmentation fits, it is a <em>within-dataset</em> Monte-Carlo
-diagnostic, not across-dataset sampling uncertainty. The MCEM path instead
-reports an approximate model-based SE, with the assumptions and caveats described
-below. <a href="#family-cluster-uncertainty-bootstrap_fit"><code>bootstrap_fit</code></a> provides an
+diagnostic, not across-dataset sampling uncertainty.
+<a href="#family-cluster-uncertainty-bootstrap_fit"><code>bootstrap_fit</code></a> provides an
 approximate family-cluster sampling interval when families are independent.</p>
 <h2 id="fitting-heritability-from-the-family-data">Fitting heritability from the family data<a class="headerlink" href="#fitting-heritability-from-the-family-data" title="Permanent link">&para;</a></h2>
-<p>If you don't have an external <code>h²</code>, you can <strong>estimate it from the families
-themselves</strong> — <code>fit_heritability</code> estimates the liability-scale heritability from
-the relatives' case/control (and age-of-onset) statuses. It alternates a Gibbs
-augmentation of the latent liabilities with a damped Haseman–Elston update of <code>h²</code>,
-converging to the value consistent with the observed familial resemblance (see
+<p>If the sampling contract above holds, you can <strong>estimate <code>h²</code> from the family
+data</strong> when the bounds also encode a coherent observation model. Otherwise use
+an external estimate or a fitter that models the sampling design.
+<code>fit_heritability</code> alternates a Gibbs augmentation of the latent liabilities with a damped
+Haseman–Elston update of <code>h²</code>, converging to the value consistent with the observed
+familial resemblance (see
 <a href="../algorithm/#fitting-the-covariance-heritability">algorithm.md</a>). This is a
 <strong>stochastic-approximation fixed point</strong>, not posterior sampling of <code>h²</code>: the trace
 is not a posterior draw and its mean is not a posterior mean.</p>
+<p>The pooled Haseman–Elston fixed point requires <strong>one case/control threshold
+per trait</strong>. Personalised (age-/CIP-specific) or onset-pinned LT-FH++ bounds —
+including the Quickstart's <code>age_thresholds</code> output, even when they are
+internally coherent — are <strong>rejected</strong>. This is an identification contract,
+motivated by exploratory failures outside the common-threshold design, not a
+current quantitative benchmark for personalised fitting. Fit from
+common-threshold bounds (<code>prevalence_thresholds</code>), or bring an external
+liability-scale <code>h²</code>. Personalised bounds remain the intended input for
+<code>estimate_liability</code>, which conditions on <code>h²</code> rather than fitting it. For
+onset-age-structured genetic correlation see
+<code>research.advanced_fitting.fit_genetic_correlation_decay</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_heritability</span>
-<span class="n">fit</span> <span class="o">=</span> <span class="n">fit_heritability</span><span class="p">(</span><span class="n">families</span><span class="p">)</span>     <span class="c1"># families with member bounds (from a threshold builder)</span>
-<span class="n">fit</span><span class="o">.</span><span class="n">h2</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">h2_se</span>                    <span class="c1"># fitted liability-scale heritability (+ MC diagnostic)</span>
+<span class="n">fit</span> <span class="o">=</span> <span class="n">fit_heritability</span><span class="p">(</span>
+    <span class="n">fitting_families</span><span class="p">,</span>
+    <span class="n">sampling</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span>  <span class="c1"># explicit acknowledgement, not a correction</span>
+<span class="p">)</span>
+<span class="n">fit</span><span class="o">.</span><span class="n">h2</span><span class="p">,</span> <span class="n">fit</span><span class="o">.</span><span class="n">h2_se</span>  <span class="c1"># fitted liability-scale h² (+ MC diagnostic)</span>
 </code></pre></div>
 <p>It needs relatives (lone probands carry no information and raise). <code>fit.h2_se</code> is a
 <em>within-dataset</em> Monte-Carlo <strong>diagnostic</strong> of the fixed point, not an inferential
@@ -852,34 +1168,133 @@ around it).</p>
 <p><code>bootstrap_fit</code> resamples families with replacement and refits, giving a
 family-cluster bootstrap SE and percentile CI:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">bootstrap_fit</span>
-<span class="n">bs</span> <span class="o">=</span> <span class="n">bootstrap_fit</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">fit_heritability</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">h2</span><span class="p">,</span> <span class="n">n_boot</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="n">bs</span> <span class="o">=</span> <span class="n">bootstrap_fit</span><span class="p">(</span>
+    <span class="n">families</span><span class="p">,</span>
+    <span class="k">lambda</span> <span class="n">f</span><span class="p">:</span> <span class="n">fit_heritability</span><span class="p">(</span>
+        <span class="n">f</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sampling</span><span class="o">=</span><span class="s2">"population"</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">h2</span><span class="p">,</span>
+    <span class="n">n_boot</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="n">bs</span><span class="o">.</span><span class="n">estimate</span><span class="p">,</span> <span class="n">bs</span><span class="o">.</span><span class="n">se</span><span class="p">,</span> <span class="p">(</span><span class="n">bs</span><span class="o">.</span><span class="n">ci_low</span><span class="p">,</span> <span class="n">bs</span><span class="o">.</span><span class="n">ci_high</span><span class="p">)</span>   <span class="c1"># point, bootstrap SE, percentile CI</span>
 </code></pre></div>
-<p>It wraps any of the fitters (pass a <code>lambda</code> that returns the quantity of interest,
-e.g. <code>fit_variance_components(f, ("A","C"), seed=1).components["C"]</code> or
-<code>fit_genetic_correlation(f, seed=1).rg[0,1]</code>); fix the estimator's <code>seed</code> so the
-spread reflects family sampling, not sampler noise. It costs <code>n_boot</code>+1 fits.
-The interval assumes iid, non-overlapping family clusters and a sampling design
-compatible with the fitted model. It is not automatically calibrated under
-case/control or family-history ascertainment, boundary parameters, or overlapping
+<p>It wraps any of the fitters: pass a <code>lambda</code> that returns the quantity of
+interest, such as the <code>"C"</code> component from
+<code>fit_variance_components(..., sampling="population")</code>, or a fit from
+<code>research.advanced_fitting</code>. Fix the estimator's <code>seed</code> so the spread reflects
+family sampling, not sampler noise. For IPW, pass <code>weights=weights</code> to
+<code>bootstrap_fit</code> and use a two-argument callable, <code>lambda f, w:
+fit_heritability(f, sampling="ipw", weights=w, seed=1).h2</code>; the helper resamples
+families and weights with the same indices. It costs <code>n_boot</code>+1 fits.
+The interval assumes iid, non-overlapping family clusters and either
+representative sampling or valid aligned IPW. It is not automatically calibrated
+for zero-probability selection strata, boundary parameters, or overlapping
 pedigrees. The <code>n_boot=100</code> call above is a computational example, not a
 recommended final precision: percentile endpoints can be visibly unstable with
 so few resamples. Increase <code>n_boot</code> until the SE and interval endpoints are stable
 for your analysis, and report the number of successful refits.</p>
+<h2 id="ascertained-samples">Ascertained samples<a class="headerlink" href="#ascertained-samples" title="Permanent link">&para;</a></h2>
+<p>Selection on phenotype is the failure mode these fitters are least robust to,
+and the tolerance is much tighter than intuition suggests. From the
+dose-response in <code>benchmarks/bench_ascertainment.py</code> (nuclear families,
+true <code>h²</code> = 0.5, K = 0.05, N = 2,000):</p>
+<table>
+<thead>
+<tr>
+<th>realised case share ÷ assumed K</th>
+<th style="text-align: right;">0.95×</th>
+<th style="text-align: right;">1.51×</th>
+<th style="text-align: right;">1.96×</th>
+<th style="text-align: right;">≥ 2×</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>fitted <code>h²</code></td>
+<td style="text-align: right;">0.420</td>
+<td style="text-align: right;">0.984</td>
+<td style="text-align: right;">0.998</td>
+<td style="text-align: right;">1.000</td>
+</tr>
+</tbody>
+</table>
+<p>A 7.6% case rate against an assumed 5.0% already inflates <code>h²</code> by +0.48. This is
+<strong>bias, not noise</strong>: it does not shrink with N (constant +0.500 from N = 1,000 to
+10,000) and it is not an unconverged run (the same value is reached from
+<code>h2_init</code> 0.05 and 0.95).</p>
+<h3 id="when-you-can-correct-it-samplingipw">When you can correct it: <code>sampling="ipw"</code><a class="headerlink" href="#when-you-can-correct-it-samplingipw" title="Permanent link">&para;</a></h3>
+<p>If families were selected on observed status with a <strong>known</strong> inclusion
+probability <code>π</code> that is <strong>positive for every stratum</strong>, pass the reciprocals as
+weights:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_heritability</span>
+
+<span class="c1"># 50/50 case/control cohort drawn from a population with K = 0.05:</span>
+<span class="c1"># every case kept, controls retained with probability K(1-q)/(q(1-K)).</span>
+<span class="n">keep_p</span> <span class="o">=</span> <span class="mf">0.05</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="o">/</span> <span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="mf">0.95</span><span class="p">)</span>
+<span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">proband_is_case</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">keep_p</span><span class="p">)</span>
+
+<span class="n">fit</span> <span class="o">=</span> <span class="n">fit_heritability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">sampling</span><span class="o">=</span><span class="s2">"ipw"</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="n">weights</span><span class="p">)</span>
+</code></pre></div>
+<p>Why this is the right shape of correction: the liability augmentation for a
+<em>given</em> family with <em>given</em> statuses is already the correct conditional
+distribution. What selection breaks is the <strong>mix</strong> of families, and weighting
+re-mixes them to population proportions. Benchmarked, this takes a 50/50
+case/control cohort from <code>h² = 1.000</code> (pinned) back to <strong>0.468</strong> against a truth
+of 0.5, and a 20%-enriched cohort from 1.000 to <strong>0.521</strong>.</p>
+<p>Two limits, and both matter:</p>
+<ul>
+<li><strong>Positivity.</strong> A design that samples no families from some stratum has
+  <code>π = 0</code> there, and no weight reconstructs what was never observed.
+  Ascertainment through an affected proband is the standard example. The
+  benchmark labels such rows <em>undefined from the known design</em> before calling
+  the weighted fitter, because no finite valid weights exist. The fitter's
+  role-wise weighted case-rate screen can falsify some bad weights, but passing
+  it does <strong>not</strong> establish joint-pattern positivity or correct weights.</li>
+<li><strong>Efficiency.</strong> At K = 0.05 a 50/50 cohort needs weights up to 19×, so the
+  effective sample size is far below the nominal one and the across-replicate SD
+  grows accordingly. IPW buys accuracy with precision.</li>
+</ul>
+<p>Weights must be supplied by you from the sampling design; ltpred cannot infer
+them, and estimating <code>π</code> from a sampling frame adds its own error. Selection
+on family history is not categorically excluded: it is IPW-correctable only when
+the inclusion probability of every complete observed family pattern is known
+and strictly positive. Deterministic family-history selection usually violates
+that condition.</p>
+<div class="admonition warning">
+<p class="admonition-title">What a scale correction cannot do</p>
+<p>A Lee et al. (2011)-style observed→liability factor does not help here, and
+the reason is worth stating: it is a multiplicative function of <code>(K, P)</code>
+alone, while at fixed <code>K</code> a true <code>h²</code> of 0.5 and of 0.0 <strong>both</strong> produce
+1.000. No invertible constant maps both back. That correction also targets
+an <em>observed-scale</em> estimate, whereas these fitters estimate on the
+liability scale directly, so there is no observed-scale quantity to
+transform. <a href="../api/"><code>observed_to_liability_h2</code></a> remains the right tool for
+its own job: converting an observed-scale <code>h²</code> that some other method
+produced.</p>
+<p>Benchmark arm J is deliberately narrower: it standardises each role by its
+sample case rate, pools multi-relative HE moments, and applies the proband's
+sample fraction in the Lee factor. It is a diagnostic of that improvised
+bridge, not an implementation or evaluation of conventional unrelated-
+sample LDSC or GREML.</p>
+</div>
 <h2 id="sensitivity-to-the-assumed-heritability">Sensitivity to the assumed heritability<a class="headerlink" href="#sensitivity-to-the-assumed-heritability" title="Permanent link">&para;</a></h2>
 <p>Because no single <code>h²</code> is uniquely correct, check how much the score actually
-depends on it. <code>liability_sensitivity</code> sweeps a grid and reports the cross-setting
-correlation of the estimates:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">liability_sensitivity</span>
-<span class="n">sens</span> <span class="o">=</span> <span class="n">liability_sensitivity</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="p">[</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">],</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;pa&quot;</span><span class="p">)</span>
-<span class="n">sens</span><span class="o">.</span><span class="n">min_corr</span>          <span class="c1"># worst-case correlation of the score across the grid</span>
-<span class="n">sens</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span> <span class="n">sens</span><span class="o">.</span><span class="n">sd</span>     <span class="c1"># how the scale shifts with h²</span>
+depends on it: re-estimate over a plausible <code>h²</code> grid and correlate the scores
+across settings:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability</span>
+<span class="n">grid</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">]</span>
+<span class="n">scores</span> <span class="o">=</span> <span class="p">[</span><span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h</span><span class="p">)</span><span class="o">.</span><span class="n">est</span><span class="p">[</span><span class="s2">"genetic"</span><span class="p">]</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">grid</span><span class="p">]</span>
+<span class="n">min_corr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">scores</span><span class="p">)[</span><span class="n">np</span><span class="o">.</span><span class="n">triu_indices</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">grid</span><span class="p">),</span> <span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
 </code></pre></div>
-<p>In the documented benchmark, <code>min_corr</code> was high (≈0.97 across <code>h² 0.2–0.8</code> for
-the tested pedigree): changing the assumed <code>h²</code> acted mostly like a near-linear
+<p>In the calibration benchmark (§12 of <code>benchmarks/RESULTS.md</code>) the ranking is
+barely touched by a wrong <code>h²</code>: corr(est, true g) stays in 0.429–0.431 across
+assumed <code>h²</code> 0.2–0.8 while the calibration slope sweeps from 2.24 to 0.68 —
+changing the assumed <code>h²</code> acts mostly like a near-linear
 rescaling of the liability score. This is an empirical sensitivity result, not
-rank invariance or a guarantee for other structures. A low <code>min_corr</code> is the
-signal to pin <code>h²</code> down (with <code>fit_heritability</code>). Prevalence/CIP
+rank invariance or a guarantee for other structures. A low cross-setting
+correlation is the signal to obtain a better external <code>h²</code>, or—only when the
+population-sampling contract holds—to fit it with <code>fit_heritability</code>. Prevalence/CIP
 sensitivity changes the truncation bounds rather than the covariance, so probe it
 by rebuilding the families under each prevalence and comparing. (The <em>scale</em> is more
 sensitive than the ranking — see the calibration benchmark in
@@ -890,154 +1305,48 @@ sensitive than the ranking — see the calibration benchmark in
 <code>fit_variance_components</code> fits both at once by a multiple Haseman–Elston
 regression:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_variance_components</span>
-<span class="n">vc</span> <span class="o">=</span> <span class="n">fit_variance_components</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">))</span>
-<span class="n">vc</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;A&quot;</span><span class="p">],</span> <span class="n">vc</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;C&quot;</span><span class="p">],</span> <span class="n">vc</span><span class="o">.</span><span class="n">residual</span>   <span class="c1"># proportions of liability variance</span>
+<span class="n">vc</span> <span class="o">=</span> <span class="n">fit_variance_components</span><span class="p">(</span>
+    <span class="n">families</span><span class="p">,</span> <span class="p">(</span><span class="s2">"A"</span><span class="p">,</span> <span class="s2">"C"</span><span class="p">),</span> <span class="n">sampling</span><span class="o">=</span><span class="s2">"population"</span>
+<span class="p">)</span>
+<span class="n">vc</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">"A"</span><span class="p">],</span> <span class="n">vc</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">"C"</span><span class="p">],</span> <span class="n">vc</span><span class="o">.</span><span class="n">residual</span>   <span class="c1"># proportions of liability variance</span>
 </code></pre></div>
 <p><code>C</code> is identified only from <strong>full-sib pairs</strong>, so the families must contain them
 (otherwise the fit raises). The same <code>h2_se</code> caveat applies — use <code>bootstrap_fit</code> for a CI.</p>
-<h3 id="onset-age-decay">Onset-age decay<a class="headerlink" href="#onset-age-decay" title="Permanent link">&para;</a></h3>
-<p>If the genetic correlation should <strong>decay with the difference in age at onset</strong>
-between relatives (early- vs late-onset heterogeneity), use
-<code>fit_genetic_correlation_decay</code> instead. Each member additionally carries <code>aod</code>
-(onset age for cases, censoring age for controls), per trait:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_genetic_correlation_decay</span>
-<span class="n">gd</span> <span class="o">=</span> <span class="n">fit_genetic_correlation_decay</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">phen_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;adhd&quot;</span><span class="p">,</span> <span class="s2">&quot;depression&quot;</span><span class="p">])</span>
-<span class="n">gd</span><span class="o">.</span><span class="n">rg</span>             <span class="c1"># genetic correlation at equal onset age</span>
-<span class="n">gd</span><span class="o">.</span><span class="n">lambda_cross</span>   <span class="c1"># cross-trait decay rate lam (0 = the scalar model)</span>
-<span class="n">gd</span><span class="o">.</span><span class="n">lambda_within</span>  <span class="c1"># per-trait decay rates</span>
-<span class="n">gd</span><span class="o">.</span><span class="n">converged</span>      <span class="c1"># did the EM stabilise? (False -&gt; raise n_em)</span>
-</code></pre></div>
-<p>Useful options: <code>shared_lambda=True</code> ties all decay rates to one scalar
-(fewer parameters, guaranteed PSD, less ridge -- the recommended default);
-<code>shared_env=True</code> adds a shared-family environmental component <code>C</code> (a proper
-onset-age ACE decomposition, so household environment isn't mistaken for
-genetics); <code>n_starts</code> re-runs the EM from perturbed inits against the
-multi-modal likelihood.</p>
-<p>The fit is a Monte-Carlo <strong>EM</strong> (likelihood, not the moment regression), because
-ascertainment truncation is itself age-dependent and confounds a moment estimator
--- see <a href="../algorithm/#onset-age-structured-genetic-correlation">the algorithm notes</a>.
-It is <strong>data-hungry</strong>: the amplitude and the decay rate trade off along a
-likelihood ridge, so it needs on the order of thousands of families and several
-dozen EM iterations to recover <code>r_g</code> and <code>lam</code> (see
-<code>benchmarks/bench_aod_decay.py</code>); with few families or little onset-age spread,
-prefer the scalar <code>fit_genetic_correlation</code>.
-Dominance is intentionally not offered. It requires a dominance relationship
+<p>Dominance is intentionally not offered. It requires a dominance relationship
 kernel with contrasts linearly independent of <code>A</code> and <code>C</code>. MZ/DZ twin observations
 can contribute useful contrasts within a richer design, but MZ/DZ pairs alone
 cannot identify <code>A</code>, <code>C</code>, and <code>D</code> simultaneously. The current role bank does not
 provide a dominance kernel. With <code>("A",)</code> alone the result matches
 <code>fit_heritability</code>.</p>
-<p>A second shared-environment component, <code>"M"</code> (couple / spousal environment), loads
-on the genetically-unrelated <strong>mate pairs</strong> — the parents <code>(m, f)</code> and the
-grandparent couples — so <code>fit_variance_components(families, ("A", "C", "M"))</code> fits
-all three at once given a 3-generation pedigree (each component needs its
-identifying pairs; the fit raises on a rank-deficient design). <code>M</code> is a
+<p>A second shared-environment component, <code>"M"</code> (couple / spousal environment),
+loads on the genetically-unrelated <strong>mate pairs</strong> — the parents <code>(m, f)</code> and the
+grandparent couples. On a 3-generation population-sampled pedigree,
+<code>fit_variance_components(..., sampling="population")</code> fits all three at once
+(each component needs its identifying pairs; the fit raises on a rank-deficient
+design). <code>M</code> is a
 <strong>descriptive spousal-resemblance component</strong>: it absorbs shared adult environment
 and some manifestations of assortative mating, but it is <em>not</em> a generative model
 of assortative mating (which would also alter the genetic covariance among
 offspring and across generations). Because mates have <code>A = 0</code>, omitting a real
 <code>M</code> biases <code>A</code> <strong>much less than omitting <code>C</code></strong> — so fit <code>M</code> to
-quantify, or <code>test_variance_component(families, "M")</code> to test, spousal resemblance
-for its own sake rather than to de-bias <code>h²</code>. The shipped <code>C</code> and <code>M</code> kernels are
+quantify spousal resemblance
+for its own sake (a parametric-bootstrap component test lives in
+<code>research.advanced_fitting</code>) rather than to de-bias <code>h²</code>. The shipped <code>C</code> and <code>M</code> kernels are
 equivalence-class partitions, which guarantees that they are positive
 semi-definite (PSD); equivalence classes are sufficient, not necessary. Any future
 kernel must be symmetric and PSD. Every fitted kernel has diagonal one, so each
 component also consumes that fraction of marginal liability variance and the
 individual residual is <code>1 - sum(components)</code>. The naive vertical parent-offspring
-indicator considered here is non-PSD and is rejected.</p>
-<p>Pass <code>method="mcem"</code> for the package's <strong>approximate Monte-Carlo EM-style
-likelihood fit</strong> instead of the moment regression (<code>method="reml"</code> is a deprecated
-alias; this is not restricted ML):</p>
-<div class="highlight"><pre><span></span><code><span class="n">vc</span> <span class="o">=</span> <span class="n">fit_variance_components</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">),</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;mcem&quot;</span><span class="p">)</span>
-<span class="n">vc</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">&quot;A&quot;</span><span class="p">],</span> <span class="n">vc</span><span class="o">.</span><span class="n">se</span><span class="p">[</span><span class="s2">&quot;A&quot;</span><span class="p">]</span>  <span class="c1"># estimate + approximate OPG/BHHH information SE</span>
-<span class="n">vc</span><span class="o">.</span><span class="n">loglik</span><span class="p">,</span> <span class="n">vc</span><span class="o">.</span><span class="n">aic</span>                <span class="c1"># Monte-Carlo GHK log-likelihood + AIC diagnostic</span>
-</code></pre></div>
-<p>The implementation runs a finite <code>n_iter</code> trajectory with a fixed damping
-coefficient and averages the post-burn-in iterates; it does not stop on an EM
-likelihood-convergence criterion. Consequently the component estimates, the
-OPG/BHHH information SE, and the GHK log-likelihood/AIC are all Monte-Carlo and
-finite-iteration approximations. Use them as diagnostics, check stability across
-seeds and iteration settings, and do not replace a family-cluster bootstrap with
-the reported <code>se</code> unless its repeated-sampling calibration has been established
-for your design. AIC can compare nested fits descriptively, but it is particularly
-fragile near a variance-component boundary; use <code>test_variance_component</code> when
-its conditional parametric-bootstrap assumptions are appropriate.</p>
-<h2 id="genetic-correlation-between-traits">Genetic correlation between traits<a class="headerlink" href="#genetic-correlation-between-traits" title="Permanent link">&para;</a></h2>
-<p>For <strong>several traits</strong>, <code>fit_genetic_correlation</code> estimates the genetic
-correlation <code>r_g</code> between them (and each trait's <code>h²</code>). Each member must carry one
-interval per trait (length-<code>n_pheno</code> <code>lower</code>/<code>upper</code>, as for the
-<a href="../estimation/#multiple-correlated-traits">multi-trait estimator</a>):</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_genetic_correlation</span>
-<span class="n">gc</span> <span class="o">=</span> <span class="n">fit_genetic_correlation</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">phen_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;adhd&quot;</span><span class="p">,</span> <span class="s2">&quot;depression&quot;</span><span class="p">])</span>
-<span class="n">gc</span><span class="o">.</span><span class="n">rg</span>          <span class="c1"># (P, P) genetic-correlation matrix (the headline)</span>
-<span class="n">gc</span><span class="o">.</span><span class="n">re</span>          <span class="c1"># (P, P) environmental correlation (phenotypic corr not from shared genes)</span>
-<span class="n">gc</span><span class="o">.</span><span class="n">h2</span><span class="p">,</span> <span class="n">gc</span><span class="o">.</span><span class="n">rp</span>   <span class="c1"># per-trait heritabilities; phenotypic (full-liability) correlations</span>
-</code></pre></div>
-<p>The phenotypic correlation splits into genetic and environmental parts —
-<code>gc.rp</code> <strong>equals</strong> <code>gc.genetic_cov + gc.env_cov</code> — so you get both <code>r_g</code> and
-<code>r_e</code>. Both covariances are positive semi-definite and every reported correlation
-is derived from that one pair, so the returned object is a coherent model you can
-simulate from or hand to <code>fit_genetic_factor</code> directly. It needs related pairs (the
-genetic correlation is carried by the cross-relative, cross-trait resemblance). It
-was approximately unbiased near the null and mildly attenuated at large <code>|r_g|</code>
-in the repository benchmarks; use
-<code>bootstrap_fit</code> for a CI.</p>
-<h2 id="a-genetic-common-factor-model">A genetic common-factor model<a class="headerlink" href="#a-genetic-common-factor-model" title="Permanent link">&para;</a></h2>
-<p>With several traits, ask whether one genetic factor explains the <code>r_g</code> among them —
-a <strong>common-factor model</strong> <code>r_g ≈ Λ Λ' + Ψ</code> (Genomic-SEM-lite):</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_genetic_correlation</span><span class="p">,</span> <span class="n">fit_genetic_factor</span>
-
-<span class="n">gc3</span> <span class="o">=</span> <span class="n">fit_genetic_correlation</span><span class="p">(</span>
-    <span class="n">three_trait_families</span><span class="p">,</span>
-    <span class="n">phen_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;adhd&quot;</span><span class="p">,</span> <span class="s2">&quot;depression&quot;</span><span class="p">,</span> <span class="s2">&quot;anxiety&quot;</span><span class="p">],</span>
-<span class="p">)</span>
-<span class="n">fa</span> <span class="o">=</span> <span class="n">fit_genetic_factor</span><span class="p">(</span><span class="n">gc3</span><span class="p">)</span>             <span class="c1"># or pass a valid (P, P) matrix</span>
-<span class="n">fa</span><span class="o">.</span><span class="n">loadings</span>                              <span class="c1"># (P, 1) each trait&#39;s correlation with the factor</span>
-<span class="n">fa</span><span class="o">.</span><span class="n">communality</span>                           <span class="c1"># per-trait genetic variance the factor explains</span>
-<span class="n">fa</span><span class="o">.</span><span class="n">srmr</span><span class="p">,</span> <span class="n">fa</span><span class="o">.</span><span class="n">prop_explained</span>               <span class="c1"># off-diagonal misfit; fraction of r_g captured</span>
-</code></pre></div>
-<p><code>fit_genetic_factor</code> fits the loadings by MINRES (minimising the <strong>off-diagonal</strong>
-residuals, so the factor explains the cross-trait correlations, not each trait's own
-variance). <code>srmr</code> is a descriptive in-sample misfit measure; values around
-0.05–0.08 are sometimes used as informal heuristics, not as a calibrated test of
-factor number. Communalities are constrained to <code>[0, 1]</code>; a value at 1 is a
-Heywood boundary rather than evidence of a perfect measurement. A single factor
-needs <code>P ≥ 3</code> traits. Although the usual parameter count gives zero formal degrees
-of freedom at <code>P = 3</code>, sign and communality constraints can still leave non-zero
-residual misfit, so the fit is not universally exact. This is a descriptive
-decomposition of a point-estimate <code>r_g</code>; bootstrap the
-<code>fit_genetic_correlation → fit_genetic_factor</code> pipeline for uncertainty.</p>
-<p>For <code>n_factors &gt; 1</code>, factor signs, order and rotation are not identified. Align
-bootstrap loading matrices to the reference solution (for example by permutation,
-sign matching and Procrustes rotation) before elementwise intervals, or bootstrap
-rotation-invariant summaries instead.</p>
-<h2 id="is-a-component-correlation-significant">Is a component / correlation significant?<a class="headerlink" href="#is-a-component-correlation-significant" title="Permanent link">&para;</a></h2>
-<p>The frequentist analog of the twin-SEM likelihood-ratio test ("is <code>C</code> in the
-model?", "is the genetic path non-zero?") is a <strong>parametric bootstrap</strong>:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">test_variance_component</span><span class="p">,</span> <span class="n">test_genetic_correlation</span>
-<span class="n">tc</span> <span class="o">=</span> <span class="n">test_variance_component</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="n">n_boot</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>   <span class="c1"># H0: c² = 0</span>
-<span class="n">tg</span> <span class="o">=</span> <span class="n">test_genetic_correlation</span><span class="p">(</span><span class="n">two_trait_families</span><span class="p">,</span> <span class="n">n_boot</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>  <span class="c1"># H0: r_g = 0</span>
-<span class="n">tc</span><span class="o">.</span><span class="n">p_value</span><span class="p">,</span> <span class="n">tc</span><span class="o">.</span><span class="n">estimate</span><span class="p">,</span> <span class="n">tc</span><span class="o">.</span><span class="n">null</span>      <span class="c1"># p-value, observed statistic, null distribution</span>
-</code></pre></div>
-<p>Each fits the full model, then simulates <code>n_boot</code> datasets under the null — for
-<code>C</code>, an <code>A</code>-only model; for <code>r_g[i,j]</code>, a pair-specific null with only that genetic
-correlation set to zero. Each trait's <code>h²</code>, the environmental covariance, and
-nuisance genetic correlations are preserved as far as positive-semidefinite
-coherence permits. Simulation uses the same pedigrees and fixed thresholds, then
-refits and locates the observed statistic in that plug-in null. The resulting
-p-value is an approximate conditional parametric-bootstrap calibration: it
-depends on fitted nuisance parameters, a correctly specified null and observation
-model, independent family clusters, and enough bootstrap replicates. It must not
-reuse an outcome-derived onset threshold after simulating a different status. The
-current helpers therefore require <strong>case/control-style bounds fixed independently
-of status</strong>; pinned age-of-onset bounds raise. A common prevalence threshold is
-accepted automatically. For individualized thresholds fixed from baseline
-covariates, pass <code>thresholds_are_status_independent=True</code> only when that statement
-is genuinely true; never use it for a threshold derived from age of onset. It
-costs about <code>n_boot</code> refits. With the plus-one Monte-Carlo p-value used here, <code>B</code>
-null replicates give a minimum attainable p-value of <code>1 / (B + 1)</code>; for example,
-<code>n_boot=200</code> cannot resolve a p-value below about <code>0.005</code>. Increase <code>n_boot</code> for
-smaller target significance levels and report the simulation count.</p>
+indicator considered here is non-PSD and is rejected. Component kernels may be
+PSD; the assembled covariance used by Gibbs must be strictly positive-definite.</p>
+<h2 id="unsupported-research-prototypes">Unsupported research prototypes<a class="headerlink" href="#unsupported-research-prototypes" title="Permanent link">&para;</a></h2>
+<p>Multi-trait genetic-correlation and onset-age-decay fitting, common-factor and
+genetic-nurture models, MCEM, and parametric-bootstrap tests live in
+<a href="https://github.com/bvilhjal/ltpred/blob/main/research/advanced_fitting.py"><code>research/advanced_fitting.py</code></a>.
+They are importable from a source checkout but are not installed and are not part
+of the supported API. See the
+<a href="https://github.com/bvilhjal/ltpred/blob/main/research/README.md"><code>research/</code> README</a>
+for the current inventory and <a href="../algorithm/">algorithm.md</a> for model background.</p>
 
 
 
@@ -1072,10 +1381,31 @@ smaller target significance levels and report the simulation count.</p>
     <div class="md-footer-meta__inner md-grid">
       <div class="md-copyright">
   
+    <div class="md-copyright__highlight">
+      Pioneer Centre for SMARTbiomed · <a href="https://smartbiomed.dk/">smartbiomed.dk</a> · Aarhus University · University of Copenhagen · University of Oxford
+
+    </div>
   
-    Made with
-    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
-      Material for MkDocs
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://smartbiomed.dk/" target="_blank" rel="noopener" title="Pioneer Centre for SMARTbiomed" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/bvilhjal/ltpred" target="_blank" rel="noopener" title="ltpred on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
     </a>
   
 </div>
@@ -1093,10 +1423,16 @@ smaller target significance levels and report the simulation count.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["announce.dismiss", "navigation.sections", "navigation.top", "navigation.tracking", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+      
+        <script src="../javascripts/katex.js"></script>
       
     
   </body>
