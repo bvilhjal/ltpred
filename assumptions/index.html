@@ -1035,6 +1035,11 @@ the assumed prevalence already inflates <code>h²</code> by +0.48
 <h2 id="real-data-checklist">Real-data checklist<a class="headerlink" href="#real-data-checklist" title="Permanent link">&para;</a></h2>
 <p>Before running a production analysis:</p>
 <ol>
+<li>Pick a <strong>use</strong> (<a href="../vignette/">vignette</a> Table 1): <strong>I</strong> family-history
+   risk prediction (own status out; optional PGS afterwards), <strong>II</strong> a
+   quantitative GWAS phenotype (own status in), or <strong>III</strong> architecture /
+   relationships / aetiology from <span class="arithmatex">\(h^2\)</span>, <span class="arithmatex">\(r_g\)</span> and/or the CIP. Use III
+   can skip pedigree scoring; I and II disagree on role <code>o</code>.</li>
 <li>Validate the <strong>diagnosis and family-history source</strong>: case definition,
    reporting accuracy, missingness, follow-up, and participation/selection process.</li>
 <li>Obtain <strong>population-representative CIPs</strong> (cumulative incidence by age),
@@ -1054,9 +1059,9 @@ the assumed prevalence already inflates <code>h²</code> by +0.48
    especially for rare traits and dense pedigrees.</li>
 <li><strong>Validate roles</strong>: valid abbreviations, no duplicate roles within a family
    (the estimator now raises on duplicates).</li>
-<li>Decide whether to <strong>condition on the proband's own status</strong>. Include <code>o</code> when
-   intentionally constructing a diagnosis-derived GWAS phenotype; omit it or make
-   it uninformative for prospective prediction/classification of that diagnosis.</li>
+<li>Decide whether to <strong>condition on the proband's own status</strong>. Include <code>o</code> for
+   use II (a diagnosis-derived GWAS phenotype); omit it or make it uninformative
+   for use I (prospective prediction/classification of that diagnosis).</li>
 <li>Decide <strong>case encoding</strong> — onset-pinned (<code>age_thresholds</code>), lifetime-interval
    (base PA-FGRS), or age-specific interval (<code>pa_thresholds</code>, an age-dependent
    PA-FGRS-style variant) — and record it. Pin only when you believe onset is

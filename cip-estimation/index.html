@@ -1112,7 +1112,10 @@
 <h1 id="estimating-cumulative-incidence-cip-from-health-data">Estimating cumulative incidence (CIP) from health data<a class="headerlink" href="#estimating-cumulative-incidence-cip-from-health-data" title="Permanent link">&para;</a></h1>
 <p>The personalised thresholds of LT-FH++, ADuLT and PA-FGRS all consume a
 <strong>cumulative-incidence proportion</strong> — the fraction of people in a population
-stratum who are diagnosed before a given age,</p>
+stratum who are diagnosed before a given age. For uses I and II of the
+<a href="../vignette/">vignette</a> that curve is an <em>input</em> to the thresholds. For use III
+it can <em>be</em> the result: the age, sex and cohort pattern of incidence, without
+scoring families.</p>
 <div class="highlight"><pre><span></span><code>CIP(age | stratum) = P(diagnosed at or before `age`),   T = Phi^-1(1 - CIP).
 </code></pre></div>
 <p>This page describes how to estimate that curve from registry-style health

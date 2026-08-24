@@ -1129,12 +1129,13 @@ need the estimator.</p>
 <td>Disease relationships and aetiology</td>
 <td><strong>0 and/or 2</strong></td>
 <td>—</td>
-<td>Liability-scale <span class="arithmatex">\(h^2\)</span> and <span class="arithmatex">\(r_g\)</span> constrain genetic architecture and how two diseases relate. The CIP is the age/sex/cohort pattern of incidence. Pedigree, family history and <span class="arithmatex">\(\mu_i\)</span> are optional here.</td>
+<td>Liability-scale <span class="arithmatex">\(h^2\)</span> and <span class="arithmatex">\(r_g\)</span> constrain genetic architecture and how two diseases relate. The CIP is the age/sex/cohort pattern of incidence. Pedigree, family history and <span class="arithmatex">\(\mu_i\)</span> are optional. Fitting <span class="arithmatex">\(h^2\)</span> from the <em>same</em> families is optional and is a different contract (<a href="../inference/">Inference</a>).</td>
 </tr>
 </tbody>
 </table>
 <p>Equation (1) names four inputs. Figure 1 is that recipe as a flow, with
-the three uses as exits. Table 2 lists the corresponding calls. You are
+the three uses as exits. The <a href="../report/">methods note</a> uses the same
+I/II/III numbering. Table 2 lists the corresponding calls. You are
 not missing a hidden software step. Classic LT-FH uses one lifetime <span class="arithmatex">\(K\)</span>
 in step 2 instead of a CIP curve. Two-trait work adds a genetic
 covariance in step 0 and uses Gibbs in step 4.</p>

@@ -1345,8 +1345,9 @@
 
 <h1 id="algorithm-and-model">Algorithm and model<a class="headerlink" href="#algorithm-and-model" title="Permanent link">&para;</a></h1>
 <p>This page records the estimand, the observation models, and the two
-algorithms that compute the score. Usage is in <a href="../guide/">guide.md</a>.
-The typeset companion is the
+algorithms that compute the score. Which steps to run, and which of
+three uses they serve, is in the <a href="../vignette/">vignette</a> and
+<a href="../guide/">guide.md</a>. The typeset companion is the
 <a href="https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf">methods note</a>.</p>
 <p>Write the names LT-FH, LT-FH++, ADuLT and PA-FGRS for <em>observation
 models</em>: they choose the set <code>D_F</code> that is conditioned on. They are
@@ -1412,6 +1413,19 @@ moment updates deterministically. Both return an estimate of (3).</p>
 <li>Equation (3) is not a SNP polygenic score. No marker effects
    enter. Combining <code>μ_i</code> with a PGS is a downstream model.</li>
 </ol>
+<p>Those remarks split two uses of <code>μ_i</code>. A third use never needs
+<code>μ_i</code>. The <a href="../vignette/">vignette</a> writes them as Table 1; the
+methods note as its table of three uses.</p>
+<ul>
+<li><strong>I. Risk prediction</strong> from family history (own status <em>out</em>). An
+  optional PGS is combined afterwards, not inside (3).</li>
+<li><strong>II. A quantitative GWAS phenotype</strong> (own status <em>in</em>). ADuLT is
+  the no-relative special case.</li>
+<li><strong>III. Architecture, relationships, aetiology.</strong> Liability-scale
+  <code>h²</code> and <code>r_g</code>, and the CIP <code>K(·)</code>, can stand alone. Pedigree
+  scoring is optional. Fitting <code>h²</code> from the same families is a
+  different contract (<a href="../inference/">Inference</a>).</li>
+</ul>
 <p>The <a href="#connection-to-selection-index-and-blup">BLUP section</a> records
 the same identity in the language of the selection index. The
 <a href="#connection-to-shams-liability-threshold-risk-models">Sham section</a>
@@ -1743,10 +1757,11 @@ E[ℓ_F | D_F]
 μ_i  =  E[a_i | D_F].
 </code></pre></div>
 <p>The rectangle <code>C_F</code> may include the proband's own interval when the
-score is a GWAS phenotype constructed from that diagnosis. It must
-exclude, or leave unbounded, the proband's interval when the same
-diagnosis is the outcome of a prospective evaluation; otherwise
-<code>D_F</code> contains the answer (remark 1 above).</p>
+score is a GWAS phenotype constructed from that diagnosis (use II).
+It must exclude, or leave unbounded, the proband's interval when the
+same diagnosis is the outcome of a prospective evaluation (use I);
+otherwise <code>D_F</code> contains the answer (remark 1 above). Use III can
+stop before this pipeline.</p>
 <p>Hence the method is BLUP-like only after the latent liabilities have
 been replaced by their truncated means. Classical BLUP is linear in
 observed continuous phenotypes. Here the exact posterior mean is
@@ -1782,8 +1797,10 @@ parameter side, So &amp; Sham's liability-scale heritability work is the traditi
 <p>The difference is the <strong>estimand and the scale of computation</strong>. So &amp; Sham (2011)
 target an individual's <strong>absolute disease risk</strong> for screening; <code>ltpred</code> targets
 the <strong>posterior mean additive genetic liability of the proband</strong> — a
-breeding-value-style score and a GWAS phenotype (the <a href="#connection-to-selection-index-and-blup">BLUP framing</a>
-above). LT-FH++ and ADuLT share personalised age/onset/sex/cohort thresholds.
+breeding-value-style score that is either a relatives-only predictor
+(use I) or a GWAS phenotype (use II; the <a href="#connection-to-selection-index-and-blup">BLUP framing</a>
+above). Use III may never form that score.
+LT-FH++ and ADuLT share personalised age/onset/sex/cohort thresholds.
 LT-FH++ conditions on relatives; ADuLT uses only the index person. Base PA-FGRS
 uses lifetime-threshold intervals for observed cases and an age-censored-control
 mixture with Pearson–Aitken. Gibbs and Pearson–Aitken can both be applied to the

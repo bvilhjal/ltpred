@@ -1139,9 +1139,10 @@ scaling up. Assumes you already have families with liability bounds — see
 <p>Rows sharing a <code>fam_id</code> become one family; family order follows first appearance,
 and the results come back in that order. You can also build <code>Family</code>/<code>Member</code>
 objects directly if you prefer. Role <code>o</code> is optional: when absent, the estimator
-inserts an uninformative proband-status coordinate. Include <code>o</code> for a deliberately
-diagnosis-derived GWAS phenotype; omit or unbind it when predicting/classifying
-that same diagnosis, or the outcome leaks into the score.</p>
+inserts an uninformative proband-status coordinate. Include <code>o</code> for <strong>use II</strong> (a diagnosis-derived GWAS phenotype); omit
+or unbind it for <strong>use I</strong> (predicting/classifying that same diagnosis),
+or the outcome leaks into the score. <strong>Use III</strong> may not call the
+estimator at all; see the <a href="../vignette/">vignette</a>.</p>
 <h2 id="running-the-estimator">Running the estimator<a class="headerlink" href="#running-the-estimator" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability</span>
 <span class="n">res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="p">(</span><span class="s2">"genetic"</span><span class="p">,))</span>
@@ -1238,14 +1239,18 @@ family-history analogue of a BLUP / selection-index breeding value (see
   <code>h2</code>, prevalence/CIP model and family covariance; they do not estimate the CIPs
   internally. (<code>h2</code> itself can optionally be fit from the family data with
   <code>fit_heritability</code> — see <a href="../inference/">Inference</a>.)</li>
-<li><strong>A GWAS phenotype.</strong> Used in a GWAS, a SNP association tests whether the SNP
-  predicts <em>inferred additive genetic liability</em>, not merely the observed 0/1
-  diagnosis — that is where the power gain comes from.</li>
+<li><strong>Use I — a relatives-only predictor.</strong> Own status out of <code>D_F</code>. An optional
+  PGS is combined afterwards, not by ltpred.</li>
+<li><strong>Use II — a GWAS phenotype.</strong> Own status in. A SNP association tests whether
+  the SNP predicts <em>inferred additive genetic liability</em>, not merely the
+  observed 0/1 diagnosis — that is where the power gain comes from.</li>
+<li><strong>Use III does not need this score.</strong> Liability-scale <code>h²</code> / <code>r_g</code> and the CIP
+  can stand alone (<a href="../vignette/">vignette</a> Table 1).</li>
 </ul>
-<p>That last use deliberately allows the proband's observed status into the
+<p>Use II deliberately allows the proband's observed status into the
 phenotype construction. It is <strong>not</strong> a leakage-free disease predictor. When the
-same diagnosis is the prediction/classification outcome, omit role <code>o</code> or set its
-bounds to <code>(-inf, inf)</code> and estimate from family history alone.</p>
+same diagnosis is the prediction/classification outcome (use I), omit role <code>o</code>
+or set its bounds to <code>(-inf, inf)</code> and estimate from family history alone.</p>
 <p>Combining this family-derived score with a SNP polygenic score is a <strong>separate
 downstream prediction model</strong>, not an operation performed by ltpred. Hujoel et al.
 found that a target-population-fitted PRS-plus-family-history model improved disease

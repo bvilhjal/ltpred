@@ -1069,9 +1069,10 @@
 
 <h1 id="data-preparation">Data preparation<a class="headerlink" href="#data-preparation" title="Permanent link">&para;</a></h1>
 <p>How to turn a registry-style status/age table into the inputs <code>estimate_liability</code>
-needs: families of members with liability bounds. For the end-to-end flow first, see
-the <a href="../quickstart/">quickstart</a> or the longer <a href="../vignette/">vignette</a>; this page
-is the reference for each piece.</p>
+needs: families of members with liability bounds. This page is for uses I and II
+of the <a href="../vignette/">vignette</a> (prediction and GWAS). Use III may stop at
+heritability / CIP and never build these families. For the end-to-end flow first,
+see the <a href="../quickstart/">quickstart</a> or the <a href="../vignette/">vignette</a>.</p>
 <h2 id="inputs">Inputs<a class="headerlink" href="#inputs" title="Permanent link">&para;</a></h2>
 <p>You describe the data as a flat table with one row per observed person, grouped
 by the target proband into families. Each record needs:</p>
@@ -1160,8 +1161,8 @@ describe the pedigree through <code>kinship_from_pedigree</code> instead, where 
 relatedness comes from the recorded parents (<code>0.25·h²</code> through the single shared
 parent, with no implied second-parent sharing).</p>
 <p>Conditioning on <code>o</code> is an analysis choice, not a structural requirement. Include
-it when intentionally constructing a GWAS phenotype from the proband's diagnosis.
-For prospective prediction/classification of that diagnosis, omit <code>o</code> or make its
+it for <strong>use II</strong> (a GWAS phenotype from the proband's diagnosis). For <strong>use I</strong>
+(prospective prediction/classification of that diagnosis), omit <code>o</code> or make its
 bounds uninformative; otherwise the outcome leaks directly into the predictor.</p>
 <h3 id="beyond-the-role-grammar-arbitrary-pedigrees">Beyond the role grammar: arbitrary pedigrees<a class="headerlink" href="#beyond-the-role-grammar-arbitrary-pedigrees" title="Permanent link">&para;</a></h3>
 <p>If the pedigree itself must be <em>discovered</em> from population parent-offspring

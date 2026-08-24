@@ -1040,11 +1040,11 @@ approximation). That score is the input to uses I and II above. With
 relatives and personalised CIPs the analysis is LT-FH++; with the proband
 only it is ADuLT. Use III may never call the estimator.</p>
 <p>The proband's own status is an <strong>optional conditioning observation</strong>. Include role
-<code>o</code> when intentionally constructing a GWAS phenotype from the diagnosis, as in
-LT-FH/LT-FH++/ADuLT association analyses. For prospective disease prediction or
-classification, omit <code>o</code> or set its bounds to <code>(-inf, inf)</code> so the outcome being
-predicted does not leak into its predictor. An ADuLT input with <code>o</code> unbound has no
-remaining observation and is therefore uninformative.</p>
+<code>o</code> for <strong>use II</strong> (a GWAS phenotype from the diagnosis, as in
+LT-FH/LT-FH++/ADuLT association analyses). For <strong>use I</strong> (prospective
+prediction or classification), omit <code>o</code> or set its bounds to <code>(-inf, inf)</code> so
+the outcome being predicted does not leak into its predictor. An ADuLT input
+with <code>o</code> unbound has no remaining observation and is therefore uninformative.</p>
 <p>ltpred does not build LD or run the GWAS itself — those are upstream/downstream
 steps. Its family-data fitters are optional and restricted by the
 population-sampling contract above.</p>
