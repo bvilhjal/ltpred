@@ -88,13 +88,14 @@ the assumed prevalence already inflates `h²` by +0.48
 
 ## Real-data checklist
 
-Before running a production analysis:
+First pick a **use** ([vignette](vignette.md) Table 1): **I** family-history
+risk prediction (own status out; optional PGS afterwards), **II** a
+quantitative GWAS phenotype (own status in), or **III** architecture /
+relationships / aetiology from `h²`, `r_g` and/or the CIP. Use III can skip
+pedigree scoring; I and II disagree on role `o`.
 
-0. Pick a **use** ([vignette](vignette.md) Table 1): **I** family-history
-   risk prediction (own status out; optional PGS afterwards), **II** a
-   quantitative GWAS phenotype (own status in), or **III** architecture /
-   relationships / aetiology from $h^2$, $r_g$ and/or the CIP. Use III
-   can skip pedigree scoring; I and II disagree on role `o`.
+Then, before running a production analysis:
+
 1. Validate the **diagnosis and family-history source**: case definition,
    reporting accuracy, missingness, follow-up, and participation/selection process.
 2. Obtain **population-representative CIPs** (cumulative incidence by age),

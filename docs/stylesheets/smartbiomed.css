@@ -89,9 +89,13 @@
   color: #fff;
 }
 
+/* The pipeline figure scales down with the content column but is never
+ * upscaled past its own 900px width, and it carries its own background and
+ * corner radius (including a prefers-color-scheme dark palette), so no
+ * background or radius is set here. Wrapped in a link in the vignette so a
+ * phone reader can open it full size. */
 .md-typeset img[src$="pipeline.svg"] {
   width: 100%;
+  max-width: 900px;
   height: auto;
-  border-radius: 5px;
-  background: #f4f3f4;
 }

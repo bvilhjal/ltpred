@@ -98,7 +98,7 @@ The score is not an absolute disease-risk probability.
 
 | you want to… | see |
 |---|---|
-| how to run the pipeline (three uses, then $h^2$, pedigree, CIP, family history) | [Vignette](vignette.md) |
+| how to run the pipeline (three uses, then `h²`, pedigree, CIP, family history) | [Vignette](vignette.md) |
 | understand roles, pedigrees, CIPs, real-data prep | [Data preparation](data-preparation.md) |
 | choose Gibbs vs PA, scale to biobank size, multi-trait, GWAS export | [Estimation](estimation.md) |
 | fit `h²` or A/C/M from population-sampled or reweighted selected families | [Inference](inference.md) |

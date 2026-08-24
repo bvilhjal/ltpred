@@ -6,13 +6,16 @@ Pipeline (same numbering as the vignette)::
     1. pedigree
     2. CIP or lifetime prevalence
     3. family-history records
-    4. estimate_liability
+    4. estimate_liability  (+ the "did it work?" checks)
     5. prediction (I) and/or GWAS (II); aetiology (III) may stop at 0/2
 
 This is a teaching script, not a production analysis. The opening block
 simulates a nuclear cohort so the later calls have input; on real data,
 skip it and start from your table. Swap the logistic CIP helpers for
 ``thresholds_from_cip`` before a real GWAS.
+
+Every number printed here is quoted somewhere in docs/vignette.md. If you
+change the script, re-read the vignette.
 
 Run from the repository root::
 
@@ -22,8 +25,10 @@ from __future__ import annotations
 
 import os
 import sys
+from dataclasses import replace
 
 import numpy as np
+from scipy.stats import norm
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -38,6 +43,7 @@ H2 = 0.5
 K = 0.05
 N_FAM = 800
 SEED = 1
+N_REP = 10
 
 
 def _corr(a, b):
@@ -52,6 +58,23 @@ def _drop_role(families, role):
 def _keep_role(families, role):
     return [Family(fam.fam_id, [m for m in fam.members if m.role == role])
             for fam in families]
+
+
+def _unbind_role(families, role):
+    """Use-I encoding: keep the row, drop the observation.
+
+    Scores identically to removing the row, but ``pids`` still comes from the
+    role-``o`` record instead of falling back to ``fam_id``.
+    """
+    out = []
+    for fam in families:
+        members = []
+        for m in fam.members:
+            if m.role == role:
+                m = replace(m, lower=-np.inf, upper=np.inf)
+            members.append(m)
+        out.append(Family(fam.fam_id, members))
+    return out
 
 
 def main():
@@ -69,6 +92,8 @@ def main():
     po = tetrachoric(sim.status["o"].astype(int), sim.status["m"].astype(int))
     print(f"parent-offspring tetrachoric {po.rho:.3f}  "
           f"(Falconer 2*rho = {2 * po.rho:.3f}; truth {H2})")
+    print("the SIB tetrachoric is not interchangeable: 2*rho_sib estimates")
+    print("h2 + 2*c2, because full sibs also share the sibship kernel")
     obs = float(np.asarray(observed_to_liability_h2(0.20, pop_prev=K)))
     print(f"Lee: observed-scale 0.20 at K={K} -> liability-scale {obs:.3f}")
     print("pass the study case fraction as prop_cases when the sample is ascertained")
@@ -78,7 +103,9 @@ def main():
     print(f"fitted h2 {fit.h2:.3f}  (truth {H2}; within-dataset MC se {fit.h2_se:.4f})")
     print("the MC se is not a sampling interval — a few hundred nuclear families")
     print("at K=0.05 leave a much larger across-cohort SD. Use an external h2")
-    print("unless the sampling contract in docs/inference.md holds.")
+    print("unless the sampling contract in docs/inference.md holds. Note also")
+    print("that fit_heritability REJECTS the personalised bounds of steps 2-3:")
+    print("it needs one common case/control threshold per trait.")
 
     print("\n== 1. Pedigree ==")
     ids = ["o", "m", "f", "s1"]
@@ -87,8 +114,8 @@ def main():
     )
     print(f"role grammar: o, m, f, s1  |  kinship A shape {A.shape}")
     print(f"A[o,m]={A[0, 1]:.2f}  A[o,s1]={A[0, 3]:.2f}  A[m,f]={A[1, 2]:.2f}")
-    print("cousins / inbreeding / messy half-sibs: kinship_from_pedigree "
-          "or extract_pedigree, not extra role labels")
+    print("cousins / inbreeding / messy half-sibs: build_parent_graph then")
+    print("extract_pedigree (start at max_degree=2), then kinship_from_pedigree")
 
     print("\n== 2. CIP / lifetime prevalence ==")
     fam_id, role, st, lower_l, upper_l = [], [], [], [], []
@@ -110,18 +137,21 @@ def main():
     rebuilt = families_from_columns(fam_id, role, lower, upper)
     print(f"families_from_columns: {len(rebuilt)} families, "
           f"roles {sorted({r for r in role})}")
-    print("use II (GWAS): include role o; use I (prediction): omit or unbind o")
+    print("use II (GWAS): include role o; use I (prediction): keep o but")
+    print("unbind it — dropping the row makes pids fall back to fam_id")
     print("use III (aetiology): this step is optional")
 
     print("\n== 4. Estimate mu ==")
     pa = estimate_liability(sim.families, h2=H2)
     score = pa.genetic
+    var = pa.var["genetic"]
     print(f"score mean {score.mean():.3f}  sd {score.std():.3f}")
-    print(f"PA se is identically 0 (deterministic): {pa.se['genetic'][0]:.1f}")
+    print(f"PA se is identically 0 (deterministic, NOT approximation-free): "
+          f"{pa.se['genetic'][0]:.1f}")
     i_case = int(np.flatnonzero(status)[0])
     i_ctrl = int(np.flatnonzero(1.0 - status)[0])
-    print(f"one case    score {score[i_case]:+.3f}  posterior var {pa.var['genetic'][i_case]:.3f}")
-    print(f"one control score {score[i_ctrl]:+.3f}  posterior var {pa.var['genetic'][i_ctrl]:.3f}")
+    print(f"one case    score {score[i_case]:+.3f}  posterior var {var[i_case]:.3f}")
+    print(f"one control score {score[i_ctrl]:+.3f}  posterior var {var[i_ctrl]:.3f}")
     r_status = _corr(status, true_g)
     r_pa = _corr(score, true_g)
     print(f"corr(case/control, true g) {r_status:.3f}")
@@ -131,7 +161,25 @@ def main():
     print(f"corr(relatives-only, true g) {_corr(rel.genetic, true_g):.3f}")
     adult = estimate_liability(_keep_role(sim.families, "o"), h2=H2)
     print(f"corr(ADuLT, true g) {_corr(adult.genetic, true_g):.3f}")
-    print("(classic LT-FH ADuLT is just a case/control-to-liability map)")
+    print("(with no relatives and one lifetime T, ADuLT is a monotone")
+    print(" relabelling of the 0/1 status, so this ties by construction)")
+
+    print("\n-- did it work? --")
+    print(f"Var(mu) {score.var():.3f} + mean posterior var {var.mean():.3f} "
+          f"= {score.var() + var.mean():.3f}  (law of total variance; h2 = {H2})")
+    print(f"max posterior var {var.max():.3f} <= h2 {H2}: "
+          f"{bool(var.max() <= H2 + 1e-8)}")
+    print(f"mu mean {score.mean():+.3f} (should sit near 0)")
+    print(f"cases mean {score[status == 1].mean():+.2f}  "
+          f"controls mean {score[status == 0].mean():+.2f}")
+    assert len(pa.pids) == N_FAM
+    np.testing.assert_allclose(score.var() + var.mean(), H2, atol=0.02)
+    assert var.max() <= H2 + 1e-8
+    assert abs(score.mean()) < 0.05
+    assert score[status == 1].mean() > score[status == 0].mean()
+    print("all checks pass")
+
+    print("\n-- engine and API identity checks --")
     n_check = 80
     gibbs = estimate_liability(
         sim.families[:n_check], h2=H2, method="gibbs",
@@ -141,7 +189,8 @@ def main():
           f"{_corr(score[:n_check], gibbs.genetic):.4f}")
     print(f"Gibbs MC se (median) {np.median(gibbs.se['genetic']):.4f}")
     rebuilt_score = estimate_liability(rebuilt, h2=H2).genetic
-    print(f"max |rebuilt - original| {np.max(np.abs(rebuilt_score - score)):.2e}")
+    print(f"max |rebuilt - original| {np.max(np.abs(rebuilt_score - score)):.2e}"
+          "  (exact)")
     lo = np.empty((N_FAM, 4))
     hi = np.empty((N_FAM, 4))
     for i, fam in enumerate(sim.families):
@@ -151,7 +200,8 @@ def main():
             hi[i, j] = by[r].upper
     kin, kin_se, _kin_var = estimate_liability_from_kinship(A, lo, hi, h2=H2)
     print(f"max |kinship PA - role PA| {np.max(np.abs(kin - score)):.2e}  "
-          "(PA fold order can differ; this is not Gibbs Monte-Carlo error)")
+          "(PA fold order differs between row layouts: approximation error,")
+    print("                                          not round-off, not Monte Carlo)")
     print(f"kinship PA se is 0: {kin_se[0]:.1f}")
 
     print("\n== 5. What you do with mu ==")
@@ -159,6 +209,42 @@ def main():
     print("I  prediction: own status out; optional PGS is downstream")
     print("II GWAS: own status in; join pids, residualize, scan elsewhere")
     print("III aetiology: h2, r_g, CIP can stand alone (steps 0 and/or 2)")
+
+    print("\n-- use I only: mu on the liability scale -> an implied risk --")
+    T = float(norm.isf(K))
+    cells = []
+    for seed in range(1, N_REP + 1):
+        sim_p = simulate_under_LTM_single(
+            fam_vec=["m", "f", "s1"], h2=H2, pop_prev=K, n_sim=4_000,
+            use_age=False, seed=seed,
+        )
+        # use-I encoding: keep role o, give it no observation
+        fh = estimate_liability(_unbind_role(sim_p.families, "o"), h2=H2)
+        risk = norm.sf((T - fh.genetic) / np.sqrt(fh.var["genetic"] + 1 - H2))
+        obs_status = sim_p.status["o"].astype(float)
+        order = np.argsort(risk)
+        top, bot = order[-400:], order[:400]
+        cells.append((risk.mean(), obs_status.mean(),
+                      risk[top].mean(), obs_status[top].mean(),
+                      risk[bot].mean(), obs_status[bot].mean()))
+    c = np.asarray(cells)
+
+    def _ms(col):
+        return c[:, col].mean(), c[:, col].std(ddof=1) / np.sqrt(len(c))
+
+    print(f"T = {T:.4f};  {N_REP} replicates of 4,000 relatives-only families")
+    for label, pc, oc in (("overall", 0, 1), ("top decile", 2, 3),
+                          ("bottom decile", 4, 5)):
+        pm, pse = _ms(pc)
+        om, ose = _ms(oc)
+        d = c[:, oc] - c[:, pc]
+        dse = d.std(ddof=1) / np.sqrt(len(d))
+        print(f"{label:14} predicted {pm:.4f} +/- {pse:.4f}   "
+              f"observed {om:.4f} +/- {ose:.4f}   "
+              f"gap {d.mean():+.4f} +/- {dse:.4f} ({abs(d.mean()) / dse:.1f} SE)")
+    print("calibrated overall and in both tails; a single seed can look off by")
+    print("2-3 SE, so do not read one replicate as a bias")
+    print("not valid for use II: there the proband's own status is already in D_F")
 
     print("\n== On real data, step 2 is a CIP, not one K ==")
     sim_age = simulate_under_LTM_single(
@@ -168,8 +254,32 @@ def main():
     pa_age = estimate_liability(sim_age.families, h2=H2)
     r_age = _corr(pa_age.genetic, sim_age.genetic)
     r_age_cc = _corr(sim_age.status["o"].astype(float), sim_age.genetic)
-    print(f"corr(age-aware PA, true g) {r_age:.3f}  "
-          f"(case/control {r_age_cc:.3f})")
+
+    # Control: the SAME censored cohort scored with classic one-K bounds, so the
+    # age term is the only thing that differs from the run above. Without this
+    # arm you cannot attribute the gain over the 0/1 label to age-awareness --
+    # nearly all of it is family history.
+    fid, rol, sta = [], [], []
+    for i, fam in enumerate(sim_age.families):
+        for m in fam.members:
+            fid.append(f"fam{i}")
+            rol.append(m.role)
+            sta.append(int(np.isfinite(m.lower)))
+    lo_c, hi_c = prevalence_thresholds(np.array(sta), pop_prev=K)
+    classic = estimate_liability(families_from_columns(fid, rol, lo_c, hi_c), h2=H2)
+    r_classic = _corr(classic.genetic, sim_age.genetic)
+
+    print(f"observed proband case rate {sim_age.status['o'].astype(float).mean():.4f}"
+          f"  (against {status.mean():.4f} without ages)")
+    print(f"corr(proband 0/1 label,       true g) {r_age_cc:.3f}")
+    print(f"corr(classic one-K LT-FH,     true g) {r_classic:.3f}   "
+          f"-> {(r_classic / r_age_cc) ** 2:.2f}x eff-N over the label")
+    print(f"corr(age-aware LT-FH++,       true g) {r_age:.3f}   "
+          f"-> {(r_age / r_classic) ** 2:.2f}x eff-N over classic")
+    print("NOT comparable with the 0.419 above — different cohort, 15x fewer")
+    print("observed cases. And note the split: family history does nearly all")
+    print("the work here; the age term adds the ~1.0-1.1x that RESULTS section")
+    print("10 also reports. Do not credit family history's gain to age.")
     print("real LT-FH++ needs thresholds_from_cip with stratified population CIPs")
     print("done.")
 

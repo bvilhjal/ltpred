@@ -44,7 +44,7 @@ nav:
       - Data preparation: data-preparation.md
       - CIP estimation: cip-estimation.md
       - Estimation: estimation.md
-      - Fitting the model: inference.md
+      - Inference: inference.md
       - Assumptions & checklist: assumptions.md
   - Reference:
       - Algorithm & model: algorithm.md
@@ -52,6 +52,8 @@ nav:
       - API reference: api.md
   - Project:
       - Roadmap: ROADMAP.md
+      - Releasing: RELEASING.md
+      - Independent review (v0.3.4): REVIEW_2026-08.md
 
 markdown_extensions:
   - admonition

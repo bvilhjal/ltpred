@@ -1,4 +1,4 @@
-# ltpred user guide
+# Choose a method
 
 ltpred estimates an individual's **genetic liability** to a disease under the
 liability-threshold model. For LT-FH, LT-FH++ and ADuLT, the names describe the
@@ -22,20 +22,20 @@ register-standardised FGRS of
 [Kendler et al. (2021)](https://doi.org/10.1001/jamapsychiatry.2021.0336),
 which ltpred does not implement.
 
-There are at least three uses of the same liability-threshold core, spelled
+There are three uses of the same liability-threshold core, spelled
 out with a pipeline figure in the [vignette](vignette.md):
 
-1. **Risk prediction** from family history (own status *out* of $D_F$),
-   optionally combined later with a PGS
-   ([Hujoel et al. 2022](https://doi.org/10.1016/j.xgen.2022.100152);
-   [Dybdahl Krebs et al. 2026](https://doi.org/10.1016/j.ajhg.2025.11.016)).
-2. **A quantitative GWAS phenotype** in place of the 0/1 label, the use
-   introduced for LT-FH by
-   [Hujoel et al. (2020)](https://doi.org/10.1038/s41588-020-0613-6)
-   (own status *in*; ADuLT skips relatives).
-3. **Disease relationships and aetiology** from liability-scale $h^2$ /
-   $r_g$ and/or the CIP — steps 0 and/or 2 of the vignette, without
-   necessarily scoring families.
+- **I. Risk prediction** from family history (own status *out* of `D_F`),
+  optionally combined later with a PGS
+  ([Hujoel et al. 2022](https://doi.org/10.1016/j.xgen.2022.100152);
+  [Dybdahl Krebs et al. 2026](https://doi.org/10.1016/j.ajhg.2025.11.016)).
+- **II. A quantitative GWAS phenotype** in place of the 0/1 label, the use
+  introduced for LT-FH by
+  [Hujoel et al. (2020)](https://doi.org/10.1038/s41588-020-0613-6)
+  (own status *in*; ADuLT skips relatives).
+- **III. Disease relationships and aetiology** from liability-scale `h²` /
+  `r_g` and/or the CIP — steps 0 and/or 2 of the vignette, without
+  necessarily scoring families.
 
 Pearson–Aitken (PA, the single-trait default) and Gibbs can both infer LT-FH,
 LT-FH++ and ADuLT inputs. The PA-FGRS name includes PA, and ltpred's censoring
@@ -46,7 +46,7 @@ The guide is split into short, task-focused pages:
 | page | what's in it |
 |---|---|
 | **[Quickstart](quickstart.md)** | one complete runnable analysis, start to finish |
-| **[Vignette](vignette.md)** | how to run ltpred: three uses, then $h^2$, pedigree, CIP, family history |
+| **[Vignette](vignette.md)** | how to run ltpred: three uses, then `h²`, pedigree, CIP, family history |
 | **[Data preparation](data-preparation.md)** | inputs, role grammar, arbitrary pedigrees, threshold builders, CIPs, getting `h²` |
 | **[CIP estimation](cip-estimation.md)** | estimating cumulative incidence from follow-up records (Kaplan-Meier, Aalen-Johansen), estimands, stratification |
 | **[Estimation](estimation.md)** | running the estimator, reading the result, Gibbs vs PA, scaling, multi-trait, GWAS export |
@@ -80,8 +80,8 @@ Uses I and II need, per proband:
   (`ltpred.tetrachoric`, the Falconer route `h² ~ 2 ×` first-degree
   tetrachoric).
 
-Use III is lighter: a liability-scale $h^2$ or $r_g$ (step 0), a CIP or
-lifetime $K$ (step 2), or both. Family records are optional.
+Use III is lighter: a liability-scale `h²` or `r_g` (step 0), a CIP or
+lifetime `K` (step 2), or both. Family records are optional.
 
 !!! warning "Family-data fitting needs a declared sampling design"
 
@@ -110,9 +110,11 @@ only it is ADuLT. Use III may never call the estimator.
 The proband's own status is an **optional conditioning observation**. Include role
 `o` for **use II** (a GWAS phenotype from the diagnosis, as in
 LT-FH/LT-FH++/ADuLT association analyses). For **use I** (prospective
-prediction or classification), omit `o` or set its bounds to `(-inf, inf)` so
-the outcome being predicted does not leak into its predictor. An ADuLT input
-with `o` unbound has no remaining observation and is therefore uninformative.
+prediction or classification), keep the `o` row but set its bounds to
+`(-inf, inf)` so the outcome being predicted does not leak into its predictor.
+Prefer that to dropping the row: `pids` is read off the role-`o` record and
+falls back to `fam_id` when there is no `o` row. An ADuLT input with `o`
+unbound has no remaining observation and is therefore uninformative.
 
 ltpred does not build LD or run the GWAS itself — those are upstream/downstream
 steps. Its family-data fitters are optional and restricted by the

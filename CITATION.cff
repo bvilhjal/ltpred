@@ -198,6 +198,75 @@ references:
     end: 2509
     year: 2024
     doi: 10.1016/j.ajhg.2024.09.009
+  # Method foundations cited by the vignette and the algorithm notes
+  - type: article
+    title: "Note on Selection from a Multivariate Normal Population"
+    authors:
+      - family-names: Aitken
+        given-names: "A. C."
+    journal: "Proceedings of the Edinburgh Mathematical Society"
+    volume: 4
+    issue: 2
+    start: 106
+    end: 110
+    year: 1935
+    doi: 10.1017/S0013091500008063
+  - type: article
+    title: "Multifactorial qualitative traits: genetic analysis and prediction of recurrence risks"
+    authors:
+      - family-names: Mendell
+        given-names: "N. R."
+      - family-names: Elston
+        given-names: "R. C."
+    journal: "Biometrics"
+    volume: 30
+    issue: 1
+    start: 41
+    end: 57
+    year: 1974
+    notes: "PMID 4813384; no DOI registered."
+  - type: article
+    title: "The inheritance of liability to certain diseases, estimated from the incidence among relatives"
+    authors:
+      - family-names: Falconer
+        given-names: "D. S."
+    journal: "Annals of Human Genetics"
+    volume: 29
+    issue: 1
+    start: 51
+    end: 76
+    year: 1965
+    doi: 10.1111/j.1469-1809.1965.tb00500.x
+  - type: article
+    title: "Best Linear Unbiased Estimation and Prediction under a Selection Model"
+    authors:
+      - family-names: Henderson
+        given-names: "C. R."
+    journal: "Biometrics"
+    volume: 31
+    issue: 2
+    start: 423
+    end: 447
+    year: 1975
+    doi: 10.2307/2529430
+  - type: article
+    title: "Estimating missing heritability for disease from genome-wide association studies"
+    authors:
+      - family-names: Lee
+        given-names: "Sang Hong"
+      - family-names: Wray
+        given-names: "Naomi R."
+      - family-names: Goddard
+        given-names: "Michael E."
+      - family-names: Visscher
+        given-names: "Peter M."
+    journal: "The American Journal of Human Genetics"
+    volume: 88
+    issue: 3
+    start: 294
+    end: 305
+    year: 2011
+    doi: 10.1016/j.ajhg.2011.02.002
   # Direct interpretation
   - type: article
     title: "Incorporating family history of disease improves polygenic risk scores in diverse populations"

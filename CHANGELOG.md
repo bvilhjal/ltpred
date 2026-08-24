@@ -8,6 +8,73 @@ version is 0 the public API may still change between minor releases.
 
 ### Fixed
 
+- Vignette and figure stated the family covariance as `Sigma = h2 A`. The
+  liability covariance has a **unit diagonal** — `Sigma = h2 A + (1 - h2) I` —
+  which is what keeps `Phi^-1(1 - K)` a prevalence threshold. `h2 A` alone is
+  the covariance of the additive genetic values, not of the observed
+  liabilities. Corrected in `docs/vignette.md`, `docs/assets/pipeline.svg` and
+  `README.md`; a covariance is also no longer described as *being* the BLUP
+  weights.
+- Vignette offered the **sib** tetrachoric as an equal alternative to
+  parent-offspring for Falconer's `h2 ~ 2 rho`. Full sibs also share the
+  sibship kernel, so `2 rho_sib` estimates `h2 + 2 c2`. Only the
+  parent-offspring route is now given.
+- Vignette claimed all four published names are observation models "not
+  engines"; PA-FGRS names its engine too, as `docs/guide.md` already said.
+- Table 1 gave use I steps "0-4" while Table 2, section 5 and the example
+  script all give it a step 5. Both uses now read 0-5.
+- Table 1 told ADuLT readers to skip step 3, which builds their only
+  observation. It now says: all of step 1, and the relatives' rows in step 3.
+- Step 1's parent-pointer example ran `kinship_from_pedigree` before
+  `extract_pedigree`, reused one set of variables for two different tables and
+  discarded `ped`. Reordered so the data flows one way; the default
+  `max_degree=2` is used, with depth guidance from RESULTS section 12.
+- `use I` now keeps the role-`o` row with `(-inf, inf)` bounds rather than
+  dropping it: `pids` is read off that record and silently falls back to
+  `fam_id` when it is absent. Corrected in the vignette, `docs/guide.md` and
+  `README.md`.
+- Kinship-vs-role agreement was called "numerical noise". It is 5.6e-4, PA
+  fold-order approximation error; the columns route is the exact one (0.0).
+- `res.se` being 0 under PA now carries the no-*sampling*-error caveat the
+  docstrings and README already used.
+- `\operatorname` in `docs/vignette.md` — GitHub's MathJax rejects that macro
+  and rendered the three correlations as an error string on the markdown
+  source README links to. Now `\mathrm`. Inline math no longer sits inside
+  bold, and section headings no longer contain math (it leaked raw TeX into
+  the sidebar and the search index).
+- Empty header rows in the vignette's Table 1 and "Where to go next" table;
+  every table on the page now has real column labels.
+- `report/README.md` wrote `h^2` with `\( \)` delimiters, which GitHub does
+  not render.
+- `docs/assumptions.md` checklist started at `0.`, which python-markdown
+  renumbers to 1-13 on the site while GitHub shows 0-12. The use-selection
+  item is now a sentence above the list.
+- `docs/cip-estimation.md` defined the CIP as "before a given age" against its
+  own formula and the vignette ("at or before").
+- mkdocs nav called `inference.md` "Fitting the model" while the page and
+  every link say "Inference"; `docs/guide.md` was titled "ltpred user guide"
+  while four places called it "Choose a method".
+- `docs/REVIEW_2026-08.md` and `docs/RELEASING.md` were published, sitemapped
+  and searchable but absent from the nav. Both are now in the nav, and the
+  review carries a banner saying it audits v0.3.4 and predates the 0.4.0
+  lean-down.
+- The three uses are numbered I/II/III everywhere (`docs/guide.md`,
+  `README.md`, `PAPER_PLAN.md` previously used 1/2/3 while referring to them
+  by roman numeral).
+- Pages that already wrote `h²` as a code span no longer also carry `$h^2$`
+  math on the same page.
+- The covariance correction above is stated for the general case:
+  `Sigma = h2 A + c2 C + m2 M + e2 I` with `e2 = 1 - h2 - c2 - m2`. The
+  simpler `h2 A + (1 - h2) I` holds only when the shared-environment
+  components are zero, and the same page offers `c2`/`m2` two sections later.
+- Pedigree-depth guidance said the extended pedigree cost "less than one
+  standard error at every prevalence tested". True at K = 0.05 and K = 0.20;
+  at K = 0.01 the extended arm is about 2 SE *lower* (0.249 +/- 0.004 against
+  0.259 +/- 0.003). Stated as measured.
+- The "Did it work?" checks indexed `mu` with the page's per-row `status`
+  column; they need the per-proband subset, and the proband count is
+  `len(families)`.
+
 - Methods note stress-pedigree PA–Gibbs floor is 0.9991 (CSV minimum 0.99916),
   not 0.9992. `scripts/check_evidence.py` now recomputes the floor from
   `bench_pa_robustness.csv`.
@@ -21,6 +88,34 @@ version is 0 the public API may still change between minor releases.
 - `research/README.md` no longer claims its tests run in CI.
 
 ### Added
+
+- Vignette: a **"Did it work?"** section with the law-of-total-variance check
+  (`Var(mu) + mean posterior var == h2`) and what a failure means; a **use-I
+  risk conversion** from the liability scale to `P(case)`, with its
+  under-prediction in the top decile stated; a **"How much it buys you"**
+  section quoting the effective-N proxy and its collapse in case-enriched
+  cohorts; **sizing guidance** (families/s for both engines, when to switch to
+  the array path); a **migration table for LTFHPlus / LTFGRS** users; the
+  shape of a real input table; ragged-family handling; multi-stratum CIP
+  stitching; and the GWAS consequence of an unstratified `K`.
+- Vignette Table 3 replaces the run-on paragraph of correlations, and the
+  simulated cohort is now defined before its numbers are quoted.
+- `examples/vignette.py` prints and asserts the sanity checks, and prints the
+  risk-calibration and age-aware-cohort numbers the vignette quotes.
+- `CITATION.cff` gained the five method foundations the vignette cites:
+  Aitken 1935, Mendell & Elston 1974, Falconer 1965, Henderson 1975 and
+  Lee et al. 2011.
+
+### Changed
+
+- `docs/assets/pipeline.svg` redrawn: body type raised from 11-13 to 17-22
+  units in a shorter viewBox (smallest label goes from ~8px to ~14px on a
+  desktop content column), every foreground/background pair now meets WCAG AA
+  (the old `#7a8a99` glosses were 3.55:1 and the teal panel label 4.07:1), a
+  `prefers-color-scheme` dark palette replaces the baked-in light slab, the
+  Lee dependency finally has an arrowhead, and the figure is wrapped in a link
+  so a phone reader can open it full size. Detail that duplicated Table 2 was
+  removed rather than shrunk.
 
 - A user vignette (`docs/vignette.md`, runnable as `examples/vignette.py`)
   on how to run ltpred. It distinguishes three uses — family-history

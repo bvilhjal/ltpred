@@ -49,23 +49,24 @@ onto the proband's additive genetic value the way a breeding value is predicted
 from relatives (see
 [algorithm.md](docs/algorithm.md#connection-to-selection-index-and-blup)).
 
-That score is not itself a SNP polygenic score. There are at least three uses
+That score is not itself a SNP polygenic score. There are three uses
 (the [vignette](https://bvilhjal.github.io/ltpred/vignette/) is the run-book):
 
-1. **Risk prediction** from family history (own status *out*). Combining
-   family-derived and genotype-derived predictors is a separate downstream
-   model; see
-   [Hujoel et al. 2022, *Cell Genomics*](https://doi.org/10.1016/j.xgen.2022.100152)
-   and
-   [Dybdahl Krebs et al. 2026, *AJHG*](https://doi.org/10.1016/j.ajhg.2025.11.016).
-2. **A quantitative GWAS phenotype** in place of the 0/1 label (own status
-   *in*), the LT-FH association use. ADuLT skips relatives.
-3. **Architecture, relationships, aetiology** from liability-scale h² / r_g
-   and/or the CIP. Pedigree scoring is optional.
+- **I. Risk prediction** from family history (own status *out*). Combining
+  family-derived and genotype-derived predictors is a separate downstream
+  model; see
+  [Hujoel et al. 2022, *Cell Genomics*](https://doi.org/10.1016/j.xgen.2022.100152)
+  and
+  [Dybdahl Krebs et al. 2026, *AJHG*](https://doi.org/10.1016/j.ajhg.2025.11.016).
+- **II. A quantitative GWAS phenotype** in place of the 0/1 label (own status
+  *in*), the LT-FH association use. ADuLT skips relatives.
+- **III. Architecture, relationships, aetiology** from liability-scale h² / r_g
+  and/or the CIP. Pedigree scoring is optional.
 
-Conditioning on the proband's own diagnosis is appropriate for (2). For (1),
-omit the proband's role `o` or give it uninformative `(-inf, inf)` bounds;
-otherwise the outcome being predicted leaks into the score.
+Conditioning on the proband's own diagnosis is appropriate for (II). For (I),
+keep the proband's role `o` but give it uninformative `(-inf, inf)` bounds;
+otherwise the outcome being predicted leaks into the score. (Dropping the `o`
+row also works, but then `pids` falls back to the family ID.)
 
 ## Documentation
 
@@ -76,7 +77,7 @@ otherwise the outcome being predicted leaks into the score.
   [data preparation](docs/data-preparation.md), [CIP estimation](docs/cip-estimation.md),
   [estimation](docs/estimation.md),
   [inference](docs/inference.md), [assumptions & checklist](docs/assumptions.md),
-  and the [API reference](docs/api.md). ([Overview & when-to-use](docs/guide.md).)
+  and the [API reference](docs/api.md). ([Choose a method](docs/guide.md).)
 - **[Algorithm & model](docs/algorithm.md)** — the liability-threshold model, both
   estimators, the Pearson–Aitken selection formula, the censoring mixture, and the
   implementation/performance notes.
@@ -93,8 +94,12 @@ liability-threshold model:
 
 1. **Covariance** — a liability splits into a genetic part `l_g ~ N(0, h²)` and an
    environmental part, summing to a full liability `l_o ~ N(0, 1)`. Two relatives'
-   genetic parts correlate by the fraction of DNA they share, so every covariance
-   entry is `shared_DNA × h²`.
+   genetic parts correlate by the fraction of DNA they share, so an
+   *off-diagonal* entry is `shared_DNA × h²` while every full liability keeps
+   unit variance: `Sigma = h²A + (1 - h²)I`. Optional sibship and couple
+   components add their own kernels off the diagonal —
+   `Sigma = h²A + c²C + m²M + e²I` with `e² = 1 - h² - c² - m²` — and the
+   residual absorbs them, so the diagonal is still 1.
 2. **Thresholds and family context** — classic LT-FH uses non-personalised
    case/control bounds with family history. LT-FH++ uses age-, birth-year- and
    sex-specific prevalence for the proband and relatives. ADuLT uses the same
@@ -192,8 +197,8 @@ score = res.genetic
 Roles follow the LTFHPlus grammar (`o` proband, `m`/`f` parents, `s1`/`s2` sibs,
 grandparents, half-sibs, aunts/uncles, children); the genetic row `g` is added
 automatically. For **age-censored controls**, **multiple correlated traits**,
-choosing between the methods, and using the score in a GWAS, see the
-**[user guide](docs/guide.md)**.
+choosing between the methods, and using the score in a GWAS, see
+**[choose a method](docs/guide.md)**.
 
 ## Scope
 
