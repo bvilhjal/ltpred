@@ -2,7 +2,10 @@
 
 `ltpred_methods.pdf` is a methods note for colleagues and PhD
 students who already know GWAS, pedigree \(h^2\), and Falconer's
-threshold model. It fixes the estimand, the observation-model
+threshold model. It uses the same three uses as the user vignette:
+(I) family-history risk prediction, (II) a quantitative GWAS
+phenotype, (III) architecture / relationships / aetiology from
+\(h^2\), \(r_g\) and/or the CIP. It fixes the estimand, the observation-model
 menu, the PA exactness boundary, the implementation (grouping, collapsed untruncated coordinates,
 streaming batch-means, object vs array path, `var` vs `se`), and
 the load-bearing simulation tables — agreement and speed, the

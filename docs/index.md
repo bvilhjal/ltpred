@@ -2,7 +2,11 @@
 
 ltpred is a Python toolkit for estimating genetic liability under the
 liability-threshold model. It implements LT-FH, LT-FH++, ADuLT and PA-FGRS for
-family-history, age-of-onset and registry-scale analyses.
+family-history, age-of-onset and registry-scale analyses. The same core has
+three uses: family-history **risk prediction** (optionally with a PGS), a
+quantitative **GWAS phenotype**, and **architecture / relationships /
+aetiology** from $h^2$, $r_g$ and/or the CIP — see the
+[vignette](vignette.md).
 
 ## Start here
 

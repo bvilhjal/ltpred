@@ -6,11 +6,15 @@ this file.
 
 ## Scope
 
-The main methods paper joins three uses of one latent-liability core:
+The main methods paper joins three uses of one latent-liability core
+(same numbering as the vignette and the methods note):
 
-1. prospective prediction from personalised incidence and family history;
-2. quantitative GWAS phenotypes; and
-3. pedigree variance-component estimation under an explicit sampling contract.
+1. risk prediction from family history (own status out; optional
+   downstream PGS);
+2. quantitative GWAS phenotypes (own status in); and
+3. architecture, relationships and aetiology from liability-scale h²
+   / r_g and/or the CIP, including optional pedigree
+   variance-component estimation under an explicit sampling contract.
 
 Pearson--Aitken and Gibbs are inference engines, not separate disease models.
 LT-FH++, ADuLT, and PA-FGRS are distinguished by their observation data and

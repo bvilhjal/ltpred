@@ -1,9 +1,10 @@
 # Quickstart
 
 A runnable tour of the estimator — from a small status/age table to one
-genetic-liability score per proband — on a single page. The data below are
-tutorial-only, not a production GWAS workflow. Each step links to the deeper
-reference.
+genetic-liability score per proband — on a single page. This is **use II**
+of the [vignette](vignette.md) (a GWAS phenotype, own status in). The data
+below are tutorial-only, not a production analysis. Skip steps the vignette
+says your use does not need. Each step links to the deeper reference.
 
 ## Install
 

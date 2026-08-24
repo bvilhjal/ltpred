@@ -1,8 +1,9 @@
 # Algorithm and model
 
 This page records the estimand, the observation models, and the two
-algorithms that compute the score. Usage is in [guide.md](guide.md).
-The typeset companion is the
+algorithms that compute the score. Which steps to run, and which of
+three uses they serve, is in the [vignette](vignette.md) and
+[guide.md](guide.md). The typeset companion is the
 [methods note](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf).
 
 Write the names LT-FH, LT-FH++, ADuLT and PA-FGRS for *observation
@@ -90,6 +91,19 @@ Two remarks, both easy to get wrong in an analysis.
    Conditioning on the answer is leakage.
 2. Equation (3) is not a SNP polygenic score. No marker effects
    enter. Combining `μ_i` with a PGS is a downstream model.
+
+Those remarks split two uses of `μ_i`. A third use never needs
+`μ_i`. The [vignette](vignette.md) writes them as Table 1; the
+methods note as its table of three uses.
+
+- **I. Risk prediction** from family history (own status *out*). An
+  optional PGS is combined afterwards, not inside (3).
+- **II. A quantitative GWAS phenotype** (own status *in*). ADuLT is
+  the no-relative special case.
+- **III. Architecture, relationships, aetiology.** Liability-scale
+  `h²` and `r_g`, and the CIP `K(·)`, can stand alone. Pedigree
+  scoring is optional. Fitting `h²` from the same families is a
+  different contract ([Inference](inference.md)).
 
 The [BLUP section](#connection-to-selection-index-and-blup) records
 the same identity in the language of the selection index. The
@@ -447,10 +461,11 @@ E[ℓ_F | D_F]
 ```
 
 The rectangle `C_F` may include the proband's own interval when the
-score is a GWAS phenotype constructed from that diagnosis. It must
-exclude, or leave unbounded, the proband's interval when the same
-diagnosis is the outcome of a prospective evaluation; otherwise
-`D_F` contains the answer (remark 1 above).
+score is a GWAS phenotype constructed from that diagnosis (use II).
+It must exclude, or leave unbounded, the proband's interval when the
+same diagnosis is the outcome of a prospective evaluation (use I);
+otherwise `D_F` contains the answer (remark 1 above). Use III can
+stop before this pipeline.
 
 Hence the method is BLUP-like only after the latent liabilities have
 been replaced by their truncated means. Classical BLUP is linear in
@@ -491,8 +506,10 @@ parameter side, So & Sham's liability-scale heritability work is the tradition
 The difference is the **estimand and the scale of computation**. So & Sham (2011)
 target an individual's **absolute disease risk** for screening; `ltpred` targets
 the **posterior mean additive genetic liability of the proband** — a
-breeding-value-style score and a GWAS phenotype (the [BLUP framing](#connection-to-selection-index-and-blup)
-above). LT-FH++ and ADuLT share personalised age/onset/sex/cohort thresholds.
+breeding-value-style score that is either a relatives-only predictor
+(use I) or a GWAS phenotype (use II; the [BLUP framing](#connection-to-selection-index-and-blup)
+above). Use III may never form that score.
+LT-FH++ and ADuLT share personalised age/onset/sex/cohort thresholds.
 LT-FH++ conditions on relatives; ADuLT uses only the index person. Base PA-FGRS
 uses lifetime-threshold intervals for observed cases and an age-censored-control
 mixture with Pearson–Aitken. Gibbs and Pearson–Aitken can both be applied to the

@@ -2,8 +2,10 @@
 
 Beyond estimating each proband's liability, ltpred can **fit the model** from the
 family data: the liability-scale heritability and the shared-environment variance
-components. These are optional
-— skip straight to [estimation](estimation.md) if you already have an `h²`.
+components. That is **use III** of the [vignette](vignette.md) (architecture),
+under a declared sampling contract — not a side effect of scoring families for
+prediction or a GWAS. It is optional: skip straight to
+[estimation](estimation.md) if you already have an `h²`.
 Unsupported experimental inferential machinery lives in the checkout-only
 `research/` package; see [Unsupported research prototypes](#unsupported-research-prototypes).
 

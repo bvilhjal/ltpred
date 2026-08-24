@@ -2,7 +2,10 @@
 
 The personalised thresholds of LT-FH++, ADuLT and PA-FGRS all consume a
 **cumulative-incidence proportion** — the fraction of people in a population
-stratum who are diagnosed before a given age,
+stratum who are diagnosed before a given age. For uses I and II of the
+[vignette](vignette.md) that curve is an *input* to the thresholds. For use III
+it can *be* the result: the age, sex and cohort pattern of incidence, without
+scoring families.
 
 ```
 CIP(age | stratum) = P(diagnosed at or before `age`),   T = Phi^-1(1 - CIP).

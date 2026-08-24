@@ -22,9 +22,10 @@ families = families_from_columns(
 Rows sharing a `fam_id` become one family; family order follows first appearance,
 and the results come back in that order. You can also build `Family`/`Member`
 objects directly if you prefer. Role `o` is optional: when absent, the estimator
-inserts an uninformative proband-status coordinate. Include `o` for a deliberately
-diagnosis-derived GWAS phenotype; omit or unbind it when predicting/classifying
-that same diagnosis, or the outcome leaks into the score.
+inserts an uninformative proband-status coordinate. Include `o` for **use II** (a diagnosis-derived GWAS phenotype); omit
+or unbind it for **use I** (predicting/classifying that same diagnosis),
+or the outcome leaks into the score. **Use III** may not call the
+estimator at all; see the [vignette](vignette.md).
 
 ## Running the estimator
 
@@ -106,14 +107,18 @@ family-history analogue of a BLUP / selection-index breeding value (see
   `h2`, prevalence/CIP model and family covariance; they do not estimate the CIPs
   internally. (`h2` itself can optionally be fit from the family data with
   `fit_heritability` — see [Inference](inference.md).)
-- **A GWAS phenotype.** Used in a GWAS, a SNP association tests whether the SNP
-  predicts *inferred additive genetic liability*, not merely the observed 0/1
-  diagnosis — that is where the power gain comes from.
+- **Use I — a relatives-only predictor.** Own status out of `D_F`. An optional
+  PGS is combined afterwards, not by ltpred.
+- **Use II — a GWAS phenotype.** Own status in. A SNP association tests whether
+  the SNP predicts *inferred additive genetic liability*, not merely the
+  observed 0/1 diagnosis — that is where the power gain comes from.
+- **Use III does not need this score.** Liability-scale `h²` / `r_g` and the CIP
+  can stand alone ([vignette](vignette.md) Table 1).
 
-That last use deliberately allows the proband's observed status into the
+Use II deliberately allows the proband's observed status into the
 phenotype construction. It is **not** a leakage-free disease predictor. When the
-same diagnosis is the prediction/classification outcome, omit role `o` or set its
-bounds to `(-inf, inf)` and estimate from family history alone.
+same diagnosis is the prediction/classification outcome (use I), omit role `o`
+or set its bounds to `(-inf, inf)` and estimate from family history alone.
 
 Combining this family-derived score with a SNP polygenic score is a **separate
 downstream prediction model**, not an operation performed by ltpred. Hujoel et al.

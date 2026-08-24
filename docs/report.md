@@ -1,8 +1,11 @@
 # Technical report
 
 A methods note aimed at colleagues who already work with GWAS and
-the Falconer threshold model. It is tracked in the repository, not in the lean
-source distribution or this HTML site:
+the Falconer threshold model. It uses the same three uses as the
+[vignette](vignette.md): family-history risk prediction, a
+quantitative GWAS phenotype, and architecture / relationships /
+aetiology from $h^2$, $r_g$ and/or the CIP. It is tracked in the
+repository, not in the lean source distribution or this HTML site:
 
 - PDF: [`report/ltpred_methods.pdf`](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf)
 - LaTeX source: [`report/ltpred_methods.tex`](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.tex)

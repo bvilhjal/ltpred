@@ -27,10 +27,11 @@ need the estimator.
 |---|---|---|---|---|
 | **I** | Risk prediction from family history, optionally with a PGS | 0–4 | **out** of $D_F$ | $\mu_i$ is a predictor of the diagnosis, so that diagnosis must not leak into it. A PGS is a **downstream** combination ([Hujoel et al. 2022](https://doi.org/10.1016/j.xgen.2022.100152); [Dybdahl Krebs et al. 2026](https://doi.org/10.1016/j.ajhg.2025.11.016)), not an ltpred call. |
 | **II** | Enhance the association signal in a GWAS | 0–5 | **in** | $\mu_i$ is a quantitative GWAS phenotype of that diagnosis ([Hujoel et al. 2020](https://doi.org/10.1038/s41588-020-0613-6)). ADuLT skips relatives (steps 1 and 3). |
-| **III** | Disease relationships and aetiology | **0 and/or 2** | — | Liability-scale $h^2$ and $r_g$ constrain genetic architecture and how two diseases relate. The CIP is the age/sex/cohort pattern of incidence. Pedigree, family history and $\mu_i$ are optional here. |
+| **III** | Disease relationships and aetiology | **0 and/or 2** | — | Liability-scale $h^2$ and $r_g$ constrain genetic architecture and how two diseases relate. The CIP is the age/sex/cohort pattern of incidence. Pedigree, family history and $\mu_i$ are optional. Fitting $h^2$ from the *same* families is optional and is a different contract ([Inference](inference.md)). |
 
 Equation (1) names four inputs. Figure 1 is that recipe as a flow, with
-the three uses as exits. Table 2 lists the corresponding calls. You are
+the three uses as exits. The [methods note](report.md) uses the same
+I/II/III numbering. Table 2 lists the corresponding calls. You are
 not missing a hidden software step. Classic LT-FH uses one lifetime $K$
 in step 2 instead of a CIP curve. Two-trait work adds a genetic
 covariance in step 0 and uses Gibbs in step 4.

@@ -90,6 +90,11 @@ the assumed prevalence already inflates `h²` by +0.48
 
 Before running a production analysis:
 
+0. Pick a **use** ([vignette](vignette.md) Table 1): **I** family-history
+   risk prediction (own status out; optional PGS afterwards), **II** a
+   quantitative GWAS phenotype (own status in), or **III** architecture /
+   relationships / aetiology from $h^2$, $r_g$ and/or the CIP. Use III
+   can skip pedigree scoring; I and II disagree on role `o`.
 1. Validate the **diagnosis and family-history source**: case definition,
    reporting accuracy, missingness, follow-up, and participation/selection process.
 2. Obtain **population-representative CIPs** (cumulative incidence by age),
@@ -109,9 +114,9 @@ Before running a production analysis:
    especially for rare traits and dense pedigrees.
 7. **Validate roles**: valid abbreviations, no duplicate roles within a family
    (the estimator now raises on duplicates).
-8. Decide whether to **condition on the proband's own status**. Include `o` when
-   intentionally constructing a diagnosis-derived GWAS phenotype; omit it or make
-   it uninformative for prospective prediction/classification of that diagnosis.
+8. Decide whether to **condition on the proband's own status**. Include `o` for
+   use II (a diagnosis-derived GWAS phenotype); omit it or make it uninformative
+   for use I (prospective prediction/classification of that diagnosis).
 9. Decide **case encoding** — onset-pinned (`age_thresholds`), lifetime-interval
    (base PA-FGRS), or age-specific interval (`pa_thresholds`, an age-dependent
    PA-FGRS-style variant) — and record it. Pin only when you believe onset is

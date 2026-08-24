@@ -41,9 +41,7 @@ and the original PAFGRS package.
 
 Given each individual's case/control status, age and their relatives' statuses,
 ltpred estimates with Gibbs—or sequentially approximates with PA—the **posterior
-mean genetic liability**. This continuous phenotype can recover association power
-relative to a plain case/control label when the liability model and inputs are
-appropriate. Conceptually it is a
+mean genetic liability**. Conceptually it is a
 **liability-threshold, age-aware, family-history
 analogue of BLUP / selection-index prediction**: binary and censored disease
 observations are treated as intervals on latent liabilities, which are projected
@@ -51,15 +49,23 @@ onto the proband's additive genetic value the way a breeding value is predicted
 from relatives (see
 [algorithm.md](docs/algorithm.md#connection-to-selection-index-and-blup)).
 
-The result is not itself a SNP polygenic score. Combining family-derived and
-genotype-derived predictors is a separate downstream model; see
-[Hujoel et al. 2022, *Cell Genomics*](https://doi.org/10.1016/j.xgen.2022.100152)
-and the direct PA-FGRS/PGS analysis and theory in
-[Dybdahl Krebs et al. 2026, *AJHG*](https://doi.org/10.1016/j.ajhg.2025.11.016).
-Conditioning on the proband's own diagnosis is appropriate when constructing a
-GWAS phenotype from that diagnosis. For prospective disease prediction or
-classification, omit the proband's role `o` or give it uninformative
-`(-inf, inf)` bounds; otherwise the outcome being predicted leaks into the score.
+That score is not itself a SNP polygenic score. There are at least three uses
+(the [vignette](https://bvilhjal.github.io/ltpred/vignette/) is the run-book):
+
+1. **Risk prediction** from family history (own status *out*). Combining
+   family-derived and genotype-derived predictors is a separate downstream
+   model; see
+   [Hujoel et al. 2022, *Cell Genomics*](https://doi.org/10.1016/j.xgen.2022.100152)
+   and
+   [Dybdahl Krebs et al. 2026, *AJHG*](https://doi.org/10.1016/j.ajhg.2025.11.016).
+2. **A quantitative GWAS phenotype** in place of the 0/1 label (own status
+   *in*), the LT-FH association use. ADuLT skips relatives.
+3. **Architecture, relationships, aetiology** from liability-scale h² / r_g
+   and/or the CIP. Pedigree scoring is optional.
+
+Conditioning on the proband's own diagnosis is appropriate for (2). For (1),
+omit the proband's role `o` or give it uninformative `(-inf, inf)` bounds;
+otherwise the outcome being predicted leaks into the score.
 
 ## Documentation
 
@@ -74,9 +80,9 @@ classification, omit the proband's role `o` or give it uninformative
 - **[Algorithm & model](docs/algorithm.md)** — the liability-threshold model, both
   estimators, the Pearson–Aitken selection formula, the censoring mixture, and the
   implementation/performance notes.
-- **[Methods note](report/ltpred_methods.pdf)** — estimand, observation models,
-  PA exactness, and simulation evidence, written for colleagues
-  (`report/ltpred_methods.tex`).
+- **[Methods note](report/ltpred_methods.pdf)** — estimand, three uses,
+  observation models, PA exactness, and simulation evidence, written
+  for colleagues (`report/ltpred_methods.tex`).
 - **[Benchmarks](benchmarks/RESULTS.md)** — accuracy, speed and GWAS-power
   comparison of the two methods.
 

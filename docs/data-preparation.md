@@ -1,9 +1,10 @@
 # Data preparation
 
 How to turn a registry-style status/age table into the inputs `estimate_liability`
-needs: families of members with liability bounds. For the end-to-end flow first, see
-the [quickstart](quickstart.md) or the longer [vignette](vignette.md); this page
-is the reference for each piece.
+needs: families of members with liability bounds. This page is for uses I and II
+of the [vignette](vignette.md) (prediction and GWAS). Use III may stop at
+heritability / CIP and never build these families. For the end-to-end flow first,
+see the [quickstart](quickstart.md) or the [vignette](vignette.md).
 
 ## Inputs
 
@@ -50,8 +51,8 @@ relatedness comes from the recorded parents (`0.25·h²` through the single shar
 parent, with no implied second-parent sharing).
 
 Conditioning on `o` is an analysis choice, not a structural requirement. Include
-it when intentionally constructing a GWAS phenotype from the proband's diagnosis.
-For prospective prediction/classification of that diagnosis, omit `o` or make its
+it for **use II** (a GWAS phenotype from the proband's diagnosis). For **use I**
+(prospective prediction/classification of that diagnosis), omit `o` or make its
 bounds uninformative; otherwise the outcome leaks directly into the predictor.
 
 ### Beyond the role grammar: arbitrary pedigrees

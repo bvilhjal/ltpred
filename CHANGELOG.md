@@ -37,6 +37,12 @@ version is 0 the public API may still change between minor releases.
 
 - README, RESULTS.md, and the headline tables state that the genotype-GWAS
   NCP ratios are independent-SNP results.
+- The methods note, user guide, algorithm page, estimation /
+  inference / CIP / data-preparation pages, assumptions checklist,
+  README, and vignette now use the same three uses of the
+  liability-threshold core: (I) family-history risk prediction,
+  (II) GWAS-signal enhancement, (III) architecture / relationships /
+  aetiology from h²/r_g and/or CIP.
 
 ## 0.4.2 — 2026-08-21
 

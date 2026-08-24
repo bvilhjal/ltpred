@@ -44,10 +44,18 @@
 
 \begin{abstract}
 \noindent
-The LT-FH family of methods replaces a case/control label with
-$\E[a_i\mid \text{family data}]$ under a Gaussian liability-threshold
-model. For rectangular observations that is ordinary BLUP after the
+The LT-FH family of methods estimates
+$\mu_i=\E[a_i\mid \text{family data}]$ under a Gaussian
+liability-threshold model.
+For rectangular observations that is ordinary BLUP after the
 liabilities have been replaced by their truncated-normal means.
+The same core has three uses:
+(I)~risk prediction from family history, with own status held out
+and an optional downstream PGS;
+(II)~a quantitative GWAS phenotype, with own status in;
+(III)~genetic architecture, between-disease covariance, and the
+age pattern of incidence, for which $\h$, $r_g$ and $K(\,\cdot\,)$
+can stand alone.
 LT-FH, LT-FH++ and ADuLT choose different rectangles; PA-FGRS also
 permits a censoring mixture of truncated laws. These are observation
 models, not different genetic models.
@@ -83,8 +91,8 @@ takes $1418\pm 30\times$ the ltpred PA wall-clock.
 The intended reader already uses GWAS, liability-scale \(\h\), and
 Falconer's threshold construction. The notes do not re-derive those.
 They are about what is being conditioned on, where the sequential
-approximation is exact, and which simulation claims survive their
-generative assumptions.
+approximation is exact, which of three uses that quantity serves,
+and which simulation claims survive their generative assumptions.
 
 %----------------------------------------------------------------------
 \section{Estimand}
@@ -149,12 +157,34 @@ Two immediate consequences, both easy to get wrong in an analysis.
   \cite{hujoel2022,krebs2026}.
 \end{enumerate}
 
+Those two remarks are the split between two uses of $\mu_i$.
+A third use never needs $\mu_i$ (Table~\ref{tab:uses}).
+
+\begin{enumerate}
+\item[I.] \textbf{Risk prediction from family history.}
+  Own status out of $D_F$.
+  An optional PGS is combined afterwards
+  \cite{hujoel2022,krebs2026}, not inside \eqref{eq:estimand}.
+\item[II.] \textbf{A quantitative GWAS phenotype.}
+  Own status in.
+  This is the LT-FH association use \cite{hujoel2020}.
+  ADuLT is the no-relative special case \cite{pedersen2023}.
+\item[III.] \textbf{Architecture, relationships, aetiology.}
+  Liability-scale $\h$ and $r_g$, and $K(\,\cdot\,)$, are already
+  objects of interest: genetic architecture, between-disease
+  covariance, and the age/sex/cohort pattern of incidence.
+  Pedigree scoring is optional.
+  Fitting $\h$ from the \emph{same} families is a different contract
+  (Section~\ref{sec:fitting}).
+\end{enumerate}
+
 The multivariate threshold model on a pedigree is Sham's
 framework \cite{sham1998}.
 So, Kwan, Cherny and Sham \cite{so2011} already combined family
 history with known loci, age, and competing mortality; they targeted
 absolute risk.
-Here the target is the breeding value, used as a phenotype.
+Here uses~I and~II target the breeding value; use~III may stop at
+$\h$, $r_g$ and $K(\,\cdot\,)$.
 
 \begin{figure}[ht]
 \centering
@@ -172,11 +202,35 @@ Here the target is the breeding value, used as a phenotype.
   \draw[arr] (thr) -- (tmvn);
   \draw[arr] (tmvn) -- (blup);
 \end{tikzpicture}
-\caption{The published methods differ in how they build $D_F$.
+\caption{How $D_F$ becomes $\mu_i$ (uses~I and~II).
+The published methods differ in how they build $D_F$.
 Rectangular methods share \eqref{eq:blup-trunc}; PA-FGRS may instead
-use the mixture in \eqref{eq:mix}.}
+use the mixture in \eqref{eq:mix}.
+Use~III can stop at $\h$, $r_g$ and $K(\,\cdot\,)$ without this
+pipeline.}
 \label{fig:pipeline}
 \end{figure}
+
+\begin{table}[ht]
+\centering
+\caption{Three uses of the same liability-threshold core.
+Uses~I and~II need $\mu_i$; use~III can stop at $\h$, $r_g$
+and/or $K(\,\cdot\,)$.}
+\label{tab:uses}
+\small
+\begin{tabular}{@{}llp{6.6cm}@{}}
+\toprule
+ & Question & Own status / what is required \\
+\midrule
+I & Risk prediction ($\pm$ a PGS) &
+  out of $D_F$; PGS is downstream \\
+II & GWAS phenotype &
+  in; ADuLT skips relatives \\
+III & Architecture, relationships, aetiology &
+  $\h$, $r_g$, $K(\,\cdot\,)$; scoring optional \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 %----------------------------------------------------------------------
 \section{Covariance}
@@ -514,7 +568,8 @@ maternal effect is not $M$.
 \section{Fitting \(\h\) is a different problem}
 \label{sec:fitting}
 
-Prediction \emph{conditions} on $\h$.
+Uses~I and~II \emph{condition} on $\h$.
+Use~III may stop at $\h$ (or $r_g$) itself.
 Bring a liability-scale estimate; if what you have is observed-scale
 (OLS / GREML / LDSC on $0/1$), Lee et al.\ \cite{lee2011} give
 \begin{equation}
@@ -931,10 +986,10 @@ With true $\h=0.5$ and $K=0.05$, assumed $\h$ from $0.2$ to $0.8$
 sweeps the slope from $2.240\pm 0.015$ down to $0.678\pm 0.006$
 while $\Corr(\widehat{\mu},a)$ stays in $0.429$--$0.431$
 (SE $\le 0.004$).
-Use $\widehat{\mu}$ as a GWAS phenotype or a ranker under a
-roughly right $\h$; do not treat its numerical scale as
-$\E[a_i\mid C_F]$ unless $\h$ is the one the score was computed
-at.
+Use $\widehat{\mu}$ as a GWAS phenotype (use~II) or a ranker
+(use~I) under a roughly right $\h$; do not treat its numerical
+scale as $\E[a_i\mid C_F]$ unless $\h$ is the one the score was
+computed at.
 
 Heavy tails, generative assortment at phenotypic $\rho\approx 0.3$,
 and an unmodelled sibship $c^{2}=0.15$ each move the slope by only
@@ -1167,7 +1222,9 @@ dependence is untested.
 \paragraph{Software.}
 \texttt{ltpred} is a Python implementation of the construction
 above (NumPy/SciPy; optional Numba).
-It does not run a GWAS.
+It does not run a GWAS and it does not fit a PGS.
+Combining $\mu_i$ with a PGS is the downstream half of use~I.
+Developed with the support of SMARTbiomed.
 Heavier prototypes---sex-limited $A$, genetic nurture, onset-age
 decay of $r_g$, a common-factor summary of $r_g$, a Monte Carlo EM
 likelihood---are checkout-only and are not covered here.
