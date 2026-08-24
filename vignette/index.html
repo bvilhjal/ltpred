@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How to run ltpred — h², pedigree, CIP, family history, estimate, GWAS.">
+        <meta name="description" content="How to run ltpred — three uses, then h², pedigree, CIP, family history.">
       
       
       
@@ -471,10 +471,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-hand-the-score-to-a-gwas" class="md-nav__link">
+  <a href="#5-what-you-do-with-mu_i" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Hand the score to a GWAS
+        5. What you do with \(\mu_i\)
       
     </span>
   </a>
@@ -1033,10 +1033,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-hand-the-score-to-a-gwas" class="md-nav__link">
+  <a href="#5-what-you-do-with-mu_i" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Hand the score to a GWAS
+        5. What you do with \(\mu_i\)
       
     </span>
   </a>
@@ -1091,24 +1091,63 @@
 \mu_i = \mathbb{E}\bigl[a_i \mid D_F,\, A,\, h^2,\, K(\cdot)\bigr]
 \tag{1}
 \]</div>
-<p>and writes it as the <code>genetic</code> column. That column is a GWAS phenotype. It
-is not a SNP polygenic score and not an absolute risk. Pearson–Aitken (PA)
-is the single-trait default; Gibbs is the sampler.</p>
-<p>Equation (1) names four inputs. Figure 1 is that recipe as a flow:
-population quantities on the left, this sample on the right, then the
-estimator, then a GWAS. Table 1 lists the corresponding calls. You are
-not missing a hidden software step. ADuLT skips relatives in steps 1
-and 3. Classic LT-FH uses one lifetime <span class="arithmatex">\(K\)</span> in step 2 instead of a CIP
-curve. Two-trait work adds a genetic covariance in step 0 and uses Gibbs
-in step 4.</p>
-<p><img alt="ltpred pipeline: heritability, CIP, pedigree and family history join in estimate_liability, then a GWAS" src="../assets/pipeline.svg" /></p>
-<p><strong>Figure 1.</strong> How <code>estimate_liability</code> is assembled. The left column is
-the population model: liability-scale <span class="arithmatex">\(h^2\)</span> (optional <span class="arithmatex">\(c^2\)</span>, <span class="arithmatex">\(m^2\)</span>,
-<span class="arithmatex">\(r_g\)</span>) and the CIP or lifetime <span class="arithmatex">\(K\)</span>. The right column is this sample:
-the pedigree <span class="arithmatex">\(A\)</span> and the relatives' (and optionally the proband's)
-status and age. Those become <span class="arithmatex">\(\Sigma=h^2A\)</span> and the observation intervals
-<span class="arithmatex">\(D_F\)</span>. Step 4 is the first call that conditions on all four; step 5 is a
-GWAS of <span class="arithmatex">\(\mu_i\)</span>, not an ltpred routine.</p>
+<p>and writes it as the <code>genetic</code> column. That column is not a SNP polygenic
+score and not an absolute risk. What you <em>do</em> with it — and whether you
+need it at all — depends on the use. Pearson–Aitken (PA) is the
+single-trait default; Gibbs is the sampler.</p>
+<p>There are at least three uses. Pick one before building <span class="arithmatex">\(D_F\)</span>: own
+status in versus out is not a later toggle.</p>
+<p><strong>Table 1.</strong> Three uses. Use III can stop at step 0 and/or 2; I and II
+need the estimator.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Question</th>
+<th>Steps</th>
+<th>Own status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>I</strong></td>
+<td>Risk prediction from family history, optionally with a PGS</td>
+<td>0–4</td>
+<td><strong>out</strong> of <span class="arithmatex">\(D_F\)</span></td>
+<td><span class="arithmatex">\(\mu_i\)</span> is a predictor of the diagnosis, so that diagnosis must not leak into it. A PGS is a <strong>downstream</strong> combination (<a href="https://doi.org/10.1016/j.xgen.2022.100152">Hujoel et al. 2022</a>; <a href="https://doi.org/10.1016/j.ajhg.2025.11.016">Dybdahl Krebs et al. 2026</a>), not an ltpred call.</td>
+</tr>
+<tr>
+<td><strong>II</strong></td>
+<td>Enhance the association signal in a GWAS</td>
+<td>0–5</td>
+<td><strong>in</strong></td>
+<td><span class="arithmatex">\(\mu_i\)</span> is a quantitative GWAS phenotype of that diagnosis (<a href="https://doi.org/10.1038/s41588-020-0613-6">Hujoel et al. 2020</a>). ADuLT skips relatives (steps 1 and 3).</td>
+</tr>
+<tr>
+<td><strong>III</strong></td>
+<td>Disease relationships and aetiology</td>
+<td><strong>0 and/or 2</strong></td>
+<td>—</td>
+<td>Liability-scale <span class="arithmatex">\(h^2\)</span> and <span class="arithmatex">\(r_g\)</span> constrain genetic architecture and how two diseases relate. The CIP is the age/sex/cohort pattern of incidence. Pedigree, family history and <span class="arithmatex">\(\mu_i\)</span> are optional here.</td>
+</tr>
+</tbody>
+</table>
+<p>Equation (1) names four inputs. Figure 1 is that recipe as a flow, with
+the three uses as exits. Table 2 lists the corresponding calls. You are
+not missing a hidden software step. Classic LT-FH uses one lifetime <span class="arithmatex">\(K\)</span>
+in step 2 instead of a CIP curve. Two-trait work adds a genetic
+covariance in step 0 and uses Gibbs in step 4.</p>
+<p><img alt="ltpred pipeline: three uses from heritability, CIP, pedigree and family history" src="../assets/pipeline.svg" /></p>
+<p><strong>Figure 1.</strong> How the inputs assemble, and where you can stop. The left
+column is the population model: liability-scale <span class="arithmatex">\(h^2\)</span> (optional <span class="arithmatex">\(c^2\)</span>,
+<span class="arithmatex">\(m^2\)</span>, <span class="arithmatex">\(r_g\)</span>) and the CIP or lifetime <span class="arithmatex">\(K\)</span>. <strong>Use III can stop there.</strong>
+The right column is this sample: the pedigree <span class="arithmatex">\(A\)</span> and the relatives'
+(and optionally the proband's) status and age. Those become
+<span class="arithmatex">\(\Sigma=h^2A\)</span> and the observation intervals <span class="arithmatex">\(D_F\)</span>. Step 4 is the first
+call that conditions on all four. <strong>Use I</strong> takes <span class="arithmatex">\(\mu_i\)</span> with own
+status out; <strong>use II</strong> takes <span class="arithmatex">\(\mu_i\)</span> with own status in and hands it to
+a GWAS (not an ltpred routine).</p>
 <p>The numbering is the order you assemble (1), not a Gantt chart. Steps
 0–3 can be prepared in parallel except for three real dependencies:</p>
 <ol>
@@ -1123,8 +1162,8 @@ GWAS of <span class="arithmatex">\(\mu_i\)</span>, not an ltpred routine.</p>
 </ol>
 <p>Lee's map is the only backward arrow: converting an observed-scale
 <span class="arithmatex">\(h^2\)</span> uses the same population <span class="arithmatex">\(K\)</span> as the thresholds.</p>
-<p><strong>Table 1.</strong> What to do, in order. Function names only; the dependencies
-are in Figure 1.</p>
+<p><strong>Table 2.</strong> What to do, in order. Function names only; the dependencies
+are in Figure 1. Skip steps that Table 1 says the use does not need.</p>
 <table>
 <thead>
 <tr>
@@ -1166,8 +1205,8 @@ are in Figure 1.</p>
 </tr>
 <tr>
 <td>5</td>
-<td>Genotyped sample</td>
-<td>join <code>pids</code>, residualize; GWAS is elsewhere</td>
+<td>People to score (I) or genotype (II)</td>
+<td>join <code>pids</code>; GWAS / PGS combination is elsewhere</td>
 </tr>
 </tbody>
 </table>
@@ -1181,14 +1220,15 @@ simulator and start from your table.</p>
 <p>Fix a case definition, follow-up, and a family-history source that you are
 willing to defend
 (<a href="../assumptions/#real-data-checklist">checklist</a>). Decide who the
-<strong>probands</strong> are (usually the genotyped people). Decide whether <span class="arithmatex">\(\mu_i\)</span>
-will be a GWAS phenotype built from that diagnosis (own status in <span class="arithmatex">\(D_F\)</span>)
-or a relatives-only predictor of it (own status out). That decision is
-used in step 3; it is not a later toggle on the estimator.</p>
+<strong>probands</strong> are (usually the genotyped people). Pick a row of Table 1.
+Uses I and II disagree on whether the proband's own diagnosis enters
+<span class="arithmatex">\(D_F\)</span>; that choice is used in step 3, not as a later toggle on the
+estimator. Use III may not need a pedigree at all.</p>
 <h2 id="0-heritability-and-covariances">0. Heritability and covariances<a class="headerlink" href="#0-heritability-and-covariances" title="Permanent link">&para;</a></h2>
-<p><code>estimate_liability</code> <strong>conditions</strong> on <span class="arithmatex">\(h^2\)</span>. Pass a <strong>liability-scale</strong>
-value. An observed-scale number mis-calibrates <span class="arithmatex">\(\hat{\mu}_i\)</span> (ranking is
-more robust than the scale).</p>
+<p>For uses I and II, <code>estimate_liability</code> <strong>conditions</strong> on <span class="arithmatex">\(h^2\)</span>. Pass a
+<strong>liability-scale</strong> value. An observed-scale number mis-calibrates
+<span class="arithmatex">\(\hat{\mu}_i\)</span> (ranking is more robust than the scale). For use III, <span class="arithmatex">\(h^2\)</span>
+and <span class="arithmatex">\(r_g\)</span> can <em>be</em> the result.</p>
 <p>Prefer an external estimate. A first-degree check is Falconer's
 <span class="arithmatex">\(h^2 \approx 2\rho_{\mathrm{tet}}\)</span>. The Lee map from an observed-scale
 estimate in a <strong>population</strong> sample is</p>
@@ -1239,6 +1279,8 @@ sibs of each other — use the kinship path if that is false
 <p>Scoring may use overlapping extracted pedigrees (one per proband). Fitting
 <span class="arithmatex">\(h^2\)</span> in step 0 may not. ADuLT has no relatives: skip this step.</p>
 <h2 id="2-cip-or-lifetime-prevalence">2. CIP or lifetime prevalence<a class="headerlink" href="#2-cip-or-lifetime-prevalence" title="Permanent link">&para;</a></h2>
+<p>For use III the CIP <em>is</em> the result: the age, sex and cohort pattern of
+incidence. For uses I and II it is an input to the thresholds below.</p>
 <p>Thresholds give the interval for each observed liability. Classic LT-FH
 uses one <span class="arithmatex">\(T=\Phi^{-1}(1-K)\)</span>. LT-FH++ and ADuLT use a person-specific CIP</p>
 <div class="arithmatex">\[
@@ -1275,10 +1317,10 @@ puts age into a censored control's mixture weight <span class="arithmatex">\(K_i
 <code>status</code>, <code>age</code>. Missing <code>fam_id</code> and duplicate roles in a family are
 rejected. Join these records to the pedigree from step 1; the thresholds
 from step 2 are the <code>lower</code> / <code>upper</code> columns.</p>
-<p>Include role <code>o</code> when <span class="arithmatex">\(\mu_i\)</span> is a GWAS phenotype built from that
-diagnosis. Omit <code>o</code>, or give it <span class="arithmatex">\((-\infty,\infty)\)</span>, when the same
-diagnosis is later the prediction target. ADuLT with <code>o</code> unbound has
-nothing left to condition on.</p>
+<p>Include role <code>o</code> for <strong>use II</strong> (<span class="arithmatex">\(\mu_i\)</span> is a GWAS phenotype of that
+diagnosis). Omit <code>o</code>, or give it <span class="arithmatex">\((-\infty,\infty)\)</span>, for <strong>use I</strong> (the
+same diagnosis is the prediction target). ADuLT with <code>o</code> unbound has
+nothing left to condition on. Use III may skip this step.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">families_from_columns</span>
 
 <span class="n">families</span> <span class="o">=</span> <span class="n">families_from_columns</span><span class="p">(</span>
@@ -1307,13 +1349,19 @@ The kinship entry point is <code>estimate_liability_from_kinship(A, lower,
 upper, h2=h2, target=0)</code>.</p>
 <p>With relatives and a personalised CIP this is LT-FH++; with only role <code>o</code>
 it is ADuLT; with one lifetime <span class="arithmatex">\(T\)</span> and relatives it is classic LT-FH.</p>
-<h2 id="5-hand-the-score-to-a-gwas">5. Hand the score to a GWAS<a class="headerlink" href="#5-hand-the-score-to-a-gwas" title="Permanent link">&para;</a></h2>
-<p>Join <code>res.pids</code> to genotyped IDs. Residualize for sex, cohort, PCs, and
-batch, or put them in a mixed model. Prefer an association method that
-handles relatedness if related targets remain. ltpred does not run the
-GWAS. Combining <span class="arithmatex">\(\mu_i\)</span> with a PGS is a downstream model
+<h2 id="5-what-you-do-with-mu_i">5. What you do with <span class="arithmatex">\(\mu_i\)</span><a class="headerlink" href="#5-what-you-do-with-mu_i" title="Permanent link">&para;</a></h2>
+<p><strong>Use I (prediction).</strong> Join <code>res.pids</code> to the people whose risk you
+want. Do not put the predicted diagnosis into <span class="arithmatex">\(D_F\)</span>. A PGS, if you have
+one, is combined <strong>after</strong> this step — a target-population prediction
+model, not something ltpred fits
 (<a href="https://doi.org/10.1016/j.xgen.2022.100152">Hujoel et al. 2022</a>;
 <a href="https://doi.org/10.1016/j.ajhg.2025.11.016">Dybdahl Krebs et al. 2026</a>).</p>
+<p><strong>Use II (GWAS).</strong> Join <code>res.pids</code> to genotyped IDs. Residualize for sex,
+cohort, PCs, and batch, or put them in a mixed model. Prefer an
+association method that handles relatedness if related targets remain.
+ltpred does not run the GWAS.</p>
+<p><strong>Use III</strong> does not need this step. The quantities of interest were <span class="arithmatex">\(h^2\)</span>,
+<span class="arithmatex">\(r_g\)</span>, and/or <span class="arithmatex">\(K(\cdot)\)</span> in steps 0 and 2.</p>
 <h2 id="stand-in-cohort-simulated-classic-lt-fh">Stand-in cohort (simulated classic LT-FH)<a class="headerlink" href="#stand-in-cohort-simulated-classic-lt-fh" title="Permanent link">&para;</a></h2>
 <p>The script builds a nuclear cohort so the calls above have something to
 chew. <code>use_age=False</code> is classic LT-FH: one <span class="arithmatex">\(K\)</span>, not a CIP. On real data
@@ -1362,7 +1410,7 @@ role-grammar PA scores to numerical noise.</p>
 <td><a href="../data-preparation/">Data preparation</a></td>
 </tr>
 <tr>
-<td>Kaplan–Meier / Aalen–Johansen</td>
+<td>Kaplan–Meier / Aalen–Johansen (use III may stop here)</td>
 <td><a href="../cip-estimation/">CIP estimation</a></td>
 </tr>
 <tr>

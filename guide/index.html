@@ -931,10 +931,22 @@ observation and family inputs rather than the inference engine:</p>
 register-standardised FGRS of
 <a href="https://doi.org/10.1001/jamapsychiatry.2021.0336">Kendler et al. (2021)</a>,
 which ltpred does not implement.</p>
-<p>The resulting continuous score can replace the 0/1 case-control label in a GWAS,
-the use introduced for LT-FH by
-<a href="https://doi.org/10.1038/s41588-020-0613-6">Hujoel et al. (2020)</a>.
-Pearson–Aitken (PA, the single-trait default) and Gibbs can both infer LT-FH,
+<p>There are at least three uses of the same liability-threshold core, spelled
+out with a pipeline figure in the <a href="../vignette/">vignette</a>:</p>
+<ol>
+<li><strong>Risk prediction</strong> from family history (own status <em>out</em> of <span class="arithmatex">\(D_F\)</span>),
+   optionally combined later with a PGS
+   (<a href="https://doi.org/10.1016/j.xgen.2022.100152">Hujoel et al. 2022</a>;
+   <a href="https://doi.org/10.1016/j.ajhg.2025.11.016">Dybdahl Krebs et al. 2026</a>).</li>
+<li><strong>A quantitative GWAS phenotype</strong> in place of the 0/1 label, the use
+   introduced for LT-FH by
+   <a href="https://doi.org/10.1038/s41588-020-0613-6">Hujoel et al. (2020)</a>
+   (own status <em>in</em>; ADuLT skips relatives).</li>
+<li><strong>Disease relationships and aetiology</strong> from liability-scale <span class="arithmatex">\(h^2\)</span> /
+   <span class="arithmatex">\(r_g\)</span> and/or the CIP — steps 0 and/or 2 of the vignette, without
+   necessarily scoring families.</li>
+</ol>
+<p>Pearson–Aitken (PA, the single-trait default) and Gibbs can both infer LT-FH,
 LT-FH++ and ADuLT inputs. The PA-FGRS name includes PA, and ltpred's censoring
 mixture is available only in the PA engine.</p>
 <p>The guide is split into short, task-focused pages:</p>
@@ -952,7 +964,7 @@ mixture is available only in the PA engine.</p>
 </tr>
 <tr>
 <td><strong><a href="../vignette/">Vignette</a></strong></td>
-<td>how to run ltpred: <span class="arithmatex">\(h^2\)</span>, pedigree, CIP, family history, estimate, GWAS</td>
+<td>how to run ltpred: three uses, then <span class="arithmatex">\(h^2\)</span>, pedigree, CIP, family history</td>
 </tr>
 <tr>
 <td><strong><a href="../data-preparation/">Data preparation</a></strong></td>
@@ -992,7 +1004,7 @@ Other runnable scripts:
 (status/age table to a score) and
 <a href="https://github.com/bvilhjal/ltpred/blob/main/examples/ltfh_power_demo.py"><code>examples/ltfh_power_demo.py</code></a>.</p>
 <h2 id="when-to-use-ltpred">When to use ltpred<a class="headerlink" href="#when-to-use-ltpred" title="Permanent link">&para;</a></h2>
-<p>Use ltpred when you have, per proband:</p>
+<p>Uses I and II need, per proband:</p>
 <ul>
 <li>a binary disease <strong>status</strong> (and ideally an <strong>age</strong> — age of onset for cases,
   age at last follow-up for controls), and</li>
@@ -1003,6 +1015,8 @@ Other runnable scripts:
   (<code>ltpred.tetrachoric</code>, the Falconer route <code>h² ~ 2 ×</code> first-degree
   tetrachoric).</li>
 </ul>
+<p>Use III is lighter: a liability-scale <span class="arithmatex">\(h^2\)</span> or <span class="arithmatex">\(r_g\)</span> (step 0), a CIP or
+lifetime <span class="arithmatex">\(K\)</span> (step 2), or both. Family records are optional.</p>
 <div class="admonition warning">
 <p class="admonition-title">Family-data fitting needs a declared sampling design</p>
 <p><code>fit_heritability</code> and <code>fit_variance_components</code> assume independent,
@@ -1020,10 +1034,11 @@ probability. Any design that samples no families from some stratum
 (ascertainment through an affected proband) cannot be reweighted. See
 <a href="../inference/#ascertained-samples">Inference</a>.</p>
 </div>
-<p>The output targets the posterior mean genetic liability of each proband (Gibbs by
-Monte Carlo; PA by a sequential-moment approximation). Feeding it to a
-linear-regression GWAS is the canonical use. With relatives and personalised
-CIPs the analysis is LT-FH++; with the proband only it is ADuLT.</p>
+<p>The output of <code>estimate_liability</code> targets the posterior mean genetic
+liability of each proband (Gibbs by Monte Carlo; PA by a sequential-moment
+approximation). That score is the input to uses I and II above. With
+relatives and personalised CIPs the analysis is LT-FH++; with the proband
+only it is ADuLT. Use III may never call the estimator.</p>
 <p>The proband's own status is an <strong>optional conditioning observation</strong>. Include role
 <code>o</code> when intentionally constructing a GWAS phenotype from the diagnosis, as in
 LT-FH/LT-FH++/ADuLT association analyses. For prospective disease prediction or
