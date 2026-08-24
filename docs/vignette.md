@@ -12,10 +12,35 @@ $$
 \tag{1}
 $$
 
-and writes it as the `genetic` column. That column is not a SNP polygenic
-score and not an absolute risk. What you *do* with it — and whether you
-need it at all — depends on the use. Pearson–Aitken (PA) is the
-single-trait default; Gibbs is the sampler.
+and writes it as the `genetic` column. That column is not a polygenic
+score (PGS) and not an absolute risk. $D_F$ is the family
+*observation model* (who was recorded, and as what interval or mixture
+on liability), $A$ is the additive relationship matrix, $h^2$ is
+liability-scale heritability, and $K(\cdot)$ is the prevalence or
+cumulative incidence proportion (CIP). What you *do* with $\mu_i$ —
+and whether you need it at all — depends on the use. Pearson–Aitken
+(PA) is the single-trait default engine
+([Aitken 1935](https://doi.org/10.1017/S0013091500008063);
+[Mendell & Elston 1974](https://pubmed.ncbi.nlm.nih.gov/4813384/));
+Gibbs is the truncated-normal sampler.
+
+The published names are observation models, not engines and not
+different genetic models:
+
+- **LT-FH** (liability-threshold family history) uses one lifetime
+  prevalence $K$ and relatives' statuses
+  ([Hujoel et al. 2020](https://doi.org/10.1038/s41588-020-0613-6)).
+- **LT-FH++** replaces that single $K$ with a person-specific CIP
+  $K(t;\text{sex},\text{cohort})$ for the proband and relatives
+  ([Pedersen et al. 2022](https://doi.org/10.1016/j.ajhg.2022.01.009)).
+- **ADuLT** (age-dependent liability threshold) is the same
+  personalised construction with no relatives
+  ([Pedersen et al. 2023](https://doi.org/10.1038/s41467-023-41210-z)).
+- **PA-FGRS** (Pearson–Aitken family genetic risk score) couples PA
+  to lifetime case intervals and an age-censored-control mixture
+  ([Dybdahl Krebs et al. 2024](https://doi.org/10.1016/j.ajhg.2024.09.009)).
+  It is not the register-standardised family genetic risk score (FGRS)
+  of [Kendler et al. (2021)](https://doi.org/10.1001/jamapsychiatry.2021.0336).
 
 There are at least three uses. Pick one before building $D_F$: own
 status in versus out is not a later toggle.
@@ -26,8 +51,8 @@ need the estimator.
 | | Question | Steps | Own status | Notes |
 |---|---|---|---|---|
 | **I** | Risk prediction from family history, optionally with a PGS | 0–4 | **out** of $D_F$ | $\mu_i$ is a predictor of the diagnosis, so that diagnosis must not leak into it. A PGS is a **downstream** combination ([Hujoel et al. 2022](https://doi.org/10.1016/j.xgen.2022.100152); [Dybdahl Krebs et al. 2026](https://doi.org/10.1016/j.ajhg.2025.11.016)), not an ltpred call. |
-| **II** | Enhance the association signal in a GWAS | 0–5 | **in** | $\mu_i$ is a quantitative GWAS phenotype of that diagnosis ([Hujoel et al. 2020](https://doi.org/10.1038/s41588-020-0613-6)). ADuLT skips relatives (steps 1 and 3). |
-| **III** | Disease relationships and aetiology | **0 and/or 2** | — | Liability-scale $h^2$ and $r_g$ constrain genetic architecture and how two diseases relate. The CIP is the age/sex/cohort pattern of incidence. Pedigree, family history and $\mu_i$ are optional. Fitting $h^2$ from the *same* families is optional and is a different contract ([Inference](inference.md)). |
+| **II** | Enhance the association signal in a genome-wide association study (GWAS) | 0–5 | **in** | $\mu_i$ is a quantitative GWAS phenotype of that diagnosis ([Hujoel et al. 2020](https://doi.org/10.1038/s41588-020-0613-6)). ADuLT skips relatives (steps 1 and 3). |
+| **III** | Disease relationships and aetiology | **0 and/or 2** | — | Liability-scale $h^2$ and the genetic correlation $r_g$ constrain genetic architecture and how two diseases relate. The CIP is the age/sex/cohort pattern of incidence. Pedigree, family history and $\mu_i$ are optional. Fitting $h^2$ from the *same* families is optional and is a different contract ([Inference](inference.md)). |
 
 Equation (1) names four inputs. Figure 1 is that recipe as a flow, with
 the three uses as exits. The [methods note](report.md) uses the same
@@ -39,14 +64,17 @@ covariance in step 0 and uses Gibbs in step 4.
 ![ltpred pipeline: three uses from heritability, CIP, pedigree and family history](assets/pipeline.svg)
 
 **Figure 1.** How the inputs assemble, and where you can stop. The left
-column is the population model: liability-scale $h^2$ (optional $c^2$,
-$m^2$, $r_g$) and the CIP or lifetime $K$. **Use III can stop there.**
-The right column is this sample: the pedigree $A$ and the relatives'
-(and optionally the proband's) status and age. Those become
-$\Sigma=h^2A$ and the observation intervals $D_F$. Step 4 is the first
-call that conditions on all four. **Use I** takes $\mu_i$ with own
-status out; **use II** takes $\mu_i$ with own status in and hands it to
-a GWAS (not an ltpred routine).
+column is the population model: liability-scale $h^2$ (optional sibship
+$c^2$ and couple $m^2$, two-trait $r_g$) and the CIP or lifetime $K$.
+**Use III can stop there.** The right column is this sample: the
+pedigree $A$ and the relatives' (and optionally the proband's) status
+and age. Those become the family covariance $\Sigma=h^2A$ — the
+best linear unbiased prediction (BLUP) / selection-index weights
+(Henderson 1975, *Biometrics*) — and the observation intervals
+$D_F$. Step 4 is the first call that conditions
+on all four. **Use I** takes $\mu_i$ with own status out; **use II**
+takes $\mu_i$ with own status in and hands it to a GWAS (not an ltpred
+routine).
 
 The numbering is the order you assemble (1), not a Gantt chart. Steps
 0–3 can be prepared in parallel except for three real dependencies:
@@ -60,8 +88,10 @@ The numbering is the order you assemble (1), not a Gantt chart. Steps
 3. **Pedigree before family history.** Rows of $D_F$ are grouped by
    `fam_id` / roles (or kinship column order). That is why 3 follows 1.
 
-Lee's map is the only backward arrow: converting an observed-scale
-$h^2$ uses the same population $K$ as the thresholds.
+Lee's map
+([Lee et al. 2011](https://doi.org/10.1016/j.ajhg.2011.02.002))
+is the only backward arrow: converting an observed-scale $h^2$ uses
+the same population $K$ as the thresholds.
 
 **Table 2.** What to do, in order. Function names only; the dependencies
 are in Figure 1. Skip steps that Table 1 says the use does not need.
@@ -71,7 +101,7 @@ are in Figure 1. Skip steps that Table 1 says the use does not need.
 | — | Case definition, who the probands are | not software |
 | 0 | Liability-scale $h^2$; optional $c^2$, $m^2$; two-trait $r_g$ | `observed_to_liability_h2`, `tetrachoric`; optionally `fit_heritability` |
 | 1 | Who is related to whom | roles, or `kinship_from_pedigree` / `extract_pedigree` |
-| 2 | Prevalence or CIP $K(\cdot)$ | `prevalence_thresholds` or `thresholds_from_cip` |
+| 2 | Prevalence or CIP $K(\cdot)$ (cumulative incidence) | `prevalence_thresholds` or `thresholds_from_cip` |
 | 3 | Status and ages (family history) | `families_from_columns` |
 | 4 | — | `estimate_liability` |
 | 5 | People to score (I) or genotype (II) | join `pids`; GWAS / PGS combination is elsewhere |
@@ -101,8 +131,12 @@ $\hat{\mu}_i$ (ranking is more robust than the scale). For use III, $h^2$
 and $r_g$ can *be* the result.
 
 Prefer an external estimate. A first-degree check is Falconer's
-$h^2 \approx 2\rho_{\mathrm{tet}}$. The Lee map from an observed-scale
-estimate in a **population** sample is
+$h^2 \approx 2\rho_{\mathrm{tet}}$ from the parent–offspring or
+sib tetrachoric correlation (Falconer 1965, *Ann. Hum. Genet.*).
+The Lee map from an observed-scale estimate in a **population**
+sample
+([Lee et al. 2011](https://doi.org/10.1016/j.ajhg.2011.02.002))
+is
 
 $$
 h^2_{\mathrm{liab}}
@@ -132,11 +166,14 @@ as `c2` / `m2` ($h^2+c^2+m^2\le 1$). Two traits need liability-scale
 heritabilities **and** a genetic correlation: pass vector `h2`,
 `genetic_corrmat`, and `full_corrmat` (Gibbs only).
 
-Fitting $h^2$ or $A{+}C{+}M$ from the **same** families is a different
-contract: independent, non-overlapping pedigrees, `sampling="population"`
-or `sampling="ipw"` with known positive inclusion probabilities. A `pid`
-in two `fam_id`s is rejected. Unguarded ascertainment pins $\hat{h}^2=1$
-even when the truth is 0. Details: [Inference](inference.md).
+Fitting $h^2$ or $A{+}C{+}M$ (additive genetic, sibship, and couple
+shared-environment components) from the **same** families is a
+different contract: independent, non-overlapping pedigrees,
+`sampling="population"` or inverse-probability weighting
+(`sampling="ipw"`) with known positive inclusion probabilities. A
+person identifier (`pid`) in two family identifiers (`fam_id`) is
+rejected. Unguarded ascertainment pins $\hat{h}^2=1$ even when the
+truth is 0. Details: [Inference](inference.md).
 
 ## 1. Pedigree
 
@@ -164,10 +201,13 @@ ped = extract_pedigree(graph, proband_id, max_degree=3)
 Scoring may use overlapping extracted pedigrees (one per proband). Fitting
 $h^2$ in step 0 may not. ADuLT has no relatives: skip this step.
 
-## 2. CIP or lifetime prevalence
+## 2. Cumulative incidence proportion (CIP) or lifetime prevalence
 
-For use III the CIP *is* the result: the age, sex and cohort pattern of
-incidence. For uses I and II it is an input to the thresholds below.
+The CIP is the fraction of people in a population stratum who are
+diagnosed by a given age,
+$K(t; s, b)=\Pr(\text{diagnosed by age }t\mid\text{sex }s,\text{birth year }b)$.
+For use III that curve *is* the result. For uses I and II it is an
+input to the thresholds below.
 
 Thresholds give the interval for each observed liability. Classic LT-FH
 uses one $T=\Phi^{-1}(1-K)$. LT-FH++ and ADuLT use a person-specific CIP
@@ -181,7 +221,10 @@ with $t_i$ the age of onset for a case and the age at last follow-up for a
 control. Use a **population** curve, stratified by sex, birth year, and
 ancestry where incidence differs — not the logistic demo helper and not a
 biobank case fraction. Competing death: Aalen–Johansen, not Kaplan–Meier
-that treats death as censoring ([CIP estimation](cip-estimation.md)).
+that treats death as censoring — the LT-FH++ construction uses
+Aalen–Johansen with death and emigration as competing events
+([Pedersen et al. 2022](https://doi.org/10.1016/j.ajhg.2022.01.009);
+details in [CIP estimation](cip-estimation.md)).
 Cover every analysed age; pass `k_pop` unless the last CIP value is a
 defensible lifetime prevalence.
 
@@ -204,7 +247,8 @@ lower, upper, K_i, K_pop = thresholds_from_cip(
 $T_i$). Pin only when onset is the CIP inverse of liability. Most of the
 onset information survives $[T_i,\infty)$. Base PA-FGRS instead uses the
 **lifetime** case interval $[\Phi^{-1}(1-K_{\mathrm{pop}}),\infty)$ and
-puts age into a censored control's mixture weight $K_i$.
+puts age into a censored control's mixture weight $K_i$
+([Dybdahl Krebs et al. 2024](https://doi.org/10.1016/j.ajhg.2024.09.009)).
 
 ## 3. Family-history records
 
@@ -245,10 +289,10 @@ score = res.genetic                                # aligned to res.pids
 - `res.var["genetic"]` is $\mathrm{Var}(a_i\mid D_F)$, which does not
   shrink with more draws.
 
-PA is the default for one trait. Use Gibbs for a Monte-Carlo SE, multiple
-traits, or an unusual no-mixture pedigree. The PA-FGRS mixture is PA-only.
-The kinship entry point is `estimate_liability_from_kinship(A, lower,
-upper, h2=h2, target=0)`.
+PA is the default for one trait. Use Gibbs for a Monte-Carlo standard
+error (SE), multiple traits, or an unusual no-mixture pedigree. The
+PA-FGRS mixture is PA-only. The kinship entry point is
+`estimate_liability_from_kinship(A, lower, upper, h2=h2, target=0)`.
 
 With relatives and a personalised CIP this is LT-FH++; with only role `o`
 it is ADuLT; with one lifetime $T$ and relatives it is classic LT-FH.
@@ -263,8 +307,10 @@ model, not something ltpred fits
 [Dybdahl Krebs et al. 2026](https://doi.org/10.1016/j.ajhg.2025.11.016)).
 
 **Use II (GWAS).** Join `res.pids` to genotyped IDs. Residualize for sex,
-cohort, PCs, and batch, or put them in a mixed model. Prefer an
-association method that handles relatedness if related targets remain.
+cohort, ancestry principal components (PCs), and batch, or put them in a
+mixed model. Prefer an association method that handles relatedness if
+related targets remain
+([Zhuang et al. 2022](https://doi.org/10.1093/bioinformatics/btac459)).
 ltpred does not run the GWAS.
 
 **Use III** does not need this step. The quantities of interest were $h^2$,
@@ -273,8 +319,9 @@ $r_g$, and/or $K(\cdot)$ in steps 0 and 2.
 ## Stand-in cohort (simulated classic LT-FH)
 
 The script builds a nuclear cohort so the calls above have something to
-chew. `use_age=False` is classic LT-FH: one $K$, not a CIP. On real data
-this block is your table, not a simulator.
+chew. `use_age=False` is classic LT-FH under the liability-threshold
+model: one $K$, not a CIP. On real data this block is your table, not a
+simulator.
 
 ```python
 from ltpred import simulate_under_LTM_single, estimate_liability
@@ -313,3 +360,4 @@ role-grammar PA scores to numerical noise.
 | Fitting $h^2$ / $A{+}C{+}M$ | [Inference](inference.md) |
 | Pre-flight list | [Assumptions & checklist](assumptions.md) |
 | Maths of (1) | [Algorithm](algorithm.md) |
+| Methods note (same I/II/III) | [Technical report](report.md) |

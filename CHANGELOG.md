@@ -43,6 +43,10 @@ version is 0 the public API may still change between minor releases.
   liability-threshold core: (I) family-history risk prediction,
   (II) GWAS-signal enhancement, (III) architecture / relationships /
   aetiology from h²/r_g and/or CIP.
+- The vignette expands CIP, LT-FH, LT-FH++, ADuLT, PA-FGRS, PGS,
+  GWAS, PA, $r_g$, IPW and related abbreviations at first use, and
+  cites the method papers (Hujoel, Pedersen, Dybdahl Krebs, Lee,
+  Aitken, Mendell–Elston, Zhuang).
 
 ## 0.4.2 — 2026-08-21
 
