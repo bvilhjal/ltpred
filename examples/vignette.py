@@ -7,7 +7,7 @@ Pipeline (same numbering as the vignette)::
     2. CIP or lifetime prevalence
     3. family-history records
     4. estimate_liability
-    5. hand the score to a GWAS
+    5. prediction (I) and/or GWAS (II); aetiology (III) may stop at 0/2
 
 This is a teaching script, not a production analysis. The opening block
 simulates a nuclear cohort so the later calls have input; on real data,
@@ -110,8 +110,8 @@ def main():
     rebuilt = families_from_columns(fam_id, role, lower, upper)
     print(f"families_from_columns: {len(rebuilt)} families, "
           f"roles {sorted({r for r in role})}")
-    print("include role o when mu is a GWAS phenotype of this diagnosis;")
-    print("omit o (or unbind it) when the same diagnosis is the prediction target")
+    print("use II (GWAS): include role o; use I (prediction): omit or unbind o")
+    print("use III (aetiology): this step is optional")
 
     print("\n== 4. Estimate mu ==")
     pa = estimate_liability(sim.families, h2=H2)
@@ -154,9 +154,11 @@ def main():
           "(PA fold order can differ; this is not Gibbs Monte-Carlo error)")
     print(f"kinship PA se is 0: {kin_se[0]:.1f}")
 
-    print("\n== 5. Ready for GWAS ==")
-    print(f"{len(pa.pids)} pids; join to genotyped IDs, residualize, GWAS elsewhere")
-    print("ltpred does not run the association scan")
+    print("\n== 5. What you do with mu ==")
+    print(f"{len(pa.pids)} pids")
+    print("I  prediction: own status out; optional PGS is downstream")
+    print("II GWAS: own status in; join pids, residualize, scan elsewhere")
+    print("III aetiology: h2, r_g, CIP can stand alone (steps 0 and/or 2)")
 
     print("\n== On real data, step 2 is a CIP, not one K ==")
     sim_age = simulate_under_LTM_single(

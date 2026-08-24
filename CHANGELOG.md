@@ -23,12 +23,15 @@ version is 0 the public API may still change between minor releases.
 ### Added
 
 - A user vignette (`docs/vignette.md`, runnable as `examples/vignette.py`)
-  on how to run ltpred: h²/covariances, pedigree, CIP, family history,
-  `estimate_liability`, then GWAS. A pipeline figure
-  (`docs/assets/pipeline.svg`) shows how those inputs join. The page is
-  part of the MkDocs site (`/vignette/`); KaTeX renders the equations.
-  The docs site uses the SMARTbiomed / Aarhus University teal–navy
-  palette from [smartbiomed.dk](https://smartbiomed.dk/).
+  on how to run ltpred. It distinguishes three uses — family-history
+  risk prediction (optional PGS), GWAS-signal enhancement, and
+  aetiology from h²/r_g and/or CIP — then the steps: h²/covariances,
+  pedigree, CIP, family history, `estimate_liability`. A pipeline figure
+  (`docs/assets/pipeline.svg`) shows how those inputs join and where
+  each use can stop. The page is part of the MkDocs site (`/vignette/`);
+  KaTeX renders the equations. The docs site uses the SMARTbiomed /
+  Aarhus University teal–navy palette from
+  [smartbiomed.dk](https://smartbiomed.dk/).
 
 ### Changed
 

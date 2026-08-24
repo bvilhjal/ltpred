@@ -1,6 +1,6 @@
 ---
 title: Vignette
-description: How to run ltpred — h², pedigree, CIP, family history, estimate, GWAS.
+description: How to run ltpred — three uses, then h², pedigree, CIP, family history.
 ---
 
 # Vignette: how to run ltpred
@@ -12,27 +12,40 @@ $$
 \tag{1}
 $$
 
-and writes it as the `genetic` column. That column is a GWAS phenotype. It
-is not a SNP polygenic score and not an absolute risk. Pearson–Aitken (PA)
-is the single-trait default; Gibbs is the sampler.
+and writes it as the `genetic` column. That column is not a SNP polygenic
+score and not an absolute risk. What you *do* with it — and whether you
+need it at all — depends on the use. Pearson–Aitken (PA) is the
+single-trait default; Gibbs is the sampler.
 
-Equation (1) names four inputs. Figure 1 is that recipe as a flow:
-population quantities on the left, this sample on the right, then the
-estimator, then a GWAS. Table 1 lists the corresponding calls. You are
-not missing a hidden software step. ADuLT skips relatives in steps 1
-and 3. Classic LT-FH uses one lifetime $K$ in step 2 instead of a CIP
-curve. Two-trait work adds a genetic covariance in step 0 and uses Gibbs
-in step 4.
+There are at least three uses. Pick one before building $D_F$: own
+status in versus out is not a later toggle.
 
-![ltpred pipeline: heritability, CIP, pedigree and family history join in estimate_liability, then a GWAS](assets/pipeline.svg)
+**Table 1.** Three uses. Use III can stop at step 0 and/or 2; I and II
+need the estimator.
 
-**Figure 1.** How `estimate_liability` is assembled. The left column is
-the population model: liability-scale $h^2$ (optional $c^2$, $m^2$,
-$r_g$) and the CIP or lifetime $K$. The right column is this sample:
-the pedigree $A$ and the relatives' (and optionally the proband's)
-status and age. Those become $\Sigma=h^2A$ and the observation intervals
-$D_F$. Step 4 is the first call that conditions on all four; step 5 is a
-GWAS of $\mu_i$, not an ltpred routine.
+| | Question | Steps | Own status | Notes |
+|---|---|---|---|---|
+| **I** | Risk prediction from family history, optionally with a PGS | 0–4 | **out** of $D_F$ | $\mu_i$ is a predictor of the diagnosis, so that diagnosis must not leak into it. A PGS is a **downstream** combination ([Hujoel et al. 2022](https://doi.org/10.1016/j.xgen.2022.100152); [Dybdahl Krebs et al. 2026](https://doi.org/10.1016/j.ajhg.2025.11.016)), not an ltpred call. |
+| **II** | Enhance the association signal in a GWAS | 0–5 | **in** | $\mu_i$ is a quantitative GWAS phenotype of that diagnosis ([Hujoel et al. 2020](https://doi.org/10.1038/s41588-020-0613-6)). ADuLT skips relatives (steps 1 and 3). |
+| **III** | Disease relationships and aetiology | **0 and/or 2** | — | Liability-scale $h^2$ and $r_g$ constrain genetic architecture and how two diseases relate. The CIP is the age/sex/cohort pattern of incidence. Pedigree, family history and $\mu_i$ are optional here. |
+
+Equation (1) names four inputs. Figure 1 is that recipe as a flow, with
+the three uses as exits. Table 2 lists the corresponding calls. You are
+not missing a hidden software step. Classic LT-FH uses one lifetime $K$
+in step 2 instead of a CIP curve. Two-trait work adds a genetic
+covariance in step 0 and uses Gibbs in step 4.
+
+![ltpred pipeline: three uses from heritability, CIP, pedigree and family history](assets/pipeline.svg)
+
+**Figure 1.** How the inputs assemble, and where you can stop. The left
+column is the population model: liability-scale $h^2$ (optional $c^2$,
+$m^2$, $r_g$) and the CIP or lifetime $K$. **Use III can stop there.**
+The right column is this sample: the pedigree $A$ and the relatives'
+(and optionally the proband's) status and age. Those become
+$\Sigma=h^2A$ and the observation intervals $D_F$. Step 4 is the first
+call that conditions on all four. **Use I** takes $\mu_i$ with own
+status out; **use II** takes $\mu_i$ with own status in and hands it to
+a GWAS (not an ltpred routine).
 
 The numbering is the order you assemble (1), not a Gantt chart. Steps
 0–3 can be prepared in parallel except for three real dependencies:
@@ -49,8 +62,8 @@ The numbering is the order you assemble (1), not a Gantt chart. Steps
 Lee's map is the only backward arrow: converting an observed-scale
 $h^2$ uses the same population $K$ as the thresholds.
 
-**Table 1.** What to do, in order. Function names only; the dependencies
-are in Figure 1.
+**Table 2.** What to do, in order. Function names only; the dependencies
+are in Figure 1. Skip steps that Table 1 says the use does not need.
 
 | Step | You supply | ltpred |
 |---|---|---|
@@ -60,7 +73,7 @@ are in Figure 1.
 | 2 | Prevalence or CIP $K(\cdot)$ | `prevalence_thresholds` or `thresholds_from_cip` |
 | 3 | Status and ages (family history) | `families_from_columns` |
 | 4 | — | `estimate_liability` |
-| 5 | Genotyped sample | join `pids`, residualize; GWAS is elsewhere |
+| 5 | People to score (I) or genotype (II) | join `pids`; GWAS / PGS combination is elsewhere |
 
 A compact script that prints the numbers below is
 [`examples/vignette.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py)
@@ -74,16 +87,17 @@ simulator and start from your table.
 Fix a case definition, follow-up, and a family-history source that you are
 willing to defend
 ([checklist](assumptions.md#real-data-checklist)). Decide who the
-**probands** are (usually the genotyped people). Decide whether $\mu_i$
-will be a GWAS phenotype built from that diagnosis (own status in $D_F$)
-or a relatives-only predictor of it (own status out). That decision is
-used in step 3; it is not a later toggle on the estimator.
+**probands** are (usually the genotyped people). Pick a row of Table 1.
+Uses I and II disagree on whether the proband's own diagnosis enters
+$D_F$; that choice is used in step 3, not as a later toggle on the
+estimator. Use III may not need a pedigree at all.
 
 ## 0. Heritability and covariances
 
-`estimate_liability` **conditions** on $h^2$. Pass a **liability-scale**
-value. An observed-scale number mis-calibrates $\hat{\mu}_i$ (ranking is
-more robust than the scale).
+For uses I and II, `estimate_liability` **conditions** on $h^2$. Pass a
+**liability-scale** value. An observed-scale number mis-calibrates
+$\hat{\mu}_i$ (ranking is more robust than the scale). For use III, $h^2$
+and $r_g$ can *be* the result.
 
 Prefer an external estimate. A first-degree check is Falconer's
 $h^2 \approx 2\rho_{\mathrm{tet}}$. The Lee map from an observed-scale
@@ -151,6 +165,9 @@ $h^2$ in step 0 may not. ADuLT has no relatives: skip this step.
 
 ## 2. CIP or lifetime prevalence
 
+For use III the CIP *is* the result: the age, sex and cohort pattern of
+incidence. For uses I and II it is an input to the thresholds below.
+
 Thresholds give the interval for each observed liability. Classic LT-FH
 uses one $T=\Phi^{-1}(1-K)$. LT-FH++ and ADuLT use a person-specific CIP
 
@@ -195,10 +212,10 @@ One row per observed person: `fam_id`, `role` (or a kinship column order),
 rejected. Join these records to the pedigree from step 1; the thresholds
 from step 2 are the `lower` / `upper` columns.
 
-Include role `o` when $\mu_i$ is a GWAS phenotype built from that
-diagnosis. Omit `o`, or give it $(-\infty,\infty)$, when the same
-diagnosis is later the prediction target. ADuLT with `o` unbound has
-nothing left to condition on.
+Include role `o` for **use II** ($\mu_i$ is a GWAS phenotype of that
+diagnosis). Omit `o`, or give it $(-\infty,\infty)$, for **use I** (the
+same diagnosis is the prediction target). ADuLT with `o` unbound has
+nothing left to condition on. Use III may skip this step.
 
 ```python
 from ltpred import families_from_columns
@@ -235,14 +252,22 @@ upper, h2=h2, target=0)`.
 With relatives and a personalised CIP this is LT-FH++; with only role `o`
 it is ADuLT; with one lifetime $T$ and relatives it is classic LT-FH.
 
-## 5. Hand the score to a GWAS
+## 5. What you do with $\mu_i$
 
-Join `res.pids` to genotyped IDs. Residualize for sex, cohort, PCs, and
-batch, or put them in a mixed model. Prefer an association method that
-handles relatedness if related targets remain. ltpred does not run the
-GWAS. Combining $\mu_i$ with a PGS is a downstream model
+**Use I (prediction).** Join `res.pids` to the people whose risk you
+want. Do not put the predicted diagnosis into $D_F$. A PGS, if you have
+one, is combined **after** this step — a target-population prediction
+model, not something ltpred fits
 ([Hujoel et al. 2022](https://doi.org/10.1016/j.xgen.2022.100152);
 [Dybdahl Krebs et al. 2026](https://doi.org/10.1016/j.ajhg.2025.11.016)).
+
+**Use II (GWAS).** Join `res.pids` to genotyped IDs. Residualize for sex,
+cohort, PCs, and batch, or put them in a mixed model. Prefer an
+association method that handles relatedness if related targets remain.
+ltpred does not run the GWAS.
+
+**Use III** does not need this step. The quantities of interest were $h^2$,
+$r_g$, and/or $K(\cdot)$ in steps 0 and 2.
 
 ## Stand-in cohort (simulated classic LT-FH)
 
@@ -282,7 +307,7 @@ role-grammar PA scores to numerical noise.
 | One-page copy-paste | [Quickstart](quickstart.md) |
 | Which model to run | [Choose a method](guide.md) |
 | Roles, trios, real tables | [Data preparation](data-preparation.md) |
-| Kaplan–Meier / Aalen–Johansen | [CIP estimation](cip-estimation.md) |
+| Kaplan–Meier / Aalen–Johansen (use III may stop here) | [CIP estimation](cip-estimation.md) |
 | Engines, scaling, GWAS export | [Estimation](estimation.md) |
 | Fitting $h^2$ / $A{+}C{+}M$ | [Inference](inference.md) |
 | Pre-flight list | [Assumptions & checklist](assumptions.md) |

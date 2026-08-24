@@ -22,9 +22,21 @@ register-standardised FGRS of
 [Kendler et al. (2021)](https://doi.org/10.1001/jamapsychiatry.2021.0336),
 which ltpred does not implement.
 
-The resulting continuous score can replace the 0/1 case-control label in a GWAS,
-the use introduced for LT-FH by
-[Hujoel et al. (2020)](https://doi.org/10.1038/s41588-020-0613-6).
+There are at least three uses of the same liability-threshold core, spelled
+out with a pipeline figure in the [vignette](vignette.md):
+
+1. **Risk prediction** from family history (own status *out* of $D_F$),
+   optionally combined later with a PGS
+   ([Hujoel et al. 2022](https://doi.org/10.1016/j.xgen.2022.100152);
+   [Dybdahl Krebs et al. 2026](https://doi.org/10.1016/j.ajhg.2025.11.016)).
+2. **A quantitative GWAS phenotype** in place of the 0/1 label, the use
+   introduced for LT-FH by
+   [Hujoel et al. (2020)](https://doi.org/10.1038/s41588-020-0613-6)
+   (own status *in*; ADuLT skips relatives).
+3. **Disease relationships and aetiology** from liability-scale $h^2$ /
+   $r_g$ and/or the CIP — steps 0 and/or 2 of the vignette, without
+   necessarily scoring families.
+
 Pearson–Aitken (PA, the single-trait default) and Gibbs can both infer LT-FH,
 LT-FH++ and ADuLT inputs. The PA-FGRS name includes PA, and ltpred's censoring
 mixture is available only in the PA engine.
@@ -34,7 +46,7 @@ The guide is split into short, task-focused pages:
 | page | what's in it |
 |---|---|
 | **[Quickstart](quickstart.md)** | one complete runnable analysis, start to finish |
-| **[Vignette](vignette.md)** | how to run ltpred: $h^2$, pedigree, CIP, family history, estimate, GWAS |
+| **[Vignette](vignette.md)** | how to run ltpred: three uses, then $h^2$, pedigree, CIP, family history |
 | **[Data preparation](data-preparation.md)** | inputs, role grammar, arbitrary pedigrees, threshold builders, CIPs, getting `h²` |
 | **[CIP estimation](cip-estimation.md)** | estimating cumulative incidence from follow-up records (Kaplan-Meier, Aalen-Johansen), estimands, stratification |
 | **[Estimation](estimation.md)** | running the estimator, reading the result, Gibbs vs PA, scaling, multi-trait, GWAS export |
@@ -57,7 +69,7 @@ Other runnable scripts:
 
 ## When to use ltpred
 
-Use ltpred when you have, per proband:
+Uses I and II need, per proband:
 
 - a binary disease **status** (and ideally an **age** — age of onset for cases,
   age at last follow-up for controls), and
@@ -67,6 +79,9 @@ Use ltpred when you have, per proband:
   disease — preferably external, or cross-checked with tetrachoric correlations
   (`ltpred.tetrachoric`, the Falconer route `h² ~ 2 ×` first-degree
   tetrachoric).
+
+Use III is lighter: a liability-scale $h^2$ or $r_g$ (step 0), a CIP or
+lifetime $K$ (step 2), or both. Family records are optional.
 
 !!! warning "Family-data fitting needs a declared sampling design"
 
@@ -86,10 +101,11 @@ Use ltpred when you have, per proband:
     (ascertainment through an affected proband) cannot be reweighted. See
     [Inference](inference.md#ascertained-samples).
 
-The output targets the posterior mean genetic liability of each proband (Gibbs by
-Monte Carlo; PA by a sequential-moment approximation). Feeding it to a
-linear-regression GWAS is the canonical use. With relatives and personalised
-CIPs the analysis is LT-FH++; with the proband only it is ADuLT.
+The output of `estimate_liability` targets the posterior mean genetic
+liability of each proband (Gibbs by Monte Carlo; PA by a sequential-moment
+approximation). That score is the input to uses I and II above. With
+relatives and personalised CIPs the analysis is LT-FH++; with the proband
+only it is ADuLT. Use III may never call the estimator.
 
 The proband's own status is an **optional conditioning observation**. Include role
 `o` when intentionally constructing a GWAS phenotype from the diagnosis, as in
