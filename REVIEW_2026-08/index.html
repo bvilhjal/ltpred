@@ -13,6 +13,8 @@
         <link rel="canonical" href="https://bvilhjal.github.io/ltpred/REVIEW_2026-08/">
       
       
+        <link rel="prev" href="../RELEASING/">
+      
       
       
         
@@ -23,7 +25,7 @@
     
     
       
-        <title>Independent review of ltpred v0.3.4 (2026-08) - ltpred</title>
+        <title>Independent review (v0.3.4) - ltpred</title>
       
     
     
@@ -115,7 +117,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Independent review of ltpred v0.3.4 (2026-08)
+              Independent review (v0.3.4)
             
           </span>
         </div>
@@ -511,7 +513,7 @@
   <span class="md-ellipsis">
     
   
-    Fitting the model
+    Inference
   
 
     
@@ -707,8 +709,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -719,11 +723,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
         
           
           <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
@@ -744,7 +748,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
@@ -778,6 +782,175 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RELEASING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Releasing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.3.4)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.3.4)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-scope-and-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Scope and method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-verdicts-by-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Verdicts by area
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-the-headline-claims-assessed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. The headline claims, assessed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-limitations-of-this-review" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Limitations of this review
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -903,6 +1076,14 @@
 
 
 <h1 id="independent-review-of-ltpred-v034-2026-08">Independent review of ltpred v0.3.4 (2026-08)<a class="headerlink" href="#independent-review-of-ltpred-v034-2026-08" title="Permanent link">&para;</a></h1>
+<div class="admonition warning">
+<p class="admonition-title">Historical document</p>
+<p>This review audits <strong>v0.3.4</strong> at commit <code>cf8cc99</code>. It predates the 0.4.0
+lean-down, so some machinery it checks (for example
+<code>scripts/check_results.py</code>) no longer exists, and its findings have since
+been addressed or superseded. Kept for provenance; do not read it as a
+description of the current release.</p>
+</div>
 <p>A read-only, peer-review-style audit of the statistical core, the estimation and
 fitting APIs, the supporting numerics, the test and CI machinery, the benchmark
 evidence base, the documentation, and the literature positioning. This review

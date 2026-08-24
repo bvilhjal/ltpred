@@ -1,106 +1,128 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 760" role="img" aria-labelledby="t d">
-  <title id="t">ltpred pipeline: three uses from heritability, CIP, pedigree and family history</title>
-  <desc id="d">Before software: case definition. Population quantities: step 0 heritability and covariances, step 2 CIP or lifetime K. Use III, disease relationships and aetiology, can stop at 0 and/or 2. This sample: step 1 pedigree A, step 3 family history. Those become Sigma = h2 A and observation intervals D_F. Step 4 estimate_liability returns mu. Use I is risk prediction from family history with own status out, optional PGS. Use II is a GWAS of mu with own status in.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" width="900" height="700" role="img" aria-label="ltpred pipeline: two input tracks converge on estimate_liability, with three uses as exits">
+  <style>
+    /* Colours track the reader's OS theme. An SVG loaded through &lt;img&gt; cannot
+     * see the host page's Material palette toggle, so prefers-color-scheme is
+     * the only signal available; the light values are the SMARTbiomed / AU set
+     * from ../stylesheets/smartbiomed.css. Type never drops below 16 units:
+     * the figure is scaled to the content column, so small units vanish.
+     * Contrast: every text pair meets WCAG 1.4.3 (>= 4.5:1) and every
+     * border/connector pair meets 1.4.11 (>= 3:1), in BOTH palettes. */
+    svg { --ground:#f4f3f4; --card:#ffffff; --title:#002546; --body:#3d5368;
+          --accent:#00667a; --panel-a:#e7f4f6; --panel-b:#e8eef2;
+          --solid-a:#00667a; --solid-b:#002546; --on-solid:#ffffff;
+          --edge-a:#00667a; --edge-b:#002546; }
+    @media (prefers-color-scheme: dark) {
+      /* --solid-* are FILL colours; against the dark ground they are far too
+       * dark to double as strokes, so edges get their own tokens. */
+      svg { --ground:#00182d; --card:#0a2036; --title:#e8eef2; --body:#b8c7d4;
+            --accent:#7fd4e0; --panel-a:#06323b; --panel-b:#0d2a44;
+            --solid-a:#0b6274; --solid-b:#123152; --on-solid:#ffffff;
+            --edge-a:#7fd4e0; --edge-b:#8ba4c0; }
+    }
+    text { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+    .t  { fill: var(--title); font-size: 22px; font-weight: 700; }
+    .b  { fill: var(--body);  font-size: 18px; }
+    .k  { fill: var(--accent); font-size: 17px; font-weight: 700; letter-spacing: .06em; }
+    .ks { fill: var(--body); font-size: 17px; }
+    .s  { fill: var(--on-solid); font-size: 19px; font-weight: 700; }
+    .ss { fill: var(--on-solid); font-size: 17px; }
+    .card  { fill: var(--card); stroke: var(--edge-a); stroke-width: 1.2; }
+    .cardb { fill: var(--card); stroke: var(--edge-b); stroke-width: 1.2; }
+    .line  { stroke: var(--edge-a); stroke-width: 2; fill: none; }
+  </style>
   <defs>
-    <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M0 0 L10 5 L0 10 z" fill="#008197"/>
+    <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--edge-a)"/>
     </marker>
-    <marker id="arr-navy" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M0 0 L10 5 L0 10 z" fill="#002546"/>
+    <marker id="arrb" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--edge-b)"/>
     </marker>
   </defs>
-  <rect x="0" y="0" width="1000" height="760" fill="#f4f3f4" rx="5"/>
 
-  <rect x="20" y="16" width="960" height="40" rx="5" fill="#002546"/>
-  <text x="500" y="42" text-anchor="middle" fill="#ffffff" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="15">Before software  ·  case definition, follow-up, who the probands are  ·  pick a use first</text>
+  <rect x="0" y="0" width="900" height="700" rx="5" fill="var(--ground)"/>
 
-  <!-- population group -->
-  <rect x="20" y="70" width="470" height="330" rx="5" fill="#e7f4f6" stroke="#008197" stroke-width="1.5"/>
-  <text x="255" y="94" text-anchor="middle" fill="#008197" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="0.06em">POPULATION QUANTITIES</text>
-  <text x="255" y="110" text-anchor="middle" fill="#3d5368" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="12">often external  ·  also results in their own right</text>
+  <rect x="16" y="14" width="868" height="38" rx="5" fill="var(--solid-b)"/>
+  <text x="450" y="39" text-anchor="middle" class="s">Before software · case definition, follow-up, who the probands are · pick a use</text>
 
-  <rect x="36" y="122" width="438" height="96" rx="5" fill="#ffffff" stroke="#008197" stroke-width="1"/>
-  <circle cx="64" cy="148" r="16" fill="#008197"/>
-  <text x="64" y="153.5" text-anchor="middle" fill="#ffffff" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="15" font-weight="700">0</text>
-  <text x="92" y="144" fill="#002546" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="16" font-weight="700">Heritability and covariances</text>
-  <text x="92" y="166" fill="#3d5368" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13">liability-scale h²  ·  optional c², m²  ·  two-trait r_g</text>
-  <text x="92" y="186" fill="#008197" font-family="Roboto Mono, ui-monospace, Menlo, monospace" font-size="11">observed_to_liability_h2  ·  tetrachoric</text>
-  <text x="92" y="204" fill="#7a8a99" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="11">architecture and between-disease covariance</text>
+  <!-- ============ left track: population quantities ============ -->
+  <rect x="16" y="66" width="424" height="286" rx="5" fill="var(--panel-a)" stroke="var(--edge-a)" stroke-width="1.5"/>
+  <text x="228" y="94" text-anchor="middle" class="k">POPULATION QUANTITIES</text>
+  <text x="228" y="118" text-anchor="middle" class="ks">often external · also results in their own right</text>
 
-  <line x1="64" y1="218" x2="64" y2="236" stroke="#008197" stroke-width="1.2" stroke-dasharray="3 3"/>
-  <text x="78" y="232" fill="#00667a" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="11" font-style="italic">Lee: converting observed-scale h² uses this same K</text>
+  <rect x="30" y="130" width="396" height="74" rx="5" class="card"/>
+  <circle cx="58" cy="158" r="15" fill="var(--solid-a)"/>
+  <text x="58" y="165" text-anchor="middle" class="s">0</text>
+  <text x="84" y="158" class="t">Heritability and covariances</text>
+  <text x="84" y="186" class="b">liability-scale h² (+ c², m², r_g)</text>
 
-  <rect x="36" y="240" width="438" height="96" rx="5" fill="#ffffff" stroke="#008197" stroke-width="1"/>
-  <circle cx="64" cy="266" r="16" fill="#008197"/>
-  <text x="64" y="271.5" text-anchor="middle" fill="#ffffff" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="15" font-weight="700">2</text>
-  <text x="92" y="262" fill="#002546" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="16" font-weight="700">CIP or lifetime prevalence</text>
-  <text x="92" y="284" fill="#3d5368" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13">K(t; sex, cohort)  or  one lifetime K</text>
-  <text x="92" y="304" fill="#008197" font-family="Roboto Mono, ui-monospace, Menlo, monospace" font-size="11">thresholds_from_cip  ·  prevalence_thresholds</text>
-  <text x="92" y="322" fill="#7a8a99" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="11">age pattern of incidence  ·  T = Φ⁻¹(1 − K)</text>
+  <line x1="58" y1="204" x2="58" y2="228" class="line" stroke-dasharray="4 4" marker-start="url(#arr)"/>
+  <text x="80" y="223" class="ks">Lee: this K converts an observed-scale h²</text>
 
-  <rect x="36" y="348" width="438" height="40" rx="5" fill="#008197"/>
-  <text x="255" y="374" text-anchor="middle" fill="#ffffff" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13" font-weight="700">III  Aetiology / relationships  ·  you can stop at 0 and/or 2</text>
+  <rect x="30" y="232" width="396" height="74" rx="5" class="card"/>
+  <circle cx="58" cy="260" r="15" fill="var(--solid-a)"/>
+  <text x="58" y="267" text-anchor="middle" class="s">2</text>
+  <text x="84" y="260" class="t">CIP or lifetime prevalence</text>
+  <text x="84" y="288" class="b">K(t; sex, cohort), or one lifetime K</text>
 
-  <!-- sample group -->
-  <rect x="510" y="70" width="470" height="330" rx="5" fill="#e8eef2" stroke="#002546" stroke-width="1.5"/>
-  <text x="745" y="94" text-anchor="middle" fill="#002546" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="0.06em">THIS SAMPLE</text>
-  <text x="745" y="110" text-anchor="middle" fill="#3d5368" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="12">needed for prediction (I) and GWAS (II)</text>
+  <rect x="30" y="316" width="396" height="34" rx="5" fill="var(--solid-a)"/>
+  <text x="228" y="339" text-anchor="middle" class="s">III  Aetiology · stop at 0 and/or 2</text>
 
-  <rect x="526" y="122" width="438" height="96" rx="5" fill="#ffffff" stroke="#002546" stroke-width="1"/>
-  <circle cx="554" cy="148" r="16" fill="#002546"/>
-  <text x="554" y="153.5" text-anchor="middle" fill="#ffffff" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="15" font-weight="700">1</text>
-  <text x="582" y="144" fill="#002546" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="16" font-weight="700">Pedigree</text>
-  <text x="582" y="166" fill="#3d5368" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13">who is related to whom  →  additive A</text>
-  <text x="582" y="186" fill="#008197" font-family="Roboto Mono, ui-monospace, Menlo, monospace" font-size="11">roles  ·  kinship_from_pedigree  ·  extract_pedigree</text>
-  <text x="582" y="204" fill="#7a8a99" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="11">ADuLT has no relatives: A is 1×1</text>
+  <!-- ============ right track: this sample ============ -->
+  <rect x="460" y="66" width="424" height="286" rx="5" fill="var(--panel-b)" stroke="var(--edge-b)" stroke-width="1.5"/>
+  <text x="672" y="94" text-anchor="middle" class="k">THIS SAMPLE</text>
+  <text x="672" y="118" text-anchor="middle" class="ks">needed for prediction (I) and GWAS (II)</text>
 
-  <line x1="554" y1="218" x2="554" y2="236" stroke="#002546" stroke-width="1.2"/>
-  <text x="568" y="232" fill="#3d5368" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="11" font-style="italic">records are grouped by this pedigree</text>
+  <rect x="474" y="130" width="396" height="74" rx="5" class="cardb"/>
+  <circle cx="502" cy="158" r="15" fill="var(--solid-b)"/>
+  <text x="502" y="165" text-anchor="middle" class="s">1</text>
+  <text x="528" y="158" class="t">Pedigree</text>
+  <text x="528" y="186" class="b">who is related to whom → additive A</text>
 
-  <rect x="526" y="240" width="438" height="96" rx="5" fill="#ffffff" stroke="#002546" stroke-width="1"/>
-  <circle cx="554" cy="266" r="16" fill="#002546"/>
-  <text x="554" y="271.5" text-anchor="middle" fill="#ffffff" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="15" font-weight="700">3</text>
-  <text x="582" y="262" fill="#002546" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="16" font-weight="700">Family history</text>
-  <text x="582" y="284" fill="#3d5368" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13">status and age, on the people in A</text>
-  <text x="582" y="304" fill="#008197" font-family="Roboto Mono, ui-monospace, Menlo, monospace" font-size="11">families_from_columns</text>
-  <text x="582" y="322" fill="#7a8a99" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="11">own status in for II  ·  out for I</text>
+  <line x1="502" y1="204" x2="502" y2="228" class="line" stroke="var(--edge-b)"/>
+  <text x="524" y="223" class="ks">records are grouped by this pedigree</text>
 
-  <rect x="526" y="348" width="438" height="40" rx="5" fill="#002546"/>
-  <text x="745" y="374" text-anchor="middle" fill="#ffffff" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13" font-weight="700">I and II continue  ·  III does not need this column</text>
+  <rect x="474" y="232" width="396" height="74" rx="5" class="cardb"/>
+  <circle cx="502" cy="260" r="15" fill="var(--solid-b)"/>
+  <text x="502" y="267" text-anchor="middle" class="s">3</text>
+  <text x="528" y="260" class="t">Family history</text>
+  <text x="528" y="288" class="b">status and age, on the people in A</text>
 
-  <line x1="255" y1="400" x2="255" y2="420" stroke="#008197" stroke-width="1.6" marker-end="url(#arr)"/>
-  <line x1="745" y1="400" x2="745" y2="420" stroke="#008197" stroke-width="1.6" marker-end="url(#arr)"/>
+  <rect x="474" y="316" width="396" height="34" rx="5" fill="var(--solid-b)"/>
+  <text x="672" y="339" text-anchor="middle" class="s">I and II continue · III stops here</text>
 
-  <rect x="20" y="426" width="470" height="60" rx="5" fill="#ffffff" stroke="#008197" stroke-width="1.5"/>
-  <text x="255" y="450" text-anchor="middle" fill="#002546" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="15" font-weight="700">Family covariance  Σ = h²A  (+ c²C + m²M)</text>
-  <text x="255" y="470" text-anchor="middle" fill="#3d5368" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13">BLUP / selection-index weights  ·  needs 0 and 1</text>
+  <!-- ============ converge ============ -->
+  <line x1="228" y1="352" x2="228" y2="374" class="line" marker-end="url(#arr)"/>
+  <line x1="672" y1="352" x2="672" y2="374" class="line" stroke="var(--edge-b)" marker-end="url(#arrb)"/>
 
-  <rect x="510" y="426" width="470" height="60" rx="5" fill="#ffffff" stroke="#002546" stroke-width="1.5"/>
-  <text x="745" y="450" text-anchor="middle" fill="#002546" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="15" font-weight="700">Observation intervals  D_F</text>
-  <text x="745" y="470" text-anchor="middle" fill="#3d5368" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13">status + age + T(K)  ·  needs 2 and 3 (grouped by 1)</text>
+  <rect x="16" y="380" width="424" height="66" rx="5" class="card"/>
+  <text x="228" y="408" text-anchor="middle" class="t">Σ = h²A + (1 − h²)I</text>
+  <text x="228" y="432" text-anchor="middle" class="b">unit diagonal · BLUP weights · needs 0 and 1</text>
 
-  <path d="M255 486 C255 506 255 506 500 506" fill="none" stroke="#008197" stroke-width="1.6"/>
-  <path d="M745 486 C745 506 745 506 500 506" fill="none" stroke="#008197" stroke-width="1.6"/>
-  <line x1="500" y1="506" x2="500" y2="524" stroke="#008197" stroke-width="1.6" marker-end="url(#arr)"/>
+  <rect x="460" y="380" width="424" height="66" rx="5" class="cardb"/>
+  <text x="672" y="408" text-anchor="middle" class="t">Observation intervals  D_F</text>
+  <text x="672" y="432" text-anchor="middle" class="b">status + age + T(K) · needs 2 and 3</text>
 
-  <rect x="150" y="530" width="700" height="70" rx="5" fill="#008197"/>
-  <text x="500" y="558" text-anchor="middle" fill="#ffffff" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="16" font-weight="700">4   estimate_liability</text>
-  <text x="500" y="582" text-anchor="middle" fill="#ececec" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="15">μᵢ  =  E[ aᵢ  |  D_F,  A,  h²,  K(·) ]</text>
+  <path d="M228 446 L228 470 L450 470" class="line"/>
+  <path d="M672 446 L672 470 L450 470" class="line"/>
+  <line x1="450" y1="470" x2="450" y2="490" class="line" marker-end="url(#arr)"/>
 
-  <path d="M500 600 L500 612 L255 612" fill="none" stroke="#008197" stroke-width="1.6"/>
-  <line x1="255" y1="612" x2="255" y2="628" stroke="#008197" stroke-width="1.6" marker-end="url(#arr)"/>
-  <path d="M500 600 L500 612 L745 612" fill="none" stroke="#002546" stroke-width="1.6"/>
-  <line x1="745" y1="612" x2="745" y2="628" stroke="#002546" stroke-width="1.6" marker-end="url(#arr-navy)"/>
+  <rect x="130" y="496" width="640" height="68" rx="5" fill="var(--solid-a)"/>
+  <text x="450" y="524" text-anchor="middle" class="s">4   estimate_liability</text>
+  <text x="450" y="550" text-anchor="middle" class="ss">μᵢ = E[ aᵢ | D_F, A, h², K(·) ]</text>
 
-  <rect x="20" y="634" width="470" height="106" rx="5" fill="#ffffff" stroke="#008197" stroke-width="1.5"/>
-  <text x="255" y="664" text-anchor="middle" fill="#008197" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="16" font-weight="700">I   Risk prediction</text>
-  <text x="255" y="688" text-anchor="middle" fill="#002546" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13">family-history μ  ·  own status out of D_F</text>
-  <text x="255" y="710" text-anchor="middle" fill="#3d5368" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13">optional PGS is a downstream model, not an ltpred call</text>
-  <text x="255" y="728" text-anchor="middle" fill="#7a8a99" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="12">steps 0–4</text>
+  <!-- ============ exits ============ -->
+  <path d="M450 564 L450 578 L228 578" class="line"/>
+  <line x1="228" y1="578" x2="228" y2="596" class="line" marker-end="url(#arr)"/>
+  <path d="M450 564 L450 578 L672 578" class="line" stroke="var(--edge-b)"/>
+  <line x1="672" y1="578" x2="672" y2="596" class="line" stroke="var(--edge-b)" marker-end="url(#arrb)"/>
 
-  <rect x="510" y="634" width="470" height="106" rx="5" fill="#002546"/>
-  <text x="745" y="664" text-anchor="middle" fill="#ffffff" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="16" font-weight="700">II   Enhance GWAS signal</text>
-  <text x="745" y="688" text-anchor="middle" fill="#ececec" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13">μ as a quantitative phenotype  ·  own status in</text>
-  <text x="745" y="710" text-anchor="middle" fill="#ececec" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="13">join pids, residualize  ·  GWAS is elsewhere</text>
-  <text x="745" y="728" text-anchor="middle" fill="#7fd4e0" font-family="Source Sans 3, Source Sans Pro, Helvetica Neue, Arial, sans-serif" font-size="12">steps 0–5  ·  ADuLT skips relatives</text>
+  <rect x="16" y="602" width="424" height="84" rx="5" class="card"/>
+  <text x="228" y="630" text-anchor="middle" class="t">I   Risk prediction</text>
+  <text x="228" y="654" text-anchor="middle" class="b">own status out of D_F</text>
+  <text x="228" y="676" text-anchor="middle" class="b">steps 0–5 · a PGS is downstream</text>
+
+  <rect x="460" y="602" width="424" height="84" rx="5" fill="var(--solid-b)"/>
+  <text x="672" y="630" text-anchor="middle" class="s">II   Enhance GWAS signal</text>
+  <text x="672" y="654" text-anchor="middle" class="ss">own status in · μ as the phenotype</text>
+  <text x="672" y="676" text-anchor="middle" class="ss">steps 0–5 · ADuLT skips relatives</text>
 </svg>

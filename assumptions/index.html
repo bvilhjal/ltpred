@@ -517,7 +517,7 @@
   <span class="md-ellipsis">
     
   
-    Fitting the model
+    Inference
   
 
     
@@ -869,6 +869,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RELEASING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Releasing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.3.4)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1033,13 +1089,13 @@ severity is worth internalising: on ascertained families with a <strong>true <co
 the assumed prevalence already inflates <code>h²</code> by +0.48
 (<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS.md §29</a>).</p>
 <h2 id="real-data-checklist">Real-data checklist<a class="headerlink" href="#real-data-checklist" title="Permanent link">&para;</a></h2>
-<p>Before running a production analysis:</p>
+<p>First pick a <strong>use</strong> (<a href="../vignette/">vignette</a> Table 1): <strong>I</strong> family-history
+risk prediction (own status out; optional PGS afterwards), <strong>II</strong> a
+quantitative GWAS phenotype (own status in), or <strong>III</strong> architecture /
+relationships / aetiology from <code>h²</code>, <code>r_g</code> and/or the CIP. Use III can skip
+pedigree scoring; I and II disagree on role <code>o</code>.</p>
+<p>Then, before running a production analysis:</p>
 <ol>
-<li>Pick a <strong>use</strong> (<a href="../vignette/">vignette</a> Table 1): <strong>I</strong> family-history
-   risk prediction (own status out; optional PGS afterwards), <strong>II</strong> a
-   quantitative GWAS phenotype (own status in), or <strong>III</strong> architecture /
-   relationships / aetiology from <span class="arithmatex">\(h^2\)</span>, <span class="arithmatex">\(r_g\)</span> and/or the CIP. Use III
-   can skip pedigree scoring; I and II disagree on role <code>o</code>.</li>
 <li>Validate the <strong>diagnosis and family-history source</strong>: case definition,
    reporting accuracy, missingness, follow-up, and participation/selection process.</li>
 <li>Obtain <strong>population-representative CIPs</strong> (cumulative incidence by age),
