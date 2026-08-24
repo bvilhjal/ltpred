@@ -16,17 +16,41 @@ and writes it as the `genetic` column. That column is a GWAS phenotype. It
 is not a SNP polygenic score and not an absolute risk. Pearson–Aitken (PA)
 is the single-trait default; Gibbs is the sampler.
 
-The run is the six steps in Table 1. You are not missing a hidden software
-step. Diagnosis definition is first, but it is not an ltpred call. After
-the inputs (steps 0–3) you still have to **estimate** (step 4) and then
-hand the score to a **GWAS** (step 5). ADuLT skips relatives in steps 1
+Equation (1) names four inputs. Figure 1 is that recipe as a flow:
+population quantities on the left, this sample on the right, then the
+estimator, then a GWAS. Table 1 lists the corresponding calls. You are
+not missing a hidden software step. ADuLT skips relatives in steps 1
 and 3. Classic LT-FH uses one lifetime $K$ in step 2 instead of a CIP
 curve. Two-trait work adds a genetic covariance in step 0 and uses Gibbs
 in step 4.
 
-**Table 1.** What to do, in order. Steps 0–3 can be prepared in parallel;
-the Lee conversion of an observed-scale $h^2$ is the exception, because it
-needs a population $K$ from step 2.
+![ltpred pipeline: heritability, CIP, pedigree and family history join in estimate_liability, then a GWAS](assets/pipeline.svg)
+
+**Figure 1.** How `estimate_liability` is assembled. The left column is
+the population model: liability-scale $h^2$ (optional $c^2$, $m^2$,
+$r_g$) and the CIP or lifetime $K$. The right column is this sample:
+the pedigree $A$ and the relatives' (and optionally the proband's)
+status and age. Those become $\Sigma=h^2A$ and the observation intervals
+$D_F$. Step 4 is the first call that conditions on all four; step 5 is a
+GWAS of $\mu_i$, not an ltpred routine.
+
+The numbering is the order you assemble (1), not a Gantt chart. Steps
+0–3 can be prepared in parallel except for three real dependencies:
+
+1. **$h^2$ scales $A$.** You can build the pedigree without a
+   heritability, but you cannot form $\Sigma=h^2A$ without both 0 and 1.
+   ADuLT is the $1\times 1$ case.
+2. **CIP before family history.** Status and age are a register table
+   until $T_i=\Phi^{-1}(1-K_i)$ turns them into intervals on liability.
+   That is why 3 follows 2.
+3. **Pedigree before family history.** Rows of $D_F$ are grouped by
+   `fam_id` / roles (or kinship column order). That is why 3 follows 1.
+
+Lee's map is the only backward arrow: converting an observed-scale
+$h^2$ uses the same population $K$ as the thresholds.
+
+**Table 1.** What to do, in order. Function names only; the dependencies
+are in Figure 1.
 
 | Step | You supply | ltpred |
 |---|---|---|
