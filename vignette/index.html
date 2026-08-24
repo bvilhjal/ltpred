@@ -1094,16 +1094,37 @@
 <p>and writes it as the <code>genetic</code> column. That column is a GWAS phenotype. It
 is not a SNP polygenic score and not an absolute risk. Pearson–Aitken (PA)
 is the single-trait default; Gibbs is the sampler.</p>
-<p>The run is the six steps in Table 1. You are not missing a hidden software
-step. Diagnosis definition is first, but it is not an ltpred call. After
-the inputs (steps 0–3) you still have to <strong>estimate</strong> (step 4) and then
-hand the score to a <strong>GWAS</strong> (step 5). ADuLT skips relatives in steps 1
+<p>Equation (1) names four inputs. Figure 1 is that recipe as a flow:
+population quantities on the left, this sample on the right, then the
+estimator, then a GWAS. Table 1 lists the corresponding calls. You are
+not missing a hidden software step. ADuLT skips relatives in steps 1
 and 3. Classic LT-FH uses one lifetime <span class="arithmatex">\(K\)</span> in step 2 instead of a CIP
 curve. Two-trait work adds a genetic covariance in step 0 and uses Gibbs
 in step 4.</p>
-<p><strong>Table 1.</strong> What to do, in order. Steps 0–3 can be prepared in parallel;
-the Lee conversion of an observed-scale <span class="arithmatex">\(h^2\)</span> is the exception, because it
-needs a population <span class="arithmatex">\(K\)</span> from step 2.</p>
+<p><img alt="ltpred pipeline: heritability, CIP, pedigree and family history join in estimate_liability, then a GWAS" src="../assets/pipeline.svg" /></p>
+<p><strong>Figure 1.</strong> How <code>estimate_liability</code> is assembled. The left column is
+the population model: liability-scale <span class="arithmatex">\(h^2\)</span> (optional <span class="arithmatex">\(c^2\)</span>, <span class="arithmatex">\(m^2\)</span>,
+<span class="arithmatex">\(r_g\)</span>) and the CIP or lifetime <span class="arithmatex">\(K\)</span>. The right column is this sample:
+the pedigree <span class="arithmatex">\(A\)</span> and the relatives' (and optionally the proband's)
+status and age. Those become <span class="arithmatex">\(\Sigma=h^2A\)</span> and the observation intervals
+<span class="arithmatex">\(D_F\)</span>. Step 4 is the first call that conditions on all four; step 5 is a
+GWAS of <span class="arithmatex">\(\mu_i\)</span>, not an ltpred routine.</p>
+<p>The numbering is the order you assemble (1), not a Gantt chart. Steps
+0–3 can be prepared in parallel except for three real dependencies:</p>
+<ol>
+<li><strong><span class="arithmatex">\(h^2\)</span> scales <span class="arithmatex">\(A\)</span>.</strong> You can build the pedigree without a
+   heritability, but you cannot form <span class="arithmatex">\(\Sigma=h^2A\)</span> without both 0 and 1.
+   ADuLT is the <span class="arithmatex">\(1\times 1\)</span> case.</li>
+<li><strong>CIP before family history.</strong> Status and age are a register table
+   until <span class="arithmatex">\(T_i=\Phi^{-1}(1-K_i)\)</span> turns them into intervals on liability.
+   That is why 3 follows 2.</li>
+<li><strong>Pedigree before family history.</strong> Rows of <span class="arithmatex">\(D_F\)</span> are grouped by
+   <code>fam_id</code> / roles (or kinship column order). That is why 3 follows 1.</li>
+</ol>
+<p>Lee's map is the only backward arrow: converting an observed-scale
+<span class="arithmatex">\(h^2\)</span> uses the same population <span class="arithmatex">\(K\)</span> as the thresholds.</p>
+<p><strong>Table 1.</strong> What to do, in order. Function names only; the dependencies
+are in Figure 1.</p>
 <table>
 <thead>
 <tr>

@@ -88,3 +88,10 @@
 .md-copyright a:hover {
   color: #fff;
 }
+
+.md-typeset img[src$="pipeline.svg"] {
+  width: 100%;
+  height: auto;
+  border-radius: 5px;
+  background: #f4f3f4;
+}
