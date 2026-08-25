@@ -7,6 +7,14 @@ import numpy as np
 from ._mathfun import norm_ppf
 
 
+def validate_own_status(own_status):
+    """Accept only the exact strings ``"in"`` (use II) and ``"out"`` (use I)."""
+    if own_status not in ("in", "out"):
+        raise ValueError(
+            f"own_status must be 'in' or 'out', not {own_status!r}")
+    return own_status
+
+
 def validate_binary(values, *, name="values", ndim=None):
     """Return Boolean data after rejecting missing, sentinel, and non-binary codes."""
     array = np.asarray(values)
