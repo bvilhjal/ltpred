@@ -53,35 +53,32 @@ That score is not itself a SNP polygenic score.
 
 This function has two jobs. If you already know someone is a case and want a
 GWAS number, include their own status. If you want to predict whether they
-are a case from family history, leave their own status out. **The code today
-always includes it.** The example script
-([`examples/vignette.py`](examples/vignette.py)) is where the "leave it out"
-version lives.
+are a case from family history, leave their own status out. Same function:
+what you put in for that person decides which job. The example script
+([`examples/vignette.py`](examples/vignette.py)) shows how to leave it out.
 
 There are three uses
 (the [vignette](https://bvilhjal.github.io/ltpred/vignette/) is the run-book):
 
-- **I. Risk prediction** from family history (own status *out*). Not what
-  `estimate_liability` does on this version; that step is only in the
-  example script above. Combining
+- **I. Risk prediction** from family history (own status *out*). Same
+  `estimate_liability` call; leave their own diagnosis out of the input
+  (the example script does this). Combining
   family-derived and genotype-derived predictors is a separate downstream
   model; see
   [Hujoel et al. 2022, *Cell Genomics*](https://doi.org/10.1016/j.xgen.2022.100152)
   and
   [Dybdahl Krebs et al. 2026, *AJHG*](https://doi.org/10.1016/j.ajhg.2025.11.016).
 - **II. A quantitative GWAS phenotype** in place of the 0/1 label (own status
-  *in*), the LT-FH association use. This is what `estimate_liability` does.
-  ADuLT skips relatives.
+  *in*), the LT-FH association use. This is what you get if you pass their
+  diagnosis in the usual way. ADuLT skips relatives.
 - **III. Architecture, relationships, aetiology** from liability-scale h² / r_g
   and/or the CIP. Pedigree scoring is optional.
 
-`estimate_liability` always conditions on the person's own diagnosis (the
-GWAS job). That is the right thing when the score *is* a number for that
-diagnosis. For prediction you must leave their own status out, or the
-answer is already in the input; on this version that "leave it out" step
-is only in [`examples/vignette.py`](examples/vignette.py), not in the
-estimator. Dropping the person's row also leaves them out, but then `pids`
-falls back to the family ID.
+If you pass in their diagnosis, `estimate_liability` uses it (the GWAS
+job). To predict from family history, leave their own status out: keep
+their row but give it uninformative bounds, or the answer is already in
+the input. The example script shows that. Dropping the person's row also
+leaves them out, but then `pids` falls back to the family ID.
 
 ## Documentation
 
