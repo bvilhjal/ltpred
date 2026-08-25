@@ -64,9 +64,10 @@ That score is not itself a SNP polygenic score. There are three uses
   and/or the CIP. Pedigree scoring is optional.
 
 Conditioning on the proband's own diagnosis is appropriate for (II). For (I),
-keep the proband's role `o` but give it uninformative `(-inf, inf)` bounds;
-otherwise the outcome being predicted leaks into the score. (Dropping the `o`
-row also works, but then `pids` falls back to the family ID.)
+pass `own_status="out"` so the proband's role `o` is kept with uninformative
+`(-inf, inf)` bounds; otherwise the outcome being predicted leaks into the
+score. (Dropping the `o` row also unbinds, but then `pids` falls back to the
+family ID.)
 
 ## Documentation
 
