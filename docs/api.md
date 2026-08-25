@@ -58,7 +58,7 @@ PA accepts a symmetric positive-semidefinite covariance with strictly positive
 marginal variances. Gibbs requires strict positive-definiteness because it forms
 precision-based conditional variances.
 The sex-limited and genetic-nurture covariance constructors live in the
-checkout-only `research.covariance_extensions.py`.
+checkout-only `research/covariance_extensions.py`.
 
 ## Estimation — `ltpred.estimate`
 
