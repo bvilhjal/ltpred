@@ -21,7 +21,10 @@ from ._estimate_arrays import (
     estimate_liability_pa_arrays, estimate_liability_gibbs_arrays,
 )
 from ._estimate_kinship import estimate_liability_from_kinship
-from ._estimate_group import _estimate_group, _base_seeds
+from ._estimate_group import (
+    _estimate_group, _base_seeds,
+    _assert_nonempty_families, _check_unique_roles, _group_by_structure,
+)
 from ._estimate_role_arrays import _align_to_cov
 
 __all__ = ["LiabilityResult", "batch_means", "estimate_liability",
