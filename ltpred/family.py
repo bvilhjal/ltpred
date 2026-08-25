@@ -100,11 +100,11 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
     Missing or non-finite numeric ``fam_id`` values are rejected: they cannot
     group records and would otherwise fragment silently into one-member families.
 
-    ``own_status=\"out\"`` (use I) rewrites every role-``o`` bound to
+    ``own_status="out"`` (use I) rewrites every role-``o`` bound to
     ``(-inf, inf)`` and clears that row's ``K_i``/``K_pop``, without dropping
-    the row, so later ``pids`` still come from the proband record. ``\"in\"``
+    the row, so later ``pids`` still come from the proband record. ``"in"``
     (default, use II) leaves the bounds alone. Other spellings raise.
-    A family that is only role ``o`` with ``own_status=\"out\"`` has nothing
+    A family that is only role ``o`` with ``own_status="out"`` has nothing
     to condition on and raises, matching an empty family.
     """
     own_status = validate_own_status(own_status)
@@ -139,7 +139,7 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
     elif fam_id.dtype.kind in ("U", "S", "O"):
         # String ids need the textual sentinels a CSV loader produces. These
         # are worse than a float NaN: NaN != NaN fragments records into
-        # singletons, whereas every \"\" or \"NA\" compares *equal* and merges
+        # singletons, whereas every "" or "NA" compares *equal* and merges
         # unrelated probands into one family.
         missing = np.array([_is_missing_id(x) for x in fam_id], dtype=bool)
     else:
