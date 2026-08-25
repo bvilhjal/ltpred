@@ -94,35 +94,3 @@ def _unbind_o_column(roles, lower, upper, own_status, K_i=None, K_pop=None):
         K_pop = np.array(K_pop, copy=True, dtype=float)
         K_pop[:, j] = np.nan
     return lower, upper, K_i, K_pop
-
-
-def estimate_liability_pa_arrays(roles: Sequence[str], lower: ArrayLike,
-                                 upper: ArrayLike, h2: float = 0.5,
-                                 out: str = "genetic",
-                                 K_i: ArrayLike | None = None,
-                                 K_pop: ArrayLike | None = None,
-                                 use_mixture: bool = False,
-                                 c2: float | None = None, m2: float | None = None,
-                                 own_status: Literal["in", "out"] = "in"
-                                 ) -> tuple[np.ndarray, np.ndarray]:
-    """Array-level Pearson-Aitken estimator — skips ``Family``/``Member`` objects.
-
-    The production fast path for many same-structure probands: ``roles`` is the
-    shared list of member roles (``o`` and relatives; ``g`` is added), and ``lower``
-    / ``upper`` are ``(n_families, len(roles))`` bounds aligned to ``roles`` (build
-        them straight from your columns, e.g. with a threshold helper). The covariance
-    is built once (with the ``c2``/``m2`` sibship and couple shared-environment
-    components, ``h2 + c2 + m2 <= 1``). ``out`` is ``"genetic"`` (target ``g``) or
-    ``"full"`` (``E[l_o | own interval and relatives]``). ``use_mixture`` with
-    ``K_i``/``K_pop`` (same shape) enables the
-    censored-control mixture. ``own_status=\"out\"`` unbinds the ``o`` column
-    if present (use I) without dropping it; ``\"in\"`` (default) is use II.
-    Only role ``o`` with ``own_status=\"out\"`` raises. Returns PA
-    sequential-moment approximations ``(est, var)`` of length ``n_families``."""
-    coord = _single_out(out)
-    lower, upper, K_i, K_pop = _unbind_o_column(
-        roles, lower, upper, own_status, K_i=K_i, K_pop=K_pop)
-    est, var = _pa_from_role_arrays(
-        roles, lower, upper, h2, [coord], K_i=K_i, K_pop=K_pop,
-        use_mixture=use_mixture, c2=c2, m2=m2)
-    return est[coord], var[coord]
