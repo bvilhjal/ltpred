@@ -26,6 +26,14 @@ Gibbs is the truncated-normal sampler.
 
 ## Three uses
 
+This function has two jobs. If you already know someone is a case and want a
+GWAS number, include their own status. If you want to predict whether they
+are a case from family history, leave their own status out. **The code today
+always includes it** (`estimate_liability` conditions on the person's own
+diagnosis). The example script `examples/vignette.py` is where the "leave it
+out" version lives. Own status in versus out is not a later toggle on the
+estimator.
+
 The published method names describe the *observation model*, not a
 different genetic model. Three of the four name only that; PA-FGRS is
 the exception, because its published specification also fixes the
@@ -278,7 +286,7 @@ different contract on three counts.
 2. *Bounds.* `fit_heritability` needs **one common case/control
    threshold per trait**. The personalised or onset-pinned bounds built
    in steps 2–3 are rejected outright; fit from `prevalence_thresholds`
-   bounds, or bring an external $h^2$.
+   bounds, or bring an external $h^2`.
 3. *Scale.* Even when the contract holds, a few hundred families is not
    much data. On the 800 simulated families above, `fit_heritability`
    returns $\hat h^2=0.363$ against a truth of $0.5$, with a
