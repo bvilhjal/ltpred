@@ -49,7 +49,16 @@ onto the proband's additive genetic value the way a breeding value is predicted
 from relatives (see
 [algorithm.md](docs/algorithm.md#connection-to-selection-index-and-blup)).
 
-That score is not itself a SNP polygenic score. There are three uses
+That score is not itself a SNP polygenic score.
+
+This function has two jobs. If you already know someone is a case and want a
+GWAS number, include their own status. If you want to predict whether they
+are a case from family history, leave their own status out. **The code today
+always includes it.** The example script
+([`examples/vignette.py`](examples/vignette.py)) is where the "leave it out"
+version lives.
+
+There are three uses
 (the [vignette](https://bvilhjal.github.io/ltpred/vignette/) is the run-book):
 
 - **I. Risk prediction** from family history (own status *out*). Combining
@@ -63,10 +72,13 @@ That score is not itself a SNP polygenic score. There are three uses
 - **III. Architecture, relationships, aetiology** from liability-scale h² / r_g
   and/or the CIP. Pedigree scoring is optional.
 
-Conditioning on the proband's own diagnosis is appropriate for (II). For (I),
-keep the proband's role `o` but give it uninformative `(-inf, inf)` bounds;
-otherwise the outcome being predicted leaks into the score. (Dropping the `o`
-row also works, but then `pids` falls back to the family ID.)
+`estimate_liability` always conditions on the person's own diagnosis (the
+GWAS job). That is the right thing when the score *is* a number for that
+diagnosis. For prediction you must leave their own status out, or the
+answer is already in the input; on this version that "leave it out" step
+is only in [`examples/vignette.py`](examples/vignette.py), not in the
+estimator. Dropping the person's row also leaves them out, but then `pids`
+falls back to the family ID.
 
 ## Documentation
 
