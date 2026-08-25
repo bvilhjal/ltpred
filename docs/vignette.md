@@ -286,7 +286,7 @@ different contract on three counts.
 2. *Bounds.* `fit_heritability` needs **one common case/control
    threshold per trait**. The personalised or onset-pinned bounds built
    in steps 2–3 are rejected outright; fit from `prevalence_thresholds`
-   bounds, or bring an external $h^2`.
+   bounds, or bring an external $h^2$.
 3. *Scale.* Even when the contract holds, a few hundred families is not
    much data. On the 800 simulated families above, `fit_heritability`
    returns $\hat h^2=0.363$ against a truth of $0.5$, with a
