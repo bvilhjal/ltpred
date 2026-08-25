@@ -414,19 +414,23 @@ array path needs a fixed column set, where an absent relative is padded
 the same way ([Estimation](estimation.md#scaling-to-large-cohorts)).
 
 Include role `o` for **use II** ($\mu_i$ is a GWAS phenotype of that
-diagnosis). For **use I**, give `o` bounds of $(-\infty,\infty)$ rather
-than dropping the row: `res.pids` is read off the role-`o` record and
-falls back to `fam_id` when there is no `o` row, which silently changes
-your join key. ADuLT with `o` unbound has nothing left to condition on.
-Use III may skip this step.
+diagnosis; `own_status="in"`, the default). For **use I**, pass
+`own_status="out"` on `estimate_liability` or `families_from_columns`:
+that rewrites `o` to $(-\infty,\infty)$ without dropping the row, so
+`res.pids` is still read off the role-`o` record. Dropping the row also
+unbinds, but then `pids` falls back to `fam_id`, which silently changes
+your join key. ADuLT with `own_status="out"` has nothing left to
+condition on and raises. Use III may skip this step.
 
 ```python
-from ltpred import families_from_columns
+from ltpred import families_from_columns, estimate_liability
 
 families = families_from_columns(
     fam_id, role, lower, upper, pid=pid,
     K_i=K_i, K_pop=K_pop,   # only for use_mixture=True
 )
+# use I: unbind the proband; keep the row so pids stay on that record
+res = estimate_liability(families, h2=h2, own_status="out")
 ```
 
 ## 4. Estimate the score
@@ -516,9 +520,9 @@ model, not something ltpred fits
 [Dybdahl Krebs et al. 2026](https://doi.org/10.1016/j.ajhg.2025.11.016)).
 
 On the liability scale $\mu_i$ is in population standard-deviation
-units, not a probability. For **use I only** — own status out of $D_F$,
-so the proband's residual is independent of the family — the model's
-implied risk is
+units, not a probability. For **use I only** — `own_status="out"`, so
+own status is out of $D_F$ and the proband's residual is independent of
+the family — the model's implied risk is
 
 ```python
 import numpy as np
