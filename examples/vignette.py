@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import os
 import sys
-from dataclasses import replace
 
 import numpy as np
 from scipy.stats import norm
@@ -58,23 +57,6 @@ def _drop_role(families, role):
 def _keep_role(families, role):
     return [Family(fam.fam_id, [m for m in fam.members if m.role == role])
             for fam in families]
-
-
-def _unbind_role(families, role):
-    """Use-I encoding: keep the row, drop the observation.
-
-    Scores identically to removing the row, but ``pids`` still comes from the
-    role-``o`` record instead of falling back to ``fam_id``.
-    """
-    out = []
-    for fam in families:
-        members = []
-        for m in fam.members:
-            if m.role == role:
-                m = replace(m, lower=-np.inf, upper=np.inf)
-            members.append(m)
-        out.append(Family(fam.fam_id, members))
-    return out
 
 
 def main():
@@ -137,8 +119,8 @@ def main():
     rebuilt = families_from_columns(fam_id, role, lower, upper)
     print(f"families_from_columns: {len(rebuilt)} families, "
           f"roles {sorted({r for r in role})}")
-    print("use II (GWAS): include role o; use I (prediction): keep o but")
-    print("unbind it — dropping the row makes pids fall back to fam_id")
+    print("use II (GWAS): own_status='in' (default); use I (prediction):")
+    print("own_status='out' keeps role o so pids stay on that record")
     print("use III (aetiology): this step is optional")
 
     print("\n== 4. Estimate mu ==")
@@ -218,8 +200,8 @@ def main():
             fam_vec=["m", "f", "s1"], h2=H2, pop_prev=K, n_sim=4_000,
             use_age=False, seed=seed,
         )
-        # use-I encoding: keep role o, give it no observation
-        fh = estimate_liability(_unbind_role(sim_p.families, "o"), h2=H2)
+        # use I: unbind the proband, keep the row
+        fh = estimate_liability(sim_p.families, h2=H2, own_status="out")
         risk = norm.sf((T - fh.genetic) / np.sqrt(fh.var["genetic"] + 1 - H2))
         obs_status = sim_p.status["o"].astype(float)
         order = np.argsort(risk)
