@@ -61,14 +61,17 @@ version lives.
 There are three uses
 (the [vignette](https://bvilhjal.github.io/ltpred/vignette/) is the run-book):
 
-- **I. Risk prediction** from family history (own status *out*). Combining
+- **I. Risk prediction** from family history (own status *out*). Not what
+  `estimate_liability` does on this version; that step is only in the
+  example script above. Combining
   family-derived and genotype-derived predictors is a separate downstream
   model; see
   [Hujoel et al. 2022, *Cell Genomics*](https://doi.org/10.1016/j.xgen.2022.100152)
   and
   [Dybdahl Krebs et al. 2026, *AJHG*](https://doi.org/10.1016/j.ajhg.2025.11.016).
 - **II. A quantitative GWAS phenotype** in place of the 0/1 label (own status
-  *in*), the LT-FH association use. ADuLT skips relatives.
+  *in*), the LT-FH association use. This is what `estimate_liability` does.
+  ADuLT skips relatives.
 - **III. Architecture, relationships, aetiology** from liability-scale h² / r_g
   and/or the CIP. Pedigree scoring is optional.
 
