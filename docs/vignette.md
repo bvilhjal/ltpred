@@ -28,11 +28,10 @@ Gibbs is the truncated-normal sampler.
 
 This function has two jobs. If you already know someone is a case and want a
 GWAS number, include their own status. If you want to predict whether they
-are a case from family history, leave their own status out. **The code today
-always includes it** (`estimate_liability` conditions on the person's own
-diagnosis). The example script `examples/vignette.py` is where the "leave it
-out" version lives. Own status in versus out is not a later toggle on the
-estimator.
+are a case from family history, leave their own status out. Same function:
+what you put in for that person decides which job. The example script
+`examples/vignette.py` shows how to leave it out. Own status in versus out
+is not a later toggle; it is how you build the input.
 
 The published method names describe the *observation model*, not a
 different genetic model. Three of the four name only that; PA-FGRS is
