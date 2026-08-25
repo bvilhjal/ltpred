@@ -272,6 +272,49 @@ Control the thread count with `ltpred.set_num_threads(n)`, and warm up once (the
 first call JIT-compiles) before timing. Different family structures still need
 separate array calls (one covariance each); the object API groups them for you.
 
+The array APIs still hold every family's bounds in RAM. The **chunked driver**
+streams homogeneous family batches through the same kernels so the working set
+is a few thousand (Gibbs) or tens of thousands (PA) rows at a time. Grouping
+stays deterministic — mixed pedigrees still need one call per role-set — and
+the summaries stay `O(F)`. Gibbs seeds are computed on the full cohort, then
+sliced per chunk, so the result agrees with `estimate_liability_gibbs_arrays`
+at the same `seed`:
+
+```python
+from ltpred import (estimate_liability_pa_chunked,
+                    estimate_liability_gibbs_chunked)
+
+est, var = estimate_liability_pa_chunked(
+    roles, lower, upper, h2=0.5, chunk_size=65536,
+)
+est, se = estimate_liability_gibbs_chunked(
+    roles, lower, upper, h2=0.5, seed=1, chunk_size=4096,
+)
+```
+
+In-memory `ndarray` inputs still occupy `F × k` for the bounds. To actually
+avoid holding all families and bounds, stream them with a memmap or an
+iterator of batches. PA does not return an SE (it is deterministic). A mixture
+batch with no valid `K_i`/`K_pop` pair raises — the sliced `*_chunked` APIs
+gate that once globally, so an all-cases chunk does not fail:
+
+```python
+from ltpred import estimate_liability_pa_batches
+
+# each item is (lower, upper) or a mapping with those keys; optional K_i/K_pop
+est, var = estimate_liability_pa_batches(
+    roles,
+    ((lower_mm[i:i+65_536], upper_mm[i:i+65_536])
+     for i in range(0, n_families, 65_536)),
+    h2=0.5,
+)
+```
+
+Gibbs batches are consecutive blocks of a virtual concatenated cohort: a
+running family offset keeps `_base_seeds(seed, start + n, max_rounds)[start:]`
+aligned with one-shot `estimate_liability_gibbs_arrays` on the concatenated
+arrays at the same `seed`.
+
 **Shape contract.** `roles` is a length-`k` list (`"o"` + relatives; `g` is added
 internally); `lower` and `upper` are both `(n_families, k)`, column `j` aligned to
 `roles[j]`. A relative that is **absent or uninformative** for a given family is
