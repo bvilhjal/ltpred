@@ -20,7 +20,9 @@ columns -- the shape the R package's ``.tbl`` input uses.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Literal, Optional
+
+from ._validation import validate_own_status
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -86,7 +88,8 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
                           upper: ArrayLike, pid: ArrayLike | None = None,
                           K_i: ArrayLike | None = None,
                           K_pop: ArrayLike | None = None,
-                          aod: ArrayLike | None = None) -> list[Family]:
+                          aod: ArrayLike | None = None,
+                          own_status: Literal["in", "out"] = "in") -> list[Family]:
     """Group flat, column-oriented threshold data into a list of families.
 
     Mirrors the R ``.tbl`` input (columns ``fam_id``, ``role``, ``lower``,
@@ -96,7 +99,15 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
     optional per-row columns for the Pearson-Aitken censored-control mixture.
     Missing or non-finite numeric ``fam_id`` values are rejected: they cannot
     group records and would otherwise fragment silently into one-member families.
+
+    ``own_status=\"out\"`` (use I) rewrites every role-``o`` bound to
+    ``(-inf, inf)`` and clears that row's ``K_i``/``K_pop``, without dropping
+    the row, so later ``pids`` still come from the proband record. ``\"in\"``
+    (default, use II) leaves the bounds alone. Other spellings raise.
+    A family that is only role ``o`` with ``own_status=\"out\"`` has nothing
+    to condition on and raises, matching an empty family.
     """
+    own_status = validate_own_status(own_status)
     fam_id = np.asarray(fam_id)
     role = np.asarray(role, dtype=object)
     lower = np.asarray(lower, dtype=float)
@@ -128,7 +139,7 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
     elif fam_id.dtype.kind in ("U", "S", "O"):
         # String ids need the textual sentinels a CSV loader produces. These
         # are worse than a float NaN: NaN != NaN fragments records into
-        # singletons, whereas every "" or "NA" compares *equal* and merges
+        # singletons, whereas every \"\" or \"NA\" compares *equal* and merges
         # unrelated probands into one family.
         missing = np.array([_is_missing_id(x) for x in fam_id], dtype=bool)
     else:
@@ -150,13 +161,32 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
         groups[key].append(i)
 
     families = []
+    only_o = []
     for key in order:
         members = []
         for i in groups[key]:
-            members.append(Member(role=str(role[i]), lower=lower[i], upper=upper[i],
+            lo_i, hi_i = lower[i], upper[i]
+            k_i = None if K_i is None else K_i[i]
+            k_pop = None if K_pop is None else K_pop[i]
+            role_i = str(role[i])
+            if own_status == "out" and role_i == "o":
+                lo_i = np.full(np.shape(lo_i), -np.inf) if np.ndim(lo_i) else -np.inf
+                hi_i = np.full(np.shape(hi_i), np.inf) if np.ndim(hi_i) else np.inf
+                k_i = k_pop = None
+            members.append(Member(role=role_i, lower=lo_i, upper=hi_i,
                                    pid=(None if pid is None else pid[i]),
-                                   K_i=(None if K_i is None else K_i[i]),
-                                   K_pop=(None if K_pop is None else K_pop[i]),
+                                   K_i=k_i, K_pop=k_pop,
                                    aod=(None if aod is None else aod[i])))
+        if own_status == "out" and members and all(m.role == "o" for m in members):
+            only_o.append(key)
         families.append(Family(fam_id=key, members=members))
+    if only_o:
+        shown = ", ".join(repr(fid) for fid in only_o[:5])
+        more = "" if len(only_o) <= 5 else f", ... (+{len(only_o) - 5} more)"
+        raise ValueError(
+            f"{len(only_o)} of {len(families)} families have only role 'o' "
+            f"with own_status='out' ({shown}{more}); with nothing to "
+            "condition on the estimate would be the prior mean 0, "
+            "indistinguishable from a real score. Include relatives, "
+            "or drop those families.")
     return families
