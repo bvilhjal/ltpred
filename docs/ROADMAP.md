@@ -37,21 +37,16 @@ They are importable from a checkout but are deliberately absent from wheels.
    factorisation with sparse relationship operators and sparse solves for
    pedigrees containing thousands of relatives.
 
-4. **Add a chunked driver.** Stream homogeneous family batches through the array
-   kernels so biobank analyses need not hold all families and bounds in memory.
-   The design should preserve deterministic grouping and the existing `O(F)`
-   summary-memory contract.
-
-5. **Validate a real-LD workflow.** Extend the opt-in HAPNEST path into a complete
+4. **Validate a real-LD workflow.** Extend the opt-in HAPNEST path into a complete
    genotype-to-liability-to-LMM example with held-out calibration and null-marker
    diagnostics. Independent-SNP evidence is not a substitute for this test.
 
-6. **Publish the first package release.** Register the PyPI trusted publisher,
+5. **Publish the first package release.** Register the PyPI trusted publisher,
    create the version tag and GitHub Release, verify the workflow-built wheel and
    sdist, and deploy the documentation site. The mechanical checklist is in
    [RELEASING.md](RELEASING.md).
 
-7. **Investigate multi-trait Pearson--Aitken inference.** Promote it only if a
+6. **Investigate multi-trait Pearson--Aitken inference.** Promote it only if a
    benchmark demonstrates adequate accuracy across rare traits, asymmetric
    truncation, and larger pedigrees; otherwise retain Gibbs as the honest
    multi-trait engine.

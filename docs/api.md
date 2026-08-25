@@ -28,6 +28,8 @@ is also a top-level export.
 | function | purpose |
 |---|---|
 | `estimate_liability_pa_arrays` / `estimate_liability_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
+| `estimate_liability_pa_chunked` / `estimate_liability_gibbs_chunked` | chunked array API — same kernels, bounded working set |
+| `estimate_liability_pa_batches` / `estimate_liability_gibbs_batches` | streaming iterator of bound batches; never holds all bounds |
 | `fit_variance_components` | **fit** additive `A` + shared-environment `C` (sibship) / `M` (couple) as proportions under the same population-sampling contract |
 | `bootstrap_fit` | iid-family cluster bootstrap SD / percentile interval; it does not correct ascertainment bias |
 
@@ -63,6 +65,10 @@ checkout-only `research/covariance_extensions.py`.
 ## Estimation — `ltpred.estimate`
 
 ::: ltpred.estimate
+
+## Chunked array drivers — `ltpred.chunked`
+
+::: ltpred.chunked
 
 ## Liability-scale transformations — `ltpred.liability_scale`
 
