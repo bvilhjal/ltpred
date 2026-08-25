@@ -21,6 +21,8 @@ from ._estimate_arrays import (
     estimate_liability_pa_arrays, estimate_liability_gibbs_arrays,
 )
 from ._estimate_kinship import estimate_liability_from_kinship
+from ._estimate_group import _estimate_group, _base_seeds
+from ._estimate_role_arrays import _align_to_cov
 
 __all__ = ["LiabilityResult", "batch_means", "estimate_liability",
            "estimate_liability_pa_arrays", "estimate_liability_gibbs_arrays",
@@ -47,15 +49,15 @@ def estimate_liability(families: Sequence, h2: ArrayLike = 0.5, *,
     ``method`` selects the inference engine; the **default** (``None``) picks the
     deterministic **Pearson-Aitken (PA)** estimator for a single trait. Across the
     benchmark's tested no-mixture structures, PA and Gibbs posterior-mean estimates
-    had correlation at least ``0.997`` and PA ran 392–518\u00d7 faster than
+    had correlation at least ``0.997`` and PA ran 392-518x faster than
     grouped Gibbs at four threads on the no-mixture benchmark grid in this
     package. On a locked comparison to R LTFHPlus 2.2.0 (same families,
     same bounds, LTFHPlus's Gibbs settings) both engines had correlation
     0.9999 with the R Gibbs scores (RMSE ``0.0041`` Gibbs, ``0.0046`` PA).
     LTFHPlus is Gibbs-only; public PA is
     LTFGRS 1.0.1, and ltpred PA matches it at RMSE ``0.000087``.
-    Same-algorithm fold times on that lock were 6.79\u00d7 (LTFHPlus Gibbs /
-    ltpred Gibbs) and 1418\u00d7 (LTFGRS PA / ltpred PA). The dispatcher
+    Same-algorithm fold times on that lock were 6.79x (LTFHPlus Gibbs /
+    ltpred Gibbs) and 1418x (LTFGRS PA / ltpred PA). The dispatcher
     falls back to the **Gibbs**
     sampler for the multi-trait model, which PA does not support.
     That path collapses untruncated genetic coordinates out of the
@@ -76,7 +78,7 @@ def estimate_liability(families: Sequence, h2: ArrayLike = 0.5, *,
     :func:`ltpred.covariance.construct_covmat_single`; ``h2 + c2 + m2 <= 1``
     required). Nonzero ``c2``/``m2`` are not supported for multi-trait
     estimation. ``dtype=np.float32`` stores the per-family
-    liability bounds in single precision (half the memory) — useful at biobank
+    liability bounds in single precision (half the memory) - useful at biobank
     scale. For Gibbs, ``seed`` must be a non-boolean integer in
     ``[0, 2**32 - 1]`` or ``None``; PA ignores it. The same applies to ``tol``,
     ``n_sim``, ``burn_in`` and ``max_rounds``: they steer the Gibbs sampler's
@@ -88,7 +90,7 @@ def estimate_liability(families: Sequence, h2: ArrayLike = 0.5, *,
     from that record). Other spellings raise. A family that is only role
     ``o`` with ``own_status="out"`` has nothing to condition on and raises,
     matching an empty family. Truncated ``o`` with the default ``"in"`` is
-    use II, not a mistake — there is no warning. Dropping the ``o`` row also
+    use II, not a mistake - there is no warning. Dropping the ``o`` row also
     unbinds, but then ``pids`` silently falls back to ``fam_id``.
 
     For use I the implied risk is
