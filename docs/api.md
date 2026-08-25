@@ -12,13 +12,13 @@ is also a top-level export.
 
 | function | purpose |
 |---|---|
-| `estimate_liability` | end-to-end estimator (PA inference by default for one trait, Gibbs for multi-trait) |
+| `estimate_liability` | end-to-end estimator (PA inference by default for one trait, Gibbs for multi-trait). `own_status="in"` (default, use II) keeps the proband's diagnosis in $D_F$; `"out"` (use I) unbinds role `o` without dropping the row so `pids` still come from it |
 | `fit_heritability` | **fit** liability-scale `h²` from independent, non-overlapping families; `sampling="population"` (unascertained, screened for gross marginal case-rate inconsistency but not certified) or `sampling="ipw"` with `weights = 1 / P(family sampled)` for a known, strictly positive selected design |
 | `prevalence_thresholds` / `age_thresholds` | classic or personalised pinned bounds; family rows determine LT-FH++ vs ADuLT |
 | `pa_thresholds` | age-specific interval-case and PA-FGRS censored-control-mixture inputs; an age-dependent variant, not base PA-FGRS, exact PA-FGRS_ADT, or a requirement merely to use the PA engine |
 | `thresholds_from_cip` | bounds from an empirical (population) CIP curve — `case_mode="interval"` is likewise an age-dependent PA-FGRS-style variant rather than exact PA-FGRS_ADT; endpoint values are held constant outside its age grid |
-| `families_from_columns` | build family inputs from flat columns |
-| `kinship_from_pedigree` / `estimate_liability_from_kinship` | arbitrary-pedigree input and PA-default estimation; pass `use_mixture=True` with `K_i`/`K_pop` for the PA-FGRS censored-control mixture |
+| `families_from_columns` | build family inputs from flat columns; `own_status="out"` rewrites role-`o` bounds at construction and keeps the row |
+| `kinship_from_pedigree` / `estimate_liability_from_kinship` | arbitrary-pedigree input and PA-default estimation; pass `use_mixture=True` with `K_i`/`K_pop` for the PA-FGRS censored-control mixture; `own_status="out"` unbinds the `target` person's full-liability column |
 | `simulate_under_LTM_single` | simulate families for testing/benchmarking |
 | `observed_to_liability_h2` / `liability_to_observed_h2` | observed ↔ liability-scale `h²` (Lee et al.) |
 | `set_num_threads` | set the Numba-parallel thread count |
@@ -27,7 +27,7 @@ is also a top-level export.
 
 | function | purpose |
 |---|---|
-| `estimate_liability_pa_arrays` / `estimate_liability_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
+| `estimate_liability_pa_arrays` / `estimate_liability_gibbs_arrays` | array API — skip `Family` objects for biobank scale; `own_status="out"` unbinds the `o` column if present |
 | `fit_variance_components` | **fit** additive `A` + shared-environment `C` (sibship) / `M` (couple) as proportions under the same population-sampling contract |
 | `bootstrap_fit` | iid-family cluster bootstrap SD / percentile interval; it does not correct ascertainment bias |
 
@@ -58,7 +58,7 @@ PA accepts a symmetric positive-semidefinite covariance with strictly positive
 marginal variances. Gibbs requires strict positive-definiteness because it forms
 precision-based conditional variances.
 The sex-limited and genetic-nurture covariance constructors live in the
-checkout-only `research/covariance_extensions.py`.
+checkout-only `research.covariance_extensions.py`.
 
 ## Estimation — `ltpred.estimate`
 
