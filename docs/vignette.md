@@ -26,12 +26,12 @@ Gibbs is the truncated-normal sampler.
 
 ## Three uses
 
-This function has two jobs. If you already know someone is a case and want a
-GWAS number, include their own status. If you want to predict whether they
-are a case from family history, leave their own status out. Same function:
-what you put in for that person decides which job. The example script
-`examples/vignette.py` shows how to leave it out. Own status in versus out
-is not a later toggle; it is how you build the input.
+One `estimate_liability` call serves two of them, and what you put in for
+the proband decides which: their own diagnosis in gives a GWAS phenotype
+*of* that diagnosis, left out it gives a prediction *of* it from family
+history. That is an input decision, made in step 3, not a later toggle on
+the estimator. `examples/vignette.py` shows how to leave it out. The third
+use may never call the estimator at all.
 
 The published method names describe the *observation model*, not a
 different genetic model. Three of the four name only that; PA-FGRS is
@@ -53,8 +53,7 @@ engine.
   It is not the register-standardised family genetic risk score (FGRS)
   of [Kendler et al. (2021)](https://doi.org/10.1001/jamapsychiatry.2021.0336).
 
-There are three uses. Pick one before building $D_F$: own status in
-versus out is not a later toggle.
+Pick a row of Table 1 before building $D_F$.
 
 **Table 1.** The three uses. *Steps* are the stages of Figure 1 and
 Table 2 below — 0 heritability, 1 pedigree, 2 CIP, 3 family history,
@@ -166,9 +165,13 @@ program. Lower-case names (`status`, `age`, `cip_ages`, `fam_id`,
   finish.
 
 Quoted figures come from that script at seed 1, $n=800$ nuclear
-families, true $h^2=0.5$, $K=0.05$ — except the use-I risk figures in
-section 5, which average 10 replicates of 4,000 families. They check the API; they are not a
-benchmark — for measured behaviour see
+families, true $h^2=0.5$, $K=0.05$. Three blocks need a larger cohort
+and say so where they appear: the tetrachoric convergence check in
+section 0 (25,000 families), the use-I risk figures in section 5 (10
+replicates of 4,000), and the age-censored comparison at the end
+(20,000). `tests/test_vignette_numbers.py` re-runs the script and fails
+if any figure on this page has drifted from it. They check the API; they
+are not a benchmark — for measured behaviour see
 [RESULTS](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md).
 The cohort behind them is
 
@@ -191,10 +194,9 @@ from your own table.
 Fix a case definition, follow-up, and a family-history source that you are
 willing to defend
 ([checklist](assumptions.md#real-data-checklist)). Decide who the
-**probands** are (usually the genotyped people). Pick a row of Table 1.
-Uses I and II disagree on whether the proband's own diagnosis enters
-$D_F$; that choice is used in step 3, not as a later toggle on the
-estimator. Use III may not need a pedigree at all.
+**probands** are (usually the genotyped people), and pick a row of
+Table 1 — uses I and II disagree on whether the proband's own diagnosis
+enters $D_F$. Use III may not need a pedigree at all.
 
 Your input is one row per **observed person**, in long format:
 
@@ -260,12 +262,26 @@ pass that fraction as `prop_cases`.
 from ltpred import tetrachoric, observed_to_liability_h2
 
 po = tetrachoric(status_o, status_m)          # parent-offspring statuses
-2 * po.rho                                    # -> 0.474 on the cohort above
+po.rho, po.se                                 # always read the SE
 observed_to_liability_h2(0.20, pop_prev=0.05) # -> 0.893 at K = 0.05
 ```
 
-On the simulated cohort, $\rho_{\mathrm{tet}}=0.237$, so
-$2\rho_{\mathrm{tet}}=0.474$ against a truth of $0.5$.
+**Read the standard error, and check the sample size first.** A
+tetrachoric at $K=0.05$ is carried by the *case–case* cell, and the
+800-family cohort above holds just one such parent–offspring pair (the
+median across seeds is five). It returns
+$\rho_{\mathrm{tet}}=-0.082 \pm 0.188$, so
+$2\rho_{\mathrm{tet}}=-0.164 \pm 0.376$ against a truth of $0.5$: not
+evidence against the model, just no evidence at all. Across cohorts of
+this size the estimate is centred on the right value but has a standard
+deviation of $0.13$ — half of what it is estimating — and comes out
+negative about one run in fifteen. The same estimator on 25,000 families
+returns $0.247 \pm 0.023$, so $2\rho_{\mathrm{tet}}=0.494 \pm 0.046$.
+Falconer's route works; it just does not work on a few hundred
+rare-disease families, and a close hit there is luck.
+
+The sib tetrachoric on those 25,000 families is $0.268 \pm 0.023$ —
+close only because this simulator has no sibship kernel to inflate it.
 
 Optional sibship $c^2$ and couple $m^2$ go on the single-trait estimator
 as `c2` / `m2` ($h^2+c^2+m^2\le 1$). Two traits add $r_g$ here and
@@ -288,10 +304,11 @@ different contract on three counts.
    bounds, or bring an external $h^2$.
 3. *Scale.* Even when the contract holds, a few hundred families is not
    much data. On the 800 simulated families above, `fit_heritability`
-   returns $\hat h^2=0.363$ against a truth of $0.5$, with a
-   within-dataset Monte-Carlo standard error of $0.006$ — that number is
-   a fixed-point diagnostic, not a sampling interval. Use `bootstrap_fit`
-   for a family-cluster interval.
+   returns $\hat h^2=0.469$ against a truth of $0.5$, with a
+   within-dataset Monte-Carlo standard error of $0.011$ — that number is
+   a fixed-point diagnostic, not a sampling interval. Across cohorts of
+   this size the spread is an order of magnitude larger. Use
+   `bootstrap_fit` for a family-cluster interval.
 
 Details: [Inference](inference.md).
 
@@ -487,7 +504,9 @@ must add back to $h^2$.
 import numpy as np
 
 mu, v = res.genetic, res.var["genetic"]
-# these are per-proband, aligned to res.pids — not the per-row `status` column
+# these are per-proband, aligned to res.pids — not the per-row `status` column.
+# The subset lines up with `mu` only if every family carries an `o` row; role
+# `o` is optional, so join on `res.pids` instead when some families lack one.
 own = np.asarray(status)[np.asarray(role) == "o"]
 
 assert len(res.pids) == len(families)                           # one score per proband
@@ -503,9 +522,9 @@ population-sampled cohort, so give it a tolerance rather than an equality;
 non-inbred proband, where $\mathrm{Var}(a_i)=h^2$ — with inbreeding
 $A_{ii}>1$ and the ceiling is $h^2A_{ii}$.
 
-On the cohort above: $\mathrm{Var}(\hat\mu)=0.088$ plus a mean posterior
-variance of $0.413$ gives $0.502$ against $h^2=0.5$; $\hat\mu$ has mean
-$0.004$ and standard deviation $0.297$; cases average $+1.02$ and
+On the cohort above: $\mathrm{Var}(\hat\mu)=0.081$ plus a mean posterior
+variance of $0.415$ gives $0.496$ against $h^2=0.5$; $\hat\mu$ has mean
+$-0.008$ and standard deviation $0.285$; cases average $+1.05$ and
 controls $-0.06$.
 
 When a check fails, it usually means one of two things. A sum far
@@ -545,12 +564,17 @@ same two-moment approximation PA makes.
 
 At $h^2=0.5$, $K=0.05$ it is calibrated overall and in both tails. Over
 10 replicates of 4,000 relatives-only families the predicted rate is
-$0.0503 \pm 0.0002$ against an observed $0.0501 \pm 0.0012$, and the top
-decile is $0.1200 \pm 0.0005$ predicted against $0.1187 \pm 0.0048$
-observed — a gap of 0.3 standard errors. A *single* replicate can look
-off by two or three standard errors in the tail, so do not read one run
-as a bias. The formula is **not** valid for use II, where the proband's
-own status is already in $D_F$.
+$0.0501 \pm 0.0001$ against an observed $0.0504 \pm 0.0014$ (a gap of
+0.2 standard errors); the top decile is $0.1192 \pm 0.0006$ predicted
+against $0.1177 \pm 0.0077$ observed (0.2 SE); the bottom decile is
+$0.0401$ predicted against $0.0437 \pm 0.0037$ observed (1.0 SE). The
+bottom decile's *predicted* rate has no replicate-to-replicate spread at
+all: with three relatives at $K=0.05$, 86% of families share the single
+lowest-risk configuration — no affected relative — so the lowest 400 are
+an arbitrary subset of one stratum rather than a tail. A *single* replicate can look off
+by two or three standard errors in the tail, so do not read one run as a
+bias. The formula is **not** valid for use II, where the proband's own
+status is already in $D_F$.
 
 **Use II (GWAS).** Join `res.pids` to genotyped IDs. Residualize for sex,
 cohort, ancestry principal components (PCs), and batch, or put them in a
@@ -571,8 +595,8 @@ import numpy as np
 pa = estimate_liability(sim.families, h2=h2)
 status, true_g = sim.status["o"].astype(float), sim.genetic
 
-np.corrcoef(status, true_g)[0, 1]       # 0.342
-np.corrcoef(pa.genetic, true_g)[0, 1]   # 0.419
+np.corrcoef(status, true_g)[0, 1]       # 0.353
+np.corrcoef(pa.genetic, true_g)[0, 1]   # 0.426
 ```
 
 **Table 3.** Correlation with the simulated true genetic value $a_i$, on
@@ -581,39 +605,46 @@ would otherwise use.
 
 | Score | Correlation with $a_i$ |
 |---|---|
-| Proband 0/1 status (baseline) | 0.342 |
-| ADuLT, one lifetime $T$ | 0.342 |
-| Relatives only, no role `o` | 0.268 |
-| Classic LT-FH via PA (`o` plus `m`, `f`, `s1`) | 0.419 |
+| Proband 0/1 status (baseline) | 0.353 |
+| ADuLT, one lifetime $T$ | 0.353 |
+| Relatives only, no role `o` | 0.288 |
+| Classic LT-FH via PA (`o` plus `m`, `f`, `s1`) | 0.426 |
 
-0.419 against 0.342 is a squared-correlation gain of $1.50\times$, the
+0.426 against 0.353 is a squared-correlation gain of $1.46\times$, the
 effective-$N$ proxy the script prints. Two probands show the shrinkage
 behind it: an affected one gets $\hat{\mu}_i=+0.947$ with posterior
 variance $0.271$, an unaffected one $-0.119$ with variance $0.430$.
+One cohort of 800 is a noisy read on that ratio — treat RESULTS §10,
+not this line, as the measurement.
 
 ADuLT ties the baseline for a structural reason, not by coincidence:
 with no relatives and a single lifetime $T$ it is a monotone relabelling
 of the 0/1 status, so any correlation is identical by construction.
 
 Three identity checks. PA against Gibbs on 80 families:
-$\mathrm{Corr}=0.9997$. The same families rebuilt from columns reproduce
-the role-grammar PA scores exactly (maximum difference 0). Scored
-through `kinship_from_pedigree` they agree to $5.6\times10^{-4}$ — PA's
+$\mathrm{Corr}=0.9997$, at a median Gibbs Monte-Carlo SE of $0.0066$.
+The same families rebuilt from columns reproduce the role-grammar PA
+scores exactly (maximum difference 0). Scored through
+`kinship_from_pedigree` they agree to $1.1\times10^{-3}$ — PA's
 sequential fold order differs between the two row layouts, so that is
 approximation error, not round-off and not Monte-Carlo noise.
 
 The script's last block reruns the same design with `use_age=True`,
 where a person counts as a case only once onset precedes their current
-age. The observed proband case rate falls from 0.055 to 0.004, so the
-$\mathrm{Corr}=0.261$ there is **not** comparable with the 0.419 above.
-It also carries a control that is easy to omit and easy to misread
-without. On that censored cohort the proband's own 0/1 label reaches
-0.122; classic one-$K$ LT-FH on the *same* rows, using no age
-information at all, already reaches 0.251; the age-aware encoding then
-reaches 0.261. So family history does nearly all the work
-($4.25\times$ on the squared-correlation proxy) and the age term adds
-$1.09\times$ on top — consistent with the $1.02$–$1.05\times$ quoted
-above and with RESULTS §10. Credit the gain to the right input.
+age. That censors almost every proband: the observed case rate falls
+from 0.045 to 0.0050, so the block uses **20,000** families to leave 99
+observed cases behind the own-status baseline — at $n=800$ it would rest
+on one to five, and the ratios below would be noise. The
+$\mathrm{Corr}=0.251$ there is **not** comparable with the 0.426 above.
+
+The block also carries a control that is easy to omit and easy to
+misread without. On that censored cohort the proband's own 0/1 label
+reaches 0.139; classic one-$K$ LT-FH on the *same* rows, using no age
+information at all, already reaches 0.245; the age-aware encoding then
+reaches 0.251. So family history does nearly all the work
+($3.11\times$ on the squared-correlation proxy) and the age term adds
+$1.05\times$ on top — inside the $1.02$–$1.05\times$ quoted above and
+in RESULTS §10. Credit the gain to the right input.
 
 ## Coming from LTFHPlus or LTFGRS
 

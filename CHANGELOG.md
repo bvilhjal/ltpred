@@ -8,6 +8,46 @@ version is 0 the public API may still change between minor releases.
 
 ### Fixed
 
+- **Seeded simulations were not reproducible across machines.**
+  `simulate_under_LTM_single` drew through `rng.multivariate_normal`, which
+  factors the covariance with an SVD; an SVD has no canonical sign, so the
+  factor -- and every family drawn from a given seed -- depended on the LAPACK
+  build under NumPy. Draws now come from the (unique) Cholesky factor, with a
+  sign-pinned eigendecomposition for the exactly singular `h2 = 1` case. The
+  distribution is unchanged, but the *values* a given seed produces are not:
+  re-running a seeded script gives different families than before this
+  release.
+- Every figure quoted in `docs/vignette.md` was wrong for anyone who ran the
+  script: they were produced under the old, platform-dependent sampler. All of
+  them are regenerated, and `tests/test_vignette_numbers.py` now fails if the
+  page and `examples/vignette.py` ever separate again.
+- The vignette illustrated Falconer's `h2 ~ 2 rho` with a parent-offspring
+  tetrachoric on 800 families at `K = 0.05`, where the whole estimate rests on
+  a handful of case-case pairs: it is centred correctly but has an
+  across-cohort SD of 0.13 and comes out *negative* about one run in fifteen.
+  The page now reports the standard error `tetrachoric` already returned, says
+  plainly that the small cohort carries no information, and demonstrates
+  convergence on 25,000 families (`2 rho = 0.494 +/- 0.046` against 0.5).
+- The vignette's age-censored comparison ran at 800 families, where censoring
+  leaves one to five observed proband cases -- so the own-status baseline it
+  divides by, and the eff-N ratios built on it, were noise. That block now
+  uses 20,000 families (99 observed cases) and prints the case count. Its
+  age-term gain is `1.05x`, inside the `1.02-1.05x` of RESULTS section 10
+  rather than merely "consistent with" it.
+- `examples/vignette.py` hard-coded two of its own results in the prose it
+  prints (a correlation and a case-rate ratio), so they contradicted the lines
+  computed just above them. Both are interpolated now.
+- The vignette's "Did it work?" snippet aligned `mu` with the per-row `status`
+  column subset to role `o`, which lines up only if every family has an `o`
+  row -- and the same page says role `o` is optional.
+- `examples/vignette.py` imports `tetrachoric` from its owning module. The
+  package exports a function under the same name as its module, so in a
+  process that imported `ltpred.tetrachoric` first, `from ltpred import
+  tetrachoric` yields the *module* and calling it raises `TypeError`. The
+  underlying collision is **not** fixed here -- both spellings are documented
+  (the function in the vignette and README, the module in `docs/api.md`), so
+  resolving it is an API decision. `tests/test_public_api.py` pins it as a
+  strict `xfail` that will start reporting once it is.
 - Vignette and figure stated the family covariance as `Sigma = h2 A`. The
   liability covariance has a **unit diagonal** — `Sigma = h2 A + (1 - h2) I` —
   which is what keeps `Phi^-1(1 - K)` a prevalence threshold. `h2 A` alone is
@@ -89,6 +129,17 @@ version is 0 the public API may still change between minor releases.
 
 ### Added
 
+- A user vignette (`docs/vignette.md`, runnable as `examples/vignette.py`)
+  on how to run ltpred. It distinguishes three uses — family-history
+  risk prediction (optional PGS), GWAS-signal enhancement, and
+  aetiology from h²/r_g and/or CIP — then the steps: h²/covariances,
+  pedigree, CIP, family history, `estimate_liability`. A pipeline figure
+  (`docs/assets/pipeline.svg`) shows how those inputs join and where
+  each use can stop. The page is part of the MkDocs site (`/vignette/`);
+  KaTeX renders the equations. The docs site uses the SMARTbiomed /
+  Aarhus University teal–navy palette from
+  [smartbiomed.dk](https://smartbiomed.dk/).
+
 - Vignette: a **"Did it work?"** section with the law-of-total-variance check
   (`Var(mu) + mean posterior var == h2`) and what a failure means; a **use-I
   risk conversion** from the liability scale to `P(case)`, with its
@@ -105,6 +156,14 @@ version is 0 the public API may still change between minor releases.
 - `CITATION.cff` gained the five method foundations the vignette cites:
   Aitken 1935, Mendell & Elston 1974, Falconer 1965, Henderson 1975 and
   Lee et al. 2011.
+- `tests/test_vignette_numbers.py`: runs `examples/vignette.py` and checks
+  every figure quoted in `docs/vignette.md` against it, at the page's own
+  rounding. CI also runs the example on every matrix leg, macOS included --
+  the platform coverage is the point, since a platform-dependent sampler is
+  what let the figures drift.
+- `ltpred.simulate._stable_factor`, with regression tests pinning the draws to
+  the Cholesky factor so a refactor cannot quietly restore the
+  platform-dependent path.
 
 ### Changed
 
@@ -116,19 +175,6 @@ version is 0 the public API may still change between minor releases.
   Lee dependency finally has an arrowhead, and the figure is wrapped in a link
   so a phone reader can open it full size. Detail that duplicated Table 2 was
   removed rather than shrunk.
-
-- A user vignette (`docs/vignette.md`, runnable as `examples/vignette.py`)
-  on how to run ltpred. It distinguishes three uses — family-history
-  risk prediction (optional PGS), GWAS-signal enhancement, and
-  aetiology from h²/r_g and/or CIP — then the steps: h²/covariances,
-  pedigree, CIP, family history, `estimate_liability`. A pipeline figure
-  (`docs/assets/pipeline.svg`) shows how those inputs join and where
-  each use can stop. The page is part of the MkDocs site (`/vignette/`);
-  KaTeX renders the equations. The docs site uses the SMARTbiomed /
-  Aarhus University teal–navy palette from
-  [smartbiomed.dk](https://smartbiomed.dk/).
-
-### Changed
 
 - README, RESULTS.md, and the headline tables state that the genotype-GWAS
   NCP ratios are independent-SNP results.
@@ -142,6 +188,8 @@ version is 0 the public API may still change between minor releases.
   GWAS, PA, $r_g$, IPW and related abbreviations at first use, and
   cites the method papers (Hujoel, Pedersen, Dybdahl Krebs, Lee,
   Aitken, Mendell–Elston, Zhuang).
+- README and the vignette each stated the own-status-in-versus-out choice
+  three times in adjacent paragraphs; each now states it once.
 
 ## 0.4.2 — 2026-08-21
 

@@ -1,5 +1,7 @@
 """The top-level namespace stays small without breaking explicit imports."""
 
+import pytest
+
 
 def test_primary_top_level_api_is_curated():
     import ltpred
@@ -83,3 +85,35 @@ def test_py_typed_marker_is_present_and_backed_by_annotations():
         params = [p for p in inspect.signature(fn).parameters]
         missing = [p for p in params if p not in hints]
         assert not missing, f"{fn.__name__} parameters lack annotations: {missing}"
+
+
+@pytest.mark.xfail(strict=True, reason="tetrachoric names both a public "
+                                       "function and its module; fixing it is "
+                                       "an API decision (see the docstring)")
+def test_package_attribute_tetrachoric_is_the_function_not_the_module():
+    """KNOWN DEFECT: `tetrachoric` names both a public function and its module.
+
+    `ltpred/__init__.py` exports the names lazily (PEP 562), so whichever of
+    the two is bound to the package namespace first wins. Access
+    `ltpred.tetrachoric` and `__getattr__` caches the function; import
+    `ltpred.tetrachoric` first and the import system binds the module, after
+    which the documented `from ltpred import tetrachoric` yields a module and
+    calling it raises `TypeError: 'module' object is not callable`.
+
+    Both spellings are documented -- the function in the vignette and README,
+    the module in `docs/api.md` -- so the fix is an API decision (rename the
+    module, or make it callable), not something to paper over here. Run in a
+    subprocess so the import order under test does not depend on what the rest
+    of the suite happened to import first.
+    """
+    import subprocess
+    import sys
+
+    source = ("from ltpred.tetrachoric import tetrachoric_matrix\n"
+              "from ltpred import tetrachoric\n"
+              "print(type(tetrachoric).__name__)\n")
+    out = subprocess.run([sys.executable, "-c", source], capture_output=True,
+                         text=True, check=True).stdout.strip()
+    assert out == "function", (
+        "`from ltpred import tetrachoric` gave a %s once the submodule was "
+        "imported first" % out)

@@ -1,9 +1,12 @@
 """Simulation under the LTM, and the estimate-recovers-truth end-to-end check."""
 
+import warnings
+
 import numpy as np
 import pytest
 
-from ltpred.simulate import simulate_under_LTM_single
+from ltpred.covariance import construct_covmat_single
+from ltpred.simulate import simulate_under_LTM_single, _stable_factor
 from ltpred.estimate import estimate_liability
 
 
@@ -13,6 +16,54 @@ def test_simulated_prevalence_matches():
     assert sim.status["o"].mean() == pytest.approx(0.1, abs=0.01)
     assert sim.genetic.var() == pytest.approx(0.5, abs=0.05)   # var(g) = h2
     assert sim.full.var() == pytest.approx(1.0, abs=0.05)      # var(o) = 1
+
+
+def test_seeded_draws_use_a_canonical_factorisation():
+    """A seed has to reproduce on every machine, not just this one.
+
+    ``Generator.multivariate_normal`` factors the covariance with an SVD, and
+    an SVD has no canonical sign: the same seed drew different families on
+    different LAPACK builds, which silently invalidated every figure quoted
+    from a seeded run (docs/vignette.md). The draws must come from the unique
+    Cholesky factor instead -- pinned here so a refactor cannot quietly go
+    back to the platform-dependent path.
+    """
+    roles = ["m", "f", "s1"]
+    cov = construct_covmat_single(fam_vec=roles, h2=0.5)
+    sim = simulate_under_LTM_single(fam_vec=roles, h2=0.5, n_sim=64,
+                                    pop_prev=0.05, seed=3)
+    draws = np.random.default_rng(3).standard_normal((64, len(cov.roles)))
+    expected = draws @ np.linalg.cholesky(cov.matrix).T
+    np.testing.assert_array_equal(sim.liabilities, expected)
+
+
+@pytest.mark.parametrize("h2", [0.2, 0.5, 1.0])   # h2=1 is exactly singular
+def test_stable_factor_reproduces_the_covariance(h2):
+    cov = construct_covmat_single(fam_vec=["m", "f", "s1"], h2=h2)
+    L = _stable_factor(cov.matrix)
+    np.testing.assert_allclose(L @ L.T, cov.matrix, atol=1e-12)
+
+
+def test_stable_factor_warns_only_on_a_genuinely_indefinite_covariance():
+    """`multivariate_normal(check_valid="warn")` used to be the safety net."""
+    singular = construct_covmat_single(fam_vec=["m", "f"], h2=1.0).matrix
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")          # a rounding-level negative
+        _stable_factor(singular)                # eigenvalue must stay silent
+    with pytest.warns(RuntimeWarning, match="not positive-semidefinite"):
+        _stable_factor(np.array([[1.0, 0.9], [0.9, 0.5]]))
+
+
+def test_stable_factor_is_sign_canonical_on_a_singular_covariance():
+    """h2=1 has no Cholesky factor; the eigen fallback must still be pinned."""
+    cov = construct_covmat_single(fam_vec=["m", "f"], h2=1.0)
+    with pytest.raises(np.linalg.LinAlgError):
+        np.linalg.cholesky(cov.matrix)
+    L = _stable_factor(cov.matrix)
+    pivots = np.argmax(np.abs(L), axis=0)
+    # every column's largest-magnitude entry is positive: no free sign left
+    assert np.all(L[pivots, np.arange(L.shape[1])] >= 0)
+    np.testing.assert_allclose(L @ L.T, cov.matrix, atol=1e-12)
 
 
 def test_simulation_family_structure():

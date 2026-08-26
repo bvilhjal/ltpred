@@ -32,6 +32,12 @@ jobs:
         run: pip install -e ".[fast,test]"
       - name: Core tests
         run: pytest -q tests
+      - name: Example script (the figures docs/vignette.md quotes)
+        # tests/test_vignette_numbers.py already checks those figures against
+        # the page; running the script itself covers the __main__ path, and
+        # doing it on every matrix leg is the point -- the figures drifted in
+        # the first place because a seeded simulation was platform-dependent.
+        run: python examples/vignette.py
 
   lint:
     runs-on: ubuntu-latest

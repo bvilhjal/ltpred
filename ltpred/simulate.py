@@ -259,6 +259,44 @@ def _onset_times(liab, pop_prev, mid_point, slope, onset_model, lifetime_t, rng,
     return onset
 
 
+def _stable_factor(cov):
+    """A platform-stable matrix square root ``L`` with ``L @ L.T == cov``.
+
+    ``Generator.multivariate_normal`` factors the covariance with an SVD by
+    default, and an SVD has no canonical sign: the factor -- and therefore
+    every draw from a given seed -- depends on the LAPACK build underneath
+    NumPy. The same seed then gives different families on macOS and Linux,
+    which silently invalidates any figure quoted from a seeded run. The
+    Cholesky factor of a positive-definite matrix is unique, so seeded output
+    is reproducible everywhere it can be used.
+
+    ``h2=1`` leaves the covariance exactly singular (``g`` and ``o`` are the
+    same variable) and has no Cholesky factor. There the eigendecomposition
+    is used instead, with each eigenvector's sign pinned by its
+    largest-magnitude entry. That removes the sign freedom; a repeated
+    eigenvalue would still leave its eigenspace free to rotate, so the
+    fallback is stable in practice rather than guaranteed.
+    """
+    cov = np.asarray(cov, dtype=float)
+    try:
+        return np.linalg.cholesky(cov)
+    except np.linalg.LinAlgError:
+        pass
+    evals, evecs = np.linalg.eigh(cov)
+    # eigh returns eigenvalues a rounding step below zero for a singular
+    # covariance; anything materially negative is a real input problem, and
+    # used to surface as `multivariate_normal`'s own check_valid="warn".
+    if evals.min() < -1e-8 * max(1.0, float(np.abs(evals).max())):
+        warnings.warn("covariance is not positive-semidefinite; negative "
+                      "eigenvalues clipped to zero", RuntimeWarning,
+                      stacklevel=2)
+    evals = np.clip(evals, 0.0, None)
+    pivot = np.argmax(np.abs(evecs), axis=0)
+    signs = np.sign(evecs[pivot, np.arange(evecs.shape[1])])
+    signs[signs == 0.0] = 1.0
+    return (evecs * signs) * np.sqrt(evals)
+
+
 def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
                                                               "mgf", "pgm", "pgf"),
                               n_fam: Mapping[str, int] | None = None,
@@ -303,7 +341,12 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     generating liability. With ``onset_resolution=None``, the old exact-onset
     behavior is preserved: ``"pin"`` is a point and ``"interval"`` starts at
     that point. The age-0 clamp remains an upper-open liability interval because
-    arbitrarily high liabilities map to onset age zero."""
+    arbitrarily high liabilities map to onset age zero.
+
+    A given ``seed`` reproduces the same families on every platform: the
+    liabilities are drawn through a canonical factorisation of the covariance
+    (:func:`_stable_factor`) rather than NumPy's default SVD, whose signs vary
+    with the LAPACK build."""
     onset_resolution = _validate_onset_resolution(onset_resolution)
     onset_model, case_encoding, onset_rho = _resolve_age_options(
         use_age, onset_model, case_encoding, onset_rho)
@@ -314,7 +357,9 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
         raise ValueError("simulation requires add_ind=True (needs g and o)")
     d = len(roles)
     rng = np.random.default_rng(seed)
-    liab = rng.multivariate_normal(np.zeros(d), cov_obj.matrix, size=n_sim)
+    # Not `rng.multivariate_normal`: its default SVD factorisation is not
+    # sign-canonical, so a seed would not reproduce across LAPACK builds.
+    liab = rng.standard_normal((n_sim, d)) @ _stable_factor(cov_obj.matrix).T
 
     t = float(liability_threshold(pop_prev))
     non_g = [r for r in roles if r != "g"]
