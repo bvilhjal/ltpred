@@ -38,10 +38,15 @@ def test_seeded_draws_use_a_canonical_factorisation():
 
 
 @pytest.mark.parametrize("h2", [0.2, 0.5, 1.0])   # h2=1 is exactly singular
-def test_stable_factor_reproduces_the_covariance(h2):
-    cov = construct_covmat_single(fam_vec=["m", "f", "s1"], h2=h2)
+@pytest.mark.parametrize("fam_vec", [["m", "f", "s1"],
+                                     ["m", "f", "s1", "mgm", "mgf",
+                                      "pgm", "pgf"]])
+def test_stable_factor_reproduces_the_covariance(h2, fam_vec):
+    cov = construct_covmat_single(fam_vec=fam_vec, h2=h2)
     L = _stable_factor(cov.matrix)
-    np.testing.assert_allclose(L @ L.T, cov.matrix, atol=1e-12)
+    # h2=1 is factored after lifting the spectrum by ~1e-12 of the mean
+    # variance, so the reconstruction carries that ridge and no more.
+    np.testing.assert_allclose(L @ L.T, cov.matrix, atol=1e-9)
 
 
 def test_stable_factor_warns_only_on_a_genuinely_indefinite_covariance():
@@ -54,16 +59,33 @@ def test_stable_factor_warns_only_on_a_genuinely_indefinite_covariance():
         _stable_factor(np.array([[1.0, 0.9], [0.9, 0.5]]))
 
 
-def test_stable_factor_is_sign_canonical_on_a_singular_covariance():
-    """h2=1 has no Cholesky factor; the eigen fallback must still be pinned."""
-    cov = construct_covmat_single(fam_vec=["m", "f"], h2=1.0)
+@pytest.mark.parametrize("fam_vec", [["m", "f"],
+                                     ["m", "f", "s1", "mgm", "mgf",
+                                      "pgm", "pgf"]])
+def test_singular_covariance_still_gets_the_canonical_cholesky_form(fam_vec):
+    """h2=1 has no Cholesky factor, and eigenvectors are no way out.
+
+    LAPACK picks an arbitrary basis inside a repeated eigenvalue's eigenspace,
+    which is the same platform dependence `_stable_factor` exists to remove --
+    and the default seven-relative pedigree at h2=1 has such a repetition. The
+    factor must therefore still be a Cholesky factor: lower triangular with a
+    non-negative diagonal is exactly the form that is unique.
+    """
+    cov = construct_covmat_single(fam_vec=fam_vec, h2=1.0).matrix
     with pytest.raises(np.linalg.LinAlgError):
-        np.linalg.cholesky(cov.matrix)
-    L = _stable_factor(cov.matrix)
-    pivots = np.argmax(np.abs(L), axis=0)
-    # every column's largest-magnitude entry is positive: no free sign left
-    assert np.all(L[pivots, np.arange(L.shape[1])] >= 0)
-    np.testing.assert_allclose(L @ L.T, cov.matrix, atol=1e-12)
+        np.linalg.cholesky(cov)                     # genuinely singular
+    L = _stable_factor(cov)
+    np.testing.assert_array_equal(L, np.tril(L))    # lower triangular
+    assert np.all(np.diag(L) >= 0.0)                # positive diagonal
+    np.testing.assert_allclose(L @ L.T, cov, atol=1e-9)
+
+
+def test_repeated_eigenvalue_pedigree_is_the_case_that_needs_it():
+    """Pins the premise of the test above, so it cannot quietly stop biting."""
+    cov = construct_covmat_single(
+        fam_vec=["m", "f", "s1", "mgm", "mgf", "pgm", "pgf"], h2=1.0).matrix
+    evals = np.round(np.linalg.eigvalsh(cov), 9)
+    assert len(set(evals)) < len(evals)
 
 
 def test_simulation_family_structure():

@@ -12,8 +12,13 @@ version is 0 the public API may still change between minor releases.
   `simulate_under_LTM_single` drew through `rng.multivariate_normal`, which
   factors the covariance with an SVD; an SVD has no canonical sign, so the
   factor -- and every family drawn from a given seed -- depended on the LAPACK
-  build under NumPy. Draws now come from the (unique) Cholesky factor, with a
-  sign-pinned eigendecomposition for the exactly singular `h2 = 1` case. The
+  build under NumPy. Draws now come from the Cholesky factor, which is unique
+  for a positive-definite matrix, so a seed agrees across builds up to
+  floating-point rounding. `h2 = 1` makes the covariance exactly singular and
+  has no Cholesky factor; an eigendecomposition is no way out there, because
+  LAPACK picks an arbitrary basis inside a repeated eigenvalue's eigenspace
+  (the default seven-relative pedigree at `h2 = 1` has one), so the spectrum
+  is lifted by ~1e-12 of the mean variance and the unique factor kept. The
   distribution is unchanged, but the *values* a given seed produces are not:
   re-running a seeded script gives different families than before this
   release.
@@ -73,8 +78,9 @@ version is 0 the public API may still change between minor releases.
   dropping it: `pids` is read off that record and silently falls back to
   `fam_id` when it is absent. Corrected in the vignette, `docs/guide.md` and
   `README.md`.
-- Kinship-vs-role agreement was called "numerical noise". It is 5.6e-4, PA
-  fold-order approximation error; the columns route is the exact one (0.0).
+- Kinship-vs-role agreement was called "numerical noise". It is PA fold-order
+  approximation error -- 1.1e-3 on the regenerated seed-1 cohort; the columns
+  route is the exact one (0.0).
 - `res.se` being 0 under PA now carries the no-*sampling*-error caveat the
   docstrings and README already used.
 - `\operatorname` in `docs/vignette.md` — GitHub's MathJax rejects that macro

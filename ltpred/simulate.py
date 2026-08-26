@@ -260,41 +260,50 @@ def _onset_times(liab, pop_prev, mid_point, slope, onset_model, lifetime_t, rng,
 
 
 def _stable_factor(cov):
-    """A platform-stable matrix square root ``L`` with ``L @ L.T == cov``.
+    """A platform-stable lower-triangular ``L`` with ``L @ L.T == cov``.
 
     ``Generator.multivariate_normal`` factors the covariance with an SVD by
     default, and an SVD has no canonical sign: the factor -- and therefore
     every draw from a given seed -- depends on the LAPACK build underneath
     NumPy. The same seed then gives different families on macOS and Linux,
     which silently invalidates any figure quoted from a seeded run. The
-    Cholesky factor of a positive-definite matrix is unique, so seeded output
-    is reproducible everywhere it can be used.
+    Cholesky factor of a positive-definite matrix is unique (lower triangular,
+    positive diagonal), so seeded output agrees everywhere up to floating-point
+    rounding.
 
-    ``h2=1`` leaves the covariance exactly singular (``g`` and ``o`` are the
-    same variable) and has no Cholesky factor. There the eigendecomposition
-    is used instead, with each eigenvector's sign pinned by its
-    largest-magnitude entry. That removes the sign freedom; a repeated
-    eigenvalue would still leave its eigenspace free to rotate, so the
-    fallback is stable in practice rather than guaranteed.
+    ``h2=1`` leaves the covariance exactly singular -- ``g`` and ``o`` are then
+    the same variable -- and a singular matrix has no Cholesky factor. An
+    eigendecomposition is *not* the way out: LAPACK picks an arbitrary basis
+    inside a repeated eigenvalue's eigenspace, which is the same platform
+    dependence in another guise, and the default seven-relative pedigree at
+    ``h2=1`` does have a repeated eigenvalue. Lift the spectrum off zero
+    instead and keep the unique factor. Eigen*values* are basis-independent, so
+    the lift is itself stable; it is ~1e-12 of the mean variance, orders of
+    magnitude below the Monte-Carlo error of anything drawn from the result.
     """
     cov = np.asarray(cov, dtype=float)
     try:
         return np.linalg.cholesky(cov)
     except np.linalg.LinAlgError:
         pass
-    evals, evecs = np.linalg.eigh(cov)
-    # eigh returns eigenvalues a rounding step below zero for a singular
+    evals = np.linalg.eigvalsh(cov)
+    scale = max(float(np.trace(cov)) / cov.shape[0], 1.0)
+    # eigvalsh returns eigenvalues a rounding step below zero for a singular
     # covariance; anything materially negative is a real input problem, and
     # used to surface as `multivariate_normal`'s own check_valid="warn".
-    if evals.min() < -1e-8 * max(1.0, float(np.abs(evals).max())):
-        warnings.warn("covariance is not positive-semidefinite; negative "
-                      "eigenvalues clipped to zero", RuntimeWarning,
+    if evals.min() < -1e-8 * scale:
+        warnings.warn("covariance is not positive-semidefinite; the spectrum "
+                      "was lifted to make it factorable", RuntimeWarning,
                       stacklevel=2)
-    evals = np.clip(evals, 0.0, None)
-    pivot = np.argmax(np.abs(evecs), axis=0)
-    signs = np.sign(evecs[pivot, np.arange(evecs.shape[1])])
-    signs[signs == 0.0] = 1.0
-    return (evecs * signs) * np.sqrt(evals)
+    base = max(0.0, -float(evals.min()))
+    eye = np.eye(cov.shape[0])
+    for step in (1e-12, 1e-10, 1e-8, 1e-6, 1e-4):
+        try:
+            return np.linalg.cholesky(cov + (base + step * scale) * eye)
+        except np.linalg.LinAlgError:
+            continue
+    raise np.linalg.LinAlgError(
+        "covariance could not be factored even after lifting its spectrum")
 
 
 def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
