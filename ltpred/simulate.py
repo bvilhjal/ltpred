@@ -352,10 +352,10 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     that point. The age-0 clamp remains an upper-open liability interval because
     arbitrarily high liabilities map to onset age zero.
 
-    A given ``seed`` reproduces the same families on every platform: the
-    liabilities are drawn through a canonical factorisation of the covariance
-    (:func:`_stable_factor`) rather than NumPy's default SVD, whose signs vary
-    with the LAPACK build."""
+    A given ``seed`` reproduces the same families on every platform, up to
+    floating-point rounding: the liabilities are drawn through a canonical
+    factorisation of the covariance (:func:`_stable_factor`) rather than
+    NumPy's default SVD, whose signs vary with the LAPACK build."""
     onset_resolution = _validate_onset_resolution(onset_resolution)
     onset_model, case_encoding, onset_rho = _resolve_age_options(
         use_age, onset_model, case_encoding, onset_rho)
