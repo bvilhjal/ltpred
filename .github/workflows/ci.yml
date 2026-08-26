@@ -32,12 +32,6 @@ jobs:
         run: pip install -e ".[fast,test]"
       - name: Core tests
         run: pytest -q tests
-      - name: Example script (the figures docs/vignette.md quotes)
-        # tests/test_vignette_numbers.py already checks those figures against
-        # the page; running the script itself covers the __main__ path, and
-        # doing it on every matrix leg is the point -- the figures drifted in
-        # the first place because a seeded simulation was platform-dependent.
-        run: python examples/vignette.py
 
   lint:
     runs-on: ubuntu-latest
@@ -115,7 +109,11 @@ jobs:
   examples:
     # examples/*.py are the front door for new users and were previously run by
     # neither the tests nor CI, so they could rot silently. They are small (a
-    # few seconds each), so just run them.
+    # few seconds each), so just run them. This job covers the __main__ path;
+    # the figures examples/vignette.py produces are separately checked against
+    # docs/vignette.md by tests/test_vignette_numbers.py, which the `test` job
+    # runs on every matrix leg -- macOS included, which is the platform
+    # coverage that matters for a sampler that used to depend on LAPACK.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

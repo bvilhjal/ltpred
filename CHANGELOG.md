@@ -164,9 +164,10 @@ version is 0 the public API may still change between minor releases.
   Lee et al. 2011.
 - `tests/test_vignette_numbers.py`: runs `examples/vignette.py` and checks
   every figure quoted in `docs/vignette.md` against it, at the page's own
-  rounding. CI also runs the example on every matrix leg, macOS included --
-  the platform coverage is the point, since a platform-dependent sampler is
-  what let the figures drift.
+  rounding. It runs in the `test` job, so the figures are re-derived on every
+  matrix leg including macOS -- that platform coverage is the point, since a
+  platform-dependent sampler is what let them drift. (CI already ran the
+  example itself, in the `examples` job.)
 - `ltpred.simulate._stable_factor`, with regression tests pinning the draws to
   the Cholesky factor so a refactor cannot quietly restore the
   platform-dependent path.
