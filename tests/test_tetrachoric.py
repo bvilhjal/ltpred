@@ -89,6 +89,15 @@ class MleRecoveryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "boolean or 0/1"):
                 tetrachoric(invalid, [0, 1])
 
+    def test_fractional_counts_rejected(self):
+        # counts are data; 10.5 cases is a transcription error, not an
+        # observation (review 2026-09, F1)
+        with self.assertRaisesRegex(ValueError, "integers"):
+            tetrachoric_table(10.5, 5, 3, 4)
+        # integral floats are the same numbers and stay accepted
+        result = tetrachoric_table(10.0, 5.0, 3.0, 4.0)
+        self.assertIsNotNone(result.rho)
+
 
 class MatrixTests(unittest.TestCase):
     def test_matrix_matches_pairwise(self):

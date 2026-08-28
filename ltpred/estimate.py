@@ -475,7 +475,10 @@ def _base_seeds(seed, n, max_rounds):
     ``-1`` is the kernel's *unseeded* sentinel. It must stay reachable only from
     ``seed=None``: validating here keeps a user's negative seed from silently
     landing on it (which would leave family 0 non-reproducible), and wrapping keeps
-    the derived block inside the uint32 range the kernel's RNG accepts."""
+    the derived block inside the uint32 range the kernel's RNG accepts. The
+    ``(seed + i*max_rounds) % 2**32`` block wrap can collide two families'
+    streams when ``n * max_rounds`` exceeds 2**32 (at the default
+    ``max_rounds=100`` that is beyond ~43M families per call)."""
     if seed is None:
         return np.full(n, -1, dtype=np.int64)
     seed = _validate_seed(seed)

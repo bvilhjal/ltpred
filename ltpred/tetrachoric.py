@@ -104,15 +104,20 @@ def tetrachoric_table(a: float, b: float, c: float, d: float, *,
     """Tetrachoric MLE from a 2x2 table of counts.
 
     The table reads ``a`` = both cases, ``b`` = first case only, ``c`` =
-    second case only, ``d`` = neither. A zero cell gets a 0.5 continuity
-    correction added to all four cells when ``continuity_correction`` (the
-    standard handling; the estimate is then boundary-avoiding rather than
-    exactly +/-1). Monomorphic margins (one variable all-one-level) are
-    rejected: there is no correlation information.
+    second case only, ``d`` = neither. Cell counts must be nonnegative
+    integers; fractional counts are rejected. A zero cell gets a 0.5
+    continuity correction added to all four cells when
+    ``continuity_correction`` (the standard handling; the estimate is then
+    boundary-avoiding rather than exactly +/-1). Monomorphic margins (one
+    variable all-one-level) are rejected: there is no correlation information.
     """
     a, b, c, d = float(a), float(b), float(c), float(d)
     if min(a, b, c, d) < 0:
         raise ValueError("cell counts must be nonnegative")
+    # Counts are data, so fractional cells are rejected rather than fitted.
+    # (Integral floats such as 5.0 pass: they are the same number.)
+    if any(v != math.floor(v) for v in (a, b, c, d)):
+        raise ValueError("cell counts must be nonnegative integers")
     n_raw = a + b + c + d
     if n_raw == 0:
         raise ValueError("empty 2x2 table")

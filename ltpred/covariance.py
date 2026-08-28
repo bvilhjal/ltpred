@@ -614,7 +614,7 @@ def correct_positive_definite(covmat: ArrayLike, correction_val: float = 0.99,
         return cov, 0
     diag = np.diag(cov).copy()
     n = 0
-    while np.min(np.linalg.eigvalsh(cov)) <= eps and n <= correction_limit:
+    while np.min(np.linalg.eigvalsh(cov)) <= eps and n < correction_limit:
         cov *= correction_val
         np.fill_diagonal(cov, diag)
         n += 1

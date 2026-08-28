@@ -163,6 +163,18 @@ def test_correct_positive_definite_is_strict():
     assert np.min(np.linalg.eigvalsh(fixed)) > 0
 
 
+def test_correct_positive_definite_respects_the_limit():
+    # correction_limit is the number of correction attempts allowed: a limit of
+    # zero rejects an unrepaired matrix instead of correcting it once
+    # (review 2026-09, F2)
+    bad = np.array([[1.0, 1.0], [1.0, 1.0]])       # eigenvalues 2, 0
+    with pytest.raises(ValueError, match="positive-definite"):
+        correct_positive_definite(bad, correction_limit=0)
+    fixed, n = correct_positive_definite(bad, correction_limit=2)
+    assert 0 < n <= 2
+    assert np.min(np.linalg.eigvalsh(fixed)) > 0
+
+
 # --- pedigree / kinship input -------------------------------------------------
 from ltpred.covariance import kinship_from_pedigree, construct_covmat_from_kinship
 

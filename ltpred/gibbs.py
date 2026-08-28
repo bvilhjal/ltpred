@@ -718,6 +718,11 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
         be a non-boolean non-negative integer.
     seed : int, optional
         Non-boolean integer in ``[0, 2**32 - 1]`` for reproducibility, or ``None``.
+        Seeding mutates the process-global NumPy RNG (the serial sweep draws from
+        it), so two *concurrent* seeded calls to this low-level sampler from
+        different threads can interfere with one another. The high-level
+        estimators seed each family inside the parallel kernel and are safe for
+        concurrent seeded use.
     params : (P, sd), optional
         Precomputed :func:`gibbs_params` output; recomputed from ``covmat`` when
         omitted. The supplied ``covmat`` is still validated because it defines

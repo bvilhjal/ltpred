@@ -242,14 +242,23 @@ def test_onset_rho_rejected_on_other_models():
 
 def test_child_roles_get_the_child_age_range():
     # "c1.2".rstrip("0123456789") stops at the dot and yields "c1.", so the
-    # _AGE_RANGES["c"] entry was unreachable and children drew adult ages.
-    from ltpred.simulate import _age_range
-    assert _age_range("c1.1") == (0, 30)
-    assert _age_range("c2.10") == (0, 30)
-    assert _age_range("o") == (10, 60)
-    assert _age_range("s12") == (10, 60)
-    assert _age_range("mgm") == (65, 95)
-    assert _age_range("mau3") == (40, 80)
+    # "c" entry was unreachable and children drew adult ages. The range table
+    # lives here (the package no longer ships the unused lookup); the
+    # production behaviour is pinned through _role_stem, which _draw_ages uses.
+    from ltpred.simulate import _role_stem
+    _AGE_RANGES = {
+        "o": (10, 60), "s": (10, 60), "mhs": (10, 60), "phs": (10, 60),
+        "m": (40, 80), "f": (40, 80), "mau": (40, 80), "pau": (40, 80),
+        "mgm": (65, 95), "mgf": (65, 95), "pgm": (65, 95), "pgf": (65, 95),
+        "c": (0, 30),
+    }
+    age_range = lambda role: _AGE_RANGES.get(_role_stem(role), (10, 60))
+    assert age_range("c1.1") == (0, 30)
+    assert age_range("c2.10") == (0, 30)
+    assert age_range("o") == (10, 60)
+    assert age_range("s12") == (10, 60)
+    assert age_range("mgm") == (65, 95)
+    assert age_range("mau3") == (40, 80)
 
 
 def test_pin_encoding_warns_without_threshold_crossing():

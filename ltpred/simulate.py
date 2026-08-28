@@ -43,14 +43,6 @@ _AGE_GAP = {
     "c": -28.0,
 }
 
-# Fallback ranges for `_age_range` (role-stem lookup; tests pin the child bug).
-_AGE_RANGES = {
-    "o": (10, 60), "s": (10, 60), "mhs": (10, 60), "phs": (10, 60),
-    "m": (40, 80), "f": (40, 80), "mau": (40, 80), "pau": (40, 80),
-    "mgm": (65, 95), "mgf": (65, 95), "pgm": (65, 95), "pgf": (65, 95),
-    "c": (0, 30),
-}
-
 _ONSET_MODELS = ("threshold_crossing", "stochastic", "liability_dependent")
 _CASE_ENCODINGS = ("pin", "interval", "lifetime")
 _DEFAULT_ONSET_RHO = 0.6
@@ -62,10 +54,6 @@ def _role_stem(role):
     # stops at the dot and yields ``"c1."``, which never matched the ``"c"`` key
     # and silently gave simulated children the 10-60 default.
     return role.rstrip("0123456789").rstrip(".").rstrip("0123456789")
-
-
-def _age_range(role):
-    return _AGE_RANGES.get(_role_stem(role), (10, 60))
 
 
 def _draw_ages(roles, n, rng):
