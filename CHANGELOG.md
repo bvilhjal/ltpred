@@ -86,9 +86,21 @@ version is 0 the public API may still change between minor releases.
 - A family with no members now raises rather than warning and returning the
   prior mean 0 (a silent-looking GWAS phenotype if the warning was ignored).
 - `research/README.md` no longer claims its tests run in CI.
+- `tetrachoric_table` now rejects fractional cell counts (a transcription
+  error, not an observation); integral floats such as `5.0` remain accepted.
+- `correct_positive_definite` performs at most `correction_limit` corrections;
+  a limit of 0 now rejects an unrepaired matrix instead of correcting it once,
+  matching the documented contract.
+- Removed the unused `_AGE_RANGES` / `_age_range` helpers from `ltpred.simulate`;
+  the role-stem regression pin now lives in the test suite.
+- Documented that seeding `rtmvnorm_gibbs` mutates the global NumPy RNG state
+  (concurrent seeded low-level calls can interfere) and that the per-family
+  Gibbs seed blocks wrap modulo 2^32.
 
 ### Added
 
+- Independent review of v0.4.2 (`docs/REVIEW_2026-09.md`, added to the mkdocs
+  nav), with the dispositions of its five tier-3 findings.
 - Vignette: a **"Did it work?"** section with the law-of-total-variance check
   (`Var(mu) + mean posterior var == h2`) and what a failure means; a **use-I
   risk conversion** from the liability scale to `P(case)`, with its

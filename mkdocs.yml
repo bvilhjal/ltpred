@@ -54,6 +54,7 @@ nav:
       - Roadmap: ROADMAP.md
       - Releasing: RELEASING.md
       - Independent review (v0.3.4): REVIEW_2026-08.md
+      - Independent review (v0.4.2): REVIEW_2026-09.md
 
 markdown_extensions:
   - admonition
