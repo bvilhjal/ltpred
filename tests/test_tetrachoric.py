@@ -98,6 +98,13 @@ class MleRecoveryTests(unittest.TestCase):
         result = tetrachoric_table(10.0, 5.0, 3.0, 4.0)
         self.assertIsNotNone(result.rho)
 
+    def test_nonfinite_counts_rejected_as_value_errors(self):
+        # the integer gate's math.floor would otherwise raise OverflowError
+        # (inf) or a bare-messaged ValueError (nan) (review 2026-09, F6)
+        for bad in (np.inf, np.nan):
+            with self.assertRaisesRegex(ValueError, "finite"):
+                tetrachoric_table(bad, 5, 3, 4)
+
 
 class MatrixTests(unittest.TestCase):
     def test_matrix_matches_pairwise(self):

@@ -87,7 +87,9 @@ version is 0 the public API may still change between minor releases.
   prior mean 0 (a silent-looking GWAS phenotype if the warning was ignored).
 - `research/README.md` no longer claims its tests run in CI.
 - `tetrachoric_table` now rejects fractional cell counts (a transcription
-  error, not an observation); integral floats such as `5.0` remain accepted.
+  error, not an observation) and non-finite counts (`nan`/`inf`, previously
+  rejected only incidentally downstream) with clean `ValueError`s; integral
+  floats such as `5.0` remain accepted.
 - `correct_positive_definite` performs at most `correction_limit` corrections;
   a limit of 0 now rejects an unrepaired matrix instead of correcting it once,
   matching the documented contract.

@@ -104,9 +104,9 @@ def tetrachoric_table(a: float, b: float, c: float, d: float, *,
     """Tetrachoric MLE from a 2x2 table of counts.
 
     The table reads ``a`` = both cases, ``b`` = first case only, ``c`` =
-    second case only, ``d`` = neither. Cell counts must be nonnegative
-    integers; fractional counts are rejected. A zero cell gets a 0.5
-    continuity correction added to all four cells when
+    second case only, ``d`` = neither. Cell counts must be finite,
+    nonnegative integers; fractional or non-finite counts are rejected. A
+    zero cell gets a 0.5 continuity correction added to all four cells when
     ``continuity_correction`` (the standard handling; the estimate is then
     boundary-avoiding rather than exactly +/-1). Monomorphic margins (one
     variable all-one-level) are rejected: there is no correlation information.
@@ -114,6 +114,10 @@ def tetrachoric_table(a: float, b: float, c: float, d: float, *,
     a, b, c, d = float(a), float(b), float(c), float(d)
     if min(a, b, c, d) < 0:
         raise ValueError("cell counts must be nonnegative")
+    # The finiteness gate precedes the integer gate: math.floor(inf) raises
+    # OverflowError and math.floor(nan) a bare-messaged ValueError.
+    if not all(math.isfinite(v) for v in (a, b, c, d)):
+        raise ValueError("cell counts must be finite")
     # Counts are data, so fractional cells are rejected rather than fitted.
     # (Integral floats such as 5.0 pass: they are the same number.)
     if any(v != math.floor(v) for v in (a, b, c, d)):
