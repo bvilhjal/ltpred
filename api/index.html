@@ -3679,18 +3679,7 @@ samples (two batches), the same minimum the estimator enforces on <code>n_sim</c
 
 
 <a href="#ltpred.estimate.estimate_liability_pa_arrays" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability_pa_arrays</span><span class="p">(</span>
-    <span class="n">roles</span><span class="p">,</span>
-    <span class="n">lower</span><span class="p">,</span>
-    <span class="n">upper</span><span class="p">,</span>
-    <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-    <span class="n">out</span><span class="o">=</span><span class="s2">"genetic"</span><span class="p">,</span>
-    <span class="n">K_i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">K_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">use_mixture</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-    <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability_pa_arrays</span><span class="p">(</span><span class="n">roles</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s1">'genetic'</span><span class="p">,</span> <span class="n">K_i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use_mixture</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -3720,21 +3709,7 @@ censored-control mixture. Returns PA sequential-moment approximations
 
 
 <a href="#ltpred.estimate.estimate_liability_gibbs_arrays" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability_gibbs_arrays</span><span class="p">(</span>
-    <span class="n">roles</span><span class="p">,</span>
-    <span class="n">lower</span><span class="p">,</span>
-    <span class="n">upper</span><span class="p">,</span>
-    <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-    <span class="n">out</span><span class="o">=</span><span class="s2">"genetic"</span><span class="p">,</span>
-    <span class="n">tol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
-    <span class="n">n_sim</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span>
-    <span class="n">burn_in</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-    <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">max_rounds</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
-    <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">return_var</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability_gibbs_arrays</span><span class="p">(</span><span class="n">roles</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s1">'genetic'</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_rounds</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_var</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -3765,23 +3740,7 @@ own error <code>se</code>. <code>seed</code> must be a non-boolean integer in
 
 
 <a href="#ltpred.estimate.estimate_liability_from_kinship" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability_from_kinship</span><span class="p">(</span>
-    <span class="n">A</span><span class="p">,</span>
-    <span class="n">lower</span><span class="p">,</span>
-    <span class="n">upper</span><span class="p">,</span>
-    <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-    <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-    <span class="n">out</span><span class="o">=</span><span class="s2">"genetic"</span><span class="p">,</span>
-    <span class="n">tol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
-    <span class="n">n_sim</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span>
-    <span class="n">burn_in</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-    <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">max_rounds</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
-    <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">K_i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">K_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">use_mixture</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability_from_kinship</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s1">'genetic'</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_rounds</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use_mixture</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -3828,25 +3787,7 @@ For Gibbs, <code>seed</code> must be a non-boolean integer in <code>[0, 2**32 - 
 
 
 <a href="#ltpred.estimate.estimate_liability" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability</span><span class="p">(</span>
-    <span class="n">families</span><span class="p">,</span>
-    <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">out</span><span class="o">=</span><span class="p">(</span><span class="s2">"genetic"</span><span class="p">,),</span>
-    <span class="n">tol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
-    <span class="n">use_mixture</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-    <span class="n">genetic_corrmat</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">full_corrmat</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">phen_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">n_sim</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span>
-    <span class="n">burn_in</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-    <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">max_rounds</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
-    <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span>
-    <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="p">(</span><span class="s1">'genetic'</span><span class="p">,),</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">use_mixture</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">genetic_corrmat</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">full_corrmat</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">phen_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_rounds</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -3997,9 +3938,7 @@ Vectorised over the inputs.</p>
 
 
 <a href="#ltpred.liability_scale.liability_to_observed_h2" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">liability_to_observed_h2</span><span class="p">(</span>
-    <span class="n">liab_h2</span><span class="p">,</span> <span class="n">pop_prev</span><span class="p">,</span> <span class="n">prop_cases</span><span class="o">=</span><span class="kc">None</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">liability_to_observed_h2</span><span class="p">(</span><span class="n">liab_h2</span><span class="p">,</span> <span class="n">pop_prev</span><span class="p">,</span> <span class="n">prop_cases</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4050,9 +3989,7 @@ then transform the total once. Vectorised.</p>
 
 
 <a href="#ltpred.liability_scale.liability_r2_from_z" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">liability_r2_from_z</span><span class="p">(</span>
-    <span class="n">z</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">pop_prev</span><span class="p">,</span> <span class="n">prop_cases</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">subtract_null</span><span class="o">=</span><span class="kc">True</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">liability_r2_from_z</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">pop_prev</span><span class="p">,</span> <span class="n">prop_cases</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">subtract_null</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4210,9 +4147,7 @@ zero cell.</p>
 
 
 <a href="#ltpred.tetrachoric.tetrachoric_table" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">tetrachoric_table</span><span class="p">(</span>
-    <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">continuity_correction</span><span class="o">=</span><span class="kc">True</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">tetrachoric_table</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">continuity_correction</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4258,9 +4193,7 @@ rejected: there is no correlation information.</p>
 
 
 <a href="#ltpred.tetrachoric.tetrachoric_matrix" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">tetrachoric_matrix</span><span class="p">(</span>
-    <span class="n">X</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">continuity_correction</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">check_psd</span><span class="o">=</span><span class="kc">True</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">tetrachoric_matrix</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">continuity_correction</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">check_psd</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4477,9 +4410,7 @@ with death as the competing event; the two estimands are compared in
 
 
 <a href="#ltpred.cip.aalen_johansen_cip" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">aalen_johansen_cip</span><span class="p">(</span>
-    <span class="n">age_entry</span><span class="p">,</span> <span class="n">age_exit</span><span class="p">,</span> <span class="n">event_type</span><span class="p">,</span> <span class="n">cause</span><span class="o">=</span><span class="mi">1</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">aalen_johansen_cip</span><span class="p">(</span><span class="n">age_entry</span><span class="p">,</span> <span class="n">age_exit</span><span class="p">,</span> <span class="n">event_type</span><span class="p">,</span> <span class="n">cause</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4840,9 +4771,7 @@ bounds consumed by either inference engine.</p>
 
 
 <a href="#ltpred.thresholds.convert_age_to_cir" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">convert_age_to_cir</span><span class="p">(</span>
-    <span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">convert_age_to_cir</span><span class="p">(</span><span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4865,9 +4794,7 @@ at <code>mid_point</code>. Vectorised over <code>age</code>.</p>
 
 
 <a href="#ltpred.thresholds.convert_age_to_thresh" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">convert_age_to_thresh</span><span class="p">(</span>
-    <span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">convert_age_to_thresh</span><span class="p">(</span><span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4892,9 +4819,7 @@ truncated-normal <code>dist="normal"</code> alternative is not ported).</p>
 
 
 <a href="#ltpred.thresholds.convert_liability_to_aoo" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">convert_liability_to_aoo</span><span class="p">(</span>
-    <span class="n">liability</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">convert_liability_to_aoo</span><span class="p">(</span><span class="n">liability</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4943,13 +4868,7 @@ upper)</code> arrays -- no age information, the special case <code>LT-FH</code> 
 
 
 <a href="#ltpred.thresholds.age_thresholds" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">age_thresholds</span><span class="p">(</span>
-    <span class="n">status</span><span class="p">,</span>
-    <span class="n">age</span><span class="p">,</span>
-    <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
-    <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span>
-    <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">age_thresholds</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4979,13 +4898,7 @@ construction with proband rows only is ADuLT.</p>
 
 
 <a href="#ltpred.thresholds.pa_thresholds" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">pa_thresholds</span><span class="p">(</span>
-    <span class="n">status</span><span class="p">,</span>
-    <span class="n">age</span><span class="p">,</span>
-    <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
-    <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span>
-    <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">pa_thresholds</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5040,15 +4953,7 @@ matching the intended study design.</p>
 
 
 <a href="#ltpred.thresholds.thresholds_from_cip" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">thresholds_from_cip</span><span class="p">(</span>
-    <span class="n">status</span><span class="p">,</span>
-    <span class="n">age</span><span class="p">,</span>
-    <span class="n">cip_ages</span><span class="p">,</span>
-    <span class="n">cip_values</span><span class="p">,</span>
-    <span class="n">k_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">case_mode</span><span class="o">=</span><span class="s2">"pin"</span><span class="p">,</span>
-    <span class="n">min_cip</span><span class="o">=</span><span class="mf">1e-05</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">thresholds_from_cip</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">cip_ages</span><span class="p">,</span> <span class="n">cip_values</span><span class="p">,</span> <span class="n">k_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">case_mode</span><span class="o">=</span><span class="s1">'pin'</span><span class="p">,</span> <span class="n">min_cip</span><span class="o">=</span><span class="mf">1e-05</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5227,14 +5132,7 @@ for those.</p>
 
 
 <a href="#ltpred.covariance.construct_covmat_single" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_single</span><span class="p">(</span>
-    <span class="n">fam_vec</span><span class="o">=</span><span class="p">(</span><span class="s2">"m"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">,</span> <span class="s2">"s1"</span><span class="p">,</span> <span class="s2">"mgm"</span><span class="p">,</span> <span class="s2">"mgf"</span><span class="p">,</span> <span class="s2">"pgm"</span><span class="p">,</span> <span class="s2">"pgf"</span><span class="p">),</span>
-    <span class="n">n_fam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-    <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_single</span><span class="p">(</span><span class="n">fam_vec</span><span class="o">=</span><span class="p">(</span><span class="s1">'m'</span><span class="p">,</span> <span class="s1">'f'</span><span class="p">,</span> <span class="s1">'s1'</span><span class="p">,</span> <span class="s1">'mgm'</span><span class="p">,</span> <span class="s1">'mgf'</span><span class="p">,</span> <span class="s1">'pgm'</span><span class="p">,</span> <span class="s1">'pgf'</span><span class="p">),</span> <span class="n">n_fam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5263,16 +5161,7 @@ Requires <code>h2 + c2 + m2 &lt;= 1</code>.</p>
 
 
 <a href="#ltpred.covariance.construct_covmat_multi" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_multi</span><span class="p">(</span>
-    <span class="n">fam_vec</span><span class="o">=</span><span class="p">(</span><span class="s2">"m"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">,</span> <span class="s2">"s1"</span><span class="p">,</span> <span class="s2">"mgm"</span><span class="p">,</span> <span class="s2">"mgf"</span><span class="p">,</span> <span class="s2">"pgm"</span><span class="p">,</span> <span class="s2">"pgf"</span><span class="p">),</span>
-    <span class="n">n_fam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">genetic_corrmat</span><span class="p">,</span>
-    <span class="n">full_corrmat</span><span class="p">,</span>
-    <span class="n">h2_vec</span><span class="p">,</span>
-    <span class="n">phen_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_multi</span><span class="p">(</span><span class="n">fam_vec</span><span class="o">=</span><span class="p">(</span><span class="s1">'m'</span><span class="p">,</span> <span class="s1">'f'</span><span class="p">,</span> <span class="s1">'s1'</span><span class="p">,</span> <span class="s1">'mgm'</span><span class="p">,</span> <span class="s1">'mgf'</span><span class="p">,</span> <span class="s1">'pgm'</span><span class="p">,</span> <span class="s1">'pgf'</span><span class="p">),</span> <span class="n">n_fam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">genetic_corrmat</span><span class="p">,</span> <span class="n">full_corrmat</span><span class="p">,</span> <span class="n">h2_vec</span><span class="p">,</span> <span class="n">phen_names</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5336,9 +5225,7 @@ covariance for these individuals.</p>
 
 
 <a href="#ltpred.covariance.construct_covmat_from_kinship" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_from_kinship</span><span class="p">(</span>
-    <span class="n">A</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_from_kinship</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5380,12 +5267,7 @@ role-based matrix there.</p>
 
 
 <a href="#ltpred.covariance.correct_positive_definite" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">correct_positive_definite</span><span class="p">(</span>
-    <span class="n">covmat</span><span class="p">,</span>
-    <span class="n">correction_val</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span>
-    <span class="n">correction_limit</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
-    <span class="n">eps</span><span class="o">=</span><span class="mf">1e-08</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">correct_positive_definite</span><span class="p">(</span><span class="n">covmat</span><span class="p">,</span> <span class="n">correction_val</span><span class="o">=</span><span class="mf">0.99</span><span class="p">,</span> <span class="n">correction_limit</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-08</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5671,19 +5553,7 @@ array of per-resample estimates. Shapes follow whatever the estimator returns
 
 
 <a href="#ltpred.fit.fit_heritability" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">fit_heritability</span><span class="p">(</span>
-    <span class="n">families</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">h2_init</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-    <span class="n">n_iter</span><span class="o">=</span><span class="mi">1500</span><span class="p">,</span>
-    <span class="n">burn_in</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
-    <span class="n">inner_sweeps</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-    <span class="n">damp</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span>
-    <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">eps</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">,</span>
-    <span class="n">sampling</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">fit_heritability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">h2_init</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">n_iter</span><span class="o">=</span><span class="mi">1500</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">inner_sweeps</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">damp</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">,</span> <span class="n">sampling</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5767,19 +5637,7 @@ interval-order validation still applies.</p>
 
 
 <a href="#ltpred.fit.fit_variance_components" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">fit_variance_components</span><span class="p">(</span>
-    <span class="n">families</span><span class="p">,</span>
-    <span class="n">components</span><span class="o">=</span><span class="p">(</span><span class="s2">"A"</span><span class="p">,</span> <span class="s2">"C"</span><span class="p">),</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">n_iter</span><span class="o">=</span><span class="mi">1500</span><span class="p">,</span>
-    <span class="n">burn_in</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
-    <span class="n">inner_sweeps</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-    <span class="n">damp</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span>
-    <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">eps</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">,</span>
-    <span class="n">sampling</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">fit_variance_components</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="p">(</span><span class="s1">'A'</span><span class="p">,</span> <span class="s1">'C'</span><span class="p">),</span> <span class="o">*</span><span class="p">,</span> <span class="n">n_iter</span><span class="o">=</span><span class="mi">1500</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">inner_sweeps</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">damp</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">,</span> <span class="n">sampling</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5855,15 +5713,7 @@ Standard NaN and interval-order validation still applies.</p>
 
 
 <a href="#ltpred.fit.bootstrap_fit" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">bootstrap_fit</span><span class="p">(</span>
-    <span class="n">families</span><span class="p">,</span>
-    <span class="n">estimator</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">n_boot</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
-    <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">ci_level</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">bootstrap_fit</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">estimator</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_boot</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ci_level</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6091,16 +5941,7 @@ with uninformative <code>(-inf, inf)</code> bounds.</p>
 
 
 <a href="#ltpred.family.families_from_columns" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">families_from_columns</span><span class="p">(</span>
-    <span class="n">fam_id</span><span class="p">,</span>
-    <span class="n">role</span><span class="p">,</span>
-    <span class="n">lower</span><span class="p">,</span>
-    <span class="n">upper</span><span class="p">,</span>
-    <span class="n">pid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">K_i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">K_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">aod</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">families_from_columns</span><span class="p">(</span><span class="n">fam_id</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">pid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aod</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6250,21 +6091,7 @@ unaffected.</p>
 
 
 <a href="#ltpred.gibbs.gibbs_estimate_batched" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">gibbs_estimate_batched</span><span class="p">(</span>
-    <span class="n">P</span><span class="p">,</span>
-    <span class="n">sd</span><span class="p">,</span>
-    <span class="n">sd0</span><span class="p">,</span>
-    <span class="n">lowers</span><span class="p">,</span>
-    <span class="n">uppers</span><span class="p">,</span>
-    <span class="n">out_idx</span><span class="p">,</span>
-    <span class="n">n_sim</span><span class="p">,</span>
-    <span class="n">burn_in</span><span class="p">,</span>
-    <span class="n">batch_size</span><span class="p">,</span>
-    <span class="n">n_batch</span><span class="p">,</span>
-    <span class="n">seeds</span><span class="p">,</span>
-    <span class="n">cov</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">collapse</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">gibbs_estimate_batched</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">sd</span><span class="p">,</span> <span class="n">sd0</span><span class="p">,</span> <span class="n">lowers</span><span class="p">,</span> <span class="n">uppers</span><span class="p">,</span> <span class="n">out_idx</span><span class="p">,</span> <span class="n">n_sim</span><span class="p">,</span> <span class="n">burn_in</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">n_batch</span><span class="p">,</span> <span class="n">seeds</span><span class="p">,</span> <span class="n">cov</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">collapse</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6334,9 +6161,7 @@ is thread-local (isolating concurrent fits) and chunked to cap temporary memory.
 
 
 <a href="#ltpred.gibbs.gibbs_advance_moment" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">gibbs_advance_moment</span><span class="p">(</span>
-    <span class="n">P</span><span class="p">,</span> <span class="n">sd</span><span class="p">,</span> <span class="n">lowers</span><span class="p">,</span> <span class="n">uppers</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">n_sweeps</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">gibbs_advance_moment</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">sd</span><span class="p">,</span> <span class="n">lowers</span><span class="p">,</span> <span class="n">uppers</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">n_sweeps</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6362,18 +6187,7 @@ for :func:<code>gibbs_advance</code>.</p>
 
 
 <a href="#ltpred.gibbs.rtmvnorm_gibbs" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">rtmvnorm_gibbs</span><span class="p">(</span>
-    <span class="n">covmat</span><span class="p">,</span>
-    <span class="n">lower</span><span class="o">=-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span>
-    <span class="n">upper</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span>
-    <span class="o">*</span><span class="p">,</span>
-    <span class="n">fixed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">out</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,),</span>
-    <span class="n">n_sim</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span>
-    <span class="n">burn_in</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-    <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">rtmvnorm_gibbs</span><span class="p">(</span><span class="n">covmat</span><span class="p">,</span> <span class="n">lower</span><span class="o">=-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">fixed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,),</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6493,9 +6307,7 @@ age-dependent PA-FGRS-style variant.</p>
 
 
 <a href="#ltpred.pearson_aitken.pa_algorithm" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">pa_algorithm</span><span class="p">(</span>
-    <span class="n">covmat</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">K_i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_pop</span><span class="o">=</span><span class="kc">None</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">pa_algorithm</span><span class="p">(</span><span class="n">covmat</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">K_i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6523,9 +6335,7 @@ target's posterior mean and conditional variance (exact for one truncation).</p>
 
 
 <a href="#ltpred.pearson_aitken.pa_estimate_batched" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">pa_estimate_batched</span><span class="p">(</span>
-    <span class="n">covmat</span><span class="p">,</span> <span class="n">lowers</span><span class="p">,</span> <span class="n">uppers</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">K_is</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_pops</span><span class="o">=</span><span class="kc">None</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">pa_estimate_batched</span><span class="p">(</span><span class="n">covmat</span><span class="p">,</span> <span class="n">lowers</span><span class="p">,</span> <span class="n">uppers</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">K_is</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_pops</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6665,22 +6475,7 @@ families (bounds only) to pass to the estimator.</p>
 
 
 <a href="#ltpred.simulate.simulate_under_LTM_single" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">simulate_under_LTM_single</span><span class="p">(</span>
-    <span class="n">fam_vec</span><span class="o">=</span><span class="p">(</span><span class="s2">"m"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">,</span> <span class="s2">"s1"</span><span class="p">,</span> <span class="s2">"mgm"</span><span class="p">,</span> <span class="s2">"mgf"</span><span class="p">,</span> <span class="s2">"pgm"</span><span class="p">,</span> <span class="s2">"pgf"</span><span class="p">),</span>
-    <span class="n">n_fam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-    <span class="n">n_sim</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-    <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
-    <span class="n">use_age</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-    <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span>
-    <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">,</span>
-    <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">onset_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">case_encoding</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">onset_resolution</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
-    <span class="n">onset_rho</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-<span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">simulate_under_LTM_single</span><span class="p">(</span><span class="n">fam_vec</span><span class="o">=</span><span class="p">(</span><span class="s1">'m'</span><span class="p">,</span> <span class="s1">'f'</span><span class="p">,</span> <span class="s1">'s1'</span><span class="p">,</span> <span class="s1">'mgm'</span><span class="p">,</span> <span class="s1">'mgf'</span><span class="p">,</span> <span class="s1">'pgm'</span><span class="p">,</span> <span class="s1">'pgf'</span><span class="p">),</span> <span class="n">n_fam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">use_age</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">onset_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">case_encoding</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">onset_resolution</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">onset_rho</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">

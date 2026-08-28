@@ -1303,6 +1303,12 @@ and whether you need it at all — depends on the use. Pearson–Aitken
 <a href="https://pubmed.ncbi.nlm.nih.gov/4813384/">Mendell &amp; Elston 1974</a>);
 Gibbs is the truncated-normal sampler.</p>
 <h2 id="three-uses">Three uses<a class="headerlink" href="#three-uses" title="Permanent link">&para;</a></h2>
+<p>This function has two jobs. If you already know someone is a case and want a
+GWAS number, include their own status. If you want to predict whether they
+are a case from family history, leave their own status out. Same function:
+what you put in for that person decides which job. The example script
+<code>examples/vignette.py</code> shows how to leave it out. Own status in versus out
+is not a later toggle; it is how you build the input.</p>
 <p>The published method names describe the <em>observation model</em>, not a
 different genetic model. Three of the four name only that; PA-FGRS is
 the exception, because its published specification also fixes the
