@@ -6,6 +6,25 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.5.1 — 2026-08-30
+
+### Changed
+
+- Updated the vignette and runnable example for the public register driver,
+  calendar landmarks, closure-only masking, output alignment, and C/M support
+  boundaries. The six-person example checks post-index and closure invariance.
+- Aligned the methods note with that workflow, including the standardized
+  inbred genetic target and the distinction between cumulative and incident
+  risk. Superseded register-benchmark numbers are no longer presented as
+  current evidence.
+
+### Fixed
+
+- Corrected the vignette's interpretation of the total-variance identity:
+  uninformative histories retain the prior posterior variance; a low sum is
+  not evidence of little family information. The checks now state their
+  population-sampling, no-mixture, and target-scale assumptions.
+
 ## 0.5.0 — 2026-08-30
 
 ### Fixed

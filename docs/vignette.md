@@ -12,8 +12,10 @@ $$
 \tag{1}
 $$
 
-and writes it as the `genetic` column. That column is not a polygenic
-score (PGS) and not an absolute risk. $D_F$ is the family
+and writes it as `res.genetic` on the family API or `scores.est` on the
+population-register API. Neither is a polygenic score (PGS) or an absolute
+risk. Equation (1) shows the base additive model; optional environmental
+components are introduced in step 0. $D_F$ is the family
 *observation model* (who was recorded, and as what interval or mixture
 on liability), $A$ is the additive relationship matrix, $h^2$ is
 liability-scale heritability, and $K(\cdot)$ is the prevalence or
@@ -26,12 +28,15 @@ Gibbs is the truncated-normal sampler.
 
 ## Three uses
 
-This function has two jobs. If you already know someone is a case and want a
-GWAS number, include their own status. If you want to predict whether they
-are a case from family history, leave their own status out. Same function:
-what you put in for that person decides which job. The example script
-`examples/vignette.py` shows how to leave it out. Own status in versus out
-is not a later toggle; it is how you build the input.
+The score has two jobs. For a GWAS phenotype, include the proband's own
+diagnosis. To predict that diagnosis from family history, leave it out and,
+for prospective prediction, use only records available at the prediction
+date. On the role-based `estimate_liability` API you construct those bounds
+yourself. The public trio-register driver, `estimate_liabilities`, constructs
+them using a required `use="gwas"` or `use="prediction"` argument. That choice
+changes $D_F$, not merely the label on an already computed score. The
+[example script](https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py)
+shows both routes.
 
 The published method names describe the *observation model*, not a
 different genetic model. Three of the four name only that; PA-FGRS is
@@ -53,12 +58,11 @@ engine.
   It is not the register-standardised family genetic risk score (FGRS)
   of [Kendler et al. (2021)](https://doi.org/10.1001/jamapsychiatry.2021.0336).
 
-There are three uses. Pick one before building $D_F$: own status in
-versus out is not a later toggle.
+There are three uses. Pick one before building $D_F$.
 
 **Table 1.** The three uses. *Steps* are the stages of Figure 1 and
 Table 2 below — 0 heritability, 1 pedigree, 2 CIP, 3 family history,
-4 `estimate_liability`, 5 downstream. Use III can stop at 0 and/or 2;
+4 liability estimation, 5 downstream. Use III can stop at 0 and/or 2;
 I and II need the estimator.
 
 | Use | Question | Steps | Own status |
@@ -94,10 +98,12 @@ at each step.
 
 [![ltpred pipeline. Two independent tracks feed one estimator. Left track, population quantities: step 0 liability-scale heritability and covariances, step 2 the CIP or one lifetime prevalence K; use III, disease relationships and aetiology, exits here. Right track, this sample: step 1 the pedigree A, step 3 the family-history records. The tracks converge into the family covariance Sigma, which has a unit diagonal, and into the observation intervals D_F. Step 4, estimate_liability, returns mu. Use I, risk prediction, exits with own status out of D_F; use II, a GWAS phenotype, exits with own status in.](assets/pipeline.svg)](assets/pipeline.svg)
 
-**Figure 1.** How the inputs assemble, and where you can stop. The left
+**Figure 1.** How the inputs assemble, and where you can stop, shown for
+the outbred additive-only model. The left
 track is the population model and can be the whole analysis (use III).
-The right track is this sample. Step 4 is the first call that conditions
-on all four inputs. Open the figure in a new tab for a full-size view.
+The right track is this sample. Step 4 conditions on all four inputs;
+`estimate_liabilities` also orchestrates steps 1–3 for a population trio
+table. Open the figure in a new tab for a full-size view.
 
 **Table 2.** What to do, in order. Function names only; the dependencies
 are in Figure 1. Skip steps that Table 1 says the use does not need.
@@ -108,21 +114,22 @@ are in Figure 1. Skip steps that Table 1 says the use does not need.
 | 0 | Liability-scale $h^2$; optional $c^2$, $m^2$; two-trait $r_g$ | `observed_to_liability_h2`, `tetrachoric`; optionally `fit_heritability` |
 | 1 | Who is related to whom | roles, or `kinship_from_pedigree` / `extract_pedigree` |
 | 2 | Prevalence or CIP $K(\cdot)$ (cumulative incidence) | `prevalence_thresholds` or `thresholds_from_cip` |
-| 3 | Status and ages (family history) | `families_from_columns` |
-| 4 | — | `estimate_liability` |
-| 5 | People to score (I) or genotype (II) | join `pids`; GWAS / PGS combination is elsewhere |
+| 3 | Status and ages; prediction landmark for use I | `families_from_columns`, or the register driver |
+| 4 | Prepared families, or population trio records | `estimate_liability`, or `estimate_liabilities(use=...)` |
+| 5 | People to score (I) or genotype (II) | join `res.pids` or `scores.probands`; GWAS / PGS combination is elsewhere |
 
 The step numbers are the order in which you assemble equation (1).
 Steps 0–3 can be prepared in parallel except for three real
 dependencies:
 
 1. **Heritability scales the pedigree.** You can build $A$ without a
-   heritability, but you cannot form the family covariance
-   $\Sigma = h^2A + c^2C + m^2M + e^2I$, $e^2 = 1-h^2-c^2-m^2$, without
+   heritability, but you cannot form the raw family covariance
+   $V = h^2A + c^2C + m^2M + e^2I$, $e^2 = 1-h^2-c^2-m^2$, without
    both 0 and 1. With no shared-environment components that is just
-   $h^2A + (1-h^2)I$. Note the unit diagonal either way: the residual
-   absorbs whatever the kernels take, which is what keeps
-   $\Phi^{-1}(1-K)$ a prevalence threshold. The weights that
+   $h^2A + (1-h^2)I$. For non-inbred people and unit-diagonal kernels,
+   the residual keeps the diagonal at one, so $\Sigma=V$. The kinship API
+   standardises inbred members to the unit-diagonal $\Sigma$ used for
+   thresholds (step 1). The weights that
    then project the family onto $a_i$ are the best linear unbiased prediction
    (BLUP) / selection-index weights
    ([Henderson 1975](https://doi.org/10.2307/2529430);
@@ -142,32 +149,40 @@ thresholds.
 
 ## How much it buys you
 
-Against a raw 0/1 phenotype, classic LT-FH on registry pedigrees gains a
+Against a raw 0/1 phenotype, classic LT-FH on simulated registry-style pedigrees gains a
 squared-correlation effective-$N$ proxy of $2.233 \pm 0.127\times$ under
 population sampling, but only $1.242 \pm 0.018\times$ at a 10% observed
 case fraction, $1.107 \pm 0.008\times$ at 25%, and $1.081 \pm 0.003\times$
 at 50%
 ([RESULTS §10](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)).
-The gain is largest exactly where cases are rare. Adding age and cohort
+The gain is largest in the population-sampled cell of this design. Adding age and cohort
 personalisation on top is a further $1.02$–$1.05\times$ across the same
 grid. If your cohort is heavily case-enriched, decide whether that
 increment is worth the pipeline before you build it.
 
+These are squared-correlation ratios against known simulated genetic values,
+not measured increases in GWAS sample size. The separate association panels
+measure **causal-SNP noncentrality (NCP) on independent SNPs**; they do not
+validate real-LD, related-sample mixed-model GWAS. Historical register-driver
+results in [RESULTS §§20–21](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
+also predate the closure and calendar-time corrections. They are marked stale
+and are not evidence for the current public driver.
+
 ## How to read the code on this page
 
-Every block below is a **fragment**: it shows the call, not a runnable
-program. Lower-case names (`status`, `age`, `cip_ages`, `fam_id`,
-`role`, `pid`) are your own columns. Two listings do run end to end:
+Most blocks below are **fragments**: they show a call with your own columns
+(`status`, `age`, `cip_ages`, `fam_id`, `role`, `pid`). Two listings do run end to end:
 
 - [`examples/vignette.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py)
-  — this pipeline on simulated data (`pip install -e ".[fast]"`, then
-  `python examples/vignette.py`);
+  — the role workflow on simulated data, followed by a six-person public
+  register example (`pip install -e ".[fast]"`, then `python examples/vignette.py`);
 - the [Quickstart](quickstart.md) — six hand-written rows, start to
   finish.
 
 Quoted figures come from that script at seed 1, $n=800$ nuclear
 families, true $h^2=0.5$, $K=0.05$ — except the use-I risk figures in
-section 5, which average 10 replicates of 4,000 families. They check the API; they are not a
+section 5, which average 10 replicates of 4,000 families. The six-person
+register example uses a separately labelled toy CIP. These check the API; they are not a
 benchmark — for measured behaviour see
 [RESULTS](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md).
 The cohort behind them is
@@ -193,10 +208,25 @@ willing to defend
 ([checklist](assumptions.md#real-data-checklist)). Decide who the
 **probands** are (usually the genotyped people). Pick a row of Table 1.
 Uses I and II disagree on whether the proband's own diagnosis enters
-$D_F$; that choice is used in step 3, not as a later toggle on the
-estimator. Use III may not need a pedigree at all.
+$D_F$; implement that choice in the role bounds or the register driver's
+`use` argument. Use III may not need a pedigree at all. For an incident-risk
+study, define the index date, horizon, eligibility and at-risk cohort before
+scoring. `use="prediction"` hides own diagnosis; it does not select people
+who are disease-free, alive or under observation at the landmark.
 
-Your input is one row per **observed person**, in long format:
+There are two input layouts. The role API uses one row per **person within
+a proband's family**: a relative can appear in several probands' families
+when scoring. The register API instead takes **unique population IDs** with
+one `father` and `mother` pointer per ID, plus aligned status, age and
+optional stratum/birth-time columns. It extracts the overlapping pedigrees
+itself; do not duplicate a person's population row for every proband.
+The register driver requires binary status and finite, nonnegative age; it
+has no general missing-status mask. Use uninformative bounds on the
+lower-level route for unknown diagnoses, not a fabricated control status.
+
+**Table 3.** Example long-format rows for the role API. Each role is relative
+to that family's proband; these are not the unique-ID trio input expected by
+`estimate_liabilities`.
 
 | `fam_id` | `pid` | `role` | `status` | `age` |
 |---|---|---|---|---|
@@ -217,17 +247,18 @@ For uses I and II, `estimate_liability` **conditions** on $h^2$. Pass a
 $\hat{\mu}_i$ (ranking is more robust than the scale). For use III, $h^2$
 and $r_g$ can *be* the result.
 
-How much the scale matters is measured. At a true $h^2$ of 0.5 and
+How much the scale matters is measured in a simulation grid. At a true $h^2$ of 0.5 and
 $K=0.05$, assuming 0.2 leaves the ranking essentially untouched
 (correlation with the truth $0.429 \pm 0.004$ against $0.431 \pm 0.004$
 when correctly specified) but sweeps the calibration slope to
 $2.240 \pm 0.015$; assuming 0.8 drops the slope to $0.678 \pm 0.006$
 ([RESULTS §12](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)).
-Rank-only analyses — a GWAS phenotype, a top-decile flag — tolerate a
-wrong $h^2$; anything that reads the scale does not. Re-run step 4 at
-$h^2 \pm 0.1$ and report both the rank correlation between the two runs
-(it should stay near 1) and the ratio of their score standard deviations
-(it will not).
+Ranking was more robust than scale in that grid; this does not guarantee
+robustness for another prevalence, pedigree or observation model. As a
+sensitivity analysis, re-run step 4 at defensible alternative $h^2$ values
+(for example $h^2\pm0.1$, within the valid range). Report both rank
+correlation and the ratio of score standard deviations, rather than assuming
+either is unchanged.
 
 Prefer an external estimate. A first-degree check is Falconer's
 $h^2 \approx 2\rho_{\mathrm{tet}}$ from the **parent–offspring**
@@ -268,7 +299,12 @@ On the simulated cohort, $\rho_{\mathrm{tet}}=0.237$, so
 $2\rho_{\mathrm{tet}}=0.474$ against a truth of $0.5$.
 
 Optional sibship $c^2$ and couple $m^2$ go on the single-trait estimator
-as `c2` / `m2` ($h^2+c^2+m^2\le 1$). Two traits add $r_g$ here and
+as `c2` / `m2` ($h^2+c^2+m^2\le 1$). On the arbitrary-kinship API, also
+supply aligned `c_kernel` / `m_kernel` matrices: $A$ alone cannot distinguish
+full siblings from parent–offspring, or mates from unrelated people. Each
+kernel must be symmetric, positive semidefinite and unit-diagonal. The
+public register driver is currently **additive-only**; use the lower-level
+kinship estimator for these components (step 4). Two traits add $r_g$ here and
 require Gibbs in step 4: pass vector `h2`, `genetic_corrmat`, and
 `full_corrmat`.
 
@@ -276,12 +312,16 @@ Fitting $h^2$ or $A{+}C{+}M$ (additive genetic, sibship, and couple
 shared-environment components) from the **same** families is a
 different contract on three counts.
 
-1. *Sampling.* Independent, non-overlapping pedigrees under
+1. *Sampling.* The current fitters take **role-based**, independent,
+   non-overlapping families under
    `sampling="population"`, or inverse-probability weighting
    (`sampling="ipw"`) with known positive inclusion probabilities. A
    person identifier (`pid`) in two family identifiers (`fam_id`) is
-   rejected. Unguarded ascertainment pins $\hat{h}^2=1$ even when the
-   truth is 0.
+   rejected. They do not fit overlapping extracted register pedigrees.
+   Deterministic affected-proband/clinic recruitment is not corrected by the
+   available likelihood; IPW requires positive inclusion probabilities, not
+   an invented weight for unobservable families. Unguarded ascertainment can
+   pin $\hat{h}^2=1$ even when the truth is 0.
 2. *Bounds.* `fit_heritability` needs **one common case/control
    threshold per trait**. The personalised or onset-pinned bounds built
    in steps 2–3 are rejected outright; fit from `prevalence_thresholds`
@@ -323,16 +363,35 @@ _, A = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
 # receive uninformative (-inf, inf) bounds.
 ```
 
-**How deep?** First-degree relatives carry most of the signal. Adding
-grandparents and aunts/uncles to parents-plus-siblings bought nothing in
-the package's calibration grid: correlation with the true genetic value
+`ped.ids` defines matrix and bounds order, with the proband first. Ancestors
+added only for exact kinship are structural, not additional observations:
+after aligning the bounds, set `lower[ped.closure_only] = -np.inf` and
+`upper[ped.closure_only] = np.inf`. The public register driver does this
+automatically. Its `condition_closure=True` option is an explicit change to
+the observation set, not an accuracy switch.
+
+For inbred members, let the raw full-liability covariance be
+$V=h^2A+c^2C+m^2M+(1-h^2-c^2-m^2)I$. The kinship API divides each full
+liability by $\sqrt{V_{jj}}$, and the target's genetic component by
+$\sqrt{V_{ii}}$. Its genetic prior variance is therefore
+$h^2A_{ii}/V_{ii}$, not $h^2A_{ii}$. With unit-diagonal environmental kernels,
+$V_{ii}=1+h^2(A_{ii}-1)$. To recover raw genetic units, multiply the reported
+mean by $\sqrt{V_{ii}}$ and variance by $V_{ii}$; these factors are one for
+a non-inbred target.
+
+**How deep?** In the package's role-based calibration grid, adding
+grandparents and aunts/uncles to parents-plus-siblings showed no clear
+increment: correlation with the true genetic value
 $0.431 \pm 0.004$ against $0.429 \pm 0.008$ at $K=0.05$ and
 $0.593 \pm 0.003$ against $0.595 \pm 0.006$ at $K=0.20$ — inside one
 standard error — while at $K=0.01$ the extended pedigree was *lower*,
 $0.249 \pm 0.004$ against $0.259 \pm 0.003$
 ([RESULTS §12](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)).
-Start at `max_degree=2` and treat anything deeper as something to
-justify.
+This comparison changes a specified set of roles; it is not a universal
+recommendation for the register driver's `max_degree`. Choose the observation
+depth from the study design and data quality, then test the incremental value
+on held-out or known-truth data. The historical degree-payoff/register runs
+in RESULTS §§20–21 require rerunning after the closure/calendar fixes.
 
 Scoring may use overlapping extracted pedigrees (one per proband). Fitting
 $h^2$ in step 0 may not. ADuLT has no relatives: skip this step.
@@ -362,14 +421,21 @@ details in [CIP estimation](cip-estimation.md)).
 Cover every analysed age; pass `k_pop` unless the last CIP value is a
 defensible lifetime prevalence.
 
-This is not cosmetic for use II. Under a prevalence trend of $3\times$
-per 30 years, cohort-specific CIPs hold genomic inflation at
+Prevalence is a modelling input, not a package default. Supply `pop_prev`
+explicitly to `prevalence_thresholds` and the public age/logistic threshold
+helpers. Supplying it explicitly does not make a logistic demonstration
+curve appropriate for a real population.
+
+This is not cosmetic for use II. In a simulation of SNPs correlated with
+birth cohort, under a prevalence trend of $3\times$ per 30 years,
+cohort-specific CIPs hold the inflation statistic at
 $\lambda = 0.922 \pm 0.057$, while the same family-history phenotype
 built on a single lifetime $K$ inflates to $10.275 \pm 0.078$ — worse
 than the raw 0/1 label at $4.616 \pm 0.220$
 ([RESULTS §13](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)).
-A family-history phenotype concentrates a cohort trend rather than
-diluting it.
+A family-history phenotype can concentrate a cohort trend rather than
+diluting it. This isolated cohort-confounding experiment is not a real-LD
+mixed-model GWAS validation or a guarantee that CIPs remove all confounding.
 
 For uses I and II the curve is an input to the thresholds. Classic LT-FH
 uses one $T=\Phi^{-1}(1-K)$ instead. LT-FH++ and ADuLT use a
@@ -402,15 +468,17 @@ full loop, including `K_i`/`K_pop`, is the
 
 `case_mode="pin"` is the LT-FH++ encoding: a case becomes a point mass at
 $T_i$. Pin only when onset really is the CIP inverse of liability.
-Encoding the case as the interval $[T_i,\infty)$ instead keeps most of
-the onset information. Base PA-FGRS uses the **lifetime** case interval
+Encoding the case as the interval $[T_i,\infty)$ instead retains an
+age-specific threshold, but is a different observation
+model, not an exact-onset pin. Base PA-FGRS uses the **lifetime** case interval
 $[\Phi^{-1}(1-K_{\mathrm{pop}}),\infty)$ and puts age into a censored
 control's mixture weight $K_i$
 ([Dybdahl Krebs et al. 2024](https://doi.org/10.1016/j.ajhg.2024.09.009)).
 
 ## 3. Family-history records
 
-One row per observed person: `fam_id`, `role` (or a kinship column order),
+For the role route, one row per person within a proband's family:
+`fam_id`, `role` (or a kinship column order),
 `status`, `age`. Missing `fam_id` and duplicate roles in a family are
 rejected. Join these records to the pedigree from step 1; the thresholds
 from step 2 are the `lower` / `upper` columns.
@@ -439,6 +507,30 @@ families = families_from_columns(
 )
 ```
 
+For use I on this route, make a separate relatives-only input and retain the
+proband's join key:
+
+```python
+from dataclasses import replace
+import numpy as np
+from ltpred import Family
+
+prediction_families = [
+    Family(fam.fam_id, [
+        replace(member, lower=-np.inf, upper=np.inf)
+        if member.role == "o" else member
+        for member in fam.members
+    ])
+    for fam in families
+]
+```
+
+This removes own status only. For prospective prediction you must also
+reconstruct every relative's bounds at the index date before constructing
+these families. The register route in step 4 performs that calendar-time
+operation for you. Both routes require the analyst to define the risk set
+and to estimate/tune prediction inputs without using held-out outcomes.
+
 ## 4. Estimate the score
 
 This is the ltpred run. Everything above is input.
@@ -464,9 +556,71 @@ error (SE), multiple traits, or an unusual no-mixture pedigree. The
 PA-FGRS mixture is PA-only. The kinship entry point is
 `estimate_liability_from_kinship(A, lower, upper, h2=h2, target=0)`,
 which returns a bare `(est, se, var)` tuple rather than a result object.
+For an arbitrary pedigree with shared environment, pass the kernels from
+step 0 in the same member order:
+
+```python
+from ltpred import estimate_liability_from_kinship
+
+est, se, var = estimate_liability_from_kinship(
+    A, lower, upper, h2=h2, target=0,
+    c2=c2, c_kernel=C, m2=m2, m_kernel=M,
+)
+```
 
 With relatives and a personalised CIP this is LT-FH++; with only role `o`
 it is ADuLT; with one lifetime $T$ and relatives it is classic LT-FH.
+
+### Population trio-register route
+
+For unique population `ids`, the public driver combines pedigree extraction,
+row alignment, CIP conversion and scoring. Choose a single supplied curve
+with `cip_ages`, `cip_values`, `k_pop`, or use `strata` plus a mapping of each
+label to `(cip_ages, cip_values, k_pop)`; do not mix the two routes.
+
+```python
+from ltpred import estimate_liabilities
+
+common = dict(
+    ids=ids, father=father, mother=mother, status=status, age=age,
+    h2=h2, max_degree=1, strata=strata, cip_by_stratum=cip_by_stratum,
+)
+gwas_scores = estimate_liabilities(probands=gwas_ids, use="gwas", **common)
+prediction_scores = estimate_liabilities(
+    probands=prediction_ids, use="prediction", birth_time=birth_time,
+    index_time=index_time, **common,
+)
+score = prediction_scores.est       # aligned to prediction_scores.probands
+posterior_var = prediction_scores.var
+```
+
+`birth_time` is aligned to population `ids`; `index_time` is aligned to
+`prediction_ids`. Both use one numeric calendar scale whose unit matches
+`age`, for example calendar years and attained years. At index time $t$, a
+relative born at $b_j$ is censored at attained age $t-b_j$, **not** at the
+proband's attained age. A post-index diagnosis becomes a control censored
+at that relative-specific age; follow-up ending earlier is kept at its
+recorded end. A person born at or after the landmark is uninformative.
+The proband's observation is always uninformative under `use="prediction"`.
+
+The driver currently supports **single-trait, additive-only, pinned-onset
+LT-FH++ with deterministic PA**. Use the lower-level APIs for C/M kernels,
+Gibbs, interval cases or PA-FGRS mixtures. It returns `PopulationScores`,
+not `LiabilityResult`: there is no `genetic` property or Monte-Carlo `se`
+column. `est` and `var` are PA mean and posterior-variance approximations.
+
+Check `n_relatives` (non-proband members within the chosen degree),
+`n_conditioned` (informative diagnosis bounds, including own status for
+GWAS), `n_closure_only` (extra structural ancestors) and `degree_max`.
+In the runnable six-person example in
+[`examples/vignette.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py),
+`max_degree=1` deliberately selects two parents and a sibling; two maternal
+grandparents are retained only for exact kinship. Prediction has **three
+relatives, two closure-only ancestors and three conditioned records**;
+GWAS has four conditioned records. Changing only post-index proband/mother
+records and closure-only diagnoses leaves the prediction mean and variance
+exactly unchanged. This is an API/leakage check using a toy CIP, not clinical
+calibration or new performance evidence.
 
 **Sizing the run.** On the reference machine at 4 Numba threads the
 object path scores 208,000–221,000 families/s under PA and 503–512/s
@@ -478,64 +632,91 @@ arithmetic dominates: switch to `estimate_liability_pa_arrays`, which
 takes already-aligned `(n_families, k)` bound arrays, and set the thread
 count with `ltpred.set_num_threads(n)`
 ([Estimation](estimation.md#scaling-to-large-cohorts)).
+Those timings measure grouped, already prepared role families; they do not
+include per-proband register extraction, kinship construction and CIP
+alignment. Do not extrapolate them to `estimate_liabilities`. Its historical
+throughput results remain stale pending a provenance-tracked rerun.
 
 ### Did it work?
 
-The model implies checks you can run on the returned object. The law of
-total variance is the useful one: conditioning splits the genetic
-variance into what the family explained and what it did not, and the two
-must add back to $h^2$.
+For the **non-inbred, no-mixture, population-sampled simulation** above,
+the law of total variance provides a useful check: variance explained by
+the family plus mean remaining posterior variance adds back to $h^2$ in
+expectation. PA approximates the moments, and a finite sample adds noise.
+This is not a universal assertion for an ascertained or overlapping
+register cohort.
 
 ```python
 import numpy as np
 
 mu, v = res.genetic, res.var["genetic"]
-# these are per-proband, aligned to res.pids — not the per-row `status` column
-own = np.asarray(status)[np.asarray(role) == "o"]
+# Join by ID; the order of role-o rows need not match the output order.
+own_by_pid = {person: code for person, r, code in zip(pid, role, status) if r == "o"}
+own = np.asarray([own_by_pid[person] for person in res.pids])
 
 assert len(res.pids) == len(families)                           # one score per proband
 np.testing.assert_allclose(mu.var() + v.mean(), h2, atol=0.02)  # law of total variance
-assert v.max() <= h2 + 1e-8            # conditioning cannot add genetic variance
+assert v.max() <= h2 + 1e-8            # this convex, no-mixture Gaussian model
 assert abs(mu.mean()) < 0.05           # mu is a deviation from the population mean
 assert mu[own == 1].mean() > mu[own == 0].mean()
 ```
 
-The variance identity holds in expectation on a correctly specified,
-population-sampled cohort, so give it a tolerance rather than an equality;
-`atol=0.02` is comfortable at $n=800$. The `v.max()` bound assumes a
-non-inbred proband, where $\mathrm{Var}(a_i)=h^2$ — with inbreeding
-$A_{ii}>1$ and the ceiling is $h^2A_{ii}$.
+The `atol=0.02` tolerance is used for this particular $n=800$ simulation;
+it is not a general calibration cutoff. Conditioning on convex Gaussian
+interval constraints reduces variance, but arbitrary mixture observations
+need not obey this per-person ceiling. For an inbred kinship target the
+prior variance on the returned scale is $h^2A_{ii}/V_{ii}$ (step 1), and
+different targets can have different priors.
 
 On the cohort above: $\mathrm{Var}(\hat\mu)=0.088$ plus a mean posterior
 variance of $0.413$ gives $0.502$ against $h^2=0.5$; $\hat\mu$ has mean
 $0.004$ and standard deviation $0.297$; cases average $+1.02$ and
 controls $-0.06$.
 
-When a check fails, it usually means one of two things. A sum far
-*below* $h^2$ says the families carry almost no information — check that
-the join did not drop the relative rows. A mean far from 0 says the
-assumed prevalence disagrees with the observed case rate.
+No information gives $\mu_i=0$ and posterior variance $h^2$: the sum still
+equals $h^2$. A sum far below it therefore does **not** diagnose missing
+family history; inspect model/sampling assumptions, score–variance alignment
+and approximation error. A nonzero mean can reflect ascertainment,
+misspecified prevalence, data errors or approximation, not just one cause.
 
 ## 5. What you do with the score
 
-**Use I (prediction).** Join `res.pids` to the people whose risk you
-want. Do not put the predicted diagnosis into $D_F$. A PGS, if you have
+**Use I (prediction).** Join `prediction_res.pids` or
+`prediction_scores.probands` to the people whose risk you want. Do not put
+the predicted diagnosis into $D_F$. A PGS, if you have
 one, is combined **after** this step — a target-population prediction
 model, not something ltpred fits
 ([Hujoel et al. 2022](https://doi.org/10.1016/j.xgen.2022.100152);
 [Dybdahl Krebs et al. 2026](https://doi.org/10.1016/j.ajhg.2025.11.016)).
 
-On the liability scale $\mu_i$ is in population standard-deviation
-units, not a probability. For **use I only** — own status out of $D_F$,
-so the proband's residual is independent of the family — the model's
-implied risk is
+On the liability scale $\mu_i$ is a genetic contribution to total liability,
+not a probability. For **use I only**, consider a non-inbred target with
+no shared-environment components and approximate its family-only genetic
+posterior by a Gaussian. Its model-implied cumulative disease probability
+by age $t$ is equation (4), where $\overline\Phi$ is the standard-normal
+survival function:
+
+$$
+q_i(t) \approx \overline\Phi\!\left(
+  \frac{\Phi^{-1}(1-K_i(t))-\mu_i}
+       {\sqrt{v_i+1-h^2}}
+\right),
+\qquad v_i=\mathrm{Var}(a_i\mid D_F).
+\tag{4}
+$$
+
+For classic LT-FH, replace $K_i(t)$ by the lifetime $K$. Construct the
+relatives-only result explicitly; do not reuse the GWAS `res` from step 4:
 
 ```python
 import numpy as np
 from scipy.stats import norm
+from ltpred import estimate_liability
 
-T = norm.isf(K)                      # or the person's own T_i from step 2
-risk = norm.sf((T - res.genetic) / np.sqrt(res.var["genetic"] + 1 - h2))
+prediction_res = estimate_liability(prediction_families, h2=h2)
+T = norm.isf(K)                      # lifetime K in this classic example
+risk = norm.sf((T - prediction_res.genetic)
+               / np.sqrt(prediction_res.var["genetic"] + 1 - h2))
 ```
 
 The reasoning is that $\ell_i = a_i + e_i$ with $\mathrm{Var}(e_i)=1-h^2$,
@@ -546,21 +727,50 @@ assumes no shared-environment components ($c^2=m^2=0$, or $e_i$ is coupled
 to the relatives), and it treats $a_i \mid D_F$ as Gaussian, which is the
 same two-moment approximation PA makes.
 
-At $h^2=0.5$, $K=0.05$ it is calibrated overall and in both tails. Over
+At $h^2=0.5$, $K=0.05$, results are compatible with calibration overall
+and in both tails **in this simulation**. Over
 10 replicates of 4,000 relatives-only families the predicted rate is
 $0.0503 \pm 0.0002$ against an observed $0.0501 \pm 0.0012$, and the top
 decile is $0.1200 \pm 0.0005$ predicted against $0.1187 \pm 0.0048$
 observed — a gap of 0.3 standard errors. A *single* replicate can look
 off by two or three standard errors in the tail, so do not read one run
 as a bias. The formula is **not** valid for use II, where the proband's
-own status is already in $D_F$.
+own status is already in $D_F$. These simulation checks do not establish
+clinical calibration in a new population.
 
-**Use II (GWAS).** Join `res.pids` to genotyped IDs. Residualize for sex,
+For prospective risk, cumulative probability by a horizon is not incident
+risk among those who were disease-free at the landmark. Under the simple
+threshold-crossing model, with no additional competing-event or risk-set
+conditioning, equation (5) gives the probability between ages $a$ and $b$:
+
+$$
+\Pr(a<T_{\mathrm{onset}}\le b\mid T_{\mathrm{onset}}>a,D_F)
+  \approx \frac{q_i(b)-q_i(a)}{1-q_i(a)}.
+\tag{5}
+$$
+
+The six-person register example evaluates this with `prediction_scores.est`
+and `prediction_scores.var`, using its toy CIP at both ages. With no family
+information, equation (5) reduces to
+$(K_i(b)-K_i(a))/(1-K_i(a))$; the executable example tests that identity.
+It also selects a proband whose recorded onset follows the landmark—the
+driver itself does not construct an eligible incident-risk cohort.
+
+An actual cohort may additionally require being alive, resident and observed
+at the index date. A disease CIP, including an Aalen–Johansen CIP, does not
+by itself encode those extra conditioning events or their joint dependence
+on family history. The driver supplies no competing-event risk model.
+Prospective clinical risk needs those processes, an explicit eligible risk
+set and held-out calibration; equation (5) alone is not that validation.
+
+**Use II (GWAS).** Join `res.pids` or `gwas_scores.probands` to genotyped IDs. Residualize for sex,
 cohort, ancestry principal components (PCs), and batch, or put them in a
 mixed model. Prefer an association method that handles relatedness if
 related targets remain
 ([Zhuang et al. 2022](https://doi.org/10.1093/bioinformatics/btac459)).
-ltpred does not run the GWAS.
+ltpred does not run the GWAS. A liability-score correlation proxy and
+independent-SNP NCP evidence do not establish null calibration in a real-LD,
+related-target mixed-model analysis; that remains a separate validation task.
 
 **Use III** does not need this step. The quantities of interest were $h^2$,
 $r_g$, and/or $K(\cdot)$ in steps 0 and 2.
@@ -578,7 +788,7 @@ np.corrcoef(status, true_g)[0, 1]       # 0.342
 np.corrcoef(pa.genetic, true_g)[0, 1]   # 0.419
 ```
 
-**Table 3.** Correlation with the simulated true genetic value $a_i$, on
+**Table 4.** Correlation with the simulated true genetic value $a_i$, on
 the seed-1 cohort defined above. The 0/1 label is the baseline a GWAS
 would otherwise use.
 
@@ -605,7 +815,7 @@ through `kinship_from_pedigree` they agree to $5.6\times10^{-4}$ — PA's
 sequential fold order differs between the two row layouts, so that is
 approximation error, not round-off and not Monte-Carlo noise.
 
-The script's last block reruns the same design with `use_age=True`,
+The script's final simulation block reruns the same design with `use_age=True`,
 where a person counts as a case only once onset precedes their current
 age. The observed proband case rate falls from 0.055 to 0.004, so the
 $\mathrm{Corr}=0.261$ there is **not** comparable with the 0.419 above.
@@ -624,6 +834,9 @@ above and with RESULTS §10. Credit the gain to the right input.
 signatures. Role labels are unchanged; the input object and the
 uncertainty column are not.
 
+**Table 5.** Mapping the role-based R workflow to ltpred. The public
+`estimate_liabilities` register driver is a separate unique-ID/trio route.
+
 | R | ltpred |
 |---|---|
 | `estimate_liability(.tbl = df, …)` | `families_from_columns(...)`, **then** `estimate_liability(families, h2=…)` |
@@ -635,6 +848,8 @@ uncertainty column are not.
 ltpred ships no igraph-style pedigree object and no plotting utilities.
 
 ## Where to go next
+
+**Table 6.** Further documentation by task.
 
 | you want to… | see |
 |---|---|

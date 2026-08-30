@@ -14,8 +14,9 @@ simulates a nuclear cohort so the later calls have input; on real data,
 skip it and start from your table. Swap the logistic CIP helpers for
 ``thresholds_from_cip`` before a real GWAS.
 
-Every number printed here is quoted somewhere in docs/vignette.md. If you
-change the script, re-read the vignette.
+The key outputs are quoted in docs/vignette.md. If you change the script,
+re-read the vignette. A final six-person register example demonstrates the
+public driver and calendar-time prediction without a performance claim.
 
 Run from the repository root::
 
@@ -33,7 +34,7 @@ from scipy.stats import norm
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ltpred import (  # noqa: E402
-    Family, estimate_liability, estimate_liability_from_kinship,
+    Family, estimate_liabilities, estimate_liability, estimate_liability_from_kinship,
     families_from_columns, fit_heritability, kinship_from_pedigree,
     observed_to_liability_h2, prevalence_thresholds, simulate_under_LTM_single,
     tetrachoric,
@@ -77,6 +78,64 @@ def _unbind_role(families, role):
     return out
 
 
+def _incident_risk(mean, variance, *, cip_at_index, cip_at_horizon, h2):
+    """Toy non-inbred, no-shared-environment Gaussian-moment calculation.
+
+    The family-only posterior does not include the proband's survival to the
+    landmark. Condition on that survival here, rather than treating cumulative
+    risk by the horizon as incident risk among unaffected people. This simple
+    threshold-crossing model has no competing-event or alive/resident risk-set
+    conditioning; a disease CIP alone does not supply those processes.
+    """
+    sd = np.sqrt(np.asarray(variance) + 1.0 - h2)
+    f_index = norm.sf((norm.isf(cip_at_index) - np.asarray(mean)) / sd)
+    f_horizon = norm.sf((norm.isf(cip_at_horizon) - np.asarray(mean)) / sd)
+    return (f_horizon - f_index) / (1.0 - f_index)
+
+
+def register_example():
+    """Six-person API example; the supplied CIP is illustrative, not empirical."""
+    ids = ["p", "m", "f", "s", "gm", "gf"]
+    father = ["f", "gf", None, "f", None, None]
+    mother = ["m", "gm", None, "m", None, None]
+    birth = np.array([1980., 1955., 1950., 1985., 1930., 1925.])
+    status = np.array([1, 1, 0, 0, 1, 0])
+    age = np.array([48., 72., 80., 40., 65., 90.])
+    # Replace this toy grid with externally estimated stratum-specific curves.
+    cip_ages = np.array([0., 20., 40., 60., 80., 100.])
+    cip_values = np.array([0., 0.005, 0.02, 0.05, 0.08, 0.10])
+    common = dict(ids=ids, father=father, mother=mother, probands=["p"],
+                  cip_ages=cip_ages, cip_values=cip_values, k_pop=0.10,
+                  h2=H2, max_degree=1)
+    gwas = estimate_liabilities(status=status, age=age, use="gwas", **common)
+    prediction = estimate_liabilities(
+        status=status, age=age, use="prediction", birth_time=birth,
+        index_time=[2020.], **common)
+
+    # p and m differ only after the landmark; gm and gf are closure-only.
+    # None of these changed diagnoses belongs in the prediction observation set.
+    changed = estimate_liabilities(
+        status=np.array([0, 0, 0, 0, 0, 1]),
+        age=np.array([80., 85., 80., 40., 95., 70.]),
+        use="prediction", birth_time=birth, index_time=[2020.], **common)
+    np.testing.assert_allclose(prediction.est, changed.est, rtol=0, atol=0)
+    np.testing.assert_allclose(prediction.var, changed.var, rtol=0, atol=0)
+
+    # p is unaffected at age 40 in 2020. The caller defines that at-risk cohort;
+    # use="prediction" leaves own status uninformative rather than selecting it.
+    cip_index, cip_horizon = np.interp([40., 60.], cip_ages, cip_values)
+    risk = _incident_risk(
+        prediction.est, prediction.var, cip_at_index=cip_index,
+        cip_at_horizon=cip_horizon, h2=H2)
+    prior_risk = _incident_risk(
+        np.array([0.]), np.array([H2]), cip_at_index=cip_index,
+        cip_at_horizon=cip_horizon, h2=H2)
+    np.testing.assert_allclose(
+        prior_risk, [(cip_horizon - cip_index) / (1.0 - cip_index)],
+        rtol=1e-14, atol=0)
+    return gwas, prediction, changed, risk, prior_risk
+
+
 def main():
     print("== Stand-in cohort (simulated; skip on real data) ==")
     sim = simulate_under_LTM_single(
@@ -115,7 +174,7 @@ def main():
     print(f"role grammar: o, m, f, s1  |  kinship A shape {A.shape}")
     print(f"A[o,m]={A[0, 1]:.2f}  A[o,s1]={A[0, 3]:.2f}  A[m,f]={A[1, 2]:.2f}")
     print("cousins / inbreeding / messy half-sibs: build_parent_graph then")
-    print("extract_pedigree (start at max_degree=2), then kinship_from_pedigree")
+    print("extract_pedigree (choose max_degree for the design), then kinship_from_pedigree")
 
     print("\n== 2. CIP / lifetime prevalence ==")
     fam_id, role, st, lower_l, upper_l = [], [], [], [], []
@@ -242,7 +301,8 @@ def main():
         print(f"{label:14} predicted {pm:.4f} +/- {pse:.4f}   "
               f"observed {om:.4f} +/- {ose:.4f}   "
               f"gap {d.mean():+.4f} +/- {dse:.4f} ({abs(d.mean()) / dse:.1f} SE)")
-    print("calibrated overall and in both tails; a single seed can look off by")
+    print("compatible with calibration overall and in both tails in this simulation;")
+    print("a single seed can look off by")
     print("2-3 SE, so do not read one replicate as a bias")
     print("not valid for use II: there the proband's own status is already in D_F")
 
@@ -281,6 +341,27 @@ def main():
     print("the work here; the age term adds the ~1.0-1.1x that RESULTS section")
     print("10 also reports. Do not credit family history's gain to age.")
     print("real LT-FH++ needs thresholds_from_cip with stratified population CIPs")
+
+    print("\n== Public register driver: a six-person calendar example ==")
+    gwas, prediction, changed, risk, prior_risk = register_example()
+    print("toy CIP supplied explicitly; not empirical data or a benchmark")
+    print("max_degree=1 deliberately includes parents and sibling; two maternal")
+    print("grandparents remain in exact kinship but not in the observation set")
+    print(f"GWAS: proband {gwas.probands[0]}, score {gwas.est[0]:+.6f}, "
+          f"posterior var {gwas.var[0]:.6f}, conditioned {gwas.n_conditioned[0]}")
+    print(f"Prediction at 2020: score {prediction.est[0]:+.6f}, "
+          f"posterior var {prediction.var[0]:.6f}")
+    print(f"relatives {prediction.n_relatives[0]}, "
+          f"closure-only {prediction.n_closure_only[0]}, "
+          f"conditioned {prediction.n_conditioned[0]}")
+    print("2020 attained ages: mother 65, father 70, sibling 35; own status out")
+    print(f"post-index / closure diagnosis changes: max score difference "
+          f"{np.max(np.abs(prediction.est - changed.est)):.1f}")
+    print(f"incident risk age 40 to 60, given unaffected at 40: {risk[0]:.6f}")
+    print(f"no-history prior check: (0.05 - 0.02) / (1 - 0.02) = {prior_risk[0]:.6f}")
+    print("risk uses a non-inbred, no-C/M, Gaussian posterior approximation")
+    print("without competing-event or alive/resident risk-set conditioning;")
+    print("it is not a clinical calibration result")
     print("done.")
 
 

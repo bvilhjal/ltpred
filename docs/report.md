@@ -31,8 +31,10 @@ The report states the estimand and assumptions first, then the
 liability-threshold model and BLUP identity, Algorithms G
 (Gibbs), P (Pearson–Aitken) and M (mixture),
 the implementation (grouping, collapsed untruncated coordinates,
-streaming batch-means, object vs array path, posterior `var` vs
-estimator `se`), the population/IPW sampling
+streaming batch-means, object vs array vs register path, posterior `var` vs
+estimator `se`), the standardized inbred target, calendar-time censoring
+and closure-only observation masking, cumulative versus incident risk,
+the population/IPW sampling
 contracts, and the load-bearing simulation tables — agreement
 and speed, independent-SNP causal NCP, personalisation, cohort confounding, calibration,
 PGS complementarity, the censoring mixture (including
@@ -41,3 +43,7 @@ ascertainment.
 Those tables are historical snapshots; see
 [`benchmarks/RESULTS.md`](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
 for provenance.
+The old register-depth and prospective figures are no longer presented as
+current evidence: the corrected driver needs a clean-source benchmark rerun.
+The runnable vignette's small register example checks the input contract,
+not predictive performance.

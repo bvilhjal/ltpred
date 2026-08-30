@@ -35,7 +35,7 @@
   {\large Model, sequential approximation, and evidence in \texttt{ltpred}}}
 \author{Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
   {\small Aarhus University and SMARTbiomed}\\[0.35em]
-  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.5.0}}
+  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.5.1}}
 \date{30 August 2026}
 
 \begin{document}
@@ -74,8 +74,9 @@ remove a simulated cohort-confounding $\lambda_{\mathrm{GC}}$ of
 $16.46\pm 0.40$ (Table~\ref{tab:confound}).
 A PGS and $\mu_i$ remain complementary: joint test $R^{2}=0.338$
 against $0.236$ and $0.170$ (Table~\ref{tab:pgs}).
-The GWAS and personalisation figures are upper bounds relative to
-register data: a pin-versus-interval ablation keeps almost all of
+The association and personalisation figures describe optimistic,
+model-specific scenarios, not proved upper bounds for register data:
+a pin-versus-interval ablation keeps almost all of
 the onset increment except at high prevalence, and pinning is
 calibrated only when onset is the CIP inverse of liability.
 They are not estimates of clinical utility.
@@ -99,7 +100,7 @@ and which simulation claims survive their generative assumptions.
 \label{sec:estimand}
 
 Write $a_i$ for the additive genetic liability of a designated
-proband, $\Var(a_i)=\h$ on the usual unit-liability scale, and
+outbred proband, $\Var(a_i)=\h$ on the usual unit-liability scale, and
 $\ell_F$ for the vector of full liabilities on the people whose
 disease records are used (the proband may or may not be among them).
 Let $D_F$ denote the complete observation model encoded by those
@@ -116,6 +117,8 @@ age into interval endpoints or mixture weights. For LT-FH, LT-FH++
 and ADuLT, $D_F$ is the rectangular event $\ell_F\in C_F$, one interval
 per person. The PA-FGRS censoring mixture is a mixture of truncated
 laws and is not, in general, one rectangle.
+For an inbred target the kinship API reports the standardized genetic
+coordinate in Section~\ref{sec:ltm}; its prior variance need not be $\h$.
 
 If $\ell_F$ were observed continuously, \eqref{eq:estimand} would be
 the selection index / animal-model BLUP
@@ -178,6 +181,16 @@ A third use never needs $\mu_i$ (Table~\ref{tab:uses}).
   (Section~\ref{sec:fitting}).
 \end{enumerate}
 
+The practical order is the vignette's six-stage workflow: (0) supply
+liability-scale population parameters, (1) identify the pedigree,
+(2) specify population prevalence or CIPs, (3) encode the permitted
+observations, (4) estimate the score, and (5) perform the downstream
+analysis. At the low level, the caller builds the own-status inclusion
+or exclusion into the bounds. The register driver performs that
+construction through an explicit use argument (Section~\ref{sec:impl}).
+Use~III does not imply a shipped family-based $r_g$ fitter:
+multi-trait scoring accepts a supplied genetic correlation matrix.
+
 The multivariate threshold model on a pedigree is Sham's
 framework \cite{sham1998}.
 So, Kwan, Cherny and Sham \cite{so2011} already combined family
@@ -236,7 +249,7 @@ III & Architecture, relationships, aetiology &
 \section{Covariance}
 \label{sec:ltm}
 
-The liability split is the usual one,
+For a non-inbred person without shared environment, the liability split is
 \begin{equation}
   \ell = a + e,
   \qquad
@@ -247,7 +260,7 @@ The liability split is the usual one,
 so $\ell\sim\mathcal{N}(0,1)$ and a case is $\ell>T$ with
 $T=\Phi^{-1}(1-K)$ at a single prevalence $K$
 \cite{wright1934,falconer1965}.
-On a pedigree,
+In the same outbred, additive-only model, on a pedigree,
 \begin{equation}
   \Cov(a_i,a_j)=\h A_{ij},
   \qquad
@@ -257,21 +270,41 @@ On a pedigree,
   \label{eq:animal}
 \end{equation}
 with $A_{ij}=2\phi_{ij}$.
-Mates are taken as unrelated ($A_{mf}=0$): the default $A$ is not a
-generative model of assortment.
-Inbreeding is handled by the tabular method \cite{henderson1976},
-after which full liabilities are rescaled to unit variance so that
-$\Phi^{-1}(1-K)$ still means prevalence $K$.
+The default role model takes mates as unrelated ($A_{mf}=0$); it is not
+a generative model of assortment. Actual parent pointers may instead
+imply related mates and inbreeding, handled by the tabular method
+\cite{henderson1976}.
 
-Shared environment is optional and off-diagonal,
+With optional shared environment, form the full raw covariance
 \begin{equation}
-  \Cov(\ell_i,\ell_j)
-  \;=\;
-  \h A_{ij} + c^{2} C_{ij} + m^{2} M_{ij},
-  \qquad \h+c^{2}+m^{2}\le 1.
+  V=\h A+c^{2}C+m^{2}M+e^{2}I,
+  \qquad e^{2}=1-\h-c^{2}-m^{2}\ge0.
   \label{eq:ACE}
 \end{equation}
-The target $a_i$ still couples to relatives only through $\h A$.
+The environmental kernels $C$ and $M$ have unit diagonals. Hence $V_{ii}=1$ for an
+outbred person, while inbreeding gives $V_{ii}=1+\h(A_{ii}-1)$.
+The kinship API keeps prevalence thresholds on a unit-variance scale
+by standardizing both the observed liabilities and the target:
+\begin{equation}
+\begin{gathered}
+  s_i=\sqrt{V_{ii}},\qquad \Sigma_{ij}=V_{ij}/(s_i s_j),\qquad g_i=a_i/s_i,\\
+  \Var(g_i)=\h A_{ii}/V_{ii},\qquad
+  \Cov(g_i,\ell_j/s_j)=\h A_{ij}/(s_i s_j).
+\end{gathered}
+\label{eq:scaled-target}
+\end{equation}
+It reports moments of $g_i$, not raw $a_i$, when $s_i\ne1$.
+Recover raw additive moments by multiplying the mean by $s_i$ and the
+variance by $V_{ii}$, if that is the intended comparison. The target
+couples to relatives only through $\h A$, not through $C$ or $M$.
+
+Role-based scoring constructs the sibship and couple kernels from role
+labels. Arbitrary-kinship scoring accepts the same proportions only
+with caller-supplied, aligned kernels: finite, symmetric, positive
+semidefinite, and unit-diagonal. Additive relatedness alone cannot
+identify those environmental classes. The public register driver is
+additive-only; C/M scoring uses the lower-level kinship API.
+
 Identification is the usual contrast arithmetic: $C$ (full-sib
 environment) is the excess of sib covariance over parent--offspring
 (both have $A=\tfrac12$); $M$ (couple) is the covariance of
@@ -499,16 +532,82 @@ There is still no Gibbs implementation of \eqref{eq:mix}.
 \label{sec:impl}
 
 The mathematics above is small dense linear algebra on one family.
-The software problem is many independent families, most of which share
-a pedigree shape.
+The software problem is many target families, most role-defined inputs
+sharing a pedigree shape. Fixed-parameter scoring permits overlapping
+families; independence is a requirement for the moment fitters, not for
+computing each conditional score.
 
 \paragraph{Grouping.}
-Families with the same ordered role set share one $\Sigma$.
+Families with the same role set share one $\Sigma$ after column alignment.
 Both engines group on that key, factorise once, and apply the
 per-family intervals in a compiled kernel.
 The object API (\texttt{Family}/\texttt{Member}) does this grouping
 internally.
 The array API receives already-aligned bounds and is the hot path.
+
+\paragraph{Three input routes.}
+The vignette follows the same mathematics through three public interfaces
+(Table~\ref{tab:interfaces}). The family route is
+\texttt{estimate\_liability}; the specified-matrix route is
+\texttt{estimate\_liability\_from\_kinship}; the population-trio driver is
+\texttt{estimate\_liabilities}. The last is not a vectorized spelling of
+the first: it also constructs the pedigree and observation set.
+
+\begin{table}[ht]
+\centering
+\caption{Public scoring interfaces and their output alignment.
+The register driver combines pedigree extraction, supplied population
+CIPs, observation masking, and pinned-onset PA; it is additive-only.}
+\label{tab:interfaces}
+\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.8cm}
+  >{\raggedright\arraybackslash}p{6.4cm}
+  >{\raggedright\arraybackslash}p{5.6cm}@{}}
+\toprule
+Route & Caller supplies & Returned target moments \\
+\midrule
+Family roles & Family/member bounds and role labels &
+  \texttt{pids}, \texttt{genetic}, \texttt{var}, \texttt{se} \\
+Specified kinship & $A$, aligned bounds, optional C/M kernels &
+  \texttt{(est, se, var)} tuple \\
+Population trios & Unique IDs, parents, status/age, CIPs, use, landmarks &
+  \texttt{probands}, \texttt{est}, \texttt{var}, observation counts \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Kinship closure and the observation set.}
+Extraction visits people within \texttt{max\_degree} and then adds all
+recorded ancestors needed for exact kinship. Those extra rows remain in
+$A$ but are marked \texttt{closure\_only}. Their bounds are uninformative
+by default; the explicit opt-in is \texttt{condition\_closure=True}.
+A caller assembling low-level bounds must apply that mask too.
+The output counts distinguish the observation neighbourhood
+(\texttt{n\_relatives}, excluding the proband), bounds actually used
+(\texttt{n\_conditioned}), and structural additions
+(\texttt{n\_closure\_only}).
+
+\paragraph{Prediction uses calendar time.}
+The required \texttt{use} argument selects the observation model.
+With \texttt{use="gwas"}, own diagnosis is included.
+With \texttt{use="prediction"}, it is uninformative and every relative
+is censored at the proband's calendar landmark $\tau_i$.
+For relative $j$ with birth time $b_j$, recorded status $d_j$, and
+diagnosis/exit age $x_j$, write
+\begin{equation}
+  c_{ij}=\tau_i-b_j,\qquad
+  x_{ij}=\min(x_j,c_{ij}),\qquad
+  d_{ij}=d_j\,\mathbf{1}\{x_j\le c_{ij}\},
+  \label{eq:calendar-censor}
+\end{equation}
+when $c_{ij}>0$; otherwise the member is uninformative.
+Birth, index, and attained-age values must share one numeric unit.
+An earlier exit stays an earlier exit, and a post-index diagnosis becomes
+a control at that member's cutoff age, not the proband's attained age.
+Single or stratified supplied CIPs then produce pinned-onset bounds.
+The caller still chooses the eligible prediction cohort and horizon.
+The driver neither selects disease-free probands nor returns clinical
+risks. Other encodings, C/M, and Gibbs use the lower-level interfaces.
 
 \paragraph{Algorithm G.}
 The inner sweep is Numba-JIT'd and \texttt{prange}-parallel across
@@ -544,6 +643,8 @@ million families per second in the same warmed run---another
 $13$--$29\times$ over the object path.
 Those array rates are a hot-kernel measurement, not end-to-end
 register ingestion.
+Neither set of timings establishes throughput for the per-proband
+extraction and dense-kinship driver in Table~\ref{tab:interfaces}.
 
 \paragraph{Two different uncertainties.}
 Write $\widehat{\mu}_i$ for the reported estimate of \eqref{eq:estimand}.
@@ -556,6 +657,45 @@ approximation error, and not zero posterior variance.
 On a seven-observation fold---the regime where PA $\mathtt{var}$ is
 itself an approximation---the sequential-moment variance sits within
 $5\%$ of the Gibbs Monte-Carlo variance.
+
+The vignette's total-variance check is restricted to a correctly
+specified population-sampled design with a common prior variance:
+$\Var(\mu_i)+\E[\Var(a_i\mid D_F)]=\h$ in the outbred case.
+An uninformative history gives $\mu_i=0$ and posterior variance $\h$;
+it does not make their sum small. A discrepancy instead calls for
+checking sampling, model/threshold specification, alignment, and
+approximation. Inbred targets use the prior in
+\eqref{eq:scaled-target}; selected cohorts and mixtures need separate
+checks, not the unmodified teaching assertions.
+
+\paragraph{A genetic score is not a probability.}
+For relatives-only observations in an additive-only model, the target's
+residual is independent of those observations. Approximating its
+conditional genetic distribution by its two moments $(m_i,v_i)$ gives
+the cumulative crossing probability
+\begin{equation}
+ q_i(t)\;\approx\;
+ \overline\Phi\!\left(
+ \frac{\Phi^{-1}(1-K_i(t))-m_i}{\sqrt{v_i+r_i}}\right),
+ \qquad r_i=\frac{1-\h}{V_{ii}}.
+ \label{eq:risk}
+\end{equation}
+Here $m_i,v_i$ use the threshold-standardized genetic scale and
+$V_{ii}=1$ for an outbred target. This is a moment approximation, not
+an exact Gaussian posterior. It must not reuse a GWAS score that already
+conditions on the outcome; C/M also invalidate the independent-residual
+shortcut. For a disease-free-at-$a$ cohort in the same simple onset model,
+the incident quantity through age $b>a$ is instead
+\begin{equation}
+ \Pr(a<T_{\rm onset}\le b\mid T_{\rm onset}>a,D_F)
+ \;\approx\;\frac{q_i(b)-q_i(a)}{1-q_i(a)}.
+ \label{eq:incident-risk}
+\end{equation}
+This formula does not condition on additional survival, residency, or
+entry events. A disease-specific Aalen--Johansen CIP alone does not
+encode the extra condition of being alive and resident at the landmark.
+Those processes need a matching risk model, and practical predictions
+need held-out calibration; the driver performs neither task.
 
 \paragraph{What is not implemented.}
 There is no Gibbs version of \eqref{eq:mix}.
@@ -588,6 +728,9 @@ with $P$ the sample case fraction ($P=K$ drops the second factor).
 
 A pedigree fit of $\h$ from the same family records is available,
 but it is not ``LT-FH++ with $\h$ free.''
+The shipped $\h$ and A+C+M fitters use role-defined relationship classes;
+the arbitrary-kinship kernels are scoring inputs, not a new fitter for
+overlapping extracted pedigrees.
 The implementation is data augmentation: draw
 $\ell\mid C_F,\Sigma(\h)$, then a damped Haseman--Elston step
 \begin{equation}
@@ -646,6 +789,8 @@ has $\pi=0$ there, and no weight reconstructs what was never
 observed---proband ascertainment is exactly this case. Selection on
 family history is IPW-correctable only if every complete observed
 family pattern has a known, strictly positive inclusion probability.
+No ascertainment likelihood for clinic samples with zero-probability
+family strata is implemented; the marginal screen cannot replace one.
 The weighted role-marginal screen can falsify some wrong weight sets;
 it is not a general positivity test.
 \emph{Efficiency}: at $K=0.05$ a $50/50$ case/control cohort needs
@@ -981,16 +1126,15 @@ One replicated departure remains: at $K=0.01$ with an extended
 pedigree the top-decile realised/predicted ratio is
 $0.946\pm 0.018$, about $3$\,SE below $1$.
 
-A wrong assumed $\h$ leaves the ranking almost untouched and
-tilts the scale.
+In this sensitivity grid, a wrong assumed $\h$ leaves the ranking
+almost untouched and tilts the scale.
 With true $\h=0.5$ and $K=0.05$, assumed $\h$ from $0.2$ to $0.8$
 sweeps the slope from $2.240\pm 0.015$ down to $0.678\pm 0.006$
 while $\Corr(\widehat{\mu},a)$ stays in $0.429$--$0.431$
 (SE $\le 0.004$).
-Use $\widehat{\mu}$ as a GWAS phenotype (use~II) or a ranker
-(use~I) under a roughly right $\h$; do not treat its numerical
-scale as $\E[a_i\mid C_F]$ unless $\h$ is the one the score was
-computed at.
+This is evidence of ranking robustness in the tested design, not a
+guarantee for another pedigree or observation model. Vary plausible
+population parameters and report both ranking and scale sensitivity.
 
 Heavy tails, generative assortment at phenotypic $\rho\approx 0.3$,
 and an unmodelled sibship $c^{2}=0.15$ each move the slope by only
@@ -1001,8 +1145,9 @@ cost $0.016$ ($0.4983\pm 0.0045$ against $0.4820\pm 0.0024$), about
 $3\%$ of the control correlation and roughly $3$ SE.
 A factor-of-two error in prevalence moves the slope to $0.89$ or
 $1.13$.
-Threshold provenance is the calibration hazard; the Gaussian
-family model is not.
+Threshold provenance is a substantial calibration hazard in this
+grid. These few misspecifications do not establish robustness of the
+Gaussian family model in general.
 
 \subsection{Complementarity with a PGS}
 
@@ -1029,9 +1174,9 @@ Observed $\Corr(\mathrm{PGS},\mu)=0.2009\pm 0.0046$ against
 Conditional independence holds by construction here.
 That is a verification of the identity, not a test of the
 failure modes.
-The portable number is the increment, not the absolute $R^{2}$:
-$2{,}000$ independent SNPs are a friendlier multiple-testing
-regime than a genome-wide panel.
+Neither the absolute $R^{2}$ nor its increment is portable without the
+architecture and sample assumptions: $2{,}000$ independent SNPs are a
+friendlier multiple-testing regime than a genome-wide panel.
 
 \subsection{The censoring mixture}
 
@@ -1157,31 +1302,24 @@ so under proband ascertainment every augmented proband is redrawn
 above $T$, its relatives are pulled with it, and the cross-products
 stay positive whatever the truth.
 
-\subsection{Which relatives, and leaking the outcome}
+\subsection{Register depth and prospective evidence: rerun required}
 
-On five simulated three-generation populations, scoring every
-relative out to third degree rather than the named-role grammar
-(parents, full sibs, grandparents) raises
-$\Corr(\widehat{\mu},a)$ from $0.498\pm 0.016$ to
-$0.569\pm 0.013$ (paired $+0.071\pm 0.006$, $95\%$ CI
-$[0.054,0.089]$).
-The increment is the LT-FGRS point: the degree limit chooses
-\emph{which} people enter $C_F$, not the kinship among those who
-do.
-An ancestral closure is required for that kinship to be exact.
+The historical pedigree-payoff and end-to-end register artifacts are
+superseded, not current validation of the driver in
+Section~\ref{sec:impl}. They conditioned on closure-only ancestors
+beyond the requested depth; the prospective path also used a common
+attained-age cutoff across generations instead of
+\eqref{eq:calendar-censor}. The repaired benchmark separates ordinary
+GWAS sampling from disease-free-at-landmark prediction and standardizes
+inbred truth on the same scale as the estimator.
 
-For prospective prediction the proband's own future diagnosis must
-not enter $C_F$ (Section~\ref{sec:estimand}).
-On five synthetic registers the honest familywise-censored score
-has rank AUC $0.581\pm 0.031$ for diagnosis in $(40,70]$ after
-index age $40$.
-Relatives' post-index events raise AUC by
-$+0.065\pm 0.014$ (they help discrimination; they are leakage for
-a prospective claim).
-The proband's own future outcome raises AUC by
-$+0.204\pm 0.016$.
-Honest censoring costs real accuracy, and leaking the answer buys
-plenty.
+Exact kinship can be checked against the full-population matrix while
+the observation set is separately checked for closure and post-index
+invariance. The six-person vignette example demonstrates those software
+contracts, not prediction accuracy or an optimal depth. The quantitative
+depth, leakage, calibration, and throughput claims require regeneration
+from a clean source snapshot through the provenance wrapper. No
+replacement register numbers are asserted here.
 
 %----------------------------------------------------------------------
 \section{What this does not do}
@@ -1209,9 +1347,12 @@ A linear GWAS of those scores without a mixed model, or without
 pruning to non-overlapping families, is the analysis
 Zhuang et al.\ \cite{zhuang2022} warned about.
 
-Two evidence gaps limit how hard Section~\ref{sec:results} can be
-leaned on: a real-LD mixed-model GWAS that handles related targets,
-and a Gibbs implementation of \eqref{eq:mix}.
+Three results would materially strengthen the current claims: a
+clean-source register benchmark with the corrected observation sets;
+a real-LD mixed-model GWAS with calibrated nulls among related targets;
+and an ascertainment likelihood recovering $\h\approx0$ in the
+null affected-proband design. None is supplied by the current evidence.
+A Gibbs implementation of \eqref{eq:mix} is a separate missing feature.
 The LTFHPlus / LTFGRS lock
 (Section~\ref{sec:ltfhplus}) covers only no-mixture classic
 bounds on $200$ equal nuclear families.

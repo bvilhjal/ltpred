@@ -6,7 +6,10 @@ threshold model. It uses the same three uses as the user vignette:
 (I) family-history risk prediction, (II) a quantitative GWAS
 phenotype, (III) architecture / relationships / aetiology from
 `h²`, `r_g` and/or the CIP. It fixes the estimand, the observation-model
-menu, the PA exactness boundary, the implementation (grouping, collapsed untruncated coordinates,
+menu, the PA exactness boundary, the standardized inbred target,
+the public role/kinship/register interfaces and calendar-time observation set,
+the distinction between cumulative and incident risk, and the implementation
+(grouping, collapsed untruncated coordinates,
 streaming batch-means, object vs array path, `var` vs `se`), and
 the load-bearing simulation tables — agreement and speed, the
 LTFHPlus / LTFGRS lock (total and per-family time, fold times versus
@@ -16,6 +19,10 @@ cohort confounding, calibration,
 PGS complementarity, the censoring mixture (including
 liability-dependent onset), pin versus interval encodings, and
 ascertainment.
+
+The historical register-depth and prospective benchmark numbers are withdrawn
+from the note pending a clean-source rerun. The vignette's six-person register
+example validates observation-set invariants, not prediction accuracy.
 
 Rebuild (requires [Tectonic](https://tectonic-typesetting.github.io/)):
 
