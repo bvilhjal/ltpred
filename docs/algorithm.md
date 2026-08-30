@@ -148,9 +148,14 @@ even when `A_ii > 1`; for non-inbred pedigrees the scaling is a no-op. This
 reproduces the role-grammar covariance entry-for-entry where they overlap and
 additionally covers half-sibs of any degree, cousins and inbred pedigrees;
 `estimate_liability_from_kinship` runs PA by default or Gibbs on request.
-That high-level kinship API accepts `lower`/`upper` and, with Pearson–Aitken,
+That high-level kinship API accepts `lower`/`upper`, caller-supplied
+`c2`/`c_kernel` and `m2`/`m_kernel` components, and, with Pearson–Aitken,
 `use_mixture=True` plus per-member `K_i`/`K_pop` for the PA-FGRS
-censored-control mixture. Gibbs still has no mixture implementation.
+censored-control mixture. With kernels it assembles
+`V = h2 A + c2 C + m2 M + (1-h2-c2-m2) I` before the same standardisation.
+`C` and `M` are not inferred from `A`: identical additive relatedness can
+describe different environmental relationships. Gibbs still has no mixture
+implementation.
 For discovering the relatives from population trio records, `ltpred.pedigree`
 implements graph-based relative extraction in the style of [Pedersen et al.
 (2025)](https://doi.org/10.3389/fgene.2025.1708315): `build_parent_graph`
@@ -158,14 +163,17 @@ indexes the records, `extract_pedigree` visits every person within
 `max_degree` relationship-degrees of a proband (full-sibling edges make the
 distance equal the standard relationship degree) and closes on all recorded
 ancestors, so the extracted pedigree's kinship is exact for every member pair.
+`Pedigree.closure_only` marks ancestors outside the requested observation
+degree. The public register driver keeps their diagnosis bounds uninformative
+by default while retaining them in `A`.
 Its kinship is the exact tabular one (inbreeding-aware), not the paper's
 path-counting approximation. The
 [LTFGRS](https://emilmip.github.io/LTFGRS/) R package (Pedersen et al.) —
 LT-FH++, PA-FGRS and Kendler's FGRS with unified data preparation — consumes
 the same extraction downstream.
 
-This is an **additive-genetic** model: familial resemblance is entirely genetic
-sharing. Shared environment, household/cultural transmission, assortative mating
+The default is an **additive-genetic** model: familial resemblance is entirely
+genetic sharing. Shared environment, household/cultural transmission, assortative mating
 (parents are taken to be genetically unrelated, `A_mf = 0`), dominance/epistasis
 and indirect genetic effects are not represented. Where those contribute, the
 estimated "genetic liability" is best read as the additive-model projection of the
@@ -213,12 +221,14 @@ front doors accept them: `estimate_liability` with scalar `h2`,
 `c2`/`m2` arguments, so the `A + C + M` decomposition fitted by
 `fit_variance_components` can be fed straight back into single-trait liability
 estimation. The high-level multi-trait route rejects nonzero `c2`/`m2` until an
-explicit cross-trait component covariance is defined.
+explicit cross-trait component covariance is defined. The arbitrary-kinship
+route accepts the same proportions only with aligned, caller-supplied `C` and
+`M` kernels; it never guesses relationship classes from `A`.
 Validated in `benchmarks/bench_shared_env.py` panel (c): wiring recalibrates the
 genetic estimate (slope 0.93 -> 0.99) and sharpens the full-liability
-prediction. Arbitrary user-supplied kernels still go through the covariance-
-level entry points (`rtmvnorm_gibbs`, `pa_algorithm`, `pa_estimate_batched`),
-which accept an arbitrary covariance directly.
+prediction. Other user-defined kernels still go through the covariance-level
+entry points (`rtmvnorm_gibbs`, `pa_algorithm`, `pa_estimate_batched`), which
+accept an arbitrary covariance directly.
 
 `fit_variance_components` estimates a set of components **jointly** (multiple HE
 regression; a Monte-Carlo EM likelihood route, `fit_variance_components_mcem`,
@@ -595,12 +605,13 @@ hand. Large non-Gaussian effects weaken the Gaussian conditioning step, though
 the moment identity survives for scores linear in `s`/`g` with independent
 errors.
 
-The correlation identity is verified inside the full GWAS design
+The correlation identity is verified inside the independent-SNP simulation
 (`bench_pgs_comparison.py`, §28 of RESULTS.md: observed 0.2009 ± 0.0046 vs
-theory 0.2003 ± 0.0050). The joint model is evaluated by two-fold cross-fitting
-and improves held-out R² from 0.236 (PGS) and 0.170 (LT-FH) to 0.338; that is an
-empirical complementarity check, not a separate numerical verification of the
-closed-form joint-R² identity.
+theory 0.2003 ± 0.0050). Its independent-SNP association panel uses a lightweight marginal score
+statistic, not a real-LD mixed model. The joint model is evaluated by two-fold
+cross-fitting and improves held-out R² from 0.236 (PGS) and 0.170 (LT-FH) to
+0.338; that is an empirical complementarity check, not a separate numerical
+verification of the closed-form joint-R² identity.
 
 ## Thresholds: status, age, onset — and personalisation by sex and birth cohort
 

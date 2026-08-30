@@ -47,6 +47,9 @@ class ExtractTests(unittest.TestCase):
             self.assertEqual(deg[r], 2, r)
         # parental closure: hs1's mother enters even just past the limit
         self.assertEqual(deg["f2"], 3)
+        closure = dict(zip(ped.ids, ped.closure_only.tolist()))
+        self.assertTrue(closure["f2"])
+        self.assertFalse(any(closure[pid] for pid in ped.ids if pid != "f2"))
 
     def test_deeper_degrees(self):
         ped2 = extract_pedigree(make_graph(), "o", max_degree=2)
@@ -55,6 +58,7 @@ class ExtractTests(unittest.TestCase):
         self.assertIn("c1", ped3.ids)          # first cousin at degree 3
         self.assertIn("f2", ped3.ids)          # father's mate via hs1
         self.assertIn("au_sp", ped3.ids)       # closure parent (degree 4)
+        self.assertTrue(ped3.closure_only[ped3.ids.index("au_sp")])
 
     def test_founder_columns_and_ordering(self):
         ped = extract_pedigree(make_graph(), "o", max_degree=2)
@@ -68,12 +72,13 @@ class ExtractTests(unittest.TestCase):
         self.assertEqual(ped.mother[idx["o"]], "m")
         self.assertEqual(ped.mother[idx["hs1"]], "f2" if "f2" in ped.ids else None)
         # deterministic under record shuffling
-        order = np.argsort(np.arange(len(IDS)))
+        order = np.arange(len(IDS))[::-1]
         g2 = build_parent_graph([IDS[i] for i in order],
                                 [FATHER[i] for i in order],
                                 [MOTHER[i] for i in order])
         ped2 = extract_pedigree(g2, "o", max_degree=2)
         self.assertEqual(ped.ids, ped2.ids)
+        np.testing.assert_array_equal(ped.closure_only, ped2.closure_only)
 
     def test_validation(self):
         with self.assertRaisesRegex(ValueError, "not in the parent graph"):
@@ -125,6 +130,12 @@ class KinshipIntegrationTests(unittest.TestCase):
         degrees = dict(zip(ped.ids, ped.degree.tolist()))
         self.assertEqual(degrees["A"], 2)
         self.assertEqual(max(ped.degree), 2)
+        closure = dict(zip(ped.ids, ped.closure_only.tolist()))
+        self.assertTrue(closure["A"])
+        self.assertTrue(closure["B"])
+        self.assertFalse(closure["P"])
+        self.assertFalse(closure["F"])
+        self.assertFalse(closure["M"])
 
 
 if __name__ == "__main__":

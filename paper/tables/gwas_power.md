@@ -1,6 +1,6 @@
 <!-- Regenerated 2026-08-20 from committed CSVs; static snapshot (generator removed 2026-08). -->
 
-## Replicated classic-LT-FH genotype GWAS (three replicates)
+## Replicated classic-LT-FH independent-SNP marginal association (three replicates)
 
 | phenotype | mean causal χ² | causal-SNP NCP ratio / c-c | power at 5e-8 | λ_GC |
 |---|---:|---:|---:|---:|

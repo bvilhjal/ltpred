@@ -27,10 +27,12 @@ spousal-environment component of `fit_variance_components`).
 The extracted :class:`Pedigree` carries ``ids``/``father``/``mother`` in the
 exact form :func:`~ltpred.covariance.kinship_from_pedigree` consumes (a parent
 outside the records is a founder), plus each member's relationship ``degree``
-from the proband. Extraction then closes on **all recorded ancestors** of the
-set, so the pedigree's kinship is exact for every member pair (equal to the
-full-population kinship restricted to the set); the degree limit truncates
-only which *relatives* are included, never the kinship among them.
+from the proband and a ``closure_only`` mask. Extraction then closes on **all
+recorded ancestors** of the set, so the pedigree's kinship is exact for every
+member pair (equal to the full-population kinship restricted to the set); the
+degree limit truncates only which *relatives* are included, never the kinship
+among them. ``closure_only`` distinguishes those structural ancestors from the
+people reached within ``max_degree`` whose observations may enter an analysis.
 Deterministic ordering: the proband first, then by (degree, id), so identical
 inputs give identical pedigrees regardless of record order.
 """
@@ -70,13 +72,18 @@ class Pedigree:
     ``ids``/``father``/``mother`` feed
     :func:`~ltpred.covariance.kinship_from_pedigree` directly (parents outside
     the extracted set are founders). ``degree[i]`` is the relationship-degree
-    distance of member ``i`` from the proband (0 = proband). Ordering is deterministic:
-    proband first, then by (degree, id)."""
+    distance of member ``i`` from the proband (0 = proband).
+    ``closure_only[i]`` is true when the member was added only to preserve exact
+    kinship, after the ``max_degree`` traversal; it is an explicit warning that
+    the person's diagnosis is outside the requested observation set unless a
+    caller deliberately opts in. Ordering is deterministic: proband first, then
+    by (degree, id)."""
     proband: object
     ids: list
     father: list
     mother: list
     degree: np.ndarray
+    closure_only: np.ndarray
 
 
 def build_parent_graph(ids: Sequence, father: Sequence,
@@ -140,7 +147,9 @@ def extract_pedigree(graph: ParentGraph, proband: object,
     restricted to the extracted members, inbreeding included. The degree
     limit truncates only *which* relatives are included (lateral and
     descendant links beyond ``max_degree``), never the kinship among those
-    included. A parent not present in the records at all is an unknown
+    included. ``closure_only`` marks ancestors added after the traversal, so a
+    downstream scorer can retain them for kinship without automatically using
+    their diagnoses. A parent not present in the records at all is an unknown
     founder, as :func:`~ltpred.covariance.kinship_from_pedigree` expects.
     """
     if isinstance(max_degree, bool) or not isinstance(max_degree,
@@ -171,6 +180,8 @@ def extract_pedigree(graph: ParentGraph, proband: object,
                     nxt.append(j)
         frontier = nxt
 
+    traversed = set(degree)
+
     # Ancestral closure: recursively include every extracted member's recorded
     # ancestors. Kinship between any two people flows through their common
     # ancestors, so with all ancestors present the extracted pedigree's
@@ -184,9 +195,9 @@ def extract_pedigree(graph: ParentGraph, proband: object,
     # included.
     # Relax rather than first-write: an ancestor reachable by two routes (say a
     # grandparent who is also a more distant ancestor on the other side) must
-    # keep the shortest relationship-degree distance, which is what ``degree`` documents and
-    # what ``research.pipeline.PopulationScores.degree_max`` summarises. Assigning on first visit
-    # instead recorded whichever route the traversal happened to reach first.
+    # keep the shortest relationship-degree distance, which is what ``degree``
+    # documents and what pipeline diagnostics summarise. Assigning on first
+    # visit instead recorded whichever route the traversal happened to reach.
     queue = list(degree)
     while queue:
         i = queue.pop()
@@ -207,5 +218,11 @@ def extract_pedigree(graph: ParentGraph, proband: object,
 
     father = [_parent(graph.sire[j]) for j in members]
     mother = [_parent(graph.dam[j]) for j in members]
-    return Pedigree(proband=proband, ids=id_at, father=father, mother=mother,
-                    degree=np.array([degree[j] for j in members]))
+    return Pedigree(
+        proband=proband,
+        ids=id_at,
+        father=father,
+        mother=mother,
+        degree=np.array([degree[j] for j in members]),
+        closure_only=np.array([j not in traversed for j in members], dtype=bool),
+    )

@@ -96,7 +96,8 @@ leaves them out, but then `pids` falls back to the family ID.
 - **[Methods note](report/ltpred_methods.pdf)** — estimand, three uses,
   observation models, PA exactness, and simulation evidence, written
   for colleagues (`report/ltpred_methods.tex`).
-- **[Benchmarks](benchmarks/RESULTS.md)** — accuracy, speed and GWAS-power
+- **[Benchmarks](benchmarks/RESULTS.md)** — accuracy, speed and independent-SNP
+  causal-NCP evidence
   comparison of the two methods.
 
 ## How it works
@@ -214,15 +215,14 @@ choosing between the methods, and using the score in a GWAS, see
 
 ## Scope
 
-ltpred covers the core prediction and fitting APIs: role-based *and* arbitrary-
-pedigree (`kinship_from_pedigree`) covariance construction, the threshold/age/CIP
+ltpred covers the core prediction and fitting APIs: role-based and arbitrary-
+pedigree (`kinship_from_pedigree`) covariance construction, an installed
+population-trio register driver (`estimate_liabilities`), threshold/age/CIP
 conversions plus CIP estimation from follow-up records (Kaplan-Meier and
-Aalen-Johansen, `ltpred.cip`), both inference engines (Gibbs and PA),
-single- and multi-trait
-`estimate_liability`, simulation, and **model fitting** — heritability
-(`fit_heritability`), variance components A + C + M (`fit_variance_components`) — feedable back
-into single-trait role-based estimation via `c2`/`m2`, approximate iid-family
-cluster percentile intervals
+Aalen-Johansen, `ltpred.cip`), both inference engines (Gibbs and PA), single-
+and multi-trait `estimate_liability`, simulation, and **model fitting** —
+heritability (`fit_heritability`), variance components A + C + M
+(`fit_variance_components`), approximate iid-family cluster percentile intervals
 (`bootstrap_fit`), liability-scale transformations (`ltpred.liability_scale`),
 and tetrachoric-correlation diagnostics
 (`ltpred.tetrachoric`) for liability correlations straight from 2x2
@@ -231,24 +231,30 @@ case/control tables.
 Demoted research machinery lives in the dormant, unmaintained **`research/`
 package** at the repository root (importable as `research.<module>` from a
 checkout; it is not part of the installed distribution and no longer runs in
-CI): the end-to-end register pipeline
-(`research.pipeline`), and in `research.advanced_fitting` the genetic-correlation,
-onset-age-decay, common-factor and genetic-nurture fits, the MCEM
-variance-component fit, and the parametric-bootstrap significance tests, plus
+CI). It comprises the genetic-correlation, onset-age-decay,
+common-factor and genetic-nurture fits, the MCEM
+variance-component fit, and the parametric-bootstrap significance tests in
+`research.advanced_fitting`, plus
 the sex-limited and genetic-nurture covariance constructors in
-`research.covariance_extensions`.
+`research.covariance_extensions`. `research.pipeline` is retained only as a
+legacy snapshot; its attained-age censoring shortcut is superseded by
+`ltpred.pipeline`.
 
-The high-level arbitrary-kinship estimator accepts `A`, `lower`/`upper`, and
-(PA only) `use_mixture=True` with per-member `K_i`/`K_pop` for the PA-FGRS
-censored-control mixture. Gibbs still has no mixture implementation.
+The high-level arbitrary-kinship estimator accepts `A`, `lower`/`upper`,
+caller-supplied environmental kernels via `c2`/`c_kernel` and
+`m2`/`m_kernel`, and (PA only) `use_mixture=True` with per-member
+`K_i`/`K_pop` for the PA-FGRS censored-control mixture. Gibbs still has no
+mixture implementation.
 
 Beyond the additive `A` covariance, the fitted sibship (`C`) and couple (`M`)
-components feed back into prediction through the `c2`/`m2` arguments on the
-single-trait role/object and array estimators (`estimate_liability` with scalar
-`h2` included). Multi-trait and arbitrary-kinship analyses require an explicitly
-assembled covariance; the high-level multi-trait route rejects `c2`/`m2` rather
-than silently ignoring them. Arbitrary user-supplied kernels still require the
-covariance-level APIs.
+components feed back into prediction through `c2`/`m2` on the single-trait
+role/object and array estimators (`estimate_liability` with scalar `h2`
+included). On an arbitrary pedigree, pass the aligned `C` and `M` kernels too:
+`A` alone cannot tell a full-sib pair from parent--offspring, or mates from
+strangers. The current fitters remain role-based and require independent,
+non-overlapping families; they do not fit components on overlapping extracted
+register pedigrees. The high-level multi-trait route rejects `c2`/`m2` rather
+than silently ignoring them.
 
 Not included: an igraph-style pedigree-object interface, plotting utilities, and
 the xgboost heritability helpers from LTFHPlus; and ltpred does not build LD or run
@@ -262,16 +268,18 @@ simulated data. Its checked-in results are a historical snapshot, not an
 automatic validation of later source changes; see the provenance header and
 rerun instructions in [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md). The
 integrated LT-FH++ benchmark includes age-, sex-, and
-cohort-dependent CIP, coherent onset/censoring, ascertainment, and a genotype
-GWAS on **independent SNPs** (real-LD remains the opt-in HAPNEST path, not run).
+cohort-dependent CIP, coherent onset/censoring, ascertainment, and an
+**independent-SNP marginal-association simulation** (real-LD remains the opt-in
+HAPNEST path, not run; no relatedness-aware mixed model was tested).
 A matched ADuLT arm keeps the same personalised proband bounds but removes
 relatives: it reaches a 1.049 ± 0.004× adjusted causal-SNP NCP ratio, versus
 1.194 ± 0.006× for full LT-FH++; the paired family-history increment is
 +0.1454 ± 0.0154 NCP-ratio units
 (95% CI half-width). Full LT-FH++ has calibration slope 0.995 ± 0.015. A
 prespecified sex-CIP panel separately shows removal of a
-0.05092 ± 0.00096 female–male score-error gap, while its adjusted power increment
-remains unresolved. In the replicated classic-LT-FH GWAS, PA and Gibbs both
+0.05092 ± 0.00096 female–male score-error gap, while its adjusted independent-SNP
+NCP-ratio increment remains unresolved. In the replicated classic-LT-FH
+independent-SNP association benchmark, PA and Gibbs both
 reach a 1.47 ± 0.04× causal-SNP NCP ratio on the same independent-SNP design. Across matched **no-mixture** bounds,
 their posterior-mean estimates had correlation ≥ 0.997. These PA–Gibbs claims do
 not validate the PA-only censoring mixture. For that mixture, three of ten

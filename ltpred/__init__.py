@@ -31,7 +31,7 @@ accelerates the Gibbs sweep. Names are imported lazily (PEP 562) so
 import importlib
 from typing import TYPE_CHECKING
 
-__version__ = "0.4.2"
+__version__ = "0.5.0"
 
 if TYPE_CHECKING:
     # Static re-exports. At runtime ``__getattr__`` below imports these lazily,
@@ -63,6 +63,7 @@ if TYPE_CHECKING:
     from .pearson_aitken import pa_algorithm, pa_estimate_batched  # noqa: F401
     from .pedigree import (Pedigree, ParentGraph, build_parent_graph,  # noqa: F401
                            extract_pedigree)
+    from .pipeline import PopulationScores, estimate_liabilities  # noqa: F401
     from .simulate import Simulation, simulate_under_LTM_single  # noqa: F401
     from .tetrachoric import (TetrachoricResult, tetrachoric,  # noqa: F401
                               tetrachoric_matrix, tetrachoric_table)
@@ -80,6 +81,7 @@ _EXPORTS = {
     "cip": ["CipCurve", "kaplan_meier_cip", "aalen_johansen_cip"],
     "pedigree": ["ParentGraph", "Pedigree", "build_parent_graph",
                  "extract_pedigree"],
+    "pipeline": ["PopulationScores", "estimate_liabilities"],
     "tetrachoric": ["TetrachoricResult", "tetrachoric", "tetrachoric_table",
                     "tetrachoric_matrix"],
     "liability_scale": ["observed_to_liability_h2", "liability_to_observed_h2",

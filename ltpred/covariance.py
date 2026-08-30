@@ -33,6 +33,8 @@ __all__ = ["Covmat", "get_relatedness", "construct_covmat_single",
 _VALID = re.compile(r"[gomf]|c\d+\.\d+|[mp]g[mf]|s\d*|[mp]hs\d*|[mp]au\d*")
 # roles that may appear at most once (everything else can be numbered s1, s2, ...)
 _SINGLE = re.compile(r"^[gomf]$|^[mp]g[mf]$")
+# unnumbered role stems that ``n_fam`` may expand to role1, role2, ...
+_REPEATABLE_STEM = re.compile(r"s|[mp]hs|[mp]au")
 
 
 @dataclass
@@ -189,9 +191,11 @@ def _expand_family(fam_vec, n_fam, add_ind):
     """Normalise the family spec to an ordered list of role labels.
 
     Accepts either ``fam_vec`` (an explicit list like ``["m", "f", "s1"]``) or
-    ``n_fam`` (a ``{role: count}`` mapping expanded to ``s1, s2, ...``). ``g`` and
-    ``o`` are stripped from the input and, when ``add_ind``, re-inserted first so
-    the proband's genetic and full liabilities lead the ordering."""
+    ``n_fam``. In the mapping, unnumbered repeatable stems such as ``"s"`` expand
+    to ``s1, s2, ...``; an already-numbered role such as ``"s1"`` names that one
+    individual and therefore requires count 1. ``g`` and ``o`` are stripped from
+    the input and, when ``add_ind``, re-inserted first so the proband's genetic and
+    full liabilities lead the ordering."""
     if fam_vec is not None and n_fam is not None:
         raise ValueError("supply only one of fam_vec or n_fam")
 
@@ -199,22 +203,40 @@ def _expand_family(fam_vec, n_fam, add_ind):
         return ["g", "o"] if add_ind else []
 
     if n_fam is not None:
+        counts = {}
         for role, cnt in n_fam.items():
             _validate_relative(role)
-            if cnt < 0:
-                raise ValueError("n_fam counts must be non-negative")
-            if cnt > 1 and _SINGLE.match(role):
+            if (isinstance(cnt, (bool, np.bool_, str, bytes)) or
+                    np.ndim(cnt) != 0):
+                raise ValueError("n_fam counts must be non-negative integers")
+            try:
+                value = float(cnt)
+            except (TypeError, ValueError, OverflowError):
                 raise ValueError(
-                    f"n_fam count {cnt} for singleton role {role!r}: roles like "
+                    "n_fam counts must be non-negative integers") from None
+            if not np.isfinite(value) or value < 0 or not value.is_integer():
+                raise ValueError("n_fam counts must be non-negative integers")
+            count = int(value)
+            if count > 1 and _SINGLE.match(role):
+                raise ValueError(
+                    f"n_fam count {count} for singleton role {role!r}: roles like "
                     f"{role!r} occur at most once per family — request multiples "
                     "with a numbered role instead (s1, s2, ...)")
-        n_fam = {r: c for r, c in n_fam.items() if c > 0 and r not in ("g", "o")}
+            counts[role] = count
+        n_fam = {r: c for r, c in counts.items() if c > 0 and r not in ("g", "o")}
         roles = []
         for r, c in n_fam.items():
             if _SINGLE.match(r):
                 roles.append(r)
-            else:
+            elif _REPEATABLE_STEM.fullmatch(r):
                 roles.extend(f"{r}{i}" for i in range(1, int(c) + 1))
+            else:
+                if c > 1:
+                    raise ValueError(
+                        f"n_fam count {c} for explicit role {r!r}: a numbered "
+                        "role names one individual; use an unnumbered stem such "
+                        "as 's' when the role grammar provides one")
+                roles.append(r)
         fam_vec = roles
     else:
         fam_vec = [r for r in fam_vec if r not in ("g", "o")]
@@ -528,16 +550,78 @@ def kinship_from_pedigree(ids: Sequence, father: Sequence,
     return ids, A
 
 
+def _validate_kinship_component(value, kernel, name, n):
+    """Validate one caller-supplied environmental variance component.
+
+    ``A`` cannot identify environmental relationship classes: an additive
+    relationship of 0.5 may be a full-sib or parent--offspring pair, and an
+    additive relationship of 0 may be mates or strangers.  The kinship path
+    therefore requires the caller to supply the component kernel rather than
+    guessing it from ``A``.
+    """
+    if value is None:
+        if kernel is not None:
+            raise ValueError(f"{name}_kernel was supplied without {name}2")
+        return 0.0, None
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        raise TypeError(f"{name}2 must be a finite nonnegative number") from None
+    if not np.isfinite(value) or value < 0.0:
+        raise ValueError(f"{name}2 must be a finite nonnegative number")
+    if kernel is None:
+        if value > 0.0:
+            raise ValueError(
+                f"{name}_kernel is required when {name}2 is nonzero; "
+                "the environmental relationship cannot be inferred from A")
+        return value, None
+
+    K = np.ascontiguousarray(kernel, dtype=np.float64)
+    label = f"{name}_kernel"
+    if K.shape != (n, n):
+        raise ValueError(f"{label} must have shape ({n}, {n})")
+    if not np.all(np.isfinite(K)):
+        raise ValueError(f"{label} must contain only finite values")
+    if not np.allclose(K, K.T, atol=1e-8, rtol=0.0):
+        raise ValueError(f"{label} must be symmetric")
+    # The public tolerance accepts harmless floating-point asymmetry, while
+    # downstream PA/Gibbs kernels require a more tightly symmetric covariance.
+    # Canonicalise every accepted kernel rather than passing that mismatch on.
+    K = 0.5 * (K + K.T)
+    if not np.allclose(np.diag(K), 1.0, atol=1e-8, rtol=0.0):
+        raise ValueError(f"{label} must have a unit diagonal")
+    min_eig = float(np.min(np.linalg.eigvalsh(0.5 * (K + K.T))))
+    if min_eig < -1e-8:
+        raise ValueError(
+            f"{label} must be positive semi-definite (minimum eigenvalue "
+            f"{min_eig:.3g})")
+    return value, K
+
+
 def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0,
-                                  add_ind: bool = True) -> Covmat:
+                                  add_ind: bool = True, *,
+                                  c2: float | None = None,
+                                  c_kernel: ArrayLike | None = None,
+                                  m2: float | None = None,
+                                  m_kernel: ArrayLike | None = None) -> Covmat:
     """Liability-scale covariance from an additive relationship matrix ``A``.
 
     The kinship-based counterpart of :func:`construct_covmat_single`: given ``A``
     (``n×n``, e.g. from :func:`kinship_from_pedigree`) it first builds the raw
-    covariance ``V = h2 * A + (1 - h2) * I`` and then divides row/column ``i`` by
-    ``sqrt(V[i, i])``. This keeps every **full liability** ``o`` on the unit-variance
-    threshold scale when inbreeding gives ``A[i, i] = 1 + F_i``; it is a no-op for
-    non-inbred pedigrees. When ``add_ind``, the target's genetic liability divided
+    covariance ``V = h2 * A + c2 * C + m2 * M + e2 * I``, where
+    ``e2 = 1 - h2 - c2 - m2``, and then divides row/column ``i`` by
+    ``sqrt(V[i, i])``. ``C`` and ``M`` are optional caller-supplied
+    ``c_kernel``/``m_kernel`` matrices with unit diagonal. They may encode, for
+    example, sibship and couple shared environments, but are deliberately not
+    inferred from ``A``: additive relatedness alone cannot distinguish full sibs
+    from parent--offspring pairs or mates from unrelated people. A nonzero
+    component requires its kernel, and ``h2 + c2 + m2 <= 1``.
+
+    With no environmental kernels this reduces to
+    ``V = h2 * A + (1 - h2) * I``. Standardisation keeps every **full liability**
+    ``o`` on the unit-variance threshold scale when inbreeding gives
+    ``A[i, i] = 1 + F_i``; it is a no-op for non-inbred pedigrees. When
+    ``add_ind``, the target's genetic liability divided
     by that **same full-liability SD** is prepended as ``g``, so its variance is
     ``h2 * A[t, t] / V[t, t]`` — equal to ``h2`` for a non-inbred target
     (``A[t, t] = 1``) but strictly below the role-based ``Var(g) = h2 * A[t, t]``
@@ -570,15 +654,31 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
         raise ValueError("A must contain only finite values")
     if not np.allclose(A, A.T, atol=1e-8, rtol=0.0):
         raise ValueError("A must be symmetric")
+    # As for the optional component kernels, make the accepted tolerance
+    # compatible with stricter downstream symmetry checks.
+    A = 0.5 * (A + A.T)
     min_a_eig = float(np.min(np.linalg.eigvalsh(0.5 * (A + A.T))))
     if min_a_eig < -1e-8:
         raise ValueError(
             f"A must be positive semi-definite (minimum eigenvalue {min_a_eig:.3g})")
 
-    # Inbreeding makes diag(h2*A + (1-h2)I) exceed one. Standardise each
+    c2, C = _validate_kinship_component(c2, c_kernel, "c", n)
+    m2, M = _validate_kinship_component(m2, m_kernel, "m", n)
+    if h2 + c2 + m2 > 1.0:
+        raise ValueError(
+            "h2 + c2 + m2 must not exceed 1 (the residual environmental "
+            f"variance would be negative: {h2} + {c2} + {m2})")
+
+    # Inbreeding makes diag(h2*A + c2*C + m2*M + e2*I) exceed one. Standardise each
     # member's full liability so the ordinary N(0, 1) prevalence thresholds remain
-    # valid; this is exactly a no-op when every A[i, i] == 1.
-    raw = h2 * A + (1.0 - h2) * np.eye(n)
+    # valid; this is exactly a no-op when every A[i, i] == 1 and all component
+    # kernels have their required unit diagonal.
+    residual = 1.0 - h2 - c2 - m2
+    raw = h2 * A + residual * np.eye(n)
+    if C is not None:
+        raw += c2 * C
+    if M is not None:
+        raw += m2 * M
     variances = np.diag(raw)
     if np.any(variances <= 0.0):
         raise ValueError("A and h2 must imply positive liability variances")

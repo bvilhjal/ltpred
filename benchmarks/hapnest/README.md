@@ -1,4 +1,4 @@
-# Real-LD GWAS benchmark with HAPNEST genotypes (opt-in)
+# Real-LD marginal-association benchmark with HAPNEST genotypes (opt-in)
 
 `bench_gwas_power.py` simulates independent SNPs by default — enough for the
 power comparison, which turns on each phenotype's correlation to the true genetic
@@ -13,6 +13,9 @@ this benchmark needs: the classic LT-FH family history is *simulated on top* of
 each proband's real-LD genotype (relatives' liabilities are drawn conditional on
 the genotype-derived genetic liability). So HAPNEST supplies the probands' real
 genomes; ltpred supplies the pedigree and the liability-threshold phenotype.
+This optional path changes the LD structure, but `bench_gwas_power.py` still uses
+its lightweight marginal score statistic; it is not a related-sample mixed-model
+GWAS. No HAPNEST result is present in the committed benchmark artifacts.
 
 ## Step 1 — generate genotypes with HAPNEST
 
@@ -69,3 +72,6 @@ SNPs with `r² >= 0.1` to any causal SNP are excluded by default; change that wi
   pattern. Power is still evaluated at the selected causal SNPs; the
   mean-χ²-at-causal and within-replicate causal-SNP NCP ratios remain the
   cleanest method contrast.
+- The simulated target families do not overlap. This path therefore does not
+  test the extra phenotype correlation induced when one register relative enters
+  several extracted proband pedigrees.

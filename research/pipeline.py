@@ -1,11 +1,13 @@
 """End-to-end register pipeline: trio records -> pedigrees -> CIP thresholds
 -> per-proband genetic-liability scores.
 
-**Unsupported research scaffolding.** This module was moved out of the
-``ltpred`` core package into ``research/``: it is not shipped in the wheel,
-its API may change without notice, and it is importable only from a
-repository checkout with the repo root on ``sys.path`` (as
-``research.pipeline``). See ``research/README.md``.
+**Legacy unsupported research scaffolding.** This snapshot is superseded by
+the installed :mod:`ltpred.pipeline` driver. It is not shipped in the wheel,
+its API may change without notice, and it is importable only from a repository
+checkout with the repo root on ``sys.path`` (as ``research.pipeline``). Its
+``index_age`` argument applies the proband's attained age to every relative;
+that shortcut is not a valid general familywise calendar-time censor for
+relatives from different birth years. See ``research/README.md``.
 
 The pieces exist separately -- :mod:`ltpred.pedigree` discovers relatives,
 :mod:`ltpred.cip` estimates the incidence curve,
@@ -21,12 +23,11 @@ Two observation designs, per the package's leakage conventions:
 
 * **GWAS phenotype** (default): the proband's own status is conditioning
   information and is included.
-* **Prospective prediction** (``index_age`` given): the proband's own bound is
-  uninformative ``(-inf, inf)``, and **familywise censoring** is applied --
-  every relative's events after the proband-specific index age are censored at
-  that age (a later case becomes a censored control at the index age), so no
-  post-index information enters the score (the LT-FGRS pipeline's censoring
-  step; Pedersen et al., LTFGRS R package).
+* **Legacy prospective shortcut** (``index_age`` given): the proband's own
+  bound is uninformative ``(-inf, inf)``, but every relative is censored at the
+  proband's attained age. Use :func:`ltpred.pipeline.estimate_liabilities` with
+  per-person ``birth_time`` and a calendar ``index_time`` for scientifically
+  valid prospective censoring across generations.
 
 Scale note: estimation is per proband with a small dense kinship covariance
 (register neighbourhoods are tens of people), which is the right architecture

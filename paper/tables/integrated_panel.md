@@ -1,6 +1,6 @@
 <!-- Generated from committed benchmark CSVs; static snapshot (generator removed 2026-08). -->
 
-## Integrated personalised LT-FH++ genotype GWAS (ten paired replicates)
+## Integrated personalised LT-FH++ independent-SNP marginal association (ten paired replicates)
 
 | phenotype | adjusted corr | adjusted slope | adjusted causal-SNP NCP ratio / c-c | stratified-null λ raw -> adjusted |
 |---|---:|---:|---:|---:|

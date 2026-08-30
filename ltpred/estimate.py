@@ -897,7 +897,11 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
                                     method: str | None = None,
                                     K_i: ArrayLike | None = None,
                                     K_pop: ArrayLike | None = None,
-                                    use_mixture: bool = False
+                                    use_mixture: bool = False, *,
+                                    c2: float | None = None,
+                                    c_kernel: ArrayLike | None = None,
+                                    m2: float | None = None,
+                                    m_kernel: ArrayLike | None = None
                                     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Estimate a target individual's liability from an **arbitrary pedigree**.
 
@@ -911,6 +915,12 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
     the target's genetic contribution is scaled by its raw liability SD. Thus the
     supplied standard-normal bounds retain their prevalence interpretation when
     diagonal entries of ``A`` exceed one.
+
+    Optional ``c2``/``m2`` proportions require caller-supplied
+    ``c_kernel``/``m_kernel`` relationship matrices (``n x n``, symmetric,
+    positive semi-definite, unit diagonal). These bring the role estimator's
+    shared-environment model to arbitrary pedigrees without pretending that
+    sibships or couples can be recovered from additive relatedness ``A`` alone.
 
     ``out`` selects ``"genetic"`` (the target's genetic liability — the usual
     family-history GWAS phenotype) or ``"full"`` (``E[l_o | own interval and
@@ -945,7 +955,9 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
             "use_mixture=True is only supported by Pearson-Aitken; the Gibbs "
             "estimator does not implement the censored-control mixture")
 
-    cov_obj = construct_covmat_from_kinship(A, h2=h2, target=target, add_ind=True)
+    cov_obj = construct_covmat_from_kinship(
+        A, h2=h2, target=target, add_ind=True,
+        c2=c2, c_kernel=c_kernel, m2=m2, m_kernel=m_kernel)
     cov, n_corrections = correct_positive_definite(cov_obj.matrix)
     _warn_if_corrected(n_corrections, "liability estimation")
     # prepend the unbounded genetic-liability (g) coordinate

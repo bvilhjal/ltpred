@@ -29,7 +29,7 @@ from the linked benchmark report, which is checked against committed artifacts.
 | Paper claim | Canonical benchmark source | Remaining work |
 |---|---|---|
 | Engine agreement, speed, and fold order | scaling, accuracy, PA robustness | Explain the tested exactness boundary |
-| GWAS power and calibration | GWAS power, LT-FH++ personalisation, confounding | Add real-LD confirmation when available |
+| Independent-SNP causal NCP and calibration | Marginal-association NCP, LT-FH++ personalisation, confounding | Add real-LD, relatedness-aware mixed-model confirmation when available |
 | PGS plus family-history prediction | PGS comparison | Keep training/test separation explicit |
 | Censoring and onset assumptions | PA-FGRS mixture, age/onset | Re-run after observation-model changes |
 | Prospective register prediction | register pipeline, pedigree inference | Retain familywise censoring contrast |

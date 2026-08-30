@@ -6,8 +6,27 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.5.0 — 2026-08-30
+
 ### Fixed
 
+- Accepted near-symmetric kinship and environmental kernels are canonicalized
+  before inference, so the public input tolerance agrees with the stricter
+  PA/Gibbs covariance checks.
+- The repaired register benchmark uses the estimator's standardized genetic
+  and full-liability scales for inbred people, including target-specific
+  residual variance when converting prospective scores to risk. Historical
+  pedigree-payoff and register-pipeline results are marked stale until a
+  clean-source provenance-wrapper rerun.
+- `extract_pedigree(max_degree=...)` now marks ancestors added solely for exact
+  kinship as `Pedigree.closure_only`. The supported register driver keeps those
+  structural rows uninformative by default, so the degree limit also bounds
+  which diagnoses enter a score; deliberate conditioning remains available as
+  `condition_closure=True`.
+- Prospective register scoring now censors each relative at their own attained
+  age at a shared calendar `index_time`, using per-person `birth_time`. The
+  legacy research driver's proband-attained-age shortcut was not valid across
+  generations with different birth years.
 - Vignette and figure stated the family covariance as `Sigma = h2 A`. The
   liability covariance has a **unit diagonal** — `Sigma = h2 A + (1 - h2) I` —
   which is what keeps `Phi^-1(1 - K)` a prevalence threshold. `h2 A` alone is
@@ -98,9 +117,25 @@ version is 0 the public API may still change between minor releases.
 - Documented that seeding `rtmvnorm_gibbs` mutates the global NumPy RNG state
   (concurrent seeded low-level calls can interfere) and that the per-family
   Gibbs seed blocks wrap modulo 2^32.
+- `n_fam={"s1": 1}` now preserves the explicit role `s1` instead of silently
+  creating `s11`; counts above one on an already-numbered role are rejected as
+  ambiguous, fractional/nonfinite/boolean counts are rejected, and unnumbered
+  stems such as `{"s": 2}` still expand to `s1, s2`.
+- `docs/REVIEW_2026-09.md` no longer says the documentation was both rebuilt
+  and not rebuilt: the second pass built it locally but did not deploy it.
 
 ### Added
 
+- Arbitrary-pedigree scoring now accepts shared-environment proportions with
+  caller-supplied kernels: `c2`/`c_kernel` and `m2`/`m_kernel` are threaded
+  through `construct_covmat_from_kinship` and
+  `estimate_liability_from_kinship`. Kernels are validated as finite,
+  symmetric, positive semi-definite, and unit-diagonal; they are never guessed
+  from additive relatedness `A`.
+- A supported, installed `ltpred.pipeline` with `PopulationScores` and
+  `estimate_liabilities`: a narrow pinned-onset Pearson--Aitken driver from
+  population trio records and empirical single/stratified CIPs to explicit
+  GWAS or prospective-prediction scores.
 - Independent review of v0.4.2 (`docs/REVIEW_2026-09.md`, added to the mkdocs
   nav), with the dispositions of its five tier-3 findings.
 - Vignette: a **"Did it work?"** section with the law-of-total-variance check
@@ -122,6 +157,17 @@ version is 0 the public API may still change between minor releases.
 
 ### Changed
 
+- The six public threshold/conversion helpers now require an explicit
+  `pop_prev`. A package default cannot be scientifically correct across
+  diseases; the simulator retains its separate `0.1` default as a declared
+  simulation setting.
+- The no-Numba CI job now exercises small end-to-end estimator, fitter,
+  simulator and deterministic R-lock workflows in addition to the fallback
+  kernels.
+- GWAS/NCP benchmark prose now labels the committed evidence as
+  independent-SNP marginal-association simulation, not real-LD,
+  related-sample mixed-model GWAS evidence.
+
 - `docs/assets/pipeline.svg` redrawn: body type raised from 11-13 to 17-22
   units in a shorter viewBox (smallest label goes from ~8px to ~14px on a
   desktop content column), every foreground/background pair now meets WCAG AA
@@ -141,8 +187,6 @@ version is 0 the public API may still change between minor releases.
   KaTeX renders the equations. The docs site uses the SMARTbiomed /
   Aarhus University teal–navy palette from
   [smartbiomed.dk](https://smartbiomed.dk/).
-
-### Changed
 
 - README, RESULTS.md, and the headline tables state that the genotype-GWAS
   NCP ratios are independent-SNP results.

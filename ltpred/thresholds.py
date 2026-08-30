@@ -12,6 +12,11 @@ the proband and relatives are conditioned on together, and **ADuLT** when only
 the proband is used (no family history). This module ports LTFHPlus's ``convert_*``
 helpers and provides convenience builders that produce the ``(lower, upper)``
 bounds consumed by either inference engine.
+
+Every public helper whose result depends on ``pop_prev`` requires that value
+explicitly. There is no disease-independent prevalence default: the ``0.05`` and
+``0.10`` values in examples are properties of those examples, not package
+constants.
 """
 
 from __future__ import annotations
@@ -60,7 +65,7 @@ def liability_threshold(pop_prev: ArrayLike) -> np.ndarray | np.floating:
     return -norm_ppf(_validate_pop_prev(pop_prev))
 
 
-def convert_age_to_cir(age: ArrayLike, pop_prev: ArrayLike = 0.1,
+def convert_age_to_cir(age: ArrayLike, pop_prev: ArrayLike,
                        mid_point: float = 60.0,
                        slope: float = 1.0 / 8.0) -> np.ndarray | np.floating:
     """Cumulative incidence rate at a given age (logistic curve).
@@ -86,7 +91,7 @@ def _convert_cir_to_age(cir, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
     return np.maximum(age, 0.0)
 
 
-def convert_age_to_thresh(age: ArrayLike, pop_prev: ArrayLike = 0.1,
+def convert_age_to_thresh(age: ArrayLike, pop_prev: ArrayLike,
                           mid_point: float = 60.0,
                           slope: float = 1.0 / 8.0) -> np.ndarray | np.floating:
     """Liability threshold implied by an age (or age of onset).
@@ -102,7 +107,7 @@ def convert_age_to_thresh(age: ArrayLike, pop_prev: ArrayLike = 0.1,
     return -norm_ppf(cir)          # -ppf(p) avoids the 1-p tail cancellation
 
 
-def convert_liability_to_aoo(liability: ArrayLike, pop_prev: ArrayLike = 0.1,
+def convert_liability_to_aoo(liability: ArrayLike, pop_prev: ArrayLike,
                              mid_point: float = 60.0,
                              slope: float = 1.0 / 8.0) -> np.ndarray | np.floating:
     """Age of onset implied by a case's true liability.
@@ -117,7 +122,7 @@ def convert_liability_to_aoo(liability: ArrayLike, pop_prev: ArrayLike = 0.1,
                                slope=slope)
 
 
-def prevalence_thresholds(status: ArrayLike, pop_prev: ArrayLike = 0.1
+def prevalence_thresholds(status: ArrayLike, pop_prev: ArrayLike
                           ) -> tuple[np.ndarray, np.ndarray]:
     """Classic LT-FH bounds from binary status and a single prevalence.
 
@@ -133,7 +138,7 @@ def prevalence_thresholds(status: ArrayLike, pop_prev: ArrayLike = 0.1
     return lower, upper
 
 
-def age_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike = 0.1,
+def age_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
                    mid_point: float = 60.0, slope: float = 1.0 / 8.0
                    ) -> tuple[np.ndarray, np.ndarray]:
     """Age-dependent, onset-pinned bounds from status and age.
@@ -159,7 +164,7 @@ def age_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike = 0.1,
     return lower, upper
 
 
-def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike = 0.1,
+def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
                   mid_point: float = 60.0, slope: float = 1.0 / 8.0
                   ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """**Not** the paper-faithful PA-FGRS encoding — an age-dependent variant.

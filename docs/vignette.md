@@ -297,8 +297,9 @@ Details: [Inference](inference.md).
 
 ## 1. Pedigree
 
-You need $A$, the additive relationships among the people whose records
-enter $D_F$. Two routes.
+You need $A$, the additive relationships among the people whose records enter
+$D_F$, plus any structural ancestors needed to compute those relationships
+exactly. Structural-only rows stay unobserved. Two routes.
 
 **Role grammar** (nuclear and common extended families). Each label is
 relative to the proband: `o` (optional own status), `m`/`f`, `s1`/`s2`,
@@ -318,6 +319,8 @@ from ltpred import build_parent_graph, extract_pedigree, kinship_from_pedigree
 graph = build_parent_graph(ids, father, mother)
 ped = extract_pedigree(graph, proband_id, max_degree=2)   # one proband
 _, A = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
+# ped.closure_only marks rows retained in A whose diagnoses should ordinarily
+# receive uninformative (-inf, inf) bounds.
 ```
 
 **How deep?** First-degree relatives carry most of the signal. Adding

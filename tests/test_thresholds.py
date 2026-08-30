@@ -55,6 +55,22 @@ def test_prevalence_thresholds():
 
 
 @pytest.mark.parametrize(
+    "helper,args",
+    [
+        (convert_age_to_cir, ([50.0],)),
+        (convert_age_to_thresh, ([50.0],)),
+        (convert_liability_to_aoo, ([2.0],)),
+        (prevalence_thresholds, ([0, 1],)),
+        (age_thresholds, ([0, 1], [40.0, 70.0])),
+        (pa_thresholds, ([0, 1], [40.0, 70.0])),
+    ],
+)
+def test_public_threshold_helpers_require_explicit_prevalence(helper, args):
+    with pytest.raises(TypeError, match="pop_prev"):
+        helper(*args)
+
+
+@pytest.mark.parametrize(
     "status",
     [np.array([False, True]), np.array([0, 1]), np.array([0.0, 1.0])],
 )
@@ -64,11 +80,11 @@ def test_threshold_builders_accept_boolean_or_exact_binary_status(status):
     cip_values = np.array([0.0, 0.2])
     expected = np.array([False, True])
 
-    lower, _ = prevalence_thresholds(status)
+    lower, _ = prevalence_thresholds(status, pop_prev=0.1)
     assert np.array_equal(np.isfinite(lower), expected)
-    lower, _ = age_thresholds(status, age)
+    lower, _ = age_thresholds(status, age, pop_prev=0.1)
     assert np.array_equal(np.isfinite(lower), expected)
-    lower, _, _, _ = pa_thresholds(status, age)
+    lower, _, _, _ = pa_thresholds(status, age, pop_prev=0.1)
     assert np.array_equal(np.isfinite(lower), expected)
     lower, _, _, _ = thresholds_from_cip(
         status, age, cip_ages, cip_values)
@@ -83,9 +99,9 @@ def test_threshold_builders_reject_invalid_status_codes_and_shapes(status):
     n = max(1, np.asarray(status).size)
     age = np.linspace(40.0, 70.0, n)
     builders = (
-        lambda: prevalence_thresholds(status),
-        lambda: age_thresholds(status, age),
-        lambda: pa_thresholds(status, age),
+        lambda: prevalence_thresholds(status, pop_prev=0.1),
+        lambda: age_thresholds(status, age, pop_prev=0.1),
+        lambda: pa_thresholds(status, age, pop_prev=0.1),
         lambda: thresholds_from_cip(
             status, age, [0.0, 100.0], [0.0, 0.2]),
     )

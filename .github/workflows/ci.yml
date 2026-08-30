@@ -72,9 +72,23 @@ jobs:
             tests/test_mathfun.py tests/test_thresholds.py \
             tests/test_covariance.py tests/test_public_api.py \
             tests/test_liability_scale.py tests/test_tetrachoric.py \
-            tests/test_numba.py tests/test_pedigree.py tests/test_cip.py \
+            tests/test_numba.py tests/test_pedigree.py tests/test_pipeline.py \
+            tests/test_cip.py \
             tests/test_gibbs.py tests/test_pearson_aitken.py \
             tests/test_batched.py
+      # The kernel files above do not exercise the Family/Member dispatcher,
+      # simulation entry point, fitter entry point, or the deterministic R lock.
+      # Keep these node IDs deliberately small: collecting their full files on
+      # the ~100x slower fallback would also collect sampling-heavy tests.
+      - name: Public workflow smokes on the pure-Python fallback
+        run: |
+          pytest -q \
+            tests/test_estimate.py::test_pa_full_matches_gibbs_estimand_on_a_lone_case \
+            tests/test_estimate.py::test_high_level_gibbs_handles_nine_sigma_case_bound \
+            tests/test_fit.py::test_fit_preparers_align_bounds_by_role \
+            tests/test_fit.py::test_overlapping_pids_raise_and_unique_or_missing_pids_pass \
+            tests/test_simulate.py::test_simulation_family_structure \
+            tests/test_r_lock.py::test_pa_matches_locked_ltfgrs_scores
 
   oldest-deps:
     # The floors declared in pyproject are a promise; resolve to them so they
@@ -102,7 +116,8 @@ jobs:
             tests/test_mathfun.py tests/test_thresholds.py \
             tests/test_covariance.py tests/test_public_api.py \
             tests/test_liability_scale.py tests/test_tetrachoric.py \
-            tests/test_numba.py tests/test_pedigree.py tests/test_cip.py \
+            tests/test_numba.py tests/test_pedigree.py tests/test_pipeline.py \
+            tests/test_cip.py \
             tests/test_gibbs.py tests/test_pearson_aitken.py \
             tests/test_batched.py
 
@@ -146,7 +161,7 @@ jobs:
       - name: Install from the wheel and smoke-import away from the source tree
         run: |
           python -m pip install dist/*.whl
-          cd "$RUNNER_TEMP" && python -c "import ltpred; print(ltpred.__version__)"
+          cd "$RUNNER_TEMP" && python -c "from ltpred import PopulationScores, estimate_liabilities; print(PopulationScores.__module__, callable(estimate_liabilities))"
 
   docs:
     runs-on: ubuntu-latest

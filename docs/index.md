@@ -27,9 +27,9 @@ A typeset technical report (theory, implementation, and committed simulation
 numbers) ships in the repository as
 [`report/ltpred_methods.pdf`](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf).
 
-Unsupported experimental fitters and the register pipeline live in the source
-checkout's
+Unsupported experimental fitters and covariance extensions live in the source checkout's
 [`research/` directory](https://github.com/bvilhjal/ltpred/tree/main/research);
-they are not installed with ltpred.
+they are not installed with ltpred. Population-register scoring is installed as
+`ltpred.pipeline`; the similarly named research file is only a legacy snapshot.
 
 Developed with the support of [SMARTbiomed](https://smartbiomed.dk/).

@@ -291,6 +291,61 @@ def test_estimate_from_kinship_matches_role_based():
     assert np.max(np.abs(role.est["genetic"] - kin)) < 1e-9
 
 
+def test_kinship_estimator_threads_environment_kernels_to_both_engines():
+    from ltpred import (construct_covmat_from_kinship,
+                        estimate_liability_from_kinship,
+                        estimate_liability_gibbs_arrays,
+                        kinship_from_pedigree, pa_estimate_batched)
+    from ltpred.fit import _component_matrix
+
+    roles = ["o", "m", "f", "s1"]
+    _, A = kinship_from_pedigree(
+        roles, ["f", None, None, "f"], ["m", None, None, "m"])
+    C = _component_matrix(roles, "C")
+    M = _component_matrix(roles, "M")
+    h2, c2, m2 = 0.4, 0.1, 0.05
+    t = float(stats.norm.isf(0.1))
+    lower = np.array([[t, -np.inf, -np.inf, t],
+                      [-np.inf, t, -np.inf, -np.inf]])
+    upper = np.array([[np.inf, t, t, np.inf],
+                      [t, np.inf, t, t]])
+
+    cov = construct_covmat_from_kinship(
+        A, h2=h2, c2=c2, c_kernel=C, m2=m2, m_kernel=M).matrix
+    lo = np.column_stack([np.full(len(lower), -np.inf), lower])
+    hi = np.column_stack([np.full(len(upper), np.inf), upper])
+    pa_expected, pa_expected_var = pa_estimate_batched(cov, lo, hi, target=0)
+    pa_kin, pa_se, pa_kin_var = estimate_liability_from_kinship(
+        A, lower, upper, h2=h2, c2=c2, c_kernel=C, m2=m2, m_kernel=M)
+    np.testing.assert_allclose(pa_kin, pa_expected, rtol=0, atol=1e-12)
+    np.testing.assert_allclose(pa_kin_var, pa_expected_var, rtol=0, atol=1e-12)
+    assert np.array_equal(pa_se, np.zeros_like(pa_se))
+
+    gibbs_role = estimate_liability_gibbs_arrays(
+        roles, lower, upper, h2=h2, c2=c2, m2=m2, seed=7,
+        n_sim=40, burn_in=0, tol=1e9, max_rounds=1, return_var=True)
+    gibbs_kin = estimate_liability_from_kinship(
+        A, lower, upper, h2=h2, c2=c2, c_kernel=C, m2=m2, m_kernel=M,
+        method="gibbs", seed=7, n_sim=40, burn_in=0, tol=1e9, max_rounds=1)
+    for role_value, kin_value in zip(gibbs_role, gibbs_kin):
+        np.testing.assert_allclose(kin_value, role_value, rtol=0, atol=1e-12)
+
+
+def test_kinship_estimator_accepts_near_symmetric_relationship_inputs():
+    from ltpred import estimate_liability_from_kinship
+
+    noisy = np.array([[1.0, 5e-9], [0.0, 1.0]])
+    exact = 0.5 * (noisy + noisy.T)
+    lower = np.array([[-np.inf, 1.0]])
+    upper = np.array([[0.0, np.inf]])
+    observed = estimate_liability_from_kinship(
+        noisy, lower, upper, h2=0.4, c2=0.2, c_kernel=noisy)
+    expected = estimate_liability_from_kinship(
+        exact, lower, upper, h2=0.4, c2=0.2, c_kernel=exact)
+    for observed_value, expected_value in zip(observed, expected):
+        np.testing.assert_array_equal(observed_value, expected_value)
+
+
 def test_estimate_from_kinship_validation():
     from ltpred import estimate_liability_from_kinship, kinship_from_pedigree
     _, A = kinship_from_pedigree(["o", "m", "f"], ["f", None, None], ["m", None, None])

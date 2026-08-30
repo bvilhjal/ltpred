@@ -63,14 +63,20 @@ Metric names matter here. **NCP ratio** means a ratio of causal-SNP chi-square
 noncentrality components. **Eff-N proxy** means a squared-correlation ratio to
 case/control. The latter is useful for prediction comparisons but is not an
 observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable.
+Every checked-in causal-SNP NCP and detection-power result below used independent
+SNPs, non-overlapping simulated families, and the lightweight marginal score
+statistic in `_common.py`. It is therefore evidence for that simulation estimand,
+not for a real-LD, related-sample mixed-model GWAS. The HAPNEST input path was not
+run for these artifacts.
 
 ## Headline findings
 
 - **PA is the right default for the tested single-trait, no-mixture work.** Across the 27-cell accuracy
   grid (five seeds per cell), mean corr(PA, Gibbs) is 0.9995–1.0000. The
   stressful-pedigree benchmark remains
-  at least 0.9991 (worst single-seed 0.99916). PA and Gibbs also give indistinguishable downstream GWAS
-  results. In the 4-thread timing run, the PA object path is **392–518× faster**
+  at least 0.9991 (worst single-seed 0.99916). PA and Gibbs also give
+  indistinguishable downstream independent-SNP causal-NCP results. In the
+  4-thread timing run, the PA object path is **392–518× faster**
   than grouped Gibbs across the tested sizes and pedigrees. The ratio is not
   thread-count-free: Gibbs is the parallel engine while the PA object path is
   largely serial, so fewer threads inflate the speed-up. Quote it with its
@@ -92,12 +98,12 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   LTFHPlus, LTFGRS PA, ltpred Gibbs and ltpred PA respectively
   (interpreter included). The 8086× figure is not
   "LT-FH++, but faster."
-- **Classic LT-FH improves genotype-GWAS signal without average null inflation.**
+- **Classic LT-FH improves simulated independent-SNP causal NCP without average null inflation.**
   Across three genotype/effect/cohort replicates on **independent SNPs**, the same
   classic LT-FH model inferred by either PA or Gibbs delivers a causal-SNP NCP
   ratio of **1.47 ± 0.04×** over case/control. These NCP ratios are not a
   real-LD result; HAPNEST remains opt-in and unrun.
-- **Full personalised LT-FH++ adds family-history value beyond matched ADuLT.**
+- **Full personalised LT-FH++ adds independent-SNP NCP beyond matched ADuLT.**
   With identical age/sex/cohort proband bounds, ADuLT reaches **1.049 ± 0.004×**
   adjusted causal-SNP NCP ratio over case/control and full LT-FH++ reaches
   **1.194 ± 0.006×** (same independent-SNP design). The paired LT-FH++ minus ADuLT increment is
@@ -109,7 +115,8 @@ observed GWAS noncentrality ratio, so the two magnitudes are not interchangeable
   K stays at **1.007 ± 0.040**. Independent null SNPs stay near 1 for every
   method. Personalised CIP is a confounding-control device, not only a power
   tweak.
-- **Sex-specific CIP improves stratum calibration, not proven adjusted power.**
+- **Sex-specific CIP improves stratum calibration, not proven adjusted
+  independent-SNP NCP.**
   In a prespecified sex-only scenario, correct sex curves close the female-minus-
   male mean-score-error gap by **0.05092 ± 0.00096** (paired 95% CI), while the
   adjusted NCP-ratio increment is **0.0040 ± 0.0046** and remains unresolved.
@@ -247,7 +254,7 @@ interval: most of the onset increment is knowing the case is at least that
 extreme, not the pin-equals-liability identity. Minimum first-replicate
 PA/Gibbs agreement is 0.99971.
 
-## 4. Replicated classic-LT-FH genotype GWAS (`bench_gwas_power.py`)
+## 4. Replicated classic-LT-FH independent-SNP association benchmark (`bench_gwas_power.py`)
 
 Three independent genotype/effect/cohort replicates; each has 10,000 probands,
 5,000 independent SNPs, 30 causal SNPs, h²=0.5, K=0.05, and parents plus one
@@ -264,7 +271,8 @@ The former 1.53× headline was one seed; 1.47 ± 0.04× is the replicated NCP
 ratio. Both rows are the same classic LT-FH model with different inference
 engines. In real-LD mode, variants with r² >= 0.1 to any causal SNP are excluded
 from lambda/QQ calibration by default because causal proxies are associated, not
-null.
+null. The committed table did not run that mode, and neither mode is a
+related-sample mixed-model analysis.
 
 ## 5. Heritability fitting (`bench_fit_heritability.py`)
 
@@ -534,16 +542,16 @@ three seeds — while the medians are not monotone. This script
 does not compare fold-order spread with Gibbs Monte Carlo noise and does not
 directly measure rank changes, so it makes neither claim.
 
-## 15. Integrated personalised LT-FH++ genotype GWAS (`bench_ltfhpp_personalization.py`)
+## 15. Integrated personalised LT-FH++ independent-SNP association benchmark (`bench_ltfhpp_personalization.py`)
 
 ### Integrated panel
 
 Ten paired replicates, 4,000 ascertained probands each, 1,200 SNPs (30 causal,
 300 sex/cohort-stratified null), age-, sex-, and cohort-dependent CIP, coherent
 onset/follow-up, and sex-dependent competing mortality. Accuracy, slope, and
-GWAS values below are adjusted for proband sex and birth year; `±` is replicate
-SE. The final column shows the stratified-null lambda before and after the same
-standard covariate adjustment.
+independent-SNP marginal-association values below are adjusted for proband sex
+and birth year; `±` is replicate SE. The final column shows the stratified-null
+lambda before and after the same standard covariate adjustment.
 
 | Phenotype | adjusted corr | adjusted slope | adjusted causal-SNP NCP ratio / c-c | stratified-null lambda raw -> adjusted |
 |---|---:|---:|---:|---:|
@@ -568,7 +576,8 @@ Other paired t-based 95% intervals isolate the components. Single-K gains
 Full LT-FH++ adds **+0.0455 ± 0.0073** beyond classic LT-FH.
 Sex adds -0.0004 ± 0.0010 beyond age, and adding sex to age+cohort adds
 -0.00004 ± 0.00076. Thus this cancellation-prone integrated scenario establishes
-age and cohort gains, but no conditional sex-power gain.
+age and cohort gains, but no conditional sex-specific NCP gain in this
+independent-SNP design.
 
 The stratified-null panel is a **covariate-adjustment sanity check**, not evidence
 that personalization substitutes for standard GWAS adjustment. After proper FWL
@@ -796,6 +805,14 @@ option for repeated-sample coverage. Artifacts: `bench_cip_estimation.csv`.
 
 ## 20. Pedigree inference from trio records (`bench_pedigree_inference.py`)
 
+> **Evidence status (2026-08-30):** the exact-kinship result below remains
+> valid, but the payoff arm is stale for the documented `max_degree`
+> observation contract. That historical arm used diagnoses from ancestors
+> added only for ancestral closure, including people beyond the requested
+> degree. It must be rerun with those `Pedigree.closure_only` bounds made
+> uninformative; the historical values are retained here for provenance, not
+> as current evidence for the size of the relatives-within-degree payoff.
+
 `ltpred.pedigree` discovers a proband's relatives from population
 parent-offspring records (the Pedersen et al. 2025 graph-extraction niche,
 with full-sibling edges giving the standard relationship-degree scale:
@@ -834,6 +851,16 @@ Kinship here is the exact tabular method (inbreeding-aware), not the 2025
 paper's path-counting approximation.
 
 ## 21. End-to-end register pipeline (`bench_register_pipeline.py`)
+
+> **Historical/stale evidence (2026-08-30):** every result in this section was
+> produced by the unsupported `research.pipeline`, which both conditioned on
+> ancestral-closure diagnoses beyond `max_degree` and used the proband's
+> attained `index_age` as every relative's censoring age. That is not general
+> calendar-time censoring across birth cohorts. These numbers are retained for
+> provenance but do not validate the supported `ltpred.pipeline`; all
+> accuracy/CIP/prospective/throughput arms and the CSV must be regenerated with
+> explicit `birth_time`, calendar `index_time`, and closure-only bounds
+> uninformative by default.
 
 `research.pipeline.estimate_liabilities` chains trio records -> pedigree
 discovery -> per-stratum CIP thresholds -> per-proband scores. Over five
@@ -1241,7 +1268,8 @@ LT-FH posterior mean from the Pearson–Aitken engine: this framework has no
 age/sex/cohort structure, so personalised LT-FH++ thresholds would be identical
 for every member and add nothing (section 15 covers the personalised case; PA
 matches Gibbs to corr ≥ 0.997 per section 1). As elsewhere in this report, the
-GWAS panel below reports **causal-SNP NCP ratios** (`mean chi² - 1`) while the
+independent-SNP marginal-association panel below reports **causal-SNP NCP
+ratios** (`mean chi² - 1`) while the
 prediction panel reports **squared-correlation R²** against held-out true `g`;
 the two magnitudes are not comparable. `±` is replicate SE throughout.
 
@@ -1582,9 +1610,9 @@ script exits 2 if they are missing. LTFGRS is the PA arm.
 - Replicated the accuracy and calibration grids across five independent
   seeds (every cell now reports an across-seed mean and SE), replacing the
   single-seed diagnostic values.
-- Added independent-replicate SEs to GWAS power, age-onset, family-history,
+- Added independent-replicate SEs to association NCP/detection, age-onset, family-history,
   confounding, and cohort-span panels.
-- Corrected genotype-GWAS NCP ratios to use chi-square noncentrality rather than
+- Corrected marginal-association NCP ratios to use chi-square noncentrality rather than
   raw mean chi-square.
 - Warmed and replicated runtime measurements; added a directly measured PA array
   path and recorded configuration/thread metadata.

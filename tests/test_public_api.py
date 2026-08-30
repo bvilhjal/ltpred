@@ -8,12 +8,17 @@ def test_primary_top_level_api_is_curated():
     assert "estimate_liability" in ltpred.__all__
     assert "thresholds_from_cip" in ltpred.__all__
     assert "rtmvnorm_gibbs" not in ltpred.__all__
+    assert "estimate_liabilities" not in ltpred.__all__
+    assert "PopulationScores" not in ltpred.__all__
     assert dir(ltpred) == sorted(ltpred.__all__)
 
 
 def test_advanced_explicit_top_level_imports_remain_compatible():
-    from ltpred import fit_variance_components, pa_algorithm, rtmvnorm_gibbs
+    from ltpred import (PopulationScores, estimate_liabilities,
+                        fit_variance_components, pa_algorithm, rtmvnorm_gibbs)
 
+    assert PopulationScores.__module__ == "ltpred.pipeline"
+    assert callable(estimate_liabilities)
     assert callable(fit_variance_components)
     assert callable(pa_algorithm)
     assert callable(rtmvnorm_gibbs)
@@ -25,7 +30,6 @@ def test_demoted_and_removed_names_are_gone_from_the_top_level():
 
     for name in ("construct_covmat", "construct_covmat_sex_limited",
                  "construct_covmat_nurture", "extract_pedigrees",
-                 "estimate_liabilities", "PopulationScores",
                  "estimate_liability_pa", "liability_sensitivity",
                  "SensitivityResult", "convert_observed_to_liability_scale",
                  "tnorm_moments", "tnorm_mixture_conditional",
@@ -71,10 +75,12 @@ def test_py_typed_marker_is_present_and_backed_by_annotations():
     import pathlib
 
     import ltpred
-    from ltpred import estimate_liability, fit_heritability, prevalence_thresholds
+    from ltpred import (estimate_liabilities, estimate_liability,
+                        fit_heritability, prevalence_thresholds)
 
     assert (pathlib.Path(ltpred.__file__).parent / "py.typed").is_file()
-    for fn in (estimate_liability, fit_heritability, prevalence_thresholds):
+    for fn in (estimate_liability, estimate_liabilities, fit_heritability,
+               prevalence_thresholds):
         # __annotations__ rather than inspect.get_annotations: the latter is
         # 3.10+, and every annotated module uses `from __future__ import
         # annotations`, so these are unevaluated strings on every version.

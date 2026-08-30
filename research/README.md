@@ -19,8 +19,9 @@ Layout:
 - `covariance_extensions.py` — covariance constructions not wired into any
   estimator: sex-limited architecture and direct/indirect (genetic-nurture)
   effects.
-- `pipeline.py` — the end-to-end register pipeline (trio records -> pedigree
-  -> CIP thresholds -> kinship-estimated scores).
+- `pipeline.py` — a legacy register-pipeline snapshot, superseded by the
+  supported `ltpred.pipeline`. Its attained-age `index_age` shortcut is not a
+  general familywise calendar-time censor across birth cohorts.
 - `tests/` — tests for the above, moved from `tests/`. They are **not**
   collected: `testpaths` in `pyproject.toml` covers only `tests/`, and CI
   does not run this directory.

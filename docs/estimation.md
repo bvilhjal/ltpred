@@ -171,8 +171,23 @@ m2=0.1)`. The `c2`/`m2` arguments are supported by the single-trait role/object
 and array entry points (`estimate_liability` with scalar `h2`,
 `estimate_liability_pa_arrays`, `estimate_liability_gibbs_arrays`). The
 high-level multi-trait route rejects nonzero components until their cross-trait
-covariance is defined; the kinship/arbitrary-pedigree path likewise requires
-you to assemble its covariance explicitly. Validated in
+covariance is defined. For an arbitrary pedigree, the high-level kinship route
+accepts the proportions only together with aligned relationship kernels:
+
+```python
+gen, se, var = estimate_liability_from_kinship(
+    A, lower, upper, h2=0.4,
+    c2=0.15, c_kernel=C,
+    m2=0.10, m_kernel=M,
+)
+```
+
+Every kernel must be finite, symmetric, positive semi-definite, and have unit
+diagonal. It is deliberately caller-supplied: `A` cannot distinguish a full-sib
+pair from parent--offspring, or a mate pair from two unrelated strangers. The
+current component fitters remain role-based and assume independent,
+non-overlapping families; this scoring API is not a component fitter for
+overlapping extracted register pedigrees. Validated on the role path in
 [benchmarks/RESULTS.md](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md) (section 24): wiring
 recalibrates the genetic estimate (slope 0.93 -> 0.99) and sharpens
 full-liability prediction on environmentally clustered families.
@@ -243,9 +258,11 @@ runs — keep it for biobank-scale cohorts and the age-censoring mixture; pass
 estimator returns posterior-mean estimates and
 Monte-Carlo SEs, not retained draws; use the low-level `rtmvnorm_gibbs` function
 when you need the sampled TMVN coordinates themselves. For the `genetic` score,
-PA and Gibbs agree closely and gave the same downstream GWAS power on the
-benchmarked no-mixture structures. These comparisons do not validate the PA-only
-censoring mixture.
+PA and Gibbs agree closely and gave the same downstream independent-SNP
+causal-NCP result under the benchmark's marginal association calculation and
+non-overlapping simulated families. That is not evidence from a real-LD,
+related-sample mixed-model GWAS. These comparisons also do not validate the
+PA-only censoring mixture.
 
 ## Scaling to large cohorts
 
@@ -358,11 +375,13 @@ groups and need not be the genotyped proband identifier.
 After centering/residualization the phenotype is continuous. In the replicated
 classic-LT-FH benchmark, PA and Gibbs produced a `1.47 ± 0.04×` **causal-SNP
 noncentrality ratio** relative to case/control. That is not the separate
-squared-correlation effective-sample-size proxy. In the tested secular-trend
-simulation, cohort-specific thresholds removed the genomic-control inflation
-caused by the deliberately misspecified single-threshold analysis; this does not
-replace ordinary GWAS covariate adjustment or guarantee calibration under other
-misspecification.
+squared-correlation effective-sample-size proxy. The result used independent
+SNPs, non-overlapping simulated families, and a lightweight marginal score
+statistic; it is not a real-LD, relatedness-aware mixed-model GWAS result. In the
+tested secular-trend simulation, cohort-specific thresholds removed the
+genomic-control inflation caused by the deliberately misspecified
+single-threshold analysis; this does not replace ordinary GWAS covariate
+adjustment or guarantee calibration under other misspecification.
 
 ## Options reference
 

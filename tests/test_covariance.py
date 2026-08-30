@@ -59,6 +59,26 @@ def test_n_fam_expands_multiples():
     assert cov.roles == ["g", "o", "m", "s1", "s2"]
 
 
+def test_n_fam_preserves_explicit_numbered_roles():
+    cov = construct_covmat_single(
+        fam_vec=None, n_fam={"s1": 1, "mhs3": 1, "c2.4": 1}, h2=0.5,
+    )
+    assert cov.roles == ["g", "o", "s1", "mhs3", "c2.4"]
+    with pytest.raises(ValueError, match="explicit role 's1'"):
+        construct_covmat_single(fam_vec=None, n_fam={"s1": 2}, h2=0.5)
+
+
+@pytest.mark.parametrize("role,count", [("s", 1.9), ("s1", 0.5),
+                                         ("s", np.nan), ("s", np.inf),
+                                         ("s", True), ("s", 10 ** 1000)])
+def test_n_fam_rejects_non_integer_counts(role, count):
+    with pytest.raises(ValueError, match="non-negative integers"):
+        construct_covmat_single(fam_vec=None, n_fam={role: count}, h2=0.5)
+    # Preserve the convenient, unambiguous case of an integral float.
+    cov = construct_covmat_single(fam_vec=None, n_fam={"s": 2.0}, h2=0.5)
+    assert cov.roles == ["g", "o", "s1", "s2"]
+
+
 def test_add_ind_false_omits_g_o():
     cov = construct_covmat_single(fam_vec=["m", "f"], add_ind=False, h2=0.5)
     assert cov.roles == ["m", "f"]
@@ -226,6 +246,76 @@ def test_covmat_from_kinship_matches_role_grammar():
     assert np.allclose(ckin.matrix, crole.matrix)              # exact reproduction
     assert ckin.roles[:2] == ["g", "o"]
     assert construct_covmat_from_kinship(A, h2=h2, add_ind=False).matrix.shape == (9, 9)
+
+
+def test_kinship_environment_kernels_match_role_grammar():
+    from ltpred.fit import _component_matrix
+
+    h2, c2, m2 = 0.4, 0.15, 0.10
+    ids = ["o", "m", "f", "s1", "s2", "mgm", "mgf", "pgm", "pgf"]
+    father = ["f", "mgf", "pgf", "f", "f", None, None, None, None]
+    mother = ["m", "mgm", "pgm", "m", "m", None, None, None, None]
+    _, A = kinship_from_pedigree(ids, father, mother)
+    C = _component_matrix(ids, "C")
+    M = _component_matrix(ids, "M")
+
+    kin = construct_covmat_from_kinship(
+        A, h2=h2, target=0, c2=c2, c_kernel=C, m2=m2, m_kernel=M)
+    role = construct_covmat_single(
+        fam_vec=ids[1:], h2=h2, c2=c2, m2=m2)
+    np.testing.assert_allclose(kin.matrix, role.matrix, rtol=0, atol=1e-12)
+
+
+def test_kinship_environment_kernel_validation():
+    A = np.eye(2)
+    I = np.eye(2)
+    with pytest.raises(ValueError, match="required when c2 is nonzero"):
+        construct_covmat_from_kinship(A, c2=0.1)
+    with pytest.raises(ValueError, match="supplied without c2"):
+        construct_covmat_from_kinship(A, c_kernel=I)
+    with pytest.raises(ValueError, match="finite nonnegative"):
+        construct_covmat_from_kinship(A, c2=np.nan)
+    with pytest.raises(ValueError, match="finite nonnegative"):
+        construct_covmat_from_kinship(A, c2=-0.1)
+    with pytest.raises(ValueError, match="must not exceed 1"):
+        construct_covmat_from_kinship(
+            A, h2=0.8, c2=0.2, c_kernel=I, m2=0.1, m_kernel=I)
+    with pytest.raises(ValueError, match=r"shape \(2, 2\)"):
+        construct_covmat_from_kinship(A, c2=0.1, c_kernel=np.eye(3))
+    with pytest.raises(ValueError, match="finite values"):
+        construct_covmat_from_kinship(
+            A, c2=0.1, c_kernel=np.array([[1.0, np.nan], [np.nan, 1.0]]))
+    with pytest.raises(ValueError, match="symmetric"):
+        construct_covmat_from_kinship(
+            A, c2=0.1, c_kernel=np.array([[1.0, 0.2], [0.0, 1.0]]))
+    with pytest.raises(ValueError, match="unit diagonal"):
+        construct_covmat_from_kinship(A, c2=0.1, c_kernel=0.5 * I)
+    with pytest.raises(ValueError, match="positive semi-definite"):
+        construct_covmat_from_kinship(
+            A, c2=0.1, c_kernel=np.array([[1.0, 2.0], [2.0, 1.0]]))
+
+
+def test_kinship_inputs_canonicalize_accepted_numeric_asymmetry():
+    # The public 1e-8 validation tolerance is wider than the PA/Gibbs symmetry
+    # tolerance. Accepted numerical noise must therefore be removed here.
+    A = np.array([[1.0, 5e-9], [0.0, 1.0]])
+    C = np.array([[1.0, 5e-9], [0.0, 1.0]])
+    cov = construct_covmat_from_kinship(
+        A, h2=0.4, c2=0.2, c_kernel=C).matrix
+    np.testing.assert_array_equal(cov, cov.T)
+
+
+def test_kinship_environment_kernels_preserve_inbred_threshold_scale():
+    A = np.array([[1.25, 0.5], [0.5, 1.0]])
+    C = np.ones((2, 2))
+    h2, c2 = 0.5, 0.2
+    cov = construct_covmat_from_kinship(
+        A, h2=h2, target=0, c2=c2, c_kernel=C).matrix
+
+    raw_target_var = 1.0 + h2 * (A[0, 0] - 1.0)
+    assert np.array_equal(np.diag(cov)[1:], np.ones(2))
+    assert cov[0, 0] == pytest.approx(h2 * A[0, 0] / raw_target_var)
+    assert cov[0, 1] == pytest.approx(h2 * A[0, 0] / raw_target_var)
 
 
 def test_kinship_is_independent_of_record_order():

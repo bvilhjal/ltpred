@@ -18,7 +18,8 @@ is also a top-level export.
 | `pa_thresholds` | age-specific interval-case and PA-FGRS censored-control-mixture inputs; an age-dependent variant, not base PA-FGRS, exact PA-FGRS_ADT, or a requirement merely to use the PA engine |
 | `thresholds_from_cip` | bounds from an empirical (population) CIP curve — `case_mode="interval"` is likewise an age-dependent PA-FGRS-style variant rather than exact PA-FGRS_ADT; endpoint values are held constant outside its age grid |
 | `families_from_columns` | build family inputs from flat columns |
-| `kinship_from_pedigree` / `estimate_liability_from_kinship` | arbitrary-pedigree input and PA-default estimation; pass `use_mixture=True` with `K_i`/`K_pop` for the PA-FGRS censored-control mixture |
+| `kinship_from_pedigree` / `estimate_liability_from_kinship` | arbitrary-pedigree input and PA-default estimation; caller-supplied `c_kernel`/`m_kernel` support environmental components, and `use_mixture=True` with `K_i`/`K_pop` enables the PA-FGRS censored-control mixture |
+| `estimate_liabilities` | supported population-trio driver: pedigree discovery, pinned-onset empirical-CIP bounds, explicit GWAS versus prospective-prediction observation sets, and calendar-time censoring |
 | `simulate_under_LTM_single` | simulate families for testing/benchmarking |
 | `observed_to_liability_h2` / `liability_to_observed_h2` | observed ↔ liability-scale `h²` (Lee et al.) |
 | `set_num_threads` | set the Numba-parallel thread count |
@@ -50,7 +51,7 @@ follow NumPy's `default_rng` contract.
 | `pa_algorithm` / `pa_estimate_batched` | Pearson–Aitken selection updates |
 | `construct_covmat_single` / `construct_covmat_multi` | family covariance from relatedness |
 | `get_relatedness` | shared-DNA × `h²` for a pair of roles |
-| `construct_covmat_from_kinship` | liability covariance from a kinship/`A` matrix |
+| `construct_covmat_from_kinship` | liability covariance from a kinship/`A` matrix, optionally with caller-supplied `C`/`M` kernels |
 | `rtmvnorm_gibbs` | truncated-MVN Gibbs sampler; covariance must be strictly positive-definite |
 | `convert_age_to_cir` / `convert_age_to_thresh` / … | age ↔ incidence ↔ threshold |
 
@@ -72,12 +73,23 @@ checkout-only `research/covariance_extensions.py`.
 
 ::: ltpred.tetrachoric
 
-## Register pipeline — `research.pipeline`
+## Register pipeline — `ltpred.pipeline`
 
-The end-to-end register pipeline (`PopulationScores`, `estimate_liabilities`)
-moved to the unsupported `research/` package at the repository root
-(`research/pipeline.py`); it is importable from a checkout but is not part of
-the installed `ltpred` distribution, so it has no generated reference here.
+`PopulationScores` and `estimate_liabilities` are installed public APIs and are
+also available as explicit lazy imports from `ltpred`. They are deliberately
+absent from the curated wildcard-import list. Prediction requires per-person
+`birth_time` and per-proband `index_time` on a common numeric calendar scale
+whose unit matches `age`; this is what gives relatives from different birth
+years their correct attained-age censoring landmarks. Structural ancestors in
+the pedigree's exact-kinship closure are not diagnosis observations unless
+`condition_closure=True` is explicitly requested.
+
+The old `research.pipeline` implementation is retained only as historical
+checkout scaffolding. Its common `index_age` shortcut assigns a proband's
+attained age to every relative and is not a valid general familywise
+calendar-time censor across generations.
+
+::: ltpred.pipeline
 
 ## CIP estimation — `ltpred.cip`
 

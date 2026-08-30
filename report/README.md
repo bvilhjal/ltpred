@@ -10,7 +10,8 @@ menu, the PA exactness boundary, the implementation (grouping, collapsed untrunc
 streaming batch-means, object vs array path, `var` vs `se`), and
 the load-bearing simulation tables — agreement and speed, the
 LTFHPlus / LTFGRS lock (total and per-family time, fold times versus
-both R packages, isolated-process peak RSS), GWAS NCP, personalisation,
+both R packages, isolated-process peak RSS), independent-SNP marginal-association
+NCP (not real-LD mixed-model evidence), personalisation,
 cohort confounding, calibration,
 PGS complementarity, the censoring mixture (including
 liability-dependent onset), pin versus interval encodings, and

@@ -5,11 +5,11 @@ top of a polygenic score?"  Same generative framework as ``bench_gwas_power.py``
 (independent SNPs, causal effects, proband genetic liability ``g = Xs @ beta``,
 relatives drawn conditional on it), but the cohort is split 50/50:
 
-  * TRAIN is the discovery cohort.  A linear-regression GWAS is run on the
-    case/control label (and, for the GWAS-power arms, on the LT-FH estimate and
+  * TRAIN is the discovery cohort. An independent-SNP marginal score scan is run
+    on the case/control label (and, for the NCP arms, on the LT-FH estimate and
     the oracle ``g``); the case/control summary statistics define the PGS
     weights.
-  * TEST is never touched by the GWAS or the PGS weight fitting.  The PGS is
+  * TEST is never touched by the association scan or the PGS weight fitting. The PGS is
     scored there, the family-history (LT-FH) estimate is computed there, and
     both are evaluated against the held-out true genetic liability.  The joint
     combiner is fit by deterministic cross-fitting within TEST, so each
@@ -17,7 +17,7 @@ relatives drawn conditional on it), but the cohort is split 50/50:
 
 Arms (all evaluated on TEST unless noted):
 
-  1. case/control -- GWAS on the 0/1 label (train); the raw label is also the
+  1. case/control -- marginal association on the 0/1 label (train); the raw label is also the
      baseline *predictor* on test.
   2. LT-FH -- the package's Pearson--Aitken estimate of the proband's genetic
      liability from the family history.  The bounds are classic LT-FH (single
@@ -25,11 +25,11 @@ Arms (all evaluated on TEST unless noted):
      age/sex/cohort structure, so personalised LT-FH++ thresholds would be
      identical for every member and add nothing; bench_ltfhpp_personalization
      covers the personalised case.  PA is the primary engine (it matches Gibbs
-     to corr >= 0.997; RESULTS.md section 1).  The GWAS on this estimate gives
+     to corr >= 0.997; RESULTS.md section 1). The association scan on this estimate gives
      the causal-SNP NCP ratio over case/control, exactly as in
      ``bench_gwas_power.py``.
   3. PGS-only -- marginal Z-scored weights ``w_j = sqrt(n_train) * corr(x_j,
-     y)`` from the train case/control GWAS.  With independent SNPs there is no
+     y)`` from the train case/control association scan. With independent SNPs there is no
      LD to shrink for, so this self-contained numpy score is the LDpred-inf
      limit; no external PGS package is required.  ``--pgs-backend ldpred3``
      instead fits LDpred3-auto on the train summary statistics (LD reference =
@@ -439,7 +439,7 @@ def plot(agg, replicate_rows):
     ax[0].set_xticks(range(len(gwas_arms)))
     ax[0].set_xticklabels(gwas_arms, rotation=20, ha="right", fontsize=8)
     ax[0].set_ylabel("causal-SNP NCP ratio vs case/control")
-    ax[0].set_title("(a) GWAS power on the train cohort")
+    ax[0].set_title("(a) independent-SNP causal-NCP ratio")
 
     pred_arms = [CC, PGS, LTFH, JOINT]
     ax[1].bar(range(len(pred_arms)), [by_arm[a]["r2_g"] for a in pred_arms],
@@ -498,7 +498,7 @@ def main():
     ap.add_argument("--prev", type=float, default=0.05)
     ap.add_argument("--fam", nargs="+", default=["m", "f", "s1"])
     ap.add_argument("--train-frac", type=float, default=0.5,
-                    help="cohort fraction used for the discovery GWAS / PGS fit")
+                    help="cohort fraction used for the discovery association / PGS fit")
     ap.add_argument("--joint-folds", type=int, default=2,
                     help="cross-fitting folds for the joint OLS within test")
     ap.add_argument("--pgs-backend", choices=["numpy", "ldpred3"],

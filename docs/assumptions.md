@@ -59,7 +59,9 @@ covariance so their conditional variances exist. The high-level estimators nudge
 a numerically singular assembled covariance to strict positive-definiteness and
 warn when they do so. The fitters ship descriptive sibship `C` and mate/couple
 `M` kernels, and the single-trait high-level predictor accepts them as `c2`/`m2`
-on both the role/object and array paths. The high-level multi-trait dispatcher
+on the role/object and array paths. The arbitrary-kinship predictor accepts the
+same proportions only with caller-supplied `c_kernel`/`m_kernel`, because `A`
+does not encode environmental relationship classes. The high-level multi-trait dispatcher
 rejects nonzero `c2`/`m2` rather than silently dropping them, pending a defined
 cross-trait component covariance; see
 [algorithm.md](algorithm.md#adding-environmental-covariance-to-improve-prediction)

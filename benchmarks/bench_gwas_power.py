@@ -1,4 +1,4 @@
-"""GWAS power: case/control vs classic LT-FH inferred by Gibbs/PA vs an oracle.
+"""Independent-SNP marginal-association NCP: case/control vs LT-FH vs oracle.
 
 The central classic-LT-FH claim is that regressing genotypes on a posterior
 genetic-liability phenotype conditioned on family history recovers association
@@ -11,7 +11,7 @@ on simulated genotypes:
   2. draw the relatives' liabilities conditional on that value and threshold them
      into a family history;
   3. estimate the proband's classic LT-FH liability with Gibbs and PA;
-  4. run a linear-regression GWAS of the proband genotypes on four phenotypes --
+  4. run the lightweight marginal score scan on four phenotypes --
      case/control, LT-FH (Gibbs), LT-FH (PA), and true genetic liability -- and
      score each.
 
@@ -22,12 +22,13 @@ SNPs (calibration -- should stay ~1). The two LT-FH inference
 engines should beat case/control and match each other, below the oracle ceiling, with no
 inflation at nulls.
 
-Genotypes are independent SNPs by default (LD is not needed for the power
+Genotypes are independent SNPs by default (LD is not needed for the NCP
 comparison, which turns on each phenotype's correlation to the true genetic
 value). For real LD, pass HAPNEST-generated genotypes via ``--plink PREFIX``.
 In that mode, variants above ``--ld-null-r2`` with any causal SNP are excluded
 from the genomic-control/QQ set, because causal LD proxies are associated rather
-than null (see ``hapnest/README.md``).
+than null (see ``hapnest/README.md``). The association helper remains marginal;
+neither mode is a related-sample mixed-model GWAS.
 
     python benchmarks/bench_gwas_power.py
     python benchmarks/bench_gwas_power.py --plink data/output/synthetic --n-causal 40
@@ -152,7 +153,7 @@ def plot(rows, chisq, calibration_mask):
     ax[0].set_xticks(range(len(names)))
     ax[0].set_xticklabels(names, rotation=20, ha="right", fontsize=8)
     ax[0].set_ylabel("mean chi2 at causal SNPs")
-    ax[0].set_title("(a) power (effective N) at causal SNPs")
+    ax[0].set_title("(a) marginal causal-SNP NCP")
     ax[1].bar(range(len(names)), [100 * r["power_sug"] for r in rows],
               yerr=[100 * r["se_power_sug"] for r in rows], capsize=3,
               color=["#999", "#1f77b4", "#ff7f0e", "#2ca02c"])

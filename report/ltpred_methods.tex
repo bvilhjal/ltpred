@@ -35,8 +35,8 @@
   {\large Model, sequential approximation, and evidence in \texttt{ltpred}}}
 \author{Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
   {\small Aarhus University and SMARTbiomed}\\[0.35em]
-  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.4.2}}
-\date{21 August 2026}
+  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.5.0}}
+\date{30 August 2026}
 
 \begin{document}
 \maketitle
@@ -681,8 +681,9 @@ cohorts.
 The numbers below are from committed benchmark artifacts
 (campaigns of 31~July, 1~August, 10--15 and 20~August 2026).
 They do not automatically validate later code.
-Every GWAS panel uses independent SNPs; a real-LD run has not been
-done.
+Every association panel uses independent SNPs and a lightweight marginal score
+statistic on non-overlapping simulated families; a real-LD,
+relatedness-aware mixed-model run has not been done.
 A locked comparison to R LTFHPlus 2.2.0 and LTFGRS 1.0.1 is in
 Section~\ref{sec:ltfhplus}.
 Table~\ref{tab:headlines} is an index of those quantities: each row
@@ -875,7 +876,7 @@ still unused, as it should be when $\h=0.5$ and relatives are few.
 
 \begin{table}[ht]
 \centering
-\caption{Independent-SNP GWAS.
+\caption{Independent-SNP marginal-association simulation.
 NCP uses $\overline{\chi^{2}}-1$.
 Power is the fraction of causal SNPs at $p<5\times 10^{-8}$.}
 \label{tab:gwas}
@@ -897,7 +898,7 @@ year.
 
 \begin{table}[ht]
 \centering
-\caption{Integrated personalised LT-FH++ genotype GWAS, ten paired
+\caption{Integrated personalised LT-FH++ independent-SNP marginal association, ten paired
 replicates.
 NCP is $(\overline{\chi^{2}}-1)$ over case/control.
 The last column is stratified-null $\lambda_{\mathrm{GC}}$ before
@@ -1208,9 +1209,9 @@ A linear GWAS of those scores without a mixed model, or without
 pruning to non-overlapping families, is the analysis
 Zhuang et al.\ \cite{zhuang2022} warned about.
 
-Two evidence gaps would change how hard
-Section~\ref{sec:results} should be leaned on: a real-LD GWAS, and
-a Gibbs implementation of \eqref{eq:mix}.
+Two evidence gaps limit how hard Section~\ref{sec:results} can be
+leaned on: a real-LD mixed-model GWAS that handles related targets,
+and a Gibbs implementation of \eqref{eq:mix}.
 The LTFHPlus / LTFGRS lock
 (Section~\ref{sec:ltfhplus}) covers only no-mixture classic
 bounds on $200$ equal nuclear families.

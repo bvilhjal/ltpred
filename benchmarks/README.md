@@ -58,11 +58,14 @@ summary CSV: `bench_cip_estimation.py`, `bench_liability_scale.py`, and
 write long-format `rep, metric, value` CSVs (`--reps` independent
 populations/registers; rep 0 marks single-run parts).
 
-Two gain metrics appear below. Genotype-GWAS panels report **causal-SNP NCP
-ratios**, based on `mean chi² - 1`. Prediction-only panels report
+Two gain metrics appear below. Independent-SNP marginal-association panels
+report **causal-SNP NCP ratios**, based on `mean chi² - 1`. Prediction-only panels report
 **squared-correlation effective-N proxies**. These answer related but different
 questions and their magnitudes should not be compared as if they were the same
-statistic.
+statistic. Every checked-in genotype-association result used independent SNPs,
+non-overlapping simulated families, and the lightweight marginal score statistic
+in `_common.py`; none is evidence from a real-LD, related-sample mixed-model GWAS.
+The HAPNEST input path is opt-in and has not been run for the committed results.
 
 **Runtime depends on your machine.** These reference numbers were taken on 10
 cores with Numba installed (`pip install -e ".[fast]"`); the first call in each
@@ -92,8 +95,8 @@ Rows marked **unsupported research** import checkout-only APIs from
 | `bench_scaling.py` | wall-clock scaling of both methods with #families and family size; families/second and speed-up (→ `bench_scaling.{csv,png}`) |
 | `bench_ltfhplus_compare.py` | **opt-in:** locked score, total and per-family wall-clock, fold times versus LTFHPlus Gibbs and LTFGRS PA, and isolated-process peak RSS on the same classic LT-FH families (→ `bench_ltfhplus_compare.csv`). Exits 2 if R or LTFHPlus is missing |
 | `bench_ascertainment.py` | what the moment fitters return on **selected** samples, and what inverse-probability weighting recovers: five ascertainment schemes plus a phenotype-independent negative control, over h2, A+C, r_g, bias-vs-N, a convergence/multi-start diagnostic, the complete-data HE moment, and the IPW refit (→ `bench_ascertainment.{csv,png}`; `--h2 0 --tag _h2null` for the true-h2=0 cell) |
-| `bench_gwas_power.py` | replicated genotype-based GWAS power for classic LT-FH: case/control vs the same LT-FH model inferred by Gibbs or PA vs an oracle — causal-SNP NCP ratio, detection power, SEs, and λ_GC (→ `bench_gwas_power.{csv,png}`). The default family is parents plus one sibling. Pass `--plink PREFIX` for **real-LD** HAPNEST genotypes; causal LD proxies are excluded from its calibration set (opt-in; see [`hapnest/README.md`](hapnest/README.md)) |
-| `bench_ltfhpp_personalization.py` | **integrated LT-FH++ genotype GWAS** with age-, sex-, and cohort-dependent CIP, coherent family onset/follow-up, competing mortality, ascertainment, and demographically stratified null SNPs. A matched ADuLT arm uses the identical personalised proband bounds with all relatives removed, directly isolating the LT-FH++ family-history increment. The 10-replicate main panel reports causal-SNP NCP ratios and paired CIs; a prespecified 5-replicate sex-isolation panel compares age-only with age+sex family bounds. PA is primary and Gibbs diagnostics cover the first two main replicates (→ `bench_ltfhpp_personalization.{csv,png}`) |
+| `bench_gwas_power.py` | replicated **independent-SNP marginal-association** evidence for classic LT-FH: case/control vs the same LT-FH model inferred by Gibbs or PA vs an oracle — causal-SNP NCP ratio, detection power, SEs, and λ_GC (→ `bench_gwas_power.{csv,png}`). The default family is parents plus one sibling. Pass `--plink PREFIX` for **real-LD** HAPNEST genotypes; causal LD proxies are excluded from its calibration set (opt-in; see [`hapnest/README.md`](hapnest/README.md)). That option changes the genotype LD, not the marginal association test into a relatedness-aware mixed model |
+| `bench_ltfhpp_personalization.py` | **integrated LT-FH++ independent-SNP marginal-association simulation** with age-, sex-, and cohort-dependent CIP, coherent family onset/follow-up, competing mortality, ascertainment, and demographically stratified null SNPs. A matched ADuLT arm uses the identical personalised proband bounds with all relatives removed, directly isolating the LT-FH++ family-history increment. The 10-replicate main panel reports causal-SNP NCP ratios and paired CIs; a prespecified 5-replicate sex-isolation panel compares age-only with age+sex family bounds. PA is primary and Gibbs diagnostics cover the first two main replicates (→ `bench_ltfhpp_personalization.{csv,png}`) |
 | `bench_fit_heritability.py` | variance-component inference: bias and across-dataset precision of `fit_heritability` vs true h², vs #families and family structure, and the calibration of the reported `h2_se` (→ `bench_fit_heritability.{csv,png}`) |
 | `bench_variance_components.py` | multi-component inference: recovery of additive `A` and common-environment `C` by `fit_variance_components` (bias & across-dataset SD), the constrained C estimate at the zero boundary, and precision vs #families (→ `bench_variance_components.{csv,png}`) |
 | `bench_genetic_correlation.py` | **unsupported research:** genetic-correlation inference: bias & across-dataset SD of `r_g` from `fit_genetic_correlation` vs the true value — including the null (`r_g=0` with non-zero phenotypic correlation) — and precision vs #families; panel (c) is the genetic factor model `r_g ≈ ΛΛ' + Ψ` (`fit_genetic_factor`): recovery of planted single-factor loadings plus `srmr` as an in-sample diagnostic for a planted two-factor misspecification (→ `bench_genetic_correlation.{csv,png}`) |
@@ -108,12 +111,12 @@ Rows marked **unsupported research** import checkout-only APIs from
 | `bench_misspecification.py` | calibration and ranking under heavy tails, assortative mating, unmodelled shared environment, and wrong prevalence |
 | `bench_cip_estimation.py` | Kaplan–Meier/Aalen–Johansen curve recovery, delayed entry, competing mortality, and an end-to-end CIP-to-score check |
 | `bench_pedigree_inference.py` | pedigree extraction fidelity, arbitrary-kinship scoring versus the fixed named-role grammar (replicated, paired contrast), and extraction throughput (→ `bench_pedigree_inference.csv`) |
-| `bench_register_pipeline.py` | **unsupported research:** pipeline from trio records through pedigree extraction and CIP thresholds to liability scores; replicated accuracy/CIP/prospective arms with AUC and calibration-in-the-large, single-run throughput (→ `bench_register_pipeline.csv`) |
+| `bench_register_pipeline.py` | supported public pipeline from trio records through pedigree extraction and pinned-onset CIP thresholds to liability scores; replicated accuracy/CIP/calendar-prospective arms with AUC and calibration-in-the-large, single-run throughput. The committed CSV/RESULTS claims predate calendar censoring and closure-only observation masking and are stale pending rerun (→ `bench_register_pipeline.csv`) |
 | `bench_tetrachoric.py` | tetrachoric relative-pair correlations, latent-correlation comparison, and the Falconer diagnostic |
 | `bench_liability_scale.py` | probit residual-scale variance and observed-to-liability transformations, including null-adjusted summary-statistic estimates |
 | `bench_aod_decay.py` | **unsupported research:** onset-age-dependent genetic-correlation fitting under the fitted covariance model; panel (d) (`--robustness`, on by default) is the adversarial probe set: wrong kernels and unmodelled shared family environment (→ `bench_aod_decay.{csv,png}`) |
 | `bench_covariance_extensions.py` | **unsupported research:** two panels over the extended covariance constructors — (a) sex-specific covariance versus sex-specific thresholds, including matched same-sex/cross-sex mechanisms (→ `bench_sex_limitation.{csv,png}`); (b) direct-effect scoring and moment-heritability distortion under genetic nurture (→ `bench_nurture.{csv,png}`) |
-| `bench_pgs_comparison.py` | **PGS baseline and the PGS + family-history joint model** with an honest 50/50 train/test split: the PGS is trained on the train case/control GWAS (self-contained numpy Z-scored marginal weights; optional `--pgs-backend ldpred3` fits LDpred3-auto via saved weights, needing the optional ldpred3 package) and scored on held-out test probands; the joint OLS is cross-fitted within the test half — causal-SNP NCP ratios on train, R² against held-out true `g` on test, joint-model incremental R²s, and corr(PGS, LT-FH) checked against the `a·b·√p` theory prediction (→ `bench_pgs_comparison.{csv,png}`) |
+| `bench_pgs_comparison.py` | **PGS baseline and the PGS + family-history joint model** with an honest 50/50 train/test split on independent SNPs: the PGS is trained on the train case/control marginal association statistics (self-contained numpy Z-scored marginal weights; optional `--pgs-backend ldpred3` fits LDpred3-auto via saved weights, needing the optional ldpred3 package) and scored on held-out test probands; the joint OLS is cross-fitted within the test half — causal-SNP NCP ratios on train, R² against held-out true `g` on test, joint-model incremental R²s, and corr(PGS, LT-FH) checked against the `a·b·√p` theory prediction (→ `bench_pgs_comparison.{csv,png}`) |
 
 `_common.py` holds the shared simulation, estimation, GWAS and plotting helpers,
 plus a minimal PLINK `.bed` reader for the HAPNEST path.
@@ -132,14 +135,16 @@ plus a minimal PLINK `.bed` reader for the HAPNEST path.
   families and pass `sampling="population"` explicitly. `bench_ascertainment.py`
   is the exception and the complement: it measures what those fitters return
   when the contract is violated, and what `sampling="ipw"` recovers.
-* **The classic GWAS benchmark** uses parents plus one sibling and builds each proband's genetic liability from simulated
+* **The classic independent-SNP association benchmark** uses parents plus one sibling and builds each proband's genetic liability from simulated
   causal-SNP genotypes, then draws the relatives' liabilities *conditional on that
   value* from the same covariance. This gives a genotype matrix to associate
   against and a correctly correlated family history to estimate from. LD is not
   needed for the power comparison (which turns on each phenotype's correlation to
   the true genetic value); pass `--plink` for real-LD HAPNEST genotypes if you
-  want realistic multiple-testing structure.
-* **The personalised LT-FH++ GWAS benchmark** adds coherent age, onset,
+  want realistic multiple-testing structure. The association helper remains a
+  marginal score calculation, and the simulation does not represent overlapping
+  extracted pedigrees.
+* **The personalised LT-FH++ independent-SNP association benchmark** adds coherent age, onset,
   competing mortality, birth-cohort effects, ascertainment, and stratified null
   variants. Its matched ADuLT row retains the full proband CIP but removes family
   history. The integrated panel measures the combined `++` design; its separate

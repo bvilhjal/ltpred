@@ -1,4 +1,4 @@
-"""End-to-end benchmark of personalized LT-FH++ thresholds in a genotype GWAS.
+"""LT-FH++ thresholds in an independent-SNP marginal-association simulation.
 
 The main panel combines age-, sex-, and birth-cohort-dependent cumulative
 incidence (CIP), coherent family follow-up/onset, competing mortality,
@@ -19,9 +19,10 @@ age-dependent CIP, and no cohort or sex-dependent-mortality effect.
 
 Pearson-Aitken (PA) is the primary single-trait engine.  Gibbs is run only for the
 first ``--gibbs-reps`` main-panel replicates and is used as an agreement diagnostic,
-not as a second headline analysis.  Raw and sex/birth-year-adjusted score/truth and
-GWAS metrics are both retained.  Paired contrasts use t-based 95% confidence
-intervals across independent simulated cohorts.
+not as a second headline analysis. Raw and sex/birth-year-adjusted score/truth and
+marginal-association metrics are both retained. Paired contrasts use t-based 95%
+confidence intervals across independent simulated cohorts. This is not a
+real-LD, related-sample mixed-model GWAS.
 
 Run:
     python benchmarks/bench_ltfhpp_personalization.py

@@ -63,11 +63,47 @@ mother)` indexes the records and `extract_pedigree(graph, proband,
 max_degree=3)` returns each proband's relatives up to third degree (parents,
 siblings, grandparents, half-sibs, aunts/uncles, cousins) with all their
 ancestors closed in, so the sub-pedigree's kinship is exact (see
-`benchmarks/bench_pedigree_inference.py`). For the full chain --
-trio records -> pedigrees -> per-stratum CIP thresholds -> per-proband
-scores, with familywise censoring for prospective prediction -- use
-`research.pipeline.estimate_liabilities` (in the unsupported `research/`
-package at the repository root, importable from a checkout).
+`benchmarks/bench_pedigree_inference.py`). For the full chain -- trio records
+-> pedigrees -> per-stratum CIP thresholds -> per-proband scores -- use the
+supported `ltpred.estimate_liabilities` driver. Its required `use` argument
+makes the observation design explicit: `"gwas"` conditions on the proband's
+diagnosis, while `"prediction"` makes that diagnosis uninformative and
+reconstructs every relative's record at a common calendar landmark:
+
+```python
+from ltpred import estimate_liabilities
+
+gwas_scores = estimate_liabilities(
+    ids, father, mother,
+    probands=gwas_ids, status=status, age=age, use="gwas",
+    strata=stratum, cip_by_stratum=cip_by_stratum,
+    max_degree=3, h2=0.5,
+)
+
+prediction_scores = estimate_liabilities(
+    ids, father, mother,
+    probands=prediction_ids, status=status, age=age, use="prediction",
+    birth_time=birth_time, index_time=index_time,
+    strata=stratum, cip_by_stratum=cip_by_stratum,
+    max_degree=3, h2=0.5,
+)
+```
+
+Here `birth_time` is aligned to `ids` and `index_time` to `probands`. They must
+use one numeric calendar scale (for example decimal calendar year), and that
+scale's unit must match the unit of `age`. At landmark `t`, a relative born at
+`b` is censored at attained age `t - b`; assigning every generation the
+proband's attained age is not familywise calendar censoring. A person born at
+or after `t` has no follow-up and is uninformative.
+
+The extracted pedigree retains ancestors beyond `max_degree` when they are
+needed for exact kinship, but marks them `Pedigree.closure_only`. The supported
+driver leaves their diagnoses uninformative by default, so `max_degree` really
+bounds the observation set. Set `condition_closure=True` only when those extra
+diagnoses are deliberately part of the analysis. The driver intentionally uses
+pinned-onset LT-FH++ bounds and deterministic Pearson--Aitken inference; build
+bounds and call the lower-level estimators directly for interval-case or
+PA-FGRS mixture models.
 
 When your relatives don't fit the fixed roles — deeper pedigrees, cousins,
 multiple marriages, inbreeding — describe the pedigree by **who each person's
@@ -90,7 +126,9 @@ gen, se, var = estimate_liability_from_kinship(A, lower, upper, h2=0.5, target=0
 This high-level arbitrary-kinship function accepts `A`, `lower`/`upper`, and
 on Pearson–Aitken `use_mixture=True` with per-member `K_i`/`K_pop` for the
 PA-FGRS censored-control mixture. Pass `method="gibbs"` only for the
-no-mixture sampler.
+no-mixture sampler. Shared-environment scoring is also supported, but the
+relationship classes must be explicit: pass `c2` with an aligned `c_kernel`
+and/or `m2` with `m_kernel`. They cannot be recovered from `A` alone.
 
 For a pedigree that *does* fit the role grammar the two paths give identical
 results (same covariance); the pedigree path additionally handles half-sibs of any
@@ -98,7 +136,8 @@ degree, cousins, and inbred pedigrees (where a self-relationship can exceed 1).
 For inbred pedigrees, the raw additive covariance is formed from `A` and then
 standardised so every full liability has unit marginal variance; standard-normal
 prevalence thresholds therefore retain their usual meaning. Build the covariance
-alone with `construct_covmat_from_kinship(A, h2, target)`.
+alone with `construct_covmat_from_kinship(A, h2, target)` (and the same optional
+component kernels).
 
 Discovery from population registers is handled by `ltpred.pedigree` above, with
 `max_degree` setting how far the traversal reaches. The graph-based extraction

@@ -7,7 +7,7 @@ Two simulation paths feed the benchmarks:
   model-specific observation bounds. The true genetic liability is known
   (``sim.genetic``), so accuracy, scaling and censoring benchmarks need nothing
   else.
-* :func:`simulate_genotype_families` -- for the GWAS-power benchmark: simulates
+* :func:`simulate_genotype_families` -- for the independent-SNP NCP benchmark: simulates
   causal-SNP genotypes, builds each proband's genetic liability from them, then
   draws the relatives' liabilities *conditional on that value* from the same
   family covariance. This gives both a genotype matrix to associate against and a

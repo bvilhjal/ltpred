@@ -19,11 +19,13 @@ cd ..
 python scripts/check_evidence.py
 ```
 
-The cross-benchmark headline, GWAS, integrated-personalisation, confounding, PGS
-and heritability tables are generated LaTeX inputs from the committed benchmark
-CSVs (the full generator was removed in the 2026-08 lean-down; the tables are
-now static snapshots). A compact release check pins the headline rows and
-rejects a report source or included table newer than the tracked PDF.
+The cross-benchmark headline, independent-SNP marginal-association,
+integrated-personalisation, confounding, PGS and heritability tables are generated
+LaTeX inputs from the committed benchmark CSVs (the full generator was removed in
+the 2026-08 lean-down; the tables are now static snapshots). The NCP tables are
+not real-LD, related-sample mixed-model GWAS evidence. A compact release check
+pins the headline rows and rejects a report source or included table newer than
+the tracked PDF.
 
 The report states the estimand and assumptions first, then the
 liability-threshold model and BLUP identity, Algorithms G
@@ -32,7 +34,7 @@ the implementation (grouping, collapsed untruncated coordinates,
 streaming batch-means, object vs array path, posterior `var` vs
 estimator `se`), the population/IPW sampling
 contracts, and the load-bearing simulation tables — agreement
-and speed, GWAS NCP, personalisation, cohort confounding, calibration,
+and speed, independent-SNP causal NCP, personalisation, cohort confounding, calibration,
 PGS complementarity, the censoring mixture (including
 liability-dependent onset), pin versus interval encodings, and
 ascertainment.

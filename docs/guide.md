@@ -54,9 +54,10 @@ The guide is split into short, task-focused pages:
 | **[Assumptions & checklist](assumptions.md)** | modelling assumptions, real-data checklist, pitfalls |
 | **[API reference](api.md)** | the exported workflow plus advanced module APIs, with signatures and docstrings |
 
-Unsupported experimental fitters and the register pipeline live in the
+Unsupported experimental fitters and covariance extensions live in the
 checkout-only [`research/` package](https://github.com/bvilhjal/ltpred/tree/main/research);
-they are not installed with ltpred.
+they are not installed with ltpred. The register driver is public in
+`ltpred.pipeline`; the research file with that name is a legacy snapshot.
 
 See [algorithm.md](algorithm.md) for the model and the estimators, and the
 [benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
@@ -127,11 +128,15 @@ arbitrary pedigrees — deeper trees, cousins, inbreeding, non-standard structur
 The role grammar is fastest and simplest; the kinship path is the general case.
 The high-level kinship estimator accepts ordinary `lower`/`upper` bounds and,
 on the PA engine, `use_mixture=True` with per-member `K_i`/`K_pop` for the
-PA-FGRS censored-control mixture. Gibbs still has no mixture implementation.
+PA-FGRS censored-control mixture. It also accepts caller-supplied shared-
+environment kernels as `c2`/`c_kernel` and `m2`/`m_kernel`; these cannot be
+inferred from `A` alone. Gibbs still has no mixture implementation.
 Pedigrees can be discovered from trio records with `ltpred.pedigree`
 (`build_parent_graph`, `extract_pedigree`, `ParentGraph`, `Pedigree`), which feeds
-`kinship_from_pedigree`. ltpred does not wrap igraph the way LTFHPlus does, and
-ships no plotting utilities.
+`kinship_from_pedigree`. The installed `ltpred.pipeline.estimate_liabilities`
+driver adds empirical-CIP bounds, closure-only masking, and explicit
+calendar-time censoring for register scoring. ltpred does not wrap igraph the
+way LTFHPlus does, and ships no plotting utilities.
 
 **Which path to run:**
 
