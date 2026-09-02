@@ -855,6 +855,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.4.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.5.1)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -917,25 +973,33 @@ tectonic<span class="w"> </span>-X<span class="w"> </span>compile<span class="w"
 <span class="nb">cd</span><span class="w"> </span>..
 python<span class="w"> </span>scripts/check_evidence.py
 </code></pre></div>
-<p>The cross-benchmark headline, GWAS, integrated-personalisation, confounding, PGS
-and heritability tables are generated LaTeX inputs from the committed benchmark
-CSVs (the full generator was removed in the 2026-08 lean-down; the tables are
-now static snapshots). A compact release check pins the headline rows and
-rejects a report source or included table newer than the tracked PDF.</p>
+<p>The cross-benchmark headline, independent-SNP marginal-association,
+integrated-personalisation, confounding, PGS and heritability tables are generated
+LaTeX inputs from the committed benchmark CSVs (the full generator was removed in
+the 2026-08 lean-down; the tables are now static snapshots). The NCP tables are
+not real-LD, related-sample mixed-model GWAS evidence. A compact release check
+pins the headline rows and rejects a report source or included table newer than
+the tracked PDF.</p>
 <p>The report states the estimand and assumptions first, then the
 liability-threshold model and BLUP identity, Algorithms G
 (Gibbs), P (Pearson–Aitken) and M (mixture),
 the implementation (grouping, collapsed untruncated coordinates,
-streaming batch-means, object vs array path, posterior <code>var</code> vs
-estimator <code>se</code>), the population/IPW sampling
+streaming batch-means, object vs array vs register path, posterior <code>var</code> vs
+estimator <code>se</code>), the standardized inbred target, calendar-time censoring
+and closure-only observation masking, cumulative versus incident risk,
+the population/IPW sampling
 contracts, and the load-bearing simulation tables — agreement
-and speed, GWAS NCP, personalisation, cohort confounding, calibration,
+and speed, independent-SNP causal NCP, personalisation, cohort confounding, calibration,
 PGS complementarity, the censoring mixture (including
 liability-dependent onset), pin versus interval encodings, and
 ascertainment.
 Those tables are historical snapshots; see
 <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md"><code>benchmarks/RESULTS.md</code></a>
-for provenance.</p>
+for provenance.
+The old register-depth and prospective figures are no longer presented as
+current evidence: the corrected driver needs a clean-source benchmark rerun.
+The runnable vignette's small register example checks the input contract,
+not predictive performance.</p>
 
 
 

@@ -1008,6 +1008,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.4.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.5.1)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1349,8 +1405,20 @@ m2=0.1)</code>. The <code>c2</code>/<code>m2</code> arguments are supported by t
 and array entry points (<code>estimate_liability</code> with scalar <code>h2</code>,
 <code>estimate_liability_pa_arrays</code>, <code>estimate_liability_gibbs_arrays</code>). The
 high-level multi-trait route rejects nonzero components until their cross-trait
-covariance is defined; the kinship/arbitrary-pedigree path likewise requires
-you to assemble its covariance explicitly. Validated in
+covariance is defined. For an arbitrary pedigree, the high-level kinship route
+accepts the proportions only together with aligned relationship kernels:</p>
+<div class="highlight"><pre><span></span><code><span class="n">gen</span><span class="p">,</span> <span class="n">se</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">estimate_liability_from_kinship</span><span class="p">(</span>
+    <span class="n">A</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span>
+    <span class="n">c2</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span> <span class="n">c_kernel</span><span class="o">=</span><span class="n">C</span><span class="p">,</span>
+    <span class="n">m2</span><span class="o">=</span><span class="mf">0.10</span><span class="p">,</span> <span class="n">m_kernel</span><span class="o">=</span><span class="n">M</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Every kernel must be finite, symmetric, positive semi-definite, and have unit
+diagonal. It is deliberately caller-supplied: <code>A</code> cannot distinguish a full-sib
+pair from parent--offspring, or a mate pair from two unrelated strangers. The
+current component fitters remain role-based and assume independent,
+non-overlapping families; this scoring API is not a component fitter for
+overlapping extracted register pedigrees. Validated on the role path in
 <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">benchmarks/RESULTS.md</a> (section 24): wiring
 recalibrates the genetic estimate (slope 0.93 -&gt; 0.99) and sharpens
 full-liability prediction on environmentally clustered families.</p>
@@ -1445,9 +1513,11 @@ runs — keep it for biobank-scale cohorts and the age-censoring mixture; pass
 estimator returns posterior-mean estimates and
 Monte-Carlo SEs, not retained draws; use the low-level <code>rtmvnorm_gibbs</code> function
 when you need the sampled TMVN coordinates themselves. For the <code>genetic</code> score,
-PA and Gibbs agree closely and gave the same downstream GWAS power on the
-benchmarked no-mixture structures. These comparisons do not validate the PA-only
-censoring mixture.</p>
+PA and Gibbs agree closely and gave the same downstream independent-SNP
+causal-NCP result under the benchmark's marginal association calculation and
+non-overlapping simulated families. That is not evidence from a real-LD,
+related-sample mixed-model GWAS. These comparisons also do not validate the
+PA-only censoring mixture.</p>
 <h2 id="scaling-to-large-cohorts">Scaling to large cohorts<a class="headerlink" href="#scaling-to-large-cohorts" title="Permanent link">&para;</a></h2>
 <p>For millions of probands, the <code>Family</code>/<code>Member</code> objects and their per-call bounds
 assembly become the bottleneck (the PA math is already sub-second for millions).
@@ -1539,11 +1609,13 @@ groups and need not be the genotyped proband identifier.</p>
 <p>After centering/residualization the phenotype is continuous. In the replicated
 classic-LT-FH benchmark, PA and Gibbs produced a <code>1.47 ± 0.04×</code> <strong>causal-SNP
 noncentrality ratio</strong> relative to case/control. That is not the separate
-squared-correlation effective-sample-size proxy. In the tested secular-trend
-simulation, cohort-specific thresholds removed the genomic-control inflation
-caused by the deliberately misspecified single-threshold analysis; this does not
-replace ordinary GWAS covariate adjustment or guarantee calibration under other
-misspecification.</p>
+squared-correlation effective-sample-size proxy. The result used independent
+SNPs, non-overlapping simulated families, and a lightweight marginal score
+statistic; it is not a real-LD, relatedness-aware mixed-model GWAS result. In the
+tested secular-trend simulation, cohort-specific thresholds removed the
+genomic-control inflation caused by the deliberately misspecified
+single-threshold analysis; this does not replace ordinary GWAS covariate
+adjustment or guarantee calibration under other misspecification.</p>
 <h2 id="options-reference">Options reference<a class="headerlink" href="#options-reference" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

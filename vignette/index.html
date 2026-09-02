@@ -516,6 +516,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#population-trio-register-route" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Population trio-register route
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#did-it-work" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1061,6 +1072,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.4.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.5.1)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1206,6 +1273,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#population-trio-register-route" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Population trio-register route
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#did-it-work" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1291,8 +1369,10 @@
 \mu_i = \mathbb{E}\bigl[a_i \mid D_F,\, A,\, h^2,\, K(\cdot)\bigr]
 \tag{1}
 \]</div>
-<p>and writes it as the <code>genetic</code> column. That column is not a polygenic
-score (PGS) and not an absolute risk. <span class="arithmatex">\(D_F\)</span> is the family
+<p>and writes it as <code>res.genetic</code> on the family API or <code>scores.est</code> on the
+population-register API. Neither is a polygenic score (PGS) or an absolute
+risk. Equation (1) shows the base additive model; optional environmental
+components are introduced in step 0. <span class="arithmatex">\(D_F\)</span> is the family
 <em>observation model</em> (who was recorded, and as what interval or mixture
 on liability), <span class="arithmatex">\(A\)</span> is the additive relationship matrix, <span class="arithmatex">\(h^2\)</span> is
 liability-scale heritability, and <span class="arithmatex">\(K(\cdot)\)</span> is the prevalence or
@@ -1303,12 +1383,15 @@ and whether you need it at all — depends on the use. Pearson–Aitken
 <a href="https://pubmed.ncbi.nlm.nih.gov/4813384/">Mendell &amp; Elston 1974</a>);
 Gibbs is the truncated-normal sampler.</p>
 <h2 id="three-uses">Three uses<a class="headerlink" href="#three-uses" title="Permanent link">&para;</a></h2>
-<p>This function has two jobs. If you already know someone is a case and want a
-GWAS number, include their own status. If you want to predict whether they
-are a case from family history, leave their own status out. Same function:
-what you put in for that person decides which job. The example script
-<code>examples/vignette.py</code> shows how to leave it out. Own status in versus out
-is not a later toggle; it is how you build the input.</p>
+<p>The score has two jobs. For a GWAS phenotype, include the proband's own
+diagnosis. To predict that diagnosis from family history, leave it out and,
+for prospective prediction, use only records available at the prediction
+date. On the role-based <code>estimate_liability</code> API you construct those bounds
+yourself. The public trio-register driver, <code>estimate_liabilities</code>, constructs
+them using a required <code>use="gwas"</code> or <code>use="prediction"</code> argument. That choice
+changes <span class="arithmatex">\(D_F\)</span>, not merely the label on an already computed score. The
+<a href="https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py">example script</a>
+shows both routes.</p>
 <p>The published method names describe the <em>observation model</em>, not a
 different genetic model. Three of the four name only that; PA-FGRS is
 the exception, because its published specification also fixes the
@@ -1329,11 +1412,10 @@ engine.</p>
   It is not the register-standardised family genetic risk score (FGRS)
   of <a href="https://doi.org/10.1001/jamapsychiatry.2021.0336">Kendler et al. (2021)</a>.</li>
 </ul>
-<p>There are three uses. Pick one before building <span class="arithmatex">\(D_F\)</span>: own status in
-versus out is not a later toggle.</p>
+<p>There are three uses. Pick one before building <span class="arithmatex">\(D_F\)</span>.</p>
 <p><strong>Table 1.</strong> The three uses. <em>Steps</em> are the stages of Figure 1 and
 Table 2 below — 0 heritability, 1 pedigree, 2 CIP, 3 family history,
-4 <code>estimate_liability</code>, 5 downstream. Use III can stop at 0 and/or 2;
+4 liability estimation, 5 downstream. Use III can stop at 0 and/or 2;
 I and II need the estimator.</p>
 <table>
 <thead>
@@ -1386,10 +1468,12 @@ families is a different contract (<a href="../inference/">Inference</a>).</p>
 two independent tracks, the three uses as exits. Table 2 names the call
 at each step.</p>
 <p><a href="../assets/pipeline.svg"><img alt="ltpred pipeline. Two independent tracks feed one estimator. Left track, population quantities: step 0 liability-scale heritability and covariances, step 2 the CIP or one lifetime prevalence K; use III, disease relationships and aetiology, exits here. Right track, this sample: step 1 the pedigree A, step 3 the family-history records. The tracks converge into the family covariance Sigma, which has a unit diagonal, and into the observation intervals D_F. Step 4, estimate_liability, returns mu. Use I, risk prediction, exits with own status out of D_F; use II, a GWAS phenotype, exits with own status in." src="../assets/pipeline.svg" /></a></p>
-<p><strong>Figure 1.</strong> How the inputs assemble, and where you can stop. The left
+<p><strong>Figure 1.</strong> How the inputs assemble, and where you can stop, shown for
+the outbred additive-only model. The left
 track is the population model and can be the whole analysis (use III).
-The right track is this sample. Step 4 is the first call that conditions
-on all four inputs. Open the figure in a new tab for a full-size view.</p>
+The right track is this sample. Step 4 conditions on all four inputs;
+<code>estimate_liabilities</code> also orchestrates steps 1–3 for a population trio
+table. Open the figure in a new tab for a full-size view.</p>
 <p><strong>Table 2.</strong> What to do, in order. Function names only; the dependencies
 are in Figure 1. Skip steps that Table 1 says the use does not need.</p>
 <table>
@@ -1423,18 +1507,18 @@ are in Figure 1. Skip steps that Table 1 says the use does not need.</p>
 </tr>
 <tr>
 <td>3</td>
-<td>Status and ages (family history)</td>
-<td><code>families_from_columns</code></td>
+<td>Status and ages; prediction landmark for use I</td>
+<td><code>families_from_columns</code>, or the register driver</td>
 </tr>
 <tr>
 <td>4</td>
-<td>—</td>
-<td><code>estimate_liability</code></td>
+<td>Prepared families, or population trio records</td>
+<td><code>estimate_liability</code>, or <code>estimate_liabilities(use=...)</code></td>
 </tr>
 <tr>
 <td>5</td>
 <td>People to score (I) or genotype (II)</td>
-<td>join <code>pids</code>; GWAS / PGS combination is elsewhere</td>
+<td>join <code>res.pids</code> or <code>scores.probands</code>; GWAS / PGS combination is elsewhere</td>
 </tr>
 </tbody>
 </table>
@@ -1443,12 +1527,13 @@ Steps 0–3 can be prepared in parallel except for three real
 dependencies:</p>
 <ol>
 <li><strong>Heritability scales the pedigree.</strong> You can build <span class="arithmatex">\(A\)</span> without a
-   heritability, but you cannot form the family covariance
-   <span class="arithmatex">\(\Sigma = h^2A + c^2C + m^2M + e^2I\)</span>, <span class="arithmatex">\(e^2 = 1-h^2-c^2-m^2\)</span>, without
+   heritability, but you cannot form the raw family covariance
+   <span class="arithmatex">\(V = h^2A + c^2C + m^2M + e^2I\)</span>, <span class="arithmatex">\(e^2 = 1-h^2-c^2-m^2\)</span>, without
    both 0 and 1. With no shared-environment components that is just
-   <span class="arithmatex">\(h^2A + (1-h^2)I\)</span>. Note the unit diagonal either way: the residual
-   absorbs whatever the kernels take, which is what keeps
-   <span class="arithmatex">\(\Phi^{-1}(1-K)\)</span> a prevalence threshold. The weights that
+   <span class="arithmatex">\(h^2A + (1-h^2)I\)</span>. For non-inbred people and unit-diagonal kernels,
+   the residual keeps the diagonal at one, so <span class="arithmatex">\(\Sigma=V\)</span>. The kinship API
+   standardises inbred members to the unit-diagonal <span class="arithmatex">\(\Sigma\)</span> used for
+   thresholds (step 1). The weights that
    then project the family onto <span class="arithmatex">\(a_i\)</span> are the best linear unbiased prediction
    (BLUP) / selection-index weights
    (<a href="https://doi.org/10.2307/2529430">Henderson 1975</a>;
@@ -1466,30 +1551,37 @@ is the only backward dependency — the dashed link in Figure 1:
 converting an observed-scale <span class="arithmatex">\(h^2\)</span> uses the same population <span class="arithmatex">\(K\)</span> as the
 thresholds.</p>
 <h2 id="how-much-it-buys-you">How much it buys you<a class="headerlink" href="#how-much-it-buys-you" title="Permanent link">&para;</a></h2>
-<p>Against a raw 0/1 phenotype, classic LT-FH on registry pedigrees gains a
+<p>Against a raw 0/1 phenotype, classic LT-FH on simulated registry-style pedigrees gains a
 squared-correlation effective-<span class="arithmatex">\(N\)</span> proxy of <span class="arithmatex">\(2.233 \pm 0.127\times\)</span> under
 population sampling, but only <span class="arithmatex">\(1.242 \pm 0.018\times\)</span> at a 10% observed
 case fraction, <span class="arithmatex">\(1.107 \pm 0.008\times\)</span> at 25%, and <span class="arithmatex">\(1.081 \pm 0.003\times\)</span>
 at 50%
 (<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS §10</a>).
-The gain is largest exactly where cases are rare. Adding age and cohort
+The gain is largest in the population-sampled cell of this design. Adding age and cohort
 personalisation on top is a further <span class="arithmatex">\(1.02\)</span>–<span class="arithmatex">\(1.05\times\)</span> across the same
 grid. If your cohort is heavily case-enriched, decide whether that
 increment is worth the pipeline before you build it.</p>
+<p>These are squared-correlation ratios against known simulated genetic values,
+not measured increases in GWAS sample size. The separate association panels
+measure <strong>causal-SNP noncentrality (NCP) on independent SNPs</strong>; they do not
+validate real-LD, related-sample mixed-model GWAS. Historical register-driver
+results in <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS §§20–21</a>
+also predate the closure and calendar-time corrections. They are marked stale
+and are not evidence for the current public driver.</p>
 <h2 id="how-to-read-the-code-on-this-page">How to read the code on this page<a class="headerlink" href="#how-to-read-the-code-on-this-page" title="Permanent link">&para;</a></h2>
-<p>Every block below is a <strong>fragment</strong>: it shows the call, not a runnable
-program. Lower-case names (<code>status</code>, <code>age</code>, <code>cip_ages</code>, <code>fam_id</code>,
-<code>role</code>, <code>pid</code>) are your own columns. Two listings do run end to end:</p>
+<p>Most blocks below are <strong>fragments</strong>: they show a call with your own columns
+(<code>status</code>, <code>age</code>, <code>cip_ages</code>, <code>fam_id</code>, <code>role</code>, <code>pid</code>). Two listings do run end to end:</p>
 <ul>
 <li><a href="https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py"><code>examples/vignette.py</code></a>
-  — this pipeline on simulated data (<code>pip install -e ".[fast]"</code>, then
-  <code>python examples/vignette.py</code>);</li>
+  — the role workflow on simulated data, followed by a six-person public
+  register example (<code>pip install -e ".[fast]"</code>, then <code>python examples/vignette.py</code>);</li>
 <li>the <a href="../quickstart/">Quickstart</a> — six hand-written rows, start to
   finish.</li>
 </ul>
 <p>Quoted figures come from that script at seed 1, <span class="arithmatex">\(n=800\)</span> nuclear
 families, true <span class="arithmatex">\(h^2=0.5\)</span>, <span class="arithmatex">\(K=0.05\)</span> — except the use-I risk figures in
-section 5, which average 10 replicates of 4,000 families. They check the API; they are not a
+section 5, which average 10 replicates of 4,000 families. The six-person
+register example uses a separately labelled toy CIP. These check the API; they are not a
 benchmark — for measured behaviour see
 <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS</a>.
 The cohort behind them is</p>
@@ -1510,9 +1602,23 @@ willing to defend
 (<a href="../assumptions/#real-data-checklist">checklist</a>). Decide who the
 <strong>probands</strong> are (usually the genotyped people). Pick a row of Table 1.
 Uses I and II disagree on whether the proband's own diagnosis enters
-<span class="arithmatex">\(D_F\)</span>; that choice is used in step 3, not as a later toggle on the
-estimator. Use III may not need a pedigree at all.</p>
-<p>Your input is one row per <strong>observed person</strong>, in long format:</p>
+<span class="arithmatex">\(D_F\)</span>; implement that choice in the role bounds or the register driver's
+<code>use</code> argument. Use III may not need a pedigree at all. For an incident-risk
+study, define the index date, horizon, eligibility and at-risk cohort before
+scoring. <code>use="prediction"</code> hides own diagnosis; it does not select people
+who are disease-free, alive or under observation at the landmark.</p>
+<p>There are two input layouts. The role API uses one row per <strong>person within
+a proband's family</strong>: a relative can appear in several probands' families
+when scoring. The register API instead takes <strong>unique population IDs</strong> with
+one <code>father</code> and <code>mother</code> pointer per ID, plus aligned status, age and
+optional stratum/birth-time columns. It extracts the overlapping pedigrees
+itself; do not duplicate a person's population row for every proband.
+The register driver requires binary status and finite, nonnegative age; it
+has no general missing-status mask. Use uninformative bounds on the
+lower-level route for unknown diagnoses, not a fabricated control status.</p>
+<p><strong>Table 3.</strong> Example long-format rows for the role API. Each role is relative
+to that family's proband; these are not the unique-ID trio input expected by
+<code>estimate_liabilities</code>.</p>
 <table>
 <thead>
 <tr>
@@ -1569,17 +1675,18 @@ Steps 2 and 3 turn the last two columns into <code>lower</code>/<code>upper</cod
 <strong>liability-scale</strong> value. An observed-scale number mis-calibrates
 <span class="arithmatex">\(\hat{\mu}_i\)</span> (ranking is more robust than the scale). For use III, <span class="arithmatex">\(h^2\)</span>
 and <span class="arithmatex">\(r_g\)</span> can <em>be</em> the result.</p>
-<p>How much the scale matters is measured. At a true <span class="arithmatex">\(h^2\)</span> of 0.5 and
+<p>How much the scale matters is measured in a simulation grid. At a true <span class="arithmatex">\(h^2\)</span> of 0.5 and
 <span class="arithmatex">\(K=0.05\)</span>, assuming 0.2 leaves the ranking essentially untouched
 (correlation with the truth <span class="arithmatex">\(0.429 \pm 0.004\)</span> against <span class="arithmatex">\(0.431 \pm 0.004\)</span>
 when correctly specified) but sweeps the calibration slope to
 <span class="arithmatex">\(2.240 \pm 0.015\)</span>; assuming 0.8 drops the slope to <span class="arithmatex">\(0.678 \pm 0.006\)</span>
 (<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS §12</a>).
-Rank-only analyses — a GWAS phenotype, a top-decile flag — tolerate a
-wrong <span class="arithmatex">\(h^2\)</span>; anything that reads the scale does not. Re-run step 4 at
-<span class="arithmatex">\(h^2 \pm 0.1\)</span> and report both the rank correlation between the two runs
-(it should stay near 1) and the ratio of their score standard deviations
-(it will not).</p>
+Ranking was more robust than scale in that grid; this does not guarantee
+robustness for another prevalence, pedigree or observation model. As a
+sensitivity analysis, re-run step 4 at defensible alternative <span class="arithmatex">\(h^2\)</span> values
+(for example <span class="arithmatex">\(h^2\pm0.1\)</span>, within the valid range). Report both rank
+correlation and the ratio of score standard deviations, rather than assuming
+either is unchanged.</p>
 <p>Prefer an external estimate. A first-degree check is Falconer's
 <span class="arithmatex">\(h^2 \approx 2\rho_{\mathrm{tet}}\)</span> from the <strong>parent–offspring</strong>
 tetrachoric correlation
@@ -1612,19 +1719,28 @@ pass that fraction as <code>prop_cases</code>.</p>
 <p>On the simulated cohort, <span class="arithmatex">\(\rho_{\mathrm{tet}}=0.237\)</span>, so
 <span class="arithmatex">\(2\rho_{\mathrm{tet}}=0.474\)</span> against a truth of <span class="arithmatex">\(0.5\)</span>.</p>
 <p>Optional sibship <span class="arithmatex">\(c^2\)</span> and couple <span class="arithmatex">\(m^2\)</span> go on the single-trait estimator
-as <code>c2</code> / <code>m2</code> (<span class="arithmatex">\(h^2+c^2+m^2\le 1\)</span>). Two traits add <span class="arithmatex">\(r_g\)</span> here and
+as <code>c2</code> / <code>m2</code> (<span class="arithmatex">\(h^2+c^2+m^2\le 1\)</span>). On the arbitrary-kinship API, also
+supply aligned <code>c_kernel</code> / <code>m_kernel</code> matrices: <span class="arithmatex">\(A\)</span> alone cannot distinguish
+full siblings from parent–offspring, or mates from unrelated people. Each
+kernel must be symmetric, positive semidefinite and unit-diagonal. The
+public register driver is currently <strong>additive-only</strong>; use the lower-level
+kinship estimator for these components (step 4). Two traits add <span class="arithmatex">\(r_g\)</span> here and
 require Gibbs in step 4: pass vector <code>h2</code>, <code>genetic_corrmat</code>, and
 <code>full_corrmat</code>.</p>
 <p>Fitting <span class="arithmatex">\(h^2\)</span> or <span class="arithmatex">\(A{+}C{+}M\)</span> (additive genetic, sibship, and couple
 shared-environment components) from the <strong>same</strong> families is a
 different contract on three counts.</p>
 <ol>
-<li><em>Sampling.</em> Independent, non-overlapping pedigrees under
+<li><em>Sampling.</em> The current fitters take <strong>role-based</strong>, independent,
+   non-overlapping families under
    <code>sampling="population"</code>, or inverse-probability weighting
    (<code>sampling="ipw"</code>) with known positive inclusion probabilities. A
    person identifier (<code>pid</code>) in two family identifiers (<code>fam_id</code>) is
-   rejected. Unguarded ascertainment pins <span class="arithmatex">\(\hat{h}^2=1\)</span> even when the
-   truth is 0.</li>
+   rejected. They do not fit overlapping extracted register pedigrees.
+   Deterministic affected-proband/clinic recruitment is not corrected by the
+   available likelihood; IPW requires positive inclusion probabilities, not
+   an invented weight for unobservable families. Unguarded ascertainment can
+   pin <span class="arithmatex">\(\hat{h}^2=1\)</span> even when the truth is 0.</li>
 <li><em>Bounds.</em> <code>fit_heritability</code> needs <strong>one common case/control
    threshold per trait</strong>. The personalised or onset-pinned bounds built
    in steps 2–3 are rejected outright; fit from <code>prevalence_thresholds</code>
@@ -1638,8 +1754,9 @@ different contract on three counts.</p>
 </ol>
 <p>Details: <a href="../inference/">Inference</a>.</p>
 <h2 id="1-pedigree">1. Pedigree<a class="headerlink" href="#1-pedigree" title="Permanent link">&para;</a></h2>
-<p>You need <span class="arithmatex">\(A\)</span>, the additive relationships among the people whose records
-enter <span class="arithmatex">\(D_F\)</span>. Two routes.</p>
+<p>You need <span class="arithmatex">\(A\)</span>, the additive relationships among the people whose records enter
+<span class="arithmatex">\(D_F\)</span>, plus any structural ancestors needed to compute those relationships
+exactly. Structural-only rows stay unobserved. Two routes.</p>
 <p><strong>Role grammar</strong> (nuclear and common extended families). Each label is
 relative to the proband: <code>o</code> (optional own status), <code>m</code>/<code>f</code>, <code>s1</code>/<code>s2</code>,
 grandparents <code>mgm</code>/<code>pgf</code>, half-sibs <code>mhs1</code>/<code>phs1</code>, avuncular <code>mau1</code>/<code>pau1</code>,
@@ -1655,17 +1772,36 @@ order:</p>
 <span class="n">graph</span> <span class="o">=</span> <span class="n">build_parent_graph</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">father</span><span class="p">,</span> <span class="n">mother</span><span class="p">)</span>
 <span class="n">ped</span> <span class="o">=</span> <span class="n">extract_pedigree</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">proband_id</span><span class="p">,</span> <span class="n">max_degree</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>   <span class="c1"># one proband</span>
 <span class="n">_</span><span class="p">,</span> <span class="n">A</span> <span class="o">=</span> <span class="n">kinship_from_pedigree</span><span class="p">(</span><span class="n">ped</span><span class="o">.</span><span class="n">ids</span><span class="p">,</span> <span class="n">ped</span><span class="o">.</span><span class="n">father</span><span class="p">,</span> <span class="n">ped</span><span class="o">.</span><span class="n">mother</span><span class="p">)</span>
+<span class="c1"># ped.closure_only marks rows retained in A whose diagnoses should ordinarily</span>
+<span class="c1"># receive uninformative (-inf, inf) bounds.</span>
 </code></pre></div>
-<p><strong>How deep?</strong> First-degree relatives carry most of the signal. Adding
-grandparents and aunts/uncles to parents-plus-siblings bought nothing in
-the package's calibration grid: correlation with the true genetic value
+<p><code>ped.ids</code> defines matrix and bounds order, with the proband first. Ancestors
+added only for exact kinship are structural, not additional observations:
+after aligning the bounds, set <code>lower[ped.closure_only] = -np.inf</code> and
+<code>upper[ped.closure_only] = np.inf</code>. The public register driver does this
+automatically. Its <code>condition_closure=True</code> option is an explicit change to
+the observation set, not an accuracy switch.</p>
+<p>For inbred members, let the raw full-liability covariance be
+<span class="arithmatex">\(V=h^2A+c^2C+m^2M+(1-h^2-c^2-m^2)I\)</span>. The kinship API divides each full
+liability by <span class="arithmatex">\(\sqrt{V_{jj}}\)</span>, and the target's genetic component by
+<span class="arithmatex">\(\sqrt{V_{ii}}\)</span>. Its genetic prior variance is therefore
+<span class="arithmatex">\(h^2A_{ii}/V_{ii}\)</span>, not <span class="arithmatex">\(h^2A_{ii}\)</span>. With unit-diagonal environmental kernels,
+<span class="arithmatex">\(V_{ii}=1+h^2(A_{ii}-1)\)</span>. To recover raw genetic units, multiply the reported
+mean by <span class="arithmatex">\(\sqrt{V_{ii}}\)</span> and variance by <span class="arithmatex">\(V_{ii}\)</span>; these factors are one for
+a non-inbred target.</p>
+<p><strong>How deep?</strong> In the package's role-based calibration grid, adding
+grandparents and aunts/uncles to parents-plus-siblings showed no clear
+increment: correlation with the true genetic value
 <span class="arithmatex">\(0.431 \pm 0.004\)</span> against <span class="arithmatex">\(0.429 \pm 0.008\)</span> at <span class="arithmatex">\(K=0.05\)</span> and
 <span class="arithmatex">\(0.593 \pm 0.003\)</span> against <span class="arithmatex">\(0.595 \pm 0.006\)</span> at <span class="arithmatex">\(K=0.20\)</span> — inside one
 standard error — while at <span class="arithmatex">\(K=0.01\)</span> the extended pedigree was <em>lower</em>,
 <span class="arithmatex">\(0.249 \pm 0.004\)</span> against <span class="arithmatex">\(0.259 \pm 0.003\)</span>
 (<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS §12</a>).
-Start at <code>max_degree=2</code> and treat anything deeper as something to
-justify.</p>
+This comparison changes a specified set of roles; it is not a universal
+recommendation for the register driver's <code>max_degree</code>. Choose the observation
+depth from the study design and data quality, then test the incremental value
+on held-out or known-truth data. The historical degree-payoff/register runs
+in RESULTS §§20–21 require rerunning after the closure/calendar fixes.</p>
 <p>Scoring may use overlapping extracted pedigrees (one per proband). Fitting
 <span class="arithmatex">\(h^2\)</span> in step 0 may not. ADuLT has no relatives: skip this step.</p>
 <h2 id="2-cumulative-incidence-proportion-cip-or-lifetime-prevalence">2. Cumulative incidence proportion (CIP) or lifetime prevalence<a class="headerlink" href="#2-cumulative-incidence-proportion-cip-or-lifetime-prevalence" title="Permanent link">&para;</a></h2>
@@ -1688,14 +1824,20 @@ uses Aalen–Johansen with death and emigration as competing events
 details in <a href="../cip-estimation/">CIP estimation</a>).
 Cover every analysed age; pass <code>k_pop</code> unless the last CIP value is a
 defensible lifetime prevalence.</p>
-<p>This is not cosmetic for use II. Under a prevalence trend of <span class="arithmatex">\(3\times\)</span>
-per 30 years, cohort-specific CIPs hold genomic inflation at
+<p>Prevalence is a modelling input, not a package default. Supply <code>pop_prev</code>
+explicitly to <code>prevalence_thresholds</code> and the public age/logistic threshold
+helpers. Supplying it explicitly does not make a logistic demonstration
+curve appropriate for a real population.</p>
+<p>This is not cosmetic for use II. In a simulation of SNPs correlated with
+birth cohort, under a prevalence trend of <span class="arithmatex">\(3\times\)</span> per 30 years,
+cohort-specific CIPs hold the inflation statistic at
 <span class="arithmatex">\(\lambda = 0.922 \pm 0.057\)</span>, while the same family-history phenotype
 built on a single lifetime <span class="arithmatex">\(K\)</span> inflates to <span class="arithmatex">\(10.275 \pm 0.078\)</span> — worse
 than the raw 0/1 label at <span class="arithmatex">\(4.616 \pm 0.220\)</span>
 (<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS §13</a>).
-A family-history phenotype concentrates a cohort trend rather than
-diluting it.</p>
+A family-history phenotype can concentrate a cohort trend rather than
+diluting it. This isolated cohort-confounding experiment is not a real-LD
+mixed-model GWAS validation or a guarantee that CIPs remove all confounding.</p>
 <p>For uses I and II the curve is an input to the thresholds. Classic LT-FH
 uses one <span class="arithmatex">\(T=\Phi^{-1}(1-K)\)</span> instead. LT-FH++ and ADuLT use a
 person-specific CIP</p>
@@ -1721,13 +1863,15 @@ full loop, including <code>K_i</code>/<code>K_pop</code>, is the
 <a href="../data-preparation/#a-real-register-data-recipe">register-data recipe</a>.</p>
 <p><code>case_mode="pin"</code> is the LT-FH++ encoding: a case becomes a point mass at
 <span class="arithmatex">\(T_i\)</span>. Pin only when onset really is the CIP inverse of liability.
-Encoding the case as the interval <span class="arithmatex">\([T_i,\infty)\)</span> instead keeps most of
-the onset information. Base PA-FGRS uses the <strong>lifetime</strong> case interval
+Encoding the case as the interval <span class="arithmatex">\([T_i,\infty)\)</span> instead retains an
+age-specific threshold, but is a different observation
+model, not an exact-onset pin. Base PA-FGRS uses the <strong>lifetime</strong> case interval
 <span class="arithmatex">\([\Phi^{-1}(1-K_{\mathrm{pop}}),\infty)\)</span> and puts age into a censored
 control's mixture weight <span class="arithmatex">\(K_i\)</span>
 (<a href="https://doi.org/10.1016/j.ajhg.2024.09.009">Dybdahl Krebs et al. 2024</a>).</p>
 <h2 id="3-family-history-records">3. Family-history records<a class="headerlink" href="#3-family-history-records" title="Permanent link">&para;</a></h2>
-<p>One row per observed person: <code>fam_id</code>, <code>role</code> (or a kinship column order),
+<p>For the role route, one row per person within a proband's family:
+<code>fam_id</code>, <code>role</code> (or a kinship column order),
 <code>status</code>, <code>age</code>. Missing <code>fam_id</code> and duplicate roles in a family are
 rejected. Join these records to the pedigree from step 1; the thresholds
 from step 2 are the <code>lower</code> / <code>upper</code> columns.</p>
@@ -1751,6 +1895,26 @@ Use III may skip this step.</p>
     <span class="n">K_i</span><span class="o">=</span><span class="n">K_i</span><span class="p">,</span> <span class="n">K_pop</span><span class="o">=</span><span class="n">K_pop</span><span class="p">,</span>   <span class="c1"># only for use_mixture=True</span>
 <span class="p">)</span>
 </code></pre></div>
+<p>For use I on this route, make a separate relatives-only input and retain the
+proband's join key:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">replace</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">Family</span>
+
+<span class="n">prediction_families</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">Family</span><span class="p">(</span><span class="n">fam</span><span class="o">.</span><span class="n">fam_id</span><span class="p">,</span> <span class="p">[</span>
+        <span class="n">replace</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">lower</span><span class="o">=-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">member</span><span class="o">.</span><span class="n">role</span> <span class="o">==</span> <span class="s2">"o"</span> <span class="k">else</span> <span class="n">member</span>
+        <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">fam</span><span class="o">.</span><span class="n">members</span>
+    <span class="p">])</span>
+    <span class="k">for</span> <span class="n">fam</span> <span class="ow">in</span> <span class="n">families</span>
+<span class="p">]</span>
+</code></pre></div>
+<p>This removes own status only. For prospective prediction you must also
+reconstruct every relative's bounds at the index date before constructing
+these families. The register route in step 4 performs that calendar-time
+operation for you. Both routes require the analyst to define the risk set
+and to estimate/tune prediction inputs without using held-out outcomes.</p>
 <h2 id="4-estimate-the-score">4. Estimate the score<a class="headerlink" href="#4-estimate-the-score" title="Permanent link">&para;</a></h2>
 <p>This is the ltpred run. Everything above is input.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability</span>
@@ -1772,9 +1936,78 @@ Use III may skip this step.</p>
 error (SE), multiple traits, or an unusual no-mixture pedigree. The
 PA-FGRS mixture is PA-only. The kinship entry point is
 <code>estimate_liability_from_kinship(A, lower, upper, h2=h2, target=0)</code>,
-which returns a bare <code>(est, se, var)</code> tuple rather than a result object.</p>
+which returns a bare <code>(est, se, var)</code> tuple rather than a result object.
+For an arbitrary pedigree with shared environment, pass the kernels from
+step 0 in the same member order:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability_from_kinship</span>
+
+<span class="n">est</span><span class="p">,</span> <span class="n">se</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">estimate_liability_from_kinship</span><span class="p">(</span>
+    <span class="n">A</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="n">c2</span><span class="o">=</span><span class="n">c2</span><span class="p">,</span> <span class="n">c_kernel</span><span class="o">=</span><span class="n">C</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="n">m2</span><span class="p">,</span> <span class="n">m_kernel</span><span class="o">=</span><span class="n">M</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
 <p>With relatives and a personalised CIP this is LT-FH++; with only role <code>o</code>
 it is ADuLT; with one lifetime <span class="arithmatex">\(T\)</span> and relatives it is classic LT-FH.</p>
+<h3 id="population-trio-register-route">Population trio-register route<a class="headerlink" href="#population-trio-register-route" title="Permanent link">&para;</a></h3>
+<p>For unique population <code>ids</code>, the public driver combines pedigree extraction,
+row alignment, CIP conversion and scoring. Choose a single supplied curve
+with <code>cip_ages</code>, <code>cip_values</code>, <code>k_pop</code>, or use <code>strata</code> plus a mapping of each
+label to <code>(cip_ages, cip_values, k_pop)</code>; do not mix the two routes.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liabilities</span>
+
+<span class="n">common</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="n">ids</span><span class="o">=</span><span class="n">ids</span><span class="p">,</span> <span class="n">father</span><span class="o">=</span><span class="n">father</span><span class="p">,</span> <span class="n">mother</span><span class="o">=</span><span class="n">mother</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="o">=</span><span class="n">age</span><span class="p">,</span>
+    <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">,</span> <span class="n">max_degree</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">strata</span><span class="o">=</span><span class="n">strata</span><span class="p">,</span> <span class="n">cip_by_stratum</span><span class="o">=</span><span class="n">cip_by_stratum</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">gwas_scores</span> <span class="o">=</span> <span class="n">estimate_liabilities</span><span class="p">(</span><span class="n">probands</span><span class="o">=</span><span class="n">gwas_ids</span><span class="p">,</span> <span class="n">use</span><span class="o">=</span><span class="s2">"gwas"</span><span class="p">,</span> <span class="o">**</span><span class="n">common</span><span class="p">)</span>
+<span class="n">prediction_scores</span> <span class="o">=</span> <span class="n">estimate_liabilities</span><span class="p">(</span>
+    <span class="n">probands</span><span class="o">=</span><span class="n">prediction_ids</span><span class="p">,</span> <span class="n">use</span><span class="o">=</span><span class="s2">"prediction"</span><span class="p">,</span> <span class="n">birth_time</span><span class="o">=</span><span class="n">birth_time</span><span class="p">,</span>
+    <span class="n">index_time</span><span class="o">=</span><span class="n">index_time</span><span class="p">,</span> <span class="o">**</span><span class="n">common</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">score</span> <span class="o">=</span> <span class="n">prediction_scores</span><span class="o">.</span><span class="n">est</span>       <span class="c1"># aligned to prediction_scores.probands</span>
+<span class="n">posterior_var</span> <span class="o">=</span> <span class="n">prediction_scores</span><span class="o">.</span><span class="n">var</span>
+</code></pre></div>
+<p><code>birth_time</code> is aligned to population <code>ids</code>; <code>index_time</code> is aligned to
+<code>prediction_ids</code>. Both use one numeric calendar scale whose unit matches
+<code>age</code>, for example calendar years and attained years. At index time <span class="arithmatex">\(t\)</span>, a
+relative born at <span class="arithmatex">\(b_j\)</span> is censored at attained age <span class="arithmatex">\(t-b_j\)</span>, <strong>not</strong> at the
+proband's attained age. A post-index diagnosis becomes a control censored
+at that relative-specific age; follow-up ending earlier is kept at its
+recorded end. A person born at or after the landmark is uninformative.
+The proband's observation is always uninformative under <code>use="prediction"</code>.
+That makes the prediction estimand <span class="arithmatex">\(\mathbb{E}[g \mid \text{relatives'
+records at the landmark}]\)</span> — it is not additionally conditioned on the
+proband being disease-free at the landmark; the two agree on ranking within
+an age but differ in level across ages, since surviving to an older age
+disease-free is evidence of lower liability.</p>
+<p>The driver currently supports <strong>single-trait, additive-only, pinned-onset
+LT-FH++ with deterministic PA</strong>. Use the lower-level APIs for C/M kernels,
+Gibbs, interval cases or PA-FGRS mixtures. It returns <code>PopulationScores</code>,
+not <code>LiabilityResult</code>: there is no <code>genetic</code> property or Monte-Carlo <code>se</code>
+column. <code>est</code> and <code>var</code> are PA mean and posterior-variance approximations.
+Its payoff and throughput evidence (RESULTS §§20–21) is marked stale pending
+a provenance-tracked rerun: the API is supported, its scientific payoff so
+far unquantified.</p>
+<p>Check <code>n_relatives</code> (non-proband members within the chosen degree),
+<code>n_conditioned</code> (informative diagnosis bounds, including own status for
+GWAS), <code>n_closure_only</code> (extra structural ancestors) and <code>degree_max</code>.
+Two further fields guard the inputs rather than the score:
+<code>frac_unresolved_parents</code> is the fraction of records with a non-null parent
+reference that matched no id — a zero resolved share raises, a share above
+half warns, because that pattern is a broken join more often than a register
+boundary — and, under prediction, <code>proband_state</code> names each proband
+<code>disease_free_and_followed</code>, <code>prevalent_case</code> or <code>exited_before_index</code> at
+their landmark, warning on prevalent cases: only the first belongs in a
+prospective evaluation.
+In the runnable six-person example in
+<a href="https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py"><code>examples/vignette.py</code></a>,
+<code>max_degree=1</code> deliberately selects two parents and a sibling; two maternal
+grandparents are retained only for exact kinship. Prediction has <strong>three
+relatives, two closure-only ancestors and three conditioned records</strong>;
+GWAS has four conditioned records. Changing only post-index proband/mother
+records and closure-only diagnoses leaves the prediction mean and variance
+exactly unchanged. This is an API/leakage check using a toy CIP, not clinical
+calibration or new performance evidence.</p>
 <p><strong>Sizing the run.</strong> On the reference machine at 4 Numba threads the
 object path scores 208,000–221,000 families/s under PA and 503–512/s
 under Gibbs, so 500,000 probands is a few seconds under PA and roughly
@@ -1784,53 +2017,78 @@ Past a few million families, <code>Family</code> construction rather than the PA
 arithmetic dominates: switch to <code>estimate_liability_pa_arrays</code>, which
 takes already-aligned <code>(n_families, k)</code> bound arrays, and set the thread
 count with <code>ltpred.set_num_threads(n)</code>
-(<a href="../estimation/#scaling-to-large-cohorts">Estimation</a>).</p>
+(<a href="../estimation/#scaling-to-large-cohorts">Estimation</a>).
+Those timings measure grouped, already prepared role families; they do not
+include per-proband register extraction, kinship construction and CIP
+alignment. Do not extrapolate them to <code>estimate_liabilities</code>. Its historical
+throughput results remain stale pending a provenance-tracked rerun.</p>
 <h3 id="did-it-work">Did it work?<a class="headerlink" href="#did-it-work" title="Permanent link">&para;</a></h3>
-<p>The model implies checks you can run on the returned object. The law of
-total variance is the useful one: conditioning splits the genetic
-variance into what the family explained and what it did not, and the two
-must add back to <span class="arithmatex">\(h^2\)</span>.</p>
+<p>For the <strong>non-inbred, no-mixture, population-sampled simulation</strong> above,
+the law of total variance provides a useful check: variance explained by
+the family plus mean remaining posterior variance adds back to <span class="arithmatex">\(h^2\)</span> in
+expectation. PA approximates the moments, and a finite sample adds noise.
+This is not a universal assertion for an ascertained or overlapping
+register cohort.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 
 <span class="n">mu</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">genetic</span><span class="p">,</span> <span class="n">res</span><span class="o">.</span><span class="n">var</span><span class="p">[</span><span class="s2">"genetic"</span><span class="p">]</span>
-<span class="c1"># these are per-proband, aligned to res.pids — not the per-row `status` column</span>
-<span class="n">own</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">status</span><span class="p">)[</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">role</span><span class="p">)</span> <span class="o">==</span> <span class="s2">"o"</span><span class="p">]</span>
+<span class="c1"># Join by ID; the order of role-o rows need not match the output order.</span>
+<span class="n">own_by_pid</span> <span class="o">=</span> <span class="p">{</span><span class="n">person</span><span class="p">:</span> <span class="n">code</span> <span class="k">for</span> <span class="n">person</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">code</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">pid</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span> <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="s2">"o"</span><span class="p">}</span>
+<span class="n">own</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">own_by_pid</span><span class="p">[</span><span class="n">person</span><span class="p">]</span> <span class="k">for</span> <span class="n">person</span> <span class="ow">in</span> <span class="n">res</span><span class="o">.</span><span class="n">pids</span><span class="p">])</span>
 
 <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">pids</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">families</span><span class="p">)</span>                           <span class="c1"># one score per proband</span>
 <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_allclose</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">var</span><span class="p">()</span> <span class="o">+</span> <span class="n">v</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span> <span class="n">h2</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">0.02</span><span class="p">)</span>  <span class="c1"># law of total variance</span>
-<span class="k">assert</span> <span class="n">v</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="n">h2</span> <span class="o">+</span> <span class="mf">1e-8</span>            <span class="c1"># conditioning cannot add genetic variance</span>
+<span class="k">assert</span> <span class="n">v</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="n">h2</span> <span class="o">+</span> <span class="mf">1e-8</span>            <span class="c1"># this convex, no-mixture Gaussian model</span>
 <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">mu</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span> <span class="o">&lt;</span> <span class="mf">0.05</span>           <span class="c1"># mu is a deviation from the population mean</span>
 <span class="k">assert</span> <span class="n">mu</span><span class="p">[</span><span class="n">own</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">mu</span><span class="p">[</span><span class="n">own</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 </code></pre></div>
-<p>The variance identity holds in expectation on a correctly specified,
-population-sampled cohort, so give it a tolerance rather than an equality;
-<code>atol=0.02</code> is comfortable at <span class="arithmatex">\(n=800\)</span>. The <code>v.max()</code> bound assumes a
-non-inbred proband, where <span class="arithmatex">\(\mathrm{Var}(a_i)=h^2\)</span> — with inbreeding
-<span class="arithmatex">\(A_{ii}&gt;1\)</span> and the ceiling is <span class="arithmatex">\(h^2A_{ii}\)</span>.</p>
+<p>The <code>atol=0.02</code> tolerance is used for this particular <span class="arithmatex">\(n=800\)</span> simulation;
+it is not a general calibration cutoff. Conditioning on convex Gaussian
+interval constraints reduces variance, but arbitrary mixture observations
+need not obey this per-person ceiling. For an inbred kinship target the
+prior variance on the returned scale is <span class="arithmatex">\(h^2A_{ii}/V_{ii}\)</span> (step 1), and
+different targets can have different priors.</p>
 <p>On the cohort above: <span class="arithmatex">\(\mathrm{Var}(\hat\mu)=0.088\)</span> plus a mean posterior
 variance of <span class="arithmatex">\(0.413\)</span> gives <span class="arithmatex">\(0.502\)</span> against <span class="arithmatex">\(h^2=0.5\)</span>; <span class="arithmatex">\(\hat\mu\)</span> has mean
 <span class="arithmatex">\(0.004\)</span> and standard deviation <span class="arithmatex">\(0.297\)</span>; cases average <span class="arithmatex">\(+1.02\)</span> and
 controls <span class="arithmatex">\(-0.06\)</span>.</p>
-<p>When a check fails, it usually means one of two things. A sum far
-<em>below</em> <span class="arithmatex">\(h^2\)</span> says the families carry almost no information — check that
-the join did not drop the relative rows. A mean far from 0 says the
-assumed prevalence disagrees with the observed case rate.</p>
+<p>No information gives <span class="arithmatex">\(\mu_i=0\)</span> and posterior variance <span class="arithmatex">\(h^2\)</span>: the sum still
+equals <span class="arithmatex">\(h^2\)</span>. A sum far below it therefore does <strong>not</strong> diagnose missing
+family history; inspect model/sampling assumptions, score–variance alignment
+and approximation error. A nonzero mean can reflect ascertainment,
+misspecified prevalence, data errors or approximation, not just one cause.</p>
 <h2 id="5-what-you-do-with-the-score">5. What you do with the score<a class="headerlink" href="#5-what-you-do-with-the-score" title="Permanent link">&para;</a></h2>
-<p><strong>Use I (prediction).</strong> Join <code>res.pids</code> to the people whose risk you
-want. Do not put the predicted diagnosis into <span class="arithmatex">\(D_F\)</span>. A PGS, if you have
+<p><strong>Use I (prediction).</strong> Join <code>prediction_res.pids</code> or
+<code>prediction_scores.probands</code> to the people whose risk you want. Do not put
+the predicted diagnosis into <span class="arithmatex">\(D_F\)</span>. A PGS, if you have
 one, is combined <strong>after</strong> this step — a target-population prediction
 model, not something ltpred fits
 (<a href="https://doi.org/10.1016/j.xgen.2022.100152">Hujoel et al. 2022</a>;
 <a href="https://doi.org/10.1016/j.ajhg.2025.11.016">Dybdahl Krebs et al. 2026</a>).</p>
-<p>On the liability scale <span class="arithmatex">\(\mu_i\)</span> is in population standard-deviation
-units, not a probability. For <strong>use I only</strong> — own status out of <span class="arithmatex">\(D_F\)</span>,
-so the proband's residual is independent of the family — the model's
-implied risk is</p>
+<p>On the liability scale <span class="arithmatex">\(\mu_i\)</span> is a genetic contribution to total liability,
+not a probability. For <strong>use I only</strong>, consider a non-inbred target with
+no shared-environment components and approximate its family-only genetic
+posterior by a Gaussian. Its model-implied cumulative disease probability
+by age <span class="arithmatex">\(t\)</span> is equation (4), where <span class="arithmatex">\(\overline\Phi\)</span> is the standard-normal
+survival function:</p>
+<div class="arithmatex">\[
+q_i(t) \approx \overline\Phi\!\left(
+  \frac{\Phi^{-1}(1-K_i(t))-\mu_i}
+       {\sqrt{v_i+1-h^2}}
+\right),
+\qquad v_i=\mathrm{Var}(a_i\mid D_F).
+\tag{4}
+\]</div>
+<p>For classic LT-FH, replace <span class="arithmatex">\(K_i(t)\)</span> by the lifetime <span class="arithmatex">\(K\)</span>. Construct the
+relatives-only result explicitly; do not reuse the GWAS <code>res</code> from step 4:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">norm</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability</span>
 
-<span class="n">T</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">isf</span><span class="p">(</span><span class="n">K</span><span class="p">)</span>                      <span class="c1"># or the person's own T_i from step 2</span>
-<span class="n">risk</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">sf</span><span class="p">((</span><span class="n">T</span> <span class="o">-</span> <span class="n">res</span><span class="o">.</span><span class="n">genetic</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">var</span><span class="p">[</span><span class="s2">"genetic"</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">h2</span><span class="p">))</span>
+<span class="n">prediction_res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">prediction_families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">h2</span><span class="p">)</span>
+<span class="n">T</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">isf</span><span class="p">(</span><span class="n">K</span><span class="p">)</span>                      <span class="c1"># lifetime K in this classic example</span>
+<span class="n">risk</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">sf</span><span class="p">((</span><span class="n">T</span> <span class="o">-</span> <span class="n">prediction_res</span><span class="o">.</span><span class="n">genetic</span><span class="p">)</span>
+               <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">prediction_res</span><span class="o">.</span><span class="n">var</span><span class="p">[</span><span class="s2">"genetic"</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">h2</span><span class="p">))</span>
 </code></pre></div>
 <p>The reasoning is that <span class="arithmatex">\(\ell_i = a_i + e_i\)</span> with <span class="arithmatex">\(\mathrm{Var}(e_i)=1-h^2\)</span>,
 and with own status out of <span class="arithmatex">\(D_F\)</span> the residual <span class="arithmatex">\(e_i\)</span> is independent of the
@@ -1839,20 +2097,45 @@ family, so <span class="arithmatex">\(\ell_i \mid D_F\)</span> is centred on <sp
 assumes no shared-environment components (<span class="arithmatex">\(c^2=m^2=0\)</span>, or <span class="arithmatex">\(e_i\)</span> is coupled
 to the relatives), and it treats <span class="arithmatex">\(a_i \mid D_F\)</span> as Gaussian, which is the
 same two-moment approximation PA makes.</p>
-<p>At <span class="arithmatex">\(h^2=0.5\)</span>, <span class="arithmatex">\(K=0.05\)</span> it is calibrated overall and in both tails. Over
+<p>At <span class="arithmatex">\(h^2=0.5\)</span>, <span class="arithmatex">\(K=0.05\)</span>, results are compatible with calibration overall
+and in both tails <strong>in this simulation</strong>. Over
 10 replicates of 4,000 relatives-only families the predicted rate is
 <span class="arithmatex">\(0.0503 \pm 0.0002\)</span> against an observed <span class="arithmatex">\(0.0501 \pm 0.0012\)</span>, and the top
 decile is <span class="arithmatex">\(0.1200 \pm 0.0005\)</span> predicted against <span class="arithmatex">\(0.1187 \pm 0.0048\)</span>
 observed — a gap of 0.3 standard errors. A <em>single</em> replicate can look
 off by two or three standard errors in the tail, so do not read one run
 as a bias. The formula is <strong>not</strong> valid for use II, where the proband's
-own status is already in <span class="arithmatex">\(D_F\)</span>.</p>
-<p><strong>Use II (GWAS).</strong> Join <code>res.pids</code> to genotyped IDs. Residualize for sex,
+own status is already in <span class="arithmatex">\(D_F\)</span>. These simulation checks do not establish
+clinical calibration in a new population.</p>
+<p>For prospective risk, cumulative probability by a horizon is not incident
+risk among those who were disease-free at the landmark. Under the simple
+threshold-crossing model, with no additional competing-event or risk-set
+conditioning, equation (5) gives the probability between ages <span class="arithmatex">\(a\)</span> and <span class="arithmatex">\(b\)</span>:</p>
+<div class="arithmatex">\[
+\Pr(a&lt;T_{\mathrm{onset}}\le b\mid T_{\mathrm{onset}}&gt;a,D_F)
+  \approx \frac{q_i(b)-q_i(a)}{1-q_i(a)}.
+\tag{5}
+\]</div>
+<p>The six-person register example evaluates this with <code>prediction_scores.est</code>
+and <code>prediction_scores.var</code>, using its toy CIP at both ages. With no family
+information, equation (5) reduces to
+<span class="arithmatex">\((K_i(b)-K_i(a))/(1-K_i(a))\)</span>; the executable example tests that identity.
+It also selects a proband whose recorded onset follows the landmark—the
+driver itself does not construct an eligible incident-risk cohort.</p>
+<p>An actual cohort may additionally require being alive, resident and observed
+at the index date. A disease CIP, including an Aalen–Johansen CIP, does not
+by itself encode those extra conditioning events or their joint dependence
+on family history. The driver supplies no competing-event risk model.
+Prospective clinical risk needs those processes, an explicit eligible risk
+set and held-out calibration; equation (5) alone is not that validation.</p>
+<p><strong>Use II (GWAS).</strong> Join <code>res.pids</code> or <code>gwas_scores.probands</code> to genotyped IDs. Residualize for sex,
 cohort, ancestry principal components (PCs), and batch, or put them in a
 mixed model. Prefer an association method that handles relatedness if
 related targets remain
 (<a href="https://doi.org/10.1093/bioinformatics/btac459">Zhuang et al. 2022</a>).
-ltpred does not run the GWAS.</p>
+ltpred does not run the GWAS. A liability-score correlation proxy and
+independent-SNP NCP evidence do not establish null calibration in a real-LD,
+related-target mixed-model analysis; that remains a separate validation task.</p>
 <p><strong>Use III</strong> does not need this step. The quantities of interest were <span class="arithmatex">\(h^2\)</span>,
 <span class="arithmatex">\(r_g\)</span>, and/or <span class="arithmatex">\(K(\cdot)\)</span> in steps 0 and 2.</p>
 <h2 id="what-the-run-produced">What the run produced<a class="headerlink" href="#what-the-run-produced" title="Permanent link">&para;</a></h2>
@@ -1865,7 +2148,7 @@ ltpred does not run the GWAS.</p>
 <span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">true_g</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>       <span class="c1"># 0.342</span>
 <span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">genetic</span><span class="p">,</span> <span class="n">true_g</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>   <span class="c1"># 0.419</span>
 </code></pre></div>
-<p><strong>Table 3.</strong> Correlation with the simulated true genetic value <span class="arithmatex">\(a_i\)</span>, on
+<p><strong>Table 4.</strong> Correlation with the simulated true genetic value <span class="arithmatex">\(a_i\)</span>, on
 the seed-1 cohort defined above. The 0/1 label is the baseline a GWAS
 would otherwise use.</p>
 <table>
@@ -1907,7 +2190,7 @@ the role-grammar PA scores exactly (maximum difference 0). Scored
 through <code>kinship_from_pedigree</code> they agree to <span class="arithmatex">\(5.6\times10^{-4}\)</span> — PA's
 sequential fold order differs between the two row layouts, so that is
 approximation error, not round-off and not Monte-Carlo noise.</p>
-<p>The script's last block reruns the same design with <code>use_age=True</code>,
+<p>The script's final simulation block reruns the same design with <code>use_age=True</code>,
 where a person counts as a case only once onset precedes their current
 age. The observed proband case rate falls from 0.055 to 0.004, so the
 <span class="arithmatex">\(\mathrm{Corr}=0.261\)</span> there is <strong>not</strong> comparable with the 0.419 above.
@@ -1923,6 +2206,8 @@ above and with RESULTS §10. Credit the gain to the right input.</p>
 <p><code>estimate_liability</code> exists in all three packages with incompatible
 signatures. Role labels are unchanged; the input object and the
 uncertainty column are not.</p>
+<p><strong>Table 5.</strong> Mapping the role-based R workflow to ltpred. The public
+<code>estimate_liabilities</code> register driver is a separate unique-ID/trio route.</p>
 <table>
 <thead>
 <tr>
@@ -1955,6 +2240,7 @@ uncertainty column are not.</p>
 </table>
 <p>ltpred ships no igraph-style pedigree object and no plotting utilities.</p>
 <h2 id="where-to-go-next">Where to go next<a class="headerlink" href="#where-to-go-next" title="Permanent link">&para;</a></h2>
+<p><strong>Table 6.</strong> Further documentation by task.</p>
 <table>
 <thead>
 <tr>

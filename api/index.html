@@ -1047,13 +1047,58 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#register-pipeline-researchpipeline" class="md-nav__link">
+  <a href="#register-pipeline-ltpredpipeline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Register pipeline — research.pipeline
+        Register pipeline — ltpred.pipeline
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Register pipeline — ltpred.pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.pipeline.PopulationScores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PopulationScores
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.pipeline.estimate_liabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimate_liabilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2100,6 +2145,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.4.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.5.1)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2440,13 +2541,58 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#register-pipeline-researchpipeline" class="md-nav__link">
+  <a href="#register-pipeline-ltpredpipeline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Register pipeline — research.pipeline
+        Register pipeline — ltpred.pipeline
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Register pipeline — ltpred.pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.pipeline.PopulationScores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PopulationScores
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.pipeline.estimate_liabilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimate_liabilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -3404,7 +3550,11 @@ is also a top-level export.</p>
 </tr>
 <tr>
 <td><code>kinship_from_pedigree</code> / <code>estimate_liability_from_kinship</code></td>
-<td>arbitrary-pedigree input and PA-default estimation; pass <code>use_mixture=True</code> with <code>K_i</code>/<code>K_pop</code> for the PA-FGRS censored-control mixture</td>
+<td>arbitrary-pedigree input and PA-default estimation; caller-supplied <code>c_kernel</code>/<code>m_kernel</code> support environmental components, and <code>use_mixture=True</code> with <code>K_i</code>/<code>K_pop</code> enables the PA-FGRS censored-control mixture</td>
+</tr>
+<tr>
+<td><code>estimate_liabilities</code></td>
+<td>supported population-trio driver: pedigree discovery, pinned-onset empirical-CIP bounds, explicit GWAS versus prospective-prediction observation sets, and calendar-time censoring</td>
 </tr>
 <tr>
 <td><code>simulate_under_LTM_single</code></td>
@@ -3476,7 +3626,7 @@ follow NumPy's <code>default_rng</code> contract.</p>
 </tr>
 <tr>
 <td><code>construct_covmat_from_kinship</code></td>
-<td>liability covariance from a kinship/<code>A</code> matrix</td>
+<td>liability covariance from a kinship/<code>A</code> matrix, optionally with caller-supplied <code>C</code>/<code>M</code> kernels</td>
 </tr>
 <tr>
 <td><code>rtmvnorm_gibbs</code></td>
@@ -3740,7 +3890,7 @@ own error <code>se</code>. <code>seed</code> must be a non-boolean integer in
 
 
 <a href="#ltpred.estimate.estimate_liability_from_kinship" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability_from_kinship</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s1">'genetic'</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_rounds</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use_mixture</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability_from_kinship</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s1">'genetic'</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_rounds</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use_mixture</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">c_kernel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m_kernel</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -3756,6 +3906,11 @@ Inbred members are standardised to unit marginal full-liability variance, and
 the target's genetic contribution is scaled by its raw liability SD. Thus the
 supplied standard-normal bounds retain their prevalence interpretation when
 diagonal entries of <code>A</code> exceed one.</p>
+<p>Optional <code>c2</code>/<code>m2</code> proportions require caller-supplied
+<code>c_kernel</code>/<code>m_kernel</code> relationship matrices (<code>n x n</code>, symmetric,
+positive semi-definite, unit diagonal). These bring the role estimator's
+shared-environment model to arbitrary pedigrees without pretending that
+sibships or couples can be recovered from additive relatedness <code>A</code> alone.</p>
 <p><code>out</code> selects <code>"genetic"</code> (the target's genetic liability — the usual
 family-history GWAS phenotype) or <code>"full"</code> (<code>E[l_o | own interval and
 relatives]</code> on both engines). <code>method=None</code> uses the
@@ -4154,11 +4309,12 @@ zero cell.</p>
 
         <p>Tetrachoric MLE from a 2x2 table of counts.</p>
 <p>The table reads <code>a</code> = both cases, <code>b</code> = first case only, <code>c</code> =
-second case only, <code>d</code> = neither. A zero cell gets a 0.5 continuity
-correction added to all four cells when <code>continuity_correction</code> (the
-standard handling; the estimate is then boundary-avoiding rather than
-exactly +/-1). Monomorphic margins (one variable all-one-level) are
-rejected: there is no correlation information.</p>
+second case only, <code>d</code> = neither. Cell counts must be finite,
+nonnegative integers; fractional or non-finite counts are rejected. A
+zero cell gets a 0.5 continuity correction added to all four cells when
+<code>continuity_correction</code> (the standard handling; the estimate is then
+boundary-avoiding rather than exactly +/-1). Monomorphic margins (one
+variable all-one-level) are rejected: there is no correlation information.</p>
 
 
     </div>
@@ -4218,12 +4374,209 @@ or projection.</p>
 
     </div>
 
-</div><h2 id="register-pipeline-researchpipeline">Register pipeline — <code>research.pipeline</code><a class="headerlink" href="#register-pipeline-researchpipeline" title="Permanent link">&para;</a></h2>
-<p>The end-to-end register pipeline (<code>PopulationScores</code>, <code>estimate_liabilities</code>)
-moved to the unsupported <code>research/</code> package at the repository root
-(<code>research/pipeline.py</code>); it is importable from a checkout but is not part of
-the installed <code>ltpred</code> distribution, so it has no generated reference here.</p>
-<h2 id="cip-estimation-ltpredcip">CIP estimation — <code>ltpred.cip</code><a class="headerlink" href="#cip-estimation-ltpredcip" title="Permanent link">&para;</a></h2>
+</div><h2 id="register-pipeline-ltpredpipeline">Register pipeline — <code>ltpred.pipeline</code><a class="headerlink" href="#register-pipeline-ltpredpipeline" title="Permanent link">&para;</a></h2>
+<p><code>PopulationScores</code> and <code>estimate_liabilities</code> are installed public APIs and are
+also available as explicit lazy imports from <code>ltpred</code>. They are deliberately
+absent from the curated wildcard-import list. Prediction requires per-person
+<code>birth_time</code> and per-proband <code>index_time</code> on a common numeric calendar scale
+whose unit matches <code>age</code>; this is what gives relatives from different birth
+years their correct attained-age censoring landmarks. Structural ancestors in
+the pedigree's exact-kinship closure are not diagnosis observations unless
+<code>condition_closure=True</code> is explicitly requested. Under <code>use="prediction"</code> the
+estimand is <code>E[g | relatives' records at the landmark]</code> — it is <em>not</em>
+additionally conditioned on the proband being disease-free at the landmark; the
+two agree on ranking within an age but differ in level across ages, because
+surviving to an older age disease-free is evidence of lower liability. The
+driver's payoff and throughput evidence (RESULTS §§20–21) is marked stale
+pending a provenance-tracked rerun: the API is supported, its scientific payoff
+so far unquantified.</p>
+<p>The old <code>research.pipeline</code> implementation is retained only as historical
+checkout scaffolding. Its common <code>index_age</code> shortcut assigns a proband's
+attained age to every relative and is not a valid general familywise
+calendar-time censor across generations.</p>
+<p>Two boundary diagnostics are surfaced on <code>PopulationScores</code> rather than
+silently absorbed: <code>frac_unresolved_parents</code> (the fraction of records with a
+non-null parent reference matching no id — a zero resolved share raises, a
+share above half warns) and, under <code>use="prediction"</code>, <code>proband_state</code>
+(<code>disease_free_and_followed</code> / <code>prevalent_case</code> / <code>exited_before_index</code> at the
+landmark, with a warning on prevalent cases).</p>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h3 id="ltpred.pipeline" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">ltpred.pipeline</span>
+
+
+<a href="#ltpred.pipeline" class="headerlink" title="Permanent link">&para;</a></h3>
+
+    <div class="doc doc-contents first">
+
+        <p>Supported population-register scoring from trio records and empirical CIPs.</p>
+<p>The low-level pieces live in :mod:<code>ltpred.pedigree</code>, :mod:<code>ltpred.thresholds</code>
+and :mod:<code>ltpred.estimate</code>. This module supplies the small but consequential
+glue between them: row alignment, the distinction between pedigree closure and
+the observation set, and calendar-time censoring for prospective prediction.</p>
+<p>The first public driver is intentionally narrow. It uses pinned-onset LT-FH++
+bounds and deterministic Pearson--Aitken inference. Interval-case encodings and
+the PA-FGRS censored-control mixture remain available through the lower-level
+APIs, but are separate observation models rather than switches hidden in this
+register workflow.</p>
+<p>The driver also reports on the two input problems that most often make a
+register analysis wrong without making any single score wrong: parent
+references that failed to resolve (counted per table; an implausibly high
+unresolved share warns, and zero resolved references raises), and probands
+who were not at risk at their prediction landmark (a per-proband state, with
+a warning on prevalent cases).</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="ltpred.pipeline.PopulationScores" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">PopulationScores</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#ltpred.pipeline.PopulationScores" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Per-proband register-pipeline output, aligned to <code>probands</code>.</p>
+<p><code>est</code> is the Pearson--Aitken approximation to the posterior mean genetic
+liability and <code>var</code> its posterior-variance approximation. <code>n_relatives</code>
+counts structural non-proband members reached within <code>max_degree</code>;
+<code>n_conditioned</code> counts informative diagnosis bounds that actually enter
+the observation set (including the proband under <code>use="gwas"</code>);
+<code>n_closure_only</code> counts ancestors added solely to preserve exact kinship;
+and <code>degree_max</code> is the largest non-closure degree present.</p>
+<p><code>frac_unresolved_parents</code> is the fraction of population records with at
+least one non-null parent reference that matched no id; a high value means
+a register boundary (parents born before registration started) or a broken
+id join. <code>proband_state</code> is set under <code>use="prediction"</code> only (<code>None</code>
+under <code>use="gwas"</code>) and classifies each proband at their landmark:
+<code>"prevalent_case"</code> (diagnosed at or before the landmark),
+<code>"exited_before_index"</code> (follow-up ended strictly before it), or
+<code>"disease_free_and_followed"</code>. Only the last belongs in a prospective
+incident-risk evaluation.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="ltpred.pipeline.estimate_liabilities" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">estimate_liabilities</span>
+
+
+<a href="#ltpred.pipeline.estimate_liabilities" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liabilities</span><span class="p">(</span><span class="n">ids</span><span class="p">,</span> <span class="n">father</span><span class="p">,</span> <span class="n">mother</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">probands</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">use</span><span class="p">,</span> <span class="n">cip_ages</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cip_values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">k_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">max_degree</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">birth_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">index_time</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">condition_closure</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">strata</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cip_by_stratum</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Estimate genetic liabilities from population trio and diagnosis records.</p>
+<p><code>ids</code>/<code>father</code>/<code>mother</code> are one population parent-pointer table.
+<code>status</code> and <code>age</code> are aligned to <code>ids</code>: <code>age</code> is attained age at
+diagnosis for a case and attained age at last follow-up/exit for a control.
+Supply either one empirical population CIP (<code>cip_ages</code>, <code>cip_values</code>,
+optional <code>k_pop</code>) or per-person <code>strata</code> plus a mapping from each label
+to <code>(cip_ages, cip_values, k_pop)</code>.</p>
+<p><code>use</code> is required because it changes the observation set. <code>"gwas"</code>
+includes the proband's own diagnosis. <code>"prediction"</code> leaves it
+uninformative and requires <code>birth_time</code> (one value per <code>id</code>) plus
+<code>index_time</code> (one value per proband) on a common numeric calendar scale
+whose unit matches <code>age</code>. For member <code>j</code> at proband index time <code>t</code>,
+the censoring age is <code>t - birth_time[j]</code>. A diagnosis or exit after <code>t</code>
+becomes a control censored at that member-specific age; a member not yet
+born is uninformative. Thus relatives from different generations are never
+assigned the proband's attained age.</p>
+<p>Pedigree ancestors added only for exact kinship are uninformative by
+default, so <code>max_degree</code> bounds the diagnosis observations even though
+the relationship matrix retains its ancestral closure. Set
+<code>condition_closure=True</code> only to deliberately condition on those extra
+diagnoses. Inference is pinned-onset LT-FH++ with deterministic
+Pearson--Aitken; use the lower-level APIs for interval/mixture models.</p>
+<p>Two table/proband boundary conditions are reported rather than silently
+absorbed. A non-null parent reference that matches no id becomes a founder
+(a register boundary: parents born before registration started), and the
+fraction of records with at least one such reference is returned as
+<code>PopulationScores.frac_unresolved_parents</code>; when <strong>no</strong> non-null
+reference resolves the table cannot be a boundary effect -- an id-format
+or join mismatch is the likely cause -- and the call raises, while an
+unresolved share above 50% warns. Under <code>use="prediction"</code> each proband
+is classified at their landmark into
+<code>PopulationScores.proband_state</code> and any <code>"prevalent_case"</code> warns;
+neither diagnostic alters the scores, and neither is a substitute for
+constructing an eligible incident-risk cohort.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="cip-estimation-ltpredcip">CIP estimation — <code>ltpred.cip</code><a class="headerlink" href="#cip-estimation-ltpredcip" title="Permanent link">&para;</a></h2>
 
 
 <div class="doc doc-object doc-module">
@@ -4496,10 +4849,12 @@ spousal-environment component of <code>fit_variance_components</code>).</p>
 <p>The extracted :class:<code>Pedigree</code> carries <code>ids</code>/<code>father</code>/<code>mother</code> in the
 exact form :func:<code>~ltpred.covariance.kinship_from_pedigree</code> consumes (a parent
 outside the records is a founder), plus each member's relationship <code>degree</code>
-from the proband. Extraction then closes on <strong>all recorded ancestors</strong> of the
-set, so the pedigree's kinship is exact for every member pair (equal to the
-full-population kinship restricted to the set); the degree limit truncates
-only which <em>relatives</em> are included, never the kinship among them.
+from the proband and a <code>closure_only</code> mask. Extraction then closes on <strong>all
+recorded ancestors</strong> of the set, so the pedigree's kinship is exact for every
+member pair (equal to the full-population kinship restricted to the set); the
+degree limit truncates only which <em>relatives</em> are included, never the kinship
+among them. <code>closure_only</code> distinguishes those structural ancestors from the
+people reached within <code>max_degree</code> whose observations may enter an analysis.
 Deterministic ordering: the proband first, then by (degree, id), so identical
 inputs give identical pedigrees regardless of record order.</p>
 
@@ -4547,7 +4902,9 @@ father/mother as indices into <code>ids</code> (or -1 for unknown/founder).
 <code>children[i]</code> lists the indices of person <code>i</code>'s recorded children;
 <code>sibs[i]</code> the indices of person <code>i</code>'s <strong>full</strong> siblings (two shared
 parents) — the sib edges that make traversal distance equal the standard
-relationship degree (Pedersen et al. 2025).</p>
+relationship degree (Pedersen et al. 2025). <code>n_unresolved_parents</code>
+counts non-null father/mother values that matched no id; declared-unknown
+parents (<code>None</code>/<code>nan</code>) are not counted.</p>
 
 
 
@@ -4601,8 +4958,12 @@ relationship degree (Pedersen et al. 2025).</p>
 <p><code>ids</code>/<code>father</code>/<code>mother</code> feed
 :func:<code>~ltpred.covariance.kinship_from_pedigree</code> directly (parents outside
 the extracted set are founders). <code>degree[i]</code> is the relationship-degree
-distance of member <code>i</code> from the proband (0 = proband). Ordering is deterministic:
-proband first, then by (degree, id).</p>
+distance of member <code>i</code> from the proband (0 = proband).
+<code>closure_only[i]</code> is true when the member was added only to preserve exact
+kinship, after the <code>max_degree</code> traversal; it is an explicit warning that
+the person's diagnosis is outside the requested observation set unless a
+caller deliberately opts in. Ordering is deterministic: proband first, then
+by (degree, id).</p>
 
 
 
@@ -4649,9 +5010,12 @@ proband first, then by (degree, id).</p>
 
         <p>Index population trio records for traversal.</p>
 <p><code>ids</code> must be unique; a parent not among <code>ids</code> (<code>None</code>, <code>nan</code>, or
-any unlisted value) is an unknown founder. Raises on duplicate ids and on
-a person recorded as their own parent. (Cycle detection -- a person being
-their own ancestor -- happens in
+any unlisted value) is an unknown founder. Unlisted <strong>non-null</strong> values are
+counted in <code>n_unresolved_parents</code>: a register boundary makes some of
+them inevitable, but the count is what lets a caller distinguish that
+boundary from an id-format mismatch or a failed join. Raises on duplicate
+ids and on a person recorded as their own parent. (Cycle detection -- a
+person being their own ancestor -- happens in
 :func:<code>~ltpred.covariance.kinship_from_pedigree</code>, which raises on it.)</p>
 
 
@@ -4681,7 +5045,9 @@ pedigree's kinship is <strong>exact</strong>: it equals the full-population kins
 restricted to the extracted members, inbreeding included. The degree
 limit truncates only <em>which</em> relatives are included (lateral and
 descendant links beyond <code>max_degree</code>), never the kinship among those
-included. A parent not present in the records at all is an unknown
+included. <code>closure_only</code> marks ancestors added after the traversal, so a
+downstream scorer can retain them for kinship without automatically using
+their diagnoses. A parent not present in the records at all is an unknown
 founder, as :func:<code>~ltpred.covariance.kinship_from_pedigree</code> expects.</p>
 
 
@@ -4722,6 +5088,10 @@ the proband and relatives are conditioned on together, and <strong>ADuLT</strong
 the proband is used (no family history). This module ports LTFHPlus's <code>convert_*</code>
 helpers and provides convenience builders that produce the <code>(lower, upper)</code>
 bounds consumed by either inference engine.</p>
+<p>Every public helper whose result depends on <code>pop_prev</code> requires that value
+explicitly. There is no disease-independent prevalence default: the <code>0.05</code> and
+<code>0.10</code> values in examples are properties of those examples, not package
+constants.</p>
 
 
 
@@ -4771,7 +5141,7 @@ bounds consumed by either inference engine.</p>
 
 
 <a href="#ltpred.thresholds.convert_age_to_cir" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">convert_age_to_cir</span><span class="p">(</span><span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">convert_age_to_cir</span><span class="p">(</span><span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4794,7 +5164,7 @@ at <code>mid_point</code>. Vectorised over <code>age</code>.</p>
 
 
 <a href="#ltpred.thresholds.convert_age_to_thresh" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">convert_age_to_thresh</span><span class="p">(</span><span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">convert_age_to_thresh</span><span class="p">(</span><span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4819,7 +5189,7 @@ truncated-normal <code>dist="normal"</code> alternative is not ported).</p>
 
 
 <a href="#ltpred.thresholds.convert_liability_to_aoo" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">convert_liability_to_aoo</span><span class="p">(</span><span class="n">liability</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">convert_liability_to_aoo</span><span class="p">(</span><span class="n">liability</span><span class="p">,</span> <span class="n">pop_prev</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4843,7 +5213,7 @@ truncated-normal <code>dist="normal"</code> alternative is not ported).</p>
 
 
 <a href="#ltpred.thresholds.prevalence_thresholds" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">prevalence_thresholds</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">prevalence_thresholds</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">pop_prev</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4868,7 +5238,7 @@ upper)</code> arrays -- no age information, the special case <code>LT-FH</code> 
 
 
 <a href="#ltpred.thresholds.age_thresholds" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">age_thresholds</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">age_thresholds</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -4898,7 +5268,7 @@ construction with proband rows only is ADuLT.</p>
 
 
 <a href="#ltpred.thresholds.pa_thresholds" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">pa_thresholds</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">pa_thresholds</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5225,7 +5595,7 @@ covariance for these individuals.</p>
 
 
 <a href="#ltpred.covariance.construct_covmat_from_kinship" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_from_kinship</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_from_kinship</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">c_kernel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m_kernel</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -5233,10 +5603,19 @@ covariance for these individuals.</p>
         <p>Liability-scale covariance from an additive relationship matrix <code>A</code>.</p>
 <p>The kinship-based counterpart of :func:<code>construct_covmat_single</code>: given <code>A</code>
 (<code>n×n</code>, e.g. from :func:<code>kinship_from_pedigree</code>) it first builds the raw
-covariance <code>V = h2 * A + (1 - h2) * I</code> and then divides row/column <code>i</code> by
-<code>sqrt(V[i, i])</code>. This keeps every <strong>full liability</strong> <code>o</code> on the unit-variance
-threshold scale when inbreeding gives <code>A[i, i] = 1 + F_i</code>; it is a no-op for
-non-inbred pedigrees. When <code>add_ind</code>, the target's genetic liability divided
+covariance <code>V = h2 * A + c2 * C + m2 * M + e2 * I</code>, where
+<code>e2 = 1 - h2 - c2 - m2</code>, and then divides row/column <code>i</code> by
+<code>sqrt(V[i, i])</code>. <code>C</code> and <code>M</code> are optional caller-supplied
+<code>c_kernel</code>/<code>m_kernel</code> matrices with unit diagonal. They may encode, for
+example, sibship and couple shared environments, but are deliberately not
+inferred from <code>A</code>: additive relatedness alone cannot distinguish full sibs
+from parent--offspring pairs or mates from unrelated people. A nonzero
+component requires its kernel, and <code>h2 + c2 + m2 &lt;= 1</code>.</p>
+<p>With no environmental kernels this reduces to
+<code>V = h2 * A + (1 - h2) * I</code>. Standardisation keeps every <strong>full liability</strong>
+<code>o</code> on the unit-variance threshold scale when inbreeding gives
+<code>A[i, i] = 1 + F_i</code>; it is a no-op for non-inbred pedigrees. When
+<code>add_ind</code>, the target's genetic liability divided
 by that <strong>same full-liability SD</strong> is prepended as <code>g</code>, so its variance is
 <code>h2 * A[t, t] / V[t, t]</code> — equal to <code>h2</code> for a non-inbred target
 (<code>A[t, t] = 1</code>) but strictly below the role-based <code>Var(g) = h2 * A[t, t]</code>
@@ -6214,6 +6593,11 @@ n_sim, burn_in : int
     be a non-boolean non-negative integer.
 seed : int, optional
     Non-boolean integer in <code>[0, 2**32 - 1]</code> for reproducibility, or <code>None</code>.
+    Seeding mutates the process-global NumPy RNG (the serial sweep draws from
+    it), so two <em>concurrent</em> seeded calls to this low-level sampler from
+    different threads can interfere with one another. The high-level
+    estimators seed each family inside the parallel kernel and are safe for
+    concurrent seeded use.
 params : (P, sd), optional
     Precomputed :func:<code>gibbs_params</code> output; recomputed from <code>covmat</code> when
     omitted. The supplied <code>covmat</code> is still validated because it defines

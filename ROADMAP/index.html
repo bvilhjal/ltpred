@@ -925,6 +925,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.4.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.5.1)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1019,14 +1075,17 @@ inventories checkout-only prototypes. Keeping those roles separate avoids the
 usual archaeological sport of deciding which copied number is the current one.</p>
 <h2 id="current-boundary">Current boundary<a class="headerlink" href="#current-boundary" title="Permanent link">&para;</a></h2>
 <p>The supported package provides LT-FH, LT-FH++, ADuLT, and the single-trait
-Pearson--Aitken PA-FGRS mixture; role-based and arbitrary-kinship inputs; Gibbs
-and single-trait Pearson--Aitken inference; and common-threshold liability-scale
-moment fitting. See the <a href="../guide/">guide</a>, <a href="../algorithm/">algorithm</a>, and
-<a href="../assumptions/">assumptions</a> for the exact contracts.</p>
+Pearson--Aitken PA-FGRS mixture; role-based and arbitrary-kinship inputs; a
+narrow population-register driver with explicit GWAS/prediction observation
+sets; Gibbs and single-trait Pearson--Aitken inference; and common-threshold
+liability-scale moment fitting. See the <a href="../guide/">guide</a>,
+<a href="../algorithm/">algorithm</a>, and <a href="../assumptions/">assumptions</a> for the exact
+contracts.</p>
 <p>Experimental covariance models, selection-aware fitting, genetic-correlation
-fitting, factor models, and the register pipeline remain under <code>research/</code>,
-which is dormant and unmaintained (not run in CI or the test suite).
-They are importable from a checkout but are deliberately absent from wheels.</p>
+fitting, and factor models remain under <code>research/</code>, which is dormant and
+unmaintained (not run in CI or the test suite). They are importable from a
+checkout but are deliberately absent from wheels. Its old register file is a
+superseded snapshot, not an alternative public pipeline.</p>
 <h2 id="priorities">Priorities<a class="headerlink" href="#priorities" title="Permanent link">&para;</a></h2>
 <ol>
 <li>
@@ -1047,6 +1106,13 @@ They are importable from a checkout but are deliberately absent from wheels.</p>
 <p><strong>Scale a single giant pedigree.</strong> Replace dense covariance construction and
    factorisation with sparse relationship operators and sparse solves for
    pedigrees containing thousands of relatives.</p>
+</li>
+<li>
+<p><strong>Regenerate the register evidence.</strong> The historical pedigree-payoff and
+   end-to-end register artifacts conditioned on closure-only diagnoses, and the
+   latter used one attained-age cutoff across generations. Rerun both repaired
+   benchmarks before quoting their payoff, prospective, or throughput numbers
+   for the public driver.</p>
 </li>
 <li>
 <p><strong>Add a chunked driver.</strong> Stream homogeneous family batches through the array
@@ -1073,12 +1139,15 @@ They are importable from a checkout but are deliberately absent from wheels.</p>
 </li>
 </ol>
 <h2 id="graduation-rule">Graduation rule<a class="headerlink" href="#graduation-rule" title="Permanent link">&para;</a></h2>
-<p>A research capability moves into <code>ltpred/</code> only after its estimand and
+<p>A new statistical capability moves into <code>ltpred/</code> only after its estimand and
 observation model are documented, invalid inputs fail clearly, known-truth
 simulation covers calibration as well as ranking, runtime and memory are
-measured on a representative scale, and the public path has tests and
-committed benchmark evidence. Until then, experimental code stays experimental
-— and <code>research/</code> currently has no maintainer, so graduation is hypothetical
+measured on a representative scale, and the public path has tests and committed
+benchmark evidence. A thin orchestration layer over already supported pieces
+may land on exact equivalence and invariance tests, but its scientific payoff
+and performance remain unvalidated until representative benchmark evidence is
+regenerated. Until then, experimental methods stay experimental — and
+<code>research/</code> currently has no maintainer, so their graduation is hypothetical
 rather than scheduled.</p>
 
 

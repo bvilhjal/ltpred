@@ -981,6 +981,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.4.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.5.1)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1227,11 +1283,48 @@ mother)</code> indexes the records and <code>extract_pedigree(graph, proband,
 max_degree=3)</code> returns each proband's relatives up to third degree (parents,
 siblings, grandparents, half-sibs, aunts/uncles, cousins) with all their
 ancestors closed in, so the sub-pedigree's kinship is exact (see
-<code>benchmarks/bench_pedigree_inference.py</code>). For the full chain --
-trio records -&gt; pedigrees -&gt; per-stratum CIP thresholds -&gt; per-proband
-scores, with familywise censoring for prospective prediction -- use
-<code>research.pipeline.estimate_liabilities</code> (in the unsupported <code>research/</code>
-package at the repository root, importable from a checkout).</p>
+<code>benchmarks/bench_pedigree_inference.py</code>). For the full chain -- trio records
+-&gt; pedigrees -&gt; per-stratum CIP thresholds -&gt; per-proband scores -- use the
+supported <code>ltpred.estimate_liabilities</code> driver. Its required <code>use</code> argument
+makes the observation design explicit: <code>"gwas"</code> conditions on the proband's
+diagnosis, while <code>"prediction"</code> makes that diagnosis uninformative and
+reconstructs every relative's record at a common calendar landmark:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liabilities</span>
+
+<span class="n">gwas_scores</span> <span class="o">=</span> <span class="n">estimate_liabilities</span><span class="p">(</span>
+    <span class="n">ids</span><span class="p">,</span> <span class="n">father</span><span class="p">,</span> <span class="n">mother</span><span class="p">,</span>
+    <span class="n">probands</span><span class="o">=</span><span class="n">gwas_ids</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="o">=</span><span class="n">age</span><span class="p">,</span> <span class="n">use</span><span class="o">=</span><span class="s2">"gwas"</span><span class="p">,</span>
+    <span class="n">strata</span><span class="o">=</span><span class="n">stratum</span><span class="p">,</span> <span class="n">cip_by_stratum</span><span class="o">=</span><span class="n">cip_by_stratum</span><span class="p">,</span>
+    <span class="n">max_degree</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">prediction_scores</span> <span class="o">=</span> <span class="n">estimate_liabilities</span><span class="p">(</span>
+    <span class="n">ids</span><span class="p">,</span> <span class="n">father</span><span class="p">,</span> <span class="n">mother</span><span class="p">,</span>
+    <span class="n">probands</span><span class="o">=</span><span class="n">prediction_ids</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="o">=</span><span class="n">age</span><span class="p">,</span> <span class="n">use</span><span class="o">=</span><span class="s2">"prediction"</span><span class="p">,</span>
+    <span class="n">birth_time</span><span class="o">=</span><span class="n">birth_time</span><span class="p">,</span> <span class="n">index_time</span><span class="o">=</span><span class="n">index_time</span><span class="p">,</span>
+    <span class="n">strata</span><span class="o">=</span><span class="n">stratum</span><span class="p">,</span> <span class="n">cip_by_stratum</span><span class="o">=</span><span class="n">cip_by_stratum</span><span class="p">,</span>
+    <span class="n">max_degree</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Here <code>birth_time</code> is aligned to <code>ids</code> and <code>index_time</code> to <code>probands</code>. They must
+use one numeric calendar scale (for example decimal calendar year), and that
+scale's unit must match the unit of <code>age</code>. At landmark <code>t</code>, a relative born at
+<code>b</code> is censored at attained age <code>t - b</code>; assigning every generation the
+proband's attained age is not familywise calendar censoring. A person born at
+or after <code>t</code> has no follow-up and is uninformative.</p>
+<p>The extracted pedigree retains ancestors beyond <code>max_degree</code> when they are
+needed for exact kinship, but marks them <code>Pedigree.closure_only</code>. The supported
+driver leaves their diagnoses uninformative by default, so <code>max_degree</code> really
+bounds the observation set. Set <code>condition_closure=True</code> only when those extra
+diagnoses are deliberately part of the analysis. A non-null parent id that
+matches no record is still treated as an unknown founder, but the driver counts
+these per table: it reports <code>frac_unresolved_parents</code>, warns when the share is
+implausibly high for a register boundary, and refuses when no non-null
+reference resolves at all, which is an id-format or join mismatch rather than
+missing history. The driver intentionally uses
+pinned-onset LT-FH++ bounds and deterministic Pearson--Aitken inference; build
+bounds and call the lower-level estimators directly for interval-case or
+PA-FGRS mixture models.</p>
 <p>When your relatives don't fit the fixed roles — deeper pedigrees, cousins,
 multiple marriages, inbreeding — describe the pedigree by <strong>who each person's
 parents are</strong> instead. <code>kinship_from_pedigree</code> turns <code>(ids, father, mother)</code> columns
@@ -1250,14 +1343,17 @@ estimates the target's liability from <code>A</code> and per-individual bounds:<
 <p>This high-level arbitrary-kinship function accepts <code>A</code>, <code>lower</code>/<code>upper</code>, and
 on Pearson–Aitken <code>use_mixture=True</code> with per-member <code>K_i</code>/<code>K_pop</code> for the
 PA-FGRS censored-control mixture. Pass <code>method="gibbs"</code> only for the
-no-mixture sampler.</p>
+no-mixture sampler. Shared-environment scoring is also supported, but the
+relationship classes must be explicit: pass <code>c2</code> with an aligned <code>c_kernel</code>
+and/or <code>m2</code> with <code>m_kernel</code>. They cannot be recovered from <code>A</code> alone.</p>
 <p>For a pedigree that <em>does</em> fit the role grammar the two paths give identical
 results (same covariance); the pedigree path additionally handles half-sibs of any
 degree, cousins, and inbred pedigrees (where a self-relationship can exceed 1).
 For inbred pedigrees, the raw additive covariance is formed from <code>A</code> and then
 standardised so every full liability has unit marginal variance; standard-normal
 prevalence thresholds therefore retain their usual meaning. Build the covariance
-alone with <code>construct_covmat_from_kinship(A, h2, target)</code>.</p>
+alone with <code>construct_covmat_from_kinship(A, h2, target)</code> (and the same optional
+component kernels).</p>
 <p>Discovery from population registers is handled by <code>ltpred.pedigree</code> above, with
 <code>max_degree</code> setting how far the traversal reaches. The graph-based extraction
 approach is described in

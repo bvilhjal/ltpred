@@ -901,6 +901,62 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.4.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.5.1)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1048,9 +1104,10 @@ mixture is available only in the PA engine.</p>
 </tr>
 </tbody>
 </table>
-<p>Unsupported experimental fitters and the register pipeline live in the
+<p>Unsupported experimental fitters and covariance extensions live in the
 checkout-only <a href="https://github.com/bvilhjal/ltpred/tree/main/research"><code>research/</code> package</a>;
-they are not installed with ltpred.</p>
+they are not installed with ltpred. The register driver is public in
+<code>ltpred.pipeline</code>; the research file with that name is a legacy snapshot.</p>
 <p>See <a href="../algorithm/">algorithm.md</a> for the model and the estimators, and the
 <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">benchmark results</a>
 for model and engine comparisons. For how to run the pipeline see the <a href="../vignette/">vignette</a>
@@ -1113,11 +1170,15 @@ arbitrary pedigrees — deeper trees, cousins, inbreeding, non-standard structur
 The role grammar is fastest and simplest; the kinship path is the general case.
 The high-level kinship estimator accepts ordinary <code>lower</code>/<code>upper</code> bounds and,
 on the PA engine, <code>use_mixture=True</code> with per-member <code>K_i</code>/<code>K_pop</code> for the
-PA-FGRS censored-control mixture. Gibbs still has no mixture implementation.
+PA-FGRS censored-control mixture. It also accepts caller-supplied shared-
+environment kernels as <code>c2</code>/<code>c_kernel</code> and <code>m2</code>/<code>m_kernel</code>; these cannot be
+inferred from <code>A</code> alone. Gibbs still has no mixture implementation.
 Pedigrees can be discovered from trio records with <code>ltpred.pedigree</code>
 (<code>build_parent_graph</code>, <code>extract_pedigree</code>, <code>ParentGraph</code>, <code>Pedigree</code>), which feeds
-<code>kinship_from_pedigree</code>. ltpred does not wrap igraph the way LTFHPlus does, and
-ships no plotting utilities.</p>
+<code>kinship_from_pedigree</code>. The installed <code>ltpred.pipeline.estimate_liabilities</code>
+driver adds empirical-CIP bounds, closure-only masking, and explicit
+calendar-time censoring for register scoring. ltpred does not wrap igraph the
+way LTFHPlus does, and ships no plotting utilities.</p>
 <p><strong>Which path to run:</strong></p>
 <table>
 <thead>
