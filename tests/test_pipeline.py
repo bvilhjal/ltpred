@@ -1,5 +1,7 @@
 """Supported trio-register pipeline: observation-set and calendar contracts."""
 
+import warnings
+
 import numpy as np
 import pytest
 
@@ -237,3 +239,115 @@ def test_pipeline_rejects_mixed_or_malformed_cip_routing():
             match=r"must be \(cip_ages, cip_values, k_pop\)"):
         estimate_liabilities(**base, strata=strata,
                              cip_by_stratum={"A": (CIP_AGES, CIP_VALUES)})
+
+
+def test_unresolved_parents_are_surfaced_and_warned():
+    # a and b carry unlisted non-null parents (2 of 3 records); c's resolve.
+    ids = ["a", "b", "c"]
+    father = ["x", "y", "a"]
+    mother = [None, None, "b"]
+    with pytest.warns(UserWarning, match="no id"):
+        out = estimate_liabilities(
+            ids, father, mother, probands=["c"],
+            status=np.array([0, 0, 0]), age=np.array([65.0, 70.0, 45.0]),
+            use="gwas", cip_ages=CIP_AGES, cip_values=CIP_VALUES,
+            k_pop=K_POP, max_degree=1)
+    assert out.frac_unresolved_parents == pytest.approx(2.0 / 3.0)
+    assert build_parent_graph(ids, father, mother).n_unresolved_parents == 2
+
+
+def test_all_unresolved_parent_references_are_refused():
+    # Integer ids with string parent references can never match; a register
+    # boundary cannot explain zero resolved references, so this is refused.
+    with pytest.raises(ValueError, match="0 matched"):
+        estimate_liabilities(
+            [1, 2, 3], ["3", None, None], ["2", None, None], probands=[1],
+            status=np.array([0, 0, 0]), age=np.array([40.0, 65.0, 70.0]),
+            use="gwas", cip_ages=CIP_AGES, cip_values=CIP_VALUES, k_pop=K_POP)
+
+
+def test_declared_unknown_founders_stay_silent():
+    # The standard table's founders are all None: no diagnostic may fire.
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        out = estimate_liabilities(**pipeline_kwargs())
+        prediction = estimate_liabilities(**pipeline_kwargs(
+            use="prediction", birth_time=BIRTH, index_time=[2020.0]))
+    assert out.frac_unresolved_parents == 0.0
+    assert prediction.frac_unresolved_parents == 0.0
+    np.testing.assert_array_equal(prediction.proband_state,
+                                  ["disease_free_and_followed"])
+
+
+def test_proband_state_is_prediction_only():
+    out = estimate_liabilities(**pipeline_kwargs())
+    assert out.proband_state is None
+
+
+def _trio_prediction(proband_status, proband_age, probands=None):
+    ids = ["o", "m", "f"]
+    common = dict(
+        father=["f", None, None], mother=["m", None, None],
+        probands=probands or ["o"], use="prediction",
+        birth_time=np.array([1980.0, 1950.0, 1950.0]),
+        index_time=np.array([2020.0] * len(probands or ["o"])),
+        cip_ages=CIP_AGES, cip_values=CIP_VALUES, k_pop=K_POP, max_degree=1)
+    status = np.array([proband_status, 0, 0])
+    age = np.array([proband_age, 65.0, 70.0])
+    return estimate_liabilities(ids, status=status, age=age, **common)
+
+
+def test_prediction_flags_prevalent_proband_without_changing_scores():
+    # Proband diagnosed 2015, landmark 2020: not at risk, and now said so.
+    with pytest.warns(UserWarning, match="prevalent_case"):
+        prevalent = _trio_prediction(1, 35.0)
+    np.testing.assert_array_equal(prevalent.proband_state, ["prevalent_case"])
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        clean = _trio_prediction(1, 45.0)   # onset 2025, after the landmark
+    np.testing.assert_array_equal(clean.proband_state,
+                                  ["disease_free_and_followed"])
+    # The diagnostic changes nothing the driver computes.
+    np.testing.assert_allclose(prevalent.est, clean.est, rtol=0, atol=0)
+    np.testing.assert_allclose(prevalent.var, clean.var, rtol=0, atol=0)
+
+
+def test_prediction_flags_proband_exited_before_index():
+    # Follow-up ended 2010, landmark 2020: named, but not a prevalent case.
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        out = _trio_prediction(0, 30.0)
+    np.testing.assert_array_equal(out.proband_state, ["exited_before_index"])
+
+
+@pytest.mark.parametrize("status,age,expected", [
+    (1, 40.0, "prevalent_case"),            # onset exactly at the landmark
+    (0, 40.0, "disease_free_and_followed"),  # follow-up ends exactly at it
+])
+def test_proband_state_landmark_boundary(status, age, expected):
+    kwargs = dict(
+        ids=["o"], father=[None], mother=[None], probands=["o"],
+        status=np.array([status]), age=np.array([age]), use="prediction",
+        birth_time=np.array([1980.0]), index_time=np.array([2020.0]),
+        cip_ages=CIP_AGES, cip_values=CIP_VALUES, k_pop=K_POP, max_degree=1)
+    if expected == "prevalent_case":
+        with pytest.warns(UserWarning, match="prevalent_case"):
+            out = estimate_liabilities(**kwargs)
+    else:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            out = estimate_liabilities(**kwargs)
+    np.testing.assert_array_equal(out.proband_state, [expected])
+
+
+def test_proband_state_aligns_to_probands():
+    ids = ["o1", "o2"]
+    with pytest.warns(UserWarning, match="1 of 2"):
+        out = estimate_liabilities(
+            ids, [None, None], [None, None], probands=["o1", "o2"],
+            status=np.array([1, 0]), age=np.array([35.0, 60.0]),
+            use="prediction", birth_time=np.array([1980.0, 1980.0]),
+            index_time=np.array([2020.0, 2020.0]), cip_ages=CIP_AGES,
+            cip_values=CIP_VALUES, k_pop=K_POP, max_degree=1)
+    np.testing.assert_array_equal(
+        out.proband_state, ["prevalent_case", "disease_free_and_followed"])

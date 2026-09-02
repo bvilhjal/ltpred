@@ -56,13 +56,16 @@ class ParentGraph:
     ``children[i]`` lists the indices of person ``i``'s recorded children;
     ``sibs[i]`` the indices of person ``i``'s **full** siblings (two shared
     parents) — the sib edges that make traversal distance equal the standard
-    relationship degree (Pedersen et al. 2025)."""
+    relationship degree (Pedersen et al. 2025). ``n_unresolved_parents``
+    counts non-null father/mother values that matched no id; declared-unknown
+    parents (``None``/``nan``) are not counted."""
     ids: list
     sire: list
     dam: list
     children: list
     sibs: list
     index: dict
+    n_unresolved_parents: int
 
 
 @dataclass
@@ -91,9 +94,12 @@ def build_parent_graph(ids: Sequence, father: Sequence,
     """Index population trio records for traversal.
 
     ``ids`` must be unique; a parent not among ``ids`` (``None``, ``nan``, or
-    any unlisted value) is an unknown founder. Raises on duplicate ids and on
-    a person recorded as their own parent. (Cycle detection -- a person being
-    their own ancestor -- happens in
+    any unlisted value) is an unknown founder. Unlisted **non-null** values are
+    counted in ``n_unresolved_parents``: a register boundary makes some of
+    them inevitable, but the count is what lets a caller distinguish that
+    boundary from an id-format mismatch or a failed join. Raises on duplicate
+    ids and on a person recorded as their own parent. (Cycle detection -- a
+    person being their own ancestor -- happens in
     :func:`~ltpred.covariance.kinship_from_pedigree`, which raises on it.)
     """
     ids = list(ids)
@@ -106,10 +112,16 @@ def build_parent_graph(ids: Sequence, father: Sequence,
         raise ValueError("ids must be unique")
     index = {pid: i for i, pid in enumerate(ids)}
 
+    n_unresolved = 0
+
     def _idx(p):
+        nonlocal n_unresolved
         if p is None or (isinstance(p, float) and np.isnan(p)):
             return -1
-        return index.get(p, -1)
+        j = index.get(p, -1)
+        if j == -1:
+            n_unresolved += 1
+        return j
 
     sire = [_idx(p) for p in father]
     dam = [_idx(p) for p in mother]
@@ -132,7 +144,7 @@ def build_parent_graph(ids: Sequence, father: Sequence,
             sibs[i].update(j for j in group if j != i)
     sibs = [sorted(s) for s in sibs]
     return ParentGraph(ids=ids, sire=sire, dam=dam, children=children,
-                       sibs=sibs, index=index)
+                       sibs=sibs, index=index, n_unresolved_parents=n_unresolved)
 
 
 def extract_pedigree(graph: ParentGraph, proband: object,

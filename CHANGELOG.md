@@ -6,6 +6,27 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Added
+
+- The register driver now surfaces two silent input failures found by the
+  2026-09b review. `PopulationScores.frac_unresolved_parents` reports the
+  fraction of records with a non-null parent reference that matched no id
+  (also counted per table as `ParentGraph.n_unresolved_parents`): a zero
+  resolved share raises, since that is an id-format or join mismatch rather
+  than a register boundary, and a share above half warns. Under
+  `use="prediction"`, `PopulationScores.proband_state` classifies each proband
+  at their landmark as `disease_free_and_followed`, `prevalent_case` or
+  `exited_before_index`, and any prevalent case warns; only the first belongs
+  in a prospective incident-risk evaluation. Neither diagnostic alters the
+  scores.
+
+### Changed
+
+- `docs/api.md` and the vignette name the prediction estimand (relatives'
+  records at the landmark, without conditioning on the proband being
+  disease-free there) and label the register driver supported with its payoff
+  unquantified pending the RESULTS sections 20-21 regeneration.
+
 ## 0.5.1 — 2026-08-30
 
 ### Changed

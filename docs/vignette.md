@@ -602,16 +602,32 @@ proband's attained age. A post-index diagnosis becomes a control censored
 at that relative-specific age; follow-up ending earlier is kept at its
 recorded end. A person born at or after the landmark is uninformative.
 The proband's observation is always uninformative under `use="prediction"`.
+That makes the prediction estimand $\mathbb{E}[g \mid \text{relatives'
+records at the landmark}]$ — it is not additionally conditioned on the
+proband being disease-free at the landmark; the two agree on ranking within
+an age but differ in level across ages, since surviving to an older age
+disease-free is evidence of lower liability.
 
 The driver currently supports **single-trait, additive-only, pinned-onset
 LT-FH++ with deterministic PA**. Use the lower-level APIs for C/M kernels,
 Gibbs, interval cases or PA-FGRS mixtures. It returns `PopulationScores`,
 not `LiabilityResult`: there is no `genetic` property or Monte-Carlo `se`
 column. `est` and `var` are PA mean and posterior-variance approximations.
+Its payoff and throughput evidence (RESULTS §§20–21) is marked stale pending
+a provenance-tracked rerun: the API is supported, its scientific payoff so
+far unquantified.
 
 Check `n_relatives` (non-proband members within the chosen degree),
 `n_conditioned` (informative diagnosis bounds, including own status for
 GWAS), `n_closure_only` (extra structural ancestors) and `degree_max`.
+Two further fields guard the inputs rather than the score:
+`frac_unresolved_parents` is the fraction of records with a non-null parent
+reference that matched no id — a zero resolved share raises, a share above
+half warns, because that pattern is a broken join more often than a register
+boundary — and, under prediction, `proband_state` names each proband
+`disease_free_and_followed`, `prevalent_case` or `exited_before_index` at
+their landmark, warning on prevalent cases: only the first belongs in a
+prospective evaluation.
 In the runnable six-person example in
 [`examples/vignette.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py),
 `max_degree=1` deliberately selects two parents and a sibling; two maternal

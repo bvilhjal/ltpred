@@ -10,9 +10,17 @@ bounds and deterministic Pearson--Aitken inference. Interval-case encodings and
 the PA-FGRS censored-control mixture remain available through the lower-level
 APIs, but are separate observation models rather than switches hidden in this
 register workflow.
+
+The driver also reports on the two input problems that most often make a
+register analysis wrong without making any single score wrong: parent
+references that failed to resolve (counted per table; an implausibly high
+unresolved share warns, and zero resolved references raises), and probands
+who were not at risk at their prediction landmark (a per-proband state, with
+a warning on prevalent cases).
 """
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
@@ -28,6 +36,10 @@ from .thresholds import thresholds_from_cip
 
 __all__ = ["PopulationScores", "estimate_liabilities"]
 
+# Share of records carrying an unresolved non-null parent above which a
+# register boundary stops being a plausible explanation on its own.
+_UNRESOLVED_PARENT_WARN_FRACTION = 0.5
+
 
 @dataclass
 class PopulationScores:
@@ -40,6 +52,16 @@ class PopulationScores:
     the observation set (including the proband under ``use="gwas"``);
     ``n_closure_only`` counts ancestors added solely to preserve exact kinship;
     and ``degree_max`` is the largest non-closure degree present.
+
+    ``frac_unresolved_parents`` is the fraction of population records with at
+    least one non-null parent reference that matched no id; a high value means
+    a register boundary (parents born before registration started) or a broken
+    id join. ``proband_state`` is set under ``use="prediction"`` only (``None``
+    under ``use="gwas"``) and classifies each proband at their landmark:
+    ``"prevalent_case"`` (diagnosed at or before the landmark),
+    ``"exited_before_index"`` (follow-up ended strictly before it), or
+    ``"disease_free_and_followed"``. Only the last belongs in a prospective
+    incident-risk evaluation.
     """
 
     probands: list
@@ -49,6 +71,8 @@ class PopulationScores:
     n_conditioned: np.ndarray
     n_closure_only: np.ndarray
     degree_max: np.ndarray
+    frac_unresolved_parents: float = 0.0
+    proband_state: np.ndarray | None = None
 
 
 def _validate_cip_inputs(n: int, *, cip_ages: ArrayLike | None,
@@ -130,6 +154,19 @@ def estimate_liabilities(
     ``condition_closure=True`` only to deliberately condition on those extra
     diagnoses. Inference is pinned-onset LT-FH++ with deterministic
     Pearson--Aitken; use the lower-level APIs for interval/mixture models.
+
+    Two table/proband boundary conditions are reported rather than silently
+    absorbed. A non-null parent reference that matches no id becomes a founder
+    (a register boundary: parents born before registration started), and the
+    fraction of records with at least one such reference is returned as
+    ``PopulationScores.frac_unresolved_parents``; when **no** non-null
+    reference resolves the table cannot be a boundary effect -- an id-format
+    or join mismatch is the likely cause -- and the call raises, while an
+    unresolved share above 50% warns. Under ``use="prediction"`` each proband
+    is classified at their landmark into
+    ``PopulationScores.proband_state`` and any ``"prevalent_case"`` warns;
+    neither diagnostic alters the scores, and neither is a substitute for
+    constructing an eligible incident-risk cohort.
     """
     ids = list(ids)
     father = list(father)
@@ -187,6 +224,37 @@ def estimate_liabilities(
 
     graph = build_parent_graph(ids, father, mother)
     pos = graph.index
+
+    # An unlisted non-null parent is a founder here -- unavoidable at a
+    # register boundary. But the same rule absorbs an id-format mismatch or a
+    # failed join, which turns every family-history score into an
+    # own-status-only score, so the resolution rate is surfaced instead of
+    # silent. Declared-unknown parents (None/nan) never count.
+    n_refs = 0
+    n_unresolved_records = 0
+    for fid, mid in zip(father, mother):
+        f_null = fid is None or (isinstance(fid, float) and np.isnan(fid))
+        m_null = mid is None or (isinstance(mid, float) and np.isnan(mid))
+        n_refs += (not f_null) + (not m_null)
+        n_unresolved_records += ((not f_null and fid not in pos)
+                                 or (not m_null and mid not in pos))
+    frac_unresolved_parents = n_unresolved_records / n if n else 0.0
+    if n_refs > 0 and graph.n_unresolved_parents == n_refs:
+        raise ValueError(
+            f"no non-null father/mother reference resolved against ids "
+            f"({n_refs} given, 0 matched). A register boundary cannot explain "
+            "this -- within-register parent links would still resolve. Check "
+            "id formats and dtypes (e.g. integer ids with string parent "
+            "references can never match).")
+    if frac_unresolved_parents > _UNRESOLVED_PARENT_WARN_FRACTION:
+        warnings.warn(
+            f"{frac_unresolved_parents:.1%} of records carry a non-null "
+            "parent reference that matches no id. Parents born before "
+            "registration started are expected founders, but a share this "
+            "high also results from an id-format mismatch or a failed join, "
+            "which silently reduces every family-history score to the "
+            "proband's own status. See PopulationScores."
+            "frac_unresolved_parents.", UserWarning, stacklevel=2)
     missing_probands = [proband for proband in probands if proband not in pos]
     if missing_probands:
         raise ValueError(f"probands not among ids: {missing_probands[:5]}")
@@ -197,6 +265,32 @@ def estimate_liabilities(
             raise ValueError(
                 "index_time must not precede the corresponding proband's birth_time; "
                 f"invalid positions {before_birth.tolist()}")
+        # The proband's own row is left uninformative, so a proband already
+        # diagnosed -- or already out of follow-up -- at the landmark is scored
+        # like any other, and only the caller can exclude them. Name the state
+        # instead. A case exactly at the landmark is prevalent (the driver's
+        # post-index test is strict); a control whose follow-up ends exactly
+        # at the landmark counts as followed.
+        proband_rows = np.array([pos[proband] for proband in probands])
+        proband_record = record_time[proband_rows]
+        proband_case = status_array[proband_rows]
+        proband_state = np.where(
+            proband_case & (proband_record <= index_array), "prevalent_case",
+            np.where(~proband_case & (proband_record < index_array),
+                     "exited_before_index", "disease_free_and_followed"))
+        n_prevalent = int(np.count_nonzero(proband_state == "prevalent_case"))
+        if n_prevalent:
+            warnings.warn(
+                f"{n_prevalent} of {len(probands)} probands were already "
+                "diagnosed at or before their index_time "
+                "(proband_state='prevalent_case'). They are not at-risk "
+                "probands: including them in a prospective evaluation is "
+                "cohort-level leakage and inflates discrimination. Restrict "
+                "probands to the disease-free-and-followed cohort or treat "
+                "these scores as non-prospective.",
+                UserWarning, stacklevel=2)
+    else:
+        proband_state = None
 
     n_probands = len(probands)
     est = np.empty(n_probands)
@@ -287,4 +381,6 @@ def estimate_liabilities(
         n_conditioned=n_conditioned,
         n_closure_only=n_closure_only,
         degree_max=degree_max,
+        frac_unresolved_parents=frac_unresolved_parents,
+        proband_state=proband_state,
     )

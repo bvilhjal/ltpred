@@ -121,6 +121,12 @@ def register_example():
     np.testing.assert_allclose(prediction.est, changed.est, rtol=0, atol=0)
     np.testing.assert_allclose(prediction.var, changed.var, rtol=0, atol=0)
 
+    # Input diagnostics: every non-null parent resolves here, and p was
+    # disease-free and followed at the 2020 landmark.
+    assert gwas.frac_unresolved_parents == 0.0
+    np.testing.assert_array_equal(prediction.proband_state,
+                                  ["disease_free_and_followed"])
+
     # p is unaffected at age 40 in 2020. The caller defines that at-risk cohort;
     # use="prediction" leaves own status uninformative rather than selecting it.
     cip_index, cip_horizon = np.interp([40., 60.], cip_ages, cip_values)

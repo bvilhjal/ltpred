@@ -29,6 +29,15 @@ class BuildGraphTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "share length"):
             build_parent_graph(["a"], [None, None], [None])
 
+    def test_unresolved_nonnull_parents_are_counted(self):
+        # Only the unlisted non-null "x" counts; None/nan are declared unknown.
+        graph = build_parent_graph(["a", "b", "c"], ["c", "x", None],
+                                   [None, float("nan"), None])
+        self.assertEqual(graph.n_unresolved_parents, 1)
+        self.assertEqual(graph.sire, [2, -1, -1])
+        # The toy population's founders are all declared unknown.
+        self.assertEqual(make_graph().n_unresolved_parents, 0)
+
 
 class ExtractTests(unittest.TestCase):
     def test_degree_two_membership_and_degrees(self):

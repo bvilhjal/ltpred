@@ -100,7 +100,12 @@ The extracted pedigree retains ancestors beyond `max_degree` when they are
 needed for exact kinship, but marks them `Pedigree.closure_only`. The supported
 driver leaves their diagnoses uninformative by default, so `max_degree` really
 bounds the observation set. Set `condition_closure=True` only when those extra
-diagnoses are deliberately part of the analysis. The driver intentionally uses
+diagnoses are deliberately part of the analysis. A non-null parent id that
+matches no record is still treated as an unknown founder, but the driver counts
+these per table: it reports `frac_unresolved_parents`, warns when the share is
+implausibly high for a register boundary, and refuses when no non-null
+reference resolves at all, which is an id-format or join mismatch rather than
+missing history. The driver intentionally uses
 pinned-onset LT-FH++ bounds and deterministic Pearson--Aitken inference; build
 bounds and call the lower-level estimators directly for interval-case or
 PA-FGRS mixture models.

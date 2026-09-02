@@ -82,12 +82,26 @@ absent from the curated wildcard-import list. Prediction requires per-person
 whose unit matches `age`; this is what gives relatives from different birth
 years their correct attained-age censoring landmarks. Structural ancestors in
 the pedigree's exact-kinship closure are not diagnosis observations unless
-`condition_closure=True` is explicitly requested.
+`condition_closure=True` is explicitly requested. Under `use="prediction"` the
+estimand is `E[g | relatives' records at the landmark]` — it is *not*
+additionally conditioned on the proband being disease-free at the landmark; the
+two agree on ranking within an age but differ in level across ages, because
+surviving to an older age disease-free is evidence of lower liability. The
+driver's payoff and throughput evidence (RESULTS §§20–21) is marked stale
+pending a provenance-tracked rerun: the API is supported, its scientific payoff
+so far unquantified.
 
 The old `research.pipeline` implementation is retained only as historical
 checkout scaffolding. Its common `index_age` shortcut assigns a proband's
 attained age to every relative and is not a valid general familywise
 calendar-time censor across generations.
+
+Two boundary diagnostics are surfaced on `PopulationScores` rather than
+silently absorbed: `frac_unresolved_parents` (the fraction of records with a
+non-null parent reference matching no id — a zero resolved share raises, a
+share above half warns) and, under `use="prediction"`, `proband_state`
+(`disease_free_and_followed` / `prevalent_case` / `exited_before_index` at the
+landmark, with a warning on prevalent cases).
 
 ::: ltpred.pipeline
 
