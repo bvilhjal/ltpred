@@ -55,6 +55,7 @@ nav:
       - Releasing: RELEASING.md
       - Independent review (v0.3.4): REVIEW_2026-08.md
       - Independent review (v0.4.2): REVIEW_2026-09.md
+      - Independent review (v0.5.1): REVIEW_2026-09b.md
 
 markdown_extensions:
   - admonition
