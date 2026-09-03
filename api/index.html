@@ -4387,15 +4387,19 @@ estimand is <code>E[g | relatives' records at the landmark]</code> — it is <em
 additionally conditioned on the proband being disease-free at the landmark; the
 two agree on ranking within an age but differ in level across ages, because
 surviving to an older age disease-free is evidence of lower liability. The
-driver's payoff and throughput evidence (RESULTS §§20–21) is marked stale
-pending a provenance-tracked rerun: the API is supported, its scientific payoff
-so far unquantified.</p>
+driver's payoff and throughput evidence (RESULTS §§20–21, regenerated
+2026-09-03 under the provenance wrapper): the API is supported, with the
+payoff quantified there -- degree-3 corr(est, true g) 0.574 ± 0.021 vs
+degree-1 0.539 ± 0.015 (paired contrast +0.035 ± 0.012), prospective
+familywise-censored AUC 0.680 ± 0.039, and ~380 probands/s throughput.
+The relatives'-events contrast is unresolved at R = 5 on both metrics and
+is not quoted as a payoff.</p>
 <p>The old <code>research.pipeline</code> implementation is retained only as historical
 checkout scaffolding. Its common <code>index_age</code> shortcut assigns a proband's
 attained age to every relative and is not a valid general familywise
 calendar-time censor across generations.</p>
 <p>Two boundary diagnostics are surfaced on <code>PopulationScores</code> rather than
-silently absorbed: <code>frac_unresolved_parents</code> (the fraction of records with a
+silently absorbed: <code>frac_records_with_unresolved_parents</code> (the fraction of records with a
 non-null parent reference matching no id — a zero resolved share raises, a
 share above half warns) and, under <code>use="prediction"</code>, <code>proband_state</code>
 (<code>disease_free_and_followed</code> / <code>prevalent_case</code> / <code>exited_before_index</code> at the
@@ -4477,7 +4481,7 @@ counts structural non-proband members reached within <code>max_degree</code>;
 the observation set (including the proband under <code>use="gwas"</code>);
 <code>n_closure_only</code> counts ancestors added solely to preserve exact kinship;
 and <code>degree_max</code> is the largest non-closure degree present.</p>
-<p><code>frac_unresolved_parents</code> is the fraction of population records with at
+<p><code>frac_records_with_unresolved_parents</code> is the fraction of population records with at
 least one non-null parent reference that matched no id; a high value means
 a register boundary (parents born before registration started) or a broken
 id join. <code>proband_state</code> is set under <code>use="prediction"</code> only (<code>None</code>
@@ -4556,7 +4560,7 @@ Pearson--Aitken; use the lower-level APIs for interval/mixture models.</p>
 absorbed. A non-null parent reference that matches no id becomes a founder
 (a register boundary: parents born before registration started), and the
 fraction of records with at least one such reference is returned as
-<code>PopulationScores.frac_unresolved_parents</code>; when <strong>no</strong> non-null
+<code>PopulationScores.frac_records_with_unresolved_parents</code>; when <strong>no</strong> non-null
 reference resolves the table cannot be a boundary effect -- an id-format
 or join mismatch is the likely cause -- and the call raises, while an
 unresolved share above 50% warns. Under <code>use="prediction"</code> each proband

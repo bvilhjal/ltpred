@@ -1564,10 +1564,10 @@ increment is worth the pipeline before you build it.</p>
 <p>These are squared-correlation ratios against known simulated genetic values,
 not measured increases in GWAS sample size. The separate association panels
 measure <strong>causal-SNP noncentrality (NCP) on independent SNPs</strong>; they do not
-validate real-LD, related-sample mixed-model GWAS. Historical register-driver
+validate real-LD, related-sample mixed-model GWAS. Register-driver
 results in <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS §§20–21</a>
-also predate the closure and calendar-time corrections. They are marked stale
-and are not evidence for the current public driver.</p>
+were regenerated 2026-09-03 with the current closure and calendar-time
+observation contract and are evidence for the public driver.</p>
 <h2 id="how-to-read-the-code-on-this-page">How to read the code on this page<a class="headerlink" href="#how-to-read-the-code-on-this-page" title="Permanent link">&para;</a></h2>
 <p>Most blocks below are <strong>fragments</strong>: they show a call with your own columns
 (<code>status</code>, <code>age</code>, <code>cip_ages</code>, <code>fam_id</code>, <code>role</code>, <code>pid</code>). Two listings do run end to end:</p>
@@ -1800,8 +1800,9 @@ standard error — while at <span class="arithmatex">\(K=0.01\)</span> the exten
 This comparison changes a specified set of roles; it is not a universal
 recommendation for the register driver's <code>max_degree</code>. Choose the observation
 depth from the study design and data quality, then test the incremental value
-on held-out or known-truth data. The historical degree-payoff/register runs
-in RESULTS §§20–21 require rerunning after the closure/calendar fixes.</p>
+on held-out or known-truth data. The degree-payoff/register runs in
+RESULTS §§20–21 were regenerated 2026-09-03 under the supported
+closure/calendar observation contract (see there for the numbers).</p>
 <p>Scoring may use overlapping extracted pedigrees (one per proband). Fitting
 <span class="arithmatex">\(h^2\)</span> in step 0 may not. ADuLT has no relatives: skip this step.</p>
 <h2 id="2-cumulative-incidence-proportion-cip-or-lifetime-prevalence">2. Cumulative incidence proportion (CIP) or lifetime prevalence<a class="headerlink" href="#2-cumulative-incidence-proportion-cip-or-lifetime-prevalence" title="Permanent link">&para;</a></h2>
@@ -1985,14 +1986,15 @@ LT-FH++ with deterministic PA</strong>. Use the lower-level APIs for C/M kernels
 Gibbs, interval cases or PA-FGRS mixtures. It returns <code>PopulationScores</code>,
 not <code>LiabilityResult</code>: there is no <code>genetic</code> property or Monte-Carlo <code>se</code>
 column. <code>est</code> and <code>var</code> are PA mean and posterior-variance approximations.
-Its payoff and throughput evidence (RESULTS §§20–21) is marked stale pending
-a provenance-tracked rerun: the API is supported, its scientific payoff so
-far unquantified.</p>
+Its payoff and throughput evidence (RESULTS §§20–21, regenerated 2026-09-03
+under the provenance wrapper): degree-3 corr(est, true g) 0.574 ± 0.021 vs
+degree-1 0.539 ± 0.015, prospective familywise-censored AUC 0.680 ± 0.039,
+~380 probands/s throughput.</p>
 <p>Check <code>n_relatives</code> (non-proband members within the chosen degree),
 <code>n_conditioned</code> (informative diagnosis bounds, including own status for
 GWAS), <code>n_closure_only</code> (extra structural ancestors) and <code>degree_max</code>.
 Two further fields guard the inputs rather than the score:
-<code>frac_unresolved_parents</code> is the fraction of records with a non-null parent
+<code>frac_records_with_unresolved_parents</code> is the fraction of records with a non-null parent
 reference that matched no id — a zero resolved share raises, a share above
 half warns, because that pattern is a broken join more often than a register
 boundary — and, under prediction, <code>proband_state</code> names each proband
