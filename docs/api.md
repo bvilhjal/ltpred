@@ -87,9 +87,13 @@ estimand is `E[g | relatives' records at the landmark]` — it is *not*
 additionally conditioned on the proband being disease-free at the landmark; the
 two agree on ranking within an age but differ in level across ages, because
 surviving to an older age disease-free is evidence of lower liability. The
-driver's payoff and throughput evidence (RESULTS §§20–21) is marked stale
-pending a provenance-tracked rerun: the API is supported, its scientific payoff
-so far unquantified.
+driver's payoff and throughput evidence (RESULTS §§20–21, regenerated
+2026-09-03 under the provenance wrapper): the API is supported, with the
+payoff quantified there -- degree-3 corr(est, true g) 0.574 ± 0.021 vs
+degree-1 0.539 ± 0.015 (paired contrast +0.035 ± 0.012), prospective
+familywise-censored AUC 0.680 ± 0.039, and ~380 probands/s throughput.
+The relatives'-events contrast is unresolved at R = 5 on both metrics and
+is not quoted as a payoff.
 
 The old `research.pipeline` implementation is retained only as historical
 checkout scaffolding. Its common `index_age` shortcut assigns a proband's

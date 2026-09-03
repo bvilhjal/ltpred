@@ -805,13 +805,14 @@ option for repeated-sample coverage. Artifacts: `bench_cip_estimation.csv`.
 
 ## 20. Pedigree inference from trio records (`bench_pedigree_inference.py`)
 
-> **Evidence status (2026-08-30):** the exact-kinship result below remains
-> valid, but the payoff arm is stale for the documented `max_degree`
-> observation contract. That historical arm used diagnoses from ancestors
-> added only for ancestral closure, including people beyond the requested
-> degree. It must be rerun with those `Pedigree.closure_only` bounds made
-> uninformative; the historical values are retained here for provenance, not
-> as current evidence for the size of the relatives-within-degree payoff.
+> **Evidence status (2026-09-03):** regenerated with the supported observation
+> contract -- ancestors added solely for ancestral closure keep uninformative
+> bounds, so the payoff arm measures relatives reached within `max_degree`
+> only. Run under the provenance wrapper on a clean tree (commit `bad41ad`;
+> free-threaded CPython 3.14.6, NumPy 2.4.6, SciPy 1.18.0, Numba 0.66.0 at 4
+> threads, BLAS pinned to 1; manifest `run_manifest.jsonl`). The historical
+> pre-closure-masking values are superseded, not retained, since the old arm
+> conditioned on out-of-scope diagnoses.
 
 `ltpred.pedigree` discovers a proband's relatives from population
 parent-offspring records (the Pedersen et al. 2025 graph-extraction niche,
@@ -837,12 +838,12 @@ value; rep 0 marks the single-run parts).
   probands per replicate, corr(est, truth) is **0.569 ± 0.013** using all
   relatives up to third degree vs **0.498 ± 0.016** with the fixed named-role
   subset the grammar encodes (parents, full siblings, and grandparents); the
-  paired all-minus-named-role contrast is **+0.0714 ± 0.0064**, 95% CI
-  [+0.054, +0.089] -- the gain over the role grammar is real and stable
+  paired all-minus-named-role contrast is **+0.0706 ± 0.0060**, 95% CI
+  [+0.054, +0.087] -- the gain over the role grammar is real and stable
   across populations (ratio of means 1.14; the two scores correlate
-  0.8979 ± 0.0065). Which relatives you include matters, consistent with the
+  0.8987 ± 0.0062). Which relatives you include matters, consistent with the
   LT-FGRS package (Pedersen et al.).
-- **Scale:** 3,000 extractions at degree 3 in 0.17 s (single-run timing,
+- **Scale:** 3,000 extractions at degree 3 in 0.19 s (single-run timing,
   ~0.06 ms per proband); per-proband neighborhoods stay small (tens of
   nodes), so per-proband extraction plus a small dense kinship covariance is
   the right architecture.
@@ -852,17 +853,19 @@ paper's path-counting approximation.
 
 ## 21. End-to-end register pipeline (`bench_register_pipeline.py`)
 
-> **Historical/stale evidence (2026-08-30):** every result in this section was
-> produced by the unsupported `research.pipeline`, which both conditioned on
-> ancestral-closure diagnoses beyond `max_degree` and used the proband's
-> attained `index_age` as every relative's censoring age. That is not general
-> calendar-time censoring across birth cohorts. These numbers are retained for
-> provenance but do not validate the supported `ltpred.pipeline`; all
-> accuracy/CIP/prospective/throughput arms and the CSV must be regenerated with
-> explicit `birth_time`, calendar `index_time`, and closure-only bounds
-> uninformative by default.
+> **Evidence status (2026-09-03):** regenerated with the supported
+> `ltpred.pipeline` driver -- explicit `birth_time`, calendar `index_time`
+> per proband, and closure-only bounds uninformative by default. Same
+> provenance as section 20 (commit `bad41ad`, free-threaded CPython 3.14.6,
+> Numba at 4 threads, BLAS pinned to 1; manifest `run_manifest.jsonl`). The
+> historical `research.pipeline` numbers (attained-age censoring shared across
+> generations, closure diagnoses conditioned on) are superseded, not retained:
+> they validated a different observation model. Note the simulator draws fresh
+> liabilities per replicate, so cross-stack reruns are different datasets, not
+> bit-identical ones; the claims below are replicate-mean claims, not
+> seed-locked constants.
 
-`research.pipeline.estimate_liabilities` chains trio records -> pedigree
+`ltpred.pipeline.estimate_liabilities` chains trio records -> pedigree
 discovery -> per-stratum CIP thresholds -> per-proband scores. Over five
 independent synthetic registers (3-generation populations of 2,529 to 2,719
 with remarriages; one CONSISTENT liability field `G ~ N(0, h2 A)`, `L = G + E`
@@ -874,47 +877,44 @@ values are in `bench_register_pipeline.csv` (long format: rep, metric,
 value; rep 0 marks the single-run throughput part).
 
 - **Accuracy / which relatives matter:** corr(est, true g) is
-  **0.447 ± 0.023** at degree 3 (first cousins) vs **0.414 ± 0.027** at
-  degree 1 (first-degree only), with calibration slopes 1.08 ± 0.04 and
-  1.06 ± 0.03. The paired degree-3-minus-degree-1 contrast,
-  **+0.0332 ± 0.0080** with 95% CI [+0.011, +0.055], resolves the
+  **0.574 ± 0.021** at degree 3 (first cousins) vs **0.539 ± 0.015** at
+  degree 1 (first-degree only), with calibration slopes 1.08 ± 0.03 and
+  1.08 ± 0.03. The paired degree-3-minus-degree-1 contrast,
+  **+0.0354 ± 0.0115** with 95% CI [+0.003, +0.068], resolves the
   second/third-degree contribution as a small real gain -- the LT-FGRS
-  effect, in the realistic direction. (corr ~0.45 is itself the honest
-  accuracy at these registers' case rates and age structure; the pedigree
-  benchmark's 0.569 used a 10% rate with a uniform lifetime threshold.)
-- **CIP estimated from the register itself:** 0.4450 ± 0.0236 vs
-  0.4468 ± 0.0233 with the oracle curve. The paired estimated-minus-oracle
-  contrast is -0.0018 ± 0.0009, 95% CI [-0.0043, +0.0007]: any cost of
+  effect, in the realistic direction. (corr ~0.57 is the accuracy at these
+  registers' case rates and age structure under the supported driver's
+  pinned-onset LT-FH++ bounds; the pedigree benchmark's 0.569 used a 10% rate
+  with a uniform lifetime threshold.)
+- **CIP estimated from the register itself:** 0.5728 ± 0.0214 vs
+  0.5741 ± 0.0214 with the oracle curve. The paired estimated-minus-oracle
+  contrast is -0.0013 ± 0.0007, 95% CI [-0.0031, +0.0005]: any cost of
   estimating the CIP from follow-up records at this register size is at most
   a few thousandths of a correlation point (consistent with section 19).
 - **Prospective prediction** (diagnosis in (40, 70] after index age 40;
-  observed future-case rate 0.073 ± 0.007): the honest familywise-censored
-  score reaches corr 0.145 ± 0.030 with the future outcome and rank
-  (Mann-Whitney) AUC **0.581 ± 0.031**, and is calibrated in the large --
-  mean model-consistent predicted future-case risk 0.069 ± 0.001 vs the
-  observed 0.073 (the prediction integrates the proband's posterior g and
+  observed future-case rate 0.072 ± 0.005): the honest familywise-censored
+  score reaches corr 0.187 ± 0.042 with the future outcome and rank
+  (Mann-Whitney) AUC **0.680 ± 0.039**, and is calibrated in the large --
+  mean model-consistent predicted future-case risk 0.072 ± 0.002 vs the
+  observed 0.072 (the prediction integrates the proband's posterior g and
   the residual E against the CIP; the linear calibration slope of future on
-  score is 0.26 ± 0.07). Adding relatives' post-index events gives corr
-  0.153 ± 0.026 and AUC 0.645 ± 0.018; leaking the proband's own future
-  outcome inflates to corr 0.387 ± 0.049 and AUC 0.785 ± 0.021.
-  - **The relatives'-events contrast now has an answer, and it is
-    metric-dependent.** Paired (b)-(a): **ΔAUC +0.0648 ± 0.0139, 95% CI
-    [+0.026, +0.103]** -- relatives' post-index events genuinely improve
-    rank discrimination -- while Δcorr is +0.0084 ± 0.0208, 95% CI
-    [-0.050, +0.066], unresolved at R = 5. The old single stored run had
-    shown a small corr decrease; that direction does not hold up under
-    replication. The divergence comes from the score scale: the extra
-    conditioning changes the score's dispersion (the calibration slope drops
-    to 0.16 from 0.26), which a correlation with a binary outcome prices in
-    but the rank statistic ignores. So: post-index relative events help
-    prediction (they are leakage for prospective use, not noise), and the
-    corr-based verdict of the previous single run was noise.
+  score is 0.19 ± 0.04). Adding relatives' post-index events gives corr
+  0.179 ± 0.040 and AUC 0.664 ± 0.039; leaking the proband's own future
+  outcome inflates to corr 0.665 ± 0.015 and AUC 0.992 ± 0.001.
+  - **The relatives'-events contrast is unresolved at R = 5, on both
+    metrics.** Paired (b)-(a): Δcorr **-0.0082 ± 0.0206**, 95% CI
+    [-0.066, +0.049]; ΔAUC **-0.0164 ± 0.0200**, 95% CI [-0.072, +0.039].
+    The historical run had resolved a ΔAUC gain (+0.065 ± 0.014) for
+    post-index relative events; under the supported driver's calendar
+    censoring that direction does not reproduce, and neither direction is
+    resolved here. Do not quote a relatives'-events payoff from this panel.
   - The proband's-own-outcome leakage is unambiguous and large: paired
-    (c)-(a) Δcorr **+0.2423 ± 0.0251**, 95% CI [+0.173, +0.312]; ΔAUC
-    +0.204 ± 0.016, 95% CI [+0.159, +0.249]. Honest censoring costs real
+    (c)-(a) Δcorr **+0.4778 ± 0.0384**, 95% CI [+0.371, +0.585]; ΔAUC
+    +0.312 ± 0.039, 95% CI [+0.204, +0.419]. Honest censoring costs real
     accuracy, and leaking the proband's own future buys plenty.
-- **Throughput:** 358 probands/s (400 probands in 1.1 s; single run, not
-  replicated), per-proband extraction plus a small dense kinship covariance
+- **Throughput:** 380 probands/s (400 probands in 1.1 s; single run, not
+  replicated, on a 10-core Apple M2 Pro at load ~4-5 with Numba at 4
+  threads), per-proband extraction plus a small dense kinship covariance
   each.
 
 ## 22. Tetrachoric correlations (`bench_tetrachoric.py`)
@@ -1683,6 +1683,17 @@ script exits 2 if they are missing. LTFGRS is the PA arm.
   interpreter). The merged-panel sections (§3, §8, §11, §24–§27, §29) were
   re-derived from the same artifacts, and the §26–§27 interval fields are
   now t-based, closing the earlier rerun caveat.
+- 2026-09-03: regenerated §§20–21 with the supported observation contract
+  (closure-only bounds uninformative; calendar `index_time` per proband) under
+  the provenance wrapper on a clean tree (commit `bad41ad`; free-threaded
+  CPython 3.14.6, NumPy 2.4.6, SciPy 1.18.0, Numba 0.66.0 at 4 threads, BLAS
+  pinned to 1; manifest `run_manifest.jsonl`). The historical pre-closure /
+  attained-age numbers validated a different observation model and are
+  superseded. Cross-stack reruns draw fresh liabilities per replicate (NumPy's
+  large-matrix `multivariate_normal` stream differs between 2.2 and 2.4), so
+  the claims are replicate-mean claims, not seed-locked constants. The
+  relatives'-events contrast is unresolved at R = 5 on both metrics and is
+  not quoted as a payoff.
 
 ## Remaining limitations
 

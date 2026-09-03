@@ -40,11 +40,11 @@ superseded snapshot, not an alternative public pipeline.
    factorisation with sparse relationship operators and sparse solves for
    pedigrees containing thousands of relatives.
 
-4. **Regenerate the register evidence.** The historical pedigree-payoff and
-   end-to-end register artifacts conditioned on closure-only diagnoses, and the
-   latter used one attained-age cutoff across generations. Rerun both repaired
-   benchmarks before quoting their payoff, prospective, or throughput numbers
-   for the public driver.
+4. **Regenerate the register evidence.** Done 2026-09-03: both repaired
+   benchmarks rerun under the provenance wrapper (RESULTS §§20–21, committed
+   CSVs, manifest records). The relatives'-events contrast is unresolved at
+   R = 5 on both metrics -- a larger-R rerun is the remaining evidence gap
+   before quoting a relatives'-events payoff.
 
 5. **Add a chunked driver.** Stream homogeneous family batches through the array
    kernels so biobank analyses need not hold all families and bounds in memory.

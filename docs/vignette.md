@@ -163,10 +163,10 @@ increment is worth the pipeline before you build it.
 These are squared-correlation ratios against known simulated genetic values,
 not measured increases in GWAS sample size. The separate association panels
 measure **causal-SNP noncentrality (NCP) on independent SNPs**; they do not
-validate real-LD, related-sample mixed-model GWAS. Historical register-driver
+validate real-LD, related-sample mixed-model GWAS. Register-driver
 results in [RESULTS §§20–21](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
-also predate the closure and calendar-time corrections. They are marked stale
-and are not evidence for the current public driver.
+were regenerated 2026-09-03 with the current closure and calendar-time
+observation contract and are evidence for the public driver.
 
 ## How to read the code on this page
 
@@ -390,8 +390,9 @@ $0.249 \pm 0.004$ against $0.259 \pm 0.003$
 This comparison changes a specified set of roles; it is not a universal
 recommendation for the register driver's `max_degree`. Choose the observation
 depth from the study design and data quality, then test the incremental value
-on held-out or known-truth data. The historical degree-payoff/register runs
-in RESULTS §§20–21 require rerunning after the closure/calendar fixes.
+on held-out or known-truth data. The degree-payoff/register runs in
+RESULTS §§20–21 were regenerated 2026-09-03 under the supported
+closure/calendar observation contract (see there for the numbers).
 
 Scoring may use overlapping extracted pedigrees (one per proband). Fitting
 $h^2$ in step 0 may not. ADuLT has no relatives: skip this step.
@@ -613,9 +614,10 @@ LT-FH++ with deterministic PA**. Use the lower-level APIs for C/M kernels,
 Gibbs, interval cases or PA-FGRS mixtures. It returns `PopulationScores`,
 not `LiabilityResult`: there is no `genetic` property or Monte-Carlo `se`
 column. `est` and `var` are PA mean and posterior-variance approximations.
-Its payoff and throughput evidence (RESULTS §§20–21) is marked stale pending
-a provenance-tracked rerun: the API is supported, its scientific payoff so
-far unquantified.
+Its payoff and throughput evidence (RESULTS §§20–21, regenerated 2026-09-03
+under the provenance wrapper): degree-3 corr(est, true g) 0.574 ± 0.021 vs
+degree-1 0.539 ± 0.015, prospective familywise-censored AUC 0.680 ± 0.039,
+~380 probands/s throughput.
 
 Check `n_relatives` (non-proband members within the chosen degree),
 `n_conditioned` (informative diagnosis bounds, including own status for

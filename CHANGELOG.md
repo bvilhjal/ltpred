@@ -27,8 +27,11 @@ version is 0 the public API may still change between minor releases.
 
 - `docs/api.md` and the vignette name the prediction estimand (relatives'
   records at the landmark, without conditioning on the proband being
-  disease-free there) and label the register driver supported with its payoff
-  unquantified pending the RESULTS sections 20-21 regeneration.
+  disease-free there) and quantify the register driver's payoff from the
+  regenerated RESULTS sections 20-21: degree-3 corr(est, true g)
+  0.574 ± 0.021 vs degree-1 0.539 ± 0.015 (paired +0.035 ± 0.012),
+  prospective familywise-censored AUC 0.680 ± 0.039, ~380 probands/s.
+  The relatives'-events contrast is unresolved at R = 5 and is not quoted.
 - CI pins `OPENBLAS_NUM_THREADS` / `OMP_NUM_THREADS` / `MKL_NUM_THREADS` to 1
   across all jobs, per the family convention: the R-lock tests assert exact
   agreement with locked reference scores, and threaded reductions can differ
