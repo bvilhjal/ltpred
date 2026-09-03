@@ -123,7 +123,7 @@ def register_example():
 
     # Input diagnostics: every non-null parent resolves here, and p was
     # disease-free and followed at the 2020 landmark.
-    assert gwas.frac_unresolved_parents == 0.0
+    assert gwas.frac_records_with_unresolved_parents == 0.0
     np.testing.assert_array_equal(prediction.proband_state,
                                   ["disease_free_and_followed"])
 

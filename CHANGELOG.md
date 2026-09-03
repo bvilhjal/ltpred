@@ -9,11 +9,14 @@ version is 0 the public API may still change between minor releases.
 ### Added
 
 - The register driver now surfaces two silent input failures found by the
-  2026-09b review. `PopulationScores.frac_unresolved_parents` reports the
-  fraction of records with a non-null parent reference that matched no id
-  (also counted per table as `ParentGraph.n_unresolved_parents`): a zero
+  2026-09b review. `PopulationScores.frac_records_with_unresolved_parents`
+  reports the fraction of records with a non-null parent reference that
+  matched no id (also counted per table as
+  `ParentGraph.n_unresolved_parents`): a zero
   resolved share raises, since that is an id-format or join mismatch rather
-  than a register boundary, and a share above half warns. Under
+  than a register boundary, and a share above half warns. (The field name
+  says "records" on purpose: it is a per-person fraction, not a
+  per-parent-reference fraction.) Under
   `use="prediction"`, `PopulationScores.proband_state` classifies each proband
   at their landmark as `disease_free_and_followed`, `prevalent_case` or
   `exited_before_index`, and any prevalent case warns; only the first belongs
@@ -26,6 +29,10 @@ version is 0 the public API may still change between minor releases.
   records at the landmark, without conditioning on the proband being
   disease-free there) and label the register driver supported with its payoff
   unquantified pending the RESULTS sections 20-21 regeneration.
+- CI pins `OPENBLAS_NUM_THREADS` / `OMP_NUM_THREADS` / `MKL_NUM_THREADS` to 1
+  across all jobs, per the family convention: the R-lock tests assert exact
+  agreement with locked reference scores, and threaded reductions can differ
+  in the last ulps. (The suite passes in the same ~65 s pinned.)
 
 ## 0.5.1 — 2026-08-30
 

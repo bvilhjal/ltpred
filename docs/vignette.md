@@ -621,7 +621,7 @@ Check `n_relatives` (non-proband members within the chosen degree),
 `n_conditioned` (informative diagnosis bounds, including own status for
 GWAS), `n_closure_only` (extra structural ancestors) and `degree_max`.
 Two further fields guard the inputs rather than the score:
-`frac_unresolved_parents` is the fraction of records with a non-null parent
+`frac_records_with_unresolved_parents` is the fraction of records with a non-null parent
 reference that matched no id — a zero resolved share raises, a share above
 half warns, because that pattern is a broken join more often than a register
 boundary — and, under prediction, `proband_state` names each proband

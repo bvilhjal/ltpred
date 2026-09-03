@@ -252,7 +252,7 @@ def test_unresolved_parents_are_surfaced_and_warned():
             status=np.array([0, 0, 0]), age=np.array([65.0, 70.0, 45.0]),
             use="gwas", cip_ages=CIP_AGES, cip_values=CIP_VALUES,
             k_pop=K_POP, max_degree=1)
-    assert out.frac_unresolved_parents == pytest.approx(2.0 / 3.0)
+    assert out.frac_records_with_unresolved_parents == pytest.approx(2.0 / 3.0)
     assert build_parent_graph(ids, father, mother).n_unresolved_parents == 2
 
 
@@ -273,8 +273,8 @@ def test_declared_unknown_founders_stay_silent():
         out = estimate_liabilities(**pipeline_kwargs())
         prediction = estimate_liabilities(**pipeline_kwargs(
             use="prediction", birth_time=BIRTH, index_time=[2020.0]))
-    assert out.frac_unresolved_parents == 0.0
-    assert prediction.frac_unresolved_parents == 0.0
+    assert out.frac_records_with_unresolved_parents == 0.0
+    assert prediction.frac_records_with_unresolved_parents == 0.0
     np.testing.assert_array_equal(prediction.proband_state,
                                   ["disease_free_and_followed"])
 

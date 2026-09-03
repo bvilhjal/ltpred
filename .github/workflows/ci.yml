@@ -5,6 +5,16 @@ on:
     branches: [main]
   pull_request:
 
+# Pin BLAS threads for deterministic numerics (family convention): the R-lock
+# tests assert exact agreement with locked reference scores, and threaded
+# reductions can differ in the last ulps. Numba's prange pool is sized by
+# NUMBA_NUM_THREADS, not OMP_NUM_THREADS, so the parallel kernels keep their
+# threads.
+env:
+  OPENBLAS_NUM_THREADS: 1
+  OMP_NUM_THREADS: 1
+  MKL_NUM_THREADS: 1
+
 jobs:
   test:
     # `fast` extra installed: the JIT-compiled path. Kept on both ends of the

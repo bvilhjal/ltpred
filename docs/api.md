@@ -97,7 +97,7 @@ attained age to every relative and is not a valid general familywise
 calendar-time censor across generations.
 
 Two boundary diagnostics are surfaced on `PopulationScores` rather than
-silently absorbed: `frac_unresolved_parents` (the fraction of records with a
+silently absorbed: `frac_records_with_unresolved_parents` (the fraction of records with a
 non-null parent reference matching no id — a zero resolved share raises, a
 share above half warns) and, under `use="prediction"`, `proband_state`
 (`disease_free_and_followed` / `prevalent_case` / `exited_before_index` at the

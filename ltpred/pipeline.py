@@ -53,7 +53,7 @@ class PopulationScores:
     ``n_closure_only`` counts ancestors added solely to preserve exact kinship;
     and ``degree_max`` is the largest non-closure degree present.
 
-    ``frac_unresolved_parents`` is the fraction of population records with at
+    ``frac_records_with_unresolved_parents`` is the fraction of population records with at
     least one non-null parent reference that matched no id; a high value means
     a register boundary (parents born before registration started) or a broken
     id join. ``proband_state`` is set under ``use="prediction"`` only (``None``
@@ -71,7 +71,7 @@ class PopulationScores:
     n_conditioned: np.ndarray
     n_closure_only: np.ndarray
     degree_max: np.ndarray
-    frac_unresolved_parents: float = 0.0
+    frac_records_with_unresolved_parents: float = 0.0
     proband_state: np.ndarray | None = None
 
 
@@ -159,7 +159,7 @@ def estimate_liabilities(
     absorbed. A non-null parent reference that matches no id becomes a founder
     (a register boundary: parents born before registration started), and the
     fraction of records with at least one such reference is returned as
-    ``PopulationScores.frac_unresolved_parents``; when **no** non-null
+    ``PopulationScores.frac_records_with_unresolved_parents``; when **no** non-null
     reference resolves the table cannot be a boundary effect -- an id-format
     or join mismatch is the likely cause -- and the call raises, while an
     unresolved share above 50% warns. Under ``use="prediction"`` each proband
@@ -238,7 +238,7 @@ def estimate_liabilities(
         n_refs += (not f_null) + (not m_null)
         n_unresolved_records += ((not f_null and fid not in pos)
                                  or (not m_null and mid not in pos))
-    frac_unresolved_parents = n_unresolved_records / n if n else 0.0
+    frac_records_with_unresolved_parents = n_unresolved_records / n if n else 0.0
     if n_refs > 0 and graph.n_unresolved_parents == n_refs:
         raise ValueError(
             f"no non-null father/mother reference resolved against ids "
@@ -246,15 +246,15 @@ def estimate_liabilities(
             "this -- within-register parent links would still resolve. Check "
             "id formats and dtypes (e.g. integer ids with string parent "
             "references can never match).")
-    if frac_unresolved_parents > _UNRESOLVED_PARENT_WARN_FRACTION:
+    if frac_records_with_unresolved_parents > _UNRESOLVED_PARENT_WARN_FRACTION:
         warnings.warn(
-            f"{frac_unresolved_parents:.1%} of records carry a non-null "
+            f"{frac_records_with_unresolved_parents:.1%} of records carry a non-null "
             "parent reference that matches no id. Parents born before "
             "registration started are expected founders, but a share this "
             "high also results from an id-format mismatch or a failed join, "
             "which silently reduces every family-history score to the "
             "proband's own status. See PopulationScores."
-            "frac_unresolved_parents.", UserWarning, stacklevel=2)
+            "frac_records_with_unresolved_parents.", UserWarning, stacklevel=2)
     missing_probands = [proband for proband in probands if proband not in pos]
     if missing_probands:
         raise ValueError(f"probands not among ids: {missing_probands[:5]}")
@@ -381,6 +381,6 @@ def estimate_liabilities(
         n_conditioned=n_conditioned,
         n_closure_only=n_closure_only,
         degree_max=degree_max,
-        frac_unresolved_parents=frac_unresolved_parents,
+        frac_records_with_unresolved_parents=frac_records_with_unresolved_parents,
         proband_state=proband_state,
     )
