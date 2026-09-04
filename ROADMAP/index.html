@@ -850,6 +850,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#deliberate-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deliberate boundaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#graduation-rule" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1037,6 +1048,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#deliberate-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deliberate boundaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#graduation-rule" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1068,7 +1090,7 @@
 
 
 <h1 id="roadmap">Roadmap<a class="headerlink" href="#roadmap" title="Permanent link">&para;</a></h1>
-<p>This page lists unfinished work only. The <a href="https://github.com/bvilhjal/ltpred/blob/main/CHANGELOG.md">changelog</a> records
+<p>This page lists unfinished work and deliberate boundaries. The <a href="https://github.com/bvilhjal/ltpred/blob/main/CHANGELOG.md">changelog</a> records
 completed implementation history, <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">benchmark results</a>
 are the canonical evidence ledger, and the <a href="https://github.com/bvilhjal/ltpred/blob/main/research/README.md"><code>research/</code> README</a>
 inventories checkout-only prototypes. Keeping those roles separate avoids the
@@ -1138,6 +1160,21 @@ superseded snapshot, not an alternative public pipeline.</p>
    multi-trait engine.</p>
 </li>
 </ol>
+<h2 id="deliberate-boundaries">Deliberate boundaries<a class="headerlink" href="#deliberate-boundaries" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Keep the PA-FGRS censoring mixture PA-only on the current roadmap.</strong> Its
+  observation is a two-component mixture, not the single hyperrectangular
+  truncation distribution sampled by Algorithm G. A Gibbs comparator needs
+  mixture-aware full conditionals (or a latent lifetime-case indicator) under
+  the same <code>K_i</code>/<code>K_pop</code> onset-independence model, plus exact enumeration or
+  quadrature checks on small pedigrees. It is not a release blocker; until such
+  an implementation is added, every PA--Gibbs agreement claim remains
+  restricted to no-mixture inputs.</li>
+<li><strong>Do not downgrade multi-trait shared-environment models.</strong> <code>c2</code>/<code>m2</code>
+  proportions alone do not define the cross-trait covariance of <code>C</code> or <code>M</code>.
+  The dispatcher therefore raises rather than dropping them. A supported
+  extension must accept and validate those cross-trait covariance inputs.</li>
+</ul>
 <h2 id="graduation-rule">Graduation rule<a class="headerlink" href="#graduation-rule" title="Permanent link">&para;</a></h2>
 <p>A new statistical capability moves into <code>ltpred/</code> only after its estimand and
 observation model are documented, invalid inputs fail clearly, known-truth

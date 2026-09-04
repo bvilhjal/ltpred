@@ -3982,7 +3982,9 @@ wire sibship (<code>C</code>) and couple (<code>M</code>) shared-environment com
 the family covariance (see
 :func:<code>ltpred.covariance.construct_covmat_single</code>; <code>h2 + c2 + m2 &lt;= 1</code>
 required). Nonzero <code>c2</code>/<code>m2</code> are not supported for multi-trait
-estimation. <code>dtype=np.float32</code> stores the per-family
+estimation: component proportions alone do not specify cross-trait
+environmental covariance, so they raise rather than being discarded.
+<code>dtype=np.float32</code> stores the per-family
 liability bounds in single precision (half the memory) — useful at biobank
 scale. For Gibbs, <code>seed</code> must be a non-boolean integer in
 <code>[0, 2**32 - 1]</code> or <code>None</code>; PA ignores it. The same applies to <code>tol</code>,
