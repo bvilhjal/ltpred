@@ -8,7 +8,8 @@ says your use does not need. Each step links to the deeper reference.
 
 ## Install
 
-From a checkout (not yet on PyPI):
+PyPI publication is pending. Until then, installation from a source checkout is
+the supported path:
 
 ```bash
 pip install -e ".[fast]"     # [fast] adds the Numba JIT — recommended for real runs

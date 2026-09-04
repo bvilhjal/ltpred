@@ -15,8 +15,8 @@ authors:
     given-names: "Bjarni Jóhann"
 repository-code: "https://github.com/bvilhjal/ltpred"
 license: MIT
-version: 0.5.1
-date-released: "2026-08-30"
+version: 0.5.2
+date-released: "2026-09-04"
 keywords:
   - liability-threshold model
   - LT-FH

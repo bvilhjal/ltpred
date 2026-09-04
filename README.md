@@ -143,7 +143,9 @@ and [algorithm.md](docs/algorithm.md) for the math and the performance internals
 
 ## Installation
 
-Not yet on PyPI. From a local checkout:
+PyPI publication is pending (see the [roadmap](docs/ROADMAP.md) and
+[release checklist](docs/RELEASING.md)). Until then, installation from a source
+checkout is the supported path:
 
 ```bash
 git clone https://github.com/bvilhjal/ltpred.git
@@ -254,7 +256,8 @@ included). On an arbitrary pedigree, pass the aligned `C` and `M` kernels too:
 strangers. The current fitters remain role-based and require independent,
 non-overlapping families; they do not fit components on overlapping extracted
 register pedigrees. The high-level multi-trait route rejects `c2`/`m2` rather
-than silently ignoring them.
+than silently ignoring them: component proportions alone do not specify their
+cross-trait environmental covariance.
 
 Not included: an igraph-style pedigree-object interface, plotting utilities, and
 the xgboost heritability helpers from LTFHPlus; and ltpred does not build LD or run

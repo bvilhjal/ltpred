@@ -339,6 +339,10 @@ diagonal. Incoherent inputs now raise instead of being silently changed.
 Multi-trait borrows strength across genetically correlated diseases. It is
 Gibbs-only — the default picks Gibbs automatically for multiple traits, and an
 explicit `method="pearson-aitken"` here raises `NotImplementedError`.
+Nonzero `c2`/`m2` also raise: component proportions alone do not specify the
+cross-trait covariance of `C` or `M`. Separate single-trait liability estimates
+are appropriate only when giving up cross-trait borrowing is intentional; a
+joint extension needs explicit cross-trait environmental covariance inputs.
 Experimental genetic-correlation fitting is available only in the checkout's
 unsupported `research/` package; see
 [Inference](inference.md#unsupported-research-prototypes).

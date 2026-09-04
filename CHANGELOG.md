@@ -6,6 +6,8 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.5.2 — 2026-09-04
+
 ### Added
 
 - The register driver now surfaces two silent input failures found by the
@@ -36,6 +38,15 @@ version is 0 the public API may still change between minor releases.
   across all jobs, per the family convention: the R-lock tests assert exact
   agreement with locked reference scores, and threaded reductions can differ
   in the last ulps. (The suite passes in the same ~65 s pinned.)
+- Installation documentation now identifies a source checkout as the supported
+  path while the first PyPI publication remains pending, and links the release
+  plan rather than leaving the distribution policy implicit.
+- The roadmap records that the PA-FGRS censoring mixture remains PA-only for the
+  current plan: its two-component observation needs a separately implemented
+  and validated mixture-aware sampler before Gibbs can serve as a reference.
+- The multi-trait `c2`/`m2` rejection now explains that component proportions
+  alone do not define cross-trait environmental covariance. It still
+  raises rather than silently changing the requested model.
 
 ## 0.5.1 — 2026-08-30
 

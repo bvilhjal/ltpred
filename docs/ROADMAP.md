@@ -1,6 +1,6 @@
 # Roadmap
 
-This page lists unfinished work only. The [changelog](https://github.com/bvilhjal/ltpred/blob/main/CHANGELOG.md) records
+This page lists unfinished work and deliberate boundaries. The [changelog](https://github.com/bvilhjal/ltpred/blob/main/CHANGELOG.md) records
 completed implementation history, [benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
 are the canonical evidence ledger, and the [`research/` README](https://github.com/bvilhjal/ltpred/blob/main/research/README.md)
 inventories checkout-only prototypes. Keeping those roles separate avoids the
@@ -64,6 +64,21 @@ superseded snapshot, not an alternative public pipeline.
    benchmark demonstrates adequate accuracy across rare traits, asymmetric
    truncation, and larger pedigrees; otherwise retain Gibbs as the honest
    multi-trait engine.
+
+## Deliberate boundaries
+
+- **Keep the PA-FGRS censoring mixture PA-only on the current roadmap.** Its
+  observation is a two-component mixture, not the single hyperrectangular
+  truncation distribution sampled by Algorithm G. A Gibbs comparator needs
+  mixture-aware full conditionals (or a latent lifetime-case indicator) under
+  the same `K_i`/`K_pop` onset-independence model, plus exact enumeration or
+  quadrature checks on small pedigrees. It is not a release blocker; until such
+  an implementation is added, every PA--Gibbs agreement claim remains
+  restricted to no-mixture inputs.
+- **Do not downgrade multi-trait shared-environment models.** `c2`/`m2`
+  proportions alone do not define the cross-trait covariance of `C` or `M`.
+  The dispatcher therefore raises rather than dropping them. A supported
+  extension must accept and validate those cross-trait covariance inputs.
 
 ## Graduation rule
 

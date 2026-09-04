@@ -1040,7 +1040,9 @@ def estimate_liability(families: Sequence, h2: ArrayLike = 0.5, *,
     the family covariance (see
     :func:`ltpred.covariance.construct_covmat_single`; ``h2 + c2 + m2 <= 1``
     required). Nonzero ``c2``/``m2`` are not supported for multi-trait
-    estimation. ``dtype=np.float32`` stores the per-family
+    estimation: component proportions alone do not specify cross-trait
+    environmental covariance, so they raise rather than being discarded.
+    ``dtype=np.float32`` stores the per-family
     liability bounds in single precision (half the memory) — useful at biobank
     scale. For Gibbs, ``seed`` must be a non-boolean integer in
     ``[0, 2**32 - 1]`` or ``None``; PA ignores it. The same applies to ``tol``,
@@ -1078,7 +1080,9 @@ def estimate_liability(families: Sequence, h2: ArrayLike = 0.5, *,
             or (m2 is not None and np.any(np.asarray(m2, dtype=float) != 0.0))):
         raise NotImplementedError(
             "c2/m2 shared-environment components are not supported for "
-            "multi-trait liability estimation")
+            "multi-trait liability estimation: c2/m2 proportions alone do not specify "
+            "cross-trait environmental covariance; use separate single-trait "
+            "estimation only if giving up cross-trait borrowing is intended")
     return _estimate_liability_multi(families, h2_vec=h2,
                                      genetic_corrmat=genetic_corrmat,
                                      full_corrmat=full_corrmat, phen_names=phen_names,

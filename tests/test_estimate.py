@@ -516,7 +516,10 @@ def test_default_method_is_pa_and_multitrait_falls_back_to_gibbs():
 def test_multitrait_rejects_unsupported_shared_environment_components(component):
     fam = Family("f", [Member("o", [-np.inf, -np.inf], [0.0, 0.0])])
 
-    with pytest.raises(NotImplementedError, match="not supported.*multi-trait"):
+    with pytest.raises(
+        NotImplementedError,
+        match="do not specify cross-trait environmental covariance",
+    ):
         estimate_liability(
             [fam], h2=[0.5, 0.4], genetic_corrmat=np.eye(2),
             full_corrmat=np.eye(2), **component,
