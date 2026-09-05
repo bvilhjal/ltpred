@@ -1099,8 +1099,11 @@ usual archaeological sport of deciding which copied number is the current one.</
 <p>The supported package provides LT-FH, LT-FH++, ADuLT, and the single-trait
 Pearson--Aitken PA-FGRS mixture; role-based and arbitrary-kinship inputs; a
 narrow population-register driver with explicit GWAS/prediction observation
-sets; Gibbs and single-trait Pearson--Aitken inference; and common-threshold
-liability-scale moment fitting. See the <a href="../guide/">guide</a>,
+sets; Gibbs and single-trait Pearson--Aitken inference; optional additive
+nuclear-family quadrature; and common-threshold liability-scale moment fitting.
+The opt-in pairwise likelihood fitter has numerical and known-truth checks;
+broad interval-coverage and statistical-efficiency validation remains pending.
+See the <a href="../guide/">guide</a>,
 <a href="../algorithm/">algorithm</a>, and <a href="../assumptions/">assumptions</a> for the exact
 contracts.</p>
 <p>Experimental covariance models, selection-aware fitting, genetic-correlation
@@ -1127,7 +1130,9 @@ superseded snapshot, not an alternative public pipeline.</p>
 <li>
 <p><strong>Scale a single giant pedigree.</strong> Replace dense covariance construction and
    factorisation with sparse relationship operators and sparse solves for
-   pedigrees containing thousands of relatives.</p>
+   pedigrees containing thousands of informative relatives. Selected relationship
+   recursion and bounded reuse now reduce the repeated local register work;
+   they do not remove a dense matrix for a genuinely large informative family.</p>
 </li>
 <li>
 <p><strong>Regenerate the register evidence.</strong> Done 2026-09-03: both repaired
@@ -1162,6 +1167,12 @@ superseded snapshot, not an alternative public pipeline.</p>
 </ol>
 <h2 id="deliberate-boundaries">Deliberate boundaries<a class="headerlink" href="#deliberate-boundaries" title="Permanent link">&para;</a></h2>
 <ul>
+<li><strong>Validate the new methods before changing defaults.</strong> Broaden quadrature
+  stress tests across rare and discordant large sibships, and assess pairwise
+  interval coverage, boundary behavior, and efficiency against the existing
+  fitter on equal cohorts. Direct incident-risk models and sparse pedigree
+  message passing remain comparison studies; the new reductions do not validate
+  either model as a replacement for LT-FH++.</li>
 <li><strong>Keep the PA-FGRS censoring mixture PA-only on the current roadmap.</strong> Its
   observation is a two-component mixture, not the single hyperrectangular
   truncation distribution sampled by Algorithm G. A Gibbs comparator needs

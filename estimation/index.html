@@ -614,6 +614,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#nuclear-family-quadrature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nuclear-family quadrature
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#scaling-to-large-cohorts" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1170,6 +1181,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#nuclear-family-quadrature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nuclear-family quadrature
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#scaling-to-large-cohorts" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1234,7 +1256,7 @@
 
 
 <h1 id="estimation">Estimation<a class="headerlink" href="#estimation" title="Permanent link">&para;</a></h1>
-<p>Running the estimator, reading the result, choosing between the two back-ends, and
+<p>Running the estimator, reading the result, choosing an inference engine, and
 scaling up. Assumes you already have families with liability bounds — see
 <a href="../data-preparation/">data preparation</a>.</p>
 <h2 id="building-families">Building families<a class="headerlink" href="#building-families" title="Permanent link">&para;</a></h2>
@@ -1268,7 +1290,9 @@ estimator at all; see the <a href="../vignette/">vignette</a>.</p>
   multi-trait model. Pass
   <code>"gibbs"</code> to force the sampler (needed
   for multiple traits, a Monte-Carlo SE, or a sampling-based cross-check), or
-  <code>"pearson-aitken"</code> (aliases <code>"pa"</code>, <code>"aitken"</code>) to force PA. Bounds determine the observation
+  <code>"pearson-aitken"</code> (aliases <code>"pa"</code>, <code>"aitken"</code>) to force PA. For additive
+  nuclear families, <code>"quadrature"</code> selects the opt-in
+  <a href="#nuclear-family-quadrature">numerical integration route</a>. Bounds determine the observation
   encoding; inclusion of relatives distinguishes LT-FH++ from ADuLT. The engine
   is orthogonal to both. PA-FGRS is the exception: its published name includes PA,
   and ltpred's censoring mixture is PA-only.</li>
@@ -1280,6 +1304,7 @@ estimator at all; see the <a href="../vignette/">vignette</a>.</p>
   variance components; see below.</li>
 </ul>
 <h2 id="reading-liabilityresult">Reading <code>LiabilityResult</code><a class="headerlink" href="#reading-liabilityresult" title="Permanent link">&para;</a></h2>
+<p><strong>Table 1. Liability estimates and method-specific diagnostics.</strong></p>
 <table>
 <thead>
 <tr>
@@ -1298,24 +1323,33 @@ estimator at all; see the <a href="../vignette/">vignette</a>.</p>
 </tr>
 <tr>
 <td><code>res.est["genetic"]</code></td>
-<td>genetic-liability estimate per proband — a Gibbs Monte-Carlo estimate or PA sequential-moment approximation to the posterior mean; <strong>the score</strong></td>
+<td>posterior-mean genetic-liability score: estimated by Gibbs sampling, approximated by PA moments, or computed numerically by quadrature</td>
 </tr>
 <tr>
 <td><code>res.est["full"]</code></td>
-<td>full-liability estimate (if requested), with the same Gibbs/PA interpretation as above; see caveat below</td>
+<td>corresponding full-liability estimate, if requested; see below</td>
 </tr>
 <tr>
 <td><code>res.se["genetic"]</code></td>
-<td>the <strong>estimator's own numerical error</strong> in <code>res.est</code> — Gibbs: batch-means Monte-Carlo standard error of the mean, which shrinks as you sample more; PA: <code>0</code>, because it is deterministic (not because it is exact)</td>
+<td>Gibbs batch-means <strong>Monte-Carlo</strong> SE; zero for deterministic PA and quadrature, which does not imply zero approximation or integration error</td>
 </tr>
 <tr>
 <td><code>res.var["genetic"]</code></td>
-<td>the <strong>posterior</strong> conditional variance <code>Var(G_i \| family)</code> — how uncertain this proband's liability is given their family. Reported by <strong>both</strong> engines: Gibbs as the Monte-Carlo variance of its retained draws, PA as its sequential-moment approximation. It does <strong>not</strong> shrink as you sample more, and it is <strong>not</strong> a standard error of the estimate</td>
+<td><strong>posterior</strong> conditional variance <code>Var(G_i \| family)</code>, estimated by the selected engine; uncertainty about the proband's liability, not an SE that shrinks with numerical effort</td>
+</tr>
+<tr>
+<td><code>res.quadrature_error["genetic"]</code></td>
+<td>quadrature only: largest mean/variance change over the last two refinements, not a certified error bound; the dictionary is <code>None</code> for other engines</td>
+</tr>
+<tr>
+<td><code>res.quadrature_nodes["genetic"]</code></td>
+<td>quadrature only: nodes per active factor dimension, or zero for an analytic answer; the dictionary is <code>None</code> for other engines</td>
 </tr>
 </tbody>
 </table>
-<p>The two are different quantities and neither substitutes for the other: <code>var</code>
-describes the proband, <code>se</code> describes the calculation. On a seven-observation
+<p>These quantities answer different questions: <code>var</code> describes the proband,
+<code>se</code> describes sampling noise, and <code>quadrature_error</code> describes numerical
+refinement. On a seven-observation
 family fold PA's <code>var</code> sits within 5% of the sampler's
 (<code>tests/test_pearson_aitken.py::test_pa_conditional_variance_matches_gibbs_multi_truncation</code>).</p>
 <p><code>res.genetic</code> is shorthand for <code>res.est["genetic"]</code> (the usual single-trait output).
@@ -1325,8 +1359,9 @@ Multi-trait columns are suffixed with the phenotype name, e.g.
 </code></pre></div>
 <blockquote>
 <p><strong><code>out="full"</code> is E[l_o | own interval and relatives]</strong>
-on both engines. Pearson–Aitken applies the target's own bound after the
-relative fold (an unbounded <code>g</code> is a no-op). A lone case therefore gives a
+on each supported engine. No-mixture PA conditions exact pins jointly first;
+an unpinned target's interval is folded after the remaining relative intervals
+(an unbounded <code>g</code> is a no-op). A lone case therefore gives a
 positive PA <code>full</code>, matching Gibbs, not zero. Omit role <code>o</code> or set its
 bounds to <code>(-inf, inf)</code> when you want a relatives-only predictor — the
 same rule as for prospective prediction. The canonical GWAS phenotype is
@@ -1337,8 +1372,8 @@ still <code>out="genetic"</code>.</p>
                      | statuses, ages, family structure, h2, CIP/prevalence model ]
 </code></pre></div>
 <p><code>res.est["genetic"]</code> targets the <strong>posterior mean additive genetic liability</strong> under
-the specified liability-threshold model—by Monte Carlo for Gibbs and a
-sequential-moment approximation for PA—and is a family-history-derived <em>latent</em>
+the specified liability-threshold model—by Gibbs sampling, PA moment
+approximation or nuclear-family quadrature—and is a family-history-derived <em>latent</em>
 phenotype on the standardized liability scale. It is the threshold-model,
 family-history analogue of a BLUP / selection-index breeding value (see
 <a href="../algorithm/#connection-to-selection-index-and-blup">algorithm.md</a>). Concretely:</p>
@@ -1437,8 +1472,9 @@ the sampling design. The family bootstrap does not correct ascertainment bias.</
 Write Algorithm G for the truncated-MVN Gibbs sampler and
 Algorithm P for the Pearson–Aitken sequential-selection sweep
 (<a href="../algorithm/#inference-engine-1-gibbs-sampler">algorithm.md</a>).
-G is exact in the limit of infinite draws. P is exact for a single
-interval or a pin, and a two-moment approximation thereafter.</p>
+G is exact in the limit of infinite draws. No-mixture P conditions pins jointly
+and marginalizes uninformative rows first. It is exact with zero or one remaining
+interval, and a two-moment approximation for multiple remaining intervals.</p>
 <p>In the benchmarked <strong>no-mixture</strong> family structures, PA and Gibbs
 posterior-mean <code>genetic</code> estimates had correlation ≥ 0.997. For
 unusual pedigrees — very large, densely affected, or heavily
@@ -1455,6 +1491,7 @@ affected). That union event is not equivalent to separately observed per-sibling
 intervals. ltpred requires separate member intervals, so its PA–Gibbs benchmarks
 test a different, no-mixture observation model
 (<a href="https://doi.org/10.1038/s41588-020-0613-6">Hujoel et al. 2020</a>).</p>
+<p><strong>Table 2. Gibbs and PA in the benchmarked comparison.</strong></p>
 <table>
 <thead>
 <tr>
@@ -1518,6 +1555,43 @@ causal-NCP result under the benchmark's marginal association calculation and
 non-overlapping simulated families. That is not evidence from a real-LD,
 related-sample mixed-model GWAS. These comparisons also do not validate the
 PA-only censoring mixture.</p>
+<h2 id="nuclear-family-quadrature">Nuclear-family quadrature<a class="headerlink" href="#nuclear-family-quadrature" title="Permanent link">&para;</a></h2>
+<p>For a numerical posterior cross-check on an additive nuclear family, pass
+<code>method="quadrature"</code> to <code>estimate_liability</code>, or call
+<code>estimate_liability_quadrature_arrays</code> for aligned arrays. It conditions on the two
+parental breeding values: adding siblings adds likelihood factors while the
+remaining integral has at most two dimensions. Point observations and simple
+conditional moments are handled analytically. The ordinary single-trait
+<code>estimate_liability</code> default remains PA.</p>
+<p>For <code>Family</code> inputs, numerical controls are <code>quadrature_atol</code> and
+<code>quadrature_max_nodes</code>; the resulting <code>LiabilityResult</code> carries the dictionaries
+in Table 1. The explicit array API uses <code>atol</code> and <code>max_nodes</code> and returns a
+<code>QuadratureResult</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability_quadrature_arrays</span>
+
+<span class="n">q</span> <span class="o">=</span> <span class="n">estimate_liability_quadrature_arrays</span><span class="p">(</span>
+    <span class="n">roles</span><span class="o">=</span><span class="p">[</span><span class="s2">"o"</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">,</span> <span class="s2">"s1"</span><span class="p">],</span>
+    <span class="n">lower</span><span class="o">=</span><span class="p">[[</span><span class="mf">2.0</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">]],</span>
+    <span class="n">upper</span><span class="o">=</span><span class="p">[[</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">]],</span>
+    <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s2">"genetic"</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">,</span> <span class="n">max_nodes</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">q</span><span class="o">.</span><span class="n">est</span><span class="p">,</span> <span class="n">q</span><span class="o">.</span><span class="n">var</span>              <span class="c1"># posterior mean and posterior variance</span>
+<span class="n">q</span><span class="o">.</span><span class="n">error</span><span class="p">,</span> <span class="n">q</span><span class="o">.</span><span class="n">n_nodes</span>        <span class="c1"># refinement diagnostic and nodes per active dimension</span>
+</code></pre></div>
+<p>Bounds have shape <code>(n_families, len(roles))</code>. Supported roles are unique <code>o</code>,
+<code>m</code>, <code>f</code>, <code>s1</code>, <code>s2</code>, ... with unrelated, noninbred parents and <code>0 &lt;= h2 &lt; 1</code>.
+Other pedigrees, shared-environment components and the PA-FGRS censoring mixture
+are outside this API. Finite intervals, onset pins and uninformative bounds are
+supported. Omit <code>o</code> or leave its bounds uninformative for a relatives-only
+prediction; <code>out="full"</code> instead targets the proband's full liability.</p>
+<p><code>q.var</code> measures posterior uncertainty. <code>q.error</code> measures the largest change
+in the mean or variance across the last two quadrature refinements; it is
+neither a certified numerical error bound nor a Monte-Carlo SE. Analytic
+answers report zero nodes and zero refinement error. The <code>max_nodes</code> limit is
+64–512 nodes <strong>per active dimension</strong>, and failure to meet the refinement
+criterion raises <code>RuntimeError</code> identifying the family. No unchecked result
+is returned on nonconvergence.</p>
 <h2 id="scaling-to-large-cohorts">Scaling to large cohorts<a class="headerlink" href="#scaling-to-large-cohorts" title="Permanent link">&para;</a></h2>
 <p>For millions of probands, the <code>Family</code>/<code>Member</code> objects and their per-call bounds
 assembly become the bottleneck (the PA math is already sub-second for millions).
@@ -1621,6 +1695,7 @@ genomic-control inflation caused by the deliberately misspecified
 single-threshold analysis; this does not replace ordinary GWAS covariate
 adjustment or guarantee calibration under other misspecification.</p>
 <h2 id="options-reference">Options reference<a class="headerlink" href="#options-reference" title="Permanent link">&para;</a></h2>
+<p><strong>Table 3. High-level estimator options.</strong></p>
 <table>
 <thead>
 <tr>
@@ -1633,7 +1708,7 @@ adjustment or guarantee calibration under other misspecification.</p>
 <tr>
 <td><code>method</code></td>
 <td style="text-align: right;"><code>None</code> → PA (single-trait), Gibbs (multi-trait)</td>
-<td><code>"pearson-aitken"</code> or <code>"gibbs"</code> to force</td>
+<td><code>"pearson-aitken"</code>, <code>"gibbs"</code>, or opt-in nuclear-family <code>"quadrature"</code></td>
 </tr>
 <tr>
 <td><code>h2</code></td>
@@ -1669,6 +1744,16 @@ adjustment or guarantee calibration under other misspecification.</p>
 <td><code>max_rounds</code></td>
 <td style="text-align: right;"><code>100</code></td>
 <td>Gibbs: cap on convergence rounds</td>
+</tr>
+<tr>
+<td><code>quadrature_atol</code></td>
+<td style="text-align: right;"><code>1e-8</code></td>
+<td>quadrature: successive mean/variance refinement tolerance, not a certified error bound</td>
+</tr>
+<tr>
+<td><code>quadrature_max_nodes</code></td>
+<td style="text-align: right;"><code>128</code></td>
+<td>quadrature: maximum nodes per active dimension; accepted range 64–512</td>
 </tr>
 <tr>
 <td><code>seed</code></td>

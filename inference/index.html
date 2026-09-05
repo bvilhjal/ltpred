@@ -598,6 +598,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#deterministic-pairwise-fitting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deterministic pairwise fitting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ascertained-samples" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1099,6 +1110,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#deterministic-pairwise-fitting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deterministic pairwise fitting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ascertained-samples" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1190,7 +1212,7 @@ Unsupported experimental inferential machinery lives in the checkout-only
 <code>research/</code> package; see <a href="#unsupported-research-prototypes">Unsupported research prototypes</a>.</p>
 <div class="admonition danger">
 <p class="admonition-title">Supported sampling contract</p>
-<p><code>fit_heritability</code> and <code>fit_variance_components</code> assume independent,
+<p><code>fit_heritability</code>, <code>fit_variance_components</code> and <code>fit_pairwise</code> assume independent,
 non-overlapping families. When members carry <code>pid</code>, a person who appears
 in more than one family (distinct <code>fam_id</code>) is rejected; use
 <code>estimate_liability</code> for per-proband scores on overlapping register
@@ -1206,7 +1228,7 @@ data, not taken entirely on trust. Your thresholds assert a prevalence, so
 each role's case rate is compared with it and a gross mismatch raises. This
 is worth knowing because
 the failure it guards is severe and silent: on ascertained families with a
-true <code>h²</code> of <strong>0</strong>, the unguarded fitter returns <strong><code>h² = 1.0</code></strong>
+true <code>h²</code> of <strong>0</strong>, the unguarded HE fitter returns <strong><code>h² = 1.0</code></strong>
 (<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS.md §29</a>).</p>
 <p>A failure is equally consistent with an honestly sampled cohort analysed
 with the <strong>wrong prevalence</strong> — a real and fixable cause — so the error
@@ -1215,13 +1237,15 @@ reports the observed and asserted rates rather than assuming ascertainment.</p>
 <code>max(1 + 6·√((1−K)/(K·n)), 1.15)×</code> — the z-score gate is combined with a
 15% rate-ratio floor. At K = 0.05 that is ~1.67× at N = 1,500 and
 ~1.26× at N = 10,000, with the 1.15× floor binding for N ≳ 30,000. Milder enrichment passes silently, and the
-dose-response below shows a 1.51× enrichment already inflates <code>h²</code> by
+HE dose-response below shows a 1.51× enrichment already inflates <code>h²</code> by
 +0.48. Passing this check is not evidence that your sample is
 population-sampled.</p>
 </div>
 <p>The meaning of a reported <code>se</code> depends on the method. For the
 Haseman–Elston/data-augmentation fits, it is a <em>within-dataset</em> Monte-Carlo
 diagnostic, not across-dataset sampling uncertainty.
+The opt-in <a href="#deterministic-pairwise-fitting">pairwise fitter</a> instead reports
+conditional, asymptotic family-cluster sampling SEs for interior estimates.
 <a href="#family-cluster-uncertainty-bootstrap_fit"><code>bootstrap_fit</code></a> provides an
 approximate family-cluster sampling interval when families are independent.</p>
 <h2 id="fitting-heritability-from-the-family-data">Fitting heritability from the family data<a class="headerlink" href="#fitting-heritability-from-the-family-data" title="Permanent link">&para;</a></h2>
@@ -1287,9 +1311,52 @@ pedigrees. The <code>n_boot=100</code> call above is a computational example, no
 recommended final precision: percentile endpoints can be visibly unstable with
 so few resamples. Increase <code>n_boot</code> until the SE and interval endpoints are stable
 for your analysis, and report the number of successful refits.</p>
+<h2 id="deterministic-pairwise-fitting">Deterministic pairwise fitting<a class="headerlink" href="#deterministic-pairwise-fitting" title="Permanent link">&para;</a></h2>
+<p><code>fit_pairwise</code> estimates the same A/C/M covariance parameters using products of
+binary relative-pair probabilities. It aggregates common-threshold observations
+by relationship pattern and optimizes a small deterministic objective, without
+sampling latent liabilities. This is a separate composite-likelihood estimator;
+<code>fit_heritability</code> and <code>fit_variance_components</code> retain their existing algorithms.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_pairwise</span>
+
+<span class="n">pw</span> <span class="o">=</span> <span class="n">fit_pairwise</span><span class="p">(</span>
+    <span class="n">fitting_families</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="p">(</span><span class="s2">"A"</span><span class="p">,</span> <span class="s2">"C"</span><span class="p">),</span> <span class="n">sampling</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">pw</span><span class="o">.</span><span class="n">components</span><span class="p">,</span> <span class="n">pw</span><span class="o">.</span><span class="n">residual</span>
+<span class="n">pw</span><span class="o">.</span><span class="n">se</span><span class="p">,</span> <span class="n">pw</span><span class="o">.</span><span class="n">inference_status</span>
+</code></pre></div>
+<p>The initial implementation requires a common single-trait case/control
+threshold. It rejects personalized thresholds, onset pins and two-sided
+intervals; uninformative members contribute no pairs. Components must have
+independent identifying contrasts among the <strong>observed</strong> pairs. Fractions are
+nonnegative and sum to at most <code>1 - eps</code> (<code>eps=1e-6</code> by default). Failed,
+infeasible or nonstationary optimizer results raise rather than being returned.</p>
+<p>Independent, non-overlapping family clusters and the sampling contract above
+remain essential. For a known, strictly positive selection design, use
+<code>fit_pairwise(fitting_families, sampling="ipw", weights=weights)</code>; weights are
+normalized to mean one without changing their relative contributions. Passing
+the weighted marginal screen does not establish joint positivity or correct
+weights. The fitter does not infer selection probabilities or fit an
+ascertainment likelihood.</p>
+<p>For an interior fit, <code>pw.covariance</code> follows <code>pw.component_order</code>, and <code>pw.se</code>
+contains its square-root diagonal. The sandwich calculation combines the
+observed likelihood sensitivity with <strong>family-level</strong> score variability, so
+shared members within a family are not treated as independent pairs. It is
+conditional on supplied thresholds and weights and excludes uncertainty from
+estimating them. These are asymptotic SEs, not finite-sample calibration claims.
+At a component or residual constraint boundary, <code>pw.at_boundary</code> is true and
+the covariance and SEs are <code>NaN</code>; <code>pw.inference_status</code> also distinguishes
+insufficient clusters or information. Ordinary normal intervals are then
+inappropriate, and the composite log likelihood does not justify ordinary
+chi-square likelihood-ratio tests.</p>
+<p>For cluster resampling, an existing <code>bootstrap_fit</code> callback can return
+<code>fit_pairwise(f, sampling="population").components["A"]</code>. For IPW, accept
+both <code>f</code> and resampled <code>w</code> and pass <code>weights=weights</code> to <code>bootstrap_fit</code>.
+No internal random seed is needed. Bootstrap or profile inference at a
+boundary still needs separate calibration.</p>
 <h2 id="ascertained-samples">Ascertained samples<a class="headerlink" href="#ascertained-samples" title="Permanent link">&para;</a></h2>
-<p>Selection on phenotype is the failure mode these fitters are least robust to,
-and the tolerance is much tighter than intuition suggests. From the
+<p>Selection on phenotype also matters for pairwise fitting. The quantified
+failure below concerns the HE/data-augmentation fitter. From the
 dose-response in <code>benchmarks/bench_ascertainment.py</code> (nuclear families,
 true <code>h²</code> = 0.5, K = 0.05, N = 2,000):</p>
 <table>
