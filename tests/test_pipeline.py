@@ -63,6 +63,61 @@ def test_gwas_matches_manual_public_pieces_and_reports_observation_counts():
     np.testing.assert_array_equal(out.degree_max, [1])
 
 
+@pytest.mark.parametrize("h2", [.5, 1., 1. - 1e-10, 1e-6])
+def test_selected_pipeline_preserves_inbreeding_and_legacy_covariance_repair(h2):
+    # The parents are full siblings; the grandparents are closure-only.
+    ids = ["o", "a", "b", "gm", "gf"]
+    father = ["a", "gf", "gf", None, None]
+    mother = ["b", "gm", "gm", None, None]
+    kwargs = pipeline_kwargs(ids=ids, father=father, mother=mother,
+                             status=[1, 0, 1, 0, 0], age=[40., 60., 55., 85., 90.],
+                             h2=h2)
+    graph = build_parent_graph(ids, father, mother)
+    ped = extract_pedigree(graph, "o", max_degree=1)
+    rows = np.array([graph.index[i] for i in ped.ids])
+    lower, upper, _, _ = thresholds_from_cip(
+        np.asarray(kwargs["status"])[rows], np.asarray(kwargs["age"])[rows],
+        CIP_AGES, CIP_VALUES, k_pop=K_POP)
+    lower[ped.closure_only], upper[ped.closure_only] = -np.inf, np.inf
+    _, full = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        expected, _, variance = estimate_liability_from_kinship(full, lower, upper, h2=h2)
+        result = estimate_liabilities(**kwargs)
+    np.testing.assert_allclose(result.est, expected, rtol=0, atol=1e-14)
+    np.testing.assert_allclose(result.var, variance, rtol=0, atol=1e-14)
+    np.testing.assert_array_equal(result.n_closure_only, [2])
+
+
+def test_selected_pipeline_preserves_rejection_of_unrepairable_covariance():
+    with pytest.raises(ValueError, match="unable to enforce"):
+        estimate_liabilities(**pipeline_kwargs(h2=1e-10))
+
+
+def test_pipeline_selected_relationships_are_bounded_and_cache_size_independent(monkeypatch):
+    import ltpred.pipeline as pipeline_module
+
+    # The default covariance is safely PD, so constructing full closure A
+    # would be unnecessary work. Ancestors still determine selected entries.
+    def forbidden(*args, **kwargs):
+        raise AssertionError("default inference constructed full closure kinship")
+
+    monkeypatch.setattr(pipeline_module, "kinship_from_pedigree", forbidden)
+    reference = estimate_liabilities(**pipeline_kwargs(probands=["o", "m", "f"]))
+    for size in [0, 1, 5]:
+        result = estimate_liabilities(**pipeline_kwargs(
+            probands=["o", "m", "f"], kinship_cache_size=size))
+        np.testing.assert_array_equal(result.est, reference.est)
+        np.testing.assert_array_equal(result.var, reference.var)
+
+
+def test_pipeline_rejects_cycle_outside_selected_proband_component():
+    with pytest.raises(ValueError, match="cycle"):
+        estimate_liabilities(**pipeline_kwargs(
+            ids=["o", "a", "b"], father=[None, "b", "a"],
+            mother=[None, None, None], status=[0, 0, 0], age=[50., 50., 50.]))
+
+
 def test_closure_diagnoses_are_ignored_by_default_and_explicitly_opted_in():
     altered_status = STATUS.copy()
     altered_age = AGE.copy()

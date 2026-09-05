@@ -12,7 +12,7 @@ is also a top-level export.
 
 | function | purpose |
 |---|---|
-| `estimate_liability` | end-to-end estimator (PA inference by default for one trait, Gibbs for multi-trait) |
+| `estimate_liability` | end-to-end estimator (PA by default for one trait, Gibbs for multi-trait; opt-in `method="quadrature"` for additive nuclear families) |
 | `fit_heritability` | **fit** liability-scale `h²` from independent, non-overlapping families; `sampling="population"` (unascertained, screened for gross marginal case-rate inconsistency but not certified) or `sampling="ipw"` with `weights = 1 / P(family sampled)` for a known, strictly positive selected design |
 | `prevalence_thresholds` / `age_thresholds` | classic or personalised pinned bounds; family rows determine LT-FH++ vs ADuLT |
 | `pa_thresholds` | age-specific interval-case and PA-FGRS censored-control-mixture inputs; an age-dependent variant, not base PA-FGRS, exact PA-FGRS_ADT, or a requirement merely to use the PA engine |
@@ -29,7 +29,9 @@ is also a top-level export.
 | function | purpose |
 |---|---|
 | `estimate_liability_pa_arrays` / `estimate_liability_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
+| `estimate_liability_quadrature_arrays` | opt-in numerical posterior moments for additive, noninbred nuclear families with `0 <= h2 < 1`; separate refinement diagnostics, no mixture or shared environment |
 | `fit_variance_components` | **fit** additive `A` + shared-environment `C` (sibship) / `M` (couple) as proportions under the same population-sampling contract |
+| `fit_pairwise` | opt-in deterministic A/C/M binary-pair composite likelihood; common thresholds, independent families and explicit population/IPW sampling contract; conditional interior cluster-sandwich SEs |
 | `bootstrap_fit` | iid-family cluster bootstrap SD / percentile interval; it does not correct ascertainment bias |
 
 The heavier inferential machinery — the multi-trait genetic-correlation,
@@ -64,6 +66,18 @@ checkout-only `research/covariance_extensions.py`.
 ## Estimation — `ltpred.estimate`
 
 ::: ltpred.estimate
+
+## Nuclear-family quadrature — `ltpred.quadrature`
+
+This explicit array API returns `QuadratureResult`, not `LiabilityResult`.
+Its `error` is a successive-refinement diagnostic, not a certified error bound
+or Monte-Carlo SE; nonconvergence raises. The high-level
+`estimate_liability(..., method="quadrature")` route instead includes
+`quadrature_error` and `quadrature_nodes` dictionaries in `LiabilityResult`;
+its zero `se` means no Monte-Carlo noise. See the
+[worked example and model scope](estimation.md#nuclear-family-quadrature).
+
+::: ltpred.quadrature
 
 ## Liability-scale transformations — `ltpred.liability_scale`
 
@@ -128,6 +142,16 @@ landmark, with a warning on prevalent cases).
 ## Model fitting — `ltpred.fit`
 
 ::: ltpred.fit
+
+## Pairwise model fitting — `ltpred.pairwise`
+
+`PairwiseFitResult` reports a component covariance matrix and sampling SEs only
+for identifiable interior fits; boundary or insufficient-information results
+mark those fields `NaN` and provide `inference_status`. Thresholds and weights
+are treated as fixed. See [pairwise fitting](inference.md#deterministic-pairwise-fitting)
+for the sampling contract and distinction from the existing stochastic fitters.
+
+::: ltpred.pairwise
 
 ## Families — `ltpred.family`
 

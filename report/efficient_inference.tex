@@ -1,0 +1,279 @@
+% Mathematical reductions for the implementation introduced after v0.5.2.
+\section{Reducing the inference problem}
+\label{sec:reduction}
+
+Let $q=\h$. The efficient calculation begins by distinguishing information
+that is absent, information that is exact, and information that remains an
+interval. These distinctions concern the observation model, not a different
+estimand. Throughout this section the censoring mixture is excluded. Its
+sequential interpretation remains Algorithm~M.
+
+\subsection{Marginalize absent observations; condition exact ones}
+
+Partition a jointly Gaussian vector into unobserved non-target coordinates
+$U$, pinned coordinates $P$ observed at $p$, and retained coordinates $X$.
+The latter contain the requested target and the remaining intervals.
+Integrating out $U$ simply selects the $(X,P)$ principal covariance block;
+it is not conditioning $U$ to zero. For a zero-mean prior, exact conditioning
+then gives
+\begin{align}
+ m_X &= \Sigma_{XP}\Sigma_{PP}^{-1}p,\label{eq:pin-mean}\\
+ V_X &= \Sigma_{XX}-\Sigma_{XP}\Sigma_{PP}^{-1}\Sigma_{PX}.
+ \label{eq:pin-var}
+\end{align}
+The inverse notation denotes linear solves. A singular pin block requires
+compatible observations in its Gaussian support, not arbitrary jitter.
+A zero conditional variance denotes a deterministic coordinate: its bound
+must contain that value. Incompatible exact observations are errors.
+
+The covariance in \eqref{eq:pin-var} depends on the pedigree covariance and
+pin mask, not the numerical onset values. Families with the same masks can
+share the reduction. With no remaining interval, Gaussian conditioning is
+the whole calculation. With one remaining interval, the univariate selection
+formula is exact. With several intervals, apply PA to the centered remaining
+bounds, preserving their relative order. Conditioning pins first changes the
+old PA approximation when a pin previously followed an interval. It leaves
+the specified joint distribution unchanged; it does not prove that every
+multi-interval approximation becomes more accurate.
+
+For family-free ADuLT, let $m,v$ be the scalar mean and variance of the full
+liability conditional on its observation. Gaussian regression gives
+\begin{equation}
+ \E[a_o\mid D_o]=qm,\qquad
+ \Var(a_o\mid D_o)=q(1-q)+q^2v.
+ \label{eq:adult-exact}
+\end{equation}
+A pinned value $t$ gives $qt$ and $q(1-q)$. No family covariance or numerical
+integration is necessary. With fixed bounds and $q>0$, changing $q$ only
+rescales this family-free phenotype. An ordinary scale-invariant linear or
+mixed-model association statistic therefore does not require estimating $q$
+for this use. Family-informed scores and liability-scale reporting do.
+
+\subsection{Nuclear families have at most two parental factors}
+\label{sec:parent-factors}
+
+Assume unrelated, noninbred parents, the additive model, and independent
+residual environments. Write $z=(a_m,a_f)^\mathsf{T}\sim N(0,qI_2)$.
+For offspring $j$, including the proband,
+\begin{equation}
+ a_j=\tfrac12(a_m+a_f)+M_j,\qquad
+ M_j\overset{\mathrm{ind}}\sim N(0,q/2).
+ \label{eq:offspring-factor}
+\end{equation}
+The Mendelian terms are independent of $z$. Conditional on $z$, all observed
+full liabilities are independent normals,
+\begin{equation}
+ \ell_j\mid z\sim N(b_j^\mathsf{T}z,d_j),\qquad
+ (b_m,b_f,b_{\rm child})=((1,0)^\mathsf{T},(0,1)^\mathsf{T},
+                          (1/2,1/2)^\mathsf{T}),
+ \label{eq:factor-liability}
+\end{equation}
+with $d_m=d_f=1-q$ and $d_{\rm child}=1-q/2$.
+A missing observation contributes one. An interval contributes
+\begin{equation}
+ L_j(z)=\Phi\!\left(\frac{u_j-b_j^\mathsf{T}z}{\sqrt{d_j}}\right)
+       -\Phi\!\left(\frac{l_j-b_j^\mathsf{T}z}{\sqrt{d_j}}\right),
+ \label{eq:factor-likelihood}
+\end{equation}
+whereas a pin contributes the corresponding normal density at its observed
+value. Thus
+\begin{equation}
+ p(z\mid D)\ \propto\ \phi_2(z;0,qI_2)\prod_j L_j(z).
+ \label{eq:factor-posterior}
+\end{equation}
+The number of siblings changes the number of scalar factors, not the
+integration dimension. If no parental observations remain, their shared mean
+$S=(a_m+a_f)/2\sim N(0,q/2)$ suffices and the integral is one-dimensional.
+Personalized thresholds do not alter this factorization.
+
+Pins can be absorbed before integration. For $q>0$ and positive $d_j$, the
+conditional factor precision and mean are
+\begin{equation}
+ H=(qI_2)^{-1}+\sum_{j\in P}\frac{b_jb_j^\mathsf{T}}{d_j},\qquad
+ m_z=H^{-1}\sum_{j\in P}\frac{b_jp_j}{d_j}.
+ \label{eq:factor-pins}
+\end{equation}
+Only unpinned interval factors remain. Integrating in a Gaussian coordinate
+system adapted to the posterior mode further prevents rare observations
+from placing most posterior mass beyond the original prior-centered nodes.
+Products and normalizing constants are evaluated in log space.
+
+To recover the proband, let $S=b_o^\mathsf{T}z$, $v_o=1-q/2$, and
+$r=q/2$. Let $m_o(z),v_o(z)$ be the scalar moments of $\ell_o$ after its own
+observation at fixed $z$; for an unobserved proband these are $S,v_o$.
+Then
+\begin{align}
+ \mu_a(z)&=S+\frac{r}{v_o}\{m_o(z)-S\},\label{eq:factor-target-mean}\\
+ V_a(z)&=r-\frac{r^2}{v_o}+\frac{r^2}{v_o^2}v_o(z).
+ \label{eq:factor-target-var}
+\end{align}
+The requested mean is $\E_{z\mid D}[\mu_a(z)]$. Its posterior variance is
+\begin{equation}
+ \Var(a_o\mid D)=\E_{z\mid D}[V_a(z)]
+                  +\Var_{z\mid D}[\mu_a(z)].
+ \label{eq:factor-total-var}
+\end{equation}
+The first term must not be dropped. Full-liability moments follow by using
+$m_o(z),v_o(z)$ instead. With $Q$ nodes per factor and $s$ observations,
+the two-dimensional quadrature costs $O(sQ^2)$, with $O(Q^2)$ working storage
+when observations are processed one at a time. Increasing the resolution
+provides a convergence diagnostic for both moments; agreement of successive
+resolutions is not a certified error bound. The implementation rejects
+unresolved convergence rather than returning an apparently precise score.
+
+This is a factorization of the additive nuclear-family model, not a new
+observation model. The initial quadrature interface excludes shared
+C/M environments, arbitrary/inbred pedigrees, multiple traits, and the
+censoring mixture. It requires $q<1$ because a parental residual becomes
+singular at $q=1$; $q=0$ is an analytic special case. PA and Gibbs retain
+their broader model support.
+
+\subsection{Compute selected relationships with bounded reuse}
+
+Ancestral closure is needed to calculate exact relatedness, but its entire
+dense relationship matrix is not needed for a score. With parents $s_i,d_i$
+and a parent-before-child ordering, the tabular identities are
+\begin{equation}
+ A_{ii}=1+\tfrac12A_{s_i d_i},\qquad
+ A_{ij}=\tfrac12(A_{s_i j}+A_{d_i j})\quad(i\text{ later than }j).
+ \label{eq:selected-kinship}
+\end{equation}
+An unknown parent contributes zero; distinct unrelated founders have zero
+relationship. Evaluate \eqref{eq:selected-kinship} only for requested pairs
+and their dependencies, retaining the complete ancestry graph. An explicit
+stack avoids recursion-depth limits. A bounded cache shares computed entries
+between overlapping probands; eviction changes work, not the result.
+This saves repeated local dense matrices but does not imply linear worst-case
+time: the number of required pairs can still approach the square of the
+population size. Transient dependency storage also depends on pedigree depth.
+
+Preserve the current observation order when reducing a PA input. Preserve
+the observation counts and calendar-time masking separately from inference
+coordinates. Near singular parameter boundaries, covariance repair can
+change the effective model; the driver retains the full construction when
+its conservative positive-definiteness bound cannot rule out that repair.
+
+\subsection{Fit covariance parameters by pairwise likelihood}
+\label{sec:pairwise-theory}
+
+For common binary thresholds and independent families, parameter estimation
+need not reconstruct every latent liability. Let $\theta=(q,c^2,m^2)$,
+restricted to identifiable nonnegative components with positive residual
+variance. For a pair,
+\begin{equation}
+ \rho_{ij}(\theta)=qA_{ij}+c^2C_{ij}+m^2M_{ij}.
+ \label{eq:pairwise-rho}
+\end{equation}
+Let $p_{ab}(t,\rho)$ be its bivariate-normal probability for binary outcomes
+$a,b\in\{0,1\}$ at threshold $t$. The composite log likelihood is
+\begin{equation}
+ \ell_c(\theta)=\sum_f w_f\sum_{(i,j)\in f}
+           \log p_{y_i y_j}\{t,\rho_{ij}(\theta)\}.
+ \label{eq:composite-likelihood}
+\end{equation}
+The weight is one for population sampling; valid positive inverse inclusion
+probabilities can supply $w_f$ under the existing IPW contract. Pairs sharing
+the same threshold and component design have the same four probabilities,
+so their weighted $2\times2$ tables can be accumulated once. This compresses
+\emph{the composite objective}; it does not make pair counts sufficient for
+the full multivariate family likelihood.
+
+At a common threshold, a stable expression for a discordant cell is
+\begin{equation}
+ p_{01}(t,\rho)=\frac{1}{2\pi}\int_{\arcsin\rho}^{\pi/2}
+       \exp\!\left\{-\frac{t^2}{1+\sin u}\right\}\,du.
+ \label{eq:pair-discordance}
+\end{equation}
+The other cells follow from the known marginal probabilities. This avoids
+subtracting two nearly equal bivariate probabilities as $\rho$ approaches
+one. Deterministic quadrature and analytic probability derivatives permit
+low-dimensional constrained optimization \cite{renard2004,bravo2019}.
+
+Within-family pairs are dependent. At an identifiable interior solution,
+let $s_f$ be the family score, $H=-\nabla^2\ell_c$, and $J$ the empirical
+outer-product sum of weighted family scores. The sandwich covariance is
+\begin{equation}
+ \widehat{\Var}(\widehat\theta)=H^{-1}JH^{-1}.
+ \label{eq:pairwise-sandwich}
+\end{equation}
+The implementation centers family scores and applies the finite-cluster
+correction. It does not report the ordinary inverse Hessian as the sampling
+covariance. Boundary or singular-information fits do not justify an interior
+normal approximation and return explicitly unavailable standard errors.
+Family bootstrap is appropriate only under its independent-cluster sampling
+assumptions. Ascertainment is not repaired by changing the numerical engine;
+personalized/pinned thresholds and overlapping extracted register families
+remain outside this initial fitter's contract.
+
+Pairwise fitting estimates the same covariance parameters with a different
+statistical criterion from the stochastic moment fitter. Neither matching
+point estimates on a few simulations nor passing probability tests establishes
+coverage or statistical efficiency. The new method is explicit and opt-in.
+
+\subsection{Implementation pilot and its limits}
+\label{sec:efficiency-pilot}
+
+The v0.6.0 development pilot of 5 September 2026 preserves its measured
+sources, input arrays and outputs under
+\texttt{benchmarks/results/2026-09-05-efficient-inference/}.
+The composite source hash begins \texttt{67002dd28513}; the base commit is
+\texttt{8856ba8}, with the implementation changes included in the snapshot.
+The machine was an Apple M2 Pro (10 cores, 16 GB), macOS 26.6.2;
+Python 3.10.20, NumPy 2.2.6, SciPy 1.15.3 and Numba 0.67.0.
+AC power and Low Power Mode off were checked before and after.
+Numba used one thread; requested BLAS thread limits and build configuration
+are recorded, but runtime BLAS thread counts were unavailable.
+
+\begin{table}[ht]
+\centering
+\caption{Small implemented workloads, not a population-scale extrapolation.
+Warm time is the median of three calls. Each arm runs in a separate process
+with an empty initial Numba cache. First-call time includes compilation
+reached by that call; neither call timing includes imports. Peak RSS covers
+the whole process and all repetitions.}
+\label{tab:efficient-pilot}
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Workload and method & First call (s) & Warm (ms) & Peak (MiB) \\
+\midrule
+One family: PA & 1.060 & 0.223 & 185.4 \\
+One family: quadrature & 0.604 & 1.929 & 171.5 \\
+One family: Gibbs, $10^6$ draws & 2.314 & 465.804 & 211.0 \\
+\midrule
+20,000 ADuLT: scalar & 0.721 & 0.398 & 204.3 \\
+20,000 ADuLT: covariance API & 1.374 & 11.391 & 203.1 \\
+\midrule
+200 probands: selected relationships & 1.091 & 59.101 & 190.4 \\
+200 probands: full construction & 1.317 & 250.229 & 186.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The nuclear example uses $q=0.5$, $K=0.05$, own liability pinned at 2,
+a control mother, affected father, one affected and three unaffected siblings.
+Quadrature gives mean $1.2390361132$ and variance $0.2131471559$;
+Gibbs gives $1.2388572910$ and $0.2131210024$, with mean Monte Carlo SE
+$0.000147283$. Their means differ by $1.21$ Monte Carlo SEs.
+Quadrature stops at 64 nodes per active dimension; its last-two-refinement
+change is $4.44\times10^{-15}$. That diagnostic does not bound the true error.
+Current pin-first PA gives $1.2452930026$ and $0.2150592363$ and remains
+the fastest method here. Its remaining-interval approximation is visible
+despite exact pin conditioning.
+
+ADuLT uses equal groups of pinned, case, control and absent observations at
+$q=0.5$. Scalar and covariance means are identical; the largest variance
+difference is $1.11\times10^{-16}$. The register workload has 461 people,
+a shared 60-generation paternal chain, degree 1 and 200 probands.
+Both arms use the current PA engine: only relationship construction and
+coordinate selection differ. Means and variances are identical.
+The selected path is $4.23\times$ faster on warm calls, but peak RSS is
+slightly higher; this is no evidence for lower memory use at population scale.
+
+Three population-sampled cohorts of 1,000 nuclear families, $q=0.5$, $K=0.1$,
+give pairwise estimates $(0.636,0.507,0.465)$ and moment estimates
+$(0.755,0.412,0.482)$ on identical inputs. Pairwise calls take
+0.057--0.058 seconds; the moment fitter's default 1500 iterations, 500 burn-in
+and five inner sweeps take 2.379--2.421 seconds. The criteria differ, and
+default controls do not establish convergence. These figures therefore do
+not compare cost at equal accuracy, sampling efficiency or interval coverage.

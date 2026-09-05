@@ -32,11 +32,11 @@
   {\large Notes}\\[0.4em]
   {\LARGE\bfseries Posterior mean genetic liability\\[0.15em]
   from family history}\\[0.55em]
-  {\large Model, sequential approximation, and evidence in \texttt{ltpred}}}
+  {\large Model, efficient inference, and evidence in \texttt{ltpred}}}
 \author{Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
   {\small Aarhus University and SMARTbiomed}\\[0.35em]
-  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.5.2}}
-\date{4 September 2026}
+  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.6.0}}
+\date{5 September 2026}
 
 \begin{document}
 \maketitle
@@ -63,6 +63,12 @@ These notes fix the estimand, the observation-model menu, the
 exactness boundary of the Pearson--Aitken (PA) approximation, and
 the sampling conditions under which a pedigree Haseman--Elston
 fit recovers \(\h\).
+They also derive exact observation reduction, at-most-two-dimensional
+parental-factor quadrature, selected relationship recursion, and an optional
+pairwise likelihood for common-threshold covariance fitting
+(Section~\ref{sec:reduction}).
+The following simulation summaries describe the archived benchmark snapshots;
+they do not validate the newly introduced fitting criterion or its uncertainty.
 Simulation under the model's own generative assumptions gives
 $\Corr(\mathrm{PA},\mathrm{Gibbs})\ge 0.9995$ without the censoring
 mixture, a classic-LT-FH causal-SNP noncentrality ratio of
@@ -411,7 +417,8 @@ indirect effects, selection).
 
 There is no closed form for $\E[\ell_F\mid C_F]$ once several
 intervals are live.
-Two algorithms are used.
+PA and Gibbs support the general family covariance. The nuclear-family
+quadrature in Section~\ref{sec:parent-factors} exploits additional structure.
 
 \subsection{Algorithm G (Gibbs)}
 
@@ -464,29 +471,25 @@ Mendell and Elston applied \eqref{eq:pa} sequentially to threshold
 traits \cite{mendell1974}.
 
 \begin{enumerate}
-\item[P1.] Place the target first. Canonicalise the remaining
-  roles to a sorted name order (reproducibility, not accuracy).
-\item[P2.] Fold each remaining coordinate last-to-first: replace
-  its marginal by the truncated-normal moments of its interval
-  and apply \eqref{eq:pa}.
-\item[P3.] If $a_i=b_i$, set $v^\star=0$ (exact conditioning).
-\item[P4.] Apply the target's own interval to the updated
-  $\mathcal{N}(m_0,v_0)$.
-  For the genetic target this is a no-op
-  (bounds $(-\infty,\infty)$).
-  For $\E[\ell_o\mid C_F]$ it is the same estimand Algorithm~G
-  uses.
+\setlength{\itemsep}{3pt}\setlength{\parsep}{0pt}
+\item[P1.] Place the target first; sort remaining roles by name for reproducibility.
+\item[P2.] Marginalize absent rows and condition all pins jointly (Section~\ref{sec:reduction}).
+\item[P3.] Fold remaining intervals last-to-first: replace each marginal
+  by its truncated-normal moments and apply \eqref{eq:pa}.
+  One remaining interval requires one exact selection update.
+\item[P4.] Apply the target's interval last. An unbounded genetic target is
+  a no-op; full liability remains conditioned on its own interval.
 \item[P5.] Read the target's updated mean and variance.
 \end{enumerate}
 
 After one truncation the selected law is no longer Gaussian.
 Algorithm~P keeps the first two moments and proceeds as if it
 were.
-Hence: exact for a single interval or a pin; a sequential
-two-moment approximation thereafter.
+Hence: exact for pins followed by at most one interval; a sequential
+two-moment approximation for multiple remaining intervals.
 
-On the no-mixture structures we have tested, that approximation
-error is small enough to ignore for the posterior \emph{mean}
+On the historically tested no-mixture structures, average agreement
+was high for the posterior \emph{mean}
 (Section~\ref{sec:results}).
 It has not been characterised for the mixture, and PA's reported
 conditional variance is itself an approximation.
@@ -498,7 +501,8 @@ A PA standard error of zero means no Monte Carlo error.
 A person unaffected only up to current follow-up is a mixture of a
 lifetime control and a not-yet-onset future case \cite{krebs2024}.
 Algorithm~P folds that person by replacing the ordinary truncated
-moments in P2 with the two-component moments below.
+moments in P3 with the two-component moments below, retaining the original
+sequential treatment of pins for this mixture path.
 With current CIP $K_i$ and lifetime $K_{\mathrm{pop}}$,
 \begin{equation}
   \pi
@@ -528,19 +532,24 @@ slope shift; the pin, not the mixture, is what breaks materially
 There is still no Gibbs implementation of \eqref{eq:mix}.
 
 %----------------------------------------------------------------------
+\input{efficient_inference.tex}
+
 \section{Implementation}
 \label{sec:impl}
 
 The mathematics above is small dense linear algebra on one family.
 The software problem is many target families, most role-defined inputs
 sharing a pedigree shape. Fixed-parameter scoring permits overlapping
-families; independence is a requirement for the moment fitters, not for
+families; independence is a requirement for the parameter fitters, not for
 computing each conditional score.
 
 \paragraph{Grouping.}
 Families with the same role set share one $\Sigma$ after column alignment.
-Both engines group on that key, factorise once, and apply the
+PA and Gibbs group on that key, prepare the covariance once, and apply the
 per-family intervals in a compiled kernel.
+Ordinary PA further shares pin conditioning by observation mask.
+Quadrature uses the role grouping for alignment but adapts its factor integral
+to each family's observations. It does not factor a full family covariance.
 The object API (\texttt{Family}/\texttt{Member}) does this grouping
 internally.
 The array API receives already-aligned bounds and is the hot path.
@@ -578,8 +587,9 @@ Population trios & Unique IDs, parents, status/age, CIPs, use, landmarks &
 
 \paragraph{Kinship closure and the observation set.}
 Extraction visits people within \texttt{max\_degree} and then adds all
-recorded ancestors needed for exact kinship. Those extra rows remain in
-$A$ but are marked \texttt{closure\_only}. Their bounds are uninformative
+recorded ancestors needed for exact kinship. Those extra people remain in
+the ancestry graph and are marked \texttt{closure\_only}; they need not all
+have rows in the selected inference matrix. Their bounds are uninformative
 by default; the explicit opt-in is \texttt{condition\_closure=True}.
 A caller assembling low-level bounds must apply that mask too.
 The output counts distinguish the observation neighbourhood
@@ -731,7 +741,7 @@ but it is not ``LT-FH++ with $\h$ free.''
 The shipped $\h$ and A+C+M fitters use role-defined relationship classes;
 the arbitrary-kinship kernels are scoring inputs, not a new fitter for
 overlapping extracted pedigrees.
-The implementation is data augmentation: draw
+The original fitters use data augmentation: draw
 $\ell\mid C_F,\Sigma(\h)$, then a damped Haseman--Elston step
 \begin{equation}
   \widehat{\h}
@@ -773,6 +783,10 @@ component at the clamp.
 A family bootstrap, when clusters are independent, estimates
 sampling variability under the fitted design.
 It does not de-bias selection.
+The explicit \texttt{fit\_pairwise} alternative in
+Section~\ref{sec:pairwise-theory} has the same initial sampling and threshold
+scope, with a composite-likelihood criterion and family-score sandwich SEs.
+The following archived HE results are not tests of that new criterion.
 
 \paragraph{Reweighting, where it is available.}
 The augmentation of a \emph{given} family with \emph{given} statuses
@@ -1380,6 +1394,18 @@ Cite the method actually used
 software.
 
 \begin{thebibliography}{99}
+
+\bibitem{renard2004}
+D.~Renard, G.~Molenberghs, and H.~Geys.
+A pairwise likelihood approach to estimation in multilevel probit models.
+\emph{Computational Statistics \& Data Analysis}, 44:649--667, 2004.
+\doi{10.1016/S0167-9473(02)00263-3}.
+
+\bibitem{bravo2019}
+M.~Bravo and A.~Canale.
+Pairwise likelihood inference for the multivariate ordered probit model.
+\emph{arXiv manuscript}, 2019.
+\url{https://arxiv.org/abs/1901.10186}.
 
 \bibitem{aitken1935}
 A.~C. Aitken.

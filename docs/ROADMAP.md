@@ -11,8 +11,11 @@ usual archaeological sport of deciding which copied number is the current one.
 The supported package provides LT-FH, LT-FH++, ADuLT, and the single-trait
 Pearson--Aitken PA-FGRS mixture; role-based and arbitrary-kinship inputs; a
 narrow population-register driver with explicit GWAS/prediction observation
-sets; Gibbs and single-trait Pearson--Aitken inference; and common-threshold
-liability-scale moment fitting. See the [guide](guide.md),
+sets; Gibbs and single-trait Pearson--Aitken inference; optional additive
+nuclear-family quadrature; and common-threshold liability-scale moment fitting.
+The opt-in pairwise likelihood fitter has numerical and known-truth checks;
+broad interval-coverage and statistical-efficiency validation remains pending.
+See the [guide](guide.md),
 [algorithm](algorithm.md), and [assumptions](assumptions.md) for the exact
 contracts.
 
@@ -38,7 +41,9 @@ superseded snapshot, not an alternative public pipeline.
 
 3. **Scale a single giant pedigree.** Replace dense covariance construction and
    factorisation with sparse relationship operators and sparse solves for
-   pedigrees containing thousands of relatives.
+   pedigrees containing thousands of informative relatives. Selected relationship
+   recursion and bounded reuse now reduce the repeated local register work;
+   they do not remove a dense matrix for a genuinely large informative family.
 
 4. **Regenerate the register evidence.** Done 2026-09-03: both repaired
    benchmarks rerun under the provenance wrapper (RESULTS §§20–21, committed
@@ -67,6 +72,12 @@ superseded snapshot, not an alternative public pipeline.
 
 ## Deliberate boundaries
 
+- **Validate the new methods before changing defaults.** Broaden quadrature
+  stress tests across rare and discordant large sibships, and assess pairwise
+  interval coverage, boundary behavior, and efficiency against the existing
+  fitter on equal cohorts. Direct incident-risk models and sparse pedigree
+  message passing remain comparison studies; the new reductions do not validate
+  either model as a replacement for LT-FH++.
 - **Keep the PA-FGRS censoring mixture PA-only on the current roadmap.** Its
   observation is a two-component mixture, not the single hyperrectangular
   truncation distribution sampled by Algorithm G. A Gibbs comparator needs

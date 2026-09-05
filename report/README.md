@@ -18,7 +18,12 @@ NCP (not real-LD mixed-model evidence), personalisation,
 cohort confounding, calibration,
 PGS complementarity, the censoring mixture (including
 liability-dependent onset), pin versus interval encodings, and
-ascertainment.
+ascertainment. Section "Reducing the inference problem" derives exact
+marginalization and pin conditioning, scalar ADuLT moments, parental-factor
+quadrature, bounded selected relationship recursion, and pairwise likelihood
+with independent-family sandwich uncertainty. The earlier benchmark tables
+remain evidence for their archived source snapshots, not a rerun of all
+methods in v0.6.0.
 
 The historical register-depth and prospective benchmark numbers are withdrawn
 from the note pending a clean-source rerun. The vignette's six-person register

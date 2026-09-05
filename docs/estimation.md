@@ -1,6 +1,6 @@
 # Estimation
 
-Running the estimator, reading the result, choosing between the two back-ends, and
+Running the estimator, reading the result, choosing an inference engine, and
 scaling up. Assumes you already have families with liability bounds — see
 [data preparation](data-preparation.md).
 
@@ -42,7 +42,9 @@ res = estimate_liability(families, h2=0.5, out=("genetic",))
   multi-trait model. Pass
   `"gibbs"` to force the sampler (needed
   for multiple traits, a Monte-Carlo SE, or a sampling-based cross-check), or
-  `"pearson-aitken"` (aliases `"pa"`, `"aitken"`) to force PA. Bounds determine the observation
+  `"pearson-aitken"` (aliases `"pa"`, `"aitken"`) to force PA. For additive
+  nuclear families, `"quadrature"` selects the opt-in
+  [numerical integration route](#nuclear-family-quadrature). Bounds determine the observation
   encoding; inclusion of relatives distinguishes LT-FH++ from ADuLT. The engine
   is orthogonal to both. PA-FGRS is the exception: its published name includes PA,
   and ltpred's censoring mixture is PA-only.
@@ -55,17 +57,22 @@ res = estimate_liability(families, h2=0.5, out=("genetic",))
 
 ## Reading `LiabilityResult`
 
+**Table 1. Liability estimates and method-specific diagnostics.**
+
 | field | meaning |
 |---|---|
 | `res.fam_ids` | one family id per result, in first-appearance family order |
 | `res.pids` | one proband id per result (the `o` member's `pid`, else the `fam_id`) |
-| `res.est["genetic"]` | genetic-liability estimate per proband — a Gibbs Monte-Carlo estimate or PA sequential-moment approximation to the posterior mean; **the score** |
-| `res.est["full"]` | full-liability estimate (if requested), with the same Gibbs/PA interpretation as above; see caveat below |
-| `res.se["genetic"]` | the **estimator's own numerical error** in `res.est` — Gibbs: batch-means Monte-Carlo standard error of the mean, which shrinks as you sample more; PA: `0`, because it is deterministic (not because it is exact) |
-| `res.var["genetic"]` | the **posterior** conditional variance `Var(G_i \| family)` — how uncertain this proband's liability is given their family. Reported by **both** engines: Gibbs as the Monte-Carlo variance of its retained draws, PA as its sequential-moment approximation. It does **not** shrink as you sample more, and it is **not** a standard error of the estimate |
+| `res.est["genetic"]` | posterior-mean genetic-liability score: estimated by Gibbs sampling, approximated by PA moments, or computed numerically by quadrature |
+| `res.est["full"]` | corresponding full-liability estimate, if requested; see below |
+| `res.se["genetic"]` | Gibbs batch-means **Monte-Carlo** SE; zero for deterministic PA and quadrature, which does not imply zero approximation or integration error |
+| `res.var["genetic"]` | **posterior** conditional variance `Var(G_i \| family)`, estimated by the selected engine; uncertainty about the proband's liability, not an SE that shrinks with numerical effort |
+| `res.quadrature_error["genetic"]` | quadrature only: largest mean/variance change over the last two refinements, not a certified error bound; the dictionary is `None` for other engines |
+| `res.quadrature_nodes["genetic"]` | quadrature only: nodes per active factor dimension, or zero for an analytic answer; the dictionary is `None` for other engines |
 
-The two are different quantities and neither substitutes for the other: `var`
-describes the proband, `se` describes the calculation. On a seven-observation
+These quantities answer different questions: `var` describes the proband,
+`se` describes sampling noise, and `quadrature_error` describes numerical
+refinement. On a seven-observation
 family fold PA's `var` sits within 5% of the sampler's
 (`tests/test_pearson_aitken.py::test_pa_conditional_variance_matches_gibbs_multi_truncation`).
 
@@ -78,8 +85,9 @@ score = res.genetic             # use this as your GWAS phenotype / risk score
 ```
 
 > **`out="full"` is E[l_o | own interval and relatives]**
-> on both engines. Pearson–Aitken applies the target's own bound after the
-> relative fold (an unbounded `g` is a no-op). A lone case therefore gives a
+> on each supported engine. No-mixture PA conditions exact pins jointly first;
+> an unpinned target's interval is folded after the remaining relative intervals
+> (an unbounded `g` is a no-op). A lone case therefore gives a
 > positive PA `full`, matching Gibbs, not zero. Omit role `o` or set its
 > bounds to `(-inf, inf)` when you want a relatives-only predictor — the
 > same rule as for prospective prediction. The canonical GWAS phenotype is
@@ -93,8 +101,8 @@ Estimand:  mu_i = E[ additive genetic liability of proband i
 ```
 
 `res.est["genetic"]` targets the **posterior mean additive genetic liability** under
-the specified liability-threshold model—by Monte Carlo for Gibbs and a
-sequential-moment approximation for PA—and is a family-history-derived *latent*
+the specified liability-threshold model—by Gibbs sampling, PA moment
+approximation or nuclear-family quadrature—and is a family-history-derived *latent*
 phenotype on the standardized liability scale. It is the threshold-model,
 family-history analogue of a BLUP / selection-index breeding value (see
 [algorithm.md](algorithm.md#connection-to-selection-index-and-blup)). Concretely:
@@ -209,8 +217,9 @@ Both engines return an estimate of the same target
 Write Algorithm G for the truncated-MVN Gibbs sampler and
 Algorithm P for the Pearson–Aitken sequential-selection sweep
 ([algorithm.md](algorithm.md#inference-engine-1-gibbs-sampler)).
-G is exact in the limit of infinite draws. P is exact for a single
-interval or a pin, and a two-moment approximation thereafter.
+G is exact in the limit of infinite draws. No-mixture P conditions pins jointly
+and marginalizes uninformative rows first. It is exact with zero or one remaining
+interval, and a two-moment approximation for multiple remaining intervals.
 
 In the benchmarked **no-mixture** family structures, PA and Gibbs
 posterior-mean `genetic` estimates had correlation ≥ 0.997. For
@@ -229,6 +238,8 @@ affected). That union event is not equivalent to separately observed per-sibling
 intervals. ltpred requires separate member intervals, so its PA–Gibbs benchmarks
 test a different, no-mixture observation model
 ([Hujoel et al. 2020](https://doi.org/10.1038/s41588-020-0613-6)).
+
+**Table 2. Gibbs and PA in the benchmarked comparison.**
 
 | | Gibbs (`"gibbs"`) | Pearson–Aitken (`"pearson-aitken"`) |
 |---|---|---|
@@ -263,6 +274,50 @@ causal-NCP result under the benchmark's marginal association calculation and
 non-overlapping simulated families. That is not evidence from a real-LD,
 related-sample mixed-model GWAS. These comparisons also do not validate the
 PA-only censoring mixture.
+
+## Nuclear-family quadrature
+
+For a numerical posterior cross-check on an additive nuclear family, pass
+`method="quadrature"` to `estimate_liability`, or call
+`estimate_liability_quadrature_arrays` for aligned arrays. It conditions on the two
+parental breeding values: adding siblings adds likelihood factors while the
+remaining integral has at most two dimensions. Point observations and simple
+conditional moments are handled analytically. The ordinary single-trait
+`estimate_liability` default remains PA.
+
+For `Family` inputs, numerical controls are `quadrature_atol` and
+`quadrature_max_nodes`; the resulting `LiabilityResult` carries the dictionaries
+in Table 1. The explicit array API uses `atol` and `max_nodes` and returns a
+`QuadratureResult`:
+
+```python
+import numpy as np
+from ltpred import estimate_liability_quadrature_arrays
+
+q = estimate_liability_quadrature_arrays(
+    roles=["o", "m", "f", "s1"],
+    lower=[[2.0, -np.inf, 0.5, -np.inf]],
+    upper=[[2.0, 1.5, np.inf, 1.5]],
+    h2=0.5, out="genetic", atol=1e-8, max_nodes=128,
+)
+q.est, q.var              # posterior mean and posterior variance
+q.error, q.n_nodes        # refinement diagnostic and nodes per active dimension
+```
+
+Bounds have shape `(n_families, len(roles))`. Supported roles are unique `o`,
+`m`, `f`, `s1`, `s2`, ... with unrelated, noninbred parents and `0 <= h2 < 1`.
+Other pedigrees, shared-environment components and the PA-FGRS censoring mixture
+are outside this API. Finite intervals, onset pins and uninformative bounds are
+supported. Omit `o` or leave its bounds uninformative for a relatives-only
+prediction; `out="full"` instead targets the proband's full liability.
+
+`q.var` measures posterior uncertainty. `q.error` measures the largest change
+in the mean or variance across the last two quadrature refinements; it is
+neither a certified numerical error bound nor a Monte-Carlo SE. Analytic
+answers report zero nodes and zero refinement error. The `max_nodes` limit is
+64–512 nodes **per active dimension**, and failure to meet the refinement
+criterion raises `RuntimeError` identifying the family. No unchecked result
+is returned on nonconvergence.
 
 ## Scaling to large cohorts
 
@@ -389,9 +444,11 @@ adjustment or guarantee calibration under other misspecification.
 
 ## Options reference
 
+**Table 3. High-level estimator options.**
+
 | option | default | use |
 |---|---:|---|
-| `method` | `None` → PA (single-trait), Gibbs (multi-trait) | `"pearson-aitken"` or `"gibbs"` to force |
+| `method` | `None` → PA (single-trait), Gibbs (multi-trait) | `"pearson-aitken"`, `"gibbs"`, or opt-in nuclear-family `"quadrature"` |
 | `h2` | `0.5` | liability-scale heritability (scalar, or vector for multi-trait) |
 | `out` | `("genetic",)` | `"genetic"`, `"full"`, or both |
 | `use_mixture` | `False` | PA age-censored-control mixture (needs `K_i`/`K_pop`) |
@@ -399,6 +456,8 @@ adjustment or guarantee calibration under other misspecification.
 | `tol` | `0.01` | Gibbs: batch-means SE convergence target |
 | `n_sim`, `burn_in` | `100_000`, `1000` | Gibbs: draws kept / discarded per round |
 | `max_rounds` | `100` | Gibbs: cap on convergence rounds |
+| `quadrature_atol` | `1e-8` | quadrature: successive mean/variance refinement tolerance, not a certified error bound |
+| `quadrature_max_nodes` | `128` | quadrature: maximum nodes per active dimension; accepted range 64–512 |
 | `seed` | `None` | Gibbs: integer RNG seed in `[0, 2**32 - 1]` (booleans rejected; per-family, deterministic) |
 | `genetic_corrmat`, `full_corrmat`, `phen_names` | `None` | multi-trait only |
 

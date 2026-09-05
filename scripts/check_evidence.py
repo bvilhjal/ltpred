@@ -2,6 +2,8 @@
 """Check the few benchmark claims that define the public release snapshot."""
 
 import csv
+import hashlib
+import json
 import math
 import re
 import statistics
@@ -323,6 +325,42 @@ def version_and_date():
     return version, release_date
 
 
+def check_efficient_inference():
+    """Bind the development pilot table to its measured source and raw timings."""
+    capsule = ROOT / "benchmarks/results/2026-09-05-efficient-inference"
+    artifact = json.loads(read(capsule / "results.json"))
+    metadata, checks, results = (artifact[key] for key in ("metadata", "checks", "results"))
+    hashes = metadata["source_hashes"]
+    digest = hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()
+    assert metadata["source_stable"] and metadata["source_digest"] == digest
+    assert metadata["source_digest_after"] == digest
+    for relative, expected in hashes.items():
+        assert hashlib.sha256((capsule / "source_snapshot" / relative).read_bytes()).hexdigest() == expected
+    assert all(result["source_digest"] == digest for result in results.values())
+    assert checks["pipeline_input_equal"] and checks["fitting_inputs_equal"]
+    assert checks["pipeline_max_abs_mean_difference"] == checks["pipeline_max_abs_variance_difference"] == 0
+    for field in ("est", "var"):
+        assert results["pipeline_selected"]["scores"][field] == results["pipeline_full"]["scores"][field]
+    for first, second in (("pipeline_selected", "pipeline_full"), ("adult_scalar", "adult_covariance"),
+                          ("inference_pa", "inference_quadrature"), ("inference_pa", "inference_gibbs")):
+        assert results[first]["input_sha256"] == results[second]["input_sha256"]
+    assert [r["input_sha256"] for r in results["fit_pairwise"]["replicates"]] == [
+        r["input_sha256"] for r in results["fit_moment"]["replicates"]]
+    source = ROOT / "report/efficient_inference.tex"
+    require(source, digest[:12])
+    for case, label in (
+        ("inference_pa", "One family: PA"), ("inference_quadrature", "One family: quadrature"),
+        ("inference_gibbs", r"One family: Gibbs, $10^6$ draws"),
+        ("adult_scalar", "20,000 ADuLT: scalar"), ("adult_covariance", "20,000 ADuLT: covariance API"),
+        ("pipeline_selected", "200 probands: selected relationships"),
+        ("pipeline_full", "200 probands: full construction"),
+    ):
+        result = results[case]
+        require(source, f"{label} & {result['first_call_seconds']:.3f} & "
+                f"{1000 * statistics.median(result['warm_seconds']):.3f} & "
+                f"{result['peak_rss_bytes'] / 2**20:.1f}")
+
+
 def main():
     version, release_date = version_and_date()
     scaling = check_scaling()
@@ -330,6 +368,7 @@ def main():
     cc, en, n_fam = check_ipw()
     r_lock = check_r_lock()
     pgs = check_pgs()
+    check_efficient_inference()
     check_report(version, release_date, scaling, r_lock, pgs, pa_robust)
     print(
         f"Evidence artifacts internally consistent: scaling {scaling[0]}; "

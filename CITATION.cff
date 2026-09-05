@@ -8,15 +8,16 @@ abstract: >-
   family history, and PA-FGRS contributes deterministic Pearson-Aitken inference
   and an age-censored-control mixture. Inference uses a
   truncated-multivariate-normal Gibbs sampler or deterministic Pearson-Aitken
-  approximation.
+  approximation, with optional parental-factor quadrature for additive nuclear
+  families and pairwise composite-likelihood variance-component fitting.
 type: software
 authors:
   - family-names: "Vilhjálmsson"
     given-names: "Bjarni Jóhann"
 repository-code: "https://github.com/bvilhjal/ltpred"
 license: MIT
-version: 0.5.2
-date-released: "2026-09-04"
+version: 0.6.0
+date-released: "2026-09-05"
 keywords:
   - liability-threshold model
   - LT-FH

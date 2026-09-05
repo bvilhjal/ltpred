@@ -1,0 +1,40 @@
+{
+  "case": "adult_covariance",
+  "environment": {
+    "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+    "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+    "numpy": "2.2.6",
+    "scipy": "1.15.3",
+    "numba": "0.67.0",
+    "ltpred": "0.6.0",
+    "numba_threads": 1,
+    "threadpools": "threadpoolctl unavailable; requested limits recorded, BLAS runtime thread count not independently queried",
+    "numpy_config": "Build Dependencies:\n  blas:\n    detection method: system\n    found: true\n    include directory: unknown\n    lib directory: unknown\n    name: accelerate\n    openblas configuration: unknown\n    pc file directory: unknown\n    version: unknown\n  lapack:\n    detection method: system\n    found: true\n    include directory: unknown\n    lib directory: unknown\n    name: accelerate\n    openblas configuration: unknown\n    pc file directory: unknown\n    version: unknown\nCompilers:\n  c:\n    commands: cc\n    linker: ld64\n    name: clang\n    version: 15.0.0\n  c++:\n    commands: c++\n    linker: ld64\n    name: clang\n    version: 15.0.0\n  cython:\n    commands: cython\n    linker: cython\n    name: cython\n    version: 3.1.0\nMachine Information:\n  build:\n    cpu: aarch64\n    endian: little\n    family: aarch64\n    system: darwin\n  host:\n    cpu: aarch64\n    endian: little\n    family: aarch64\n    system: darwin\nPython Information:\n  path: /private/var/folders/w5/_8wgjw3j5cg6mgrth3s2kg9m0000gn/T/build-env-g9clshsu/bin/python\n  version: '3.10'\nSIMD Extensions:\n  baseline:\n  - NEON\n  - NEON_FP16\n  - NEON_VFPV4\n  - ASIMD\n  found:\n  - ASIMDHP\n  not found:\n  - ASIMDFHM\n\n",
+    "thread_variables": {
+      "OPENBLAS_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "MKL_NUM_THREADS": "1",
+      "VECLIB_MAXIMUM_THREADS": "1",
+      "NUMEXPR_NUM_THREADS": "1",
+      "NUMBA_NUM_THREADS": "1"
+    }
+  },
+  "source_digest": "67002dd285139547df9f0e3d0c292bc27760679a68b1fa847f21168f572f484d",
+  "first_call_seconds": 1.3742616248782724,
+  "warm_seconds": [
+    0.011390667175874114,
+    0.011155375046655536,
+    0.011734416941180825
+  ],
+  "equivalence": {
+    "max_abs_mean_difference": 0.0,
+    "max_abs_variance_difference": 1.1102230246251565e-16
+  },
+  "input_sha256": "714b9cf14dea0221d9897886e71eb3b06fc04ef47082f62ac9116ee134d42892",
+  "settings": {
+    "families": 20000,
+    "h2": 0.5,
+    "bounds": "equal groups: pin2, controlK=.05, caseK=.05, uninformative",
+    "comparator": "current public two-coordinate PA covariance API"
+  }
+}

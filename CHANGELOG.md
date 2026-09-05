@@ -6,6 +6,38 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.6.0 — 2026-09-05
+
+### Added
+
+- Optional `method="quadrature"` estimates additive nuclear-family liabilities
+  by integrating at most two parental factors. Pins are conditioned analytically;
+  absent and one-interval cases use exact moments. Both posterior moments have
+  refinement diagnostics (`quadrature_error`, `quadrature_nodes`), separate from
+  Monte Carlo SE. Unresolved convergence raises. The method excludes C/M,
+  inbred or extended pedigrees, multiple traits, the censoring mixture, and `h2=1`.
+- Explicit, opt-in `fit_pairwise` fits identifiable A/C/M components from
+  common-threshold binary family data, with population/IPW sampling contracts,
+  compressed pair tables, and independent-family sandwich uncertainty. Boundary
+  or weak-information fits report unavailable normal-approximation SEs.
+  Statistical efficiency and interval coverage still require broader validation;
+  the stochastic moment fitter remains available and unchanged.
+- The methods report derives these reductions, their costs, and their scope.
+
+### Changed
+
+- Ordinary PA marginalizes absent observations and conditions all pins jointly
+  before folding intervals, sharing reductions by observation mask. Pin-only
+  inputs and pins followed by one remaining interval are exact. This deliberately
+  changes some pinned-family PA scores; several remaining intervals still require
+  a moment approximation. The PA-FGRS mixture retains its existing semantics.
+- Family-free additive PA uses scalar ADuLT moments directly where no legacy
+  covariance repair is needed.
+- The register driver computes selected relationships from the complete ancestry
+  graph, with an iterative recursion and bounded reuse (`kinship_cache_size`).
+  It retains the full path near covariance-repair boundaries and preserves
+  observation counts, calendar masking, and output alignment.
+
 ## 0.5.2 — 2026-09-04
 
 ### Added

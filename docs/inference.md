@@ -11,7 +11,7 @@ Unsupported experimental inferential machinery lives in the checkout-only
 
 !!! danger "Supported sampling contract"
 
-    `fit_heritability` and `fit_variance_components` assume independent,
+    `fit_heritability`, `fit_variance_components` and `fit_pairwise` assume independent,
     non-overlapping families. When members carry `pid`, a person who appears
     in more than one family (distinct `fam_id`) is rejected; use
     `estimate_liability` for per-proband scores on overlapping register
@@ -28,7 +28,7 @@ Unsupported experimental inferential machinery lives in the checkout-only
     each role's case rate is compared with it and a gross mismatch raises. This
     is worth knowing because
     the failure it guards is severe and silent: on ascertained families with a
-    true `h²` of **0**, the unguarded fitter returns **`h² = 1.0`**
+    true `h²` of **0**, the unguarded HE fitter returns **`h² = 1.0`**
     ([RESULTS.md §29](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)).
 
     A failure is equally consistent with an honestly sampled cohort analysed
@@ -39,13 +39,15 @@ Unsupported experimental inferential machinery lives in the checkout-only
     `max(1 + 6·√((1−K)/(K·n)), 1.15)×` — the z-score gate is combined with a
     15% rate-ratio floor. At K = 0.05 that is ~1.67× at N = 1,500 and
     ~1.26× at N = 10,000, with the 1.15× floor binding for N ≳ 30,000. Milder enrichment passes silently, and the
-    dose-response below shows a 1.51× enrichment already inflates `h²` by
+    HE dose-response below shows a 1.51× enrichment already inflates `h²` by
     +0.48. Passing this check is not evidence that your sample is
     population-sampled.
 
 The meaning of a reported `se` depends on the method. For the
 Haseman–Elston/data-augmentation fits, it is a *within-dataset* Monte-Carlo
 diagnostic, not across-dataset sampling uncertainty.
+The opt-in [pairwise fitter](#deterministic-pairwise-fitting) instead reports
+conditional, asymptotic family-cluster sampling SEs for interior estimates.
 [`bootstrap_fit`](#family-cluster-uncertainty-bootstrap_fit) provides an
 approximate family-cluster sampling interval when families are independent.
 
@@ -123,10 +125,61 @@ recommended final precision: percentile endpoints can be visibly unstable with
 so few resamples. Increase `n_boot` until the SE and interval endpoints are stable
 for your analysis, and report the number of successful refits.
 
+## Deterministic pairwise fitting
+
+`fit_pairwise` estimates the same A/C/M covariance parameters using products of
+binary relative-pair probabilities. It aggregates common-threshold observations
+by relationship pattern and optimizes a small deterministic objective, without
+sampling latent liabilities. This is a separate composite-likelihood estimator;
+`fit_heritability` and `fit_variance_components` retain their existing algorithms.
+
+```python
+from ltpred import fit_pairwise
+
+pw = fit_pairwise(
+    fitting_families, components=("A", "C"), sampling="population",
+)
+pw.components, pw.residual
+pw.se, pw.inference_status
+```
+
+The initial implementation requires a common single-trait case/control
+threshold. It rejects personalized thresholds, onset pins and two-sided
+intervals; uninformative members contribute no pairs. Components must have
+independent identifying contrasts among the **observed** pairs. Fractions are
+nonnegative and sum to at most `1 - eps` (`eps=1e-6` by default). Failed,
+infeasible or nonstationary optimizer results raise rather than being returned.
+
+Independent, non-overlapping family clusters and the sampling contract above
+remain essential. For a known, strictly positive selection design, use
+`fit_pairwise(fitting_families, sampling="ipw", weights=weights)`; weights are
+normalized to mean one without changing their relative contributions. Passing
+the weighted marginal screen does not establish joint positivity or correct
+weights. The fitter does not infer selection probabilities or fit an
+ascertainment likelihood.
+
+For an interior fit, `pw.covariance` follows `pw.component_order`, and `pw.se`
+contains its square-root diagonal. The sandwich calculation combines the
+observed likelihood sensitivity with **family-level** score variability, so
+shared members within a family are not treated as independent pairs. It is
+conditional on supplied thresholds and weights and excludes uncertainty from
+estimating them. These are asymptotic SEs, not finite-sample calibration claims.
+At a component or residual constraint boundary, `pw.at_boundary` is true and
+the covariance and SEs are `NaN`; `pw.inference_status` also distinguishes
+insufficient clusters or information. Ordinary normal intervals are then
+inappropriate, and the composite log likelihood does not justify ordinary
+chi-square likelihood-ratio tests.
+
+For cluster resampling, an existing `bootstrap_fit` callback can return
+`fit_pairwise(f, sampling="population").components["A"]`. For IPW, accept
+both `f` and resampled `w` and pass `weights=weights` to `bootstrap_fit`.
+No internal random seed is needed. Bootstrap or profile inference at a
+boundary still needs separate calibration.
+
 ## Ascertained samples
 
-Selection on phenotype is the failure mode these fitters are least robust to,
-and the tolerance is much tighter than intuition suggests. From the
+Selection on phenotype also matters for pairwise fitting. The quantified
+failure below concerns the HE/data-augmentation fitter. From the
 dose-response in `benchmarks/bench_ascertainment.py` (nuclear families,
 true `h²` = 0.5, K = 0.05, N = 2,000):
 

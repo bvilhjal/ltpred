@@ -821,13 +821,15 @@ result a function of the pedigree shape, not of input row order. It
 is a reproducibility choice, not a claim of smaller approximation
 error.
 
-**P2.** [Fold.] For each remaining coordinate `i`, last to first,
+**P2.** [Reduce.] Marginalize unobserved non-target coordinates. Jointly
+condition on all pins using Gaussian conditioning, checking singular support,
+and center the remaining bounds. This step excludes the censoring mixture,
+whose sequential observation semantics remain unchanged.
+
+**P3.** [Fold.] For each remaining interval coordinate `i`, last to first,
 replace its marginal `N(m_i, v_i)` by the truncated-normal
 moments `(m*, v*)` of its interval, and apply (10) to the
 remaining mean and covariance.
-
-**P3.** [Pin.] If `a_i = b_i`, set `v* = 0`. This is exact
-Gaussian conditioning on a point.
 
 **P4.** [Target.] Apply the target's own interval to the updated
 `N(m_0, v_0)`. For the genetic target the interval is
@@ -841,10 +843,16 @@ its updated variance is the reported posterior variance.
 After one truncation the selected law is no longer, in general,
 multivariate normal. Algorithm P keeps only the updated first two
 moments and proceeds as if the remaining variables were Gaussian
-with those moments. Hence it is exact for a single interval or a
-pin, and a sequential two-moment approximation thereafter.
+with those moments. After exact pin conditioning, it is exact with zero or
+one remaining interval, and a sequential two-moment approximation thereafter.
+Conditioning pins first can change earlier PA outputs without changing the
+specified model. It does not guarantee an improvement for every rectangle.
+For additive nuclear families, `method="quadrature"` instead integrates at most
+two parental factors; the [methods report](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf)
+derives the factorization, both target moments, numerical diagnostics, and
+the selected-relationship and pairwise-fitting reductions.
 
-On separately observed family-member intervals **without the
+In the archived benchmark snapshots, on separately observed family-member intervals **without the
 censoring mixture**, PA and Gibbs posterior-mean estimates had
 correlation ≥ 0.997 while PA ran 392–518× faster than grouped Gibbs
 in the controlled 4-thread benchmark in this package. A locked
@@ -873,7 +881,7 @@ An observed case contributes the lifetime interval
 `[Φ⁻¹(1-K_pop), ∞)`. An age-censored control
 is not one truncated law. It is a mixture of a lifetime control and
 a not-yet-onset future case. Algorithm P folds that person by
-replacing the ordinary truncated moments in **P2** with the
+replacing the ordinary truncated moments in **P3** with the
 two-component moments below (`_tnorm_mixture` in
 `ltpred.pearson_aitken`; PA-FGRS supp. eqs. S3–S5).
 

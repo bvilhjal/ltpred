@@ -1,5 +1,10 @@
 # ltpred benchmark results
 
+The separate [5 September 2026 efficiency pilot](results/2026-09-05-efficient-inference/README.md)
+records the v0.6.0 reductions and new opt-in methods, with measured source and
+input snapshots. Its small synthetic workloads do not replace the campaigns
+below or establish statistical efficiency and interval coverage.
+
 Historical results from the local benchmark scripts in this directory (26
 scripts since the 2026-08 consolidation; the retired standalone scripts are
 reported as subsections or merged panels of their targets -- see the notes in
@@ -945,7 +950,9 @@ across the five replicates (`np.std(..., ddof=1)/sqrt(REPS)`, rerun
 2026-08-14) -- not the sample SD. The Falconer
 heritability estimate h2 ~ 2 x tetrachoric(first-degree) gives 0.497 ± 0.016
 (truth 0.5) from binary relative pairs alone, agreeing with
-`fit_heritability` on the same families (0.515 ± 0.031).
+`fit_heritability` on 4,000-family subsets of those cohorts (0.515 ± 0.031).
+The tetrachoric calculation uses all 20,000 families, so this SD comparison
+does not establish greater statistical efficiency at equal sample size.
 `tetrachoric_matrix` produces the expected h2*A block for multi-variable
 status matrices. Artifacts: `bench_tetrachoric.csv`.
 

@@ -187,6 +187,13 @@ gibbs = estimate_liability(sim.families[:200], h2=0.5, method="gibbs",
 gibbs.est["genetic"]   # agrees with PA to ~1e-2 in this no-mixture example
 ```
 
+For additive nuclear families, `method="quadrature"` integrates at most two
+parental factors, regardless of the number of siblings. It reports convergence
+diagnostics for both posterior moments and raises if refinement does not settle;
+see [estimation](docs/estimation.md). Ordinary PA now conditions pins jointly
+before approximating any remaining intervals. The [methods report](report/README.md)
+derives both reductions and their exactness boundaries.
+
 ### Bring your own data
 
 Build families from flat, tibble-style columns:
@@ -221,10 +228,11 @@ ltpred covers the core prediction and fitting APIs: role-based and arbitrary-
 pedigree (`kinship_from_pedigree`) covariance construction, an installed
 population-trio register driver (`estimate_liabilities`), threshold/age/CIP
 conversions plus CIP estimation from follow-up records (Kaplan-Meier and
-Aalen-Johansen, `ltpred.cip`), both inference engines (Gibbs and PA), single-
+Aalen-Johansen, `ltpred.cip`), Gibbs, PA and nuclear-family quadrature, single-
 and multi-trait `estimate_liability`, simulation, and **model fitting** —
 heritability (`fit_heritability`), variance components A + C + M
-(`fit_variance_components`), approximate iid-family cluster percentile intervals
+(`fit_variance_components`), optional common-threshold pairwise likelihood
+(`fit_pairwise`), approximate iid-family cluster percentile intervals
 (`bootstrap_fit`), liability-scale transformations (`ltpred.liability_scale`),
 and tetrachoric-correlation diagnostics
 (`ltpred.tetrachoric`) for liability correlations straight from 2x2
