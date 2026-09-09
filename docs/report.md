@@ -27,6 +27,13 @@ not real-LD, related-sample mixed-model GWAS evidence. A compact release check
 pins the headline rows and rejects a report source or included table newer than
 the tracked PDF.
 
+The "Time and memory between versions" subsection reports the
+[9 September 2026 efficiency rerun](https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-09-time-memory-v061-rerun)
+of v0.6.1 against v0.6.0, with matched workloads, warm runtimes, process RSS
+and exact output agreement. The evidence check binds its table to the saved
+JSON measurements and source provenance. v0.6.2 updates the documentation;
+its numerical implementation is unchanged from the measured v0.6.1 source.
+
 The report states the estimand and assumptions first, then the
 liability-threshold model and BLUP identity, Algorithms G
 (Gibbs), P (Pearson–Aitken) and M (mixture),

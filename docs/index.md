@@ -27,6 +27,10 @@ A typeset technical report (theory, implementation, and committed simulation
 numbers) ships in the repository as
 [`report/ltpred_methods.pdf`](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf).
 
+For measured runtime and memory changes, see the
+[v0.6.1 versus v0.6.0 benchmark rerun](https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-09-time-memory-v061-rerun)
+and the [PA memory notes](estimation.md#scaling-to-large-cohorts).
+
 Unsupported experimental fitters and covariance extensions live in the source checkout's
 [`research/` directory](https://github.com/bvilhjal/ltpred/tree/main/research);
 they are not installed with ltpred. Population-register scoring is installed as

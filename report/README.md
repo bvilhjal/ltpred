@@ -21,11 +21,17 @@ liability-dependent onset), pin versus interval encodings, and
 ascertainment. Section "Reducing the inference problem" derives exact
 marginalization and pin conditioning, scalar ADuLT moments, parental-factor
 quadrature, bounded selected relationship recursion, and pairwise likelihood
-with independent-family sandwich uncertainty. The earlier benchmark tables
-remain evidence for their archived source snapshots, not a rerun of all
-methods in v0.6.1. The separate
-[time and memory review](../benchmarks/results/2026-09-09-time-memory/README.md)
-records the v0.6.1 PA-batching and parent-graph changes against v0.6.0.
+with independent-family sandwich uncertainty. Its subsection "Time and memory
+between versions" reports the
+[9 September 2026 rerun](../benchmarks/results/2026-09-09-time-memory-v061-rerun/README.md)
+of v0.6.1 against v0.6.0: 2.25× faster mixed-mask PA and 1.73× faster
+million-record graph construction, lower peak memory, and exact output
+agreement across all seven workloads. The small register-scoring improvement
+is only about 3%. The table separates warm runtime from whole-process RSS;
+the run capsule also reports first-call time and separately traced allocations.
+The report is versioned v0.6.2, a documentation patch with the same numerical
+implementation as v0.6.1. Earlier statistical tables retain their historical
+provenance; this efficiency rerun does not refresh their statistical evidence.
 
 The historical register-depth and prospective benchmark numbers are withdrawn
 from the note pending a clean-source rerun. The vignette's six-person register
@@ -42,7 +48,8 @@ python scripts/check_evidence.py
 
 Six load-bearing report tables are static LaTeX inputs derived from the
 committed benchmark CSVs (the full generator was removed in the 2026-08
-lean-down). The compact evidence check covers the release-defining rows and
+lean-down). The compact evidence check covers the release-defining rows, the
+time/memory JSON capsule and its documentation tables, and
 also rejects a report source or included table newer than the tracked PDF.
 
 The PDF is tracked as repository documentation. The lean source distribution

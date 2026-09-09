@@ -265,7 +265,7 @@ def last_commit(path):
     return result.stdout.strip()
 
 
-def check_report(version, release_date, scaling, r_lock, pgs, pa_robust):
+def check_report(version, release_date, scaling, r_lock, pgs, pa_robust, time_memory):
     try:
         from pypdf import PdfReader
     except ImportError as exc:
@@ -290,6 +290,10 @@ def check_report(version, release_date, scaling, r_lock, pgs, pa_robust):
     for pattern in patterns:
         if not re.search(pattern, text):
             raise AssertionError(f"tracked PDF is missing /{pattern}/; rebuild it")
+    compact = re.sub(r"\s+", "", text)
+    for row in time_memory:
+        if re.sub(r"\s+", "", row) not in compact:
+            raise AssertionError(f"tracked PDF is missing time/memory row {row!r}; rebuild it")
 
     if not (ROOT / ".git").exists() or git_dirty(REPORT_PDF):
         return
@@ -361,6 +365,87 @@ def check_efficient_inference():
                 f"{result['peak_rss_bytes'] / 2**20:.1f}")
 
 
+def check_time_memory_rerun():
+    """Keep the v0.6.1 measurements tied to their sources and published rows."""
+    capsule = ROOT / "benchmarks/results/2026-09-09-time-memory-v061-rerun"
+    artifact = json.loads(read(capsule / "results.json"))
+    provenance = json.loads(read(capsule / "provenance.json"))
+    assert hashlib.sha256((capsule / "results.json").read_bytes()).hexdigest() == provenance["results_sha256"]
+    assert artifact["baseline_revision"] == provenance["baseline_revision"] == "52dec5294c101d4730c86d3307091be75dc47a5e"
+    assert provenance["candidate_revision"] == provenance["candidate_revision_after"] == "b516271266a9fa0d95f5137954e4a284d1913ccb"
+    assert provenance["source_stable"] and provenance["exit_code"] == 0
+    assert provenance["source_status_before"] == provenance["source_status_after"] == ""
+    assert provenance["source_hashes_before"] == provenance["source_hashes_after"]
+    assert all(provenance["source_hashes_before"][path] == digest
+               for path, digest in artifact["source_hashes"]["candidate"].items())
+    assert artifact["benchmark_sha256"] == provenance["source_hashes_before"]["benchmarks/bench_time_memory.py"]
+    assert artifact["power_guard"]["status"] == "passed"
+    assert len(artifact["thread_variables"]) == 6 and set(artifact["thread_variables"].values()) == {"1"}
+    labels = {
+        "graph_200k": "Parent graph, 200,000 records",
+        "graph_1m": "Parent graph, 1,000,000 records",
+        "pa_mixed": "PA, mixed pin masks",
+        "pa_pin": "PA, common pin mask",
+        "pa_intervals": "PA, intervals only",
+        "pa_mixture": "PA, censoring mixture",
+        "pipeline": "Register scoring, 300 probands",
+    }
+    rows = {(row["case"], row["arm"], row["mode"]): row for row in artifact["results"]}
+    expected = {(case, arm, mode) for case in labels
+                for arm in ("baseline", "candidate") for mode in ("time", "allocation")}
+    assert len(artifact["results"]) == 28 and set(rows) == expected
+    assert set(artifact["agreement"]) == set(labels)
+    original = json.loads(read(ROOT / "benchmarks/results/2026-09-09-time-memory/results.json"))
+    old_rows = {(row["case"], row["arm"], row["mode"]): row for row in original["results"]}
+    report_rows = []
+    for case, label in labels.items():
+        for arm, version in (("baseline", "0.6.0"), ("candidate", "0.6.1")):
+            for mode in ("time", "allocation"):
+                row = rows[case, arm, mode]
+                assert row["source_hashes"] == artifact["source_hashes"][arm]
+                assert row["settings"] == rows[case, "baseline", "time"]["settings"]
+                assert row["settings"] == old_rows[case, arm, mode]["settings"]
+                assert row["environment"]["ltpred"] == version
+                assert row["environment"]["numba_threads"] == 1
+                for key in ("python", "numpy", "scipy", "numba"):
+                    assert row["environment"][key] == artifact["results"][0]["environment"][key]
+                values = [row["peak_allocated_bytes"]] if mode == "allocation" else [
+                    row["peak_rss_bytes"], row["first_call_seconds"], *row["warm_seconds"]]
+                assert all(math.isfinite(value) and value > 0 for value in values)
+                if mode == "time":
+                    assert len(row["warm_seconds"]) == 5
+        if case.startswith("graph_"):
+            assert artifact["agreement"][case] == {"identical_graph": True}
+            assert rows[case, "baseline", "allocation"]["graph_sha256"] == rows[case, "candidate", "allocation"]["graph_sha256"]
+        else:
+            fields = ("est", "var") if case.startswith("pa_") else (
+                "est", "var", "n_relatives", "n_conditioned", "n_closure_only", "degree_max")
+            assert artifact["agreement"][case] == dict.fromkeys(fields, 0.0)
+        times = [rows[case, arm, "time"] for arm in ("baseline", "candidate")]
+        medians = [statistics.median(row["warm_seconds"]) for row in times]
+        first = " / ".join(f"{row['first_call_seconds']:.3f}" for row in times)
+        warm = " / ".join(f"{value:.3f}" for value in medians)
+        speed = f"{medians[0] / medians[1]:.2f}"
+        rss = " / ".join(f"{row['peak_rss_bytes'] / 2**20:.1f}" for row in times)
+        alloc = " / ".join(f"{rows[case, arm, 'allocation']['peak_allocated_bytes'] / 2**20:.1f}"
+                           for arm in ("baseline", "candidate"))
+        old_speed = statistics.median(old_rows[case, "baseline", "time"]["warm_seconds"]) / statistics.median(old_rows[case, "candidate", "time"]["warm_seconds"])
+        require(capsule / "README.md", f"| {label} | {first} | {warm} | {speed}x |",
+                f"| {label} | {rss} | {alloc} |", f"| {label} | {old_speed:.2f}x | {speed}x |")
+        require(RESULTS, f"| {label} | {warm} | {speed}× | {rss} | {alloc} |")
+        require(ROOT / "report/efficient_inference.tex",
+                f"{label} & {warm} & ${speed}\\times$ & {rss}")
+        report_rows.append(f"{label} {warm} {speed}× {rss}")
+        if case in ("pa_mixed", "graph_1m"):
+            require(ROOT / "README.md", f"**{speed}× faster**")
+            for path in (ROOT / "benchmarks/README.md", ROOT / "report/README.md"):
+                require(path, f"{speed}× faster")
+        if case == "pa_mixed":
+            require(ROOT / "docs/estimation.md", f"{speed}× faster", warm.replace(" / ", " → "),
+                    rss.replace(" / ", " → "))
+    return report_rows
+
+
 def main():
     version, release_date = version_and_date()
     scaling = check_scaling()
@@ -369,13 +454,14 @@ def main():
     r_lock = check_r_lock()
     pgs = check_pgs()
     check_efficient_inference()
-    check_report(version, release_date, scaling, r_lock, pgs, pa_robust)
+    time_memory = check_time_memory_rerun()
+    check_report(version, release_date, scaling, r_lock, pgs, pa_robust, time_memory)
     print(
         f"Evidence artifacts internally consistent: scaling {scaling[0]}; "
         f"PA stress floor {pa_robust[0]} (worst {pa_robust[1]}); "
         f"IPW {cc}/{en} (N={n_fam:,}); "
         f"R locks {r_lock['details']['gibbs']} and {r_lock['details']['pa']}; "
-        f"PGS {pgs['headline']}; PDF v{version}."
+        f"PGS {pgs['headline']}; time/memory {len(time_memory)} matched cases; PDF v{version}."
     )
 
 

@@ -1,5 +1,9 @@
 # LTpred time and memory review, 9 September 2026
 
+A subsequent [clean v0.6.1 rerun](../2026-09-09-time-memory-v061-rerun/README.md)
+repeats all seven workloads and confirms the main runtime and memory gains.
+The measurements below retain their original development-source provenance.
+
 The changes remove observation-mask sorting overhead and duplicate arrays in
 PA, and temporary sibling sets in parent-graph construction. All measured
 means, posterior variances, and register diagnostics agree exactly with the

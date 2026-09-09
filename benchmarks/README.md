@@ -5,18 +5,19 @@ deterministic **Pearson–Aitken (PA)** — across LT-FH, LT-FH++ and ADuLT inpu
 The PA-FGRS censoring mixture has unit tests and a dedicated generative
 benchmark (`bench_pafgrs_mixture.py`).
 Bounds define the observation encoding; relative rows distinguish
-LT-FH++ from family-free ADuLT. Everything simulates
-its own data, so the true genetic liability is known and the benchmarks run
-locally with no downloads (the one exception, real-LD genotypes, is an opt-in
+LT-FH++ from family-free ADuLT. Statistical benchmarks simulate
+their own data, so the true genetic liability is known; computational benchmarks
+use matched synthetic workloads. Both run locally with no downloads (real-LD genotypes are an opt-in
 [HAPNEST](hapnest/README.md) step).
 
-This project baselines on **four threads**, which is what the timings in
-`RESULTS.md` were measured at. Pin the thread count explicitly rather than
+Historical scaling and R-package comparisons use **four threads**; other
+campaigns record their own thread counts. The time/memory comparison below uses
+**one thread**. Pin the thread count explicitly rather than
 letting Numba take every core: a speed-up is only interpretable alongside the
 thread count it was measured at, because Gibbs is parallel while the PA object
 path is largely serial.
 
-Use the provenance wrapper whenever regenerated output will be committed. It
+Use the provenance wrapper for retained CSV/PNG benchmark outputs. It
 appends one JSON object to `run_manifest.jsonl` with the clean source commit,
 exact command, runtime stack, thread settings, machine profile, exit status, and
 hashes of declared CSV/PNG artifacts:
@@ -74,9 +75,40 @@ cores, on a cold JIT cache, or without Numba (the pure-Python fallback is
 numerically identical, just slower). Each script takes CLI flags (`--reps`,
 `--n-fam`, …) to trade runtime for precision.
 
+## Time and memory between versions
+
+The [v0.6.1 rerun against v0.6.0](results/2026-09-09-time-memory-v061-rerun/README.md)
+covers two parent-graph sizes, four PA batches of 200,000 families, and a small
+register-scoring workload. Mixed-mask PA is 2.25× faster and the million-record
+graph is 1.73× faster on warm calls, with lower RSS; the small register case
+improves by about 3%. All measured outputs agree exactly. Full results and
+measurement limits are in [RESULTS.md §31](RESULTS.md#31-time-and-memory-v061-versus-v060).
+
+Run the standalone JSON driver from the source version to be measured, using
+a new output directory:
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
+VECLIB_MAXIMUM_THREADS=1 NUMEXPR_NUM_THREADS=1 NUMBA_NUM_THREADS=1 \
+.venv/bin/python benchmarks/bench_time_memory.py \
+  --baseline-ref 52dec5294c101d4730c86d3307091be75dc47a5e \
+  --reps 5 --output /tmp/ltpred-time-memory
+```
+
+The driver uses separate runtime/RSS and allocation processes for each case and
+version, archives both package sources, and checks output agreement and source
+stability. First-call times include reached JIT compilation; warm medians use
+five later calls. Allocation tracing runs separately after warmup, outside the
+timing process. The AC-power/Low-Power-Mode guard must pass. This JSON campaign
+does not use the CSV/PNG wrapper: retain its aggregate `results.json`, run log,
+and before/after source provenance together, as in the linked capsule. That
+capsule measured the clean v0.6.1 commit `b516271`; the documentation patch
+v0.6.2 leaves the numerical implementation unchanged.
+
 ## Environments
 
-Two conda environments split the work:
+The September time/memory runs use the checkout's **`.venv`**: Python 3.10.20,
+NumPy 2.2.6, SciPy 1.15.3 and Numba 0.67.0. Historical campaigns also used:
 
 - **`ltpred314`** — package verification: pytest, ruff, and the docs gate
   (`mkdocs build --strict`). Deliberately dependency-minimal (stdlib + NumPy),
@@ -89,8 +121,11 @@ Two conda environments split the work:
 Rows marked **unsupported research** import checkout-only APIs from
 `research/`; those APIs are not installed as part of `ltpred`.
 
+**Table 1. Benchmark scripts and their measured quantities.**
+
 | Script | What it measures |
 |--------|------------------|
+| `bench_time_memory.py` | Matched versions: first-call and warm runtimes, process RSS, separate call-allocation peaks and exact output agreement for graph construction, PA batching and register scoring (→ an isolated output directory with JSON records and source snapshots) |
 | `bench_accuracy.py` | corr(estimated classic LT-FH liability, true g) across heritability × prevalence × family structure — Gibbs vs PA accuracy, calibration slope, RMSE and squared-correlation effective-N proxy over case/control (→ `bench_accuracy.{csv,png}`) |
 | `bench_scaling.py` | wall-clock scaling of both methods with #families and family size; families/second and speed-up (→ `bench_scaling.{csv,png}`) |
 | `bench_ltfhplus_compare.py` | **opt-in:** locked score, total and per-family wall-clock, fold times versus LTFHPlus Gibbs and LTFGRS PA, and isolated-process peak RSS on the same classic LT-FH families (→ `bench_ltfhplus_compare.csv`). Exits 2 if R or LTFHPlus is missing |

@@ -6,6 +6,17 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.6.2 — 2026-09-09
+
+### Documentation
+
+- Record the clean-source v0.6.1 versus v0.6.0 time/memory rerun across all seven
+  workloads, including first-call and warm times, RSS, separate allocation peaks,
+  exact output agreement and source provenance. Update the READMEs, estimation
+  guide, benchmark results and methods report with the measured scope and limits.
+- Extend the evidence check to bind the new documentation tables to the retained
+  measurements and provenance. The numerical implementation is unchanged.
+
 ## 0.6.1 — 2026-09-09
 
 ### Changed

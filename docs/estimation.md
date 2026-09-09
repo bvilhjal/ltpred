@@ -371,8 +371,15 @@ PA compares complete observation masks as byte strings when grouping families.
 With the genetic target already first, it reuses contiguous input bounds;
 Gaussian reductions center two owned work arrays in float64 in place. This
 avoids duplicate cohort arrays while preserving pin conditioning and interval
-order. The input arrays are not modified. A reproducible time/memory comparison
-is available in `benchmarks/bench_time_memory.py`.
+order. The input arrays are not modified. In the
+[9 September 2026 rerun](https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-09-time-memory-v061-rerun),
+v0.6.1's mixed-mask PA batch of 200,000 families was 2.25× faster than v0.6.0
+(warm median 1.120 → 0.497 s), with peak process RSS 491.9 → 337.3 MiB and
+exactly matching means and variances. Interval-only and censoring-mixture
+batches improved by 1.06× and 1.08×, respectively. These are workload-specific
+measurements with one Numba thread and requested one-thread BLAS limits;
+first-call times and separately traced allocation peaks are recorded in the
+capsule. The driver is `benchmarks/bench_time_memory.py`.
 
 ## Multiple correlated traits
 

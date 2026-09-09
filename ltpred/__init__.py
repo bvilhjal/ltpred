@@ -31,7 +31,7 @@ accelerates the Gibbs sweep. Names are imported lazily (PEP 562) so
 import importlib
 from typing import TYPE_CHECKING
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 
 if TYPE_CHECKING:
     # Static re-exports. At runtime ``__getattr__`` below imports these lazily,

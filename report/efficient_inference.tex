@@ -277,3 +277,60 @@ $(0.755,0.412,0.482)$ on identical inputs. Pairwise calls take
 and five inner sweeps take 2.379--2.421 seconds. The criteria differ, and
 default controls do not establish convergence. These figures therefore do
 not compare cost at equal accuracy, sampling efficiency or interval coverage.
+
+\subsection{Time and memory between versions}
+\label{sec:time-memory}
+
+The 9 September 2026 rerun compares clean v0.6.1 (\texttt{b516271}) with
+v0.6.0 (\texttt{52dec52}) using seven identical synthetic workloads.
+PA groups complete observation masks as byte strings, avoids identity-order
+copies of input bounds, and centers owned float64 reduction buffers in place.
+Parent-graph construction builds ordered sibling lists directly, removing
+temporary sets. Table~\ref{tab:time-memory} measures these changes with the
+same inference rules. Every PA mean and variance, register score and diagnostic,
+and both graph adjacency digests matched exactly.
+
+\begin{table}[ht]
+\centering
+\caption{v0.6.0 / v0.6.1 runtime and memory. Warm time is the median of five
+calls after the first call. Each version and workload has a fresh timing
+process and initially empty Numba cache. RSS includes inputs, imports, reached
+JIT compilation and all timing repetitions. Speedup divides the two unrounded
+warm medians. MiB means $2^{20}$ bytes.}
+\label{tab:time-memory}
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Workload & Warm (s) & Speedup & Peak RSS (MiB) \\
+\midrule
+Parent graph, 200,000 records & 0.432 / 0.214 & $2.02\times$ & 290.5 / 255.2 \\
+Parent graph, 1,000,000 records & 2.101 / 1.213 & $1.73\times$ & 930.1 / 690.5 \\
+PA, mixed pin masks & 1.120 / 0.497 & $2.25\times$ & 491.9 / 337.3 \\
+PA, common pin mask & 0.429 / 0.366 & $1.17\times$ & 495.6 / 348.0 \\
+PA, intervals only & 0.393 / 0.370 & $1.06\times$ & 347.9 / 243.6 \\
+PA, censoring mixture & 0.692 / 0.643 & $1.08\times$ & 447.5 / 354.7 \\
+Register scoring, 300 probands & 0.087 / 0.085 & $1.03\times$ & 159.3 / 156.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each PA batch has 200,000 families and 17 coordinates with a shared
+positive-definite covariance; these are numerical workloads, not simulated
+populations. Graphs have half founders and two children per parent pair.
+The register case has 300 probands, a shared paternal chain of depth 60 and
+degree-one observation selection. Its warm improvement is only about 3\%.
+Separately traced call-allocation peaks fall from 179.2 to 50.2 MiB for
+mixed-mask PA and from 536.6 to 330.2 MiB for the million-record graph;
+the register peak stays at 3.1 MiB. This warmed \texttt{tracemalloc} measure
+excludes inputs and imports and does not capture every native/JIT allocation.
+
+All 28 workers completed with stable source hashes. The runtime was Python
+3.10.20, NumPy 2.2.6, SciPy 1.15.3 and Numba 0.67.0 on arm64 macOS with
+10 logical CPUs. Numba used one thread; BLAS limits were requested at one
+without a runtime pool query. AC power and Low Power Mode off were checked
+before and after; worker-start load averages were 2.46--3.29.
+The \href{https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-09-time-memory-v061-rerun}{run capsule}
+retains first-call times, warm repetitions, both memory measures and provenance.
+These repeat measurements support workload-specific computational gains,
+not statistical calibration or full-register scaling. This v0.6.2 report
+update leaves the measured v0.6.1 numerical implementation unchanged.

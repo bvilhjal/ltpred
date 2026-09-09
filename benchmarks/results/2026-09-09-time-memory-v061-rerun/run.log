@@ -1,0 +1,7 @@
+graph_200k: both sources measured; agreement passed
+graph_1m: both sources measured; agreement passed
+pa_mixed: both sources measured; agreement passed
+pa_pin: both sources measured; agreement passed
+pa_intervals: both sources measured; agreement passed
+pa_mixture: both sources measured; agreement passed
+pipeline: both sources measured; agreement passed

@@ -97,8 +97,8 @@ leaves them out, but then `pids` falls back to the family ID.
   observation models, PA exactness, and simulation evidence, written
   for colleagues (`report/ltpred_methods.tex`).
 - **[Benchmarks](benchmarks/RESULTS.md)** — accuracy, speed and independent-SNP
-  causal-NCP evidence
-  comparison of the two methods.
+  causal-NCP evidence, plus matched runtime and memory comparisons between
+  package versions.
 
 ## How it works
 
@@ -274,8 +274,21 @@ one).
 
 ## Benchmarks
 
+The [9 September 2026 time/memory rerun](benchmarks/RESULTS.md#31-time-and-memory-v061-versus-v060)
+compares v0.6.1 with v0.6.0 on seven matched synthetic workloads. Warm
+mixed-mask PA is **2.25× faster** for 200,000 families (1.120 → 0.497 s), with
+peak process RSS falling from **491.9 to 337.3 MiB**. Building a million-record
+parent graph is **1.73× faster** (2.101 → 1.213 s), with RSS falling from
+**930.1 to 690.5 MiB**. All measured outputs agree exactly. The small
+300-proband register-scoring case improves by only about 3%; these gains depend
+on the workload. Measurements used one Numba thread and requested one-thread
+BLAS limits. The [run capsule](benchmarks/results/2026-09-09-time-memory-v061-rerun/README.md)
+records first-call timings, warm repetitions, separate allocation peaks, source
+commits and reproduction instructions. v0.6.2 documents this rerun; its numerical
+implementation is unchanged from v0.6.1.
+
 [`benchmarks/`](benchmarks/) compares model encodings and inference engines on
-simulated data. Its checked-in results are a historical snapshot, not an
+simulated data. The earlier statistical results are historical snapshots, not an
 automatic validation of later source changes; see the provenance header and
 rerun instructions in [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md). The
 integrated LT-FH++ benchmark includes age-, sex-, and

@@ -1,11 +1,16 @@
 # ltpred benchmark results
 
+The [9 September 2026 time/memory rerun (§31)](#31-time-and-memory-v061-versus-v060)
+compares clean v0.6.1 with v0.6.0 on seven matched workloads. It records warm
+speedups, first-call time, memory and exact output agreement; the measured
+source remains v0.6.1 in this v0.6.2 documentation update.
+
 The separate [5 September 2026 efficiency pilot](results/2026-09-05-efficient-inference/README.md)
 records the v0.6.0 reductions and new opt-in methods, with measured source and
 input snapshots. Its small synthetic workloads do not replace the campaigns
 below or establish statistical efficiency and interval coverage.
 
-Historical results from the local benchmark scripts in this directory (26
+Sections 1–30 contain historical results from the local benchmark scripts (26
 scripts since the 2026-08 consolidation; the retired standalone scripts are
 reported as subsections or merged panels of their targets -- see the notes in
 sections 3, 11, 24, 25, 26 and 27). Bounds
@@ -1611,6 +1616,61 @@ Peak RSS at this n is mostly runtime: LTFHPlus Gibbs sits higher
 because the sampler retains 10⁵ draws; the two PA processes differ
 mainly in R versus Python heaps. Opt-in: requires R and LTFHPlus; the
 script exits 2 if they are missing. LTFGRS is the PA arm.
+
+## 31. Time and memory: v0.6.1 versus v0.6.0
+
+The [clean-source rerun](results/2026-09-09-time-memory-v061-rerun/README.md)
+on 9 September 2026 compares v0.6.1 (`b516271`) with v0.6.0 (`52dec52`).
+It repeats the [development comparison](results/2026-09-09-time-memory/README.md)
+without changing the driver or workload settings. All 28 workers completed:
+seven cases, two versions, and separate runtime/RSS and allocation processes.
+The candidate commit and all captured package/driver/support-script hashes
+were stable before and after measurement.
+
+**Table 31.1. Runtime and peak memory, v0.6.0 / v0.6.1.** Warm time is the
+median of five calls after the first call. RSS covers the complete timing
+process, including inputs, imports and JIT work. Call allocations are measured
+with `tracemalloc` in a separate warmed worker; they exclude inputs/imports
+and do not capture every native/JIT workspace allocation. MiB = 2^20 bytes.
+
+| Workload | Warm median (s) | Warm speedup | Peak process RSS (MiB) | Peak call allocations (MiB) |
+|---|---:|---:|---:|---:|
+| Parent graph, 200,000 records | 0.432 / 0.214 | 2.02× | 290.5 / 255.2 | 109.5 / 68.3 |
+| Parent graph, 1,000,000 records | 2.101 / 1.213 | 1.73× | 930.1 / 690.5 | 536.6 / 330.2 |
+| PA, mixed pin masks | 1.120 / 0.497 | 2.25× | 491.9 / 337.3 | 179.2 / 50.2 |
+| PA, common pin mask | 0.429 / 0.366 | 1.17× | 495.6 / 348.0 | 237.1 / 92.1 |
+| PA, intervals only | 0.393 / 0.370 | 1.06× | 347.9 / 243.6 | 77.8 / 12.8 |
+| PA, censoring mixture | 0.692 / 0.643 | 1.08× | 447.5 / 354.7 | 132.8 / 42.0 |
+| Register scoring, 300 probands | 0.087 / 0.085 | 1.03× | 159.3 / 156.8 | 3.1 / 3.1 |
+
+PA compares complete observation-mask byte strings, reuses input bounds when
+the target is already first, and centers owned float64 reduction buffers in
+place. Parent-graph construction builds ordered sibling lists directly instead
+of allocating temporary per-person sets. These changes account for the reduced
+sorting and copying work. All four PA batches contain 200,000 families and
+17 coordinates with a shared positive-definite covariance; they exercise
+numerical paths rather than simulate a population. Graphs have half founders
+and two children per parent pair. The register case has 300 probands sharing a
+paternal chain of depth 60 and uses degree-one observation selection.
+
+Every PA mean and variance, every reported register score and diagnostic, and
+both graph adjacency digests matched exactly. Mixed-mask PA and the
+million-record graph reproduce the larger gains from the original run. The
+small register case changes by about 3% and its allocation peak is unchanged;
+this does not establish full-register scaling or a general end-to-end speedup.
+No new statistical calibration, Gibbs, quadrature or fitting comparison was
+performed in this rerun.
+
+The runtime was Python 3.10.20, NumPy 2.2.6, SciPy 1.15.3 and Numba 0.67.0 on
+arm64 macOS with 10 logical CPUs. Each worker verified one Numba thread;
+BLAS/OpenMP limits were requested at one, without an independent runtime BLAS
+pool query. AC power and Low Power Mode off were checked before and after.
+Worker-start one-minute load averages ranged from 2.46 to 3.29. These repeated
+measurements on one machine are not hardware replications or confidence
+intervals. The capsule includes first-call timings (with reached compilation),
+all warm repetitions, raw memory measurements, provenance and reproduction
+instructions. v0.6.2 changes documentation and its checks; the numerical
+implementation is unchanged from the measured v0.6.1 source.
 
 ## Historical report changes
 
