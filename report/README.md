@@ -23,7 +23,9 @@ marginalization and pin conditioning, scalar ADuLT moments, parental-factor
 quadrature, bounded selected relationship recursion, and pairwise likelihood
 with independent-family sandwich uncertainty. The earlier benchmark tables
 remain evidence for their archived source snapshots, not a rerun of all
-methods in v0.6.0.
+methods in v0.6.1. The separate
+[time and memory review](../benchmarks/results/2026-09-09-time-memory/README.md)
+records the v0.6.1 PA-batching and parent-graph changes against v0.6.0.
 
 The historical register-depth and prospective benchmark numbers are withdrawn
 from the note pending a clean-source rerun. The vignette's six-person register

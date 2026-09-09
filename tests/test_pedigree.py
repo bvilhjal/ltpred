@@ -21,6 +21,23 @@ def make_graph():
 
 
 class BuildGraphTests(unittest.TestCase):
+    def test_sibling_adjacency_matches_shared_known_parents_in_row_order(self):
+        rng = np.random.default_rng(89)
+        ids = list(range(60))
+        father = [None] * 10 + rng.integers(0, 5, size=50).tolist()
+        mother = [None] * 10 + rng.integers(5, 10, size=50).tolist()
+        mother[20] = mother[21] = None
+        order = rng.permutation(len(ids))
+        graph = build_parent_graph([ids[i] for i in order],
+                                   [father[i] for i in order],
+                                   [mother[i] for i in order])
+        for i, siblings in enumerate(graph.sibs):
+            expected = [j for j in range(len(ids))
+                        if j != i and graph.sire[i] != -1 and graph.dam[i] != -1
+                        and graph.sire[j] == graph.sire[i] and graph.dam[j] == graph.dam[i]]
+            self.assertEqual(siblings, expected)
+        self.assertEqual(len({id(siblings) for siblings in graph.sibs}), len(ids))
+
     def test_rejects_duplicates_and_self_parenting(self):
         with self.assertRaisesRegex(ValueError, "unique"):
             build_parent_graph(["a", "a"], [None, None], [None, None])

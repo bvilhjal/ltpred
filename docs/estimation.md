@@ -367,6 +367,13 @@ to ~1e-5 (float32 rounding of the thresholds only). Quantising the *covariance*
 itself (à la ldpred3's int8 LD) would not help here — it is a small `d×d` matrix
 shared per structure, kilobytes total, and it is used in a matrix inverse.
 
+PA compares complete observation masks as byte strings when grouping families.
+With the genetic target already first, it reuses contiguous input bounds;
+Gaussian reductions center two owned work arrays in float64 in place. This
+avoids duplicate cohort arrays while preserving pin conditioning and interval
+order. The input arrays are not modified. A reproducible time/memory comparison
+is available in `benchmarks/bench_time_memory.py`.
+
 ## Multiple correlated traits
 
 Pass a vector `h2` with genetic and full correlation matrices; each member's

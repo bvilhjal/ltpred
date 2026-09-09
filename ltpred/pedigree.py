@@ -133,16 +133,17 @@ def build_parent_graph(ids: Sequence, father: Sequence,
             children[sire[i]].append(i)
         if dam[i] != -1:
             children[dam[i]].append(i)
-    # full-sibling edges: two shared parents (both known)
-    sibs = [set() for _ in range(n)]
+    # Each person belongs to at most one full-sibling group. Groups arrive in
+    # row order, so their adjacency lists need neither sets nor sorting.
+    sibs = [[] for _ in range(n)]
     by_parents = {}
     for i in range(n):
         if sire[i] != -1 and dam[i] != -1:
             by_parents.setdefault((sire[i], dam[i]), []).append(i)
     for group in by_parents.values():
-        for i in group:
-            sibs[i].update(j for j in group if j != i)
-    sibs = [sorted(s) for s in sibs]
+        if len(group) > 1:
+            for i in group:
+                sibs[i] = [j for j in group if j != i]
     return ParentGraph(ids=ids, sire=sire, dam=dam, children=children,
                        sibs=sibs, index=index, n_unresolved_parents=n_unresolved)
 

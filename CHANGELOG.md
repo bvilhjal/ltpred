@@ -6,6 +6,17 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.6.1 — 2026-09-09
+
+### Changed
+
+- PA groups observation masks by their complete byte representation, avoids
+  identity-permutation copies of cohort bounds and mixture inputs, and centers
+  owned reduction buffers in place in float64. Pin conditioning, interval order,
+  validation and caller-owned inputs are preserved.
+- Parent-graph construction builds ordered sibling lists directly, eliminating
+  temporary per-person sets and sorting while preserving all adjacency lists.
+
 ## 0.6.0 — 2026-09-05
 
 ### Added

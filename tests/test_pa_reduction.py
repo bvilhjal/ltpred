@@ -144,3 +144,60 @@ def test_empty_batch_and_all_unobserved():
     e,v=pa_estimate_batched(cov,np.empty((0,2)),np.empty((0,2)))
     assert e.size==v.size==0
     assert pa_algorithm(cov,[-np.inf,-np.inf],[np.inf,np.inf]) == pytest.approx((0.,.5))
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+@pytest.mark.parametrize("target", [0, 4, 34])
+def test_long_observation_masks_match_individual_families_without_mutating_inputs(dtype, target):
+    # Masks differ only near the end, beyond a machine word. Include pins,
+    # absent rows, repeated patterns, and a target that is itself observed.
+    d = 35
+    cov = .15 * np.ones((d, d)) + .85 * np.eye(d)
+    lower = np.full((12, d), -np.inf, dtype=dtype)
+    upper = np.full((12, d), 1.3, dtype=dtype)
+    upper[:, 0] = np.inf
+    for f in range(12):
+        lower[f, 1] = upper[f, 1] = 1.9 + .03 * f
+        j = 30 + f % 5
+        if f % 2:
+            upper[f, j] = np.inf
+        else:
+            lower[f, j] = upper[f, j] = -.4 + .01 * f
+    original = (lower.copy(), upper.copy(), cov.copy())
+    lower.flags.writeable = upper.flags.writeable = cov.flags.writeable = False
+    batch = pa_estimate_batched(cov, lower, upper, target=target)
+    separate = np.array([pa_algorithm(cov, lo, hi, target=target)
+                         for lo, hi in zip(lower, upper)]).T
+    np.testing.assert_allclose(batch, separate, rtol=0, atol=3e-14)
+    for actual, expected in zip((lower, upper, cov), original):
+        np.testing.assert_array_equal(actual, expected)
+
+
+def test_float32_bounds_keep_double_precision_after_pin_conditioning():
+    cov = np.array([[.5, .5, .25], [.5, 1., .25], [.25, .25, 1.]])
+    lower = np.array([[-np.inf, 2.7182818, -np.inf]], dtype=np.float32)
+    upper = np.array([[np.inf, 2.7182818, .22345678]], dtype=np.float32)
+    expected = pa_algorithm(cov, lower[0].astype(float), upper[0].astype(float))
+    actual = pa_estimate_batched(cov, lower, upper)
+    np.testing.assert_allclose([actual[0][0], actual[1][0]], expected, rtol=0, atol=1e-14)
+
+
+@pytest.mark.parametrize("mixture", [False, True])
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_readonly_unreduced_batch_matches_scalar_calls(mixture, dtype):
+    cov = np.array([[.5, .5, .25], [.5, 1., .25], [.25, .25, 1.]])
+    lower = np.full((3, 3), -np.inf, dtype=dtype)
+    upper = np.array([[np.inf, 1.5, 2.], [np.inf, 1.7, 1.4],
+                      [np.inf, 1.9, 1.8]], dtype=dtype)
+    ki, kp = np.full_like(lower, .02), np.full_like(lower, .1)
+    ki[:, 0] = kp[:, 0] = np.nan
+    for array in (cov, lower, upper, ki, kp):
+        array.flags.writeable = False
+    batch = pa_estimate_batched(cov, lower, upper,
+                               K_is=ki if mixture else None,
+                               K_pops=kp if mixture else None)
+    separate = np.array([pa_algorithm(cov, lower[f], upper[f],
+                                     K_i=ki[f] if mixture else None,
+                                     K_pop=kp[f] if mixture else None)
+                         for f in range(len(lower))]).T
+    np.testing.assert_allclose(batch, separate, rtol=0, atol=1e-14)

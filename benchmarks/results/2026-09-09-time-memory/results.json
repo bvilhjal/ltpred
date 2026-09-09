@@ -1,0 +1,1699 @@
+{
+  "started_utc": "2026-09-09T18:23:37.119629+00:00",
+  "baseline_revision": "52dec5294c101d4730c86d3307091be75dc47a5e",
+  "command": [
+    "benchmarks/bench_time_memory.py",
+    "--output",
+    "/private/tmp/ltpred-efficiency-20260909/comparison",
+    "--baseline-ref",
+    "52dec5294c101d4730c86d3307091be75dc47a5e"
+  ],
+  "power_guard": {
+    "status": "passed",
+    "battery": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=39583843)\t100%; charged; 0:00 remaining present: true",
+    "settings": "AC Power:\n Sleep On Power Button 1\n lowpowermode         0\n standby              1\n ttyskeepawake        1\n hibernatemode        3\n powernap             1\n hibernatefile        /var/vm/sleepimage\n displaysleep         20\n womp                 1\n networkoversleep     0\n sleep                0\n tcpkeepalive         1\n disksleep            10"
+  },
+  "results": [
+    {
+      "case": "graph_200k",
+      "mode": "time",
+      "settings": {
+        "records": 200000,
+        "design": "half founders; two children per couple"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.7275390625,
+        3.9560546875,
+        3.37548828125
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 0.40306029189378023,
+      "warm_seconds": [
+        0.41075770906172693,
+        0.4012114170473069,
+        0.402452209033072,
+        0.40580629208125174,
+        0.40867662499658763
+      ],
+      "load_after": [
+        4.7275390625,
+        3.9560546875,
+        3.37548828125
+      ],
+      "arm": "baseline",
+      "peak_rss_bytes": 321634304
+    },
+    {
+      "case": "graph_200k",
+      "mode": "allocation",
+      "settings": {
+        "records": 200000,
+        "design": "half founders; two children per couple"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.5087890625,
+        3.92333984375,
+        3.3671875
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 114825840,
+      "graph_sha256": "e939dcdb5518a0f5d9f57d75731981aba50ec634f00d0f6351b78f49eeaa8a51",
+      "load_after": [
+        4.5087890625,
+        3.92333984375,
+        3.3671875
+      ],
+      "arm": "baseline"
+    },
+    {
+      "case": "graph_200k",
+      "mode": "time",
+      "settings": {
+        "records": 200000,
+        "design": "half founders; two children per couple"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.5087890625,
+        3.92333984375,
+        3.3671875
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 0.2030862921383232,
+      "warm_seconds": [
+        0.2027890000026673,
+        0.20050533302128315,
+        0.19687450001947582,
+        0.19615133292973042,
+        0.20289129205048084
+      ],
+      "load_after": [
+        4.5087890625,
+        3.92333984375,
+        3.3671875
+      ],
+      "arm": "candidate",
+      "peak_rss_bytes": 245678080
+    },
+    {
+      "case": "graph_200k",
+      "mode": "allocation",
+      "settings": {
+        "records": 200000,
+        "design": "half founders; two children per couple"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.5087890625,
+        3.92333984375,
+        3.3671875
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 71602904,
+      "graph_sha256": "e939dcdb5518a0f5d9f57d75731981aba50ec634f00d0f6351b78f49eeaa8a51",
+      "load_after": [
+        4.4677734375,
+        3.92431640625,
+        3.37060546875
+      ],
+      "arm": "candidate"
+    },
+    {
+      "case": "graph_1m",
+      "mode": "time",
+      "settings": {
+        "records": 1000000,
+        "design": "half founders; two children per couple"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.4677734375,
+        3.92431640625,
+        3.37060546875
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 1.1568634579889476,
+      "warm_seconds": [
+        1.1614871250931174,
+        1.1604275410063565,
+        1.194381584180519,
+        1.1702650841325521,
+        1.1767163751646876
+      ],
+      "load_after": [
+        4.35009765625,
+        3.90869140625,
+        3.3681640625
+      ],
+      "arm": "candidate",
+      "peak_rss_bytes": 722518016
+    },
+    {
+      "case": "graph_1m",
+      "mode": "allocation",
+      "settings": {
+        "records": 1000000,
+        "design": "half founders; two children per couple"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.35009765625,
+        3.90869140625,
+        3.3681640625
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 346223024,
+      "graph_sha256": "79f5928966f21f4e42b7a5c7a501f2ae0c9e2a8308f4619e46b42956efe5b4c6",
+      "load_after": [
+        4.48193359375,
+        3.943359375,
+        3.38330078125
+      ],
+      "arm": "candidate"
+    },
+    {
+      "case": "graph_1m",
+      "mode": "time",
+      "settings": {
+        "records": 1000000,
+        "design": "half founders; two children per couple"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.48193359375,
+        3.943359375,
+        3.38330078125
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 2.0163721670396626,
+      "warm_seconds": [
+        2.018983457935974,
+        2.0235145001206547,
+        2.006034709047526,
+        2.0291162910871208,
+        2.1515802079811692
+      ],
+      "load_after": [
+        4.515625,
+        3.9775390625,
+        3.4052734375
+      ],
+      "arm": "baseline",
+      "peak_rss_bytes": 943636480
+    },
+    {
+      "case": "graph_1m",
+      "mode": "allocation",
+      "settings": {
+        "records": 1000000,
+        "design": "half founders; two children per couple"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.515625,
+        3.9775390625,
+        3.4052734375
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 562670800,
+      "graph_sha256": "79f5928966f21f4e42b7a5c7a501f2ae0c9e2a8308f4619e46b42956efe5b4c6",
+      "load_after": [
+        4.47412109375,
+        3.9775390625,
+        3.40869140625
+      ],
+      "arm": "baseline"
+    },
+    {
+      "case": "pa_mixed",
+      "mode": "time",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "0ee44736f90a663c5ac1e286de06da508ab6d1d5cb7daf1a46b1da81898de036"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.47412109375,
+        3.9775390625,
+        3.40869140625
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 2.5231415829621255,
+      "warm_seconds": [
+        1.1530755830463022,
+        1.1569948750548065,
+        1.1837790408171713,
+        1.1753469998948276,
+        1.1893102910835296
+      ],
+      "load_after": [
+        4.56103515625,
+        4.0107421875,
+        3.42724609375
+      ],
+      "arm": "baseline",
+      "peak_rss_bytes": 529629184
+    },
+    {
+      "case": "pa_mixed",
+      "mode": "allocation",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "0ee44736f90a663c5ac1e286de06da508ab6d1d5cb7daf1a46b1da81898de036"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.56103515625,
+        4.0107421875,
+        3.42724609375
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 187865659,
+      "load_after": [
+        4.56103515625,
+        4.0107421875,
+        3.42724609375
+      ],
+      "arm": "baseline"
+    },
+    {
+      "case": "pa_mixed",
+      "mode": "time",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "0ee44736f90a663c5ac1e286de06da508ab6d1d5cb7daf1a46b1da81898de036"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.56103515625,
+        4.0107421875,
+        3.42724609375
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 1.8381040419917554,
+      "warm_seconds": [
+        0.5246092909947038,
+        0.5145446250680834,
+        0.5173865831457078,
+        0.5157574999611825,
+        0.5187362919095904
+      ],
+      "load_after": [
+        4.35546875,
+        3.97705078125,
+        3.41845703125
+      ],
+      "arm": "candidate",
+      "peak_rss_bytes": 342163456
+    },
+    {
+      "case": "pa_mixed",
+      "mode": "allocation",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "0ee44736f90a663c5ac1e286de06da508ab6d1d5cb7daf1a46b1da81898de036"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.08642578125,
+        3.92724609375,
+        3.40380859375
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 52619669,
+      "load_after": [
+        4.08642578125,
+        3.92724609375,
+        3.40380859375
+      ],
+      "arm": "candidate"
+    },
+    {
+      "case": "pa_pin",
+      "mode": "time",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "81a60cee7ca11d35b5e362c7d2f852e59d41793dfaa53302bb59403da672afb4"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        4.08642578125,
+        3.92724609375,
+        3.40380859375
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 1.7277515409514308,
+      "warm_seconds": [
+        0.3754569170996547,
+        0.37412362499162555,
+        0.3903061249293387,
+        0.3882838748395443,
+        0.3803911248687655
+      ],
+      "load_after": [
+        3.9990234375,
+        3.91162109375,
+        3.4013671875
+      ],
+      "arm": "candidate",
+      "peak_rss_bytes": 387563520
+    },
+    {
+      "case": "pa_pin",
+      "mode": "allocation",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "81a60cee7ca11d35b5e362c7d2f852e59d41793dfaa53302bb59403da672afb4"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.9990234375,
+        3.91162109375,
+        3.4013671875
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 96611889,
+      "load_after": [
+        3.9990234375,
+        3.91162109375,
+        3.4013671875
+      ],
+      "arm": "candidate"
+    },
+    {
+      "case": "pa_pin",
+      "mode": "time",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "81a60cee7ca11d35b5e362c7d2f852e59d41793dfaa53302bb59403da672afb4"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.9990234375,
+        3.91162109375,
+        3.4013671875
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 1.8113518750760704,
+      "warm_seconds": [
+        0.4554385419469327,
+        0.4546146250795573,
+        0.45326799992471933,
+        0.44827170902863145,
+        0.44691875018179417
+      ],
+      "load_after": [
+        3.7587890625,
+        3.86328125,
+        3.38720703125
+      ],
+      "arm": "baseline",
+      "peak_rss_bytes": 546783232
+    },
+    {
+      "case": "pa_pin",
+      "mode": "allocation",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "81a60cee7ca11d35b5e362c7d2f852e59d41793dfaa53302bb59403da672afb4"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.7587890625,
+        3.86328125,
+        3.38720703125
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 248612241,
+      "load_after": [
+        3.7587890625,
+        3.86328125,
+        3.38720703125
+      ],
+      "arm": "baseline"
+    },
+    {
+      "case": "pa_intervals",
+      "mode": "time",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "83c59c2b8d1293d371605c6e3a1dae50582842cee0cf2bd5702f3bf367be0c9f"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.7587890625,
+        3.86328125,
+        3.38720703125
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 1.8005324590485543,
+      "warm_seconds": [
+        0.41044133296236396,
+        0.4086166671477258,
+        0.408764332998544,
+        0.40898762503638864,
+        0.4090898330323398
+      ],
+      "load_after": [
+        3.85791015625,
+        3.8818359375,
+        3.396484375
+      ],
+      "arm": "baseline",
+      "peak_rss_bytes": 355631104
+    },
+    {
+      "case": "pa_intervals",
+      "mode": "allocation",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "83c59c2b8d1293d371605c6e3a1dae50582842cee0cf2bd5702f3bf367be0c9f"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.85791015625,
+        3.8818359375,
+        3.396484375
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 81605020,
+      "load_after": [
+        3.85791015625,
+        3.8818359375,
+        3.396484375
+      ],
+      "arm": "baseline"
+    },
+    {
+      "case": "pa_intervals",
+      "mode": "time",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "83c59c2b8d1293d371605c6e3a1dae50582842cee0cf2bd5702f3bf367be0c9f"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.869140625,
+        3.8837890625,
+        3.39990234375
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 1.7501512081362307,
+      "warm_seconds": [
+        0.38501829211600125,
+        0.3834656251128763,
+        0.3871637089177966,
+        0.38225120794959366,
+        0.38239337503910065
+      ],
+      "load_after": [
+        3.869140625,
+        3.8837890625,
+        3.39990234375
+      ],
+      "arm": "candidate",
+      "peak_rss_bytes": 283000832
+    },
+    {
+      "case": "pa_intervals",
+      "mode": "allocation",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "83c59c2b8d1293d371605c6e3a1dae50582842cee0cf2bd5702f3bf367be0c9f"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.869140625,
+        3.8837890625,
+        3.39990234375
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 13405328,
+      "load_after": [
+        3.87939453125,
+        3.88525390625,
+        3.4033203125
+      ],
+      "arm": "candidate"
+    },
+    {
+      "case": "pa_mixture",
+      "mode": "time",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "33d89100cc074550da6dc44371bd04793781884fbf8afe187844224168baa587"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.87939453125,
+        3.88525390625,
+        3.4033203125
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 2.277216915972531,
+      "warm_seconds": [
+        0.6711316248402,
+        0.6636702918913215,
+        0.673136750003323,
+        0.6665745838545263,
+        0.6690949159674346
+      ],
+      "load_after": [
+        3.80859375,
+        3.8701171875,
+        3.40087890625
+      ],
+      "arm": "candidate",
+      "peak_rss_bytes": 376406016
+    },
+    {
+      "case": "pa_mixture",
+      "mode": "allocation",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "33d89100cc074550da6dc44371bd04793781884fbf8afe187844224168baa587"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.80859375,
+        3.8701171875,
+        3.40087890625
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 44014886,
+      "load_after": [
+        3.80859375,
+        3.8701171875,
+        3.40087890625
+      ],
+      "arm": "candidate"
+    },
+    {
+      "case": "pa_mixture",
+      "mode": "time",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "33d89100cc074550da6dc44371bd04793781884fbf8afe187844224168baa587"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.80859375,
+        3.8701171875,
+        3.40087890625
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 2.3184618749655783,
+      "warm_seconds": [
+        0.7211021659895778,
+        0.7251070837955922,
+        0.722839874913916,
+        0.7181733332108706,
+        0.7200585841201246
+      ],
+      "load_after": [
+        3.60400390625,
+        3.82421875,
+        3.39013671875
+      ],
+      "arm": "baseline",
+      "peak_rss_bytes": 498515968
+    },
+    {
+      "case": "pa_mixture",
+      "mode": "allocation",
+      "settings": {
+        "families": 200000,
+        "coordinates": 17,
+        "seed": 77,
+        "input_sha256": "33d89100cc074550da6dc44371bd04793781884fbf8afe187844224168baa587"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.60400390625,
+        3.82421875,
+        3.39013671875
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 139205708,
+      "load_after": [
+        3.60400390625,
+        3.82421875,
+        3.39013671875
+      ],
+      "arm": "baseline"
+    },
+    {
+      "case": "pipeline",
+      "mode": "time",
+      "settings": {
+        "probands": 300,
+        "records": 661,
+        "shared_paternal_chain_depth": 60,
+        "h2": 0.5,
+        "max_degree": 1,
+        "use": "gwas"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.60400390625,
+        3.82421875,
+        3.39013671875
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 1.087962542194873,
+      "warm_seconds": [
+        0.09383575012907386,
+        0.09484391706064343,
+        0.09187874989584088,
+        0.090692208847031,
+        0.0910079579334706
+      ],
+      "load_after": [
+        3.60400390625,
+        3.82421875,
+        3.39013671875
+      ],
+      "arm": "baseline",
+      "peak_rss_bytes": 168050688
+    },
+    {
+      "case": "pipeline",
+      "mode": "allocation",
+      "settings": {
+        "probands": 300,
+        "records": 661,
+        "shared_paternal_chain_depth": 60,
+        "h2": 0.5,
+        "max_degree": 1,
+        "use": "gwas"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.39501953125,
+        3.77685546875,
+        3.3759765625
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+        "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 3281429,
+      "load_after": [
+        3.39501953125,
+        3.77685546875,
+        3.3759765625
+      ],
+      "arm": "baseline"
+    },
+    {
+      "case": "pipeline",
+      "mode": "time",
+      "settings": {
+        "probands": 300,
+        "records": 661,
+        "shared_paternal_chain_depth": 60,
+        "h2": 0.5,
+        "max_degree": 1,
+        "use": "gwas"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.39501953125,
+        3.77685546875,
+        3.3759765625
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "first_call_seconds": 1.0911622080020607,
+      "warm_seconds": [
+        0.09272604202851653,
+        0.09219820913858712,
+        0.09276599995791912,
+        0.09263908280991018,
+        0.09171033301390707
+      ],
+      "load_after": [
+        3.39501953125,
+        3.77685546875,
+        3.3759765625
+      ],
+      "arm": "candidate",
+      "peak_rss_bytes": 168214528
+    },
+    {
+      "case": "pipeline",
+      "mode": "allocation",
+      "settings": {
+        "probands": 300,
+        "records": 661,
+        "shared_paternal_chain_depth": 60,
+        "h2": 0.5,
+        "max_degree": 1,
+        "use": "gwas"
+      },
+      "environment": {
+        "python": "3.10.20 | packaged by conda-forge | (main, Mar  5 2026, 17:06:34) [Clang 19.1.7 ]",
+        "executable": "/Users/au507860/REPOS/ltpred/.venv/bin/python",
+        "numpy": "2.2.6",
+        "scipy": "1.15.3",
+        "numba": "0.67.0",
+        "ltpred": "0.6.0",
+        "numba_threads": 1
+      },
+      "load_before": [
+        3.39501953125,
+        3.77685546875,
+        3.3759765625
+      ],
+      "source_hashes": {
+        "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+        "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+        "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+        "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+        "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+        "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+        "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+        "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+        "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+        "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+        "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+        "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+        "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+        "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+        "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+        "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+        "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+        "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+        "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+        "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+      },
+      "peak_allocated_bytes": 3281429,
+      "load_after": [
+        3.39501953125,
+        3.77685546875,
+        3.3759765625
+      ],
+      "arm": "candidate"
+    }
+  ],
+  "agreement": {
+    "graph_200k": {
+      "identical_graph": true
+    },
+    "graph_1m": {
+      "identical_graph": true
+    },
+    "pa_mixed": {
+      "est": 0.0,
+      "var": 0.0
+    },
+    "pa_pin": {
+      "est": 0.0,
+      "var": 0.0
+    },
+    "pa_intervals": {
+      "est": 0.0,
+      "var": 0.0
+    },
+    "pa_mixture": {
+      "est": 0.0,
+      "var": 0.0
+    },
+    "pipeline": {
+      "est": 0.0,
+      "var": 0.0,
+      "n_relatives": 0.0,
+      "n_conditioned": 0.0,
+      "n_closure_only": 0.0,
+      "degree_max": 0.0
+    }
+  },
+  "benchmark_sha256": "b09f061fd6da4ef4feefc7b506c3ae5ca007dca18cabc8ec9bfd16359b61d40b",
+  "source_hashes": {
+    "baseline": {
+      "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+      "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+      "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+      "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+      "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+      "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+      "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+      "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+      "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+      "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+      "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+      "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+      "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+      "ltpred/pearson_aitken.py": "2a79dbf3fa3c4aaf1ba6b8634cd35162d5bb9bd826bdf3cea99e72b7ce66729f",
+      "ltpred/pedigree.py": "efda8435b9358a941143944394189ab0e8ca42472230777aedc5820c8eb1e685",
+      "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+      "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+      "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+      "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+      "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+    },
+    "candidate": {
+      "ltpred/__init__.py": "bb4650bbd9d947e9e9535a1b1cdb24c6c846b809e67fc7a932b75d118f98b065",
+      "ltpred/_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+      "ltpred/_numba.py": "71dd771cd8b6a8c0968f48806afe3d778bc428d76eb9145381ec2c0ad0c29b76",
+      "ltpred/_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+      "ltpred/_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+      "ltpred/cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+      "ltpred/covariance.py": "ab85f7da712b459954ac27c87bea9f71073dfa9f80a1425b6497ddfb3d03d362",
+      "ltpred/estimate.py": "4c78df0102f440f6c9d882fa12396aee9ead050acd6dcd8be2c13caf88d814ab",
+      "ltpred/family.py": "71a0ee4876e2ac5289843062f62a5fc226d484f60ac8586ab32eb4ad33832053",
+      "ltpred/fit.py": "3870e03756d84cf872d136f074fc128cb582cc9e850587b70005152cdf39b2a8",
+      "ltpred/gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+      "ltpred/liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+      "ltpred/pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+      "ltpred/pearson_aitken.py": "264c1a02347ea1fb32ea3ab2c658b96d040d0db4b67d30c521ba22c03f33f9e0",
+      "ltpred/pedigree.py": "a9539e03fdcad6aa57d47eba8e1a8e66ab6e01b20e18a0eb62fae6d10102efbc",
+      "ltpred/pipeline.py": "f309656ab38c8bf6d8b7b69efefb8d62a3a26250d60723b67c228579b0d4da7b",
+      "ltpred/quadrature.py": "b5a06b7bc1216407422132a944a69b05b7b69c8329619112c76c2e8abea4f402",
+      "ltpred/simulate.py": "c7d8c892d7b3381d3d9c0c783c643d40a056b76d4dd33fccf8f3e7e91d16dc4e",
+      "ltpred/tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+      "ltpred/thresholds.py": "2323d0498f0507c0aa429488a1349eca5ae1a3a49aaf2c6ea92e300390eea480"
+    }
+  },
+  "thread_variables": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "VECLIB_MAXIMUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+    "NUMBA_NUM_THREADS": "1"
+  },
+  "timing_contract": "first call includes reached JIT compilation; five warm calls by default; GC outside timing; RSS from timing process only",
+  "memory_contract": "tracemalloc call peak in separate warmed process; excludes inputs/imports; includes Python and NumPy allocations but not all native/JIT workspace"
+}

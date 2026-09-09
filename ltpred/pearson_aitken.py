@@ -500,7 +500,12 @@ def _pa_reduced_nomix(cov, lowers, uppers):
     if np.all(state == state[0]):
         groups = [(state[0], np.arange(F))]
     else:
-        masks, inverse = np.unique(state, axis=0, return_inverse=True)
+        # A state is a byte string over {0, 1, 2}. Comparing the whole string
+        # avoids NumPy's per-column structured comparisons for axis=0. Keep
+        # every byte: long families must not collide in a fixed-width key.
+        keys = state.view(np.dtype((np.void, d))).ravel()
+        _, first, inverse = np.unique(keys, return_index=True, return_inverse=True)
+        masks = state[first]
         order = np.argsort(inverse, kind="stable")
         boundaries = np.r_[0, np.cumsum(np.bincount(inverse))]
         groups = ((mask, order[boundaries[k]:boundaries[k + 1]])
@@ -510,13 +515,15 @@ def _pa_reduced_nomix(cov, lowers, uppers):
         keep = mask == 1
         keep[0] = mask[0] != 2
         retained = np.flatnonzero(keep)
-        lo = np.ascontiguousarray(lowers[np.ix_(rows, retained)])
-        hi = np.ascontiguousarray(uppers[np.ix_(rows, retained)])
+        # Own just two float64 work arrays. Center them in place below; even
+        # float32 bounds used float64 centering in the original reduction.
+        lo = np.asarray(lowers[np.ix_(rows, retained)], dtype=np.float64, order="C")
+        hi = np.asarray(uppers[np.ix_(rows, retained)], dtype=np.float64, order="C")
         if len(pinned):
             means, conditional = _condition_pins(
                 cov, retained, pinned, lowers[np.ix_(rows, pinned)])
         else:
-            means = np.zeros(lo.shape)
+            means = None
             conditional = cov[np.ix_(retained, retained)]
         deterministic = np.diag(conditional) == 0.0
         if np.any(deterministic):
@@ -533,14 +540,18 @@ def _pa_reduced_nomix(cov, lowers, uppers):
             continue
         active = ~deterministic
         subcov = np.ascontiguousarray(conditional[np.ix_(active, active)])
-        centered_lo = np.ascontiguousarray(lo[:, active] - means[:, active])
-        centered_hi = np.ascontiguousarray(hi[:, active] - means[:, active])
+        if means is not None:
+            lo -= means
+            hi -= means
+        if np.any(deterministic):
+            lo = np.ascontiguousarray(lo[:, active])
+            hi = np.ascontiguousarray(hi[:, active])
         e, v = np.empty(len(rows)), np.empty(len(rows))
         if len(rows) == 1:
-            e[0], v[0] = _pa_family_nomix(subcov, centered_lo[0], centered_hi[0])
+            e[0], v[0] = _pa_family_nomix(subcov, lo[0], hi[0])
         else:
-            _pa_batched_nomix(subcov, centered_lo, centered_hi, e, v)
-        est[rows], var[rows] = means[:, 0] + e, v
+            _pa_batched_nomix(subcov, lo, hi, e, v)
+        est[rows], var[rows] = (e if means is None else means[:, 0] + e), v
     return est, var
 
 
@@ -651,7 +662,10 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
         raise ValueError(f"target must be in [0, {d}); got {target}")
     order = np.concatenate(([target], np.delete(np.arange(d), target)))
     cov = np.ascontiguousarray(cov[np.ix_(order, order)])
-    lo, hi = np.ascontiguousarray(lowers[:, order]), np.ascontiguousarray(uppers[:, order])
+    # as_bounds already made contiguous inputs. The usual target is zero;
+    # an identity permutation would duplicate both full cohort arrays.
+    lo = lowers if target == 0 else np.ascontiguousarray(lowers[:, order])
+    hi = uppers if target == 0 else np.ascontiguousarray(uppers[:, order])
     validate_bounds(lo, hi, context="pa_estimate_batched bounds")
     if K_is is None and K_pops is None:        # no-mixture fast path (no K arrays)
         return _pa_reduced_nomix(cov, lo, hi)
@@ -662,6 +676,7 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
         context="batched PA mixture inputs")
     K_is = as_bounds(K_is)
     K_pops = as_bounds(K_pops)
-    _pa_batched(cov, lo, hi, np.ascontiguousarray(K_is[:, order]),
-                np.ascontiguousarray(K_pops[:, order]), est, var)
+    ki = K_is if target == 0 else np.ascontiguousarray(K_is[:, order])
+    kp = K_pops if target == 0 else np.ascontiguousarray(K_pops[:, order])
+    _pa_batched(cov, lo, hi, ki, kp, est, var)
     return est, var
