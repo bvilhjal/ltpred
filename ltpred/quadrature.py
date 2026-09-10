@@ -43,6 +43,7 @@ class QuadratureResult:
 
 _LOG_SQRT_2PI = 0.5 * math.log(2.0 * math.pi)
 _GL_X, _GL_W = roots_legendre(12)
+_EPS = float(np.finfo(float).eps)
 
 
 def _log_mass(mean, variance, lower, upper):
@@ -139,7 +140,6 @@ def _mode(offset, load, noise, lower, upper):
             candidate = x - scale * step
             candidate_value, _, _ = evaluate(candidate, derivatives=False)
             if candidate_value <= value - 1e-4 * scale * float(gradient @ step):
-                x = candidate
                 break
             scale *= 0.5
         else:
@@ -147,6 +147,14 @@ def _mode(offset, load, noise, lower, upper):
             # before the derivative. This point remains a valid importance
             # proposal; quadrature refinement still determines acceptance.
             return x, hessian
+        if value - candidate_value <= 8.0 * _EPS * (1.0 + abs(value)):
+            # The same floor reached through a successful search. _moments
+            # sets the accuracy of the exact gradient, so the Newton step can
+            # stop shrinking while still above the step tolerance. The
+            # sufficient decrease then underflows and admits scales that move
+            # x by nothing, so no later iteration can do better than this.
+            return candidate, hessian
+        x = candidate
     raise RuntimeError("quadrature posterior-mode iteration did not converge")
 
 
@@ -254,8 +262,12 @@ def _family(roles, lower, upper, h2, out, atol, max_nodes):
             if len(changes) >= 2 and max(changes[-2:]) <= atol:
                 return estimate, variance, max(changes[-2:]), n
         if n >= max_nodes:
-            error = changes[-1] if changes else np.inf
-            raise RuntimeError(f"quadrature did not converge by {max_nodes} nodes per dimension (last change {error:.3g}, atol {atol:.3g})")
+            # Report what the criterion tests. The final change alone can
+            # satisfy atol while the pair does not; at max_nodes=64 only two
+            # changes exist, so the coarse first refinement is then binding.
+            error = max(changes[-2:]) if changes else np.inf
+            raise RuntimeError(f"quadrature did not converge by {max_nodes} nodes per dimension "
+                               f"(largest of the last two changes {error:.3g}, atol {atol:.3g})")
         previous = estimate, variance
         n = min(n * 2, max_nodes)
 

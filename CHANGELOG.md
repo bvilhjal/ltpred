@@ -6,6 +6,44 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Fixed
+
+- Quadrature no longer refuses families whose posterior mode is already
+  stationary. The Newton step can stop shrinking above the step tolerance
+  because `_moments` sets the accuracy of the exact gradient; the accepted
+  line-search step then moves the iterate by less than an ulp, changing the
+  objective by exactly zero, so neither the step test nor the documented
+  line-search fallback could fire and the loop exhausted its iterations. The
+  iteration now also stops when an accepted step leaves the objective
+  unchanged at representable resolution. Refusals fell from 49 to 0 over 1,200
+  randomized families with no family that previously returned now raising, and
+  the rescued moments reproduce an independent dense Gauss-Legendre
+  integration to 2e-15. Affected inputs previously had no remedy, because
+  `quadrature_atol` and `quadrature_max_nodes` do not reach the mode search.
+- The refinement refusal reports the largest of the last two changes, which is
+  what the acceptance criterion tests, instead of the final change alone. At
+  `max_nodes=64` only two changes exist, so the coarse first refinement is
+  binding and the old message could quote a value that satisfied `atol`.
+
+### Documentation
+
+- State that quadrature acceptance requires both of the last two refinement
+  changes to fall within `quadrature_atol`, that `max_nodes=64` leaves only
+  two, and that raising `quadrature_max_nodes` is the remedy.
+- Add the independent v0.6.2 review of the 0.6.0 inference delta
+  (`docs/REVIEW_2026-09c.md`) and its dispositions.
+- Report a `fit_pairwise` recovery study over 11,367 replicates and 44,005,500
+  simulated families at five cohort sizes, for one design: five-member nuclear
+  families, common threshold at 10% prevalence, population sampling. Component
+  biases are at or below 0.0022 in absolute value with SE(bias) of 0.0009,
+  SE/SD lies between 0.92 and 1.01, nominal 95% coverage between 0.926 and
+  0.978, no fit failed, and boundary pinning affects only the component nearest
+  zero, falling from 10.6% at 1,500 families to nil by 12,000. This addresses
+  the 0.6.0 caveat for that design only; other thresholds, relationship
+  structures and IPW sampling remain unvalidated. The review's earlier report of
+  a negative bias in the additive component is withdrawn as a 40-replicate
+  artifact.
+
 ## 0.6.2 — 2026-09-09
 
 ### Documentation

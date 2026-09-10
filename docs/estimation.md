@@ -317,7 +317,12 @@ neither a certified numerical error bound nor a Monte-Carlo SE. Analytic
 answers report zero nodes and zero refinement error. The `max_nodes` limit is
 64–512 nodes **per active dimension**, and failure to meet the refinement
 criterion raises `RuntimeError` identifying the family. No unchecked result
-is returned on nonconvergence.
+is returned on nonconvergence. Acceptance requires *both* of the last two
+changes to fall within `quadrature_atol`, so at `max_nodes=64` — where the
+ladder 16→32→64 leaves only two changes — the coarse first refinement is
+binding, and a family that has in fact settled can still be refused. Raising
+`quadrature_max_nodes` is the remedy, and the message reports the larger of
+the two changes so the binding one is visible.
 
 ## Scaling to large cohorts
 

@@ -212,3 +212,66 @@ def test_high_heritability_rare_family_fails_at_insufficient_resolution():
     with pytest.raises(RuntimeError, match="family 0.*did not converge"):
         estimate(["o", "m", "f", "s1"], [[3.0, 2.0, 2.0, -np.inf]],
                  [[np.inf, np.inf, np.inf, -1.0]], h2=0.9999, max_nodes=128)
+
+
+@pytest.mark.parametrize("lower, upper, out, est, var", [
+    # The Newton step can stop shrinking above the step tolerance while the
+    # objective is already stationary, because _moments sets the accuracy of
+    # the exact gradient. These four refused before the mode iteration tested
+    # progress as well as step length. Values independently reproduced by an
+    # 800x800 Gauss-Legendre integration over the two parental breeding values
+    # (agreement <=2e-15) and 40M-draw rejection sampling (|z|<=1.8).
+    ([-1.324, -1.238, -1.508], [0.796, 1.2, 0.958], "genetic",
+     -0.10999237341204565, 0.2967520244504461),
+    ([-1.324, -1.238, -1.508], [0.796, 1.2, 0.958], "full",
+     -0.18845903980960627, 0.31476283058652166),
+    ([-2.1959, -0.9243, 0.1858], [-2.1344, 0.667, 1.1224], "genetic",
+     -0.8795880576944444, 0.21947931082299538),
+    ([0.8492, 0.5973, -0.9887], [2.065, 1.4144, 0.5168], "genetic",
+     0.6745461290871979, 0.23838389999239584),
+])
+def test_stationary_objective_is_the_mode_not_a_failure(lower, upper, out, est, var):
+    result = estimate(["o", "m", "f"], [lower], [upper], h2=0.5, out=out)
+    assert result.est[0] == pytest.approx(est, abs=2e-12)
+    assert result.var[0] == pytest.approx(var, abs=2e-12)
+    assert result.error[0] <= 1e-8
+
+
+@pytest.mark.parametrize("style", ["two_sided", "one_sided", "pinned_proband"])
+def test_randomised_bounds_do_not_refuse_at_the_posterior_mode(style):
+    # Hand-picked round bounds miss this: the stall needs a mode whose Newton
+    # step lands near the gradient's own noise floor, which is generic rather
+    # than special. Only max_nodes can rescue a refinement refusal, so a mode
+    # refusal must not stand in for one.
+    rng = np.random.default_rng(20260910)
+    roles = ["o", "m", "f"]
+    for _ in range(200):
+        if style == "two_sided":
+            lower = rng.normal(-0.3, 1.0, 3)
+            upper = lower + np.abs(rng.normal(0.0, 1.0, 3)) + 1e-3
+        elif style == "one_sided":
+            lower = rng.normal(0.0, 1.0, 3)
+            tail = rng.random(3) < 0.5
+            upper = np.where(tail, lower, np.inf)
+            lower = np.where(tail, -np.inf, lower)
+        else:
+            lower = rng.normal(0.0, 1.0, 3)
+            upper = np.full(3, np.inf)
+            lower[0] = upper[0] = rng.normal(0.0, 1.0)
+        try:
+            estimate(roles, [lower], [upper], h2=0.5, max_nodes=64)
+        except RuntimeError as exc:
+            assert "posterior-mode" not in str(exc), (lower, upper)
+            assert "nodes per dimension" in str(exc)
+
+
+def test_refusal_reports_the_change_pair_the_criterion_tests():
+    # Acceptance needs both of the last two changes below atol. At max_nodes=64
+    # only two exist, so the coarse 16->32 refinement is binding and the final
+    # change alone can look convergent.
+    with pytest.raises(RuntimeError, match=r"largest of the last two changes 7\.76e-06"):
+        estimate(["o", "m", "f"], [[4.600652, 3.112669, 3.918868]],
+                 [[np.inf, np.inf, np.inf]], h2=0.95, max_nodes=64)
+    relaxed = estimate(["o", "m", "f"], [[4.600652, 3.112669, 3.918868]],
+                       [[np.inf, np.inf, np.inf]], h2=0.95, max_nodes=128)
+    assert relaxed.error[0] <= 1e-8
