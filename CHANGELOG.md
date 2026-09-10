@@ -6,6 +6,16 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Added
+
+- `benchmarks/bench_pairwise_recovery.py` measures `fit_pairwise` recovery of
+  A, C and M: bias with replicates allocated proportional to `1/N` so that
+  SE(bias) is constant across cohort sizes, sandwich-SE calibration against
+  across-replicate SD, realised 95% coverage, and the share of replicates with
+  a component pinned at the non-negativity boundary. It reuses
+  `simulate_families_components`; `--jobs` sets only the worker count, as
+  per-replicate seeds make the output identical at any value.
+
 ### Fixed
 
 - Quadrature no longer refuses families whose posterior mode is already
@@ -32,17 +42,21 @@ version is 0 the public API may still change between minor releases.
   two, and that raising `quadrature_max_nodes` is the remedy.
 - Add the independent v0.6.2 review of the 0.6.0 inference delta
   (`docs/REVIEW_2026-09c.md`) and its dispositions.
-- Report a `fit_pairwise` recovery study over 11,367 replicates and 44,005,500
-  simulated families at five cohort sizes, for one design: five-member nuclear
-  families, common threshold at 10% prevalence, population sampling. Component
-  biases are at or below 0.0022 in absolute value with SE(bias) of 0.0009,
-  SE/SD lies between 0.92 and 1.01, nominal 95% coverage between 0.926 and
-  0.978, no fit failed, and boundary pinning affects only the component nearest
-  zero, falling from 10.6% at 1,500 families to nil by 12,000. This addresses
-  the 0.6.0 caveat for that design only; other thresholds, relationship
-  structures and IPW sampling remain unvalidated. The review's earlier report of
-  a negative bias in the additive component is withdrawn as a 40-replicate
-  artifact.
+- Record the `fit_pairwise` recovery campaign as section 32 of
+  `benchmarks/RESULTS.md`: 11,364 replicates over 43,974,000 simulated families
+  at five cohort sizes, for one design — five-member nuclear families, common
+  threshold at 10% prevalence, population sampling. The estimator is consistent
+  there, with the asymptotic bias within 0.0002 of zero for all three
+  components and the whole signal in a negative `1/N` term (about `-4.7/N` for
+  A, so -0.0032 at 1,500 families and negligible by 6,000). That sign is
+  predicted: the reducible one-pair case at threshold zero estimates
+  `2 sin(pi (p_hat - 1/2))`, concave for `A > 0`. SE/SD lies between 0.96 and
+  1.10, nominal 95% coverage between 0.940 and 0.975, no fit failed, and
+  boundary pinning affects only the component nearest zero, falling from 10.3%
+  at 1,500 families to nil by 12,000. This narrows the 0.6.0 caveat for that
+  design only; other prevalences, relationship structures and IPW sampling
+  remain unvalidated. The review's earlier report of a negative bias in the
+  additive component is withdrawn as a 40-replicate artifact.
 
 ## 0.6.2 — 2026-09-09
 

@@ -149,27 +149,35 @@ Table 4 repeats the design with 73 times more replicates; read that one.*
 | C | 0.150 | 0.1634 | 0.0344 | 0.0353 | 1.03 | 0.95 |
 | M | 0.100 | 0.1056 | 0.0480 | 0.0509 | 1.06 | 1.00 |
 
-*Table 4. The same design and truths at five cohort sizes, 11,367 replicates
-totalling 44,005,500 simulated families, root seed 20260910. Replicates are
-allocated proportional to 1/N, so SE(bias) is constant across N by construction.
-Coverage is of the nominal 95% normal interval; "M at 0" is the share of
-replicates with the M component pinned at the non-negativity boundary.*
+*Table 4. The same design and truths at five cohort sizes, 11,364 replicates
+totalling 43,974,000 simulated families. Replicates are allocated proportional
+to 1/N, so SE(bias) is 0.0009, 0.0007 and 0.0009 for A, C and M at every size
+and the sizes are directly comparable. Coverage is of the nominal 95% normal
+interval; "pinned" is the share of replicates with a component held at the
+non-negativity boundary, where a reported SE is unavailable by design.*
 
-| N | replicates | bias A | bias C | bias M | SE(bias) A/C/M | SE/SD A | coverage A | M at 0 |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1,500 | 5,867 | −0.0006 | −0.0011 | −0.0016 | 0.0009 / 0.0006 / 0.0009 | 1.00 | 0.948 | 10.6% |
-| 3,000 | 2,933 | −0.0011 | −0.0004 | −0.0022 | 0.0009 / 0.0006 / 0.0009 | 1.01 | 0.957 | 3.2% |
-| 6,000 | 1,467 | −0.0018 | +0.0004 | −0.0016 | 0.0009 / 0.0006 / 0.0009 | 1.00 | 0.956 | 0.5% |
-| 12,000 | 733 | −0.0011 | −0.0001 | +0.0001 | 0.0009 / 0.0006 / 0.0009 | 0.92 | 0.926 | 0% |
-| 24,000 | 367 | −0.0008 | +0.0003 | −0.0012 | 0.0009 / 0.0007 / 0.0010 | 0.95 | 0.954 | 0% |
+| N | replicates | bias A | bias C | bias M | SE/SD A | coverage A | pinned |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1,500 | 5,866 | −0.0032 | −0.0005 | −0.0019 | 1.01 | 0.948 | 10.3% |
+| 3,000 | 2,933 | −0.0014 | −0.0009 | −0.0024 | 1.00 | 0.952 | 2.9% |
+| 6,000 | 1,466 | −0.0005 | −0.0009 | −0.0007 | 1.00 | 0.953 | 0.4% |
+| 12,000 | 733 | +0.0002 | +0.0005 | +0.0008 | 0.96 | 0.944 | 0.0% |
+| 24,000 | 366 | −0.0009 | +0.0007 | +0.0002 | 0.97 | 0.940 | 0.0% |
 
 No fit failed and none was discarded, at any size. Weighted least squares on
-`bias(N) = b0 + b1/N` gives an asymptotic bias `b0` of −0.0013 for A (95% CI
-−0.0025 to −0.0001), +0.0004 for C (−0.0005 to +0.0012) and −0.0009 for M
-(−0.0021 to +0.0004), with the per-N biases flat rather than decaying, so the
-`1/N` term is not identified. Across replicates `r(Â, Ĉ)` is −0.54 to −0.63,
-`r(Â, M̂)` is +0.10 to +0.17, and the bias of `Â+Ĉ` is −0.0005 to −0.0017.
-The harness is `tmp/pairwise_scaling/` (untracked).
+`bias(N) = b0 + b1/N` puts the asymptotic bias `b0` at +0.00005 for A (95% CI
+−0.00113 to +0.00123), +0.00020 for C (−0.00066 to +0.00107) and +0.00024 for
+M (−0.00099 to +0.00147), all centred within 0.0002 of zero, with the whole
+signal in the `1/N` term (`b1` of −4.67, −1.57 and −3.96; chi2/df 0.42 to 1.21,
+p 0.30 to 0.74). This study is committed as
+`benchmarks/bench_pairwise_recovery.py`, with its numbers in
+`benchmarks/bench_pairwise_recovery.csv`, section 32 of
+`benchmarks/RESULTS.md`, and a provenance row in
+`benchmarks/run_manifest.jsonl`. It reuses the repository's own
+`simulate_families_components`: the review's first scratch harness was found to
+construct the same covariance and was therefore a duplicate. That first harness
+was run independently and agrees with the committed campaign at every size
+(largest discrepancy 2.1 SE, at N = 1,500).
 
 ## 4. Findings
 
@@ -323,16 +331,22 @@ for `A > 0` since `g''(p) = −π²A`; enumerating the binomial sampling
 distribution gives `N × bias → −0.3667`, so about −0.0001 at N = 3,000.
 
 **Disposition: withdrawn, and the study it asked for is now reported.** No
-defect is demonstrated. The residual is at most a −0.0013 asymptotic bias in
-`A`, under 0.5% of the parameter, marginally separated from zero on 44 million
-simulated families and of no practical consequence. The positive result is the
-calibration the changelog said was missing: SE/SD between 0.92 and 1.01,
-coverage between 0.926 and 0.978, no failed or discarded fits in 11,367
+defect is demonstrated, and the estimator is consistent here: the asymptotic
+bias is within 0.0002 of zero for all three components, with confidence
+intervals no wider than ±0.0013. What remains is a genuine but small negative
+finite-sample bias of about `−4.7/N` in `A`, which is −0.0032 at N = 1,500 —
+roughly 1% of the parameter — and negligible by N = 6,000. Its sign is the one
+the concavity argument above predicts, and its coefficient is about thirteen
+times the reducible case's −0.3667, the direction ten dependent pairs, three
+components and a 10% case rate should move it. The positive result is the
+calibration the changelog said was missing: SE/SD between 0.96 and 1.10,
+coverage between 0.940 and 0.975, no failed or discarded fits in 11,364
 replicates, and boundary pinning confined to `M` — the component nearest zero —
-falling from 10.6% at N = 1,500 to nil by N = 12,000. Two cells deserve a
-follow-up rather than a claim: at N = 12,000 the `A` interval covered 0.926 with
-SE/SD 0.92, both about 3 SE anti-conservative, which is either the expected
-outlier among fifteen cells or a genuine small-sample SE effect.
+falling from 10.3% at N = 1,500 to nil by N = 12,000, with `A` never pinned.
+An earlier scratch run had shown the `A` interval covering 0.926 with SE/SD 0.92
+at N = 12,000, flagged then as possibly a small-sample SE effect; the committed
+campaign gives 0.944 and 0.96 at that size, so it was the expected outlier among
+fifteen cells and not a property of the estimator.
 
 **T3-2. The quadrature documentation could name its practical failure
 surface.** `docs/estimation.md` correctly states that failure to meet the

@@ -1672,6 +1672,64 @@ all warm repetitions, raw memory measurements, provenance and reproduction
 instructions. v0.6.2 changes documentation and its checks; the numerical
 implementation is unchanged from the measured v0.6.1 source.
 
+## 32. Pairwise composite-likelihood recovery (`bench_pairwise_recovery.py`)
+
+> **Evidence status (2026-09-10):** commit `b6065ff`, CPython 3.10.20
+> (conda-forge), numpy 1.26.4, scipy 1.15.3, ltpred 0.6.2, Apple M2 Pro
+> (10 logical CPUs), 6 worker processes with the BLAS pool pinned to one
+> thread each; 806 s; manifest `run_manifest.jsonl`. This is a statistical
+> benchmark, so the machine load is not part of the claim. `--jobs` sets only
+> the worker count: per-replicate seeds make the output identical at any
+> value, verified for 1 against 6.
+
+11,364 independent, unascertained population cohorts of `o, m, f, s1, s2`
+families at a common threshold, 10% prevalence, truths `A = 0.30`,
+`C = 0.15`, `M = 0.10`, totalling 43,974,000 simulated families. Replicates
+are allocated proportional to `1/N`, so SE(bias) is 0.0009, 0.0007 and 0.0009
+for A, C and M at *every* cohort size and the sizes are directly comparable.
+
+| N | replicates | bias A | bias C | bias M | SE/SD A | coverage A | pinned |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1,500 | 5,866 | -0.0032 | -0.0005 | -0.0019 | 1.01 | 0.948 | 10.3% |
+| 3,000 | 2,933 | -0.0014 | -0.0009 | -0.0024 | 1.00 | 0.952 | 2.9% |
+| 6,000 | 1,466 | -0.0005 | -0.0009 | -0.0007 | 1.00 | 0.953 | 0.4% |
+| 12,000 | 733 | +0.0002 | +0.0005 | +0.0008 | 0.96 | 0.944 | 0.0% |
+| 24,000 | 366 | -0.0009 | +0.0007 | +0.0002 | 0.97 | 0.940 | 0.0% |
+
+- **Consistent, with a small negative `1/N` finite-sample bias.** Weighted
+  least squares on `bias(N) = b0 + b1/N` puts the asymptotic bias `b0` at
+  +0.00005 for A (95% CI -0.00113 to +0.00123), +0.00020 for C (-0.00066 to
+  +0.00107) and +0.00024 for M (-0.00099 to +0.00147) -- all centred within
+  0.0002 of zero. The whole signal is the `1/N` term, with `b1` of -4.67,
+  -1.57 and -3.96, and the fit is adequate (chi2/df 0.42 to 1.21, p 0.30 to
+  0.74). The largest deviation, A at N = 1,500, is -0.0032, about 1% of the
+  parameter, and it decays.
+- **The negative sign is predicted, not incidental.** In the reducible case of
+  one component and one parent-offspring pair per family at threshold zero the
+  estimator is exactly `2 sin(pi (p_hat - 1/2))` in the concordant fraction,
+  which is concave for `A > 0` (`g''(p) = -pi^2 A`), so Jensen pulls the mean
+  below the truth. Enumerating that case's binomial sampling distribution gives
+  `N x bias -> -0.3667` at `A = 0.30`, converging from 0.975 to 1.000 of the
+  delta-method constant over N = 50 to 5,000. The `b1 = -4.67` fitted here has
+  the same sign and is about thirteen times larger, the direction the harder
+  design should move it: ten dependent pairs, three components, and a 10%
+  rather than 50% case rate.
+- **Sandwich SEs are calibrated and intervals cover.** Mean reported SE over
+  across-replicate SD lies between 0.96 and 1.10 across all components and
+  sizes, and realised coverage of the nominal 95% normal interval between 0.940
+  and 0.975. No fit failed and none was discarded at any size.
+- **Boundary pinning is confined to the component nearest zero.** `M`, at truth
+  0.10 with an across-replicate SD of 0.065 at N = 1,500, is pinned at the
+  non-negativity boundary in 10.3% of replicates there, falling to 2.9%, 0.4%
+  and then nil by N = 12,000. `A` is never pinned. Reported SEs are unavailable
+  by design at the boundary, so those replicates are excluded from the coverage
+  column and counted in the last one instead.
+
+Scope: one design under the supported `sampling="population"` contract with a
+known threshold. Other prevalences, relationship structures, and IPW weighting
+are not covered, so the 0.6.0 caveat that efficiency and interval coverage need
+broader validation is narrowed by this section, not retired.
+
 ## Historical report changes
 
 - Replicated the accuracy and calibration grids across five independent
