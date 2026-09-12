@@ -464,6 +464,7 @@ def test_mixture_rejects_K_on_pinned_rows():
     with pytest.raises(ValueError, match="pinned"):
         estimate_liability_pa_arrays(
             ["o", "m"], np.array([[-np.inf, pin]]), np.array([[np.inf, pin]]),
+            h2=0.5,
             K_i=np.array([[np.nan, 0.02]]), K_pop=np.array([[np.nan, 0.10]]),
             use_mixture=True)
 

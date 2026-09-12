@@ -23,9 +23,9 @@ def _parse_bound(text):
     return float(text)
 
 
-def _fixture_families():
+def _fixture_families(name="input_tbl.csv"):
     from ltpred import families_from_columns
-    with open(FIXTURES / "input_tbl.csv", newline="", encoding="utf-8") as fh:
+    with open(FIXTURES / name, newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
     return families_from_columns(
         [r["fam_ID"] for r in rows],
@@ -86,5 +86,61 @@ def test_gibbs_matches_locked_ltfhplus_scores():
     corr, rmse = _corr_rmse(ours, r_est)
     # the 200-family benchmark lock is corr 0.9999 / RMSE 0.0041; the looser
     # bands here absorb seed-level Monte-Carlo differences on 48 families
+    assert corr > 0.999
+    assert rmse < 0.01
+
+
+# LT-FH++ (age-of-onset) cohort: the same 48 families written under both case
+# encodings LTFHPlus::prepare_LTFHPlus_input can emit -- the point pin
+# (use_fixed_case_thr = TRUE; ltpred's default) and the one-sided interval
+# (use_fixed_case_thr = FALSE; the R default). The classic fixture above has no
+# pinned row and six case rows, so it exercises neither.
+AGE_ENCODINGS = ["pin", "interval"]
+
+
+def test_age_fixtures_share_families_and_differ_only_in_case_upper():
+    pin = _fixture_families("input_tbl_age_pin.csv")
+    interval = _fixture_families("input_tbl_age_interval.csv")
+    n_pinned = 0
+    for fp, fi in zip(pin, interval):
+        assert fp.fam_id == fi.fam_id
+        for mp, mi in zip(fp.members, fi.members):
+            assert (mp.role, mp.lower) == (mi.role, mi.lower)
+            if mp.lower == mp.upper:
+                n_pinned += 1
+                assert mi.upper == np.inf
+            else:
+                assert mp.upper == mi.upper
+    assert n_pinned == 16
+
+
+@pytest.mark.parametrize("encoding", AGE_ENCODINGS)
+def test_pa_matches_locked_ltfgrs_scores_with_age_of_onset(encoding):
+    from ltpred import estimate_liability
+    families = _fixture_families(f"input_tbl_age_{encoding}.csv")
+    r_est = _aligned(families, _r_scores(f"ltfgrs_pa_age_{encoding}.csv"))
+    ours = estimate_liability(families, h2=0.5).est["genetic"]
+    corr, rmse = _corr_rmse(ours, r_est)
+    # Measured at generation: interval corr 0.99999985 / RMSE 1.8e-4; pin corr
+    # 0.99999796 / RMSE 6.7e-4 (max 3.3e-3). The pin residual is the 0.6.0
+    # design difference: ltpred conditions all pins jointly and exactly before
+    # the sequential fold, LTFGRS folds them one at a time. The bands sit just
+    # above those values so a systematic bias in the case branch still fails.
+    assert corr > 0.99999
+    assert rmse < (2e-3 if encoding == "pin" else 5e-4)
+
+
+@pytest.mark.jit_required
+@pytest.mark.parametrize("encoding", AGE_ENCODINGS)
+def test_gibbs_matches_locked_ltfhplus_scores_with_age_of_onset(encoding):
+    from ltpred import estimate_liability
+    families = _fixture_families(f"input_tbl_age_{encoding}.csv")
+    r_est = _aligned(families, _r_scores(f"ltfhplus_gibbs_age_{encoding}.csv"))
+    ours = estimate_liability(families, h2=0.5, method="gibbs",
+                              n_sim=100_000, burn_in=1000, tol=0.01,
+                              seed=20260912).est["genetic"]
+    corr, rmse = _corr_rmse(ours, r_est)
+    # measured at generation: corr 0.99991 / RMSE 3.6e-3 (pin) and
+    # 0.99994 / 3.5e-3 (interval); same Monte-Carlo bands as the classic lock
     assert corr > 0.999
     assert rmse < 0.01

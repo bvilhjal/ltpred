@@ -497,7 +497,7 @@ def _base_seeds(seed, n, max_rounds):
     return (seed + np.arange(n, dtype=np.int64) * int(max_rounds)) % (_MAX_SEED + 1)
 
 
-def _estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01, n_sim=100_000, burn_in=1000, seed=None, max_rounds=100, dtype=np.float64, c2=None, m2=None):
+def _estimate_liability_single(families, h2, out=("genetic",), tol=0.01, n_sim=100_000, burn_in=1000, seed=None, max_rounds=100, dtype=np.float64, c2=None, m2=None):
     """Estimate genetic/full liabilities for one trait, family by family.
 
     ``families`` is a list of :class:`~ltpred.family.Family` (build one from flat
@@ -544,7 +544,7 @@ def _estimate_liability_single(families, h2=0.5, out=("genetic",), tol=0.01, n_s
     return LiabilityResult(fam_ids=fam_ids, pids=pids, est=est, se=se, var=var)
 
 
-def _estimate_liability_pa(families, h2=0.5, out=("genetic",), use_mixture=False,
+def _estimate_liability_pa(families, h2, out=("genetic",), use_mixture=False,
                            dtype=np.float64, c2=None, m2=None):
     """Deterministic Pearson-Aitken liability inference for one trait.
 
@@ -891,7 +891,7 @@ def _stack_object_members(families, idx, roles, dtype, use_mixture=False):
 
 
 def estimate_liability_pa_arrays(roles: Sequence[str], lower: ArrayLike,
-                                 upper: ArrayLike, h2: float = 0.5,
+                                 upper: ArrayLike, h2: float,
                                  out: str = "genetic",
                                  K_i: ArrayLike | None = None,
                                  K_pop: ArrayLike | None = None,
@@ -918,7 +918,7 @@ def estimate_liability_pa_arrays(roles: Sequence[str], lower: ArrayLike,
 
 
 def estimate_liability_gibbs_arrays(roles: Sequence[str], lower: ArrayLike,
-                                    upper: ArrayLike, h2: float = 0.5,
+                                    upper: ArrayLike, h2: float,
                                     out: str = "genetic", tol: float = 0.01,
                                     n_sim: int = 100_000, burn_in: int = 1000,
                                     seed: int | None = None,
@@ -951,7 +951,7 @@ def estimate_liability_gibbs_arrays(roles: Sequence[str], lower: ArrayLike,
 
 
 def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: ArrayLike,
-                                    h2: float = 0.5, target: int = 0,
+                                    h2: float, target: int = 0,
                                     out: str = "genetic", tol: float = 0.01,
                                     n_sim: int = 100_000, burn_in: int = 1000,
                                     seed: int | None = None, max_rounds: int = 100,
@@ -1057,7 +1057,7 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
     return est[:, 0], se[:, 0], var[:, 0]
 
 
-def estimate_liability(families: Sequence, h2: ArrayLike = 0.5, *,
+def estimate_liability(families: Sequence, h2: ArrayLike, *,
                        method: str | None = None,
                        out: str | Sequence[str] = ("genetic",),
                        tol: float = 0.01, use_mixture: bool = False,
@@ -1108,6 +1108,11 @@ def estimate_liability(families: Sequence, h2: ArrayLike = 0.5, *,
     not retained draws; call :func:`~ltpred.gibbs.rtmvnorm_gibbs` directly when
     draws are required. An explicit ``method="pearson-aitken"``
     with a multi-trait request raises.
+
+    ``h2``: Liability-scale additive heritability for this disease. Required: there is no
+    disease-independent default, for the same reason ``pop_prev`` has none. See
+    data-preparation.md, "Which h²?", for choosing between pedigree/twin and
+    SNP estimates and for the sensitivity analysis.
 
         Scalar ``h2`` -> single trait; a vector ``h2`` with ``genetic_corrmat`` and
     ``full_corrmat`` -> multi-trait. For single-trait estimation, ``c2``/``m2``

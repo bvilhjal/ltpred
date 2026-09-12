@@ -24,5 +24,6 @@ env/
 
 # Local benchmark data (for example HAPNEST PLINK files)
 /data/
+tmp/
 /*.sif
 .DS_Store

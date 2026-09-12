@@ -36,7 +36,7 @@ def test_gibbs_estimation_rejects_draw_counts_without_two_batches(n_sim):
     fam = Family("f", [Member("o", -np.inf, 0.0)])
     with pytest.raises(ValueError, match="n_sim must be at least 4"):
         estimate_liability(
-            [fam], method="gibbs", n_sim=n_sim, burn_in=0, max_rounds=1,
+            [fam], h2=0.5, method="gibbs", n_sim=n_sim, burn_in=0, max_rounds=1,
         )
 
 
@@ -44,7 +44,7 @@ def test_gibbs_minimum_draw_boundary_has_finite_mc_se():
     from ltpred.estimate import estimate_liability_gibbs_arrays
 
     est, se = estimate_liability_gibbs_arrays(
-        ["o"], np.array([[-np.inf]]), np.array([[0.0]]),
+        ["o"], np.array([[-np.inf]]), np.array([[0.0]]), 0.5,
         n_sim=4, burn_in=0, max_rounds=1, tol=1e9, seed=1,
     )
     assert np.isfinite(est[0])
@@ -350,9 +350,9 @@ def test_estimate_from_kinship_validation():
     from ltpred import estimate_liability_from_kinship, kinship_from_pedigree
     _, A = kinship_from_pedigree(["o", "m", "f"], ["f", None, None], ["m", None, None])
     with pytest.raises(ValueError, match="columns"):
-        estimate_liability_from_kinship(A, np.zeros((5, 2)), np.ones((5, 2)))   # wrong n cols
+        estimate_liability_from_kinship(A, np.zeros((5, 2)), np.ones((5, 2)), 0.5)   # wrong n cols
     with pytest.raises(ValueError, match="square"):
-        estimate_liability_from_kinship(np.zeros((3, 2)), np.zeros((5, 3)), np.ones((5, 3)))
+        estimate_liability_from_kinship(np.zeros((3, 2)), np.zeros((5, 3)), np.ones((5, 3)), 0.5)
 
 
 def test_estimate_from_kinship_defaults_to_pa():
@@ -360,12 +360,12 @@ def test_estimate_from_kinship_defaults_to_pa():
     _, A = kinship_from_pedigree(["o", "m", "f"], ["f", None, None], ["m", None, None])
     lower = np.array([[1.2, -np.inf, -np.inf], [-np.inf, 1.2, -np.inf]])
     upper = np.array([[1.2, 1.2, 1.2], [1.2, np.inf, 1.2]])
-    default = estimate_liability_from_kinship(A, lower, upper)
-    explicit = estimate_liability_from_kinship(A, lower, upper, method="pa")
+    default = estimate_liability_from_kinship(A, lower, upper, 0.5)
+    explicit = estimate_liability_from_kinship(A, lower, upper, 0.5, method="pa")
     assert np.array_equal(default[0], explicit[0])
     assert np.array_equal(default[1], explicit[1])
     with pytest.raises(ValueError, match="unknown method"):
-        estimate_liability_from_kinship(A, lower, upper, method="magic")
+        estimate_liability_from_kinship(A, lower, upper, 0.5, method="magic")
 
 
 def test_kinship_estimator_accepts_pa_mixture():
@@ -431,7 +431,7 @@ def test_out_invalid_and_multicolumn_errors():
     roles = ["o", "m", "f"]
     lo = np.array([[1.2, -9.0, 1.2]]); hi = np.array([[9.0, 1.2, 9.0]])
     with pytest.raises(ValueError, match="single column"):
-        estimate_liability_pa_arrays(roles, lo, hi, out=("genetic", "full"))
+        estimate_liability_pa_arrays(roles, lo, hi, 0.5, out=("genetic", "full"))
 
 
 @pytest.mark.parametrize(
@@ -450,7 +450,7 @@ def test_out_rejects_empty_bool_float_and_dropped_aliases(invalid, error):
 
     with pytest.raises(error):
         estimate_liability_pa_arrays(
-            ["o"], np.array([[-np.inf]]), np.array([[1.0]]), out=invalid)
+            ["o"], np.array([[-np.inf]]), np.array([[1.0]]), 0.5, out=invalid)
 
 
 def test_shared_bounds_validation_allows_infinities_and_point_pins():
@@ -479,11 +479,11 @@ def test_public_estimators_reject_invalid_bounds(lower, upper, match):
     lo = np.array([[lower]])
     hi = np.array([[upper]])
     with pytest.raises(ValueError, match=match):
-        estimate_liability_pa_arrays(["o"], lo, hi)
+        estimate_liability_pa_arrays(["o"], lo, hi, 0.5)
     with pytest.raises(ValueError, match=match):
-        estimate_liability_gibbs_arrays(["o"], lo, hi, n_sim=20, burn_in=0)
+        estimate_liability_gibbs_arrays(["o"], lo, hi, 0.5, n_sim=20, burn_in=0)
     with pytest.raises(ValueError, match=match):
-        estimate_liability_from_kinship(np.eye(1), lo, hi)
+        estimate_liability_from_kinship(np.eye(1), lo, hi, 0.5)
 
 
 def test_default_method_is_pa_and_multitrait_falls_back_to_gibbs():
@@ -567,7 +567,7 @@ def test_use_mixture_without_K_raises():
         estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
     with pytest.raises(ValueError, match="at least one active censored-control"):
         estimate_liability_pa_arrays(
-            ["o"], np.array([[-np.inf]]), np.array([[t]]),
+            ["o"], np.array([[-np.inf]]), np.array([[t]]), 0.5,
             K_i=np.array([[np.nan]]), K_pop=np.array([[np.nan]]),
             use_mixture=True)
 
@@ -591,7 +591,7 @@ def test_mixture_rejects_pair_on_case_or_unbounded_row(lower):
         estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
     with pytest.raises(ValueError, match=r"upper == \+inf"):
         estimate_liability_pa_arrays(
-            ["o"], np.array([[lower]]), np.array([[np.inf]]),
+            ["o"], np.array([[lower]]), np.array([[np.inf]]), 0.5,
             K_i=np.array([[0.02]]), K_pop=np.array([[0.10]]),
             use_mixture=True)
 
@@ -608,7 +608,7 @@ def test_mixture_rejects_control_lower_not_below_lifetime_split(lower):
         estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
     with pytest.raises(ValueError, match=match):
         estimate_liability_pa_arrays(
-            ["o"], np.array([[lower]]), np.array([[upper]]),
+            ["o"], np.array([[lower]]), np.array([[upper]]), 0.5,
             K_i=np.array([[0.02]]), K_pop=np.array([[0.10]]),
             use_mixture=True)
 
@@ -663,7 +663,7 @@ def test_mixture_pair_validation_object_and_array_apis(K_i, K_pop, match):
 
     with pytest.raises(ValueError, match=match):
         estimate_liability_pa_arrays(
-            ["o"], np.array([[-np.inf]]), np.array([[t]]),
+            ["o"], np.array([[-np.inf]]), np.array([[t]]), 0.5,
             K_i=np.array([[K_i]]), K_pop=np.array([[K_pop]]),
             use_mixture=True)
 
@@ -785,7 +785,7 @@ def test_gibbs_estimator_rejects_invalid_burn_in(burn_in, error):
     # validated once in _estimate_group, the choke point of every Gibbs path
     fam = Family("f", [Member("o", 1.0, np.inf)])
     with pytest.raises(error, match="burn_in must be a non-negative integer"):
-        estimate_liability([fam], method="gibbs", n_sim=20, burn_in=burn_in)
+        estimate_liability([fam], h2=0.5, method="gibbs", n_sim=20, burn_in=burn_in)
 
 
 @pytest.mark.parametrize("tol", [0.0, -0.5, np.nan, np.inf])
@@ -794,7 +794,7 @@ def test_gibbs_estimator_rejects_non_finite_or_non_positive_tol(tol):
     # the unconverged warning (keyed on the same comparison) stayed silent
     fam = Family("f", [Member("o", 1.0, np.inf)])
     with pytest.raises(ValueError, match="tol must be finite and > 0"):
-        estimate_liability([fam], method="gibbs", n_sim=20, burn_in=0, tol=tol)
+        estimate_liability([fam], h2=0.5, method="gibbs", n_sim=20, burn_in=0, tol=tol)
 
 
 @pytest.mark.parametrize("max_rounds,error", [
@@ -804,7 +804,7 @@ def test_gibbs_estimator_rejects_bad_max_rounds(max_rounds, error):
     # max_rounds < 1 skipped the sampling loop and returned all-zero estimates
     fam = Family("f", [Member("o", 1.0, np.inf)])
     with pytest.raises(error, match="max_rounds"):
-        estimate_liability([fam], method="gibbs", n_sim=20, burn_in=0,
+        estimate_liability([fam], h2=0.5, method="gibbs", n_sim=20, burn_in=0,
                            max_rounds=max_rounds)
 
 
@@ -813,9 +813,9 @@ def test_gibbs_array_estimator_rejects_invalid_burn_in():
     lo = np.array([[-np.inf]])
     hi = np.array([[1.0]])
     with pytest.raises(ValueError, match="burn_in must be a non-negative integer"):
-        estimate_liability_gibbs_arrays(["o"], lo, hi, n_sim=20, burn_in=-1)
+        estimate_liability_gibbs_arrays(["o"], lo, hi, 0.5, n_sim=20, burn_in=-1)
     with pytest.raises(TypeError, match="burn_in must be a non-negative integer"):
-        estimate_liability_gibbs_arrays(["o"], lo, hi, n_sim=20, burn_in=True)
+        estimate_liability_gibbs_arrays(["o"], lo, hi, 0.5, n_sim=20, burn_in=True)
 
 
 def test_multi_trait_rejects_duplicate_phen_names():

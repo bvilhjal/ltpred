@@ -68,7 +68,7 @@ def test_all_pins_equal_dense_gaussian_conditioning(out):
 
 
 def test_pinned_then_one_interval_matches_independent_closed_form():
-    result = estimate(["o", "m"], [[3.0, -np.inf]], [[3.0, norm.isf(0.05)]])
+    result = estimate(["o", "m"], [[3.0, -np.inf]], [[3.0, norm.isf(0.05)]], h2=0.5)
     assert result.est[0] == pytest.approx(1.4591376235349836, abs=2e-12)
     assert result.var[0] == pytest.approx(0.24345482008488772, abs=2e-12)
     assert result.n_nodes[0] == 0
@@ -99,26 +99,26 @@ def test_nuclear_family_matches_reference_and_role_permutations():
     roles = ["o", "m", "f", "s1", "s2", "s3", "s4"]
     lower = np.array([[2.0, -np.inf, threshold, threshold, -np.inf, -np.inf, -np.inf]])
     upper = np.array([[2.0, threshold, np.inf, np.inf, threshold, threshold, threshold]])
-    result = estimate(roles, lower, upper)
+    result = estimate(roles, lower, upper, h2=0.5)
     # Independently checked against 1e6-draw collapsed Gibbs (MCSE .0001473)
     # and the 20/40/80-node non-adaptive parental-factor prototype.
     assert result.est[0] == pytest.approx(1.239036113244667, abs=2e-10)
     assert result.var[0] == pytest.approx(0.213147155892779, abs=2e-10)
     order = [6, 2, 0, 4, 1, 5, 3]
-    shuffled = estimate([roles[i] for i in order], lower[:, order], upper[:, order])
+    shuffled = estimate([roles[i] for i in order], lower[:, order], upper[:, order], h2=0.5)
     assert shuffled.est == pytest.approx(result.est, abs=2e-12)
     assert shuffled.var == pytest.approx(result.var, abs=2e-12)
     swapped_roles = ["f" if r == "m" else "m" if r == "f" else r for r in roles]
-    swapped = estimate(swapped_roles, lower, upper)
+    swapped = estimate(swapped_roles, lower, upper, h2=0.5)
     assert swapped.est == pytest.approx(result.est, abs=2e-12)
     assert swapped.var == pytest.approx(result.var, abs=2e-12)
 
 
 def test_absent_proband_and_unobserved_parents_do_not_change_answer():
-    result = estimate(["s1", "s2"], [[1.0, -np.inf]], [[np.inf, 0.5]])
+    result = estimate(["s1", "s2"], [[1.0, -np.inf]], [[np.inf, 0.5]], h2=0.5)
     augmented = estimate(["o", "m", "f", "s1", "s2"],
                          [[-np.inf, -np.inf, -np.inf, 1.0, -np.inf]],
-                         [[np.inf, np.inf, np.inf, np.inf, 0.5]])
+                         [[np.inf, np.inf, np.inf, np.inf, 0.5]], h2=0.5)
     assert result.est == pytest.approx(augmented.est, abs=1e-13)
     assert result.var == pytest.approx(augmented.var, abs=1e-13)
     assert result.n_nodes.tolist() == augmented.n_nodes.tolist()
@@ -136,15 +136,15 @@ def test_independent_parents_known_truth(h2):
 
 def test_rare_opposing_intervals_reflect_and_remain_finite():
     lo, hi = np.array([[8.0, -np.inf]]), np.array([[np.inf, -8.0]])
-    positive = estimate(["o", "s1"], lo, hi)
-    negative = estimate(["o", "s1"], -hi, -lo)
+    positive = estimate(["o", "s1"], lo, hi, h2=0.5)
+    negative = estimate(["o", "s1"], -hi, -lo, h2=0.5)
     assert positive.est == pytest.approx(-negative.est, abs=1e-10)
     assert positive.var == pytest.approx(negative.var, abs=1e-10)
     assert np.all(np.isfinite(positive.est))
     assert np.all(positive.var > 0)
     # Pinning far into the tail must recenter the Gaussian, not rely on nodes
     # around the unconditioned prior. One remaining interval is then analytic.
-    pinned = estimate(["o", "s1"], [[100.0, -np.inf]], [[100.0, -8.0]])
+    pinned = estimate(["o", "s1"], [[100.0, -np.inf]], [[100.0, -8.0]], h2=0.5)
     assert np.isfinite(pinned.est[0]) and pinned.var[0] > 0.0
     assert pinned.n_nodes[0] == 0
 
@@ -152,27 +152,27 @@ def test_rare_opposing_intervals_reflect_and_remain_finite():
 def test_narrow_interval_converges_to_pin_without_collapsing_it():
     lo = np.array([[2.0, 0.5, -np.inf]])
     hi = np.array([[2.0 + 1e-6, np.inf, 0.0]])
-    narrow = estimate(["o", "m", "s1"], lo, hi, out="full")
+    narrow = estimate(["o", "m", "s1"], lo, hi, h2=0.5, out="full")
     assert 2.0 <= narrow.est[0] <= 2.0 + 1e-6
     assert narrow.var[0] == pytest.approx(1e-12 / 12.0, rel=1e-4)
-    pinned = estimate(["o", "m", "s1"], lo, [[2.0, np.inf, 0.0]], out="full")
+    pinned = estimate(["o", "m", "s1"], lo, [[2.0, np.inf, 0.0]], h2=0.5, out="full")
     assert pinned.est[0] == 2.0 and pinned.var[0] == 0.0
 
 
 def test_batch_and_empty_arrays():
     result = estimate(["m", "f"], [[1.0, 0.5], [-np.inf, -np.inf]],
-                      [[np.inf, np.inf], [np.inf, np.inf]])
+                      [[np.inf, np.inf], [np.inf, np.inf]], h2=0.5)
     assert result.est.shape == result.var.shape == result.error.shape == result.n_nodes.shape == (2,)
     assert result.est[1] == 0.0 and result.var[1] == 0.5
-    assert estimate([], np.empty((1, 0)), np.empty((1, 0))).var[0] == 0.5
-    assert estimate([], np.empty((0, 0)), np.empty((0, 0))).est.size == 0
+    assert estimate([], np.empty((1, 0)), np.empty((1, 0)), h2=0.5).var[0] == 0.5
+    assert estimate([], np.empty((0, 0)), np.empty((0, 0)), h2=0.5).est.size == 0
 
 
 @pytest.mark.parametrize("kwargs", [{"h2": 1.0}, {"h2": -0.1}, {"h2": np.nan},
-                                     {"h2": True}, {"out": "risk"}, {"atol": 0.0},
-                                     {"atol": np.inf}, {"max_nodes": 32},
-                                     {"max_nodes": 64.5}, {"max_nodes": True},
-                                     {"max_nodes": 513}])
+                                     {"h2": True}, {"h2": 0.5, "out": "risk"}, {"h2": 0.5, "atol": 0.0},
+                                     {"h2": 0.5, "atol": np.inf}, {"h2": 0.5, "max_nodes": 32},
+                                     {"h2": 0.5, "max_nodes": 64.5}, {"h2": 0.5, "max_nodes": True},
+                                     {"h2": 0.5, "max_nodes": 513}])
 def test_invalid_controls(kwargs):
     with pytest.raises(ValueError):
         estimate(["o"], [[0.0]], [[np.inf]], **kwargs)
@@ -181,7 +181,7 @@ def test_invalid_controls(kwargs):
 @pytest.mark.parametrize("roles", [["mgm"], ["s0"], ["m", "m"], ["g"], [1]])
 def test_unsupported_or_duplicate_roles(roles):
     with pytest.raises(ValueError):
-        estimate(roles, np.zeros((1, len(roles))), np.ones((1, len(roles))))
+        estimate(roles, np.zeros((1, len(roles))), np.ones((1, len(roles))), h2=0.5)
 
 
 @pytest.mark.parametrize("lo,hi", [([[np.nan]], [[1.0]]), ([[2.0]], [[1.0]]),
@@ -189,7 +189,7 @@ def test_unsupported_or_duplicate_roles(roles):
                                   ([[0.0]], [[1.0, 2.0]])])
 def test_invalid_bounds(lo, hi):
     with pytest.raises(ValueError):
-        estimate(["o"], lo, hi)
+        estimate(["o"], lo, hi, h2=0.5)
 
 
 def test_nonconvergence_raises_instead_of_returning_unchecked_value():

@@ -273,7 +273,7 @@ def _family(roles, lower, upper, h2, out, atol, max_nodes):
 
 
 def estimate_liability_quadrature_arrays(roles: Sequence[str], lower: ArrayLike,
-                                         upper: ArrayLike, h2: float = 0.5, *,
+                                         upper: ArrayLike, h2: float, *,
                                          out: str = "genetic", atol: float = 1e-8,
                                          max_nodes: int = 128) -> QuadratureResult:
     """Compute additive nuclear-family posterior moments by factor quadrature.

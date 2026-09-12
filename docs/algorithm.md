@@ -630,15 +630,21 @@ age and demographics map person `i` to an interval:
 - **control** at current age `c_i`:  `l_i ∈ (-inf, T_i(c_i)]` — the "lived-through-risk"
   bound: an older disease-free person has cleared a *lower* threshold, i.e. stronger
   evidence of low liability;
-- **case** with onset age `a_i`: LT-FH++ and ADuLT **pin** liability at `T_i(a_i)`
-  (`lower == upper`). Younger onset ⇒ lower CIP ⇒ higher threshold ⇒ more extreme
-  liability. The map is invertible
-  (`convert_liability_to_aoo` ↔ `convert_age_to_thresh`), so `T_i(a_i)` *equals* the
-  case's liability at onset. Base PA-FGRS instead uses the lifetime interval
-  `[T_pop, inf)`, where `T_pop = Φ⁻¹(1 − K_pop)`. The current `pa_thresholds` and
-  `thresholds_from_cip(..., case_mode="interval")` helpers use
-  `[T_i(a_i), inf)` and therefore define an age-dependent PA-FGRS-style variant,
-  not the paper's base case encoding.
+- **case** with onset age `a_i`: two LT-FH++ encodings exist, and LTFHPlus's
+  `prepare_LTFHPlus_input` emits either. The **pin** sets `lower == upper ==
+  T_i(a_i)`: under threshold-crossing onset the liability is fixed and the
+  threshold falls with age, so onset happens exactly when `T_i(t)` reaches `l_i`
+  and the map is invertible (`convert_liability_to_aoo` ↔
+  `convert_age_to_thresh`). This is LTFHPlus's `use_fixed_case_thr = TRUE` and
+  ltpred's default (`age_thresholds`, `thresholds_from_cip(case_mode="pin")`,
+  the register driver). The **interval** `[T_i(a_i), inf)` records only that
+  the liability had crossed the onset threshold; it is LTFHPlus's default
+  (`use_fixed_case_thr = FALSE`) and ltpred's `case_mode="interval"` /
+  `pa_thresholds`. Younger onset ⇒ lower CIP ⇒ higher threshold ⇒ more extreme
+  liability under either. Base PA-FGRS is a third encoding: the lifetime
+  interval `[T_pop, inf)`, `T_pop = Φ⁻¹(1 − K_pop)`, with age entering only
+  through the censored-control mixture. `[T_i(a_i), inf)` under the PA engine is
+  therefore an LT-FH++ interval encoding, not base PA-FGRS.
 
 What pinning *assumes* is worth stating, since the benchmarks show the case
 encoding (pinned vs lifetime interval vs age-specific interval) dominates

@@ -19,7 +19,7 @@ def test_quadrature_object_adapter_preserves_alignment_and_diagnostics():
         for i,family in enumerate(families):
             ref=estimate_liability_quadrature_arrays(
                 [m.role for m in family.members],[[m.lower for m in family.members]],
-                [[m.upper for m in family.members]],out=name)
+                [[m.upper for m in family.members]],h2=.5,out=name)
             assert isinstance(ref,QuadratureResult)
             assert result.est[name][i]==pytest.approx(ref.est[0],abs=1e-14)
             assert result.var[name][i]==pytest.approx(ref.var[0],abs=1e-14)
@@ -29,10 +29,10 @@ def test_quadrature_object_adapter_preserves_alignment_and_diagnostics():
 
 
 @pytest.mark.parametrize('kwargs,match',[
-    ({'h2':[.5,.5]},'single-trait'), ({'use_mixture':True},'without'),
-    ({'c2':.1},'without'), ({'m2':.1},'without'),
-    ({'quadrature_max_nodes':32},'max_nodes'),
-    ({'quadrature_atol':-1},'atol')])
+    ({'h2':[.5,.5]},'single-trait'), ({'h2':.5,'use_mixture':True},'without'),
+    ({'h2':.5,'c2':.1},'without'), ({'h2':.5,'m2':.1},'without'),
+    ({'h2':.5,'quadrature_max_nodes':32},'max_nodes'),
+    ({'h2':.5,'quadrature_atol':-1},'atol')])
 def test_quadrature_dispatch_rejects_unsupported_requests(kwargs,match):
     with pytest.raises((ValueError,NotImplementedError),match=match):
         estimate_liability([Family('f',[Member('o',-np.inf,1)])],method='quadrature',**kwargs)
@@ -40,7 +40,7 @@ def test_quadrature_dispatch_rejects_unsupported_requests(kwargs,match):
 
 def test_quadrature_is_not_silently_used_as_gibbs_for_kinship():
     with pytest.raises(NotImplementedError,match='nuclear-family'):
-        estimate_liability_from_kinship(np.eye(1),[[-np.inf]],[[1]],method='quadrature')
+        estimate_liability_from_kinship(np.eye(1),[[-np.inf]],[[1]],h2=.5,method='quadrature')
 
 
 @pytest.mark.parametrize('h2',[.2,.5,.8])

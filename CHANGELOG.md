@@ -15,6 +15,11 @@ version is 0 the public API may still change between minor releases.
   a component pinned at the non-negativity boundary. It reuses
   `simulate_families_components`; `--jobs` sets only the worker count, as
   per-replicate seeds make the output identical at any value.
+- The R lock (`tests/test_r_lock.py`, `tests/fixtures/r_lock/`) gains an LT-FH++ age-of-onset cohort: the same 48 simulated families written under both case encodings LTFHPlus can emit — the point pin (`use_fixed_case_thr = TRUE`, ltpred's default) and the one-sided interval (`use_fixed_case_thr = FALSE`, the R default) — with LTFHPlus 2.2.0 Gibbs and LTFGRS 1.0.1 PA reference scores. The classic fixture had no pinned row and six case rows, so neither age encoding was cross-validated before. Agreement at generation: PA vs LTFGRS corr ≥ 0.999998 (RMSE 6.7e-4 pin, 1.8e-4 interval; the pin residual is ltpred's joint pin conditioning versus LTFGRS's sequential fold), Gibbs vs LTFHPlus corr ≥ 0.9999 (RMSE 3.6e-3 / 3.5e-3).
+
+### Changed
+
+- **Breaking:** `h2` is now a required argument of `estimate_liability`, `estimate_liabilities`, `estimate_liability_pa_arrays`, `estimate_liability_gibbs_arrays`, `estimate_liability_from_kinship` and `estimate_liability_quadrature_arrays`. The former default `h2=0.5` was a disease-independent constant of the kind `pop_prev` already refuses; heritability is as disease-specific as prevalence. Callers that relied on the default pass `h2=0.5` explicitly. Covariance builders and the simulator keep their defaults.
 
 ### Fixed
 
@@ -63,6 +68,8 @@ version is 0 the public API may still change between minor releases.
   design only; other prevalences, relationship structures and IPW sampling
   remain unvalidated. The review's earlier report of a negative bias in the
   additive component is withdrawn as a 40-replicate artifact.
+- The `(T(onset), inf)` case interval is relabelled as what it is: LTFHPlus's default LT-FH++ case encoding (`prepare_LTFHPlus_input(use_fixed_case_thr = FALSE)`), not a PA-FGRS-style departure. The pin is LTFHPlus's opt-in `use_fixed_case_thr = TRUE` and remains ltpred's default. `docs/algorithm.md`, the `pa_thresholds` / `thresholds_from_cip` docstrings, the `pearson_aitken` module docstring and the vignette's "Coming from LTFHPlus" table now say so; the two encodings rank probands almost identically (Δcorr(g, ĝ) ≈ 2e-4 on 20,000 simulated families) but differ in calibration slope by about 0.12.
+- README reordered around what a reader needs first (install, quickstart, the three uses stated once, then how it works and one benchmark block); no claim added or removed. `PAPER_PLAN.md` moved to `docs/`.
 
 ## 0.6.2 — 2026-09-09
 

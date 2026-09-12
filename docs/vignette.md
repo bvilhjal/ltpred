@@ -862,6 +862,13 @@ uncertainty column are not.
 | `$genetic_est` | `res.genetic` |
 | LTFGRS PA `$var` (and its square root) | `res.var["genetic"]` — **not** `res.se`, which is 0 under PA because PA is deterministic |
 | `future::plan(multisession, workers = n)` | `ltpred.set_num_threads(n)` |
+| `prepare_LTFHPlus_input(..., use_fixed_case_thr = FALSE)` (R default: cases `(T(onset), Inf)`) | `thresholds_from_cip(..., case_mode="interval")` |
+| `prepare_LTFHPlus_input(..., use_fixed_case_thr = TRUE)` (cases pinned at `T(onset)`) | `thresholds_from_cip(..., case_mode="pin")` — ltpred's default, also `age_thresholds` and `estimate_liabilities` |
+
+The two case encodings rank probands almost identically but differ in
+calibration scale (algorithm.md, "What pinning assumes"); match the R setting
+you are reproducing. Both are locked against LTFHPlus 2.2.0 and LTFGRS 1.0.1
+outputs in `tests/fixtures/r_lock/`.
 
 ltpred ships no igraph-style pedigree object and no plotting utilities.
 

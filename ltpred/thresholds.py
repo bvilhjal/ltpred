@@ -167,13 +167,16 @@ def age_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
 def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
                   mid_point: float = 60.0, slope: float = 1.0 / 8.0
                   ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """**Not** the paper-faithful PA-FGRS encoding — an age-dependent variant.
+    """LT-FH++ interval case encoding plus PA-FGRS mixture inputs — **not** base PA-FGRS.
 
-    This helper gives cases **age-specific onset intervals**. Dybdahl Krebs et al.
-    (2024) instead give observed cases the lifetime interval
-    ``(Phi^-1(1 - K_pop), inf)`` and use age-specific incidence only in the
-    censored-control mixture. This is an age-dependent PA-FGRS-style variant,
-    not the base model.
+    This helper gives cases **age-specific onset intervals**
+    ``(thresh(age_of_onset), inf)`` -- the LT-FH++ case encoding that
+    LTFHPlus's ``prepare_LTFHPlus_input`` emits by default
+    (``use_fixed_case_thr = FALSE``). Dybdahl Krebs et al. (2024) instead give
+    observed cases the lifetime interval ``(Phi^-1(1 - K_pop), inf)`` and use
+    age-specific incidence only in the censored-control mixture, so feeding
+    this helper's output to the mixture is an age-dependent PA-FGRS-style
+    variant, not the base model.
 
     For **base PA-FGRS**, obtain lifetime case/control intervals with
     :func:`prevalence_thresholds`, supply ``K_i``/``K_pop`` for controls, and use
@@ -239,11 +242,15 @@ def thresholds_from_cip(status: ArrayLike, age: ArrayLike, cip_ages: ArrayLike,
     ``k_pop`` is the lifetime prevalence for the stratum. It defaults to
     ``max(cip_values)``, which is appropriate only when the curve reaches the
     intended lifetime horizon; otherwise pass a separately justified value.
-    ``case_mode`` sets the case encoding: ``"pin"`` (the default) pins a case at
-    ``thresh(age_of_onset)`` (the encoding used by LT-FH++ with family history and
-    ADuLT without it), while ``"interval"`` uses
-    ``(thresh(age_of_onset), inf)``. The latter is an age-dependent PA-FGRS-style
-    variant, not base PA-FGRS, whose observed cases use the lifetime threshold.
+    ``case_mode`` sets the case encoding. Both are LT-FH++ encodings (with
+    family history) and ADuLT encodings (without), and both are emitted by
+    LTFHPlus's ``prepare_LTFHPlus_input``: ``"pin"`` (ltpred's default) fixes
+    a case at ``thresh(age_of_onset)`` -- exact under threshold-crossing onset,
+    LTFHPlus's opt-in ``use_fixed_case_thr = TRUE`` -- while ``"interval"``
+    uses ``(thresh(age_of_onset), inf)``, LTFHPlus's default
+    (``use_fixed_case_thr = FALSE``). Neither is base PA-FGRS, whose observed
+    cases use the lifetime threshold. The two agree closely on ranking and
+    differ in calibration scale; see algorithm.md, "What pinning assumes".
     ``status`` must be a one-dimensional Boolean or exact numeric 0/1 array.
     Controls are always ``(-inf, thresh(current_age))`` and carry ``K_i`` /
     ``K_pop`` for the PA censored-control mixture. Returns

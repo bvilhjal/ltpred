@@ -28,8 +28,9 @@ models an as-yet-unaffected relative as a mixture of a true control and a
 not-yet-onset future case, weighted by how far their individual cumulative
 incidence ``K_i`` lags the population lifetime prevalence ``K_pop``. Base PA-FGRS
 uses a lifetime-threshold interval for observed cases; the age-specific case
-intervals emitted by :func:`ltpred.thresholds.pa_thresholds` are a separate,
-age-dependent PA-FGRS-style variant.
+intervals emitted by :func:`ltpred.thresholds.pa_thresholds` are the LT-FH++
+interval encoding (LTFHPlus's default ``use_fixed_case_thr = FALSE``), so
+combining them with the mixture is an age-dependent PA-FGRS-style variant.
 """
 
 from __future__ import annotations

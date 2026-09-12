@@ -1,7 +1,7 @@
 # Paper development plan
 
 Status: living plan. Numerical evidence belongs in
-[`benchmarks/RESULTS.md`](benchmarks/RESULTS.md) and its generated tables, not in
+[`benchmarks/RESULTS.md`](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md) and its generated tables, not in
 this file.
 
 ## Scope

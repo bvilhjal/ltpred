@@ -33,6 +33,7 @@ def pipeline_kwargs(**updates):
         cip_ages=CIP_AGES,
         cip_values=CIP_VALUES,
         k_pop=K_POP,
+        h2=0.5,
         max_degree=1,
     )
     kwargs.update(updates)
@@ -152,7 +153,7 @@ def test_calendar_prediction_uses_each_relatives_attained_age_at_index():
         ids, father, mother, probands=["o"], status=status, age=age,
         use="prediction", birth_time=birth, index_time=np.array([2020.0]),
         cip_ages=CIP_AGES, cip_values=CIP_VALUES, k_pop=K_POP,
-        max_degree=1)
+        h2=0.5, max_degree=1)
 
     graph = build_parent_graph(ids, father, mother)
     ped = extract_pedigree(graph, "o", max_degree=1)
@@ -181,7 +182,7 @@ def test_prediction_is_invariant_to_post_index_outcomes_but_not_preindex_history
         ids=ids, father=father, mother=mother, probands=["o"],
         use="prediction", birth_time=np.array([1980.0, 1950.0, 1950.0]),
         index_time=np.array([2020.0]), cip_ages=CIP_AGES,
-        cip_values=CIP_VALUES, k_pop=K_POP, max_degree=1)
+        cip_values=CIP_VALUES, k_pop=K_POP, h2=0.5, max_degree=1)
 
     # Proband and father differ only after 2020. Both versions reduce to the
     # same observation set at the landmark; the mother's 2015 case is shared.
@@ -207,7 +208,7 @@ def test_prediction_leaves_newborn_and_not_yet_born_members_uninformative(child_
         age=np.array([45.0, 5.0, 50.0]), use="prediction",
         birth_time=np.array([1980.0, child_birth, 1980.0]),
         index_time=np.array([2020.0]), cip_ages=CIP_AGES,
-        cip_values=CIP_VALUES, k_pop=K_POP, max_degree=1)
+        cip_values=CIP_VALUES, k_pop=K_POP, h2=0.5, max_degree=1)
     np.testing.assert_allclose(out.est, [0.0], rtol=0, atol=1e-15)
     np.testing.assert_array_equal(out.n_relatives, [1])
     np.testing.assert_array_equal(out.n_conditioned, [0])
@@ -219,7 +220,7 @@ def test_gwas_conditions_on_the_proband_status():
     common = dict(
         ids=["o"], father=[None], mother=[None], probands=["o"], age=[60.0],
         use="gwas", cip_ages=CIP_AGES, cip_values=CIP_VALUES, k_pop=K_POP,
-        max_degree=1)
+        h2=0.5, max_degree=1)
     case = estimate_liabilities(status=[1], **common)
     control = estimate_liabilities(status=[0], **common)
     assert case.est[0] > control.est[0]
@@ -235,7 +236,7 @@ def test_population_record_permutation_preserves_stratified_prediction():
     base = estimate_liabilities(
         IDS, FATHER, MOTHER, probands=["o"], status=STATUS, age=AGE,
         use="prediction", birth_time=BIRTH, index_time=[2020.0],
-        strata=strata, cip_by_stratum=curves, max_degree=1)
+        strata=strata, cip_by_stratum=curves, h2=0.5, max_degree=1)
 
     order = np.arange(len(IDS))[::-1]
     permuted = estimate_liabilities(
@@ -243,7 +244,7 @@ def test_population_record_permutation_preserves_stratified_prediction():
         [MOTHER[i] for i in order], probands=["o"], status=STATUS[order],
         age=AGE[order], use="prediction", birth_time=BIRTH[order],
         index_time=[2020.0], strata=strata[order],
-        cip_by_stratum=curves, max_degree=1)
+        cip_by_stratum=curves, h2=0.5, max_degree=1)
     np.testing.assert_allclose(base.est, permuted.est, rtol=0, atol=0)
     np.testing.assert_allclose(base.var, permuted.var, rtol=0, atol=0)
 
@@ -306,7 +307,7 @@ def test_unresolved_parents_are_surfaced_and_warned():
             ids, father, mother, probands=["c"],
             status=np.array([0, 0, 0]), age=np.array([65.0, 70.0, 45.0]),
             use="gwas", cip_ages=CIP_AGES, cip_values=CIP_VALUES,
-            k_pop=K_POP, max_degree=1)
+            k_pop=K_POP, h2=0.5, max_degree=1)
     assert out.frac_records_with_unresolved_parents == pytest.approx(2.0 / 3.0)
     assert build_parent_graph(ids, father, mother).n_unresolved_parents == 2
 
@@ -318,7 +319,8 @@ def test_all_unresolved_parent_references_are_refused():
         estimate_liabilities(
             [1, 2, 3], ["3", None, None], ["2", None, None], probands=[1],
             status=np.array([0, 0, 0]), age=np.array([40.0, 65.0, 70.0]),
-            use="gwas", cip_ages=CIP_AGES, cip_values=CIP_VALUES, k_pop=K_POP)
+            use="gwas", cip_ages=CIP_AGES, cip_values=CIP_VALUES, k_pop=K_POP,
+            h2=0.5)
 
 
 def test_declared_unknown_founders_stay_silent():
@@ -346,7 +348,8 @@ def _trio_prediction(proband_status, proband_age, probands=None):
         probands=probands or ["o"], use="prediction",
         birth_time=np.array([1980.0, 1950.0, 1950.0]),
         index_time=np.array([2020.0] * len(probands or ["o"])),
-        cip_ages=CIP_AGES, cip_values=CIP_VALUES, k_pop=K_POP, max_degree=1)
+        cip_ages=CIP_AGES, cip_values=CIP_VALUES, k_pop=K_POP, h2=0.5,
+        max_degree=1)
     status = np.array([proband_status, 0, 0])
     age = np.array([proband_age, 65.0, 70.0])
     return estimate_liabilities(ids, status=status, age=age, **common)
@@ -384,7 +387,8 @@ def test_proband_state_landmark_boundary(status, age, expected):
         ids=["o"], father=[None], mother=[None], probands=["o"],
         status=np.array([status]), age=np.array([age]), use="prediction",
         birth_time=np.array([1980.0]), index_time=np.array([2020.0]),
-        cip_ages=CIP_AGES, cip_values=CIP_VALUES, k_pop=K_POP, max_degree=1)
+        cip_ages=CIP_AGES, cip_values=CIP_VALUES, k_pop=K_POP, h2=0.5,
+        max_degree=1)
     if expected == "prevalent_case":
         with pytest.warns(UserWarning, match="prevalent_case"):
             out = estimate_liabilities(**kwargs)
@@ -403,6 +407,6 @@ def test_proband_state_aligns_to_probands():
             status=np.array([1, 0]), age=np.array([35.0, 60.0]),
             use="prediction", birth_time=np.array([1980.0, 1980.0]),
             index_time=np.array([2020.0, 2020.0]), cip_ages=CIP_AGES,
-            cip_values=CIP_VALUES, k_pop=K_POP, max_degree=1)
+            cip_values=CIP_VALUES, k_pop=K_POP, h2=0.5, max_degree=1)
     np.testing.assert_array_equal(
         out.proband_state, ["prevalent_case", "disease_free_and_followed"])

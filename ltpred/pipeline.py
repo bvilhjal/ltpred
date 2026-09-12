@@ -122,7 +122,7 @@ def estimate_liabilities(
     cip_ages: ArrayLike | None = None,
     cip_values: ArrayLike | None = None,
     k_pop: float | None = None,
-    h2: float = 0.5,
+    h2: float,
     max_degree: int = 3,
     birth_time: ArrayLike | None = None,
     index_time: ArrayLike | None = None,
@@ -156,6 +156,11 @@ def estimate_liabilities(
     ``condition_closure=True`` only to deliberately condition on those extra
     diagnoses. Inference is pinned-onset LT-FH++ with deterministic
     Pearson--Aitken; use the lower-level APIs for interval/mixture models.
+
+    ``h2``: Liability-scale additive heritability for this disease. Required: there is no
+    disease-independent default, for the same reason ``pop_prev`` has none. See
+    data-preparation.md, "Which h²?", for choosing between pedigree/twin and
+    SNP estimates and for the sensitivity analysis.
 
     Only target and informative observation relationships are materialized;
     ``kinship_cache_size`` bounds the number of ancestor-pair results reused

@@ -89,3 +89,22 @@ def test_py_typed_marker_is_present_and_backed_by_annotations():
         params = [p for p in inspect.signature(fn).parameters]
         missing = [p for p in params if p not in hints]
         assert not missing, f"{fn.__name__} parameters lack annotations: {missing}"
+
+
+def test_h2_is_a_required_argument_on_the_score_surface():
+    # h2 is as disease-specific as pop_prev, which already refuses a default;
+    # a missing h2 must raise TypeError before any covariance work runs.
+    import numpy as np
+    import pytest
+
+    from ltpred import estimate_liabilities, estimate_liability
+    from ltpred.family import Family, Member
+
+    fam = Family("f", [Member("o", -np.inf, 0.0)])
+    with pytest.raises(TypeError):
+        estimate_liability([fam])
+    with pytest.raises(TypeError):
+        estimate_liabilities(
+            ["o"], [None], [None], probands=["o"], status=[1], age=[45.0],
+            use="gwas", cip_ages=np.arange(121.0),
+            cip_values=np.full(121, 0.1), k_pop=0.1)

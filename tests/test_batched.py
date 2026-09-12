@@ -173,7 +173,7 @@ def test_array_estimators_reject_duplicate_role_labels(name):
     upper = np.full((2, 3), np.inf)
 
     with pytest.raises(ValueError, match="duplicate role"):
-        estimator(roles, lower, upper)
+        estimator(roles, lower, upper, 0.5)
 
 
 def test_pa_nomix_equals_mixture_with_nan_K():

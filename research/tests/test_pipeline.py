@@ -66,10 +66,12 @@ class SmokeTests(unittest.TestCase):
         status, age = make_pheno()
         a = estimate_liabilities(IDS, FATHER, MOTHER,
                                  probands=["o", "s1"], status=status, age=age,
-                                 cip_ages=CIP_AGES, cip_values=CIP_VALUES)
+                                 cip_ages=CIP_AGES, cip_values=CIP_VALUES,
+                                 h2=0.5)
         b = estimate_liabilities(IDS, FATHER, MOTHER,
                                  probands=["s1", "o"], status=status, age=age,
-                                 cip_ages=CIP_AGES, cip_values=CIP_VALUES)
+                                 cip_ages=CIP_AGES, cip_values=CIP_VALUES,
+                                 h2=0.5)
         self.assertAlmostEqual(a.est[0], b.est[1], places=12)
         self.assertAlmostEqual(a.est[1], b.est[0], places=12)
 
@@ -83,7 +85,7 @@ class FamilywiseCensoringTests(unittest.TestCase):
         out = estimate_liabilities(IDS, FATHER, MOTHER,
                                    probands=["o"], status=status, age=age,
                                    cip_ages=CIP_AGES, cip_values=CIP_VALUES,
-                                   index_age=np.array([ia]))
+                                   h2=0.5, index_age=np.array([ia]))
         # manual reference: same pieces with s1 censored at 20, o unbounded
         from ltpred.pedigree import build_parent_graph, extract_pedigree
         g = build_parent_graph(IDS, FATHER, MOTHER)
@@ -108,11 +110,12 @@ class FamilywiseCensoringTests(unittest.TestCase):
         status, age = make_pheno(case_roles=("m", "f", "s1", "mgm"))
         full = estimate_liabilities(IDS, FATHER, MOTHER,
                                     probands=["o"], status=status, age=age,
-                                    cip_ages=CIP_AGES, cip_values=CIP_VALUES)
+                                    cip_ages=CIP_AGES, cip_values=CIP_VALUES,
+                                    h2=0.5)
         cens = estimate_liabilities(IDS, FATHER, MOTHER,
                                     probands=["o"], status=status, age=age,
                                     cip_ages=CIP_AGES, cip_values=CIP_VALUES,
-                                    index_age=np.array([18.0]))
+                                    h2=0.5, index_age=np.array([18.0]))
         self.assertNotAlmostEqual(full.est[0], cens.est[0], places=6)
 
 
@@ -124,14 +127,15 @@ class StrataTests(unittest.TestCase):
         curve_b = (CIP_AGES, 1.5 * CIP_VALUES, 0.15)
         out = estimate_liabilities(IDS, FATHER, MOTHER,
                                    probands=["o"], status=status, age=age,
-                                   strata=strata,
+                                   strata=strata, h2=0.5,
                                    cip_by_stratum={"A": curve_a, "B": curve_b})
         self.assertTrue(np.isfinite(out.est[0]))
         # "differ" must be asserted: a run that silently ignored
         # cip_by_stratum would reproduce the single-curve estimate
         plain = estimate_liabilities(IDS, FATHER, MOTHER,
                                      probands=["o"], status=status, age=age,
-                                     cip_ages=CIP_AGES, cip_values=CIP_VALUES)
+                                     cip_ages=CIP_AGES, cip_values=CIP_VALUES,
+                                     h2=0.5)
         self.assertNotAlmostEqual(out.est[0], plain.est[0], places=6)
 
 
@@ -139,7 +143,7 @@ class ValidationTests(unittest.TestCase):
     def test_rejects_bad_input(self):
         status, age = make_pheno()
         base = dict(ids=IDS, father=FATHER, mother=MOTHER, status=status,
-                    age=age, cip_ages=CIP_AGES, cip_values=CIP_VALUES)
+                    age=age, cip_ages=CIP_AGES, cip_values=CIP_VALUES, h2=0.5)
         with self.assertRaisesRegex(ValueError, "not among ids"):
             estimate_liabilities(probands=["nobody"], **base)
         with self.assertRaisesRegex(ValueError, "aligned to ids"):
