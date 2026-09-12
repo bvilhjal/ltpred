@@ -37,6 +37,12 @@ version is 0 the public API may still change between minor releases.
 
 ### Documentation
 
+- Move the four point-in-time reviews (`REVIEW_2026-08.md`,
+  `REVIEW_2026-09.md`, `REVIEW_2026-09b.md`, `REVIEW_2026-09c.md`) into
+  `docs/reviews/`, matching the family's review-archive convention (ppb made
+  the same move to `docs/reviews/`, ldpred3 to `research/reviews/`). The
+  mkdocs nav points into `reviews/`; the reviews' own cross-references are
+  sibling filenames, which still resolve because all four moved together.
 - State that quadrature acceptance requires both of the last two refinement
   changes to fall within `quadrature_atol`, that `max_nodes=64` leaves only
   two, and that raising `quadrature_max_nodes` is the remedy.

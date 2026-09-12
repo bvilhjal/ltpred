@@ -53,10 +53,10 @@ nav:
   - Project:
       - Roadmap: ROADMAP.md
       - Releasing: RELEASING.md
-      - Independent review (v0.3.4): REVIEW_2026-08.md
-      - Independent review (v0.4.2): REVIEW_2026-09.md
-      - Independent review (v0.5.1): REVIEW_2026-09b.md
-      - Independent review (v0.6.2): REVIEW_2026-09c.md
+      - Independent review (v0.3.4): reviews/REVIEW_2026-08.md
+      - Independent review (v0.4.2): reviews/REVIEW_2026-09.md
+      - Independent review (v0.5.1): reviews/REVIEW_2026-09b.md
+      - Independent review (v0.6.2): reviews/REVIEW_2026-09c.md
 
 markdown_extensions:
   - admonition
