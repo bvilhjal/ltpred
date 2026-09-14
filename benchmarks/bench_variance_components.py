@@ -26,13 +26,12 @@ Writes bench_variance_components.csv (+ .png if matplotlib is present).
 """
 
 import os
-import csv
 import time
 import argparse
 
 import numpy as np
 
-from _common import get_plt, sd_ci, simulate_families_components
+from _common import get_plt, sd_ci, simulate_families_components, write_rows
 from ltpred.fit import fit_variance_components
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -123,11 +122,7 @@ def main():
 
 def write_csv(rows):
     fields = ["panel", "a2", "c2", "A_bias", "A_sd", "C_bias", "C_sd", "n_fam", "reps"]
-    path = os.path.join(HERE, "bench_variance_components.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
+    return write_rows(os.path.join(HERE, "bench_variance_components.csv"), rows, fields)
 
 
 def plot(panel_a, fp, panel_c):

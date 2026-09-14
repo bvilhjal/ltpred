@@ -40,13 +40,12 @@ panel-``misspec`` rows, as before).
 """
 
 import os
-import csv
 import time
 import argparse
 
 import numpy as np
 
-from _common import estimate, get_plt, mean_se, simulate_families
+from _common import estimate, get_plt, mean_se, simulate_families, write_rows
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -209,11 +208,7 @@ def write_csv(rows):
               "cal_rmse_pa", "se_cal_rmse_pa",
               "top_ratio_gibbs", "se_top_ratio_gibbs",
               "top_ratio_pa", "se_top_ratio_pa"]
-    path = os.path.join(HERE, "bench_calibration.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
+    return write_rows(os.path.join(HERE, "bench_calibration.csv"), rows, fields)
 
 
 def plot(rows, true_h2, curves):

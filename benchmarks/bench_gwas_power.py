@@ -36,14 +36,14 @@ Writes bench_gwas_power.csv (+ .png if matplotlib is present).
 """
 
 import os
-import csv
 import argparse
 
 import numpy as np
 from scipy import stats
 
-from _common import (simulate_genotype_families, estimate, gwas_chisq,
-                     lambda_gc, read_plink_bed, get_plt)
+from _common import (estimate, get_plt, gwas_chisq,
+                     lambda_gc, read_plink_bed, simulate_genotype_families,
+                     write_rows)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -133,12 +133,7 @@ def write_csv(rows):
               "effN_vs_cc", "se_effN_vs_cc", "power_gw", "se_power_gw",
               "power_sug", "se_power_sug", "lambda_gc", "se_lambda_gc",
               "n_calibration_snps"]
-    path = os.path.join(HERE, "bench_gwas_power.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows([{k: r[k] for k in fields} for r in rows])
-    return path
+    return write_rows(os.path.join(HERE, "bench_gwas_power.csv"), rows, fields)
 
 
 def plot(rows, chisq, calibration_mask):

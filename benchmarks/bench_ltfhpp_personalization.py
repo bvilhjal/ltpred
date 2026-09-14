@@ -35,7 +35,6 @@ The default output prefix is ``benchmarks/bench_ltfhpp_personalization``.
 from __future__ import annotations
 
 import argparse
-import csv
 import os
 import warnings
 
@@ -43,7 +42,7 @@ import numpy as np
 from scipy import stats
 from scipy.special import ndtr
 
-from _common import get_plt, gwas_chisq, lambda_gc
+from _common import get_plt, gwas_chisq, lambda_gc, mean_ci, safe_corr, write_rows
 from ltpred.covariance import construct_covmat_single, correct_positive_definite
 from ltpred.estimate import (estimate_liability_gibbs_arrays,
                              estimate_liability_pa_arrays)
@@ -321,12 +320,6 @@ def _calibration_slope(score, truth):
     return float(np.cov(truth, score, ddof=1)[0, 1] / variance)
 
 
-def _safe_corr(x, y):
-    if np.std(x) == 0 or np.std(y) == 0:
-        return np.nan
-    return float(np.corrcoef(x, y)[0, 1])
-
-
 def _metadata(args, panel, scenario):
     return dict(
         row_type="replicate",
@@ -392,8 +385,8 @@ def _score(name, y, data, args, panel, scenario, rep):
         rep=rep,
         phenotype=name,
         comparison="",
-        corr_g_raw=_safe_corr(score, truth),
-        corr_g_adjusted=_safe_corr(score_adj, truth_adj),
+        corr_g_raw=safe_corr(score, truth, fill=np.nan),
+        corr_g_adjusted=safe_corr(score_adj, truth_adj, fill=np.nan),
         calibration_slope_raw=_calibration_slope(score, truth),
         calibration_slope_adjusted=_calibration_slope(score_adj, truth_adj),
         mean_error_raw=float(raw_error.mean()),
@@ -437,7 +430,7 @@ def _add_gibbs_diagnostics(row, pa, gibbs, mcse, tol):
     intercept = float(gibbs.mean() - slope * pa.mean()) if np.isfinite(slope) else np.nan
     row.update(
         gibbs_n_used=len(pa),
-        gibbs_agreement=_safe_corr(pa, gibbs),
+        gibbs_agreement=safe_corr(pa, gibbs, fill=np.nan),
         gibbs_mcse_mean=float(mcse[finite].mean()) if finite.any() else np.nan,
         gibbs_mcse_max=float(mcse[finite].max()) if finite.any() else np.nan,
         gibbs_nonfinite_n=nonfinite,
@@ -506,20 +499,6 @@ def _run_panel_rep(args, rep, panel, scenario, policies, *, include_oracle):
     return rows
 
 
-def _mean_ci(values):
-    values = np.asarray(values, dtype=float)
-    values = values[np.isfinite(values)]
-    if not values.size:
-        return np.nan, np.nan, np.nan, np.nan, 0
-    mean = float(values.mean())
-    if values.size == 1:
-        return mean, np.nan, np.nan, np.nan, 1
-    sd = float(values.std(ddof=1))
-    se = sd / np.sqrt(values.size)
-    ci95 = float(stats.t.ppf(0.975, values.size - 1) * se)
-    return mean, sd, float(se), ci95, int(values.size)
-
-
 def _contrast_rows(replicate_rows, args, panel, scenario, contrasts):
     panel_rows = [row for row in replicate_rows if row["panel"] == panel]
     by_name = {}
@@ -542,7 +521,7 @@ def _contrast_rows(replicate_rows, args, panel, scenario, contrasts):
         for metric in CONTRAST_METRICS:
             delta = [by_name[right][rep][metric] - by_name[left][rep][metric]
                      for rep in paired_reps]
-            mean, sd, se, ci95, _ = _mean_ci(delta)
+            mean, sd, se, ci95, _ = mean_ci(delta)
             metadata[f"delta_{metric}"] = mean
             metadata[f"delta_{metric}_sd"] = sd
             metadata[f"delta_{metric}_se"] = se
@@ -575,18 +554,9 @@ def _cip_curve_rows(args):
 
 
 def write_csv(rows, output_prefix):
-    fields = []
-    for row in rows:
-        for field in row:
-            if field not in fields:
-                fields.append(field)
     path = f"{output_prefix}.csv"
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
-    return path
+    return write_rows(path, rows)
 
 
 def _replicate_rows(rows, panel=None):
@@ -648,7 +618,7 @@ def _means_and_errors(rows, names, key, *, ci=False):
     means, errors = [], []
     for name in names:
         values = [row[key] for row in rows if row["phenotype"] == name]
-        mean, _, se, ci95, _ = _mean_ci(values)
+        mean, _, se, ci95, _ = mean_ci(values)
         means.append(mean)
         errors.append(ci95 if ci else se)
     return np.asarray(means), np.nan_to_num(errors)
@@ -769,7 +739,7 @@ def plot(rows, output_prefix):
                                     (width / 2, AGE_SEX, blue)):
             subset = [row for row in sex if row["phenotype"] == name]
             values = [np.mean([row[key] for row in subset]) for key in error_keys]
-            errors = [_mean_ci([row[key] for row in subset])[2] for key in error_keys]
+            errors = [mean_ci([row[key] for row in subset])[2] for key in error_keys]
             ax.bar(x + offset, values, width, yerr=np.nan_to_num(errors), capsize=3,
                    label=_short(name), color=color)
         ax.axhline(0.0, color="black", ls=":", lw=1)

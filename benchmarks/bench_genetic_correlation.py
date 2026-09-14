@@ -27,7 +27,6 @@ Writes bench_genetic_correlation.csv (+ .png if matplotlib is present).
 """
 
 import os
-import csv
 import sys
 import time
 import argparse
@@ -37,7 +36,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root: `research`
 
-from _common import get_plt, sd_ci, simulate_families_multi
+from _common import get_plt, sd_ci, simulate_families_multi, write_rows
 from research.advanced_fitting import fit_genetic_correlation, fit_genetic_factor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -212,11 +211,7 @@ def main():
 def write_csv(rows):
     fields = ["panel", "rg", "n_fam", "bias", "sd", "reps",
               "trait", "true", "fitted", "srmr", "srmr_sd", "prop"]  # panel (c)
-    path = os.path.join(HERE, "bench_genetic_correlation.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
+    return write_rows(os.path.join(HERE, "bench_genetic_correlation.csv"), rows, fields)
 
 
 def plot(panel_a, panel_b, panel_c):

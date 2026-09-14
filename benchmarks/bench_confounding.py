@@ -26,12 +26,11 @@ Writes bench_confounding.csv (+ .png if matplotlib is present).
 """
 
 import os
-import csv
 import argparse
 
 import numpy as np
 
-from _common import gwas_chisq, lambda_gc, get_plt
+from _common import get_plt, gwas_chisq, lambda_gc, write_rows
 from ltpred.covariance import construct_covmat_single, correct_positive_definite
 from ltpred.thresholds import liability_threshold
 from ltpred.family import Family, Member
@@ -167,11 +166,7 @@ def write_csv(rows):
     metrics = [f"lgc_{s}_{m}" for s in ("strat", "null")
                for m in ("cohort", "single_K", "casecontrol")]
     fields = ["trend_R", "reps", *metrics, *[f"se_{metric}" for metric in metrics]]
-    path = os.path.join(HERE, "bench_confounding.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
+    return write_rows(os.path.join(HERE, "bench_confounding.csv"), rows, fields)
 
 
 def plot(rows):

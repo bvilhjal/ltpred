@@ -80,7 +80,6 @@ Writes bench_ascertainment.csv (+ .png if matplotlib is present).
 """
 
 import os
-import csv
 import sys
 import time
 import argparse
@@ -89,7 +88,7 @@ import contextlib
 
 import numpy as np
 
-from _common import get_plt, sd_ci
+from _common import get_plt, sd_ci, write_rows
 from ltpred.covariance import (construct_covmat_multi, correct_positive_definite,
                                get_relatedness)
 from ltpred.family import Family, Member
@@ -991,12 +990,7 @@ FIELDS = ["arm", "structure", "scheme", "n_fam", "prev", "reps", "target",
 
 
 def write_csv(rows, tag=""):
-    path = os.path.join(HERE, f"bench_ascertainment{tag}.csv")
-    with open(path, "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=FIELDS, lineterminator="\n")
-        w.writeheader()
-        for row in rows:
-            w.writerow({k: row.get(k, "") for k in FIELDS})
+    path = write_rows(os.path.join(HERE, f"bench_ascertainment{tag}.csv"), rows, FIELDS)
     print(f"\nwrote {path}")
 
 

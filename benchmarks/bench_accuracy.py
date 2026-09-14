@@ -32,13 +32,12 @@ seconds per replicate.
 """
 
 import os
-import csv
 import time
 import argparse
 
 import numpy as np
 
-from _common import estimate, get_plt, mean_se, simulate_families
+from _common import estimate, get_plt, mean_se, simulate_families, write_rows
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -115,12 +114,7 @@ def run(n_fam, h2s, prevs, n_sim, seed, reps):
 
 
 def write_csv(rows):
-    path = os.path.join(HERE, "bench_accuracy.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=list(rows[0]), lineterminator="\n")
-        w.writeheader()
-        w.writerows(rows)
-    return path
+    return write_rows(os.path.join(HERE, "bench_accuracy.csv"), rows)
 
 
 def plot(rows):

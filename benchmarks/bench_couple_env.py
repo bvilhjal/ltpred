@@ -36,13 +36,12 @@ Writes bench_couple_env.csv (+ .png if matplotlib is present).
 """
 
 import os
-import csv
 import time
 import argparse
 
 import numpy as np
 
-from _common import get_plt, simulate_families_components
+from _common import get_plt, simulate_families_components, write_rows
 from ltpred.fit import fit_variance_components
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -146,11 +145,7 @@ def write_csv(rows):
     fields = ["panel", "a2", "m2", "s2", "A_mean", "A_bias", "A_sd", "M_mean",
               "M_bias", "M_sd", "A_ignoreC", "A_ignoreC_bias", "A_ignoreC_sd",
               "A_ignoreM", "A_ignoreM_bias", "A_ignoreM_sd", "n_fam", "reps"]
-    path = os.path.join(HERE, "bench_couple_env.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
+    return write_rows(os.path.join(HERE, "bench_couple_env.csv"), rows, fields)
 
 
 def plot(panel_a, panel_b, a2):

@@ -36,14 +36,13 @@ Writes bench_pairwise_recovery.csv (+ .png if matplotlib is present).
 """
 
 import argparse
-import csv
 import os
 import time
 from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 
-from _common import get_plt, simulate_families_components
+from _common import get_plt, simulate_families_components, write_rows
 from ltpred.pairwise import fit_pairwise
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -140,11 +139,7 @@ def main():
 def write_csv(rows):
     fields = ["n_fam", "reps", "comp", "truth", "bias", "se_bias", "sd",
               "mean_se", "se_over_sd", "coverage", "pinned_frac"]
-    path = os.path.join(HERE, "bench_pairwise_recovery.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
+    return write_rows(os.path.join(HERE, "bench_pairwise_recovery.csv"), rows, fields)
 
 
 def plot(panel):

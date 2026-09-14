@@ -24,13 +24,12 @@ Writes bench_fit_heritability.csv (+ .png if matplotlib is present).
 """
 
 import os
-import csv
 import time
 import argparse
 
 import numpy as np
 
-from _common import get_plt, sd_ci
+from _common import get_plt, sd_ci, write_rows
 from ltpred import simulate_under_LTM_single, fit_heritability
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -130,11 +129,7 @@ def main():
 
 def write_csv(rows):
     fields = ["panel", "h2", "n_fam", "structure", "bias", "sd", "reported_se", "reps"]
-    path = os.path.join(HERE, "bench_fit_heritability.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
+    return write_rows(os.path.join(HERE, "bench_fit_heritability.csv"), rows, fields)
 
 
 def plot(panel_a, panel_b, panel_s):

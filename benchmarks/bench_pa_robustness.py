@@ -34,7 +34,7 @@ import argparse
 
 import numpy as np
 
-from _common import simulate_families, estimate, get_plt
+from _common import estimate, get_plt, safe_corr, simulate_families
 from ltpred.covariance import construct_covmat_single, correct_positive_definite
 from ltpred.thresholds import liability_threshold
 from ltpred.pearson_aitken import pa_algorithm
@@ -48,10 +48,6 @@ SIZES = {
     "extended (8)": ["m", "f", "s1", "s2", "mgm", "mgf", "pgm", "pgf"],
     "large (11)": ["m", "f", "s1", "s2", "s3", "mgm", "mgf", "pgm", "pgf", "mau1", "pau1"],
 }
-
-
-def _corr(a, b):
-    return float(np.corrcoef(a, b)[0, 1]) if np.std(a) > 1e-12 else 0.0
 
 
 # --------------------------------------------------------------------------- #
@@ -93,8 +89,8 @@ def regimes(n_fam, seed, n_sim):
             g = sim.genetic
             pa, _ = estimate(sim.families, 0.5, "pearson-aitken")
             gib, _ = estimate(sim.families, 0.5, "gibbs", n_sim=n_sim, seed=seed)
-        row = dict(regime=name, n_rel=len(fam_vec), agree=_corr(pa, gib),
-                   corr_pa=_corr(pa, g), corr_gibbs=_corr(gib, g))
+        row = dict(regime=name, n_rel=len(fam_vec), agree=safe_corr(pa, gib),
+                   corr_pa=safe_corr(pa, g), corr_gibbs=safe_corr(gib, g))
         out.append(row)
         print("  %-18s | PA<->Gibbs=%.4f | corr(PA,g)=%.3f corr(Gibbs,g)=%.3f"
               % (name, row["agree"], row["corr_pa"], row["corr_gibbs"]))

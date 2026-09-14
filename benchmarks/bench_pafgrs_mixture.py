@@ -83,13 +83,11 @@ Run:  python benchmarks/bench_pafgrs_mixture.py
 from __future__ import annotations
 
 import argparse
-import csv
 import os
 import sys
 import time
 
 import numpy as np
-from scipy import stats
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -98,6 +96,7 @@ if ROOT not in sys.path:
 from ltpred.covariance import construct_covmat_single, correct_positive_definite  # noqa: E402
 from ltpred.estimate import estimate_liability  # noqa: E402
 from ltpred.family import Family, Member  # noqa: E402
+from _common import mean_ci, write_rows  # noqa: E402
 from ltpred.simulate import _onset_times  # noqa: E402
 from ltpred.thresholds import liability_threshold, convert_age_to_thresh  # noqa: E402
 
@@ -214,20 +213,6 @@ def run_arm(families, true_g, use_mixture, gibbs_subset=None):
     return out
 
 
-def _mean_ci(values):
-    values = np.asarray(values, dtype=float)
-    values = values[np.isfinite(values)]
-    if not values.size:
-        return np.nan, np.nan, np.nan, np.nan, 0
-    mean = float(values.mean())
-    if values.size == 1:
-        return mean, np.nan, np.nan, np.nan, 1
-    sd = float(values.std(ddof=1))
-    se = sd / np.sqrt(values.size)
-    ci95 = float(stats.t.ppf(0.975, values.size - 1) * se)
-    return mean, sd, float(se), ci95, int(values.size)
-
-
 def _contrast_rows(replicate_rows):
     """Paired mixture-minus-no-mixture differences per cell and case encoding."""
     out = []
@@ -266,7 +251,7 @@ def _contrast_rows(replicate_rows):
             for metric in ("corr_pa", "slope_pa"):
                 delta = [mix[rep][metric] - nomix[rep][metric]
                          for rep in paired_reps]
-                mean, sd, se, ci95, _ = _mean_ci(delta)
+                mean, sd, se, ci95, _ = mean_ci(delta)
                 row[f"delta_{metric}"] = mean
                 row[f"delta_{metric}_sd"] = sd
                 row[f"delta_{metric}_se"] = se
@@ -276,18 +261,9 @@ def _contrast_rows(replicate_rows):
 
 
 def write_csv(rows, output_prefix):
-    fields = []
-    for row in rows:
-        for field in row:
-            if field not in fields:
-                fields.append(field)
     path = f"{output_prefix}.csv"
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
-    return path
+    return write_rows(path, rows)
 
 
 def main():
@@ -374,8 +350,8 @@ def main():
                   f"{'corr(Gibbs)':>12s} {'slope(Gibbs)':>12s} {'corr(PA,Gibbs)':>14s}")
             for name, _, _ in arms:
                 sub = [row for row in cell_rows if row["arm"] == name]
-                pa_c, _, pa_c_se, _, _ = _mean_ci([r["corr_pa"] for r in sub])
-                pa_s, _, pa_s_se, _, _ = _mean_ci([r["slope_pa"] for r in sub])
+                pa_c, _, pa_c_se, _, _ = mean_ci([r["corr_pa"] for r in sub])
+                pa_s, _, pa_s_se, _, _ = mean_ci([r["slope_pa"] for r in sub])
                 gibbs_rows = [r for r in sub if np.isfinite(r["corr_gibbs"])]
                 if gibbs_rows:
                     g_c = np.mean([r["corr_gibbs"] for r in gibbs_rows])

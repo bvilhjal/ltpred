@@ -70,13 +70,12 @@ Writes bench_fh_prediction.csv (+ .png if matplotlib is present).
 """
 
 import os
-import csv
 import argparse
 from collections import defaultdict
 
 import numpy as np
 
-from _common import estimate, get_plt
+from _common import estimate, get_plt, safe_corr, write_rows
 from ltpred.covariance import construct_covmat_single, correct_positive_definite
 from ltpred.thresholds import liability_threshold, convert_age_to_thresh, convert_liability_to_aoo
 from ltpred.family import Family, Member
@@ -240,10 +239,6 @@ def simulate_onset(fam_vec, h2, K, n_fam, seed, mid=60.0, slope=1.0 / 8.0):
     return dict(g=L[:, 0], fams_bin=fams_bin, fams_int=fams_int, fams_pin=fams_pin)
 
 
-def _corr(pred, g):
-    return 0.0 if np.std(pred) < 1e-12 else float(np.corrcoef(pred, g)[0, 1])
-
-
 def _engine_label(method):
     """Canonical display/CSV label for the selected pedigree inference engine."""
     key = str(method).lower()
@@ -267,7 +262,7 @@ def run_point(fam_vec, h2, K, case_frac, n_fam, reps, method, seed0, proband_age
                                             seed=seed0 + r)[0],
                      fh_age_single_k=estimate(s["fams_one"], h2, method,
                                               seed=seed0 + r)[0])
-        c = {k: _corr(v, g) for k, v in preds.items()}
+        c = {k: safe_corr(v, g) for k, v in preds.items()}
         for k, v in c.items():
             acc[f"corr_{k}"].append(v)
         acc["squared_corr_ratio_ltfh_vs_case_control"].append(
@@ -315,8 +310,8 @@ def run_cohort_span(h2, K, span, n, seed, mid, slope, trend_R):
     a = np.round(aoo[m])
     coh = _thr(a, Ki[m], mid, slope)                    # cohort-aware pin ≈ true liability
     one = _thr(a, K, mid, slope)                        # single-K pin (ignores cohort)
-    return dict(corr_adult=_corr(h2 * coh, g[m]),
-                corr_adult_single_k=_corr(h2 * one, g[m]),
+    return dict(corr_adult=safe_corr(h2 * coh, g[m]),
+                corr_adult_single_k=safe_corr(h2 * one, g[m]),
                 n_cases=int(m.sum()))
 
 
@@ -333,10 +328,10 @@ def run_onset_encoding(fam_vec, h2, K, n_fam, reps, seed0, mid, slope):
         s = simulate_onset(fam_vec, h2, K, n_fam, seed0 + r, mid=mid, slope=slope)
         g = s["g"]
         pin_pa = estimate(s["fams_pin"], h2, "pa", seed=seed0 + r)[0]
-        c = dict(ltfh=_corr(estimate(s["fams_bin"], h2, "pa", seed=seed0 + r)[0], g),
-                 fh_onset_interval=_corr(estimate(s["fams_int"], h2, "pa",
+        c = dict(ltfh=safe_corr(estimate(s["fams_bin"], h2, "pa", seed=seed0 + r)[0], g),
+                 fh_onset_interval=safe_corr(estimate(s["fams_int"], h2, "pa",
                                                   seed=seed0 + r)[0], g),
-                 fh_onset_pin=_corr(pin_pa, g))
+                 fh_onset_pin=safe_corr(pin_pa, g))
         for k, v in c.items():
             acc[f"corr_{k}"].append(v)
         acc["squared_corr_ratio_onset_interval_vs_ltfh"].append(
@@ -345,8 +340,8 @@ def run_onset_encoding(fam_vec, h2, K, n_fam, reps, seed0, mid, slope):
             (c["fh_onset_pin"] / c["ltfh"]) ** 2 if c["ltfh"] > 0 else np.nan)
         if r == 0:
             pin_gibbs = estimate(s["fams_pin"], h2, "gibbs", seed=seed0)[0]
-            gibbs_corr = _corr(pin_gibbs, g)
-            agree = _corr(pin_pa, pin_gibbs)
+            gibbs_corr = safe_corr(pin_gibbs, g)
+            agree = safe_corr(pin_pa, pin_gibbs)
     out = {k: float(np.nanmean(v)) for k, v in acc.items()}
     for key, values in acc.items():
         values = np.asarray(values, float)
@@ -524,11 +519,7 @@ def write_csv(rows):
                "mean_error_fh_age_cohort", "mean_error_fh_age_single_k",
                "mean_shift_fh_age_single_k_minus_cohort"]
     fields.extend(f"{name}_se" for name in metrics)
-    path = os.path.join(HERE, "bench_fh_prediction.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
+    return write_rows(os.path.join(HERE, "bench_fh_prediction.csv"), rows, fields)
 
 
 def plot(rows, args):

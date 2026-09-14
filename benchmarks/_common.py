@@ -20,17 +20,20 @@ Two simulation paths feed the benchmarks:
   benchmarks, optionally returning the true genetic component.
 
 Plus small utilities the scripts share: a vectorised linear-regression GWAS
-(:func:`gwas_chisq`), method runners (:func:`estimate`), and Agg-safe plotting.
+(:func:`gwas_chisq`), method runners (:func:`estimate`), replicate summaries
+(:func:`mean_se`, :func:`mean_ci`, :func:`sd_ci`, :func:`safe_corr`), CSV output
+(:func:`write_rows`) and Agg-safe plotting.
 """
 
 from __future__ import annotations
 
+import csv
 import os
 import sys
 import time
 
 import numpy as np
-from scipy.stats import chi2
+from scipy.stats import chi2, t as student_t
 
 # import ltpred from the repo root without installing it
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -58,6 +61,54 @@ def sd_ci(sd, reps, alpha=0.05):
     df = reps - 1
     return (sd * np.sqrt(df / chi2.ppf(1.0 - alpha / 2.0, df)),
             sd * np.sqrt(df / chi2.ppf(alpha / 2.0, df)))
+
+
+def mean_ci(values):
+    """Across-replicate ``(mean, sd, se, ci95, n)`` with a t-based 95% half-width.
+
+    Non-finite values are dropped; one value has an undefined spread (NaNs)."""
+    values = np.asarray(values, dtype=float)
+    values = values[np.isfinite(values)]
+    if not values.size:
+        return np.nan, np.nan, np.nan, np.nan, 0
+    mean = float(values.mean())
+    if values.size == 1:
+        return mean, np.nan, np.nan, np.nan, 1
+    sd = float(values.std(ddof=1))
+    se = sd / np.sqrt(values.size)
+    ci95 = float(student_t.ppf(0.975, values.size - 1) * se)
+    return mean, sd, float(se), ci95, int(values.size)
+
+
+def safe_corr(a, b, fill=0.0):
+    """Pearson correlation, or ``fill`` when either input is numerically constant.
+
+    Scripts that average correlations across replicates pass ``fill=0.0`` (a
+    constant predictor carries no information); scripts that report a single
+    correlation pass ``fill=np.nan`` so a degenerate cell is visibly undefined."""
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    if np.std(a) <= 1e-12 or np.std(b) <= 1e-12:
+        return fill
+    return float(np.corrcoef(a, b)[0, 1])
+
+
+def write_rows(path, rows, fields=None):
+    """Write dict ``rows`` to ``path`` as CSV; a missing field becomes ``""``.
+
+    ``fields`` defaults to the union of the row keys in first-seen order.
+    Returns ``path``."""
+    if fields is None:
+        fields = []
+        for row in rows:
+            for key in row:
+                if key not in fields:
+                    fields.append(key)
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(fields), lineterminator="\n")
+        writer.writeheader()
+        writer.writerows([{k: r.get(k, "") for k in fields} for r in rows])
+    return path
 
 
 # --------------------------------------------------------------------------- #

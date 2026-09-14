@@ -88,7 +88,6 @@ present) -- the same artefacts the standalone scripts produced.
 
 import os
 import sys
-import csv
 import argparse
 from pathlib import Path
 
@@ -101,7 +100,7 @@ from research.covariance_extensions import (construct_covmat_sex_limited,
 from ltpred.covariance import construct_covmat_single
 from ltpred.pearson_aitken import pa_algorithm
 
-from _common import get_plt
+from _common import get_plt, write_rows
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -163,10 +162,7 @@ def summarise_t(values):
 
 
 def write_csv(name, fields, rows):
-    with open(os.path.join(HERE, name), "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
+    return write_rows(os.path.join(HERE, name), rows, fields)
 
 
 # --------------------------------------------------------------------------- #

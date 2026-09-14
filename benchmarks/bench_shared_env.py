@@ -39,14 +39,13 @@ Writes bench_shared_env.csv (+ .png if matplotlib is present).
 """
 
 import os
-import csv
 import argparse
 import warnings
 
 import numpy as np
 from scipy.stats import t as student_t
 
-from _common import get_plt, simulate_families_components
+from _common import get_plt, simulate_families_components, write_rows
 from ltpred.covariance import (construct_covmat_single, get_relatedness,
                                correct_positive_definite)
 from ltpred.fit import _component_matrix, fit_heritability, fit_variance_components
@@ -374,10 +373,7 @@ def write_csv(rows):
             fields.extend([f"{name}_{met}", f"{name}_{met}_sd", f"{name}_{met}_se"])
     for comp in "ACM":
         fields.extend([f"wire_fit_{comp}", f"wire_fit_{comp}_sd"])
-    with open(os.path.join(HERE, "bench_shared_env.csv"), "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
+    return write_rows(os.path.join(HERE, "bench_shared_env.csv"), rows, fields)
 
 
 def plot(rows_c2, rows_sib, h2):

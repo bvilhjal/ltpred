@@ -15,13 +15,12 @@ Writes bench_scaling.csv (+ .png if matplotlib is present).
 """
 
 import os
-import csv
 import argparse
 import time
 
 import numpy as np
 
-from _common import simulate_families, estimate, get_plt
+from _common import estimate, get_plt, simulate_families, write_rows
 from ltpred import estimate_liability_pa_arrays
 
 try:
@@ -129,12 +128,7 @@ def scan_family_size(n_fam, h2, prev, n_sim, seed, timing_reps):
 
 def write_csv(rows):
     fields = sorted({k for r in rows for k in r})
-    path = os.path.join(HERE, "bench_scaling.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows(rows)
-    return path
+    return write_rows(os.path.join(HERE, "bench_scaling.csv"), rows, fields)
 
 
 def plot(nfam_rows, size_rows):

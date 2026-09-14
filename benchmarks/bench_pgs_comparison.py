@@ -67,14 +67,13 @@ Writes bench_pgs_comparison.csv (+ .png if matplotlib is present).
 """
 
 import argparse
-import csv
 import os
 
 import numpy as np
-from scipy import stats
 
-from _common import (simulate_genotype_families, gwas_chisq, lambda_gc,
-                     get_plt)
+from _common import (get_plt, gwas_chisq, lambda_gc,
+                     mean_ci, safe_corr, simulate_genotype_families,
+                     write_rows)
 from ltpred.estimate import estimate_liability_pa_arrays
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -195,12 +194,6 @@ def _family_bounds(families):
     return roles, lower, upper
 
 
-def _corr(a, b):
-    if np.std(a) == 0 or np.std(b) == 0:
-        return np.nan
-    return float(np.corrcoef(a, b)[0, 1])
-
-
 def _cross_fitted_joint_predictions(g, s1, s2, n_folds, seed):
     """Return deterministic out-of-fold predictions from the joint OLS.
 
@@ -233,7 +226,7 @@ def _cross_fitted_joint_r2(g, s1, s2, n_folds, seed):
     """Squared-correlation R^2 of the joint OLS out-of-fold predictions."""
     prediction = _cross_fitted_joint_predictions(
         g, s1, s2, n_folds=n_folds, seed=seed)
-    corr = _corr(prediction, g)
+    corr = safe_corr(prediction, g, fill=np.nan)
     return corr * corr
 
 
@@ -299,8 +292,8 @@ def run_rep(args, rep):
     else:
         pgs = numpy_pgs(Xs[tr], status[tr].astype(float), Xs[te])
     fh_te = fh[te]
-    a = _corr(pgs, g_te)              # Corr(PGS, g); s = g here (p = 1)
-    b = _corr(fh_te, g_te)            # Corr(FH, g)
+    a = safe_corr(pgs, g_te, fill=np.nan)              # Corr(PGS, g); s = g here (p = 1)
+    b = safe_corr(fh_te, g_te, fill=np.nan)            # Corr(FH, g)
     r2_pgs, r2_fh = a * a, b * b
     joint_seed = _joint_crossfit_seed(args.seed, rep)
     r2_joint = _cross_fitted_joint_r2(
@@ -309,7 +302,7 @@ def run_rep(args, rep):
     by_arm[PGS] = row(PGS)
     by_arm[PGS]["corr_g"], by_arm[PGS]["r2_g"] = a, r2_pgs
     by_arm[LTFH]["corr_g"], by_arm[LTFH]["r2_g"] = b, r2_fh
-    by_arm[CC]["corr_g"] = _corr(status[te].astype(float), g_te)
+    by_arm[CC]["corr_g"] = safe_corr(status[te].astype(float), g_te, fill=np.nan)
     by_arm[CC]["r2_g"] = by_arm[CC]["corr_g"] ** 2
 
     by_arm[JOINT] = row(JOINT)
@@ -318,7 +311,7 @@ def run_rep(args, rep):
     r["joint_seed"] = joint_seed
     r["incr_r2_pgs_over_fh"] = r2_joint - r2_fh
     r["incr_r2_fh_over_pgs"] = r2_joint - r2_pgs
-    r["corr_pgs_fh"] = _corr(pgs, fh_te)
+    r["corr_pgs_fh"] = safe_corr(pgs, fh_te, fill=np.nan)
     # docs/algorithm.md: Corr(PGS, FH) = a * b * sqrt(p); p = h2_SNP/h2_total
     # is exactly 1 in this design (g is fully SNP-captured), so a * b.
     r["theory_corr_pgs_fh"] = a * b
@@ -329,20 +322,6 @@ def run_rep(args, rep):
 # --------------------------------------------------------------------------- #
 #  Paired contrasts and aggregation                                           #
 # --------------------------------------------------------------------------- #
-def _mean_ci(values):
-    values = np.asarray(values, dtype=float)
-    values = values[np.isfinite(values)]
-    if not values.size:
-        return np.nan, np.nan, np.nan, np.nan, 0
-    mean = float(values.mean())
-    if values.size == 1:
-        return mean, np.nan, np.nan, np.nan, 1
-    sd = float(values.std(ddof=1))
-    se = sd / np.sqrt(values.size)
-    ci95 = float(stats.t.ppf(0.975, values.size - 1) * se)
-    return mean, sd, float(se), ci95, int(values.size)
-
-
 def paired_contrasts(replicate_rows):
     """Paired per-replicate differences, reported mean/sd/se/t-CI (section 15 style)."""
     by_arm = {}
@@ -360,7 +339,7 @@ def paired_contrasts(replicate_rows):
         reps = sorted(set(by_arm.get(right, ())) & set(by_arm.get(left, ())))
         delta = [by_arm[right][rep][metric] - by_arm[left][rep][metric]
                  for rep in reps]
-        mean, sd, se, ci95, n = _mean_ci(delta)
+        mean, sd, se, ci95, n = mean_ci(delta)
         out.append(dict(row_type="paired_contrast", rep="", arm="",
                         comparison=label, metric=metric, delta_mean=mean,
                         delta_sd=sd, delta_se=se, delta_ci95=ci95,
@@ -370,7 +349,7 @@ def paired_contrasts(replicate_rows):
     reps = sorted(joint)
     delta = [joint[rep]["theory_corr_pgs_fh"] - joint[rep]["corr_pgs_fh"]
              for rep in reps]
-    mean, sd, se, ci95, n = _mean_ci(delta)
+    mean, sd, se, ci95, n = mean_ci(delta)
     out.append(dict(row_type="paired_contrast", rep="", arm="",
                     comparison="theory a*b*sqrt(p) - observed corr(PGS,FH)",
                     metric="corr_pgs_fh", delta_mean=mean, delta_sd=sd,
@@ -390,7 +369,7 @@ def aggregate(replicate_rows):
             continue
         row = dict(arm=arm, reps=len(sub))
         for key in metrics:
-            mean, _, se, _, _ = _mean_ci([r[key] for r in sub])
+            mean, _, se, _, _ = mean_ci([r[key] for r in sub])
             row[key], row[f"se_{key}"] = mean, se
         out.append(row)
     return out
@@ -414,14 +393,8 @@ def write_csv(rows, args):
                 seed=args.seed,
                 joint_fit_design="seeded_shuffled_test_kfold_ols",
                 joint_folds=args.joint_folds)
-    path = os.path.join(HERE, "bench_pgs_comparison.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n",
-                           extrasaction="ignore")
-        w.writeheader()
-        for r in rows:
-            w.writerow({**meta, **r})
-    return path
+    return write_rows(os.path.join(HERE, "bench_pgs_comparison.csv"),
+                      [{**meta, **r} for r in rows], fields)
 
 
 def plot(agg, replicate_rows):
@@ -458,8 +431,8 @@ def plot(agg, replicate_rows):
                           observed.max(initial=0.0)) * 1.2 + 0.02)]
     ax[2].plot(lim, lim, "k--", lw=1)
     ax[2].plot(theory, observed, "o", color="#1f77b4")
-    mean_t, _, se_t, _, _ = _mean_ci(theory)
-    mean_o, _, se_o, _, _ = _mean_ci(observed)
+    mean_t, _, se_t, _, _ = mean_ci(theory)
+    mean_o, _, se_o, _, _ = mean_ci(observed)
     ax[2].errorbar([mean_t], [mean_o], xerr=[se_t], yerr=[se_o], fmt="s",
                    color="#d62728", capsize=4, label="mean ± SE")
     ax[2].set_xlabel("theory: a * b * sqrt(p)  (p = 1 here)")

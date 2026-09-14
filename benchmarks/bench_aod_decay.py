@@ -39,7 +39,6 @@ Writes bench_aod_decay.csv (+ .png if matplotlib is present).
 """
 
 import os
-import csv
 import sys
 import time
 import argparse
@@ -49,7 +48,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root: `research`
 
-from _common import get_plt, simulate_families_multi
+from _common import get_plt, simulate_families_multi, write_rows
 from research.advanced_fitting import fit_genetic_correlation_decay
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -229,11 +228,7 @@ def main():
 def write_csv(rows):
     fields = ["panel", "lam", "n_fam", "rg_mean", "rg_sd", "lx_mean", "lx_sd",
               "lw_mean", "reps", "arm", "desc", "c2", "h2_0", "h2_1"]
-    path = os.path.join(HERE, "bench_aod_decay.csv")
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-        w.writeheader()
-        w.writerows([{k: r.get(k, "") for k in fields} for r in rows])
+    return write_rows(os.path.join(HERE, "bench_aod_decay.csv"), rows, fields)
 
 
 def plot(panel_a, panel_b, panel_d, lam_max):

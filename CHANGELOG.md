@@ -17,9 +17,53 @@ version is 0 the public API may still change between minor releases.
   per-replicate seeds make the output identical at any value.
 - The R lock (`tests/test_r_lock.py`, `tests/fixtures/r_lock/`) gains an LT-FH++ age-of-onset cohort: the same 48 simulated families written under both case encodings LTFHPlus can emit — the point pin (`use_fixed_case_thr = TRUE`, ltpred's default) and the one-sided interval (`use_fixed_case_thr = FALSE`, the R default) — with LTFHPlus 2.2.0 Gibbs and LTFGRS 1.0.1 PA reference scores. The classic fixture had no pinned row and six case rows, so neither age encoding was cross-validated before. Agreement at generation: PA vs LTFGRS corr ≥ 0.999998 (RMSE 6.7e-4 pin, 1.8e-4 interval; the pin residual is ltpred's joint pin conditioning versus LTFGRS's sequential fold), Gibbs vs LTFHPlus corr ≥ 0.9999 (RMSE 3.6e-3 / 3.5e-3).
 
+### Removed
+
+- The 5 September 2026 efficiency pilot: `benchmarks/bench_efficient_inference.py`,
+  its 2.3 MB capsule under `benchmarks/results/` (input arrays and a copy of the
+  measured source, 29% of the repository), its `check_evidence.py` binding and
+  the report subsection that quoted it. Its own README disclaimed it as a
+  development pilot on a modified checkout; the clean v0.6.1 time/memory rerun
+  is the retained evidence. The development-run capsule of that rerun
+  (`results/2026-09-09-time-memory/`) is dropped for the same reason, and the
+  clean capsule's README no longer carries the side-by-side speedup table.
+- `research/pipeline.py` and its test: the legacy register snapshot superseded
+  by `ltpred.pipeline`, imported by nothing but its own test.
+- Fourteen orphaned `paper/tables/` files (five `.tex` tables the report never
+  inputs and nine Markdown copies), leaving the six tables `ltpred_methods.tex`
+  inputs; the two root QR-code images; `bench_ascertainment_h2null.png`.
+- Dead code: `pearson_aitken._tnorm_mean` / `_tnorm_var` (JIT-compiled, no
+  callers) and `fit._prepare_group`, a compatibility view kept alive only by
+  its tests, which now call `_prepare_group_vc` directly.
+
 ### Changed
 
 - **Breaking:** `h2` is now a required argument of `estimate_liability`, `estimate_liabilities`, `estimate_liability_pa_arrays`, `estimate_liability_gibbs_arrays`, `estimate_liability_from_kinship` and `estimate_liability_quadrature_arrays`. The former default `h2=0.5` was a disease-independent constant of the kind `pop_prev` already refuses; heritability is as disease-specific as prevalence. Callers that relied on the default pass `h2=0.5` explicitly. Covariance builders and the simulator keep their defaults.
+- Benchmark numbers now have one prose home, `benchmarks/RESULTS.md`, beside
+  the methods report and its paper tables. README, `docs/estimation.md`,
+  `docs/algorithm.md`, `docs/inference.md`, `benchmarks/README.md`,
+  `report/README.md` and the `estimate.py` / `fit.py` docstrings describe the
+  results qualitatively and link to the ledger, so a rerun edits one file
+  instead of fifteen. `scripts/check_evidence.py` pins the ledger,
+  `paper/tables/*.tex`, the report source and the tracked PDF only.
+- `benchmarks/_common.py` gains `write_rows`, `mean_ci` and `safe_corr`.
+  Eighteen scripts' hand-rolled `write_csv` bodies, three byte-identical
+  `_mean_ci` copies and three `_corr` variants (which disagreed on whether a
+  constant predictor scores 0 or NaN) call them instead;
+  `bench_time_memory.py` carries its own power guard now that the pilot
+  script it imported is gone.
+- Tests: same-shape checks are parametrised tables (duplicate-role rejection
+  across nine entry points, covariance-correction warnings across five, Gibbs
+  sampler-control validation on both APIs, `families_from_columns` missing-id
+  sentinels, `set_num_threads` rejections, and the relatedness table, which
+  absorbs the kind-by-kind generator that re-derived it).
+  `test_new_inference_api.py`, `test_pa_reduction.py` and
+  `test_env_components.py` are merged into the files for the modules they
+  test. The two bootstrap tests and the PA-vs-Gibbs family test use smaller
+  cohorts; the engine-vs-R lock carries the precision claim.
+- CI: the two pure-Python-fallback jobs share one `KERNEL_TESTS` list, and a
+  `research-tests` job runs `research/tests`, which passed (192 tests) but
+  was collected by nothing.
 
 ### Fixed
 
