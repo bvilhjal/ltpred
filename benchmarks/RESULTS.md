@@ -36,6 +36,17 @@ censoring mixture is not included in the PA–Gibbs comparisons below.
   tree. Claims should be refreshed after numerical or benchmark-source changes.
   The per-run provenance manifest and captured logs were removed in the
   2026-08 lean-down, so the exact source state of older runs is unrecoverable.
+- **Refreshed 2026-09-14 at v0.6.2:** sections 15, 16 and the affected cells of
+  sections 3 and 10 come from reruns of `bench_ltfhpp_personalization.py`,
+  `bench_pafgrs_mixture.py` and `bench_fh_prediction.py` under the provenance
+  wrapper. In all three the only arms that moved are those combining family
+  history with pinned onsets, and every column the Pearson-Aitken engine does
+  not compute is bit-identical, so the random streams are unchanged. This is
+  the v0.6.0 change to condition pins jointly: it shifts the liability scale
+  and leaves ranking alone. LT-FH++'s adjusted calibration slope moves from
+  0.995 to 1.004, closer to the ideal 1; a fourth of the ten mixture Δcorr
+  intervals now excludes zero; two RESULTS cells that had been transcribed one
+  digit away from their own CSV are corrected in passing.
 - **Verification, 2026-09-14:** the suite was re-run at v0.6.2 in the recorded
   environment to check that the stored artifacts still describe current
   behaviour. `bench_tetrachoric`, `bench_liability_scale`, `bench_calibration`
@@ -124,8 +135,8 @@ run for these artifacts.
   With identical age/sex/cohort proband bounds, ADuLT reaches **1.049 ± 0.004×**
   adjusted causal-SNP NCP ratio over case/control and full LT-FH++ reaches
   **1.194 ± 0.006×** (same independent-SNP design). The paired LT-FH++ minus ADuLT increment is
-  **+0.1454 ± 0.0154** NCP-ratio units (95% CI half-width). Full LT-FH++ has
-  adjusted calibration slope **0.995 ± 0.015** and PA/Gibbs agreement 0.99996.
+  **+0.1454 ± 0.0155** NCP-ratio units (95% CI half-width). Full LT-FH++ has
+  adjusted calibration slope **1.004 ± 0.015** and PA/Gibbs agreement 0.99996.
 - **Cohort-blind family thresholds inflate stratified-null λ_GC; cohort-aware thresholds do not.**
   At a 4× lifetime-prevalence trend per 30 birth years, single-K family
   thresholds reach **16.460 ± 0.399**; the same family model with cohort-specific
@@ -150,10 +161,10 @@ run for these artifacts.
   LT-FH) is 0.2009 ± 0.0046
   against the `a·b·√p` prediction 0.2003 ± 0.0050 (`p = 1` by construction).
 - **The PA-FGRS mixture has a detectable but practically negligible ranking effect; case encoding dominates calibration.**
-  Three of ten paired Δcorr 95% CIs exclude zero, but the largest shift is
+  Four of ten paired Δcorr 95% CIs exclude zero, but the largest shift is
   only −0.00034 (95% CI ± 0.00011). Under threshold crossing, pinned cases stay near
   slope 1. When onset only *tends* to track liability (ρ = 0.6), pinning
-  over-conditions (slope 0.92 under heavy censoring). The lifetime interval
+  over-conditions (slope 0.93 under heavy censoring). The lifetime interval
   under-conditions (slope up to 1.20); an age-specific case interval
   over-disperses (slope ≈ 0.83).
 - **Phenotype ascertainment pins the heritability fitter at the clamp.**
@@ -421,7 +432,7 @@ death or current age. Values are scored against known true genetic liability.
 
 | observed proband case fraction | case/control corr | classic LT-FH corr (PA) | FH + age/cohort corr (PA) | classic LT-FH squared-correlation eff-N proxy / c-c | age/cohort proxy / classic |
 |---:|---:|---:|---:|---:|---:|
-| 0.0215 (population) | 0.232 | 0.346 | 0.350 | 2.233 ± 0.127× | 1.023 ± 0.003× |
+| 0.0215 (population) | 0.232 | 0.346 | 0.350 | 2.233 ± 0.127× | 1.024 ± 0.003× |
 | 0.10 | 0.471 | 0.525 | 0.531 | 1.242 ± 0.018× | 1.022 ± 0.002× |
 | 0.25 | 0.621 | 0.654 | 0.663 | 1.107 ± 0.008× | 1.030 ± 0.002× |
 | 0.50 | 0.694 | 0.722 | 0.738 | 1.081 ± 0.003× | 1.045 ± 0.002× |
@@ -579,15 +590,15 @@ lambda before and after the same standard covariate adjustment.
 | case/control | 0.586 ± 0.008 | 1.123 ± 0.021 | 1.000× | 1.140 ± 0.051 -> 1.019 ± 0.024 |
 | ADuLT (same full personalised proband CIP, no FH) | 0.600 ± 0.008 | 1.004 ± 0.018 | 1.049 ± 0.004× | 1.024 ± 0.047 -> 1.014 ± 0.031 |
 | LT-FH single-K | 0.629 ± 0.008 | 1.183 ± 0.020 | 1.149 ± 0.007× | 1.131 ± 0.046 -> 0.990 ± 0.041 |
-| FH + age CIP (ablation) | 0.639 ± 0.008 | 1.009 ± 0.016 | 1.189 ± 0.006× | 0.998 ± 0.033 -> 1.018 ± 0.041 |
-| FH + age + sex CIP (ablation) | 0.639 ± 0.008 | 1.008 ± 0.016 | 1.188 ± 0.006× | 0.986 ± 0.032 -> 1.011 ± 0.036 |
-| FH + age + cohort CIP (ablation) | 0.640 ± 0.008 | 0.995 ± 0.015 | 1.194 ± 0.006× | 1.014 ± 0.034 -> 1.020 ± 0.034 |
-| **LT-FH++ (full age + sex + cohort CIP)** | **0.640 ± 0.008** | **0.995 ± 0.015** | **1.194 ± 0.006×** | **0.996 ± 0.036 -> 1.010 ± 0.039** |
+| FH + age CIP (ablation) | 0.639 ± 0.008 | 1.017 ± 0.016 | 1.189 ± 0.006× | 0.997 ± 0.032 -> 1.021 ± 0.042 |
+| FH + age + sex CIP (ablation) | 0.639 ± 0.008 | 1.016 ± 0.016 | 1.189 ± 0.006× | 0.983 ± 0.032 -> 1.015 ± 0.038 |
+| FH + age + cohort CIP (ablation) | 0.640 ± 0.008 | 1.004 ± 0.016 | 1.194 ± 0.006× | 1.013 ± 0.034 -> 1.026 ± 0.033 |
+| **LT-FH++ (full age + sex + cohort CIP)** | **0.640 ± 0.008** | **1.004 ± 0.015** | **1.194 ± 0.006×** | **0.994 ± 0.035 -> 1.009 ± 0.041** |
 
 The matched ADuLT row uses exactly the full personalised proband bounds but no
 relative columns. Adding relatives to reach full LT-FH++ improves adjusted
 correlation by **+0.04073 ± 0.00358** and causal-SNP NCP ratio by
-**+0.1454 ± 0.0154** (paired 95% CI half-widths). Here and below these are
+**+0.1454 ± 0.0155** (paired 95% CI half-widths). Here and below these are
 causal-SNP NCP-ratio units. ADuLT itself gains +0.0490 ± 0.0096 NCP-ratio
 units over case/control.
 
@@ -678,7 +689,7 @@ Liability-dependent onset (ρ = 0.6):
 |---|---|---|---|---|
 | base + no-mixture | 0.3089 ± 0.0020 | 1.1321 ± 0.0103 | 0.4638 ± 0.0040 | 1.0162 ± 0.0083 |
 | base + mixture | 0.3088 ± 0.0020 | 1.1088 ± 0.0101 | 0.4638 ± 0.0040 | 1.0081 ± 0.0083 |
-| pinned + no-mixture | 0.3082 ± 0.0021 | 0.9199 ± 0.0088 | 0.4642 ± 0.0041 | 0.9631 ± 0.0075 |
+| pinned + no-mixture | 0.3084 ± 0.0021 | 0.9259 ± 0.0089 | 0.4644 ± 0.0041 | 0.9685 ± 0.0075 |
 | pinned + mixture | 0.3083 ± 0.0021 | 0.9008 ± 0.0086 | 0.4642 ± 0.0042 | 0.9559 ± 0.0075 |
 
 Paired mixture-minus-no-mixture contrasts (per-replicate differences on
@@ -687,32 +698,32 @@ identical cohorts; mean ± SE with t-based 95% CI half-width, 5 replicates):
 | cell | case encoding | Δcorr | Δslope |
 |---|---|---|---|
 | crossing MID | lifetime interval | -0.00034 ± 0.00004 (CI ± 0.00011) | -0.02537 ± 0.00032 (CI ± 0.00088) |
-| crossing MID | pinned | -0.00002 ± 0.00004 (CI ± 0.00010) | -0.02106 ± 0.00032 (CI ± 0.00089) |
+| crossing MID | pinned | -0.00004 ± 0.00004 (CI ± 0.00010) | -0.02682 ± 0.00032 (CI ± 0.00090) |
 | crossing OLD | lifetime interval | -0.00017 ± 0.00005 (CI ± 0.00013) | -0.00844 ± 0.00013 (CI ± 0.00036) |
-| crossing OLD | pinned | -0.00008 ± 0.00004 (CI ± 0.00011) | -0.00743 ± 0.00012 (CI ± 0.00034) |
+| crossing OLD | pinned | -0.00010 ± 0.00005 (CI ± 0.00014) | -0.01251 ± 0.00013 (CI ± 0.00036) |
 | stochastic MID | lifetime interval | +0.00012 ± 0.00005 (CI ± 0.00013) | -0.02101 ± 0.00030 (CI ± 0.00083) |
 | stochastic OLD | lifetime interval | +0.00008 ± 0.00005 (CI ± 0.00015) | -0.00785 ± 0.00016 (CI ± 0.00046) |
 | dependent MID | lifetime interval | -0.00013 ± 0.00003 (CI ± 0.00008) | -0.02336 ± 0.00024 (CI ± 0.00066) |
-| dependent MID | pinned | +0.00005 ± 0.00005 (CI ± 0.00014) | -0.01913 ± 0.00030 (CI ± 0.00083) |
+| dependent MID | pinned | -0.00007 ± 0.00005 (CI ± 0.00013) | -0.02509 ± 0.00029 (CI ± 0.00081) |
 | dependent OLD | lifetime interval | -0.00007 ± 0.00004 (CI ± 0.00012) | -0.00812 ± 0.00014 (CI ± 0.00038) |
-| dependent OLD | pinned | -0.00006 ± 0.00005 (CI ± 0.00014) | -0.00724 ± 0.00016 (CI ± 0.00044) |
+| dependent OLD | pinned | -0.00020 ± 0.00006 (CI ± 0.00015) | -0.01265 ± 0.00016 (CI ± 0.00045) |
 
 ### Verdict: behaves as intended here; detectable but negligible correlation shifts; case encoding dominates; pinning is not a free lunch
 
 - **The correlation shifts are measurable but practically negligible.**
-  Three of ten Δcorr CIs exclude zero; the largest shift is
+  Four of ten Δcorr CIs exclude zero; the largest shift is
   -0.00034 with a 95% CI half-width of 0.00011, about 0.1% of the
   correlation level. The mixture therefore changes ranking slightly in some
   cells, including when its independence assumption is false.
 - **Pinning is calibrated only under threshold crossing.** At ρ = 0.6 the
-  pinned slope is 0.92 (MID) / 0.96 (OLD): onset is no longer the CIP
+  pinned slope is 0.93 (MID) / 0.97 (OLD): onset is no longer the CIP
   inverse of liability, so a point mass at T(onset) over-conditions.
   The lifetime interval still under-conditions (MID slope 1.13), sitting
   between the crossing (1.20) and stochastic (1.03) extremes. Use the pin
   when the crossing model is believed; do not treat it as robust to noisy
   or only partly liability-dependent onset.
 - **The calibration shifts are real and directionally consistent.** Every
-  Δslope CI excludes zero; the mixture always lowers the slope, by 0.007-0.025
+  Δslope CI excludes zero; the mixture always lowers the slope, by 0.008-0.027
   and most strongly under heavy censoring. Where the no-mixture encoding
   under-conditions (lifetime interval, MID: slopes 1.20, 1.03, 1.13 across
   the three onset models) this moves calibration toward 1, including under
@@ -1384,8 +1395,11 @@ Every phenotype-selected scheme is pinned at the clamp in every replicate
 negative-control arms are not. Case shares shown are the nuclear arm's; the
 sibship arm realises the same shares except `family_history` (0.219).
 
-**The strongest cell is true h² = 0** (`--h2 0.0`, 5 replicates, nuclear;
-pre-consolidation grid -- the moderate default does not include this arm):
+**The strongest cell is true h² = 0** (5 replicates, nuclear;
+pre-consolidation grid -- the moderate default does not include this arm.
+Reproduce with `--h2 0 --tag _h2null --arms h2 mechanism --structures nuclear --n-fam 10000 --n-iter 1500 --burn-in 500`; verified 2026-09-14 to agree with the committed
+artifact to 1.5e-14, and note the script now writes four columns the artifact
+predates):
 population returns 0.018 and `random_50` 0.025, while `proband_case`,
 `case_control`, `enriched_20`, `family_history` and `fh_proband_control` **all
 return 1.000**. Selecting families on phenotype makes the fitter report complete

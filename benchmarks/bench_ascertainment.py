@@ -703,7 +703,10 @@ def _he_moment(liab, roles, centered):
     worse). The runaway is augmentation feedback -- under proband_case every
     augmented proband is redrawn above threshold, relatives are pulled with it,
     and the cross-products stay positive whatever the truth -- which this
-    complete-data statistic cannot see. Run `--h2 0` to reproduce.
+    complete-data statistic cannot see. Reproduce that cell with
+    `--h2 0 --tag _h2null --arms h2 mechanism --structures nuclear --n-fam 10000 --n-iter 1500 --burn-in 500`
+    (the r_g arm is multi-trait and undefined at h2 = 0; the pre-consolidation
+    grid is what the committed artifact records).
 
     Only pairs with a nonzero relationship contribute -- the same filter fit.py
     applies (`abs(A_ij) > 1e-12`), so genetically unrelated mates never enter.
@@ -1103,6 +1106,18 @@ def main():
         args.dose_targets, args.dose_n, args.dose_reps = [0.05, 0.15], 400, 2
         args.spec_grid, args.spec_reps = [(400, 0.05)], 1
         args.converge_starts = [0.05, 0.95]
+
+    # r_g is the only multi-trait arm, and a genetic correlation between traits
+    # with no genetic variance is undefined: construct_covmat_multi rejects the
+    # degenerate covariance. Without this check the run dies inside that
+    # constructor minutes later, after the earlier arms have been computed and
+    # thrown away. Every other arm builds its covariance from component kernels,
+    # which simply omit a zero additive term, so they are fine at h2 = 0.
+    if args.h2 == 0 and "rg" in args.arms:
+        p.error("the rg arm needs a positive --h2, because a genetic correlation "
+                "between traits with no genetic variance is undefined. "
+                "bench_ascertainment_h2null.csv is reproduced by "
+                "`--h2 0 --tag _h2null --arms h2 mechanism --structures nuclear --n-fam 10000 --n-iter 1500 --burn-in 500`.")
 
     t0 = time.time()
     rows = []

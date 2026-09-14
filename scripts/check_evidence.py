@@ -220,6 +220,56 @@ def check_pgs():
     }
 
 
+def check_paper_tables():
+    """Recompute the static LaTeX tables cell by cell from their source CSVs.
+
+    The generator was removed in the 2026-08 lean-down, so these tables are
+    edited by hand and can drift from the artifacts they claim to summarise --
+    which is exactly what happened to two RESULTS cells before the 2026-09-14
+    rerun caught them. Checking every cell costs nothing and makes a
+    transcription slip a release failure rather than a reader's problem."""
+    def cells(name, rows, build):
+        text = read(ROOT / "paper" / "tables" / f"{name}.tex")
+        missing = [(d, s) for row in rows for d, s in build(row) if s not in text]
+        if missing:
+            raise AssertionError(
+                f"paper/tables/{name}.tex does not match its CSV: {missing[:4]!r}")
+        return sum(1 for row in rows for _ in build(row))
+
+    def gwas(row):
+        yield "chi2", (f'{float(row["mean_chi2_causal"]):.2f} $\\pm$ '
+                       f'{float(row["se_mean_chi2_causal"]):.2f}')
+        yield "power", (f'{100 * float(row["power_gw"]):.1f} $\\pm$ '
+                        f'{100 * float(row["se_power_gw"]):.1f}\\%')
+        yield "lambda", (f'{float(row["lambda_gc"]):.3f} $\\pm$ '
+                         f'{float(row["se_lambda_gc"]):.3f}')
+        if float(row["effN_vs_cc"]) != 1.0:
+            yield "ncp", (f'{float(row["effN_vs_cc"]):.3f} $\\pm$ '
+                          f'{float(row["se_effN_vs_cc"]):.3f}$\\times$')
+
+    def confounding(row):
+        for key in ("cohort", "single_K", "casecontrol"):
+            yield key, (f'{float(row[f"lgc_strat_{key}"]):.3f} $\\pm$ '
+                        f'{float(row[f"se_lgc_strat_{key}"]):.3f}')
+
+    def heritability(row):
+        if row["panel"] != "bias_precision":
+            return
+        h2, bias = float(row["h2"]), float(row["bias"])
+        sd, se = float(row["sd"]), float(row["reported_se"])
+        yield "mean", f"{h2 + bias:.3f}"
+        yield "bias", f"{bias:+.3f}"
+        yield "sd", f"{sd:.3f}"
+        yield "reported se", f"{se:.4f}"
+        yield "ratio", f"{sd / se:.0f}$\\times$"
+
+    total = (cells("gwas_power", csv_rows("bench_gwas_power.csv"), gwas)
+             + cells("confounding", csv_rows("bench_confounding.csv"), confounding)
+             + cells("fit_heritability", csv_rows("bench_fit_heritability.csv"),
+                     heritability))
+    return total
+
+
 def report_inputs():
     inputs = [REPORT_TEX]
     for raw in re.findall(r"\\input\{([^}]+)\}", read(REPORT_TEX)):
@@ -385,6 +435,7 @@ def main():
     cc, en, n_fam = check_ipw()
     r_lock = check_r_lock()
     pgs = check_pgs()
+    table_cells = check_paper_tables()
     time_memory = check_time_memory_rerun()
     check_report(version, release_date, scaling, r_lock, pgs, pa_robust, time_memory)
     print(
@@ -392,7 +443,8 @@ def main():
         f"PA stress floor {pa_robust[0]} (worst {pa_robust[1]}); "
         f"IPW {cc}/{en} (N={n_fam:,}); "
         f"R locks {r_lock['details']['gibbs']} and {r_lock['details']['pa']}; "
-        f"PGS {pgs['headline']}; time/memory {len(time_memory)} matched cases; PDF v{version}."
+        f"PGS {pgs['headline']}; {table_cells} paper-table cells; "
+        f"time/memory {len(time_memory)} matched cases; PDF v{version}."
     )
 
 

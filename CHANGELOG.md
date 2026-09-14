@@ -73,6 +73,16 @@ version is 0 the public API may still change between minor releases.
 
 ### Fixed
 
+- `bench_ascertainment.py` refuses the r_g arm at `--h2 0` up front instead of
+  dying inside `construct_covmat_multi` minutes later: a genetic correlation
+  between traits with no genetic variance is undefined, and r_g is the only
+  multi-trait arm. The error names the command that reproduces
+  `bench_ascertainment_h2null.csv`, which the benchmarks README had recorded as
+  `--h2 0 --tag _h2null` alone. That command both crashed and, once the arms
+  were restricted, produced a different grid: the artifact is the
+  pre-consolidation cell, needing `--arms h2 mechanism --structures nuclear
+  --n-fam 10000 --n-iter 1500 --burn-in 500`. Verified to reproduce it to
+  1.5e-14; the script now writes four columns the artifact predates.
 - `bench_tetrachoric`, `bench_cip_estimation`, `bench_liability_scale` and
   `bench_misspecification` built no `ArgumentParser`, so every argument was
   ignored -- including `--help`, which ran the whole benchmark and overwrote
@@ -115,6 +125,25 @@ version is 0 the public API may still change between minor releases.
   signature of the v0.6.0 change to condition pins jointly, which moves the
   liability scale and leaves the ranking alone. `docs/cip-estimation.md` quotes
   the new pair.
+- Sections 15 and 16 of `benchmarks/RESULTS.md`, `paper/tables/integrated_panel.tex`,
+  the LT-FH++ row of `paper/tables/headlines.tex`, the mixture paragraphs of
+  `docs/algorithm.md` and `report/ltpred_methods.tex` (with the PDF rebuilt) are
+  refreshed from reruns of `bench_ltfhpp_personalization.py`,
+  `bench_pafgrs_mixture.py` and `bench_fh_prediction.py` at v0.6.2. Only arms
+  combining family history with pinned onsets moved, and every column the PA
+  engine does not compute is bit-identical, so the random streams are
+  unchanged: this is the v0.6.0 change to condition pins jointly, which shifts
+  the liability scale and leaves ranking alone. LT-FH++'s adjusted calibration
+  slope goes 0.995 -> 1.004, a fourth of the ten mixture Δcorr intervals now
+  excludes zero, the mixture's Δslope range widens to 0.008-0.027, and the
+  liability-dependent pinned slopes move 0.92 -> 0.93 and 0.96 -> 0.97. Two
+  cells that had been transcribed one digit away from their own CSV are
+  corrected in passing.
+- `scripts/check_evidence.py` now recomputes all 47 cells of the static
+  `gwas_power`, `confounding` and `fit_heritability` tables from their CSVs.
+  The generator was removed in the 2026-08 lean-down, so these are hand-edited
+  and can drift from the artifacts they summarise, which is how the two
+  transcription slips above survived.
 - `benchmarks/RESULTS.md` records a 2026-09-14 verification of the stored
   artifacts against current source: `bench_tetrachoric`, `bench_liability_scale`,
   `bench_calibration` and `bench_pa_robustness` reproduce byte for byte;

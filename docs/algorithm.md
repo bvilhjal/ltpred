@@ -783,7 +783,7 @@ above-threshold tail **M3** assigns it.
 
 That independence assumption is now a generative arm
 (`simulate_under_LTM_single(..., onset_model="liability_dependent")`,
-default ρ = 0.6), not only a caveat. In RESULTS.md §16 three of ten
+default ρ = 0.6), not only a caveat. In RESULTS.md §16 four of ten
 paired Δcorr 95% CIs exclude zero, but the largest shift is only −0.00034 (95% CI ± 0.00011);
 the ranking effect is statistically detectable and practically negligible. The mixture still always
 lowers the calibration slope. What breaks is the *pin*, not the

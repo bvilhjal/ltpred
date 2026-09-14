@@ -134,7 +134,7 @@ design, arms and CLI flags.
 | `bench_accuracy.py` | Gibbs vs PA corr(estimate, true g), calibration slope, RMSE and effective-N proxy over h² × prevalence × structure | `bench_accuracy.{csv,png}` |
 | `bench_scaling.py` | wall-clock scaling with #families and family size; families/s and speed-up | `bench_scaling.{csv,png}` |
 | `bench_ltfhplus_compare.py` | **opt-in** lock against LTFHPlus Gibbs and LTFGRS PA: scores, per-family time, fold times, isolated peak RSS (exits 2 without R) | `bench_ltfhplus_compare*.csv` |
-| `bench_ascertainment.py` | what the moment fitters return on selected samples and what IPW recovers (`--h2 0 --tag _h2null` for the h² = 0 cell) | `bench_ascertainment*.{csv,png}` |
+| `bench_ascertainment.py` | what the moment fitters return on selected samples and what IPW recovers (`--h2 0 --tag _h2null --arms h2 mechanism --structures nuclear --n-fam 10000 --n-iter 1500 --burn-in 500` for the h² = 0 cell) | `bench_ascertainment*.{csv,png}` |
 | `bench_gwas_power.py` | classic LT-FH independent-SNP causal-NCP ratio, power and λ_GC vs case/control (`--plink` for HAPNEST real LD) | `bench_gwas_power.{csv,png}` |
 | `bench_ltfhpp_personalization.py` | integrated LT-FH++ association simulation (age/sex/cohort CIP, mortality, ascertainment) with a matched ADuLT arm and a sex-isolation panel | `bench_ltfhpp_personalization.{csv,png}` |
 | `bench_fit_heritability.py` | bias, precision and `h2_se` calibration of `fit_heritability` | `bench_fit_heritability.{csv,png}` |
