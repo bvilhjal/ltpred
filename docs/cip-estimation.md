@@ -270,7 +270,7 @@ events including an exhausted final risk set, and runs the curve into
 (RESULTS.md section 19) simulates a 50,000-person registry with a known
 curve, mortality, administrative censoring and a register-start year, and
 shows exact recovery, the KM competing-risks bias, and the end-to-end cost of
-using an estimated curve (calibration slope 0.9969 vs 1.0015 oracle,
+using an estimated curve (calibration slope 1.0023 vs 1.0069 oracle,
 identical correlation).
 
 ## References

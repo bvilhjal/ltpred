@@ -107,14 +107,18 @@ v0.6.2 leaves the numerical implementation unchanged.
 
 ## Environments
 
-The September time/memory runs use the checkout's **`.venv`**: Python 3.10.20,
-NumPy 2.2.6, SciPy 1.15.3 and Numba 0.67.0. Historical campaigns also used:
-
-- **`ltpred314`** — package verification: pytest, ruff, and the docs gate
-  (`mkdocs build --strict`). Deliberately dependency-minimal (stdlib + NumPy),
-  CI-equivalent.
-- **`ldpred3`** — benchmark analysis and paper artifacts: pandas, matplotlib,
-  and the optional ldpred3 PGS backend used by the PGS-comparison arm.
+- **`ltpred314`** — the CSV/PNG campaigns, and package verification (pytest,
+  ruff, `mkdocs build --strict`). This is the free-threaded Python 3.14.6 build
+  with NumPy 2.4.6, SciPy 1.18.0, Numba 0.66.0 and matplotlib, which is the
+  environment [`RESULTS.md`](RESULTS.md) records for the stored artifacts.
+  Reruns meant to be comparable with them belong here.
+- **`.venv`** (the checkout's own) — the time/memory driver only, whose capsule
+  records Python 3.10.20, NumPy 2.2.6, SciPy 1.15.3 and Numba 0.67.0. Do not
+  use it for the statistical campaigns: it has no matplotlib, so every figure
+  is silently skipped, and its NumPy draws a different `multivariate_normal`
+  stream, which shifts sampling-based benchmarks in the third decimal.
+- **`ldpred3`** — the optional ldpred3 PGS backend used by the
+  PGS-comparison arm.
 
 ## Scripts
 
@@ -136,13 +140,13 @@ design, arms and CLI flags.
 | `bench_fit_heritability.py` | bias, precision and `h2_se` calibration of `fit_heritability` | `bench_fit_heritability.{csv,png}` |
 | `bench_variance_components.py` | recovery of A and C by `fit_variance_components`, boundary behaviour, precision vs N | `bench_variance_components.{csv,png}` |
 | `bench_pairwise_recovery.py` | `fit_pairwise` recovery of A/C/M, sandwich-SE calibration, coverage, boundary pinning | `bench_pairwise_recovery.{csv,png}` |
-| `bench_genetic_correlation.py` | *research:* `fit_genetic_correlation` bias and SD including the null; panel (c) `fit_genetic_factor` loadings and `srmr` | `bench_genetic_correlation.{csv,png}`, `bench_genetic_factor.{csv,png}` |
+| `bench_genetic_correlation.py` | *research:* `fit_genetic_correlation` bias and SD including the null; panel (c) `fit_genetic_factor` loadings and `srmr` | `bench_genetic_correlation.{csv,png}` |
 | `bench_calibration.py` | calibration slope/intercept and decile curve; effect of a wrong assumed h² | `bench_calibration.{csv,png}` |
 | `bench_confounding.py` | λ_GC under a secular prevalence trend, cohort-blind vs cohort-aware thresholds | `bench_confounding.{csv,png}` |
 | `bench_pa_robustness.py` | PA–Gibbs agreement on stressful pedigrees and fold-order sensitivity, three seeds per cell | `bench_pa_robustness.{csv,png}` |
 | `bench_shared_env.py` | value of modelling C (ignore-C vs fit A+C vs oracle); panel (c) end-to-end `c2`/`m2` wiring | `bench_shared_env.{csv,png}` |
 | `bench_couple_env.py` | recovery of A+M and the C-vs-M omission contrast | `bench_couple_env.{csv,png}` |
-| `bench_fh_prediction.py` | registry simulation: classic vs personalised family bounds, family-free ADuLT cohort span, onset-encoding ablation (panel (e)) | `bench_fh_prediction.{csv,png}`, `bench_age_onset.{csv,png}` |
+| `bench_fh_prediction.py` | registry simulation: classic vs personalised family bounds, family-free ADuLT cohort span, onset-encoding ablation (panel (e)) | `bench_fh_prediction.{csv,png}` |
 | `bench_pafgrs_mixture.py` | PA-FGRS mixture under threshold-crossing, stochastic and liability-dependent onset; paired contrasts | `bench_pafgrs_mixture.csv` |
 | `bench_inference_calibration.py` | *research:* component-test Type-I error, bootstrap coverage, MCEM SEs, `test_genetic_correlation` null (`--parts`) | stdout |
 | `bench_misspecification.py` | calibration and ranking under heavy tails, assortative mating, unmodelled C, wrong prevalence | stdout |

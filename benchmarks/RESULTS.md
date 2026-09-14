@@ -36,6 +36,18 @@ censoring mixture is not included in the PA–Gibbs comparisons below.
   tree. Claims should be refreshed after numerical or benchmark-source changes.
   The per-run provenance manifest and captured logs were removed in the
   2026-08 lean-down, so the exact source state of older runs is unrecoverable.
+- **Verification, 2026-09-14:** the suite was re-run at v0.6.2 in the recorded
+  environment to check that the stored artifacts still describe current
+  behaviour. `bench_tetrachoric`, `bench_liability_scale`, `bench_calibration`
+  and `bench_pa_robustness` reproduced their committed CSVs byte for byte.
+  `bench_accuracy` and `bench_pedigree_inference` reproduced every statistic,
+  differing only in wall-clock columns. `bench_register_pipeline` moved by
+  ~1e-3 per row with every published replicate mean unchanged. Only
+  `bench_cip_estimation` moved a published number (section 19), and its
+  artifact is regenerated here. Timing-derived artifacts were deliberately not
+  refreshed: the one-minute load average was 13-28 throughout, which the
+  manifest records, and a fold time or a throughput is only meaningful from an
+  otherwise-quiet machine.
 - **Future runs:** use
   `python benchmarks/run_benchmark.py --artifact bench_<name>.csv bench_<name>.py -- [ARGS]`.
   Repeat `--artifact` for every retained CSV/PNG.
@@ -235,7 +247,9 @@ array APIs separately.
 
 *Script merged into `bench_fh_prediction.py` panel (e) in the 2026-08
 consolidation; the numbers below are from the v0.4.0 rerun of the merged
-panel.*
+panel. The retired script's standalone `bench_age_onset.{csv,png}` are no
+longer retained -- no current script could regenerate them, and the panel's
+rows live in `bench_fh_prediction.csv`.*
 
 Three independent cohorts per cell, 3,000 families, eight
 relatives. Gibbs is a first-replicate cross-check only (`gibbs_reps=1`).
@@ -442,7 +456,9 @@ cohorts:
 
 *Script merged into `bench_genetic_correlation.py` panel (c) in the 2026-08
 consolidation; the v0.4.0 rerun of the merged panel reproduces every number
-below unchanged.*
+below unchanged. The retired script's standalone `bench_genetic_factor.{csv,png}`
+are no longer retained -- no current script could regenerate them, and the
+panel's rows live in `bench_genetic_correlation.csv`.*
 
 Fifteen independent cohorts, 3,000 families, five traits. Under planted
 one-factor truth, loadings 0.8/0.7/0.6/0.5/0.4 are recovered as
@@ -796,15 +812,20 @@ administrative censoring; one arm with a 1995 register start):
   right one (the dead cannot be diagnosed).
 - **Delayed entry (register starts 1995):** AJ still accurate to 0.0019.
 - **End-to-end:** the estimated curve -> `thresholds_from_cip` ->
-  `estimate_liability` on a family cohort gives calibration slope 0.9969 vs
-  1.0015 with the oracle curve, with identical correlation (0.3861). The
+  `estimate_liability` on a family cohort gives calibration slope 1.0023 vs
+  1.0069 with the oracle curve, with identical correlation (0.3861). The
   scores were nearly identical in this run; repeated-run uncertainty was not
   retained.
 
 This matches the LT-FH++ construction (Pedersen et al. 2022: Aalen-Johansen
 with death and emigration as competing events, sex x birth-year strata).
-Rerun 2026-08-14 under the current finite-risk-set Aalen variance; the
-point estimates are unchanged from the historical run. Grid containment
+Rerun 2026-09-14 at v0.6.2 in the recorded environment. The four
+curve-recovery rows are bit-identical to the 2026-08-14 run; only the two
+end-to-end calibration slopes moved (estimated 0.9969 -> 1.0023, oracle
+1.0015 -> 1.0069). That is the expected signature of the v0.6.0 change to
+condition pins jointly before approximating any remaining intervals: it
+shifts the liability scale slightly and leaves the ranking alone, and the
+correlation indeed moved only in the seventh decimal. Grid containment
 uses the current SE implementation. A person-level bootstrap remains an
 option for repeated-sample coverage. Artifacts: `bench_cip_estimation.csv`.
 

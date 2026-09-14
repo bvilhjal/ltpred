@@ -19,6 +19,12 @@ version is 0 the public API may still change between minor releases.
 
 ### Removed
 
+- `benchmarks/bench_age_onset.{csv,png}` and
+  `benchmarks/bench_genetic_factor.{csv,png}`: artifacts of two scripts retired
+  in the 2026-08 consolidation, which no current script can regenerate. Their
+  rows live in `bench_fh_prediction.csv` panel (e) and
+  `bench_genetic_correlation.csv` panel (c), which is where RESULTS sections 3
+  and 11 already read them from.
 - The 5 September 2026 efficiency pilot: `benchmarks/bench_efficient_inference.py`,
   its 2.3 MB capsule under `benchmarks/results/` (input arrays and a copy of the
   measured source, 29% of the repository), its `check_evidence.py` binding and
@@ -67,6 +73,22 @@ version is 0 the public API may still change between minor releases.
 
 ### Fixed
 
+- `bench_tetrachoric`, `bench_cip_estimation`, `bench_liability_scale` and
+  `bench_misspecification` built no `ArgumentParser`, so every argument was
+  ignored -- including `--help`, which ran the whole benchmark and overwrote
+  the committed CSV. A survey of the suite's flags did exactly that. Each now
+  parses its empty option set, so `--help` prints the docstring and a stray
+  argument is refused.
+- The precision panels of `bench_fit_heritability`, `bench_genetic_correlation`,
+  `bench_variance_components` and `bench_pairwise_recovery` log-scale an
+  across-replicate spread against cohort size. At `--reps 1` that spread is
+  exactly zero, and an exhausted replicate budget or an unidentifiable fit
+  leaves a series that is empty or all-NaN, so matplotlib never autoscales from
+  the data and the limits straddle zero. The log locator then raised from
+  inside `tight_layout`, after the CSV was written, costing the figure and the
+  exit status rather than the measurements. `_common.log_scale_if_positive`
+  sets the scale and keeps it only when the resulting view limits are strictly
+  positive.
 - Quadrature no longer refuses families whose posterior mode is already
   stationary. The Newton step can stop shrinking above the step tolerance
   because `_moments` sets the accuracy of the exact gradient; the accepted
@@ -86,6 +108,26 @@ version is 0 the public API may still change between minor releases.
 
 ### Documentation
 
+- `benchmarks/RESULTS.md` section 19: the end-to-end CIP calibration slopes are
+  regenerated at v0.6.2 (estimated 0.9969 -> 1.0023, oracle 1.0015 -> 1.0069,
+  correlation unchanged at 0.3861). The four curve-recovery rows are
+  bit-identical to the 2026-08-14 run; the slope shift is the expected
+  signature of the v0.6.0 change to condition pins jointly, which moves the
+  liability scale and leaves the ranking alone. `docs/cip-estimation.md` quotes
+  the new pair.
+- `benchmarks/RESULTS.md` records a 2026-09-14 verification of the stored
+  artifacts against current source: `bench_tetrachoric`, `bench_liability_scale`,
+  `bench_calibration` and `bench_pa_robustness` reproduce byte for byte;
+  `bench_accuracy` and `bench_pedigree_inference` reproduce every statistic and
+  differ only in wall-clock columns; `bench_register_pipeline` moves ~1e-3 per
+  row with every published replicate mean unchanged. Timing-derived artifacts
+  were not refreshed, because the one-minute load average was 13-28 throughout.
+- `benchmarks/README.md` names the environment that actually matches the stored
+  artifacts. `ltpred314` is the free-threaded Python 3.14.6 build carrying
+  SciPy, Numba and matplotlib, not the "dependency-minimal (stdlib + NumPy)"
+  one the page described; the checkout's `.venv` is for the time/memory driver
+  only, since it has no matplotlib and its NumPy draws a different
+  `multivariate_normal` stream.
 - Move the four point-in-time reviews (`REVIEW_2026-08.md`,
   `REVIEW_2026-09.md`, `REVIEW_2026-09b.md`, `REVIEW_2026-09c.md`) into
   `docs/reviews/`, matching the family's review-archive convention (ppb made
