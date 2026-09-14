@@ -484,16 +484,6 @@ class FitResult:
     burn_in: int
 
 
-def _prepare_group(families, idx, weights=None):
-    """Compatibility view of the shared one-component group preparation."""
-    group = _prepare_component_group(
-        families, idx, ("A",), weights, context="heritability fit bounds")
-    group["A"] = group["K"]["A"]
-    group["pairs"] = [(i, j, float(row[0]))
-                      for i, j, row in group["pairs"]]
-    return group
-
-
 def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
                      n_iter: int = 1500, burn_in: int = 500,
                      inner_sweeps: int = 5, damp: float = 0.2,
@@ -531,9 +521,10 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     The per-family moment contributions are then re-mixed to population
     proportions, which is the right shape of remedy here: the augmentation for a
     *given* family with *given* statuses is already correct, and it is the
-    **mix** of families that selection breaks. In the repository benchmark this
-    takes a 50/50 case/control cohort from ``h2 = 1.000`` (pinned) back to
-    ``0.468`` against a truth of 0.5 (five replicates of 3,000 families).
+    **mix** of families that selection breaks. In the repository benchmark
+    (``benchmarks/RESULTS.md`` section 29) this takes a 50/50 case/control
+    cohort from an unweighted fit pinned at ``h2 = 1`` back close to the true
+    0.5.
 
     Two limits, both real. **Positivity:** a design that samples no families from
     some joint status stratum has inclusion probability zero there, and no

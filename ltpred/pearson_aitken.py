@@ -237,20 +237,6 @@ def _tnorm_moments_loc(mu, sd, lower, upper):
 
 
 @_jit
-def _tnorm_mean(mu, sd, lower, upper):
-    """Mean of ``N(mu, sd^2)`` truncated to ``(lower, upper)``."""
-    mean, _ = _tnorm_moments_loc(mu, sd, lower, upper)
-    return mean
-
-
-@_jit
-def _tnorm_var(mu, sd, lower, upper):
-    """Variance of ``N(mu, sd^2)`` truncated to ``(lower, upper)``."""
-    _, var = _tnorm_moments_loc(mu, sd, lower, upper)
-    return var
-
-
-@_jit
 def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     """Selected moments of one observation, with the censored-control mixture.
 

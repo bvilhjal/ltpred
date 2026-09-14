@@ -17,6 +17,16 @@ from ltpred.covariance import (get_relatedness, construct_covmat_single,
     ("m", "f", 0.0), ("m", "pgm", 0.0), ("mgm", "pgf", 0.0),
     ("m", "s1", 0.5), ("m", "mgm", 0.5), ("m", "mau1", 0.5),
     ("s1", "s2", 0.5), ("mgm", "mhs1", 0.25),
+    # rows folded from the former kind-by-kind generator: every same-side or
+    # side-neutral kind pair at one representative role each (symmetry is
+    # test_relatedness_symmetric_exhaustive's job, so one orientation each)
+    ("c1.1", "g", 0.5), ("c1.1", "m", 0.25), ("c1.1", "mau1", 0.125),
+    ("c1.1", "mgm", 0.125), ("c1.1", "mhs1", 0.125), ("c1.1", "o", 0.5),
+    ("c1.1", "s1", 0.25), ("g", "m", 0.5), ("g", "mau1", 0.25),
+    ("g", "mgm", 0.25), ("g", "mhs1", 0.25), ("g", "s1", 0.5),
+    ("m", "mhs1", 0.5), ("mau1", "mau2", 0.5), ("mau1", "mgm", 0.5),
+    ("mau1", "mhs1", 0.25), ("mau1", "s1", 0.25), ("mgm", "mgf", 0.0),
+    ("mgm", "s1", 0.25), ("mhs1", "mhs2", 0.5), ("mhs1", "s1", 0.25),
 ])
 def test_relatedness_h2_one(s1, s2, expected):
     # h2=1 gives the bare shared-DNA fraction
@@ -26,14 +36,6 @@ def test_relatedness_h2_one(s1, s2, expected):
 def test_relatedness_scales_with_h2():
     assert get_relatedness("o", "m", h2=0.4) == pytest.approx(0.2)
     assert get_relatedness("g", "g", h2=0.3) == pytest.approx(0.3)
-
-
-def test_relatedness_is_symmetric():
-    roles = ["g", "o", "m", "f", "s1", "mgm", "mgf", "pgm", "pgf",
-             "mhs1", "phs1", "mau1", "pau1"]
-    for a in roles:
-        for b in roles:
-            assert get_relatedness(a, b, 0.5) == get_relatedness(b, a, 0.5)
 
 
 def test_single_covmat_structure():
@@ -431,18 +433,6 @@ def test_zero_h2_is_rejected_with_an_explanation():
     construct_covmat_single(fam_vec=["m", "f"], h2=1e-6)
 
 
-def test_expand_family_rejects_duplicate_roles():
-    # duplicate singleton roles used to build a singular matrix with two
-    # perfectly-correlated "mothers"
-    with pytest.raises(ValueError, match="duplicate role"):
-        construct_covmat_single(fam_vec=["m", "m"], h2=0.5)
-    with pytest.raises(ValueError, match="duplicate role"):
-        construct_covmat_single(fam_vec=["s1", "s1"], h2=0.5)
-    with pytest.raises(ValueError, match="duplicate role"):
-        construct_covmat_multi(fam_vec=["m", "m"], genetic_corrmat=np.eye(2),
-                               full_corrmat=np.eye(2), h2_vec=[0.5, 0.4])
-
-
 def test_n_fam_rejects_singleton_counts_above_one():
     # a count > 1 for a singleton role used to be silently dropped; numbered
     # roles are the way to request multiples
@@ -463,79 +453,13 @@ def test_same_side_half_sibs_share_a_second_parent_by_convention():
     assert get_relatedness("mhs1", "phs1", h2=0.4) == pytest.approx(0.0)
 
 
-# ---------------------------------------------------------------------------
-# Exhaustive relatedness-table validation
-# ---------------------------------------------------------------------------
-
-# One representative per role kind × side.
-_ROLE_KIND_EXAMPLES = {
-    # kind: (same-side examples, opposite-side examples from the other side)
-    "proband":     (["o"], []),                         # neutral — relates to all
-    "genetic":     (["g"], []),
-    "sib":         (["s1", "s2"], []),
-    "child":       (["c1.1", "c1.2"], ["c2.1"]),       # diff-group for child↔child
-    "parent":      (["m"], ["f"]),
-    "gp":          (["mgm", "mgf"], ["pgm", "pgf"]),
-    "hs":          (["mhs1", "mhs2"], ["phs1", "phs2"]),
-    "avunc":       (["mau1", "mau2"], ["pau1", "pau2"]),
-}
-
-_KINDS = list(_ROLE_KIND_EXAMPLES)
-
-# Expected shared-DNA fraction for every kind pair (same side or neutral).
-# Triangulated; (k1, k2) with k1 <= k2 alphabetically.
-_EXPECTED_SHARED_DNA = {
-    ("avunc", "avunc"): 0.5,
-    ("avunc", "child"): 0.125,
-    ("avunc", "genetic"): 0.25,
-    ("avunc", "gp"): 0.5,
-    ("avunc", "hs"): 0.25,
-    ("avunc", "parent"): 0.5,
-    ("avunc", "proband"): 0.25,
-    ("avunc", "sib"): 0.25,
-    ("child", "genetic"): 0.5,
-    ("child", "gp"): 0.125,
-    ("child", "hs"): 0.125,
-    ("child", "parent"): 0.25,
-    ("child", "proband"): 0.5,
-    ("child", "sib"): 0.25,
-    ("genetic", "genetic"): 1.0,
-    ("genetic", "gp"): 0.25,
-    ("genetic", "hs"): 0.25,
-    ("genetic", "parent"): 0.5,
-    ("genetic", "proband"): 1.0,
-    ("genetic", "sib"): 0.5,
-    ("gp", "gp"): 0.0,
-    ("gp", "hs"): 0.25,
-    ("gp", "parent"): 0.5,
-    ("gp", "proband"): 0.25,
-    ("gp", "sib"): 0.25,
-    ("hs", "hs"): 0.5,
-    ("hs", "parent"): 0.5,
-    ("hs", "proband"): 0.25,
-    ("hs", "sib"): 0.25,
-    ("parent", "parent"): 0.0,
-    ("parent", "proband"): 0.5,
-    ("parent", "sib"): 0.5,
-    ("proband", "proband"): 1.0,
-    ("proband", "sib"): 0.5,
-    ("sib", "sib"): 0.5,
-}
-
-
-def _is_neutral(kind):
-    """Kinds that relate to both maternal and paternal sides."""
-    return kind in ("proband", "genetic", "sib", "child")
-
-
 def test_relatedness_self():
     """Every role has self-relatedness 1.0; g has variance h²."""
-    for kind, (same_examples, _) in _ROLE_KIND_EXAMPLES.items():
-        for role in same_examples:
-            if kind == "genetic":
-                assert get_relatedness(role, role, h2=0.5) == pytest.approx(0.5)
-            else:
-                assert get_relatedness(role, role, h2=0.5) == pytest.approx(1.0)
+    assert get_relatedness("g", "g", h2=0.5) == pytest.approx(0.5)
+    for role in ["o", "s1", "s2", "c1.1", "c1.2", "c2.1", "m", "f", "mgm", "mgf",
+                 "pgm", "pgf", "mhs1", "mhs2", "phs1", "phs2", "mau1", "mau2",
+                 "pau1", "pau2"]:
+        assert get_relatedness(role, role, h2=0.5) == pytest.approx(1.0)
 
 
 def test_relatedness_opposite_sides_are_zero():
@@ -548,60 +472,11 @@ def test_relatedness_opposite_sides_are_zero():
                 f"{ma!r} ↔ {pa!r} should be 0.0"
 
 
-def test_relatedness_same_side_matches_table():
-    """Every same-side or neutral pair matches the expected fraction."""
-    for k1 in _KINDS:
-        same1, _ = _ROLE_KIND_EXAMPLES[k1]
-        for k2 in _KINDS:
-            # canonical key
-            key = (k1, k2) if k1 <= k2 else (k2, k1)
-
-            # Child↔child is special (depends on partner group) — tested separately
-            if k1 == "child" and k2 == "child":
-                continue
-
-            expected = _EXPECTED_SHARED_DNA.get(key)
-            if expected is None:
-                continue  # not a valid pair (e.g. cross-kind that never appears)
-
-            # If both are same-side-specific and on different sides, skip
-            # (covered by test_relatedness_opposite_sides_are_zero).
-            is_k1_sided = not _is_neutral(k1)
-            is_k2_sided = not _is_neutral(k2)
-
-            # Test same-side (both maternal if both sided, or at least one neutral).
-            # For same-kind pairs, use two distinct examples so we test the
-            # cross-individual fraction, not the self-relatedness path.
-            # Kinds with only one example can't distinguish these — skip them
-            # (self-relatedness is tested separately).
-            if k1 == k2:
-                examples = _ROLE_KIND_EXAMPLES[k1][0]
-                if len(examples) < 2:
-                    continue
-                r1, r2 = examples[0], examples[1]
-            elif is_k1_sided and is_k2_sided:
-                r1 = same1[0]
-                r2 = _ROLE_KIND_EXAMPLES[k2][0][0]
-            else:
-                r1 = same1[0]
-                r2 = _ROLE_KIND_EXAMPLES[k2][0][0]
-
-            got = get_relatedness(r1, r2, h2=1.0)
-            assert got == pytest.approx(expected), \
-                f"{r1!r} ({k1}) ↔ {r2!r} ({k2}): expected {expected}, got {got}"
-
-
 def test_relatedness_child_groups():
     """Children in same partner group are full sibs; different groups are half sibs."""
     assert get_relatedness("c1.1", "c1.2", h2=1.0) == pytest.approx(0.5)
     assert get_relatedness("c1.1", "c2.1", h2=1.0) == pytest.approx(0.25)
     assert get_relatedness("c1.1", "c1.1", h2=1.0) == pytest.approx(1.0)
-
-
-def test_relatedness_half_sib_convention():
-    """Same-side half-sibs are treated as full sibs of each other (0.5)."""
-    assert get_relatedness("mhs1", "mhs2", h2=1.0) == pytest.approx(0.5)
-    assert get_relatedness("phs1", "phs2", h2=1.0) == pytest.approx(0.5)
 
 
 def test_relatedness_symmetric_exhaustive():
@@ -616,3 +491,54 @@ def test_relatedness_symmetric_exhaustive():
         for b in roles:
             assert get_relatedness(a, b, 0.4) == get_relatedness(b, a, 0.4), \
                 f"{a!r} ↔ {b!r} not symmetric"
+
+
+# --- shared-environment components on the role grammar (merged from
+# --- tests/test_env_components.py)
+
+def test_environment_components_add_to_the_right_pairs():
+    m = construct_covmat_single(fam_vec=["m", "f", "s1"], h2=0.4, c2=0.15, m2=0.1)
+    r = {role: i for i, role in enumerate(m.roles)}
+    cov = m.matrix
+    assert cov[r["o"], r["s1"]] == pytest.approx(0.2 + 0.15, abs=1e-12)   # full sibs: h2/2 + c2
+    assert cov[r["m"], r["f"]] == pytest.approx(0.1, abs=1e-12)           # mates: m2
+    assert cov[r["o"], r["m"]] == pytest.approx(0.2, abs=1e-12)           # parent-offspring unchanged
+    non_g = [i for role, i in r.items() if role != "g"]
+    np.testing.assert_allclose(np.diag(cov)[non_g], 1.0, rtol=0, atol=1e-12)
+    assert cov[r["g"], r["g"]] == pytest.approx(0.4, abs=1e-12)
+    # the genetic row is untouched (g shares no environment)
+    np.testing.assert_allclose(cov[r["g"], :], [0.4, 0.4, 0.2, 0.2, 0.2], rtol=0, atol=1e-12)
+
+
+@pytest.mark.parametrize("c2,m2", [(None, None), (0.0, None), (None, 0.0)])
+def test_absent_or_zero_environment_components_reproduce_the_base_matrix(c2, m2):
+    base = construct_covmat_single(fam_vec=["m", "f", "s1", "mgm"], h2=0.3)
+    m = construct_covmat_single(fam_vec=["m", "f", "s1", "mgm"], h2=0.3, c2=c2, m2=m2)
+    np.testing.assert_allclose(m.matrix, base.matrix, rtol=0, atol=1e-12)
+
+
+@pytest.mark.parametrize("kwargs,match", [
+    (dict(h2=0.5, c2=-0.1), "nonnegative"),
+    (dict(h2=0.5, m2=-0.1), "nonnegative"),
+    (dict(h2=0.6, c2=0.3, m2=0.2), "must not exceed 1"),
+])
+def test_role_grammar_builder_validates_environment_components(kwargs, match):
+    # the kinship builder has its own check (test_kinship_environment_kernel_validation)
+    with pytest.raises(ValueError, match=match):
+        construct_covmat_single(fam_vec=["m"], **kwargs)
+
+
+def test_c_covers_the_probands_children_sibship():
+    # c1.1/c1.2 are full sibs in one partner group; the sibship regex used
+    # to match only o/s*, so C silently skipped them and a family described
+    # from the children's side got a different C structure than from the
+    # parents' side.
+    m = construct_covmat_single(fam_vec=["c1.1", "c1.2", "c2.1", "s1"], h2=0.4, c2=0.2)
+    r = {role: i for i, role in enumerate(m.roles)}
+    cov = m.matrix
+    assert cov[r["c1.1"], r["c1.2"]] == pytest.approx(0.2 + 0.2, abs=1e-12)
+    assert cov[r["o"], r["s1"]] == pytest.approx(0.2 + 0.2, abs=1e-12)
+    # cross-group children are only half sibs -> no C, like mhs/phs
+    assert cov[r["c1.1"], r["c2.1"]] == pytest.approx(0.1, abs=1e-12)
+    # the kernel stays a disjoint partition, so the matrix stays PD
+    assert np.linalg.eigvalsh(cov).min() > 0.0

@@ -14,10 +14,12 @@ def test_primary_top_level_api_is_curated():
 
 
 def test_advanced_explicit_top_level_imports_remain_compatible():
-    from ltpred import (PopulationScores, estimate_liabilities,
-                        fit_variance_components, pa_algorithm, rtmvnorm_gibbs)
+    from ltpred import (PairwiseFitResult, PopulationScores, estimate_liabilities,
+                        fit_pairwise, fit_variance_components, pa_algorithm,
+                        rtmvnorm_gibbs)
 
     assert PopulationScores.__module__ == "ltpred.pipeline"
+    assert fit_pairwise.__module__ == PairwiseFitResult.__module__ == "ltpred.pairwise"
     assert callable(estimate_liabilities)
     assert callable(fit_variance_components)
     assert callable(pa_algorithm)

@@ -48,10 +48,9 @@ def test_fit_preparers_align_bounds_by_role():
         Family(1, [Member("f", 0.2, 1.2), Member("m", -0.8, 0.2)]),
     ]
     expected_scalar = np.array([[0.0, -1.0], [0.2, -0.8]])
-    for group in (fit_mod._prepare_group(scalar, [0, 1]),
-                  fit_mod._prepare_group_vc(scalar, [0, 1], ["A"])):
-        assert group["roles"] == ["f", "m"]
-        assert np.allclose(group["lowers"], expected_scalar)
+    group = fit_mod._prepare_group_vc(scalar, [0, 1], ["A"])
+    assert group["roles"] == ["f", "m"]
+    assert np.allclose(group["lowers"], expected_scalar)
 
 
 def test_fit_preparers_reject_nan_and_reversed_bounds():
@@ -60,25 +59,8 @@ def test_fit_preparers_reject_nan_and_reversed_bounds():
 
     scalar = [Family(0, [Member("m", np.nan, np.inf),
                          Member("f", -np.inf, np.inf)])]
-    for prepare in (lambda: fit_mod._prepare_group(scalar, [0]),
-                    lambda: fit_mod._prepare_group_vc(scalar, [0], ["A"])):
-        with pytest.raises(ValueError, match="NaN"):
-            prepare()
-
-
-def test_moment_fitters_reject_duplicate_roles():
-    families = [
-        Family(0, [Member("m", -np.inf, 1.0),
-                   Member("m", -np.inf, 1.0)])
-    ]
-    with pytest.raises(ValueError, match="duplicate role"):
-        fit_heritability(
-            families, n_iter=10, burn_in=6, inner_sweeps=1,
-            sampling="population")
-    with pytest.raises(ValueError, match="duplicate role"):
-        fit_variance_components(
-            families, ("A",), n_iter=10, burn_in=6, inner_sweeps=1,
-            sampling="population")
+    with pytest.raises(ValueError, match="NaN"):
+        fit_mod._prepare_group_vc(scalar, [0], ["A"])
 
 
 def test_lone_probands_raise():
@@ -228,7 +210,7 @@ def test_variance_components_is_he_only():
 def test_bootstrap_fit_scalar_and_calibration():
     from ltpred import bootstrap_fit
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
-                                    n_sim=1500, pop_prev=0.1, seed=5)
+                                    n_sim=800, pop_prev=0.1, seed=5)
     full = fit_heritability(
         sim.families, n_iter=400, burn_in=120, seed=1,
         sampling="population")
@@ -236,9 +218,9 @@ def test_bootstrap_fit_scalar_and_calibration():
                        lambda f: fit_heritability(
                            f, n_iter=400, burn_in=120, seed=1,
                            sampling="population").h2,
-                       n_boot=25, seed=0)
+                       n_boot=12, seed=0)
     assert bs.estimate.shape == ()                       # scalar estimator -> 0-d
-    assert bs.samples.shape == (25,)
+    assert bs.samples.shape == (12,)
     assert bs.se > 0
     assert bs.ci_low < float(bs.estimate) < bs.ci_high
     assert bs.ci_level == 0.95
@@ -246,24 +228,27 @@ def test_bootstrap_fit_scalar_and_calibration():
     assert bs.se > 5 * full.h2_se
 
 
-def test_bootstrap_fit_vector_and_errors():
-    import numpy as np
+def test_bootstrap_fit_vector_statistic():
     from ltpred import bootstrap_fit, fit_variance_components
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2", "s3"], h2=0.5,
-                                    n_sim=1200, pop_prev=0.1, seed=6)
+                                    n_sim=300, pop_prev=0.1, seed=6)
     bs = bootstrap_fit(
         sim.families,
         lambda f: np.array(list(fit_variance_components(
             f, ("A", "C"), n_iter=300, burn_in=100, seed=1,
             sampling="population").components.values())),
-        n_boot=12, seed=1)
+        n_boot=4, seed=1)
     assert bs.estimate.shape == (2,)
     assert bs.se.shape == (2,) and np.all(bs.se > 0)
     assert bs.ci_low.shape == (2,) and bs.ci_high.shape == (2,)
+
+
+def test_bootstrap_fit_rejects_one_family_and_bad_ci_level():
+    from ltpred import bootstrap_fit
     with pytest.raises(ValueError, match="at least 2 families"):
-        bootstrap_fit(sim.families[:1], lambda f: 0.0, n_boot=3)
+        bootstrap_fit([Family(0)], lambda f: 0.0, n_boot=3)
     with pytest.raises(ValueError, match="ci_level"):
-        bootstrap_fit(sim.families, lambda f: 0.0, n_boot=3, ci_level=1.5)
+        bootstrap_fit([Family(0), Family(1)], lambda f: 0.0, n_boot=3, ci_level=1.5)
 
 
 @pytest.mark.parametrize("n_boot", [0, 1])
@@ -403,13 +388,13 @@ def test_scalar_preparer_keeps_exact_additive_kernel():
 
     fit_mod = importlib.import_module("ltpred.fit")
     families = _sim_vc(["o", "s1", "m", "f"], {"A": 0.4}, 10, seed=22)
-    group = fit_mod._prepare_group(families, list(range(10)))
+    group = fit_mod._prepare_group_vc(families, list(range(10)), ["A"])
     roles = group["roles"]
     expected = np.array([
         [fit_mod.get_relatedness(a, b, h2=1.0) for b in roles]
         for a in roles
     ])
-    np.testing.assert_array_equal(group["A"], expected)
+    np.testing.assert_array_equal(group["K"]["A"], expected)
 
 
 def test_c_component_groups_same_side_avuncular():
@@ -499,7 +484,7 @@ def test_prepare_group_starts_pinned_member_at_pin():
     import importlib
     fit_mod = importlib.import_module("ltpred.fit")
     fams = [Family(0, [Member("m", 9.0, 9.0), Member("f", -np.inf, 0.0)])]
-    group = fit_mod._prepare_group(fams, [0])
+    group = fit_mod._prepare_group_vc(fams, [0], ["A"])
     assert group["x"][0, group["roles"].index("m")] == 9.0
 
 

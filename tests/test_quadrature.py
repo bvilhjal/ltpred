@@ -6,6 +6,8 @@ from scipy.integrate import quad
 from scipy.stats import norm, truncnorm
 from scipy.special import logsumexp
 
+from ltpred import (Family, Member, QuadratureResult, estimate_liability,
+                    estimate_liability_from_kinship)
 from ltpred.covariance import construct_covmat_single
 from ltpred.quadrature import estimate_liability_quadrature_arrays as estimate
 from ltpred.quadrature import _grid
@@ -275,3 +277,41 @@ def test_refusal_reports_the_change_pair_the_criterion_tests():
     relaxed = estimate(["o", "m", "f"], [[4.600652, 3.112669, 3.918868]],
                        [[np.inf, np.inf, np.inf]], h2=0.95, max_nodes=128)
     assert relaxed.error[0] <= 1e-8
+
+
+def test_quadrature_object_adapter_preserves_alignment_and_diagnostics():
+    families = [Family('a', [Member('o', 2, 2, pid='x'), Member('m', -np.inf, 1.5)]),
+                Family('b', [Member('o', -np.inf, 1, pid='y')]),
+                Family('c', [Member('m', -np.inf, 1.5), Member('o', 1, 1, pid='z')])]
+    result = estimate_liability(families, h2=.5, method='quadrature',
+                                out=['genetic', 'full'])
+    assert result.fam_ids.tolist() == ['a', 'b', 'c']
+    assert result.pids.tolist() == ['x', 'y', 'z']
+    for name in ('genetic', 'full'):
+        for i, family in enumerate(families):
+            ref = estimate([m.role for m in family.members],
+                           [[m.lower for m in family.members]],
+                           [[m.upper for m in family.members]], h2=.5, out=name)
+            assert isinstance(ref, QuadratureResult)
+            assert result.est[name][i] == pytest.approx(ref.est[0], abs=1e-14)
+            assert result.var[name][i] == pytest.approx(ref.var[0], abs=1e-14)
+            assert result.quadrature_error[name][i] == ref.error[0]
+            assert result.quadrature_nodes[name][i] == ref.n_nodes[0]
+        assert not result.se[name].any()
+
+
+@pytest.mark.parametrize('kwargs,match', [
+    ({'h2': [.5, .5]}, 'single-trait'), ({'h2': .5, 'use_mixture': True}, 'without'),
+    ({'h2': .5, 'c2': .1}, 'without'), ({'h2': .5, 'm2': .1}, 'without'),
+    ({'h2': .5, 'quadrature_max_nodes': 32}, 'max_nodes'),
+    ({'h2': .5, 'quadrature_atol': -1}, 'atol')])
+def test_quadrature_dispatch_rejects_unsupported_requests(kwargs, match):
+    with pytest.raises((ValueError, NotImplementedError), match=match):
+        estimate_liability([Family('f', [Member('o', -np.inf, 1)])],
+                           method='quadrature', **kwargs)
+
+
+def test_quadrature_is_not_silently_used_as_gibbs_for_kinship():
+    with pytest.raises(NotImplementedError, match='nuclear-family'):
+        estimate_liability_from_kinship(np.eye(1), [[-np.inf]], [[1]], h2=.5,
+                                        method='quadrature')

@@ -6,9 +6,15 @@ import numpy as np
 import pytest
 from scipy import stats
 
+from ltpred.covariance import construct_covmat_multi, construct_covmat_single
 from ltpred.family import Family, Member, families_from_columns
 from ltpred.estimate import (batch_means, estimate_liability,
+                             estimate_liability_from_kinship,
+                             estimate_liability_gibbs_arrays,
+                             estimate_liability_pa_arrays,
                              _estimate_liability_multi, _base_seeds)
+from ltpred.fit import fit_heritability, fit_variance_components
+from ltpred.simulate import simulate_under_LTM_single
 from ltpred.thresholds import age_thresholds
 
 
@@ -177,15 +183,41 @@ def test_result_pids_default_to_o_member():
     assert res.pids[0] == "proband1"
 
 
-def test_duplicate_role_raises():
+def _duplicate_role_family():
     t = float(stats.norm.isf(0.05))
-    fam = Family("f1", [Member("o", t, np.inf), Member("s1", t, np.inf),
-                        Member("s1", -np.inf, t)])           # two 's1' -> error
+    return [Family("f1", [Member("o", t, np.inf), Member("s1", t, np.inf),
+                          Member("s1", -np.inf, t)])]        # two 's1'
+
+
+def _duplicate_role_fit_family():
+    return [Family(0, [Member("m", -np.inf, 1.0), Member("m", -np.inf, 1.0)])]
+
+
+@pytest.mark.parametrize("call", [
+    pytest.param(lambda: estimate_liability(_duplicate_role_family(), h2=0.5,
+                                            out=("genetic",)), id="object-default"),
+    pytest.param(lambda: estimate_liability(_duplicate_role_family(), h2=0.5,
+                                            method="gibbs", out=("genetic",)), id="object-gibbs"),
+    pytest.param(lambda: estimate_liability_pa_arrays(
+        ["o", "m", "m"], np.full((2, 3), -np.inf), np.full((2, 3), np.inf), 0.5), id="array-pa"),
+    pytest.param(lambda: estimate_liability_gibbs_arrays(
+        ["o", "m", "m"], np.full((2, 3), -np.inf), np.full((2, 3), np.inf), 0.5), id="array-gibbs"),
+    pytest.param(lambda: construct_covmat_single(fam_vec=["m", "m"], h2=0.5), id="covmat-single-m"),
+    pytest.param(lambda: construct_covmat_single(fam_vec=["s1", "s1"], h2=0.5), id="covmat-single-s1"),
+    pytest.param(lambda: construct_covmat_multi(fam_vec=["m", "m"], genetic_corrmat=np.eye(2),
+                                                full_corrmat=np.eye(2), h2_vec=[0.5, 0.4]), id="covmat-multi"),
+    pytest.param(lambda: fit_heritability(_duplicate_role_fit_family(), n_iter=10, burn_in=6,
+                                          inner_sweeps=1, sampling="population"), id="fit-heritability"),
+    pytest.param(lambda: fit_variance_components(_duplicate_role_fit_family(), ("A",), n_iter=10,
+                                                 burn_in=6, inner_sweeps=1, sampling="population"),
+                 id="fit-variance-components"),
+])
+def test_duplicate_roles_are_rejected_at_every_entry_point(call):
+    # duplicate singleton roles used to build a singular matrix with two
+    # perfectly-correlated "mothers"; every path that assembles a family
+    # covariance must refuse them, not just the multi-trait one
     with pytest.raises(ValueError, match="duplicate role"):
-        estimate_liability([fam], h2=0.5, out=("genetic",))
-    # PA path validates too
-    with pytest.raises(ValueError, match="duplicate role"):
-        estimate_liability([fam], h2=0.5, method="pa", out=("genetic",))
+        call()
 
 
 def test_warns_when_not_converged():
@@ -749,73 +781,62 @@ def test_single_trait_gibbs_rejects_multitrait_shaped_bounds():
     assert np.isfinite(res.est["genetic"][0])
 
 
-def test_estimators_warn_when_covariance_is_corrected():
+_GIBBS_SMOKE = dict(n_sim=20, burn_in=0, tol=1e9, max_rounds=1)
+
+
+@pytest.mark.parametrize("call", [
+    pytest.param(lambda fam, lo, hi: estimate_liability(fam, h2=1.0, method="pa"), id="object-pa"),
+    pytest.param(lambda fam, lo, hi: estimate_liability(fam, h2=1.0, method="gibbs", **_GIBBS_SMOKE),
+                 id="object-gibbs"),
+    pytest.param(lambda fam, lo, hi: estimate_liability_pa_arrays(["o", "m"], lo, hi, h2=1.0),
+                 id="array-pa"),
+    pytest.param(lambda fam, lo, hi: estimate_liability_gibbs_arrays(["o", "m"], lo, hi, h2=1.0,
+                                                                     **_GIBBS_SMOKE), id="array-gibbs"),
+    pytest.param(lambda fam, lo, hi: estimate_liability_from_kinship(np.ones((2, 2)), lo, hi, h2=1.0),
+                 id="kinship"),
+])
+def test_every_estimator_warns_when_covariance_is_corrected(call):
     # h2 = 1 makes g and o perfectly correlated, so the assembled covariance is
     # singular and correct_positive_definite fires; every path must report the
     # nudge, not just the multi-trait Gibbs one
-    fam = Family("f1", [Member("o", 1.0, np.inf), Member("m", -np.inf, 1.0)])
+    fam = [Family("f1", [Member("o", 1.0, np.inf), Member("m", -np.inf, 1.0)])]
+    lo, hi = np.array([[1.0, -np.inf]]), np.array([[np.inf, 1.0]])
     with pytest.warns(RuntimeWarning, match="nudged to strict positive definiteness"):
-        estimate_liability([fam], h2=1.0, method="pa")
-    with pytest.warns(RuntimeWarning, match="nudged to strict positive definiteness"):
-        estimate_liability([fam], h2=1.0, method="gibbs", n_sim=20, burn_in=0,
-                           tol=1e9, max_rounds=1)
+        call(fam, lo, hi)
 
 
-def test_array_and_kinship_estimators_warn_when_covariance_is_corrected():
-    from ltpred import estimate_liability_from_kinship
-    from ltpred.estimate import (estimate_liability_pa_arrays,
-                                 estimate_liability_gibbs_arrays)
-    lo = np.array([[1.0, -np.inf]])
-    hi = np.array([[np.inf, 1.0]])
-    with pytest.warns(RuntimeWarning, match="nudged to strict positive definiteness"):
-        estimate_liability_pa_arrays(["o", "m"], lo, hi, h2=1.0)
-    with pytest.warns(RuntimeWarning, match="nudged to strict positive definiteness"):
-        estimate_liability_gibbs_arrays(["o", "m"], lo, hi, h2=1.0, n_sim=20,
-                                        burn_in=0, tol=1e9, max_rounds=1)
-    with pytest.warns(RuntimeWarning, match="nudged to strict positive definiteness"):
-        estimate_liability_from_kinship(np.ones((2, 2)), np.array([[1.0, -np.inf]]),
-                                        np.array([[np.inf, 1.0]]), h2=1.0)
+_BURN_IN = "burn_in must be a non-negative integer"
+_TOL = "tol must be finite and > 0"
 
 
-@pytest.mark.parametrize("burn_in,error", [
-    (-1, ValueError), (np.int64(-5), ValueError),
-    (True, TypeError), (np.bool_(False), TypeError), (2.5, TypeError),
-])
-def test_gibbs_estimator_rejects_invalid_burn_in(burn_in, error):
-    # validated once in _estimate_group, the choke point of every Gibbs path
-    fam = Family("f", [Member("o", 1.0, np.inf)])
-    with pytest.raises(error, match="burn_in must be a non-negative integer"):
-        estimate_liability([fam], h2=0.5, method="gibbs", n_sim=20, burn_in=burn_in)
-
-
-@pytest.mark.parametrize("tol", [0.0, -0.5, np.nan, np.inf])
-def test_gibbs_estimator_rejects_non_finite_or_non_positive_tol(tol):
+@pytest.mark.parametrize("api", ["object", "array"])
+@pytest.mark.parametrize("kwargs,error,match", [
+    # burn_in: validated once in _estimate_group, the choke point of every Gibbs path
+    ({"burn_in": -1}, ValueError, _BURN_IN),
+    ({"burn_in": np.int64(-5)}, ValueError, _BURN_IN),
+    ({"burn_in": True}, TypeError, _BURN_IN),
+    ({"burn_in": np.bool_(False)}, TypeError, _BURN_IN),
+    ({"burn_in": 2.5}, TypeError, _BURN_IN),
     # tol=NaN never satisfied se <= tol, so the sampler ran to max_rounds while
     # the unconverged warning (keyed on the same comparison) stayed silent
-    fam = Family("f", [Member("o", 1.0, np.inf)])
-    with pytest.raises(ValueError, match="tol must be finite and > 0"):
-        estimate_liability([fam], h2=0.5, method="gibbs", n_sim=20, burn_in=0, tol=tol)
-
-
-@pytest.mark.parametrize("max_rounds,error", [
-    (0, ValueError), (-3, ValueError), (True, TypeError), (1.5, TypeError),
-])
-def test_gibbs_estimator_rejects_bad_max_rounds(max_rounds, error):
+    ({"burn_in": 0, "tol": 0.0}, ValueError, _TOL),
+    ({"burn_in": 0, "tol": -0.5}, ValueError, _TOL),
+    ({"burn_in": 0, "tol": np.nan}, ValueError, _TOL),
+    ({"burn_in": 0, "tol": np.inf}, ValueError, _TOL),
     # max_rounds < 1 skipped the sampling loop and returned all-zero estimates
-    fam = Family("f", [Member("o", 1.0, np.inf)])
-    with pytest.raises(error, match="max_rounds"):
-        estimate_liability([fam], h2=0.5, method="gibbs", n_sim=20, burn_in=0,
-                           max_rounds=max_rounds)
-
-
-def test_gibbs_array_estimator_rejects_invalid_burn_in():
-    from ltpred.estimate import estimate_liability_gibbs_arrays
-    lo = np.array([[-np.inf]])
-    hi = np.array([[1.0]])
-    with pytest.raises(ValueError, match="burn_in must be a non-negative integer"):
-        estimate_liability_gibbs_arrays(["o"], lo, hi, 0.5, n_sim=20, burn_in=-1)
-    with pytest.raises(TypeError, match="burn_in must be a non-negative integer"):
-        estimate_liability_gibbs_arrays(["o"], lo, hi, 0.5, n_sim=20, burn_in=True)
+    ({"burn_in": 0, "max_rounds": 0}, ValueError, "max_rounds"),
+    ({"burn_in": 0, "max_rounds": -3}, ValueError, "max_rounds"),
+    ({"burn_in": 0, "max_rounds": True}, TypeError, "max_rounds"),
+    ({"burn_in": 0, "max_rounds": 1.5}, TypeError, "max_rounds"),
+])
+def test_gibbs_estimators_reject_invalid_sampler_controls(api, kwargs, error, match):
+    with pytest.raises(error, match=match):
+        if api == "object":
+            estimate_liability([Family("f", [Member("o", 1.0, np.inf)])], h2=0.5,
+                               method="gibbs", n_sim=20, **kwargs)
+        else:
+            estimate_liability_gibbs_arrays(["o"], np.array([[1.0]]), np.array([[np.inf]]),
+                                            0.5, n_sim=20, **kwargs)
 
 
 def test_multi_trait_rejects_duplicate_phen_names():
@@ -891,29 +912,28 @@ def test_gibbs_reports_posterior_variance_alongside_the_mc_error():
         assert pa.se[name][0] == 0.0
 
 
-def test_families_from_columns_rejects_missing_fam_id():
+@pytest.mark.parametrize("fam_id,role", [
     # NaN != NaN, so a missing id would otherwise fragment silently into
     # one-member families (review 2026-08, F3)
+    pytest.param([1.0, np.nan, np.nan, 1.0], ["o", "m", "m", "f"], id="float-nan"),
+    pytest.param(["a", None, "a"], ["o", "m", "f"], id="none"),
+    # numpy non-finite sentinels hiding in an object column
+    *[pytest.param(np.array(["a", s, "a"], dtype=object), ["o", "m", "f"],
+                   id=f"object-{type(s).__name__}-{s}")
+      for s in (np.float16(np.nan), np.float32(np.nan), np.float64(np.nan),
+                np.float16(np.inf), np.float32(-np.inf), np.float64(np.inf))],
+    # The F3 fix caught NaN/None but not the textual sentinels a CSV loader
+    # produces. Those are worse than NaN: NaN != NaN fragments records into
+    # singletons, whereas every "" or "NA" compares EQUAL and merges unrelated
+    # probands into one family -- a wrong-but-finite score with no signal.
+    *[pytest.param(["a", s, s, "a"], ["o", "m", "m", "f"], id=f"string-{s!r}")
+      for s in ("", "  ", "NA", "nan", "None", "null", ".")],
+])
+def test_families_from_columns_rejects_missing_or_sentinel_fam_id(fam_id, role):
+    n = len(role)
     with pytest.raises(ValueError, match="fam_id"):
-        families_from_columns(fam_id=[1.0, np.nan, np.nan, 1.0],
-                              role=["o", "m", "m", "f"],
-                              lower=np.zeros(4), upper=np.ones(4))
-    with pytest.raises(ValueError, match="fam_id"):
-        families_from_columns(fam_id=["a", None, "a"],
-                              role=["o", "m", "f"],
-                              lower=np.zeros(3), upper=np.ones(3))
-
-
-@pytest.mark.parametrize(
-    "sentinel",
-    [np.float16(np.nan), np.float32(np.nan), np.float64(np.nan),
-     np.float16(np.inf), np.float32(-np.inf), np.float64(np.inf)],
-)
-def test_families_from_columns_rejects_numpy_nonfinite_object_ids(sentinel):
-    fam_id = np.array(["a", sentinel, "a"], dtype=object)
-    with pytest.raises(ValueError, match="fam_id"):
-        families_from_columns(fam_id=fam_id, role=["o", "m", "f"],
-                              lower=np.zeros(3), upper=np.ones(3))
+        families_from_columns(fam_id=fam_id, role=role,
+                              lower=np.zeros(n), upper=np.ones(n))
 
 
 def test_families_from_columns_keeps_finite_numpy_numeric_object_ids():
@@ -923,18 +943,6 @@ def test_families_from_columns_keeps_finite_numpy_numeric_object_ids():
                                  lower=np.zeros(4), upper=np.ones(4))
     assert [family.fam_id for family in fams] == [np.float32(1.5), "2"]
     assert [len(family.members) for family in fams] == [2, 2]
-
-
-@pytest.mark.parametrize("sentinel", ["", "  ", "NA", "nan", "None", "null", "."])
-def test_families_from_columns_rejects_string_missing_fam_id(sentinel):
-    # The F3 fix caught NaN/None but not the textual sentinels a CSV loader
-    # produces. Those are worse than NaN: NaN != NaN fragments records into
-    # singletons, whereas every "" or "NA" compares EQUAL and merges unrelated
-    # probands into one family -- a wrong-but-finite score with no signal.
-    with pytest.raises(ValueError, match="fam_id"):
-        families_from_columns(fam_id=["a", sentinel, sentinel, "a"],
-                              role=["o", "m", "m", "f"],
-                              lower=np.zeros(4), upper=np.ones(4))
 
 
 @pytest.mark.parametrize("name", ["pid", "K_i", "K_pop", "aod"])
@@ -1043,3 +1051,52 @@ def test_multi_trait_var_reports_posterior_variance():
                                     n_sim=20_000, burn_in=500, seed=3)
     assert res.var["genetic_A"][0] == pytest.approx(0.5 - 0.5 ** 2, abs=0.02)
     assert res.var["genetic_B"][0] > 0.0
+
+
+@pytest.mark.parametrize("h2", [.2, .5, .8])
+def test_adult_public_scalar_dispatch_matches_analytic_posterior(h2):
+    # family-free (ADuLT) probands never need a family covariance: the scalar
+    # Gaussian-regression closed form must be what the public dispatcher returns
+    bounds = [(-np.inf, np.inf), (2., 2.), (-np.inf, 1.), (1., np.inf), (-.5, 1.5)]
+    families = [Family(str(i), [Member('o', lo, hi)]) for i, (lo, hi) in enumerate(bounds)]
+    result = estimate_liability(families, h2=h2, out=['genetic', 'full'])
+    assert result.quadrature_error is None
+    for i, (lo, hi) in enumerate(bounds):
+        if lo == hi:
+            m, v = lo, 0.
+        elif lo == -np.inf and hi == np.inf:
+            m, v = 0., 1.
+        else:
+            m, v = stats.truncnorm.stats(lo, hi, moments='mv')
+        assert result.est['genetic'][i] == pytest.approx(h2 * m, abs=1e-14)
+        assert result.var['genetic'][i] == pytest.approx(h2 * (1 - h2) + h2 * h2 * v, abs=1e-14)
+        assert result.est['full'][i] == pytest.approx(m, abs=1e-14)
+        assert result.var['full'][i] == pytest.approx(v, abs=1e-14)
+
+
+def test_estimator_accepts_c2_m2_and_treats_none_as_absent():
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.4,
+                                    pop_prev=0.1, n_sim=50, seed=1)
+    base = estimate_liability(sim.families, h2=0.4)
+    explicit_none = estimate_liability(sim.families, h2=0.4, c2=None, m2=None)
+    wired = estimate_liability(sim.families, h2=0.4, c2=0.1, m2=0.05)
+    np.testing.assert_allclose(explicit_none.est["genetic"], base.est["genetic"],
+                               rtol=0, atol=1e-12)
+    assert np.all(np.isfinite(wired.est["genetic"]))
+    assert not np.allclose(base.est["genetic"], wired.est["genetic"])
+
+
+def test_pa_estimation_under_c2_matches_closed_form():
+    # pinning a full sib at v is exact Gaussian conditioning:
+    # E[o | s1 = v] = (0.5*h2 + c2)*v and E[g | s1 = v] = 0.5*h2*v
+    # (review 2026-08, F36: first exact oracle for estimation under c2)
+    h2, c2, v = 0.4, 0.1, 1.1
+    lower = np.array([[-np.inf, v]])
+    upper = np.array([[np.inf, v]])
+    est_o, var_o = estimate_liability_pa_arrays(["o", "s1"], lower, upper,
+                                                h2=h2, c2=c2, out="full")
+    assert est_o[0] == pytest.approx((0.5 * h2 + c2) * v, abs=1e-12)
+    assert var_o[0] == pytest.approx(1.0 - (0.5 * h2 + c2) ** 2, abs=1e-12)
+    est_g, var_g = estimate_liability_pa_arrays(["o", "s1"], lower, upper,
+                                                h2=h2, c2=c2, out="genetic")
+    assert est_g[0] == pytest.approx(0.5 * h2 * v, abs=1e-12)
