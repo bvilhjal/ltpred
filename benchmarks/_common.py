@@ -31,6 +31,7 @@ import csv
 import os
 import sys
 import time
+import warnings
 
 import numpy as np
 from scipy.stats import chi2, t as student_t
@@ -400,6 +401,38 @@ def read_plink_bed(prefix):
 # --------------------------------------------------------------------------- #
 #  Plotting                                                                    #
 # --------------------------------------------------------------------------- #
+def log_scale_if_positive(ax, *, x=True, y=True):
+    """Log-scale the requested axes, but only where a log scale is drawable.
+
+    The precision panels plot an across-replicate spread against cohort size on
+    log axes. Degenerate settings leave an axis that cannot carry one: at
+    ``--reps 1`` every across-replicate SD is exactly zero, and when a whole
+    series is NaN (an unidentifiable fit reports no SE/SD or coverage)
+    matplotlib never autoscales from the data at all, so the limits straddle
+    zero. Either way the log locator raises ``Data cannot be log-scaled
+    because all values are <= 0`` -- not when the scale is set, but later, from
+    inside ``tight_layout``/``savefig``. The CSV is already written by then, so
+    the exception costs the figure and a zero exit status rather than the
+    measurements.
+
+    Setting a scale is lazy, so set it and keep it only if the resulting view
+    limits are strictly positive; otherwise fall back to linear. Checking the
+    limits rather than the plotted values also covers artists such as
+    ``axhline``, whose span is an axes fraction rather than data. Matplotlib
+    warns while probing a degenerate axis; that is the question being asked
+    here, so it is not worth printing."""
+    for wanted, set_scale, get_limits in ((x, ax.set_xscale, ax.get_xlim),
+                                          (y, ax.set_yscale, ax.get_ylim)):
+        if not wanted:
+            continue
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "Data has no positive values",
+                                    UserWarning)
+            set_scale("log")
+            if min(get_limits()) <= 0:
+                set_scale("linear")
+
+
 def get_plt():
     """Return a headless (Agg) matplotlib pyplot, or ``None`` if unavailable."""
     try:

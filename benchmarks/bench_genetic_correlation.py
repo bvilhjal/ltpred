@@ -36,7 +36,9 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root: `research`
 
-from _common import get_plt, sd_ci, simulate_families_multi, write_rows
+from _common import (get_plt, log_scale_if_positive,
+                     sd_ci, simulate_families_multi,
+                     write_rows)
 from research.advanced_fitting import fit_genetic_correlation, fit_genetic_factor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -237,7 +239,7 @@ def plot(panel_a, panel_b, panel_c):
                    fmt="-o", capsize=3, label="across-replicate SD (95% CI)")
     ref = sdb[0] * np.sqrt(n[0] / n)
     ax[1].plot(n, ref, "k:", lw=1, label="∝ 1/√N")
-    ax[1].set_xscale("log"); ax[1].set_yscale("log")
+    log_scale_if_positive(ax[1])
     ax[1].set_xlabel("number of families")
     ax[1].set_ylabel("SD of fitted r_g")
     ax[1].set_title("(b) precision vs #families (r_g=0.5)")

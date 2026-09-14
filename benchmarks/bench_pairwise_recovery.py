@@ -42,7 +42,8 @@ from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 
-from _common import get_plt, simulate_families_components, write_rows
+from _common import (get_plt, log_scale_if_positive,
+                     simulate_families_components, write_rows)
 from ltpred.pairwise import fit_pairwise
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -153,7 +154,7 @@ def plot(panel):
         err = np.array([1.96 * p["by_comp"][c]["se_bias"] for p in panel])
         ax[0].errorbar(n, bias, yerr=err, fmt="-o", capsize=3, label=c)
     ax[0].axhline(0.0, color="k", lw=1)
-    ax[0].set_xscale("log")
+    log_scale_if_positive(ax[0], y=False)
     ax[0].set_xlabel("number of families")
     ax[0].set_ylabel("mean(fitted) - true")
     ax[0].set_title("(a) bias vs #families (95% CI)")
@@ -165,13 +166,13 @@ def plot(panel):
                    label=f"{c} coverage")
     ax[1].axhline(1.0, color="k", lw=1)
     ax[1].axhline(0.95, color="r", lw=1, ls=":")
-    ax[1].set_xscale("log")
+    log_scale_if_positive(ax[1], y=False)
     ax[1].set_xlabel("number of families")
     ax[1].set_title("(b) SE calibration and 95% coverage")
     ax[1].legend(fontsize=7, ncol=2)
     ax[2].plot(n, [100.0 * p["pinned_any"] for p in panel], "-o",
                color="tab:red")
-    ax[2].set_xscale("log")
+    log_scale_if_positive(ax[2], y=False)
     ax[2].set_xlabel("number of families")
     ax[2].set_ylabel("% of replicates with a pinned component")
     ax[2].set_title("(c) non-negativity boundary")

@@ -21,6 +21,7 @@ Run:  conda run -n ltpred python benchmarks/bench_tetrachoric.py
 
 from __future__ import annotations
 
+import argparse
 import csv
 import os
 import sys
@@ -50,6 +51,12 @@ PAIRS = [("o", "m", 0.25), ("o", "f", 0.25), ("o", "s1", 0.25),
 
 
 def main():
+    # This benchmark takes no options. Parse anyway, so that `--help`
+    # prints the docstring and a stray argument is refused instead of
+    # silently ignored while the run overwrites the committed CSV.
+    argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     t0 = time.time()
     print("Tetrachoric benchmark (Falconer relationships, h2*A)")
     print(f"seed={SEED}  h2={H2}  prev={PREV}  fams={N_FAM}  reps={REPS}")

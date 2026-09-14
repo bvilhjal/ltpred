@@ -23,6 +23,7 @@ Run:  conda run -n ltpred python benchmarks/bench_cip_estimation.py
 
 from __future__ import annotations
 
+import argparse
 import csv
 import os
 import sys
@@ -112,6 +113,12 @@ def curve_error(curve, grid_eval):
 
 
 def main():
+    # This benchmark takes no options. Parse anyway, so that `--help`
+    # prints the docstring and a stray argument is refused instead of
+    # silently ignored while the run overwrites the committed CSV.
+    argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     t0 = time.time()
     print("CIP estimation benchmark (known true logistic CIP)")
     print(f"seed={SEED}  N={N}  K_pop={K_POP}  mid={MID} slope={SLOPE}")

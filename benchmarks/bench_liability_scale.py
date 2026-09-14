@@ -33,6 +33,7 @@ Run:  conda run -n ltpred python benchmarks/bench_liability_scale.py
 
 from __future__ import annotations
 
+import argparse
 import csv
 import os
 import sys
@@ -123,6 +124,12 @@ def probit_mle_joint(X, y, iters=30):
 
 
 def main():
+    # This benchmark takes no options. Parse anyway, so that `--help`
+    # prints the docstring and a stray argument is refused instead of
+    # silently ignored while the run overwrites the committed CSV.
+    argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     t0 = time.time()
     print("Probit residual-scale genetic-variance benchmark")
     print(f"seed={SEED}  N={N}  M={M}  causal={P_CAUSAL}  Var(Xb)={VXB}"

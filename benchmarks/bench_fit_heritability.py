@@ -29,7 +29,7 @@ import argparse
 
 import numpy as np
 
-from _common import get_plt, sd_ci, write_rows
+from _common import get_plt, log_scale_if_positive, sd_ci, write_rows
 from ltpred import simulate_under_LTM_single, fit_heritability
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -156,7 +156,7 @@ def plot(panel_a, panel_b, panel_s):
                    fmt="-o", capsize=3, label="across-replicate SD (95% CI)")
     ref = sdb[0] * np.sqrt(n[0] / n)
     ax[1].plot(n, ref, "k:", lw=1, label="∝ 1/√N")
-    ax[1].set_xscale("log"); ax[1].set_yscale("log")
+    log_scale_if_positive(ax[1])
     ax[1].set_xlabel("number of families")
     ax[1].set_ylabel("SD of fitted h²")
     ax[1].set_title("(b) precision vs #families (h²=0.5)")

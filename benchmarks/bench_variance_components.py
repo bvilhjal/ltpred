@@ -31,7 +31,9 @@ import argparse
 
 import numpy as np
 
-from _common import get_plt, sd_ci, simulate_families_components, write_rows
+from _common import (get_plt, log_scale_if_positive,
+                     sd_ci, simulate_families_components,
+                     write_rows)
 from ltpred.fit import fit_variance_components
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -157,7 +159,7 @@ def plot(panel_a, fp, panel_c):
                    fmt="-o", capsize=3, label="across-replicate SD of C (95% CI)")
     ref = csd[0] * np.sqrt(n[0] / n)
     ax[2].plot(n, ref, "k:", lw=1, label="∝ 1/√N")
-    ax[2].set_xscale("log"); ax[2].set_yscale("log")
+    log_scale_if_positive(ax[2])
     ax[2].set_xlabel("number of families")
     ax[2].set_ylabel("SD of fitted C")
     ax[2].set_title("(c) precision vs #families")

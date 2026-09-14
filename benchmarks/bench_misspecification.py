@@ -36,6 +36,7 @@ Run:  conda run -n ltpred python benchmarks/bench_misspecification.py
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 import time
@@ -118,6 +119,12 @@ def estimate(true_g, L, status, prev_assumed):
 
 
 def main():
+    # This benchmark takes no options. Parse anyway, so that `--help`
+    # prints the docstring and a stray argument is refused instead of
+    # silently ignored while the run overwrites the committed CSV.
+    argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     t0 = time.time()
     print("Model-misspecification stress (PA estimator, classic bounds)")
     print(f"seed={SEED}  h2={H2}  true prevalence={PREV_TRUE}  fams={N_FAM}"
