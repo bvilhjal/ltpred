@@ -1,14 +1,23 @@
 # research/
 
-Unsupported research code that was split out of the lean `ltpred` core
-package. Nothing here is shipped in the wheel; import it as
-`research.<module>` from a repository checkout (repo root on `sys.path`,
-e.g. run from the repo root).
+Unsupported research code, split out of the lean `ltpred` core. Nothing here
+ships in the wheel or belongs to the public API, and interfaces may change
+without notice. Import it as `research.<module>` from a repository checkout
+(repository root on `sys.path`, for example by running from the repo root).
 
-**Status: dormant and unmaintained.** This code is kept for reference but is
-no longer exercised in CI or by the test suite (`testpaths` in
-`pyproject.toml` covers only `tests/`). It may drift out of sync with the
-core package at any time.
+It is not dead code: five benchmark scripts import it
+(`bench_ascertainment.py`, `bench_aod_decay.py`,
+`bench_covariance_extensions.py`, `bench_genetic_correlation.py`,
+`bench_inference_calibration.py`, plus `benchmarks/_common.py`), and its own
+suite in `tests/` runs in CI's `research-tests` job. Locally:
+
+```bash
+pytest -q research/tests
+```
+
+The core `pytest` run collects only `tests/` (see `testpaths` in
+`pyproject.toml`). The models are documented on the documentation site's
+[research extensions](../docs/research.md) page.
 
 Layout:
 
@@ -19,12 +28,7 @@ Layout:
 - `covariance_extensions.py` — covariance constructions not wired into any
   estimator: sex-limited architecture and direct/indirect (genetic-nurture)
   effects.
-- `pipeline.py` — a legacy register-pipeline snapshot, superseded by the
-  supported `ltpred.pipeline`. Its attained-age `index_age` shortcut is not a
-  general familywise calendar-time censor across birth cohorts.
-- `tests/` — tests for the above, moved from `tests/`. They are **not**
-  collected: `testpaths` in `pyproject.toml` covers only `tests/`, and CI
-  does not run this directory.
+- `tests/` — tests for the above.
 
 Graduation rule: a capability moves into `ltpred` proper only when it is
 wired into the core estimation path and benchmarked.

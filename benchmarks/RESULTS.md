@@ -5,11 +5,6 @@ compares clean v0.6.1 with v0.6.0 on seven matched workloads. It records warm
 speedups, first-call time, memory and exact output agreement; the measured
 source remains v0.6.1 in this v0.6.2 documentation update.
 
-The separate [5 September 2026 efficiency pilot](results/2026-09-05-efficient-inference/README.md)
-records the v0.6.0 reductions and new opt-in methods, with measured source and
-input snapshots. Its small synthetic workloads do not replace the campaigns
-below or establish statistical efficiency and interval coverage.
-
 Sections 1–30 contain historical results from the local benchmark scripts (26
 scripts since the 2026-08 consolidation; the retired standalone scripts are
 reported as subsections or merged panels of their targets -- see the notes in
@@ -236,7 +231,7 @@ records five timings per point with median/IQR, uses `perf_counter`, records the
 Numba thread count and simulation configuration, and measures PA's object and
 array APIs separately.
 
-## 3. Age-of-onset information (`bench_age_onset.py`)
+## 3. Age-of-onset information (`bench_fh_prediction.py` panel (e), formerly `bench_age_onset.py`)
 
 *Script merged into `bench_fh_prediction.py` panel (e) in the 2026-08
 consolidation; the numbers below are from the v0.4.0 rerun of the merged
@@ -443,7 +438,7 @@ cohorts:
 | ±40 years | 0.477 ± 0.015 | 0.383 ± 0.018 |
 | ±55 years | 0.512 ± 0.007 | 0.397 ± 0.017 |
 
-## 11. Genetic factor diagnostic (`bench_genetic_factor.py`)
+## 11. Genetic factor diagnostic (`bench_genetic_correlation.py` panel (c), formerly `bench_genetic_factor.py`)
 
 *Script merged into `bench_genetic_correlation.py` panel (c) in the 2026-08
 consolidation; the v0.4.0 rerun of the merged panel reproduces every number
@@ -1000,7 +995,7 @@ Paper-fixture checks in the tests cover the Lee 2011 Discussion factors
 (observed 0.18/0.54/0.91 -> liability 0.1/0.3/0.5 at K=0.01, P=0.5) and the
 Crohn's Table 3 fixture (0.61 -> 0.22).
 
-## 24. Environment components in estimation (`bench_env_components.py`)
+## 24. Environment components in estimation (`bench_shared_env.py` panel (c), formerly `bench_env_components.py`)
 
 *Script merged into `bench_shared_env.py` panel (c) in the 2026-08
 consolidation; the numbers below are from the v0.4.0 rerun of the merged
@@ -1620,9 +1615,8 @@ script exits 2 if they are missing. LTFGRS is the PA arm.
 ## 31. Time and memory: v0.6.1 versus v0.6.0
 
 The [clean-source rerun](results/2026-09-09-time-memory-v061-rerun/README.md)
-on 9 September 2026 compares v0.6.1 (`b516271`) with v0.6.0 (`52dec52`).
-It repeats the [development comparison](results/2026-09-09-time-memory/README.md)
-without changing the driver or workload settings. All 28 workers completed:
+on 9 September 2026 compares v0.6.1 (`b516271`) with v0.6.0 (`52dec52`)
+with the driver and workload settings unchanged. All 28 workers completed:
 seven cases, two versions, and separate runtime/RSS and allocation processes.
 The candidate commit and all captured package/driver/support-script hashes
 were stable before and after measurement.
@@ -1655,7 +1649,7 @@ paternal chain of depth 60 and uses degree-one observation selection.
 
 Every PA mean and variance, every reported register score and diagnostic, and
 both graph adjacency digests matched exactly. Mixed-mask PA and the
-million-record graph reproduce the larger gains from the original run. The
+million-record graph show the larger gains. The
 small register case changes by about 3% and its allocation peak is unchanged;
 this does not establish full-register scaling or a general end-to-end speedup.
 No new statistical calibration, Gibbs, quadrature or fitting comparison was

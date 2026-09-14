@@ -213,9 +213,11 @@ fit = fit_heritability(families, sampling="ipw", weights=weights)
 Why this is the right shape of correction: the liability augmentation for a
 *given* family with *given* statuses is already the correct conditional
 distribution. What selection breaks is the **mix** of families, and weighting
-re-mixes them to population proportions. Benchmarked, this takes a 50/50
-case/control cohort from `h² = 1.000` (pinned) back to **0.468** against a truth
-of 0.5, and a 20%-enriched cohort from 1.000 to **0.521**.
+re-mixes them to population proportions. Benchmarked
+([RESULTS §29](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)),
+this takes both a 50/50 case/control cohort and a 20%-enriched cohort from an
+unweighted fit pinned at `h² = 1` back close to the true 0.5; the fitted means
+and their replicate scatter are in that section.
 
 Two limits, and both matter:
 
@@ -337,4 +339,5 @@ genetic-nurture models, MCEM, and parametric-bootstrap tests live in
 They are importable from a source checkout but are not installed and are not part
 of the supported API. See the
 [`research/` README](https://github.com/bvilhjal/ltpred/blob/main/research/README.md)
-for the current inventory and [algorithm.md](algorithm.md) for model background.
+for the current inventory and the [research extensions](research.md) page for
+the models and their identifiability caveats.

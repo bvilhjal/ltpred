@@ -14,6 +14,13 @@ env:
   OPENBLAS_NUM_THREADS: 1
   OMP_NUM_THREADS: 1
   MKL_NUM_THREADS: 1
+  # The kernel-exercising files that the two pure-Python-fallback jobs run.
+  KERNEL_TESTS: >-
+    tests/test_mathfun.py tests/test_thresholds.py tests/test_covariance.py
+    tests/test_public_api.py tests/test_liability_scale.py
+    tests/test_tetrachoric.py tests/test_numba.py tests/test_pedigree.py
+    tests/test_pipeline.py tests/test_cip.py tests/test_gibbs.py
+    tests/test_pearson_aitken.py tests/test_batched.py
 
 jobs:
   test:
@@ -42,6 +49,22 @@ jobs:
         run: pip install -e ".[fast,test]"
       - name: Core tests
         run: pytest -q tests
+
+  research-tests:
+    # research/ is unsupported, checkout-only code, but five benchmark scripts
+    # import it and it has its own suite; run that suite so it cannot rot
+    # silently. One interpreter is enough: nothing here ships in the wheel.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install (with the JIT + test extras)
+        run: pip install -e ".[fast,test]"
+      - name: Research tests
+        run: pytest -q research/tests
 
   lint:
     runs-on: ubuntu-latest
@@ -78,14 +101,7 @@ jobs:
         run: python -c "from ltpred._numba import HAVE_NUMBA; assert not HAVE_NUMBA, 'numba leaked into the no-JIT job'"
       - name: Kernel tests on the pure-Python fallback
         run: |
-          pytest -q -m "not jit_required" \
-            tests/test_mathfun.py tests/test_thresholds.py \
-            tests/test_covariance.py tests/test_public_api.py \
-            tests/test_liability_scale.py tests/test_tetrachoric.py \
-            tests/test_numba.py tests/test_pedigree.py tests/test_pipeline.py \
-            tests/test_cip.py \
-            tests/test_gibbs.py tests/test_pearson_aitken.py \
-            tests/test_batched.py
+          pytest -q -m "not jit_required" $KERNEL_TESTS
       # The kernel files above do not exercise the Family/Member dispatcher,
       # simulation entry point, fitter entry point, or the deterministic R lock.
       # Keep these node IDs deliberately small: collecting their full files on
@@ -122,14 +138,7 @@ jobs:
         run: python -c "from ltpred._numba import HAVE_NUMBA; assert not HAVE_NUMBA, 'numba leaked into the floor job'"
       - name: Kernel tests on the pure-Python fallback
         run: |
-          pytest -q -m "not jit_required" \
-            tests/test_mathfun.py tests/test_thresholds.py \
-            tests/test_covariance.py tests/test_public_api.py \
-            tests/test_liability_scale.py tests/test_tetrachoric.py \
-            tests/test_numba.py tests/test_pedigree.py tests/test_pipeline.py \
-            tests/test_cip.py \
-            tests/test_gibbs.py tests/test_pearson_aitken.py \
-            tests/test_batched.py
+          pytest -q -m "not jit_required" $KERNEL_TESTS
 
   examples:
     # examples/*.py are the front door for new users and were previously run by

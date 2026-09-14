@@ -31,9 +31,9 @@ For measured runtime and memory changes, see the
 [v0.6.1 versus v0.6.0 benchmark rerun](https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-09-time-memory-v061-rerun)
 and the [PA memory notes](estimation.md#scaling-to-large-cohorts).
 
-Unsupported experimental fitters and covariance extensions live in the source checkout's
-[`research/` directory](https://github.com/bvilhjal/ltpred/tree/main/research);
-they are not installed with ltpred. Population-register scoring is installed as
-`ltpred.pipeline`; the similarly named research file is only a legacy snapshot.
+Unsupported experimental fitters and covariance extensions live in the source
+checkout's [`research/` directory](https://github.com/bvilhjal/ltpred/tree/main/research);
+they are not installed with ltpred and are documented on the
+[research extensions](research.md) page.
 
 Developed with the support of [SMARTbiomed](https://smartbiomed.dk/).

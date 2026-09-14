@@ -167,70 +167,18 @@ and [algorithm.md](docs/algorithm.md) for the math and the performance internals
 ## Benchmarks
 
 [`benchmarks/`](benchmarks/) compares model encodings and inference engines on
-simulated data. The earlier statistical results are historical snapshots, not an
-automatic validation of later source changes; see the provenance header and
-rerun instructions in [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md).
-
-On matched classic LT-FH families, ltpred is more computationally
-efficient than the two public R packages. PA ran 392–518× faster than
-grouped Gibbs in the controlled 4-thread, **no-mixture** benchmark in this
-package, with PA–Gibbs `genetic` posterior-mean correlation
-≥ 0.997 on those benchmarked structures. On the locked 200-family comparison to
-public LTFHPlus 2.2.0, both engines had correlation 0.9999 with the R Gibbs
-scores (RMSE 0.0041 Gibbs, 0.0046 PA). LTFHPlus is Gibbs-only; the public PA
-implementations are LTFGRS 1.0.1 (benchmarked here) and the original PAFGRS
-package, and ltpred PA matches LTFGRS at RMSE 0.000087. Same-algorithm fold
-times were **6.79×** (LTFHPlus Gibbs / ltpred Gibbs, 51.33 vs 7.57 ms/family)
-and **1418×** (LTFGRS PA / ltpred PA, 9.01 vs 0.0064 ms/family), each package at
-its own default parallelism — ltpred on 4 Numba threads, both R packages on
-1 `future` worker (their sequential default). Isolated-process peak RSS was
-441 MiB (LTFHPlus), 260 MiB (LTFGRS PA) and ~179–180 MiB (ltpred). PA versus
-LTFHPlus is a different algorithm, not a faster Gibbs; the PA-FGRS censoring
-mixture was not part of either comparison.
-
-Those two folds are not the same kind of number, and re-running the whole
-comparison with **both sides at one thread** separates them
-(`bench_ltfhplus_compare_1thread.csv`). ltpred's Gibbs is `prange`-parallel
-over families, so most of its fold is the 4:1 resource asymmetry: matched at
-one thread it is **1.75×**, not 6.79×. PA is effectively serial, and its
-fold is essentially unchanged at one thread (**1425×**) and four (**1418×**).
-(RESULTS section 30 gives both columns and the measurement caveat; the ± there
-is across-replicate scatter, and per-replicate load was not recorded.)
-
-The [9 September 2026 time/memory rerun](benchmarks/RESULTS.md#31-time-and-memory-v061-versus-v060)
-compares v0.6.1 with v0.6.0 on seven matched synthetic workloads. Warm
-mixed-mask PA is **2.25× faster** for 200,000 families (1.120 → 0.497 s), with
-peak process RSS falling from **491.9 to 337.3 MiB**. Building a million-record
-parent graph is **1.73× faster** (2.101 → 1.213 s), with RSS falling from
-**930.1 to 690.5 MiB**. All measured outputs agree exactly. The small
-300-proband register-scoring case improves by only about 3%; these gains depend
-on the workload. Measurements used one Numba thread and requested one-thread
-BLAS limits. The [run capsule](benchmarks/results/2026-09-09-time-memory-v061-rerun/README.md)
-records first-call timings, warm repetitions, separate allocation peaks, source
-commits and reproduction instructions. v0.6.2 documents this rerun; its numerical
-implementation is unchanged from v0.6.1.
-
-The integrated LT-FH++ benchmark includes age-, sex-, and
-cohort-dependent CIP, coherent onset/censoring, ascertainment, and an
-**independent-SNP marginal-association simulation** (real-LD remains the opt-in
-HAPNEST path, not run; no relatedness-aware mixed model was tested).
-A matched ADuLT arm keeps the same personalised proband bounds but removes
-relatives: it reaches a 1.049 ± 0.004× adjusted causal-SNP NCP ratio, versus
-1.194 ± 0.006× for full LT-FH++; the paired family-history increment is
-+0.1454 ± 0.0154 NCP-ratio units
-(95% CI half-width). Full LT-FH++ has calibration slope 0.995 ± 0.015. A
-prespecified sex-CIP panel separately shows removal of a
-0.05092 ± 0.00096 female–male score-error gap, while its adjusted independent-SNP
-NCP-ratio increment remains unresolved. In the replicated classic-LT-FH
-independent-SNP association benchmark, PA and Gibbs both
-reach a 1.47 ± 0.04× causal-SNP NCP ratio on the same independent-SNP design. These PA–Gibbs claims do
-not validate the PA-only censoring mixture. For that mixture, three of ten
-paired ranking contrasts exclude zero, but the largest correlation shift is
-only −0.00034 (95% CI ± 0.00011): statistically detectable and practically
-negligible. Pinning is calibrated only under
-threshold crossing. See
-[`benchmarks/RESULTS.md`](benchmarks/RESULTS.md); real-LD runs use
-[HAPNEST](benchmarks/hapnest/README.md) genotypes (opt-in).
+simulated data, and [`benchmarks/RESULTS.md`](benchmarks/RESULTS.md) is the
+evidence ledger: PA versus Gibbs agreement and speed, the locked comparison to
+the public R packages LTFHPlus and LTFGRS, independent-SNP marginal-association
+gains for classic LT-FH and personalised LT-FH++ (with a matched family-free
+ADuLT arm), calibration, cohort confounding, the PA-FGRS censoring mixture,
+fitter recovery and ascertainment, and matched time/memory comparisons between
+package versions. Its provenance header says which numbers are historical
+snapshots and how to rerun them, and `scripts/check_evidence.py` reconciles
+the release-defining claims in that ledger and in the
+[methods report](report/ltpred_methods.pdf) with the committed artifacts.
+Real-LD runs use [HAPNEST](benchmarks/hapnest/README.md) genotypes (opt-in;
+not run for the committed results).
 
 ## Scope
 
@@ -260,14 +208,15 @@ has no mixture implementation. The fitters remain role-based and require
 independent, non-overlapping families, and the multi-trait route rejects
 `c2`/`m2` rather than silently ignoring them.
 
-Demoted research machinery lives in the dormant, unmaintained **`research/`
-package** (importable as `research.<module>` from a checkout; not installed,
-not run in CI): the genetic-correlation, onset-age-decay, common-factor and
-genetic-nurture fits, the MCEM variance-component fit and the
-parametric-bootstrap significance tests in `research.advanced_fitting`, plus
-the sex-limited and genetic-nurture covariance constructors in
-`research.covariance_extensions`. `research.pipeline` is a legacy snapshot
-superseded by `ltpred.pipeline`.
+Unsupported research code lives in the checkout-only **`research/` package**
+(importable as `research.<module>` from a checkout; not installed with the
+wheel, not part of the public API, interfaces may change): the
+genetic-correlation, onset-age-decay, common-factor and genetic-nurture fits,
+the MCEM variance-component fit and the parametric-bootstrap significance tests
+in `research.advanced_fitting`, plus the sex-limited and genetic-nurture
+covariance constructors in `research.covariance_extensions`. It has its own
+test suite (`research/tests`, run by CI) and five benchmark scripts import it;
+the models are documented in [docs/research.md](docs/research.md).
 
 Not included: an igraph-style pedigree-object interface, plotting utilities, and
 the xgboost heritability helpers from LTFHPlus; and ltpred does not build LD or run

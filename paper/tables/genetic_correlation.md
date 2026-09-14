@@ -1,9 +1,0 @@
-<!-- Generated from committed benchmark CSVs; static snapshot (generator removed 2026-08). -->
-
-## Genetic-correlation recovery (25 cohorts per cell)
-
-| true r_g | fitted mean | bias | empirical SD |
-|---:|---:|---:|---:|
-| 0.0 | -0.0061 | -0.0061 | 0.0798 |
-| 0.3 | 0.2894 | -0.0106 | 0.0825 |
-| 0.6 | 0.5976 | -0.0024 | 0.0706 |

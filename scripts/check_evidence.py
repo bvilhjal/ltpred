@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Check the few benchmark claims that define the public release snapshot."""
+"""Check the benchmark claims that define the public release snapshot.
+
+The evidence ledger (``benchmarks/RESULTS.md``), the static paper tables the
+methods report inputs, the report source and the tracked PDF must agree with
+the committed CSV and JSON artifacts. Prose elsewhere links to the ledger
+instead of repeating its numbers, so it is not pinned here.
+"""
 
 import csv
 import hashlib
@@ -79,11 +85,6 @@ def check_scaling():
         )
         require(RESULTS, expected)
 
-    for path in [ROOT / "README.md", ROOT / "docs/estimation.md",
-                 ROOT / "docs/algorithm.md", ROOT / "ltpred/estimate.py"]:
-        require(path, speed_range)
-    plain_range = speed_range[:-1]
-    require(ROOT / "paper/tables/headlines.md", plain_range.replace("–", "--") + "×")
     lo, hi = min(speedups), max(speedups)
     require(ROOT / "paper/tables/headlines.tex",
             f"{lo:.0f}--{hi:.0f}$\\times$")
@@ -117,9 +118,6 @@ def check_ipw():
     en = f'{float(enriched["fitted_mean"]):.3f}'
 
     require(RESULTS, f"**{cc}**", f"**{en}**", f"N = {n_fam:,}")
-    require(ROOT / "docs/inference.md", f"**{cc}**", f"**{en}**")
-    require(ROOT / "ltpred/fit.py", f"``{cc}``", f"{n_fam:,} families")
-    require(ROOT / "paper/tables/headlines.md", cc, f"N = {n_fam:,}")
     require(ROOT / "paper/tables/headlines.tex", cc, f"N = {n_fam:,}")
     tex_n = f"{n_fam:,}".replace(",", "{,}")
     require(REPORT_TEX, f"${cc}$", f"${en}$", f"${tex_n}$")
@@ -168,25 +166,8 @@ def check_r_lock():
         "pa_one": f"{pa_one:.0f} ± {pa_one_se:.0f}×",
     }
 
-    gibbs_rmse, _ = mean_se(rows, "rmse_gibbs_ltfhplus")
-    pa_rmse, _ = mean_se(rows, "rmse_pa_ltfhplus")
-    ltfgrs_rmse, _ = mean_se(rows, "rmse_pa_ltfgrs")
-    require(
-        ROOT / "ltpred/estimate.py",
-        f"RMSE ``{gibbs_rmse:.4f}`` Gibbs, ``{pa_rmse:.4f}`` PA",
-        f"RMSE ``{ltfgrs_rmse:.6f}``",
-    )
-    for path in [ROOT / "README.md", ROOT / "docs/algorithm.md"]:
-        require(path, f"RMSE {gibbs_rmse:.4f} Gibbs, {pa_rmse:.4f} PA",
-                f"RMSE {ltfgrs_rmse:.6f}")
-
-    for path in [ROOT / "README.md", ROOT / "docs/estimation.md"]:
-        require(path, f"{gibbs:.2f}×", f"{pa:.0f}×",
-                f"{gibbs_one:.2f}×", f"{pa_one:.0f}×")
-    for path in [ROOT / "docs/algorithm.md", ROOT / "ltpred/estimate.py"]:
-        require(path, f"{gibbs:.2f}×", f"{pa:.0f}×")
     require(RESULTS, *detailed.values())
-    require(ROOT / "paper/tables/headlines.md", f"{gibbs:.2f} ±", f"{pa:.0f} ±")
+    require(ROOT / "paper/tables/headlines.tex", f"{gibbs:.2f} $\\pm$", f"{pa:.0f} $\\pm$")
     require(REPORT_TEX, f"{gibbs:.2f}", f"{pa:.0f}",
             f"{gibbs_one:.3f}", f"{pa_one:.0f}")
     return {
@@ -215,9 +196,7 @@ def check_pgs():
         [row for row in replicates if row["arm"] == "LT-FH (PA)"], "r2_g")
     headline = f"{joint:.3f} / {pgs:.3f} / {fh:.3f}"
     joint_cell = f"{joint:.3f} ± {joint_se:.3f}"
-    for path in [RESULTS, ROOT / "paper/tables/pgs_comparison.md"]:
-        require(path, joint_cell, "cross-fitted")
-    require(ROOT / "paper/tables/headlines.md", headline, "cross-fitted")
+    require(RESULTS, joint_cell, "cross-fitted")
     require(ROOT / "paper/tables/headlines.tex", headline, "cross-fitted")
     require(ROOT / "paper/tables/pgs_comparison.tex",
             f"{joint:.3f} $\\pm$ {joint_se:.3f}", "cross-fitted")
@@ -329,42 +308,6 @@ def version_and_date():
     return version, release_date
 
 
-def check_efficient_inference():
-    """Bind the development pilot table to its measured source and raw timings."""
-    capsule = ROOT / "benchmarks/results/2026-09-05-efficient-inference"
-    artifact = json.loads(read(capsule / "results.json"))
-    metadata, checks, results = (artifact[key] for key in ("metadata", "checks", "results"))
-    hashes = metadata["source_hashes"]
-    digest = hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()
-    assert metadata["source_stable"] and metadata["source_digest"] == digest
-    assert metadata["source_digest_after"] == digest
-    for relative, expected in hashes.items():
-        assert hashlib.sha256((capsule / "source_snapshot" / relative).read_bytes()).hexdigest() == expected
-    assert all(result["source_digest"] == digest for result in results.values())
-    assert checks["pipeline_input_equal"] and checks["fitting_inputs_equal"]
-    assert checks["pipeline_max_abs_mean_difference"] == checks["pipeline_max_abs_variance_difference"] == 0
-    for field in ("est", "var"):
-        assert results["pipeline_selected"]["scores"][field] == results["pipeline_full"]["scores"][field]
-    for first, second in (("pipeline_selected", "pipeline_full"), ("adult_scalar", "adult_covariance"),
-                          ("inference_pa", "inference_quadrature"), ("inference_pa", "inference_gibbs")):
-        assert results[first]["input_sha256"] == results[second]["input_sha256"]
-    assert [r["input_sha256"] for r in results["fit_pairwise"]["replicates"]] == [
-        r["input_sha256"] for r in results["fit_moment"]["replicates"]]
-    source = ROOT / "report/efficient_inference.tex"
-    require(source, digest[:12])
-    for case, label in (
-        ("inference_pa", "One family: PA"), ("inference_quadrature", "One family: quadrature"),
-        ("inference_gibbs", r"One family: Gibbs, $10^6$ draws"),
-        ("adult_scalar", "20,000 ADuLT: scalar"), ("adult_covariance", "20,000 ADuLT: covariance API"),
-        ("pipeline_selected", "200 probands: selected relationships"),
-        ("pipeline_full", "200 probands: full construction"),
-    ):
-        result = results[case]
-        require(source, f"{label} & {result['first_call_seconds']:.3f} & "
-                f"{1000 * statistics.median(result['warm_seconds']):.3f} & "
-                f"{result['peak_rss_bytes'] / 2**20:.1f}")
-
-
 def check_time_memory_rerun():
     """Keep the v0.6.1 measurements tied to their sources and published rows."""
     capsule = ROOT / "benchmarks/results/2026-09-09-time-memory-v061-rerun"
@@ -395,8 +338,6 @@ def check_time_memory_rerun():
                 for arm in ("baseline", "candidate") for mode in ("time", "allocation")}
     assert len(artifact["results"]) == 28 and set(rows) == expected
     assert set(artifact["agreement"]) == set(labels)
-    original = json.loads(read(ROOT / "benchmarks/results/2026-09-09-time-memory/results.json"))
-    old_rows = {(row["case"], row["arm"], row["mode"]): row for row in original["results"]}
     report_rows = []
     for case, label in labels.items():
         for arm, version in (("baseline", "0.6.0"), ("candidate", "0.6.1")):
@@ -404,7 +345,6 @@ def check_time_memory_rerun():
                 row = rows[case, arm, mode]
                 assert row["source_hashes"] == artifact["source_hashes"][arm]
                 assert row["settings"] == rows[case, "baseline", "time"]["settings"]
-                assert row["settings"] == old_rows[case, arm, mode]["settings"]
                 assert row["environment"]["ltpred"] == version
                 assert row["environment"]["numba_threads"] == 1
                 for key in ("python", "numpy", "scipy", "numba"):
@@ -429,20 +369,12 @@ def check_time_memory_rerun():
         rss = " / ".join(f"{row['peak_rss_bytes'] / 2**20:.1f}" for row in times)
         alloc = " / ".join(f"{rows[case, arm, 'allocation']['peak_allocated_bytes'] / 2**20:.1f}"
                            for arm in ("baseline", "candidate"))
-        old_speed = statistics.median(old_rows[case, "baseline", "time"]["warm_seconds"]) / statistics.median(old_rows[case, "candidate", "time"]["warm_seconds"])
         require(capsule / "README.md", f"| {label} | {first} | {warm} | {speed}x |",
-                f"| {label} | {rss} | {alloc} |", f"| {label} | {old_speed:.2f}x | {speed}x |")
+                f"| {label} | {rss} | {alloc} |")
         require(RESULTS, f"| {label} | {warm} | {speed}× | {rss} | {alloc} |")
         require(ROOT / "report/efficient_inference.tex",
                 f"{label} & {warm} & ${speed}\\times$ & {rss}")
         report_rows.append(f"{label} {warm} {speed}× {rss}")
-        if case in ("pa_mixed", "graph_1m"):
-            require(ROOT / "README.md", f"**{speed}× faster**")
-            for path in (ROOT / "benchmarks/README.md", ROOT / "report/README.md"):
-                require(path, f"{speed}× faster")
-        if case == "pa_mixed":
-            require(ROOT / "docs/estimation.md", f"{speed}× faster", warm.replace(" / ", " → "),
-                    rss.replace(" / ", " → "))
     return report_rows
 
 
@@ -453,7 +385,6 @@ def main():
     cc, en, n_fam = check_ipw()
     r_lock = check_r_lock()
     pgs = check_pgs()
-    check_efficient_inference()
     time_memory = check_time_memory_rerun()
     check_report(version, release_date, scaling, r_lock, pgs, pa_robust, time_memory)
     print(

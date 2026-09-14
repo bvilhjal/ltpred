@@ -39,7 +39,8 @@ onset-age-decay, common-factor and genetic-nurture fits, the MCEM
 variance-component fit, and the parametric-bootstrap significance tests — lives
 in the unsupported checkout-only
 [`research/` package](https://github.com/bvilhjal/ltpred/tree/main/research);
-they are not installed with the distribution.
+they are not installed with the distribution. See
+[research extensions](research.md) for the models.
 
 For the Gibbs estimator and model-fit samplers, `seed` is either `None` or an
 integer in `[0, 2**32 - 1]`; booleans are rejected. Derived sampler streams wrap
@@ -108,11 +109,6 @@ degree-1 0.539 ± 0.015 (paired contrast +0.035 ± 0.012), prospective
 familywise-censored AUC 0.680 ± 0.039, and ~380 probands/s throughput.
 The relatives'-events contrast is unresolved at R = 5 on both metrics and
 is not quoted as a payoff.
-
-The old `research.pipeline` implementation is retained only as historical
-checkout scaffolding. Its common `index_age` shortcut assigns a proband's
-attained age to every relative and is not a valid general familywise
-calendar-time censor across generations.
 
 Two boundary diagnostics are surfaced on `PopulationScores` rather than
 silently absorbed: `frac_records_with_unresolved_parents` (the fraction of records with a

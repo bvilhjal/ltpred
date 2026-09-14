@@ -43,11 +43,13 @@ from the linked benchmark report, which is checked against committed artifacts.
   `paper/tables/` were generated from the committed benchmark CSVs (the
   generator script was removed in the 2026-08 lean-down; regenerate by hand
   from the CSVs if a table needs updating).
-- Prose-level numerical claims are no longer machine-guarded; verify them
-  against the committed CSVs when editing.
+- `scripts/check_evidence.py` guards the release-defining rows of
+  `benchmarks/RESULTS.md`, the paper tables and the report; other prose links
+  to the ledger rather than repeating numbers, so verify any number you do
+  quote against the committed CSVs.
 - Record the manuscript commit, software environment, seeds, and command for
   each benchmark run in `benchmarks/RESULTS.md`.
-- Describe dormant `research/` results as exploratory.
+- Describe `research/` results as exploratory.
 
 ## Writing order
 

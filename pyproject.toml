@@ -50,7 +50,8 @@ packages = ["ltpred"]
 version = { attr = "ltpred.__version__" }
 
 [tool.pytest.ini_options]
-# research/ is dormant and unmaintained; only the core suite runs.
+# The core suite. research/tests (unsupported, checkout-only code) is run by
+# its own CI job and locally with `pytest research/tests`.
 testpaths = ["tests"]
 pythonpath = ["."]
 markers = [

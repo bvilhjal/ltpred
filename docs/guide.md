@@ -56,8 +56,7 @@ The guide is split into short, task-focused pages:
 
 Unsupported experimental fitters and covariance extensions live in the
 checkout-only [`research/` package](https://github.com/bvilhjal/ltpred/tree/main/research);
-they are not installed with ltpred. The register driver is public in
-`ltpred.pipeline`; the research file with that name is a legacy snapshot.
+they are not installed with ltpred ([research extensions](research.md)).
 
 See [algorithm.md](algorithm.md) for the model and the estimators, and the
 [benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)

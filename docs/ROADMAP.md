@@ -20,10 +20,10 @@ See the [guide](guide.md),
 contracts.
 
 Experimental covariance models, selection-aware fitting, genetic-correlation
-fitting, and factor models remain under `research/`, which is dormant and
-unmaintained (not run in CI or the test suite). They are importable from a
-checkout but are deliberately absent from wheels. Its old register file is a
-superseded snapshot, not an alternative public pipeline.
+fitting, and factor models remain under `research/`: unsupported, checkout-only
+code that is deliberately absent from wheels. Its own suite runs in a CI job
+and five benchmark scripts import it, so it is kept importable, but nothing in
+it is part of the public API ([research extensions](research.md)).
 
 ## Priorities
 
@@ -100,6 +100,5 @@ measured on a representative scale, and the public path has tests and committed
 benchmark evidence. A thin orchestration layer over already supported pieces
 may land on exact equivalence and invariance tests, but its scientific payoff
 and performance remain unvalidated until representative benchmark evidence is
-regenerated. Until then, experimental methods stay experimental — and
-`research/` currently has no maintainer, so their graduation is hypothetical
-rather than scheduled.
+regenerated. Until then, experimental methods stay experimental; no graduation
+from `research/` is currently scheduled.

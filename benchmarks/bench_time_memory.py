@@ -27,6 +27,21 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ("graph_200k", "graph_1m", "pa_mixed", "pa_pin", "pa_intervals",
          "pa_mixture", "pipeline")
+THREAD_VARS = ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS",
+               "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS", "NUMBA_NUM_THREADS")
+
+
+def _power():
+    """Refuse to time on battery or in Low Power Mode (macOS); record the state."""
+    if sys.platform != "darwin":
+        return {"status": "not_applicable", "platform": sys.platform}
+    def pmset(*args):
+        return subprocess.check_output(("pmset", "-g", *args), cwd=ROOT, text=True).strip()
+    battery, settings = pmset("batt"), pmset("custom")
+    active = settings.split("AC Power:", 1)[-1].split("Battery Power:", 1)[0]
+    if "AC Power" not in battery or "lowpowermode         0" not in active:
+        raise RuntimeError("benchmark requires AC power with Low Power Mode off")
+    return {"status": "passed", "battery": battery, "settings": settings}
 
 
 def _sources(root):
@@ -152,7 +167,6 @@ def main():
     if args.worker:
         _worker(Path(args.worker[0]), *args.worker[1:], args.output, args.reps)
         return
-    from bench_efficient_inference import _power, THREAD_VARS
     from _peak_launcher import run_peak
     import numpy as np
     output = args.output.resolve()

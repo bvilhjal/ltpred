@@ -247,16 +247,15 @@ test a different, no-mixture observation model
 | error | batch-means MC SE (`res.se`) | no Monte-Carlo error (`res.se` is `0`), but a non-zero sequential moment-approximation error |
 | posterior variance | `Var(G_i \| family)` in `res.var`, from the retained draws | `Var(G_i \| family)` in `res.var`, as a sequential-moment approximation |
 | exactness | exact in the limit of infinite draws | exact for 1 truncation, close approx for families |
-| speed | ~180–690 families/s (4 threads) | ~92k–270k families/s — **392–518× faster than Gibbs in this package** across tested sizes/structures, at the same 4 threads. Versus the public R packages on the locked 200-family cohort, each at its default parallelism (ltpred 4 Numba threads, R 1 `future` worker): **6.79×** vs LTFHPlus Gibbs and **1418×** vs LTFGRS PA. Only the second is an implementation comparison. Re-run with both sides at one thread, the LTFHPlus/Gibbs fold is **1.75×** while LTFGRS/PA is **1425×** — Gibbs is `prange`-parallel so its fold tracks the thread count, PA is serial so its fold does not (RESULTS §30 for both columns and the load caveat) |
+| speed | Monte-Carlo, `prange`-parallel over families | deterministic and orders of magnitude faster on the object path, faster still on the array path. [RESULTS §2 and §30](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md) give the measured rates, the same-algorithm folds against LTFHPlus Gibbs and LTFGRS PA at four threads and at one (Gibbs's fold tracks the thread count, PA's does not), and the load caveat |
 | censoring mixture | not implemented | `use_mixture=True` |
 
 A locked comparison to R LTFHPlus 2.2.0 and LTFGRS 1.0.1 on the same
 classic LT-FH families is in
 [`RESULTS.md` §30](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md):
-both engines had correlation 0.9999 with the R Gibbs scores; ltpred PA
-and LTFGRS PA agree at RMSE 0.000087. Same-algorithm fold times were
-6.79× versus LTFHPlus Gibbs and 1418× versus LTFGRS PA. Total and
-per-family times, and isolated-process peak RSS, are in that section.
+both ltpred engines reproduce the R Gibbs scores and ltpred PA reproduces
+LTFGRS PA; total and per-family times, fold times and isolated-process peak
+RSS are in that section.
 
 The intra-package speed and agreement comparisons use ordinary bounds without the censoring
 mixture. Those rates are machine-specific medians from five warmed timings per point;
@@ -376,15 +375,14 @@ PA compares complete observation masks as byte strings when grouping families.
 With the genetic target already first, it reuses contiguous input bounds;
 Gaussian reductions center two owned work arrays in float64 in place. This
 avoids duplicate cohort arrays while preserving pin conditioning and interval
-order. The input arrays are not modified. In the
-[9 September 2026 rerun](https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-09-time-memory-v061-rerun),
-v0.6.1's mixed-mask PA batch of 200,000 families was 2.25× faster than v0.6.0
-(warm median 1.120 → 0.497 s), with peak process RSS 491.9 → 337.3 MiB and
-exactly matching means and variances. Interval-only and censoring-mixture
-batches improved by 1.06× and 1.08×, respectively. These are workload-specific
-measurements with one Numba thread and requested one-thread BLAS limits;
-first-call times and separately traced allocation peaks are recorded in the
-capsule. The driver is `benchmarks/bench_time_memory.py`.
+order. The input arrays are not modified. The
+[9 September 2026 rerun](https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-09-time-memory-v061-rerun)
+measured these changes on 200,000-family batches: the mixed-mask case gained
+the most in both warm time and peak memory, interval-only and mixture batches
+changed little, and every mean and variance matched exactly. The figures,
+thread settings and first-call times are in
+[RESULTS §31](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md#31-time-and-memory-v061-versus-v060);
+the driver is `benchmarks/bench_time_memory.py`.
 
 ## Multiple correlated traits
 

@@ -48,10 +48,12 @@ nav:
       - Assumptions & checklist: assumptions.md
   - Reference:
       - Algorithm & model: algorithm.md
+      - Research extensions: research.md
       - Technical report: report.md
       - API reference: api.md
   - Project:
       - Roadmap: ROADMAP.md
+      - Paper plan: PAPER_PLAN.md
       - Releasing: RELEASING.md
       - Independent review (v0.3.4): reviews/REVIEW_2026-08.md
       - Independent review (v0.4.2): reviews/REVIEW_2026-09.md

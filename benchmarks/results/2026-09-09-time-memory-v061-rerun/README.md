@@ -4,10 +4,9 @@ All seven time/memory cases completed successfully from a clean checkout of
 `b516271266a9fa0d95f5137954e4a284d1913ccb` (v0.6.1), against
 `52dec5294c101d4730c86d3307091be75dc47a5e` (v0.6.0).
 The candidate commit, package files, benchmark driver and support scripts were
-unchanged throughout measurement. This rerun uses the same inputs and settings
-as the [development comparison](../2026-09-09-time-memory/README.md).
+unchanged throughout measurement.
 
-The main findings reproduce: mixed-mask PA is 2.25x faster, and constructing a
+The main findings: mixed-mask PA is 2.25x faster, and constructing a
 million-record parent graph is 1.73x faster. Peak memory also falls. The small
 register-scoring case improves by about 3% in this run; it remains a much smaller
 change than the large-batch gains, and its call-allocation peak is unchanged.
@@ -45,25 +44,11 @@ run outside the timing process. MiB means 2^20 bytes.
 | PA, censoring mixture | 447.5 / 354.7 | 132.8 / 42.0 |
 | Register scoring, 300 probands | 159.3 / 156.8 | 3.1 / 3.1 |
 
-**Table 3. Warm speedup in the original comparison and this independent process
-rerun.** These are repeated measurements on one machine, not independent
-hardware replications or confidence intervals.
-
-| Workload | Original speedup | Rerun speedup |
-|---|---:|---:|
-| Parent graph, 200,000 records | 2.02x | 2.02x |
-| Parent graph, 1,000,000 records | 1.73x | 1.73x |
-| PA, mixed pin masks | 2.27x | 2.25x |
-| PA, common pin mask | 1.19x | 1.17x |
-| PA, intervals only | 1.07x | 1.06x |
-| PA, censoring mixture | 1.08x | 1.08x |
-| Register scoring, 300 probands | 0.99x | 1.03x |
-
 Every reported estimate and posterior variance matched exactly between versions
 in all four 200,000-family PA cases. All register scores, variances, relative
 counts, conditioning counts, closure counts and degree diagnostics matched
 exactly. Both graph workloads produced identical adjacency digests. Input
-settings and PA input hashes match both across versions and the original run.
+settings and PA input hashes match across versions.
 All 28 worker records are present: seven cases, two versions, and separate
 runtime/RSS and allocation processes. No case was skipped or failed.
 
