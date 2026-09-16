@@ -155,7 +155,7 @@ design, arms and CLI flags.
 | `bench_register_pipeline.py` | public trio-register pipeline: accuracy, CIP and calendar-prospective arms, AUC, calibration, throughput | `bench_register_pipeline.csv` |
 | `bench_tetrachoric.py` | tetrachoric relative-pair correlations and the Falconer diagnostic | `bench_tetrachoric.csv` |
 | `bench_liability_scale.py` | probit residual-scale variance and observed ↔ liability transformations | `bench_liability_scale.csv` |
-| `bench_aod_decay.py` | *research:* onset-age-dependent r_g fitting; `--robustness` adds wrong kernels and unmodelled C | `bench_aod_decay*.{csv,png}` |
+| `bench_aod_decay.py` | *research:* onset-age-dependent r_g fitting; `--robustness` adds wrong kernels and unmodelled C | `bench_aod_decay.{csv,png}` |
 | `bench_covariance_extensions.py` | *research:* sex-limited covariance vs sex-specific thresholds (a); direct-effect scoring under genetic nurture (b) | `bench_sex_limitation.{csv,png}`, `bench_nurture.{csv,png}` |
 | `bench_pgs_comparison.py` | PGS baseline and the PGS + LT-FH joint model with a train/test split and cross-fitted OLS (`--pgs-backend ldpred3` optional) | `bench_pgs_comparison.{csv,png}` |
 

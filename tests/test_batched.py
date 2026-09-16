@@ -8,9 +8,7 @@ from ltpred.family import Family, Member
 from ltpred.gibbs import gibbs_estimate_batched, gibbs_params
 from ltpred.estimate import estimate_liability
 
-
-def _imr(t):
-    return stats.norm.pdf(t) / stats.norm.sf(t)
+from _helpers import imr
 
 
 @pytest.mark.jit_required
@@ -32,8 +30,8 @@ def test_batched_kernel_matches_batch_means_single_round():
     est = tot[0] / n_sim
     ss = bm_sumsq[0] - bm_sum[0] ** 2 / nb        # sum((Y - Ybar)^2)
     se = np.sqrt(b * ss / (nb - 1) / n_sim)
-    assert est[0] == pytest.approx(0.5 * _imr(t), abs=0.03)
-    assert est[1] == pytest.approx(_imr(t), abs=0.03)
+    assert est[0] == pytest.approx(0.5 * imr(t), abs=0.03)
+    assert est[1] == pytest.approx(imr(t), abs=0.03)
     assert np.all(se > 0)
 
     # The streamed sums of squares give the *posterior* variance, a different
@@ -41,7 +39,7 @@ def test_batched_kernel_matches_batch_means_single_round():
     # case, Var(o | o > t) = 1 + t*IMR - IMR^2 and Var(g | o > t) =
     # h2 + h2^2 * (Var(o | o > t) - 1) by the Pearson-Aitken rank-1 update.
     var = tot_sq[0] / n_sim - est ** 2
-    var_o = 1.0 + t * _imr(t) - _imr(t) ** 2
+    var_o = 1.0 + t * imr(t) - imr(t) ** 2
     assert var[1] == pytest.approx(var_o, rel=0.05)
     assert var[0] == pytest.approx(0.5 + 0.25 * (var_o - 1.0), rel=0.05)
     # posterior variance is a property of the target, not of how long we sampled
@@ -78,9 +76,9 @@ def test_collapsed_genetic_matches_full_chain_mean():
     var_f = tsq_f / n_sim - est_f ** 2
     np.testing.assert_allclose(est_c, est_f, atol=0.03)
     np.testing.assert_allclose(var_c, var_f, atol=0.03)
-    imr = _imr(t)
-    assert est_c[0, 0] == pytest.approx(0.5 * imr, abs=0.03)
-    assert est_c[0, 1] == pytest.approx(imr, abs=0.03)
+    m = imr(t)
+    assert est_c[0, 0] == pytest.approx(0.5 * m, abs=0.03)
+    assert est_c[0, 1] == pytest.approx(m, abs=0.03)
 
 
 def test_collapse_all_unbounded_is_the_prior():

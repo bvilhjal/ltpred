@@ -18,9 +18,7 @@ from ltpred.estimate import (estimate_liability, _estimate_liability_pa,
                              estimate_liability_gibbs_arrays)
 from ltpred.simulate import simulate_under_LTM_single
 
-
-def _imr(t):
-    return stats.norm.pdf(t) / stats.norm.sf(t)
+from _helpers import imr
 
 
 def _tnorm_moments(mu=0.0, var=1.0, lower=-np.inf, upper=np.inf):
@@ -143,7 +141,7 @@ def test_pa_single_case_is_exact():
     t = float(stats.norm.isf(prev))
     cov = np.array([[h2, h2], [h2, 1.0]])  # roles g, o
     est, var = pa_algorithm(cov, lower=[-np.inf, t], upper=[np.inf, np.inf], target=0)
-    assert est == pytest.approx(h2 * _imr(t), abs=1e-9)
+    assert est == pytest.approx(h2 * imr(t), abs=1e-9)
     assert var > 0
 
 

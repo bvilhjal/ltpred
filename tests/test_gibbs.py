@@ -12,12 +12,9 @@ from ltpred._numba import HAVE_NUMBA
 from ltpred.gibbs import (rtmvnorm_gibbs, gibbs_params, gibbs_advance,
                           _seed_rng)
 
+from _helpers import imr
+
 gibbs_mod = importlib.import_module("ltpred.gibbs")
-
-
-def _imr(t):
-    """Inverse Mills ratio phi(t)/(1-Phi(t)) = mean of N(0,1) above t."""
-    return stats.norm.pdf(t) / stats.norm.sf(t)
 
 
 def _advance_from_zero(seed=None, n_families=12, d=3, n_sweeps=7):
@@ -101,8 +98,8 @@ def test_bivariate_case_posterior_genetic_liability():
     s = rtmvnorm_gibbs(cov, lower=[-np.inf, t], upper=[np.inf, np.inf],
                        out=(0, 1), n_sim=200_000, burn_in=1000, seed=1)
     gen, full = s.mean(axis=0)
-    assert full == pytest.approx(_imr(t), abs=0.02)
-    assert gen == pytest.approx(h2 * _imr(t), abs=0.02)
+    assert full == pytest.approx(imr(t), abs=0.02)
+    assert gen == pytest.approx(h2 * imr(t), abs=0.02)
 
 
 def test_bivariate_control_posterior_is_negative():

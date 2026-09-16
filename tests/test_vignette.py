@@ -1,15 +1,11 @@
 """Keep the vignette's small public-register example executable."""
 
-import importlib.util
-from pathlib import Path
-
 import numpy as np
 
+from _helpers import load_script
 
-SPEC = importlib.util.spec_from_file_location(
-    "ltpred_vignette_example", Path(__file__).parents[1] / "examples" / "vignette.py")
-VIGNETTE = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(VIGNETTE)
+
+VIGNETTE = load_script("examples/vignette.py")
 
 
 def test_register_example_preserves_calendar_and_closure_contracts():

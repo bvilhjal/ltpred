@@ -117,7 +117,7 @@ def main():
     ap.add_argument("--m-iter", type=int, default=100)
     ap.add_argument("--seed", type=int, default=200)
     # panel (d) misspecification robustness -- separate sizing so its defaults
-    # stay comparable to the historical bench_aod_decay_robustness.csv
+    # stay comparable to the historical standalone robustness run (RESULTS §25)
     ap.add_argument("--robustness", action=argparse.BooleanOptionalAction,
                     default=True, help="run misspecification panel (d)")
     ap.add_argument("--rob-n-fam", type=int, default=2000)

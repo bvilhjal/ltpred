@@ -17,9 +17,7 @@ from ltpred.fit import fit_heritability, fit_variance_components
 from ltpred.simulate import simulate_under_LTM_single
 from ltpred.thresholds import age_thresholds
 
-
-def _imr(t):
-    return stats.norm.pdf(t) / stats.norm.sf(t)
+from _helpers import imr
 
 
 def test_batch_means_mean_and_se():
@@ -64,8 +62,8 @@ def test_single_proband_case_only():
     fam = Family("f1", [Member("o", lower=t, upper=np.inf)])
     res = estimate_liability([fam], h2=h2, method="gibbs", out=("genetic", "full"),
                              tol=0.02, n_sim=40_000, burn_in=800, seed=1)
-    assert res.est["full"][0] == pytest.approx(_imr(t), abs=0.05)
-    assert res.est["genetic"][0] == pytest.approx(h2 * _imr(t), abs=0.05)
+    assert res.est["full"][0] == pytest.approx(imr(t), abs=0.05)
+    assert res.est["genetic"][0] == pytest.approx(h2 * imr(t), abs=0.05)
     assert res.se["genetic"][0] <= 0.02
 
 
@@ -76,8 +74,8 @@ def test_pa_full_matches_gibbs_estimand_on_a_lone_case():
     t = float(stats.norm.isf(prev))
     fam = Family("f1", [Member("o", lower=t, upper=np.inf)])
     pa = estimate_liability([fam], h2=h2, method="pa", out=("genetic", "full"))
-    assert pa.est["full"][0] == pytest.approx(_imr(t), abs=1e-9)
-    assert pa.est["genetic"][0] == pytest.approx(h2 * _imr(t), abs=1e-9)
+    assert pa.est["full"][0] == pytest.approx(imr(t), abs=1e-9)
+    assert pa.est["genetic"][0] == pytest.approx(h2 * imr(t), abs=1e-9)
     unbound = Family("f2", [Member("o", lower=-np.inf, upper=np.inf)])
     rel_only = estimate_liability([unbound], h2=h2, method="pa", out="full")
     assert rel_only.est["full"][0] == pytest.approx(0.0)
@@ -571,7 +569,7 @@ def test_multitrait_gibbs_matches_single_truncation_closed_form():
 
     K = 0.10
     t = float(stats.norm.isf(K))
-    lam = _imr(t)                                  # E[Z | Z > t]
+    lam = imr(t)                                  # E[Z | Z > t]
     rg = np.array([[1.0, 0.6], [0.6, 1.0]])
     rp = np.array([[1.0, 0.5], [0.5, 1.0]])
     # only trait 1's mother is a case; every other coordinate uninformative

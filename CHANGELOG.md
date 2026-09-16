@@ -25,6 +25,11 @@ version is 0 the public API may still change between minor releases.
   rows live in `bench_fh_prediction.csv` panel (e) and
   `bench_genetic_correlation.csv` panel (c), which is where RESULTS sections 3
   and 11 already read them from.
+- `benchmarks/bench_aod_decay_robustness.csv`: artifact of the standalone
+  robustness script retired in the same consolidation (its panel is now
+  `bench_aod_decay.py --robustness`), which no current script writes. Its rows
+  — byte-identical values — live in `bench_aod_decay.csv` under
+  `panel=robustness`, which is where RESULTS §25 reads them from.
 - The 5 September 2026 efficiency pilot: `benchmarks/bench_efficient_inference.py`,
   its 2.3 MB capsule under `benchmarks/results/` (input arrays and a copy of the
   measured source, 29% of the repository), its `check_evidence.py` binding and
@@ -58,6 +63,20 @@ version is 0 the public API may still change between minor releases.
   constant predictor scores 0 or NaN) call them instead;
   `bench_time_memory.py` carries its own power guard now that the pilot
   script it imported is gone.
+- Benchmarks: the remaining hand-rolled `csv.DictWriter` bodies — in
+  `bench_tetrachoric.py`, `bench_liability_scale.py`, `bench_cip_estimation.py`
+  and three writers of `bench_ltfhplus_compare.py` — call `write_rows` too,
+  and five scripts drop their own repo-root `sys.path` dance for the
+  `_common` import (`bench_pedigree_inference.py` drops its local `mean_se`,
+  identical to `_common`'s, which `bench_register_pipeline.py` now imports
+  from there). `bench_misspecification.py` (uses nothing from `_common`) and
+  `bench_time_memory.py` (deliberately standalone) keep their own path setup.
+  Verified behavior-preserving: reruns of the three committed-CSV scripts in
+  the recorded environment reproduce their CSVs byte for byte, and the
+  converted writers are byte-equivalent on representative rows. The
+  benchmarks README's script table is regrouped by purpose (score quality,
+  GWAS gains, fitters, research fits, pipelines, cross-package/computational)
+  instead of one 29-row list.
 - Tests: same-shape checks are parametrised tables (duplicate-role rejection
   across nine entry points, covariance-correction warnings across five, Gibbs
   sampler-control validation on both APIs, `families_from_columns` missing-id

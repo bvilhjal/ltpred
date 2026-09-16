@@ -1,21 +1,11 @@
 """Regression checks for the register benchmark's calendar-time design."""
 
-import importlib.util
-import pathlib
-import sys
-
 import numpy as np
 
+from _helpers import load_script
 
-BENCHMARKS = pathlib.Path(__file__).parents[1] / "benchmarks"
-SPEC = importlib.util.spec_from_file_location(
-    "bench_register_pipeline", BENCHMARKS / "bench_register_pipeline.py")
-MODULE = importlib.util.module_from_spec(SPEC)
-sys.path.insert(0, str(BENCHMARKS))
-try:
-    SPEC.loader.exec_module(MODULE)
-finally:
-    sys.path.pop(0)
+
+MODULE = load_script("benchmarks/bench_register_pipeline.py")
 
 
 def test_simulated_birth_times_put_coparents_together_and_children_later():

@@ -1,23 +1,14 @@
 """Regression checks for the PGS benchmark's joint-model evaluation."""
 
 import csv
-import importlib.util
-import pathlib
-import sys
 from types import SimpleNamespace
 
 import numpy as np
 
+from _helpers import load_script
 
-BENCHMARKS = pathlib.Path(__file__).parents[1] / "benchmarks"
-SPEC = importlib.util.spec_from_file_location(
-    "bench_pgs_comparison", BENCHMARKS / "bench_pgs_comparison.py")
-MODULE = importlib.util.module_from_spec(SPEC)
-sys.path.insert(0, str(BENCHMARKS))
-try:
-    SPEC.loader.exec_module(MODULE)
-finally:
-    sys.path.pop(0)
+
+MODULE = load_script("benchmarks/bench_pgs_comparison.py")
 
 
 def test_joint_crossfit_is_deterministic_and_holds_out_own_target():
