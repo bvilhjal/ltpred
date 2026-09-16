@@ -22,16 +22,12 @@ Run:  conda run -n ltpred python benchmarks/bench_tetrachoric.py
 from __future__ import annotations
 
 import argparse
-import csv
 import os
-import sys
 import time
 
 import numpy as np
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+from _common import write_rows
 
 from ltpred.fit import fit_heritability  # noqa: E402
 from ltpred.simulate import simulate_under_LTM_single  # noqa: E402
@@ -117,25 +113,18 @@ def main():
     print("  " + np.array2string(R, precision=3, suppress_small=True))
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        "bench_tetrachoric.csv")
-    with open(out, "w", newline="") as fh:
-        writer = csv.DictWriter(
-            fh, fieldnames=("pair", "expected", "tetrachoric", "se",
-                            "latent_corr"),
-            lineterminator="\n")
-        writer.writeheader()
-        for a, b, e in PAIRS:
-            writer.writerow(dict(
-                pair=f"{a}-{b}", expected=e,
-                tetrachoric=float(np.mean(est[(a, b)])),
-                se=float(np.std(est[(a, b)], ddof=1) / np.sqrt(REPS)),
-                latent_corr=float(np.mean(latent_corr[(a, b)])),
-            ))
-        writer.writerow(dict(
-            pair="falconer_h2", expected=H2,
-            tetrachoric=float(np.mean(h2_falconer)),
-            se=float(np.std(h2_falconer, ddof=1) / np.sqrt(REPS)),
-            latent_corr=float(np.mean(h2_fit)),
-        ))
+    write_rows(out, [
+        dict(pair=f"{a}-{b}", expected=e,
+             tetrachoric=float(np.mean(est[(a, b)])),
+             se=float(np.std(est[(a, b)], ddof=1) / np.sqrt(REPS)),
+             latent_corr=float(np.mean(latent_corr[(a, b)])))
+        for a, b, e in PAIRS
+    ] + [dict(
+        pair="falconer_h2", expected=H2,
+        tetrachoric=float(np.mean(h2_falconer)),
+        se=float(np.std(h2_falconer, ddof=1) / np.sqrt(REPS)),
+        latent_corr=float(np.mean(h2_fit)),
+    )], fields=("pair", "expected", "tetrachoric", "se", "latent_corr"))
     print(f"\nwrote {os.path.basename(out)}")
     print(f"runtime {time.time() - t0:.0f}s")
 

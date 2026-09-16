@@ -86,6 +86,13 @@ version is 0 the public API may still change between minor releases.
   `test_env_components.py` are merged into the files for the modules they
   test. The two bootstrap tests and the PA-vs-Gibbs family test use smaller
   cohorts; the engine-vs-R lock carries the precision claim.
+- Tests: `tests/_helpers.py` is the suite's shared module (imported the way
+  benchmark scripts import `_common`): the four byte-identical `_imr`
+  inverse-Mills helpers across `test_estimate.py`, `test_pearson_aitken.py`,
+  `test_batched.py` and `test_gibbs.py`, and the three
+  `spec_from_file_location` loaders in `test_vignette.py`,
+  `test_benchmark_register.py` and `test_benchmark_pgs.py` (each carrying its
+  own `sys.path` dance) collapse into `imr` and `load_script` there.
 - CI: the two pure-Python-fallback jobs share one `KERNEL_TESTS` list, and a
   `research-tests` job runs `research/tests`, which passed (192 tests) but
   was collected by nothing.

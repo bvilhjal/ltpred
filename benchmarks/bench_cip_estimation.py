@@ -24,16 +24,12 @@ Run:  conda run -n ltpred python benchmarks/bench_cip_estimation.py
 from __future__ import annotations
 
 import argparse
-import csv
 import os
-import sys
 import time
 
 import numpy as np
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+from _common import write_rows
 
 from ltpred.cip import aalen_johansen_cip, kaplan_meier_cip  # noqa: E402
 from ltpred.covariance import construct_covmat_single, correct_positive_definite  # noqa: E402
@@ -216,26 +212,22 @@ def main():
 
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        "bench_cip_estimation.csv")
-    with open(out, "w", newline="") as fh:
-        writer = csv.DictWriter(
-            fh, fieldnames=("part", "metric", "value"), lineterminator="\n")
-        writer.writeheader()
-        writer.writerows([
-            dict(part="km_no_mortality", metric="max_abs_err", value=err),
-            dict(part="km_no_mortality", metric="grid_containment",
-                 value=containment),
-            dict(part="aj_mortality", metric="max_abs_err_crude", value=err_aj),
-            dict(part="km_mortality", metric="max_abs_err_crude",
-                 value=err_km_crude),
-            dict(part="km_mortality", metric="max_abs_err_marginal",
-                 value=err_km_marg),
-            dict(part="aj_delayed_entry", metric="max_abs_err_crude",
-                 value=err_lt),
-            dict(part="e2e_oracle", metric="slope", value=e2e["oracle"][0]),
-            dict(part="e2e_oracle", metric="corr", value=e2e["oracle"][1]),
-            dict(part="e2e_estimated", metric="slope", value=e2e["estimated"][0]),
-            dict(part="e2e_estimated", metric="corr", value=e2e["estimated"][1]),
-        ])
+    write_rows(out, [
+        dict(part="km_no_mortality", metric="max_abs_err", value=err),
+        dict(part="km_no_mortality", metric="grid_containment",
+             value=containment),
+        dict(part="aj_mortality", metric="max_abs_err_crude", value=err_aj),
+        dict(part="km_mortality", metric="max_abs_err_crude",
+             value=err_km_crude),
+        dict(part="km_mortality", metric="max_abs_err_marginal",
+             value=err_km_marg),
+        dict(part="aj_delayed_entry", metric="max_abs_err_crude",
+             value=err_lt),
+        dict(part="e2e_oracle", metric="slope", value=e2e["oracle"][0]),
+        dict(part="e2e_oracle", metric="corr", value=e2e["oracle"][1]),
+        dict(part="e2e_estimated", metric="slope", value=e2e["estimated"][0]),
+        dict(part="e2e_estimated", metric="corr", value=e2e["estimated"][1]),
+    ], fields=("part", "metric", "value"))
     print(f"\nwrote {os.path.basename(out)}")
     print(f"runtime {time.time() - t0:.0f}s")
 

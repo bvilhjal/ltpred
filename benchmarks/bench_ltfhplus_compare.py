@@ -39,7 +39,7 @@ import tempfile
 
 import numpy as np
 
-from _common import estimate, simulate_families
+from _common import estimate, simulate_families, write_rows
 from _peak_launcher import run_peak
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -87,23 +87,21 @@ def _check_r_pkg(name):
 
 def families_to_tbl(families, path):
     """Write the shared .tbl (fam_ID, indiv_ID, role, lower, upper)."""
-    with open(path, "w", newline="") as handle:
-        writer = csv.DictWriter(
-            handle, fieldnames=("fam_ID", "indiv_ID", "role", "lower", "upper"),
-            lineterminator="\n")
-        writer.writeheader()
-        for fam in families:
-            fid = str(fam.fam_id)
-            for member in fam.members:
-                if member.role == "g":
-                    continue
-                pid = (str(member.pid) if member.pid is not None
-                       else f"{fid}_{member.role}")
-                writer.writerow(dict(
-                    fam_ID=fid, indiv_ID=pid, role=member.role,
-                    lower=_fmt_bound(member.lower),
-                    upper=_fmt_bound(member.upper),
-                ))
+    rows = []
+    for fam in families:
+        fid = str(fam.fam_id)
+        for member in fam.members:
+            if member.role == "g":
+                continue
+            pid = (str(member.pid) if member.pid is not None
+                   else f"{fid}_{member.role}")
+            rows.append(dict(
+                fam_ID=fid, indiv_ID=pid, role=member.role,
+                lower=_fmt_bound(member.lower),
+                upper=_fmt_bound(member.upper),
+            ))
+    write_rows(path, rows, fields=("fam_ID", "indiv_ID", "role", "lower",
+                                   "upper"))
 
 
 def _fmt_bound(value):
@@ -224,16 +222,11 @@ def worker_main(args):
         if key not in seen:
             seen.add(key)
             fam_ids.append(key)
-    with open(args.out, "w", newline="") as handle:
-        writer = csv.DictWriter(
-            handle,
-            fieldnames=("fam_ID", "genetic_est", "seconds", "method"),
-            lineterminator="\n")
-        writer.writeheader()
-        for fid, value in zip(fam_ids, est):
-            writer.writerow(dict(
-                fam_ID=fid, genetic_est=float(value),
-                seconds=seconds, method=args.worker))
+    write_rows(args.out, [dict(
+        fam_ID=fid, genetic_est=float(value),
+        seconds=seconds, method=args.worker)
+        for fid, value in zip(fam_ids, est)],
+        fields=("fam_ID", "genetic_est", "seconds", "method"))
     print(f"ltpred {args.worker}  families={len(fam_ids)}  seconds={seconds:.4f}")
     return 0
 
@@ -419,11 +412,7 @@ def main():
             )
 
     out_csv = f"{args.output_prefix}.csv"
-    with open(out_csv, "w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]),
-                                lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
+    write_rows(out_csv, rows, fields=list(rows[0]))
 
     def mean_se(key):
         vals = np.array([r[key] for r in rows], float)

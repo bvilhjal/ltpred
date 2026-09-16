@@ -45,12 +45,10 @@ import time
 
 import numpy as np
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
-sys.path.insert(0, os.path.join(ROOT, "benchmarks"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from bench_pedigree_inference import mean_se, paired_summary, simulate_population  # noqa: E402
+from _common import mean_se  # noqa: E402 — also puts the repo root on sys.path
+from bench_pedigree_inference import paired_summary, simulate_population  # noqa: E402
 from ltpred.cip import aalen_johansen_cip  # noqa: E402
 from ltpred.covariance import kinship_from_pedigree  # noqa: E402
 from ltpred.pipeline import estimate_liabilities  # noqa: E402

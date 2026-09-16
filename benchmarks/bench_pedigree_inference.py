@@ -33,15 +33,12 @@ from __future__ import annotations
 import argparse
 import csv
 import os
-import sys
 import time
 
 import numpy as np
 from scipy import stats
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+from _common import mean_se
 
 from ltpred.covariance import (construct_covmat_from_kinship,  # noqa: E402
                                kinship_from_pedigree)
@@ -180,14 +177,6 @@ def payoff_replicate(rng, n_est, n_founder_pairs):
     return (float(np.corrcoef(truths, ests_degree)[0, 1]),
             float(np.corrcoef(truths, ests_role)[0, 1]),
             float(np.corrcoef(ests_degree, ests_role)[0, 1]))
-
-
-def mean_se(values):
-    """Across-replicate mean and SE (sd / sqrt(R), ddof=1); nan SE for R < 2."""
-    v = np.asarray(values, dtype=float)
-    if v.size < 2:
-        return float(v.mean()), float("nan")
-    return float(v.mean()), float(v.std(ddof=1) / np.sqrt(v.size))
 
 
 def paired_summary(deltas):
