@@ -10,6 +10,12 @@ repository, not in the lean source distribution or this HTML site:
 - PDF: [`report/ltpred_methods.pdf`](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf)
 - LaTeX source: [`report/ltpred_methods.tex`](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.tex)
 
+The tracked report describes v0.7.0, including joint heritability and
+genetic/residual environmental covariance fitting. For its input contract,
+replicated evidence and runnable code, see the
+[Inference guide](inference.md#joint-heritability-and-cross-trait-correlations)
+and [vignette example](vignette.md#joint-heritability-and-geneticenvironmental-correlation).
+
 Rebuild with [Tectonic](https://tectonic-typesetting.github.io/):
 
 ```bash

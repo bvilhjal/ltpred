@@ -932,12 +932,21 @@ covariance is `G ⊗ A + E ⊗ I`; the appended target genetic coordinate carrie
 `E` contribution. The constructor rejects an incoherent decomposition rather than
 silently applying a positive-definite correction to a different model.
 
-### Research-only multi-trait fitters
+### Fitting multi-trait covariances
 
-Genetic-correlation, onset-age-decay and common-factor fitting are not part of
-the installed package; they live in `research/advanced_fitting.py` and are
-documented, with their identifiability caveats, on the
-[research extensions](research.md) page.
+The installed, opt-in `fit_pairwise_multi` jointly estimates heritabilities,
+genetic correlation and residual environmental correlation from binary family
+records. It maximises a composite likelihood of observed pairs with PSD trait
+covariance matrices, optionally including full-sibship C and couple M.
+Identifiability is checked using observed contrasts before fitting. Sampling
+SEs use family-cluster scores and a delta method; covariance boundaries
+withhold normal SEs. See [Inference](inference.md#joint-heritability-and-cross-trait-correlations)
+for the model, common-threshold/population-IPW contracts and uncertainty limits.
+The multi-trait scorer above remains A+E only.
+
+The HE genetic-correlation, onset-age-decay and common-factor prototypes remain
+checkout-only in `research/advanced_fitting.py`; their separate assumptions
+and limitations are documented under [research extensions](research.md).
 
 ## Background and references
 

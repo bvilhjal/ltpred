@@ -133,8 +133,8 @@ ID). [`examples/vignette.py`](examples/vignette.py) shows both. The three uses
 - **II. A quantitative GWAS phenotype** in place of the 0/1 label (own status
   *in*), the LT-FH association use. This is what you get if you pass their
   diagnosis in the usual way. ADuLT skips relatives.
-- **III. Architecture, relationships, aetiology** from liability-scale h² / r_g
-  and/or the CIP. Pedigree scoring is optional.
+- **III. Architecture, relationships, aetiology** from liability-scale h² and
+  genetic/environmental covariances and/or the CIP. Pedigree scoring is optional.
 
 ## How it works
 
@@ -190,7 +190,8 @@ Aalen-Johansen, `ltpred.cip`), Gibbs, PA and nuclear-family quadrature, single-
 and multi-trait `estimate_liability`, simulation, and **model fitting** —
 heritability (`fit_heritability`), variance components A + C + M
 (`fit_variance_components`), optional common-threshold pairwise likelihood
-(`fit_pairwise`), approximate iid-family cluster percentile intervals
+(`fit_pairwise`), joint multi-trait h²/rg/re and optional sibship/couple
+covariance (`fit_pairwise_multi`), approximate iid-family cluster percentile intervals
 (`bootstrap_fit`), liability-scale transformations (`ltpred.liability_scale`),
 and tetrachoric-correlation diagnostics
 (`ltpred.tetrachoric`) for liability correlations straight from 2x2
@@ -205,13 +206,13 @@ arbitrary-kinship estimator also accepts caller-supplied kernels via
 `c2`/`c_kernel` and `m2`/`m_kernel`, and (PA only) `use_mixture=True` with
 per-member `K_i`/`K_pop` for the PA-FGRS censored-control mixture; Gibbs still
 has no mixture implementation. The fitters remain role-based and require
-independent, non-overlapping families, and the multi-trait route rejects
+independent, non-overlapping families, and the multi-trait scoring route rejects
 `c2`/`m2` rather than silently ignoring them.
 
 Unsupported research code lives in the checkout-only **`research/` package**
 (importable as `research.<module>` from a checkout; not installed with the
 wheel, not part of the public API, interfaces may change): the
-genetic-correlation, onset-age-decay, common-factor and genetic-nurture fits,
+HE genetic-correlation, onset-age-decay, common-factor and genetic-nurture fits,
 the MCEM variance-component fit and the parametric-bootstrap significance tests
 in `research.advanced_fitting`, plus the sex-limited and genetic-nurture
 covariance constructors in `research.covariance_extensions`. It has its own

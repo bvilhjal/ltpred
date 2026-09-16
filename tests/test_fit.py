@@ -13,6 +13,17 @@ from ltpred import (simulate_under_LTM_single, fit_heritability,
 from ltpred.family import Family, Member
 
 
+@pytest.mark.parametrize("components", [("A",), ("A", "C")])
+def test_missing_phenotypes_cannot_identify_components(components):
+    fams = [Family(i, [Member("o", -np.inf if i % 2 else 0., 0. if i % 2 else np.inf),
+                       Member("m", -np.inf, np.inf), Member("s1", -np.inf, np.inf)])
+            for i in range(20)]
+    with pytest.raises(ValueError, match="not identified from observed pairs"):
+        fit_variance_components(fams, components, n_iter=10, burn_in=3, sampling="population")
+    with pytest.raises(ValueError, match="not identified from observed pairs"):
+        fit_heritability(fams, n_iter=10, burn_in=3, sampling="population")
+
+
 @pytest.mark.parametrize("h2_true", [0.3, 0.6])
 def test_recovers_simulated_heritability(h2_true):
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=h2_true,

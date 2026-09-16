@@ -415,9 +415,13 @@ Nonzero `c2`/`m2` also raise: component proportions alone do not specify the
 cross-trait covariance of `C` or `M`. Separate single-trait liability estimates
 are appropriate only when giving up cross-trait borrowing is intentional; a
 joint extension needs explicit cross-trait environmental covariance inputs.
-Experimental genetic-correlation fitting is available only in the checkout's
-unsupported `research/` package; see
-[Inference](inference.md#unsupported-research-prototypes).
+For common-threshold family data, the installed `fit_pairwise_multi` jointly
+fits `h2`, genetic and residual environmental correlations. An A+E fit supplies
+`joint.h2`, `joint.rg` and `joint.rp` for the three inputs above. A fit including
+C/M cannot be transferred this way: that would incorrectly move shared
+covariance into within-person residual E. See
+[joint inference](inference.md#joint-heritability-and-cross-trait-correlations)
+for its separate sampling contract and uncertainty.
 
 ## Using the estimate in a GWAS
 

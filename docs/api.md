@@ -32,9 +32,10 @@ is also a top-level export.
 | `estimate_liability_quadrature_arrays` | opt-in numerical posterior moments for additive, noninbred nuclear families with `0 <= h2 < 1`; separate refinement diagnostics, no mixture or shared environment |
 | `fit_variance_components` | **fit** additive `A` + shared-environment `C` (sibship) / `M` (couple) as proportions under the same population-sampling contract |
 | `fit_pairwise` | opt-in deterministic A/C/M binary-pair composite likelihood; common thresholds, independent families and explicit population/IPW sampling contract; conditional interior cluster-sandwich SEs |
+| `fit_pairwise_multi` | opt-in joint h²/rg/re and optional multivariate sibship/couple covariance; observed-pair identification, PSD components, population/IPW and conditional cluster-sandwich SEs |
 | `bootstrap_fit` | iid-family cluster bootstrap SD / percentile interval; it does not correct ascertainment bias |
 
-The heavier inferential machinery — the multi-trait genetic-correlation,
+The heavier inferential machinery — the HE multi-trait genetic-correlation,
 onset-age-decay, common-factor and genetic-nurture fits, the MCEM
 variance-component fit, and the parametric-bootstrap significance tests — lives
 in the unsupported checkout-only
@@ -168,3 +169,7 @@ for the sampling contract and distinction from the existing stochastic fitters.
 ## Runtime configuration — `ltpred.set_num_threads`
 
 ::: ltpred._numba.set_num_threads
+
+## Joint pairwise fitting — `ltpred.pairwise_multi`
+
+::: ltpred.pairwise_multi

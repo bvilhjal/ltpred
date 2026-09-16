@@ -168,10 +168,12 @@ role-based `estimate_liability` still takes a scalar `h2`.
 
 ## Multi-trait fitters (`research/advanced_fitting.py`)
 
-The supported [multi-trait estimator](algorithm.md#multiple-traits) takes the
-genetic and environmental correlation matrices as inputs. The fitters below
-estimate them from family data; none is installed, and the moment and EM
-routes carry the identifiability caveats stated in each section.
+The supported [multi-trait scorer](algorithm.md#multiple-traits) takes
+covariance parameters as inputs. For joint common-threshold fitting, use the
+installed [`fit_pairwise_multi`](inference.md#joint-heritability-and-cross-trait-correlations)
+API, including optional sibship/couple covariance and family-cluster sampling
+SEs. The alternative prototypes below remain uninstalled, checkout-only code;
+their moment and EM routes carry the caveats stated in each section.
 
 ### Fitting the genetic correlation
 

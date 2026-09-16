@@ -210,6 +210,45 @@ statistical criterion from the stochastic moment fitter. Neither matching
 point estimates on a few simulations nor passing probability tests establishes
 coverage or statistical efficiency. The new method is explicit and opt-in.
 
+\subsection{Joint genetic and environmental covariance}
+\label{sec:joint-pairwise}
+
+For $P\ge2$ binary traits, \texttt{fit\_pairwise\_multi} extends the observed-pair
+criterion to positive-semidefinite trait covariance matrices. Write $G,S,T,E$
+for additive genetics, full sibship, couples and within-person residuals.
+In trait-major coordinates, equation~\eqref{eq:joint-pairwise-covariance} defines
+the model:
+\begin{equation}
+ \Sigma=G\otimes A+S\otimes C+T\otimes M+E\otimes I,
+ \qquad \operatorname{diag}(G+S+T+E)=\bm{1}.
+ \label{eq:joint-pairwise-covariance}
+\end{equation}
+Omit $S$ and/or $T$ when their components are not requested; $E$ remains
+positive definite. Heritabilities are $\operatorname{diag}(G)$, and $r_g$ and
+$r_e$ standardise $G$ and $E$, respectively. Thus $r_e$ describes residual
+environment, while $S+T+E$ is total non-genetic covariance. The descriptive
+couple kernel does not model the inheritance consequences of assortative mating.
+
+Each trait has one common threshold across people, though thresholds may differ
+between traits. Only jointly observed coordinates contribute probabilities or
+identifying contrasts: missing relatives cannot identify a component through
+latent imputation. The fitter rejects deficient observed designs, overlapping
+person IDs, and failed or infeasible optimisation. Independent families,
+population sampling or known positive family inclusion probabilities, and
+missingness that preserves pair distributions are required. Family-score
+sandwich covariance and a delta method give conditional sampling SEs; thresholds
+and weights are held fixed. Any covariance boundary withholds all normal SEs,
+and correlations with negligible component variance are undefined.
+
+The \href{https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-16-joint-pairwise}{16 September development capsule}
+retains repeated recovery and coverage checks for signed and null correlations,
+shared environment, missing observations, positive IPW, and omitted shared
+components. Coverage conditions on available interior SEs and does not establish
+boundary inference or general calibration for register data. The archived
+source predates the version-only change to v0.7.0. Multi-trait liability scoring
+still uses $G\otimes A+E\otimes I$; folding $S+T$ into its residual would change
+the model.
+
 \subsection{Time and memory between versions}
 \label{sec:time-memory}
 
@@ -264,5 +303,5 @@ before and after; worker-start load averages were 2.46--3.29.
 The \href{https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-09-time-memory-v061-rerun}{run capsule}
 retains first-call times, warm repetitions, both memory measures and provenance.
 These repeat measurements support workload-specific computational gains,
-not statistical calibration or full-register scaling. This v0.6.2 report
-update leaves the measured v0.6.1 numerical implementation unchanged.
+not statistical calibration or full-register scaling. These measurements
+describe v0.6.1, not the later joint-fitting implementation in v0.7.0.

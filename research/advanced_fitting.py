@@ -42,12 +42,15 @@ from ltpred._mathfun import norm_cdf, norm_ppf
 from ltpred._validation import validate_bounds
 from ltpred.covariance import get_relatedness, correct_positive_definite
 from ltpred.estimate import (_group_by_structure, _validate_multitrait_bounds,
+                             _check_unique_roles, _assert_nonempty_families,
                              batch_means)
 from ltpred.family import Family, Member
 from ltpred.fit import (fit_variance_components, _COMPONENT_OFFDIAG,
                         _component_matrix, _prepare_group_vc,
                         _validate_population_sampling, _assert_common_thresholds,
-                        _assert_population_case_rate)
+                        _assert_population_case_rate, _assert_nonoverlapping_pids,
+                        _validate_iteration_controls, _validate_update_controls,
+                        _assert_observed_identification)
 from ltpred.gibbs import (gibbs_params, gibbs_advance, gibbs_advance_moment,
                           _init_chain, _FIXED_TOL, _offset_seed, _seed_rng)
 
@@ -236,7 +239,15 @@ def fit_variance_components_mcem(families, components=("A", "C"), *,
     same personalised-threshold bias and **rejects** personalised/onset-pinned
     LT-FH++ bounds rather than fitting them to the boundary. Standard NaN and
     interval-order validation still applies."""
+    n_iter, burn_in, inner_sweeps = _validate_iteration_controls(
+        n_iter, burn_in, inner_sweeps)
+    damp, eps = _validate_update_controls(damp, eps)
+    _check_unique_roles(families)
+    _assert_nonempty_families(families)
+    _assert_nonoverlapping_pids(families, "fit_variance_components_mcem")
     comps = list(components)
+    if not comps:
+        raise ValueError("components must contain at least one component")
     for c in comps:
         if c not in _COMPONENT_OFFDIAG:
             avail = ", ".join(_COMPONENT_OFFDIAG)
@@ -256,6 +267,7 @@ def fit_variance_components_mcem(families, components=("A", "C"), *,
     C = len(comps)
     groups = [_prepare_group_vc(families, idx, comps)
               for _key, idx in _group_by_structure(families)]
+    _assert_observed_identification(groups, comps, context="MCEM fit")
     XtX = np.zeros((C, C))
     for g in groups:
         for (_i, _j, row) in g["pairs"]:
@@ -1137,6 +1149,11 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
     applies."""
     if not families:
         raise ValueError("no families provided")
+    n_iter, burn_in, inner_sweeps = _validate_iteration_controls(
+        n_iter, burn_in, inner_sweeps)
+    damp, eps = _validate_update_controls(damp, eps)
+    _check_unique_roles(families)
+    _assert_nonoverlapping_pids(families, "fit_genetic_correlation")
     _require_member_rows(families, context="genetic-correlation fit")
     first_lower = np.asarray(families[0].members[0].lower)
     P = int(first_lower.size)
@@ -1164,6 +1181,8 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
     if sA2 <= 0:
         raise ValueError("no related pairs in the families — cannot fit genetic "
                          "correlation (need relatives, not lone probands).")
+    _assert_observed_identification(groups, ("A",), P,
+                                    context="genetic-correlation fit")
     n_members = sum(g["F"] * g["k"] for g in groups)
 
     if seed is not None:

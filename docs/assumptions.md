@@ -61,11 +61,19 @@ warn when they do so. The fitters ship descriptive sibship `C` and mate/couple
 `M` kernels, and the single-trait high-level predictor accepts them as `c2`/`m2`
 on the role/object and array paths. The arbitrary-kinship predictor accepts the
 same proportions only with caller-supplied `c_kernel`/`m_kernel`, because `A`
-does not encode environmental relationship classes. The high-level multi-trait dispatcher
-rejects nonzero `c2`/`m2` rather than silently dropping them, pending a defined
-cross-trait component covariance; see
+does not encode environmental relationship classes. Multi-trait **scoring**
+still rejects nonzero `c2`/`m2`. Joint **fitting** with `fit_pairwise_multi`
+supports PSD trait covariances for A, optional C/M, and residual E, but that
+does not extend the scorer; see
 [algorithm.md](algorithm.md#adding-environmental-covariance-to-improve-prediction)
-and [Inference](inference.md#variance-components-a-c-m).
+and [Inference](inference.md#joint-heritability-and-cross-trait-correlations).
+
+All common-threshold fitters require identifying contrasts among **jointly
+observed** phenotypes. Missing relatives cannot identify a component merely
+because the model can impute their liabilities. The joint fitter's `re` is
+the within-person residual E correlation; C/M correlations are separate.
+Omitting shared environment can distort the genetic/residual decomposition.
+These model components do not identify causal genetic or environmental effects.
 
 The family-data fitters assume **independent, non-overlapping families**, and
 one of two sampling contracts. When members carry `pid`, a person who appears
@@ -93,7 +101,7 @@ the assumed prevalence already inflates `h²` by +0.48
 First pick a **use** ([vignette](vignette.md) Table 1): **I** family-history
 risk prediction (own status out; optional PGS afterwards), **II** a
 quantitative GWAS phenotype (own status in), or **III** architecture /
-relationships / aetiology from `h²`, `r_g` and/or the CIP. Use III can skip
+relationships / aetiology from `h²`, `r_g`, residual `r_e` and/or the CIP. Use III can skip
 pedigree scoring; I and II disagree on role `o`.
 
 Then, before running a production analysis:
@@ -145,6 +153,12 @@ Then, before running a production analysis:
     mean the prevalence is wrong rather than the sample selected. Neither
     contract covers proband-ascertained families; those need an estimator that
     models the selection.
+13. For **joint covariance fitting**, supply one common case/control threshold
+    per trait, model defensible shared-environment components, and inspect
+    `inference_status`. Family-cluster SEs condition on the thresholds and
+    weights; any covariance boundary withholds normal SEs. Missingness must
+    preserve the modelled pair distributions, and zero-variance correlations
+    are undefined. See the [joint inference contract](inference.md#joint-heritability-and-cross-trait-correlations).
 
 ## Pitfalls
 

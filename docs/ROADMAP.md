@@ -13,14 +13,18 @@ Pearson--Aitken PA-FGRS mixture; role-based and arbitrary-kinship inputs; a
 narrow population-register driver with explicit GWAS/prediction observation
 sets; Gibbs and single-trait Pearson--Aitken inference; optional additive
 nuclear-family quadrature; and common-threshold liability-scale moment fitting.
-The opt-in pairwise likelihood fitter has numerical and known-truth checks;
-broad interval-coverage and statistical-efficiency validation remains pending.
+Opt-in pairwise likelihood fitting covers single-trait A/C/M and joint
+multi-trait heritability, genetic/residual correlations and shared-environment
+covariances. Numerical, known-truth and replicated coverage checks are recorded
+in the [evidence ledger](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md).
+Broad calibration across rare traits, family structures and sampling designs,
+boundary inference and statistical-efficiency comparisons remain unfinished.
 See the [guide](guide.md),
 [algorithm](algorithm.md), and [assumptions](assumptions.md) for the exact
 contracts.
 
-Experimental covariance models, selection-aware fitting, genetic-correlation
-fitting, and factor models remain under `research/`: unsupported, checkout-only
+Experimental covariance models, selection-aware fitting, HE genetic-correlation
+and onset-age-decay fitting, and factor models remain under `research/`: unsupported, checkout-only
 code that is deliberately absent from wheels. Its own suite runs in a CI job
 and five benchmark scripts import it, so it is kept importable, but nothing in
 it is part of the public API ([research extensions](research.md)).

@@ -5,7 +5,7 @@ liability-threshold model. It implements LT-FH, LT-FH++, ADuLT and PA-FGRS for
 family-history, age-of-onset and registry-scale analyses. The same core has
 three uses: family-history **risk prediction** (optionally with a PGS), a
 quantitative **GWAS phenotype**, and **architecture / relationships /
-aetiology** from $h^2$, $r_g$ and/or the CIP — see the
+aetiology** from $h^2$, genetic/environmental covariances and/or the CIP — see the
 [vignette](vignette.md).
 
 ## Start here
@@ -17,7 +17,8 @@ aetiology** from $h^2$, $r_g$ and/or the CIP — see the
   GWAS, aetiology), then $h^2$, pedigree, CIP, family history. Live page:
   [bvilhjal.github.io/ltpred/vignette](https://bvilhjal.github.io/ltpred/vignette/).
 - **[Workflow pages](data-preparation.md)** — prepare data, estimate scores and
-  understand the population-sampling-only fitting contract.
+  understand the population/positive-IPW fitting contract. For joint $h^2$,
+  $r_g$ and residual $r_e$, start with the [vignette example](vignette.md#joint-heritability-and-geneticenvironmental-correlation).
 - **[API reference](api.md)** — inspect the public workflow and advanced APIs.
 
 For the statistical model and implementation details, see

@@ -6,7 +6,23 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.7.0 — 2026-09-16
+
 ### Added
+
+- `fit_pairwise_multi`: opt-in joint liability-scale heritabilities, genetic
+  correlations and residual environmental correlations, with optional multivariate
+  sibship/couple components. Fits PSD covariance matrices from aggregated observed
+  binary-pair counts; provides conditional family-cluster sampling SEs and
+  withholds normal inference at covariance boundaries. Different trait thresholds,
+  missing phenotypes and positive family-level IPW are supported within the stated
+  common-threshold and independent-family contract.
+- `benchmarks/bench_pairwise_multi.py`: retained-replicate recovery and coverage
+  checks for both correlation signs, shared environment, MCAR missingness, IPW
+  and omission of shared components, with source snapshots and explicit failures.
+- Joint-inference guide/vignette and `examples/joint_inference.py`, including
+  trait-wise input preparation, residual versus shared environmental correlation,
+  observed-data identification and conditional sampling uncertainty.
 
 - `benchmarks/bench_pairwise_recovery.py` measures `fit_pairwise` recovery of
   A, C and M: bias with replicates allocated proportional to `1/N` so that
@@ -99,6 +115,11 @@ version is 0 the public API may still change between minor releases.
 
 ### Fixed
 
+- HE and research MCEM/correlation fits now reject covariance models unidentified
+  by the jointly observed phenotypes. Latent draws for missing relatives no longer
+  allow a heritability estimate from proband-only observations.
+- Research HE correlation and MCEM fits enforce core iteration/update controls,
+  unique roles and person-ID non-overlap; zero sweeps and zero damping raise.
 - `bench_ascertainment.py` refuses the r_g arm at `--h2 0` up front instead of
   dying inside `construct_covmat_multi` minutes later: a genetic correlation
   between traits with no genetic variance is undefined, and r_g is the only

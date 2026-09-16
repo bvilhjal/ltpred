@@ -68,6 +68,32 @@ def test_prepare_group_multi_aligns_bounds_by_role():
                         [0.2, -0.8, 0.6, -0.4]])
 
 
+@pytest.mark.parametrize("kwargs", [dict(inner_sweeps=0), dict(inner_sweeps=1.5),
+                                    dict(damp=0), dict(damp=np.nan), dict(eps=.6),
+                                    dict(n_iter=True), dict(burn_in=1.5)])
+def test_research_moment_controls_cannot_disable_fitting(kwargs):
+    multi = [Family(0, [Member("o", [0., 0.], [np.inf, np.inf])])]
+    controls = dict(n_iter=10, burn_in=3, sampling="population")
+    controls.update(kwargs)
+    with pytest.raises((ValueError, TypeError)):
+        fit_genetic_correlation(multi, **controls)
+    scalar = [Family(0, [Member("o", 0., np.inf)])]
+    with pytest.raises((ValueError, TypeError)):
+        fit_variance_components_mcem(scalar, **controls)
+
+
+def test_research_correlation_rejects_overlap_and_unobserved_relatives():
+    fams = [Family(i, [Member("o", [0., 0.] if i%2 else [-np.inf, -np.inf],
+                              [np.inf, np.inf] if i%2 else [0., 0.]),
+                       Member("m", [-np.inf, -np.inf], [np.inf, np.inf])])
+            for i in range(20)]
+    with pytest.raises(ValueError, match="not identified from observed pairs"):
+        fit_genetic_correlation(fams, n_iter=10, burn_in=3, sampling="population")
+    fams[0].members[0].pid = fams[1].members[0].pid = "overlap"
+    with pytest.raises(ValueError, match="appears in families"):
+        fit_genetic_correlation(fams, n_iter=10, burn_in=3, sampling="population")
+
+
 def test_prepare_group_multi_rejects_reversed_bounds():
     import importlib
     af_mod = importlib.import_module("research.advanced_fitting")
@@ -132,8 +158,10 @@ def test_genetic_correlation_uses_and_reports_one_coherent_psd_model(monkeypatch
         fixed_x[:, 2 * p] = U[:, p]
         fixed_x[:, 2 * p + 1] = V[:, p]
 
-    fams = [Family(f, [Member("o", [-np.inf] * n_pheno, [np.inf] * n_pheno),
-                             Member("m", [-np.inf] * n_pheno, [np.inf] * n_pheno)])
+    # Identifiable observed rectangles are required even though the mock sweep
+    # below deliberately supplies impossible cross-moments to test projection.
+    fams = [Family(f, [Member("o", [-np.inf] * n_pheno, [0.] * n_pheno),
+                             Member("m", [-np.inf] * n_pheno, [0.] * n_pheno)])
             for f in range(n_fam)]
     sampled = []
 

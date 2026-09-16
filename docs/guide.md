@@ -33,9 +33,9 @@ out with a pipeline figure in the [vignette](vignette.md):
   introduced for LT-FH by
   [Hujoel et al. (2020)](https://doi.org/10.1038/s41588-020-0613-6)
   (own status *in*; ADuLT skips relatives).
-- **III. Disease relationships and aetiology** from liability-scale `h²` /
-  `r_g` and/or the CIP — steps 0 and/or 2 of the vignette, without
-  necessarily scoring families.
+- **III. Disease relationships and aetiology** from liability-scale `h²`,
+  genetic/residual environmental correlations and/or the CIP — steps 0 and/or 2
+  of the vignette, without necessarily scoring families.
 
 Pearson–Aitken (PA, the single-trait default) and Gibbs can both infer LT-FH,
 LT-FH++ and ADuLT inputs. The PA-FGRS name includes PA, and ltpred's censoring
@@ -50,7 +50,7 @@ The guide is split into short, task-focused pages:
 | **[Data preparation](data-preparation.md)** | inputs, role grammar, arbitrary pedigrees, threshold builders, CIPs, getting `h²` |
 | **[CIP estimation](cip-estimation.md)** | estimating cumulative incidence from follow-up records (Kaplan-Meier, Aalen-Johansen), estimands, stratification |
 | **[Estimation](estimation.md)** | running the estimator, reading the result, Gibbs vs PA, scaling, multi-trait, GWAS export |
-| **[Inference](inference.md)** | population-sampled fitting of `h²` and variance components (A/C/M), plus family-cluster bootstrap |
+| **[Inference](inference.md)** | single-trait `h²`/A/C/M and joint `h²`/`r_g`/residual `r_e`, sampling assumptions and family-cluster uncertainty |
 | **[Assumptions & checklist](assumptions.md)** | modelling assumptions, real-data checklist, pitfalls |
 | **[API reference](api.md)** | the exported workflow plus advanced module APIs, with signatures and docstrings |
 
@@ -63,6 +63,8 @@ See [algorithm.md](algorithm.md) for the model and the estimators, and the
 for model and engine comparisons. For how to run the pipeline see the [vignette](vignette.md)
 ([`examples/vignette.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py)).
 Other runnable scripts:
+[`examples/joint_inference.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/joint_inference.py)
+(joint heritability and genetic/environmental correlation),
 [`examples/registry_pipeline.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/registry_pipeline.py)
 (status/age table to a score) and
 [`examples/ltfh_power_demo.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/ltfh_power_demo.py).
@@ -80,12 +82,19 @@ Uses I and II need, per proband:
   (`ltpred.tetrachoric`, the Falconer route `h² ~ 2 ×` first-degree
   tetrachoric).
 
-Use III is lighter: a liability-scale `h²` or `r_g` (step 0), a CIP or
-lifetime `K` (step 2), or both. Family records are optional.
+Use III can stop at the population parameters: liability-scale `h²`, genetic
+and environmental covariances (step 0), a CIP or lifetime `K` (step 2), or
+both. Use external estimates or fit from suitable family data. For two or
+more traits, the opt-in `fit_pairwise_multi` jointly estimates `h²`, `r_g`
+and **residual** `r_e`, with optional full-sibship `C` and couple `M`
+covariances. Its SEs describe sampling uncertainty for interior fits;
+`fit_heritability` reports a Monte-Carlo diagnostic instead. See the
+[worked example](vignette.md#joint-heritability-and-geneticenvironmental-correlation).
 
 !!! warning "Family-data fitting needs a declared sampling design"
 
-    `fit_heritability` and `fit_variance_components` assume independent,
+    `fit_heritability`, `fit_variance_components`, `fit_pairwise` and
+    `fit_pairwise_multi` assume independent,
     non-overlapping families under one of two contracts (a `pid` that appears
     in more than one family is rejected):
     `sampling="population"` for an unascertained sample — screened for gross
@@ -100,6 +109,11 @@ lifetime `K` (step 2), or both. Family records are optional.
     probability. Any design that samples no families from some stratum
     (ascertainment through an affected proband) cannot be reweighted. See
     [Inference](inference.md#ascertained-samples).
+
+    These fitters require a common case/control threshold per trait and
+    identifying contrasts among jointly observed relatives. Personalised
+    CIP/onset bounds remain scoring inputs; unobserved relatives cannot
+    identify a fitted component.
 
 The output of `estimate_liability` targets the posterior mean genetic
 liability of each proband (Gibbs by Monte Carlo; PA by a sequential-moment
@@ -147,7 +161,7 @@ way LTFHPlus does, and ships no plotting utilities.
 | logistic tutorial | `age_thresholds` with either row pattern above | PA or Gibbs | age-only demonstration, not full LT-FH++ |
 | published base PA-FGRS | role/object or kinship API; lifetime bounds from `prevalence_thresholds`; add control-specific `K_i`/`K_pop` from the CIP | PA with `use_mixture=True` | PA-FGRS |
 | age-dependent interval/mixture encoding | `pa_thresholds`, or `thresholds_from_cip(…, case_mode="interval")` | PA with `use_mixture=True` | PA-FGRS-style variant; neither base PA-FGRS nor exact PA-FGRS_ADT |
-| multiple traits | vector `h2` + correlation matrices | Gibbs only | model still follows bounds + rows |
+| score multiple traits | vector `h2` + genetic and full-liability correlation matrices | Gibbs only | A+E covariance; C/M fitting does not extend this scorer |
 
 In base PA-FGRS, every observed case uses
 `[Φ⁻¹(1 − K_pop), ∞)`. Age-specific incidence enters through the mixture weights

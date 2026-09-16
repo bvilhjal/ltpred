@@ -35,8 +35,8 @@
   {\large Model, efficient inference, and evidence in \texttt{ltpred}}}
 \author{Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
   {\small Aarhus University and SMARTbiomed}\\[0.35em]
-  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.6.2}}
-\date{9 September 2026}
+  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.7.0}}
+\date{16 September 2026}
 
 \begin{document}
 \maketitle
@@ -65,7 +65,7 @@ the sampling conditions under which a pedigree Haseman--Elston
 fit recovers \(\h\).
 They also derive exact observation reduction, at-most-two-dimensional
 parental-factor quadrature, selected relationship recursion, and an optional
-pairwise likelihood for common-threshold covariance fitting
+pairwise likelihood for single- and multi-trait common-threshold covariance fitting
 (Section~\ref{sec:reduction}).
 The following simulation summaries describe the archived benchmark snapshots;
 they do not validate the newly introduced fitting criterion or its uncertainty.
@@ -194,8 +194,9 @@ observations, (4) estimate the score, and (5) perform the downstream
 analysis. At the low level, the caller builds the own-status inclusion
 or exclusion into the bounds. The register driver performs that
 construction through an explicit use argument (Section~\ref{sec:impl}).
-Use~III does not imply a shipped family-based $r_g$ fitter:
-multi-trait scoring accepts a supplied genetic correlation matrix.
+Multi-trait scoring accepts supplied covariance parameters. Joint fitting of
+heritabilities, genetic and residual environmental correlations is available
+under the separate contract in Section~\ref{sec:joint-pairwise}.
 
 The multivariate threshold model on a pedigree is Sham's
 framework \cite{sham1998}.
@@ -709,7 +710,7 @@ need held-out calibration; the driver performs neither task.
 
 \paragraph{What is not implemented.}
 There is no Gibbs version of \eqref{eq:mix}.
-Multi-trait estimation is Gibbs-only.
+Multi-trait liability scoring is Gibbs-only.
 The shipped environment kernels $C$ and $M$ feed back into
 single-trait prediction through $c^{2}$ and $m^{2}$; a directional
 maternal effect is not $M$.

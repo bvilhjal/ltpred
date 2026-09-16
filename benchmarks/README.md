@@ -153,6 +153,7 @@ groups.
 |---|---|---|
 | `bench_fit_heritability.py` | bias, precision and `h2_se` calibration of `fit_heritability` | `bench_fit_heritability.{csv,png}` |
 | `bench_variance_components.py` | recovery of A and C by `fit_variance_components`, boundary behaviour, precision vs N | `bench_variance_components.{csv,png}` |
+| `bench_pairwise_multi.py` | joint h²/rg/re recovery, cluster-SE coverage, shared C/M, MCAR, IPW and correlation nulls; [development evidence](results/2026-09-16-joint-pairwise/README.md) | source snapshot + replicate/summary JSON in `--output` directory |
 | `bench_pairwise_recovery.py` | `fit_pairwise` recovery of A/C/M, sandwich-SE calibration, coverage, boundary pinning | `bench_pairwise_recovery.{csv,png}` |
 | `bench_shared_env.py` | value of modelling C (ignore-C vs fit A+C vs oracle); panel (c) end-to-end `c2`/`m2` wiring | `bench_shared_env.{csv,png}` |
 | `bench_couple_env.py` | recovery of A+M and the C-vs-M omission contrast | `bench_couple_env.{csv,png}` |

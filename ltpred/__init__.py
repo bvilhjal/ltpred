@@ -31,7 +31,7 @@ accelerates the Gibbs sweep. Names are imported lazily (PEP 562) so
 import importlib
 from typing import TYPE_CHECKING
 
-__version__ = "0.6.2"
+__version__ = "0.7.0"
 
 if TYPE_CHECKING:
     # Static re-exports. At runtime ``__getattr__`` below imports these lazily,
@@ -66,6 +66,7 @@ if TYPE_CHECKING:
     from .pipeline import PopulationScores, estimate_liabilities  # noqa: F401
     from .quadrature import QuadratureResult, estimate_liability_quadrature_arrays  # noqa: F401
     from .pairwise import PairwiseFitResult, fit_pairwise  # noqa: F401
+    from .pairwise_multi import MultiTraitPairwiseResult, fit_pairwise_multi  # noqa: F401
     from .simulate import Simulation, simulate_under_LTM_single  # noqa: F401
     from .tetrachoric import (TetrachoricResult, tetrachoric,  # noqa: F401
                               tetrachoric_matrix, tetrachoric_table)
@@ -78,6 +79,7 @@ if TYPE_CHECKING:
 _EXPORTS = {
     "quadrature": ["QuadratureResult", "estimate_liability_quadrature_arrays"],
     "pairwise": ["PairwiseFitResult", "fit_pairwise"],
+    "pairwise_multi": ["MultiTraitPairwiseResult", "fit_pairwise_multi"],
     "covariance": ["get_relatedness", "construct_covmat_single",
                    "construct_covmat_multi",
                    "correct_positive_definite", "Covmat",

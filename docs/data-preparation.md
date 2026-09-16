@@ -426,3 +426,38 @@ h2_falconer = 2 * r.rho
 Pairwise tetrachorics are also a useful model *diagnostic*: compare them with
 the `h² × A` the fitted covariance implies (benchmarked in
 `benchmarks/bench_tetrachoric.py`).
+
+### Preparing multiple traits for covariance fitting
+
+For `fit_pairwise_multi`, use role-based, independent families and **one
+common prevalence per trait**. Prepare an `(n_people, n_traits)` status
+matrix in a fixed trait order, with `0`/`1` for observed diagnoses and `NaN`
+for missing ones. The same person occupies one row across traits:
+
+```python
+import numpy as np
+from ltpred import families_from_columns, prevalence_thresholds
+
+# status: your person-by-trait matrix; prevalence: one population value per trait
+lower = np.full(status.shape, -np.inf)
+upper = np.full(status.shape, np.inf)
+for p, k in enumerate(prevalence):
+    observed = ~np.isnan(status[:, p])
+    lower[observed, p], upper[observed, p] = prevalence_thresholds(
+        status[observed, p], pop_prev=k,
+    )
+two_trait_families = families_from_columns(
+    fam_id, role, lower, upper, pid=pid,
+)
+```
+
+Missing cells remain `(-inf, inf)`; never recode them as controls.
+Personalised CIP/onset bounds are for scoring and are rejected by this
+fitter. Keep `phen_names` in column order and any IPW weights in family order
+(the first appearance of each `fam_id`). Person IDs permit overlap checks;
+independence remains a study-design requirement. Identification uses jointly
+observed pairs, so entirely missing relatives add no information. Dropping
+missing observations does not correct informative missingness. The
+[vignette example](vignette.md#joint-heritability-and-geneticenvironmental-correlation)
+fits the resulting data; [Inference](inference.md#joint-heritability-and-cross-trait-correlations)
+states the sampling contract and uncertainty limits.

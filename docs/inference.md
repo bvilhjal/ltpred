@@ -1,8 +1,9 @@
 # Inference
 
 Beyond estimating each proband's liability, ltpred can **fit the model** from the
-family data: the liability-scale heritability and the shared-environment variance
-components. That is **use III** of the [vignette](vignette.md) (architecture),
+family data: liability-scale heritability, genetic/residual environmental
+correlations and shared-environment covariance components. That is **use III**
+of the [vignette](vignette.md) (architecture),
 under a declared sampling contract — not a side effect of scoring families for
 prediction or a GWAS. It is optional: skip straight to
 [estimation](estimation.md) if you already have an `h²`.
@@ -11,7 +12,8 @@ Unsupported experimental inferential machinery lives in the checkout-only
 
 !!! danger "Supported sampling contract"
 
-    `fit_heritability`, `fit_variance_components` and `fit_pairwise` assume independent,
+    `fit_heritability`, `fit_variance_components`, `fit_pairwise` and
+    `fit_pairwise_multi` assume independent,
     non-overlapping families. When members carry `pid`, a person who appears
     in more than one family (distinct `fam_id`) is rejected; use
     `estimate_liability` for per-proband scores on overlapping register
@@ -46,7 +48,8 @@ Unsupported experimental inferential machinery lives in the checkout-only
 The meaning of a reported `se` depends on the method. For the
 Haseman–Elston/data-augmentation fits, it is a *within-dataset* Monte-Carlo
 diagnostic, not across-dataset sampling uncertainty.
-The opt-in [pairwise fitter](#deterministic-pairwise-fitting) instead reports
+The opt-in [single-trait](#deterministic-pairwise-fitting) and
+[joint multi-trait](#joint-heritability-and-cross-trait-correlations) pairwise fitters report
 conditional, asymptotic family-cluster sampling SEs for interior estimates.
 [`bootstrap_fit`](#family-cluster-uncertainty-bootstrap_fit) provides an
 approximate family-cluster sampling interval when families are independent.
@@ -175,6 +178,80 @@ For cluster resampling, an existing `bootstrap_fit` callback can return
 both `f` and resampled `w` and pass `weights=weights` to `bootstrap_fit`.
 No internal random seed is needed. Bootstrap or profile inference at a
 boundary still needs separate calibration.
+
+## Joint heritability and cross-trait correlations
+
+`fit_pairwise_multi` is an opt-in deterministic fit of per-trait heritability,
+genetic correlation and residual environmental correlation. Each member has
+one explicit lower/upper bound per trait. Thresholds can differ **between
+traits**, but the current implementation requires one common threshold per
+trait across people. Unobserved phenotypes use `(-inf, inf)`.
+See the [input recipe](data-preparation.md#preparing-multiple-traits-for-covariance-fitting)
+and [runnable vignette example](vignette.md#joint-heritability-and-geneticenvironmental-correlation).
+
+```python
+from ltpred import fit_pairwise_multi
+joint = fit_pairwise_multi(
+    two_trait_families, components=("A", "C", "M"), sampling="population",
+)
+joint.h2, joint.rg, joint.re
+joint.se["h2"], joint.se["rg"], joint.se["re"]
+joint.components["C"], joint.correlations["C"]
+joint.inference_status
+```
+
+Let `G`, `S`, `T` and `E` be the trait covariance matrices for additive
+genetics, sibship, couples and within-person residuals. With phenotype-major
+coordinates, the fitted model is equation (1):
+
+\[
+\Sigma = G\otimes A + S\otimes C + T\otimes M + E\otimes I,
+\qquad \operatorname{diag}(G+S+T+E)=1. \tag{1}
+\]
+
+`components=("A",)` omits `S` and `T`; include `C` and/or `M` only when the
+observed relationship contrasts identify them. All component matrices are
+positive semidefinite; residual `E` has eigenvalues at least `eps`. The
+same kernel interpretations as the single-trait fit apply: `C` means shared
+full sibship, and `M` describes spousal resemblance without modelling the
+inheritance consequences of assortative mating.
+
+`h2` is `diag(G)`, `rg` standardises `G`, and **`re` standardises residual
+`E`**. Shared environmental correlations are separately available through
+`correlations["C"]` and `correlations["M"]`. Within-person phenotypic
+correlation `rp` sums all included covariance matrices. Consequently
+`rp - genetic_cov` is the *total* non-genetic covariance, which differs from
+residual `env_cov` when shared components are included. These are
+model-dependent decompositions, not causal environmental effects.
+
+Only jointly observed coordinates contribute pair probabilities or identifying
+contrasts. Missing rows cannot supply information by being imputed. Missingness
+must preserve the modelled pair distributions (for example MCAR); dropping
+unobserved values does not correct informative missingness. The fitter rejects
+rank-deficient observed designs, overlapping person IDs when supplied, and
+failed/infeasible/nonstationary optimization results. Without IDs, the caller
+must establish non-overlap.
+
+The sampling contract is the same population/positive-family-IPW contract as
+`fit_pairwise`. SEs are **sampling** SEs from family-cluster sandwich covariance,
+with a delta method for correlations. They are conditional on the thresholds
+and weights; estimating either adds uncertainty not included here. The free
+covariance entries are indexed by `parameter_order`, with joint uncertainty in
+`parameter_covariance`. A boundary in any component withholds all normal SEs.
+The numerical boundary tolerance is `max(1e-7, 10*sqrt(tol))`; correlations
+involving a variance at or below this tolerance are undefined (`NaN`). Neither
+normal intervals at a boundary nor ordinary likelihood-ratio tests are supplied.
+
+The repeated recovery/coverage campaign is
+`benchmarks/bench_pairwise_multi.py`. It includes both signs of genetic and
+residual correlation and their nulls, A+C+M, MCAR missingness, positive IPW and an omitted-shared-
+environment diagnostic. Coverage is reported only for interior estimates,
+alongside all failures and boundary counts. Its evidence applies to the tested
+prevalences, family structures and sampling designs, not all register data.
+
+This API fits covariance parameters. Multi-trait `estimate_liability` still
+uses the A+E model: a fit including C/M cannot be passed into that scorer by
+silently folding shared covariance into `full_corrmat`.
 
 ## Ascertained samples
 
@@ -333,7 +410,7 @@ PSD; the assembled covariance used by Gibbs must be strictly positive-definite.
 
 ## Unsupported research prototypes
 
-Multi-trait genetic-correlation and onset-age-decay fitting, common-factor and
+HE multi-trait genetic-correlation and onset-age-decay fitting, common-factor and
 genetic-nurture models, MCEM, and parametric-bootstrap tests live in
 [`research/advanced_fitting.py`](https://github.com/bvilhjal/ltpred/blob/main/research/advanced_fitting.py).
 They are importable from a source checkout but are not installed and are not part

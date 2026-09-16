@@ -700,6 +700,38 @@ def _prepare_group_vc(families, idx, comps, weights=None):
         families, idx, comps, weights, context="variance-component fit bounds")
 
 
+def _assert_observed_identification(groups, comps, n_pheno=1, *, context):
+    """Check covariance contrasts before augmenting missing phenotypes.
+
+    A sampled, unobserved liability cannot supply information about its own
+    covariance. For each trait pair require full rank among jointly observed
+    coordinates; cross-trait fits also need the within-person residual column.
+    Bounds in these groups are phenotype-major.
+    """
+    for p in range(n_pheno):
+        for q in range(p, n_pheno):
+            rows = set()
+            for g in groups:
+                k = g["k"]
+                observed = np.isfinite(g["lowers"]) | np.isfinite(g["uppers"])
+                kernels = g.get("K", {"A": g.get("A")})
+                for i in range(k):
+                    for j in range(i + 1 if p == q else 0, k):
+                        if not np.any(observed[:, p*k+i] & observed[:, q*k+j]):
+                            continue
+                        row = tuple(float(kernels[c][i, j]) for c in comps)
+                        if p != q:
+                            row += (float(i == j),)
+                        rows.add(row)
+            dimension = len(comps) + int(p != q)
+            design = np.asarray(list(rows), dtype=float).reshape(-1, dimension)
+            if len(design) < dimension or np.linalg.matrix_rank(design) < dimension:
+                raise ValueError(
+                    f"{context}: covariance components not identified from observed "
+                    f"pairs for traits ({p}, {q}); need informative related pairs "
+                    "and independent relationship contrasts (rank-deficient design)")
+
+
 def _fit_component_engine(families, comps, initial, *, n_iter, burn_in,
                           inner_sweeps, damp, seed, eps, weights, context,
                           identification_error=None):
@@ -724,6 +756,7 @@ def _fit_component_engine(families, comps, initial, *, n_iter, burn_in,
             "variance components not identified from these families — the "
             "relationship design is rank-deficient (e.g. fitting 'C' with no "
             "full-sib pairs, or no related pairs at all).")
+    _assert_observed_identification(groups, comps, context=context)
     # The scalar solve is exact division, preserving fit_heritability's original
     # update. The tiny ridge stabilises only an identified multicomponent design.
     XtX_reg = XtX if C == 1 else XtX + 1e-10 * np.eye(C)

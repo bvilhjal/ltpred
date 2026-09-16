@@ -1759,6 +1759,27 @@ known threshold. Other prevalences, relationship structures, and IPW weighting
 are not covered, so the 0.6.0 caveat that efficiency and interval coverage need
 broader validation is narrowed by this section, not retired.
 
+## 33. Joint pairwise h² / genetic / residual correlation inference
+
+Development evidence at the 16 September 2026 checkout is retained in the
+[combined evidence note](results/2026-09-16-joint-pairwise/README.md), with
+source snapshots, commands, versions and every attempted fit. Across 1,800
+fits (200 independent cohorts in each of nine scenarios), none failed.
+The correctly specified scenarios include signed and null correlations,
+multivariate sibship/couple components, 20% MCAR phenotypes and known positive
+IPW sampling. Absolute heritability bias was below 0.004 in these scenarios.
+Residual-correlation interior 95% coverage ranged from 0.920 to 0.981;
+20/200 shared-environment and 44/200 missing-data fits reached a covariance
+boundary and withheld normal SEs. These denominators and Monte Carlo errors
+are essential to interpreting the coverage.
+
+Omitting real shared components inflated heritability by approximately 0.11
+and the generating-model residual correlation by 0.18. The correctly specified
+A+C+M fit reduced the residual-correlation bias to -0.011 (MC SE 0.010).
+This evidence concerns common per-trait thresholds, prevalence 0.10/0.20 and
+independent nuclear families. It does not validate boundary intervals,
+personalised bounds, overlapping pedigrees or informative missingness.
+
 ## Historical report changes
 
 - Replicated the accuracy and calibration grids across five independent

@@ -5,6 +5,12 @@ ships in the wheel or belongs to the public API, and interfaces may change
 without notice. Import it as `research.<module>` from a repository checkout
 (repository root on `sys.path`, for example by running from the repo root).
 
+For common-threshold joint h²/rg/re fitting, the installed
+`ltpred.fit_pairwise_multi` now provides deterministic pairwise inference,
+optional multivariate sibship/couple components and conditional family-cluster
+sampling SEs. The HE correlation implementation here remains a research
+comparison; its `se` fields measure Monte Carlo error.
+
 It is not dead code: five benchmark scripts import it
 (`bench_ascertainment.py`, `bench_aod_decay.py`,
 `bench_covariance_extensions.py`, `bench_genetic_correlation.py`,

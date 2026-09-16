@@ -83,12 +83,13 @@ which is why the proband's own status belongs in $D_F$
 ([Hujoel et al. 2020](https://doi.org/10.1038/s41588-020-0613-6)).
 ADuLT skips relatives: all of step 1, and the relatives' rows in step 3.
 
-**Use III.** Liability-scale $h^2$ and the genetic correlation $r_g$
-constrain genetic architecture and how two diseases relate; the CIP is
-the age/sex/cohort pattern of incidence. Pedigree, family history and
-$\mu_i$ are all optional. ltpred does not fit $r_g$ from family data —
-you supply it as `genetic_corrmat` — and fitting $h^2$ from the *same*
-families is a different contract ([Inference](inference.md)).
+**Use III.** Liability-scale $h^2$, genetic correlation $r_g$ and residual
+environmental correlation $r_e$ describe the modelled sources of disease
+resemblance; the CIP is the age/sex/cohort pattern of incidence. These are
+not causal effects. Use external estimates, or fit the covariance components
+jointly with `fit_pairwise_multi` from independent family data under the
+[sampling and identification contract](inference.md#joint-heritability-and-cross-trait-correlations).
+Scoring individuals with $\mu_i$ is optional.
 
 ## The pipeline at a glance
 
@@ -111,7 +112,7 @@ are in Figure 1. Skip steps that Table 1 says the use does not need.
 | Step | You supply | ltpred |
 |---|---|---|
 | — | Case definition, who the probands are | not software |
-| 0 | Liability-scale $h^2$; optional $c^2$, $m^2$; two-trait $r_g$ | `observed_to_liability_h2`, `tetrachoric`; optionally `fit_heritability` |
+| 0 | Liability-scale $h^2$ and genetic/environmental covariances | `observed_to_liability_h2`, `tetrachoric`; optional single-trait fitting or joint `fit_pairwise_multi` |
 | 1 | Who is related to whom | roles, or `kinship_from_pedigree` / `extract_pedigree` |
 | 2 | Prevalence or CIP $K(\cdot)$ (cumulative incidence) | `prevalence_thresholds` or `thresholds_from_cip` |
 | 3 | Status and ages; prediction landmark for use I | `families_from_columns`, or the register driver |
@@ -245,7 +246,7 @@ Steps 2 and 3 turn the last two columns into `lower`/`upper` bounds;
 For uses I and II, `estimate_liability` **conditions** on $h^2$. Pass a
 **liability-scale** value. An observed-scale number mis-calibrates
 $\hat{\mu}_i$ (ranking is more robust than the scale). For use III, $h^2$
-and $r_g$ can *be* the result.
+and the genetic/environmental covariance decomposition can *be* the result.
 
 How much the scale matters is measured in a simulation grid. At a true $h^2$ of 0.5 and
 $K=0.05$, assuming 0.2 leaves the ranking essentially untouched
@@ -322,8 +323,10 @@ different contract on three counts.
    available likelihood; IPW requires positive inclusion probabilities, not
    an invented weight for unobservable families. Unguarded ascertainment can
    pin $\hat{h}^2=1$ even when the truth is 0.
-2. *Bounds.* `fit_heritability` needs **one common case/control
-   threshold per trait**. The personalised or onset-pinned bounds built
+2. *Bounds and identification.* The common-threshold fitters need **one
+   common case/control threshold per trait** and informative, jointly observed
+   relative pairs. Missing relatives cannot identify a component through
+   latent imputation. The personalised or onset-pinned bounds built
    in steps 2–3 are rejected outright; fit from `prevalence_thresholds`
    bounds, or bring an external $h^2$.
 3. *Scale.* Even when the contract holds, a few hundred families is not
@@ -334,6 +337,60 @@ different contract on three counts.
    for a family-cluster interval.
 
 Details: [Inference](inference.md).
+
+### Joint heritability and genetic/environmental correlation
+
+For two or more binary traits, `fit_pairwise_multi` fits the covariance
+components together using observed-pair probabilities. It is deterministic;
+there is no Gibbs burn-in or Monte-Carlo trace. The following example runs
+from a source checkout; the helper generates a **separate** population cohort
+of 3,000 nuclear families with two traits at prevalences 0.10 and 0.20:
+
+```python
+from examples.joint_inference import example_families
+from ltpred import fit_pairwise_multi
+
+joint = fit_pairwise_multi(
+    example_families(), components=("A", "C", "M"),
+    sampling="population", phen_names=["trait_1", "trait_2"],
+)
+joint.h2                      # per-trait liability-scale heritability
+joint.rg[0, 1]                # genetic correlation
+joint.re[0, 1]                # within-person residual environmental correlation
+joint.correlations["C"][0, 1] # shared full-sibship correlation
+joint.correlations["M"][0, 1] # couple correlation
+joint.inference_status        # inspect before interpreting uncertainty
+joint.se["h2"], joint.se["rg"][0, 1], joint.se["re"][0, 1]
+```
+
+The simulation has $h^2=(0.35,0.40)$, $r_g=0.50$ and residual $r_e=-0.35$.
+Run [`examples/joint_inference.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/joint_inference.py)
+for the fitted estimates. For real data, prepare one row per person with
+one bound per trait ([input recipe](data-preparation.md#preparing-multiple-traits-for-covariance-fitting)).
+Thresholds may differ between traits, but not between people for a given
+trait. A missing diagnosis is `(-inf, inf)`, not a control; missingness must
+preserve the pair distributions. Use the population/positive-IPW sampling
+contract above, with weights aligned to the returned family order.
+
+Here `A` is additive genetics, `C` full sibship and `M` couple resemblance;
+residual `E` is always included. **`re` refers only to `E`.**
+`joint.rp - joint.genetic_cov` includes all non-genetic covariance and differs
+from `joint.env_cov` when `C` or `M` is fitted. The default
+`components=("A",)` fits A+E; omitting shared components can change the
+genetic/residual attribution. Merely adding them does not solve that problem:
+the observed relationship contrasts must identify every fitted component.
+
+Unlike the HE diagnostic above, these SEs quantify asymptotic **sampling**
+uncertainty, clustering all pairs from the same family. They treat thresholds
+and weights as fixed. Any covariance boundary withholds all normal SEs
+(`NaN`); a correlation with negligible component variance is also undefined.
+One example run is not a calibration study; the
+[replicated evidence, including boundary counts, is in RESULTS §33](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md).
+
+This fit can be the endpoint for use III. Multi-trait **scoring** in step 4
+still supports A+E only: do not feed a C/M fit into it by folding shared
+covariance into `full_corrmat`. See [Inference](inference.md#joint-heritability-and-cross-trait-correlations)
+for the model and full result contract.
 
 ## 1. Pedigree
 
@@ -791,7 +848,8 @@ independent-SNP NCP evidence do not establish null calibration in a real-LD,
 related-target mixed-model analysis; that remains a separate validation task.
 
 **Use III** does not need this step. The quantities of interest were $h^2$,
-$r_g$, and/or $K(\cdot)$ in steps 0 and 2.
+$r_g$, residual $r_e$, shared-environment covariances and/or $K(\cdot)$ in
+steps 0 and 2.
 
 ## What the run produced
 
@@ -883,7 +941,7 @@ ltpred ships no igraph-style pedigree object and no plotting utilities.
 | handle roles, trios, real tables | [Data preparation](data-preparation.md) |
 | estimate a CIP — Kaplan–Meier, Aalen–Johansen (use III may stop here) | [CIP estimation](cip-estimation.md) |
 | pick an engine, scale up, export to a GWAS | [Estimation](estimation.md) |
-| fit $h^2$ or $A{+}C{+}M$ | [Inference](inference.md) |
+| fit $h^2$, $r_g$, residual $r_e$ or shared-environment components | [Inference](inference.md) |
 | run the pre-flight list | [Assumptions & checklist](assumptions.md) |
 | see measured accuracy, speed and failure modes | [Benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md) |
 | read the maths behind equation (1) | [Algorithm](algorithm.md) |
