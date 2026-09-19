@@ -470,6 +470,43 @@ def construct_covmat_multi(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm
     return Covmat(cov, roles, phen_names=list(phen_names))
 
 
+def _parent_links(ids, father, mother):
+    """Index a pedigree: ``(ids, index, sire, dam, children, n_unresolved)``.
+
+    Unknown or founder markers (``None``/NaN) map to -1, as does any value not
+    among ``ids``; the latter are counted in ``n_unresolved``. Raises on a
+    length mismatch, duplicate ids, and a person recorded as their own parent.
+    """
+    ids, father, mother = list(ids), list(father), list(mother)
+    n = len(ids)
+    if not (len(father) == len(mother) == n):
+        raise ValueError("ids, father and mother must share length")
+    if len(set(ids)) != n:
+        raise ValueError("ids must be unique")
+    index = {pid: i for i, pid in enumerate(ids)}
+    unresolved = 0
+
+    def _idx(p):
+        nonlocal unresolved
+        if p is None or (isinstance(p, float) and np.isnan(p)):
+            return -1
+        j = index.get(p, -1)
+        unresolved += j == -1
+        return j
+
+    sire = [_idx(p) for p in father]
+    dam = [_idx(p) for p in mother]
+    children = [[] for _ in range(n)]
+    for i in range(n):
+        if sire[i] == i or dam[i] == i:
+            raise ValueError(f"individual {ids[i]!r} is its own parent")
+        if sire[i] != -1:
+            children[sire[i]].append(i)
+        if dam[i] != -1:
+            children[dam[i]].append(i)
+    return ids, index, sire, dam, children, unresolved
+
+
 def kinship_from_pedigree(ids: Sequence, father: Sequence,
                           mother: Sequence) -> tuple[list, np.ndarray]:
     """Additive relationship matrix ``A`` (= 2×kinship) from a pedigree.
@@ -490,33 +527,9 @@ def kinship_from_pedigree(ids: Sequence, father: Sequence,
 
     Feed ``A`` to :func:`construct_covmat_from_kinship` to build the liability
     covariance for these individuals."""
-    ids = list(ids)
-    father = list(father)
-    mother = list(mother)
+    ids, _index, sire, dam, children, _unresolved = _parent_links(
+        ids, father, mother)
     n = len(ids)
-    if not (len(father) == len(mother) == n):
-        raise ValueError("ids, father and mother must share length")
-    if len(set(ids)) != n:
-        raise ValueError("ids must be unique")
-
-    index = {pid: i for i, pid in enumerate(ids)}
-
-    def _parent_idx(p):
-        # unknown/founder markers, or any value not among the ids
-        if p is None or (isinstance(p, float) and np.isnan(p)):
-            return -1
-        return index.get(p, -1)
-
-    sire = [_parent_idx(p) for p in father]
-    dam = [_parent_idx(p) for p in mother]
-    children = [[] for _ in range(n)]
-    for i in range(n):
-        if sire[i] == i or dam[i] == i:
-            raise ValueError(f"individual {ids[i]!r} is its own parent")
-        if sire[i] != -1:
-            children[sire[i]].append(i)
-        if dam[i] != -1:
-            children[dam[i]].append(i)
 
     # Topological order: an individual comes after both its (known) parents.
     # Kahn's algorithm, O(n + edges). Any valid topological order yields the

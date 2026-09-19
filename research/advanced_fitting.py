@@ -45,7 +45,7 @@ from ltpred.estimate import (_group_by_structure, _validate_multitrait_bounds,
                              _check_unique_roles, _assert_nonempty_families,
                              batch_means)
 from ltpred.family import Family, Member
-from ltpred.fit import (fit_variance_components, _COMPONENT_OFFDIAG,
+from ltpred.fit import (fit_variance_components, _COMPONENT_OFFDIAG, _validate_components,
                         _component_matrix, _prepare_group_vc,
                         _validate_population_sampling, _assert_common_thresholds,
                         _assert_population_case_rate, _assert_nonoverlapping_pids,
@@ -245,16 +245,7 @@ def fit_variance_components_mcem(families, components=("A", "C"), *,
     _check_unique_roles(families)
     _assert_nonempty_families(families)
     _assert_nonoverlapping_pids(families, "fit_variance_components_mcem")
-    comps = list(components)
-    if not comps:
-        raise ValueError("components must contain at least one component")
-    for c in comps:
-        if c not in _COMPONENT_OFFDIAG:
-            avail = ", ".join(_COMPONENT_OFFDIAG)
-            raise ValueError(f"unknown component {c!r}; choose from {avail} "
-                             "(dominance 'D' is not supported)")
-    if len(set(comps)) != len(comps):
-        raise ValueError(f"duplicate components in {components!r}")
+    comps = _validate_components(components)
     if int(burn_in) < 0 or int(burn_in) >= int(n_iter):
         raise ValueError(f"burn_in ({burn_in}) must be non-negative and "
                          f"< n_iter ({n_iter})")

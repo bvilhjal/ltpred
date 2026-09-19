@@ -424,6 +424,24 @@ def _validate_update_controls(damp, eps):
     return damp, eps
 
 
+def _validate_components(components):
+    """The variance components as a list: non-empty, known, and distinct."""
+    try:
+        comps = list(components)
+    except TypeError:
+        raise TypeError("components must be a non-empty sequence") from None
+    if not comps:
+        raise ValueError("components must contain at least one component")
+    for c in comps:
+        if c not in _COMPONENT_OFFDIAG:
+            avail = ", ".join(_COMPONENT_OFFDIAG)
+            raise ValueError(f"unknown component {c!r}; choose from {avail} "
+                             "(dominance 'D' is not supported)")
+    if len(set(comps)) != len(comps):
+        raise ValueError(f"duplicate components in {components!r}")
+    return comps
+
+
 def _validate_iteration_controls(n_iter, burn_in, inner_sweeps):
     """Return strict integer controls for the stochastic fixed point."""
     values = {}
@@ -865,19 +883,7 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
     onset-pinned LT-FH++ bounds fall outside the supported pooled-moment
     estimating contract, so they are **rejected** rather than silently fitted.
     Standard NaN and interval-order validation still applies."""
-    try:
-        comps = list(components)
-    except TypeError:
-        raise TypeError("components must be a non-empty sequence") from None
-    if not comps:
-        raise ValueError("components must contain at least one component")
-    for c in comps:
-        if c not in _COMPONENT_OFFDIAG:
-            avail = ", ".join(_COMPONENT_OFFDIAG)
-            raise ValueError(f"unknown component {c!r}; choose from {avail} "
-                             "(dominance 'D' is not supported)")
-    if len(set(comps)) != len(comps):
-        raise ValueError(f"duplicate components in {components!r}")
+    comps = _validate_components(components)
     n_iter, burn_in, inner_sweeps = _validate_iteration_controls(
         n_iter, burn_in, inner_sweeps)
     damp, eps = _validate_update_controls(damp, eps)

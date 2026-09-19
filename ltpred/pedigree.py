@@ -41,6 +41,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from .covariance import _parent_links
+
 import numpy as np
 
 __all__ = ["ParentGraph", "Pedigree", "build_parent_graph",
@@ -102,37 +104,9 @@ def build_parent_graph(ids: Sequence, father: Sequence,
     person being their own ancestor -- happens in
     :func:`~ltpred.covariance.kinship_from_pedigree`, which raises on it.)
     """
-    ids = list(ids)
-    father = list(father)
-    mother = list(mother)
+    ids, index, sire, dam, children, n_unresolved = _parent_links(
+        ids, father, mother)
     n = len(ids)
-    if not (len(father) == len(mother) == n):
-        raise ValueError("ids, father and mother must share length")
-    if len(set(ids)) != n:
-        raise ValueError("ids must be unique")
-    index = {pid: i for i, pid in enumerate(ids)}
-
-    n_unresolved = 0
-
-    def _idx(p):
-        nonlocal n_unresolved
-        if p is None or (isinstance(p, float) and np.isnan(p)):
-            return -1
-        j = index.get(p, -1)
-        if j == -1:
-            n_unresolved += 1
-        return j
-
-    sire = [_idx(p) for p in father]
-    dam = [_idx(p) for p in mother]
-    children = [[] for _ in range(n)]
-    for i in range(n):
-        if sire[i] == i or dam[i] == i:
-            raise ValueError(f"individual {ids[i]!r} is its own parent")
-        if sire[i] != -1:
-            children[sire[i]].append(i)
-        if dam[i] != -1:
-            children[dam[i]].append(i)
     # Each person belongs to at most one full-sibling group. Groups arrive in
     # row order, so their adjacency lists need neither sets nor sorting.
     sibs = [[] for _ in range(n)]
