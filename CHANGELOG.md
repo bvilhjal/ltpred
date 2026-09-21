@@ -6,6 +6,11 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Changed
+
+- The tutorial is a five-question lab (steps 1–4 one disease, step 5 two
+  traits). The method guide says to teach that lab before the decision table.
+
 ### Removed
 
 - `examples/joint_inference.py`, `examples/role_pipeline.py` and

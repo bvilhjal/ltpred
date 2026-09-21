@@ -1,7 +1,10 @@
 # ltpred
 
-**[Vignette (HTML, with equations)](https://bvilhjal.github.io/ltpred/vignette/)**
-· [markdown source](docs/vignette.md)
+**For a class:** [tutorial](docs/tutorial.md) — five questions on a simulated
+cohort whose genetic liability is known. Steps 1–4 are one hour; step 5 is a
+second hour. Then [choose a method](docs/guide.md).
+**Reference:** [vignette](https://bvilhjal.github.io/ltpred/vignette/)
+· [markdown](docs/vignette.md)
 
 **ltpred** is a Python implementation of **LT-FH++**, extending the original
 **LT-FH** family-history phenotype
@@ -61,13 +64,13 @@ pa = estimate_liability(sim.families, h2=0.5)
 pa.est["genetic"]
 ```
 
-`use_age=False` is the classic LT-FH cohort whose numbers the
-[vignette](docs/vignette.md) quotes. `h²` is required and disease-specific.
-Own diagnosis in the input is a GWAS phenotype; leave it out to predict from
-family history. The [quickstart](docs/quickstart.md) is six hand-typed rows,
-the [tutorial](docs/tutorial.md) is the simulated register pipeline, and
-[choose a method](docs/guide.md) is the bounds/estimator table. The model is
-in [algorithm.md](docs/algorithm.md).
+`use_age=False` is the classic LT-FH call. `h²` is required and
+disease-specific. Own diagnosis in the input is a GWAS phenotype; leave it
+out to predict from family history. A class should start at the
+[tutorial](docs/tutorial.md), not this snippet: the tutorial's printouts are
+checked, and each step names the quantity it estimates. Six hand-typed rows
+are the [quickstart](docs/quickstart.md). The model is in
+[algorithm.md](docs/algorithm.md).
 
 ## Benchmarks
 

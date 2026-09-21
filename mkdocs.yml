@@ -37,9 +37,9 @@ theme:
 
 nav:
   - Overview: index.md
+  - Tutorial: tutorial.md
   - Choose a method: guide.md
   - Quickstart: quickstart.md
-  - Tutorial: tutorial.md
   - Vignette: vignette.md
   - Workflow:
       - Data preparation: data-preparation.md

@@ -1,29 +1,23 @@
 # Choose a method
 
-The four observation models (LT-FH, LT-FH++, ADuLT, PA-FGRS) and the three
-uses are defined in the [vignette](vignette.md#three-uses). This page chooses
-the bounds, the records, and the estimator.
+Teach the [tutorial](tutorial.md) before this table. Steps 1–4 are one hour:
+build a population with a known genetic liability, see why death changes the
+incidence curve, score with the diagnosis included, then score with it hidden.
+Step 5 is a second hour, two traits in one fit. The six typed rows are the
+[quickstart](quickstart.md). The contract is the
+[vignette](vignette.md#three-uses).
 
-PA is the single-trait default. Gibbs is the sampling reference. The
-PA-FGRS censoring mixture is PA-only. **PA-FGRS** here is the
-Pearson–Aitken score, not the register-standardised FGRS of
+When a student brings their own table, pick a row below. PA is the default
+for one trait. Gibbs is the sampling check. The mixture is PA-only, and it
+is not the register-standardised FGRS of
 [Kendler et al. (2021)](https://doi.org/10.1001/jamapsychiatry.2021.0336).
-
-The [quickstart](quickstart.md) is six typed rows. The [tutorial](tutorial.md)
-runs a simulated cohort. The [vignette](vignette.md) is the full contract
-([`examples/vignette.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py)).
-Unsupported fitters stay in the checkout-only
-[`research/` package](research.md).
-
-## When to use ltpred
-
-Uses I and II need, per proband, a binary **status** and ideally an **age**
-(onset for cases, last follow-up for controls); for LT-FH/LT-FH++ the same
-for relatives of known relationship; and a population prevalence plus a
-liability-scale `h²` for that disease. Prefer an external `h²`, or
-cross-check it with `ltpred.tetrachoric` (`h² ~ 2 ×` a first-degree
-tetrachoric). Use III can stop at those population parameters. The joint
-fit is the [vignette's worked example](vignette.md#joint-heritability-and-geneticenvironmental-correlation).
+Uses I and II need a binary status, an age when you have one (onset for
+cases, last follow-up for controls), relatives of known relationship for
+LT-FH/LT-FH++, a population prevalence, and a liability-scale `h²` for that
+disease. Prefer an external `h²`, or cross-check it with `ltpred.tetrachoric`
+(`h² ~ 2 ×` a first-degree tetrachoric). Use III can stop at those
+parameters. Unsupported fitters stay in
+[`research/`](research.md).
 
 !!! warning "Family-data fitting needs a declared sampling design"
 
@@ -71,4 +65,5 @@ specification. The
 [data-preparation page](data-preparation.md#getting-lowerupper-from-status-and-age)
 shows the base recipe explicitly.
 
-New here? Start with the **[quickstart](quickstart.md)**.
+After the lab, a student's own rows start at the
+**[quickstart](quickstart.md)**.
