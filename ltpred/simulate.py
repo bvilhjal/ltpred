@@ -254,6 +254,53 @@ def _onset_times(liab, pop_prev, mid_point, slope, onset_model, lifetime_t, rng,
     return onset
 
 
+def _stable_factor(cov):
+    """A platform-stable lower-triangular ``L`` with ``L @ L.T == cov``.
+
+    ``Generator.multivariate_normal`` factors the covariance with an SVD by
+    default, and an SVD has no canonical sign: the factor -- and therefore
+    every draw from a given seed -- depends on the LAPACK build underneath
+    NumPy. The same seed then gives different families on macOS and Linux,
+    which silently invalidates any figure quoted from a seeded run. The
+    Cholesky factor of a positive-definite matrix is unique (lower triangular,
+    positive diagonal), so seeded output agrees everywhere up to floating-point
+    rounding.
+
+    ``h2=1`` leaves the covariance exactly singular -- ``g`` and ``o`` are then
+    the same variable -- and a singular matrix has no Cholesky factor. An
+    eigendecomposition is *not* the way out: LAPACK picks an arbitrary basis
+    inside a repeated eigenvalue's eigenspace, which is the same platform
+    dependence in another guise, and the default seven-relative pedigree at
+    ``h2=1`` does have a repeated eigenvalue. Lift the spectrum off zero
+    instead and keep the unique factor. Eigen*values* are basis-independent, so
+    the lift is itself stable; it is ~1e-12 of the mean variance, orders of
+    magnitude below the Monte-Carlo error of anything drawn from the result.
+    """
+    cov = np.asarray(cov, dtype=float)
+    try:
+        return np.linalg.cholesky(cov)
+    except np.linalg.LinAlgError:
+        pass
+    evals = np.linalg.eigvalsh(cov)
+    scale = max(float(np.trace(cov)) / cov.shape[0], 1.0)
+    # eigvalsh returns eigenvalues a rounding step below zero for a singular
+    # covariance; anything materially negative is a real input problem, and
+    # used to surface as `multivariate_normal`'s own check_valid="warn".
+    if evals.min() < -1e-8 * scale:
+        warnings.warn("covariance is not positive-semidefinite; the spectrum "
+                      "was lifted to make it factorable", RuntimeWarning,
+                      stacklevel=2)
+    base = max(0.0, -float(evals.min()))
+    eye = np.eye(cov.shape[0])
+    for step in (1e-12, 1e-10, 1e-8, 1e-6, 1e-4):
+        try:
+            return np.linalg.cholesky(cov + (base + step * scale) * eye)
+        except np.linalg.LinAlgError:
+            continue
+    raise np.linalg.LinAlgError(
+        "covariance could not be factored even after lifting its spectrum")
+
+
 def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
                                                               "mgf", "pgm", "pgf"),
                               n_fam: Mapping[str, int] | None = None,
@@ -298,7 +345,12 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     generating liability. With ``onset_resolution=None``, the old exact-onset
     behavior is preserved: ``"pin"`` is a point and ``"interval"`` starts at
     that point. The age-0 clamp remains an upper-open liability interval because
-    arbitrarily high liabilities map to onset age zero."""
+    arbitrarily high liabilities map to onset age zero.
+
+    A given ``seed`` reproduces the same families on every platform, up to
+    floating-point rounding: the liabilities are drawn through a canonical
+    factorisation of the covariance (:func:`_stable_factor`) rather than
+    NumPy's default SVD, whose signs vary with the LAPACK build."""
     onset_resolution = _validate_onset_resolution(onset_resolution)
     onset_model, case_encoding, onset_rho = _resolve_age_options(
         use_age, onset_model, case_encoding, onset_rho)
@@ -309,7 +361,9 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
         raise ValueError("simulation requires add_ind=True (needs g and o)")
     d = len(roles)
     rng = np.random.default_rng(seed)
-    liab = rng.multivariate_normal(np.zeros(d), cov_obj.matrix, size=n_sim)
+    # Not `rng.multivariate_normal`: its default SVD factorisation is not
+    # sign-canonical, so a seed would not reproduce across LAPACK builds.
+    liab = rng.standard_normal((n_sim, d)) @ _stable_factor(cov_obj.matrix).T
 
     t = float(liability_threshold(pop_prev))
     non_g = [r for r in roles if r != "g"]
@@ -548,7 +602,12 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
     curve (see :func:`~ltpred.cip.kaplan_meier_cip`). ``rng`` is a
     :class:`numpy.random.Generator`; the pedigree usually comes from
     :func:`simulate_pedigree` and ``birth_time`` from
-    :func:`pedigree_birth_times`, which this function calls for you."""
+    :func:`pedigree_birth_times`, which this function calls for you.
+
+    A given ``rng`` reproduces the same register on every platform, up to
+    floating-point rounding: the population liability field is drawn through
+    the canonical factorisation of :func:`_stable_factor`, not NumPy's
+    sign-arbitrary SVD."""
     cip_ages = np.asarray(cip_ages, dtype=float)
     cip_values = np.asarray(cip_values, dtype=float)
     if cip_ages.shape != cip_values.shape:
@@ -560,7 +619,9 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
                          "entries to be invertible by interpolation")
     _, A_full = kinship_from_pedigree(ids, father, mother)
     n = len(ids)
-    raw_genetic = rng.multivariate_normal(np.zeros(n), h2 * A_full)
+    # Not `rng.multivariate_normal`: its default SVD factorisation is not
+    # sign-canonical, so a seed would not reproduce across LAPACK builds.
+    raw_genetic = rng.standard_normal(n) @ _stable_factor(h2 * A_full).T
     residual = rng.standard_normal(n) * np.sqrt(1.0 - h2)
     scale = np.sqrt(h2 * np.diag(A_full) + (1.0 - h2))
     genetic = raw_genetic / scale
@@ -766,7 +827,10 @@ def simulate_under_LTM_multi(n_families: int = 1000, *,
 
     rng = np.random.default_rng(seed)
     latent = rng.standard_normal((n_families, n_traits * d))
-    latent = latent @ np.linalg.cholesky(sigma).T
+    # `_stable_factor` is `cholesky` for a positive-definite sigma -- the usual
+    # case, numerically identical -- and lifts the spectrum instead of failing
+    # when a component choice makes it exactly singular.
+    latent = latent @ _stable_factor(sigma).T
     # Covariance coordinates are trait-major; family rows are people.
     latent = latent.reshape(n_families, n_traits, d).transpose(0, 2, 1)
     person = latent.reshape(-1, n_traits)

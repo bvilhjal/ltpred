@@ -51,15 +51,16 @@ print(f"birth years: {sorted(set(cohort.birth_time.tolist()))}")
 ```
 
 ```text
-984 people, 69 diagnosed by age 70 (7.0%)
-var(true genetic liability) = 0.5109  (target 0.5)
+984 people, 81 diagnosed by age 70 (8.2%)
+var(true genetic liability) = 0.5083  (target 0.5)
 birth years: [1920.0, 1950.0, 1980.0]
 ```
 
 `cohort` carries the register columns (`ids`, `father`, `mother`, `status`,
 `age`, `birth_time`) **and** the truth (`genetic`, `onset`, `residual_var`), so
-every later step can be scored rather than merely run. The 7.0% diagnosis rate is
-the generating curve at age 70, not the 10% lifetime prevalence — that gap is
+every later step can be scored rather than merely run. The 8.2% diagnosis rate
+tracks the generating curve at age 70 (7.8%), not the 10% lifetime
+prevalence — that gap is
 the whole reason step 2 exists.
 
 The pedigree is drawn once for the population, not per proband, so a person who
@@ -148,13 +149,13 @@ print(f"records with an unresolved parent = {scores.frac_records_with_unresolved
 ```
 
 ```text
-corr(score, true genetic liability) = 0.5887
-score sd = 0.3617   mean posterior variance = 0.3592
+corr(score, true genetic liability) = 0.5502
+score sd = 0.3898   mean posterior variance = 0.3558
 median relatives conditioned on = 23
 records with an unresolved parent = 0.0000
 ```
 
-Three things to notice. The score correlates 0.59 with the truth it never saw.
+Three things to notice. The score correlates 0.55 with the truth it never saw.
 The posterior **variance** is returned per proband and is almost as large as the
 score's own spread — most of these people have few informative relatives, so the
 score is genuinely uncertain and should not be used as if it were a measurement.
@@ -195,12 +196,12 @@ print(f"proband states: {sorted(set(map(str, predicted.proband_state)))}")
 ```
 
 ```text
-972 of 984 probands are disease-free at age 40
-corr(score, truth) = 0.2896   score sd = 0.1928
+974 of 984 probands are disease-free at age 40
+corr(score, truth) = 0.3069   score sd = 0.2134
 proband states: ['disease_free_and_followed']
 ```
 
-The correlation drops from 0.59 to 0.29 — not a defect, the price of the
+The correlation drops from 0.55 to 0.31 — not a defect, the price of the
 question. Step 3 was allowed to see each proband's own diagnosis; step 4 is not,
 so it has only relatives to work with. Restricting `probands` to the at-risk set
 is not optional either: scoring someone already diagnosed and calling the result

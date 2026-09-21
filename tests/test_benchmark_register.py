@@ -44,8 +44,12 @@ def test_build_register_uses_the_public_inbreeding_scale():
 
     _, relationship = kinship_from_pedigree(ids, father, mother)
     replay = np.random.default_rng(seed)
-    raw_genetic = replay.multivariate_normal(
-        np.zeros(len(ids)), MODULE.H2 * relationship)
+    # The same canonical draw the public generator makes: one standard-normal
+    # vector through the unique Cholesky factor, not multivariate_normal's
+    # sign-arbitrary SVD, which is why a seed now reproduces across builds.
+    from ltpred.simulate import _stable_factor
+    raw_genetic = replay.standard_normal(len(ids)) @ _stable_factor(
+        MODULE.H2 * relationship).T
     residual = replay.standard_normal(len(ids)) * np.sqrt(1.0 - MODULE.H2)
     scale = np.sqrt(
         MODULE.H2 * np.diag(relationship) + (1.0 - MODULE.H2))

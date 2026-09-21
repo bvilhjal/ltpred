@@ -1,9 +1,12 @@
 """Simulation under the LTM, and the estimate-recovers-truth end-to-end check."""
 
+import warnings
+
 import numpy as np
 import pytest
 
-from ltpred.simulate import simulate_under_LTM_single
+from ltpred.covariance import construct_covmat_single
+from ltpred.simulate import simulate_under_LTM_single, _stable_factor
 from ltpred.estimate import estimate_liability
 
 
@@ -13,6 +16,76 @@ def test_simulated_prevalence_matches():
     assert sim.status["o"].mean() == pytest.approx(0.1, abs=0.01)
     assert sim.genetic.var() == pytest.approx(0.5, abs=0.05)   # var(g) = h2
     assert sim.full.var() == pytest.approx(1.0, abs=0.05)      # var(o) = 1
+
+
+def test_seeded_draws_use_a_canonical_factorisation():
+    """A seed has to reproduce on every machine, not just this one.
+
+    ``Generator.multivariate_normal`` factors the covariance with an SVD, and
+    an SVD has no canonical sign: the same seed drew different families on
+    different LAPACK builds, which silently invalidated every figure quoted
+    from a seeded run (docs/vignette.md). The draws must come from the unique
+    Cholesky factor instead -- pinned here so a refactor cannot quietly go
+    back to the platform-dependent path.
+    """
+    roles = ["m", "f", "s1"]
+    cov = construct_covmat_single(fam_vec=roles, h2=0.5)
+    sim = simulate_under_LTM_single(fam_vec=roles, h2=0.5, n_sim=64,
+                                    pop_prev=0.05, seed=3)
+    draws = np.random.default_rng(3).standard_normal((64, len(cov.roles)))
+    expected = draws @ np.linalg.cholesky(cov.matrix).T
+    np.testing.assert_array_equal(sim.liabilities, expected)
+
+
+@pytest.mark.parametrize("h2", [0.2, 0.5, 1.0])   # h2=1 is exactly singular
+@pytest.mark.parametrize("fam_vec", [["m", "f", "s1"],
+                                     ["m", "f", "s1", "mgm", "mgf",
+                                      "pgm", "pgf"]])
+def test_stable_factor_reproduces_the_covariance(h2, fam_vec):
+    cov = construct_covmat_single(fam_vec=fam_vec, h2=h2)
+    L = _stable_factor(cov.matrix)
+    # h2=1 is factored after lifting the spectrum by ~1e-12 of the mean
+    # variance, so the reconstruction carries that ridge and no more.
+    np.testing.assert_allclose(L @ L.T, cov.matrix, atol=1e-9)
+
+
+def test_stable_factor_warns_only_on_a_genuinely_indefinite_covariance():
+    """`multivariate_normal(check_valid="warn")` used to be the safety net."""
+    singular = construct_covmat_single(fam_vec=["m", "f"], h2=1.0).matrix
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")          # a rounding-level negative
+        _stable_factor(singular)                # eigenvalue must stay silent
+    with pytest.warns(RuntimeWarning, match="not positive-semidefinite"):
+        _stable_factor(np.array([[1.0, 0.9], [0.9, 0.5]]))
+
+
+@pytest.mark.parametrize("fam_vec", [["m", "f"],
+                                     ["m", "f", "s1", "mgm", "mgf",
+                                      "pgm", "pgf"]])
+def test_singular_covariance_still_gets_the_canonical_cholesky_form(fam_vec):
+    """h2=1 has no Cholesky factor, and eigenvectors are no way out.
+
+    LAPACK picks an arbitrary basis inside a repeated eigenvalue's eigenspace,
+    which is the same platform dependence `_stable_factor` exists to remove --
+    and the default seven-relative pedigree at h2=1 has such a repetition. The
+    factor must therefore still be a Cholesky factor: lower triangular with a
+    non-negative diagonal is exactly the form that is unique.
+    """
+    cov = construct_covmat_single(fam_vec=fam_vec, h2=1.0).matrix
+    with pytest.raises(np.linalg.LinAlgError):
+        np.linalg.cholesky(cov)                     # genuinely singular
+    L = _stable_factor(cov)
+    np.testing.assert_array_equal(L, np.tril(L))    # lower triangular
+    assert np.all(np.diag(L) >= 0.0)                # positive diagonal
+    np.testing.assert_allclose(L @ L.T, cov, atol=1e-9)
+
+
+def test_repeated_eigenvalue_pedigree_is_the_case_that_needs_it():
+    """Pins the premise of the test above, so it cannot quietly stop biting."""
+    cov = construct_covmat_single(
+        fam_vec=["m", "f", "s1", "mgm", "mgf", "pgm", "pgf"], h2=1.0).matrix
+    evals = np.round(np.linalg.eigvalsh(cov), 9)
+    assert len(set(evals)) < len(evals)
 
 
 def test_simulation_family_structure():

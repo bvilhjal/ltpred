@@ -117,6 +117,130 @@ behind the published evidence were not reachable from an installed package.
 
 ### Fixed
 
+- **Seeded simulations were not reproducible across machines.**
+  `simulate_under_LTM_single` drew through `rng.multivariate_normal`, which
+  factors the covariance with an SVD; an SVD has no canonical sign, so the
+  factor -- and every family drawn from a given seed -- depended on the LAPACK
+  build under NumPy. Draws now come from the Cholesky factor, which is unique
+  for a positive-definite matrix, so a seed agrees across builds up to
+  floating-point rounding. `h2 = 1` makes the covariance exactly singular and
+  has no Cholesky factor; an eigendecomposition is no way out there, because
+  LAPACK picks an arbitrary basis inside a repeated eigenvalue's eigenspace
+  (the default seven-relative pedigree at `h2 = 1` has one), so the spectrum
+  is lifted by ~1e-12 of the mean variance and the unique factor kept. The
+  distribution is unchanged, but the *values* a given seed produces are not:
+  re-running a seeded script gives different families than before this
+  release.
+- Every figure quoted in `docs/vignette.md` was wrong for anyone who ran the
+  script: they were produced under the old, platform-dependent sampler. All of
+  them are regenerated, and `tests/test_vignette_numbers.py` now fails if the
+  page and `examples/vignette.py` ever separate again.
+- The vignette illustrated Falconer's `h2 ~ 2 rho` with a parent-offspring
+  tetrachoric on 800 families at `K = 0.05`, where the whole estimate rests on
+  a handful of case-case pairs: it is centred correctly but has an
+  across-cohort SD of 0.13 and comes out *negative* about one run in fifteen.
+  The page now reports the standard error `tetrachoric` already returned, says
+  plainly that the small cohort carries no information, and demonstrates
+  convergence on 25,000 families (`2 rho = 0.494 +/- 0.046` against 0.5).
+- The vignette's age-censored comparison ran at 800 families, where censoring
+  leaves one to five observed proband cases -- so the own-status baseline it
+  divides by, and the eff-N ratios built on it, were noise. That block now
+  uses 20,000 families (99 observed cases) and prints the case count. Its
+  age-term gain is `1.05x`, inside the `1.02-1.05x` of RESULTS section 10
+  rather than merely "consistent with" it.
+- `examples/vignette.py` hard-coded two of its own results in the prose it
+  prints (a correlation and a case-rate ratio), so they contradicted the lines
+  computed just above them. Both are interpolated now.
+- The vignette's "Did it work?" snippet aligned `mu` with the per-row `status`
+  column subset to role `o`, which lines up only if every family has an `o`
+  row -- and the same page says role `o` is optional.
+- `examples/vignette.py` imports `tetrachoric` from its owning module. The
+  package exports a function under the same name as its module, so in a
+  process that imported `ltpred.tetrachoric` first, `from ltpred import
+  tetrachoric` yields the *module* and calling it raises `TypeError`. The
+  underlying collision is **not** fixed here -- both spellings are documented
+  (the function in the vignette and README, the module in `docs/api.md`), so
+  resolving it is an API decision. `tests/test_public_api.py` pins it as a
+  strict `xfail` that will start reporting once it is.
+- Vignette and figure stated the family covariance as `Sigma = h2 A`. The
+  liability covariance has a **unit diagonal** — `Sigma = h2 A + (1 - h2) I` —
+  which is what keeps `Phi^-1(1 - K)` a prevalence threshold. `h2 A` alone is
+  the covariance of the additive genetic values, not of the observed
+  liabilities. Corrected in `docs/vignette.md`, `docs/assets/pipeline.svg` and
+  `README.md`; a covariance is also no longer described as *being* the BLUP
+  weights.
+- Vignette offered the **sib** tetrachoric as an equal alternative to
+  parent-offspring for Falconer's `h2 ~ 2 rho`. Full sibs also share the
+  sibship kernel, so `2 rho_sib` estimates `h2 + 2 c2`. Only the
+  parent-offspring route is now given.
+- Vignette claimed all four published names are observation models "not
+  engines"; PA-FGRS names its engine too, as `docs/guide.md` already said.
+- Table 1 gave use I steps "0-4" while Table 2, section 5 and the example
+  script all give it a step 5. Both uses now read 0-5.
+- Table 1 told ADuLT readers to skip step 3, which builds their only
+  observation. It now says: all of step 1, and the relatives' rows in step 3.
+- Step 1's parent-pointer example ran `kinship_from_pedigree` before
+  `extract_pedigree`, reused one set of variables for two different tables and
+  discarded `ped`. Reordered so the data flows one way; the default
+  `max_degree=2` is used, with depth guidance from RESULTS section 12.
+- `use I` now keeps the role-`o` row with `(-inf, inf)` bounds rather than
+  dropping it: `pids` is read off that record and silently falls back to
+  `fam_id` when it is absent. Corrected in the vignette, `docs/guide.md` and
+  `README.md`.
+- Kinship-vs-role agreement was called "numerical noise". It is PA fold-order
+  approximation error -- 1.1e-3 on the regenerated seed-1 cohort; the columns
+  route is the exact one (0.0).
+- `res.se` being 0 under PA now carries the no-*sampling*-error caveat the
+  docstrings and README already used.
+- `\operatorname` in `docs/vignette.md` — GitHub's MathJax rejects that macro
+  and rendered the three correlations as an error string on the markdown
+  source README links to. Now `\mathrm`. Inline math no longer sits inside
+  bold, and section headings no longer contain math (it leaked raw TeX into
+  the sidebar and the search index).
+- Empty header rows in the vignette's Table 1 and "Where to go next" table;
+  every table on the page now has real column labels.
+- `report/README.md` wrote `h^2` with `\( \)` delimiters, which GitHub does
+  not render.
+- `docs/assumptions.md` checklist started at `0.`, which python-markdown
+  renumbers to 1-13 on the site while GitHub shows 0-12. The use-selection
+  item is now a sentence above the list.
+- `docs/cip-estimation.md` defined the CIP as "before a given age" against its
+  own formula and the vignette ("at or before").
+- mkdocs nav called `inference.md` "Fitting the model" while the page and
+  every link say "Inference"; `docs/guide.md` was titled "ltpred user guide"
+  while four places called it "Choose a method".
+- `docs/REVIEW_2026-08.md` and `docs/RELEASING.md` were published, sitemapped
+  and searchable but absent from the nav. Both are now in the nav, and the
+  review carries a banner saying it audits v0.3.4 and predates the 0.4.0
+  lean-down.
+- The three uses are numbered I/II/III everywhere (`docs/guide.md`,
+  `README.md`, `PAPER_PLAN.md` previously used 1/2/3 while referring to them
+  by roman numeral).
+- Pages that already wrote `h²` as a code span no longer also carry `$h^2$`
+  math on the same page.
+- The covariance correction above is stated for the general case:
+  `Sigma = h2 A + c2 C + m2 M + e2 I` with `e2 = 1 - h2 - c2 - m2`. The
+  simpler `h2 A + (1 - h2) I` holds only when the shared-environment
+  components are zero, and the same page offers `c2`/`m2` two sections later.
+- Pedigree-depth guidance said the extended pedigree cost "less than one
+  standard error at every prevalence tested". True at K = 0.05 and K = 0.20;
+  at K = 0.01 the extended arm is about 2 SE *lower* (0.249 +/- 0.004 against
+  0.259 +/- 0.003). Stated as measured.
+- The "Did it work?" checks indexed `mu` with the page's per-row `status`
+  column; they need the per-proband subset, and the proband count is
+  `len(families)`.
+
+- Methods note stress-pedigree PA–Gibbs floor is 0.9991 (CSV minimum 0.99916),
+  not 0.9992. `scripts/check_evidence.py` now recomputes the floor from
+  `bench_pa_robustness.csv`.
+- `fit_heritability` and `fit_variance_components` reject a `pid` that appears
+  in more than one family (or twice in one family). Overlapping register
+  pedigrees remain valid for `estimate_liability`. Bootstrap copies of the
+  same `fam_id` are not treated as overlap. Members without a `pid` cannot be
+  checked.
+- A family with no members now raises rather than warning and returning the
+  prior mean 0 (a silent-looking GWAS phenotype if the warning was ignored).
+- `research/README.md` no longer claims its tests run in CI.
 - Display equations no longer carry ~58px of dead vertical space above and
   below them. KaTeX's `auto-render` wraps each display equation in an inline
   `<span>` around the block-level `.katex-display`, and an inline box
