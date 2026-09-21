@@ -1465,7 +1465,7 @@ you how each proband was classified.</p>
 <p>Note <code>index_time</code> is aligned to <strong>probands</strong>, while <code>birth_time</code> is aligned to
 <strong>ids</strong> — they are different lengths, and passing the wrong one raises.</p>
 <h2 id="step-5-two-traits-at-once">Step 5 — Two traits at once<a class="headerlink" href="#step-5-two-traits-at-once" title="Permanent link">&para;</a></h2>
-<p>For two or more binary traits, <code>simulate_under_LTM_multi</code> builds families with
+<p>For two binary traits, <code>simulate_under_LTM_multi</code> builds families with
 per-trait bounds and <code>fit_pairwise_multi</code> fits heritabilities, the genetic
 correlation and the residual environmental correlation together.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_pairwise_multi</span><span class="p">,</span> <span class="n">simulate_under_LTM_multi</span>

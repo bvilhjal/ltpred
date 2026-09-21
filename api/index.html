@@ -4381,7 +4381,7 @@ is also a top-level export.</p>
 </tr>
 <tr>
 <td><code>simulate_under_LTM_multi</code></td>
-<td>simulate families with two or more traits under A/C/M/E components, for <code>fit_pairwise_multi</code></td>
+<td>simulate families with two traits under A/C/M/E components, for <code>fit_pairwise_multi</code></td>
 </tr>
 <tr>
 <td><code>observed_to_liability_h2</code> / <code>liability_to_observed_h2</code></td>
@@ -5537,10 +5537,10 @@ additionally conditioned on the proband being disease-free at the landmark; the
 two agree on ranking within an age but differ in level across ages, because
 surviving to an older age disease-free is evidence of lower liability. The
 driver's payoff and throughput evidence (RESULTS §§20–21, regenerated
-2026-09-03 under the provenance wrapper): the API is supported, with the
-payoff quantified there -- degree-3 corr(est, true g) 0.574 ± 0.021 vs
-degree-1 0.539 ± 0.015 (paired contrast +0.035 ± 0.012), prospective
-familywise-censored AUC 0.680 ± 0.039, and ~380 probands/s throughput.
+2026-09-21): the API is supported, with the
+payoff quantified there -- degree-3 corr(est, true g) 0.567 ± 0.029 vs
+degree-1 0.522 ± 0.031 (paired contrast +0.045 ± 0.009), prospective
+familywise-censored AUC 0.654 ± 0.021, and ~276 probands/s throughput.
 The relatives'-events contrast is unresolved at R = 5 on both metrics and
 is not quoted as a payoff.</p>
 <p>Two boundary diagnostics are surfaced on <code>PopulationScores</code> rather than
@@ -8388,10 +8388,6 @@ generating liability. With <code>onset_resolution=None</code>, the old exact-ons
 behavior is preserved: <code>"pin"</code> is a point and <code>"interval"</code> starts at
 that point. The age-0 clamp remains an upper-open liability interval because
 arbitrarily high liabilities map to onset age zero.</p>
-<p>A given <code>seed</code> reproduces the same families on every platform, up to
-floating-point rounding: the liabilities are drawn through a canonical
-factorisation of the covariance (:func:<code>_stable_factor</code>) rather than
-NumPy's default SVD, whose signs vary with the LAPACK build.</p>
 
 
     </div>
@@ -8494,10 +8490,6 @@ curve (see :func:<code>~ltpred.cip.kaplan_meier_cip</code>). <code>rng</code> is
 :class:<code>numpy.random.Generator</code>; the pedigree usually comes from
 :func:<code>simulate_pedigree</code> and <code>birth_time</code> from
 :func:<code>pedigree_birth_times</code>, which this function calls for you.</p>
-<p>A given <code>rng</code> reproduces the same register on every platform, up to
-floating-point rounding: the population liability field is drawn through
-the canonical factorisation of :func:<code>_stable_factor</code>, not NumPy's
-sign-arbitrary SVD.</p>
 
 
     </div>
