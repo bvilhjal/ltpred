@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://bvilhjal.github.io/ltpred/guide/">
       
       
-        <link rel="prev" href="..">
+        <link rel="prev" href="../tutorial/">
       
       
         <link rel="next" href="../quickstart/">
@@ -288,6 +288,33 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -299,24 +326,6 @@
       
         
       
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Choose a method
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -334,36 +343,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#when-to-use-ltpred" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to use ltpred
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -384,33 +363,6 @@
     
   
     Quickstart
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../tutorial/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Tutorial
   
 
     
@@ -1123,25 +1075,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#when-to-use-ltpred" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to use ltpred
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -1161,26 +1094,23 @@
 
 
 <h1 id="choose-a-method">Choose a method<a class="headerlink" href="#choose-a-method" title="Permanent link">&para;</a></h1>
-<p>The four observation models (LT-FH, LT-FH++, ADuLT, PA-FGRS) and the three
-uses are defined in the <a href="../vignette/#three-uses">vignette</a>. This page chooses
-the bounds, the records, and the estimator.</p>
-<p>PA is the single-trait default. Gibbs is the sampling reference. The
-PA-FGRS censoring mixture is PA-only. <strong>PA-FGRS</strong> here is the
-Pearson–Aitken score, not the register-standardised FGRS of
-<a href="https://doi.org/10.1001/jamapsychiatry.2021.0336">Kendler et al. (2021)</a>.</p>
-<p>The <a href="../quickstart/">quickstart</a> is six typed rows. The <a href="../tutorial/">tutorial</a>
-runs a simulated cohort. The <a href="../vignette/">vignette</a> is the full contract
-(<a href="https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py"><code>examples/vignette.py</code></a>).
-Unsupported fitters stay in the checkout-only
-<a href="../research/"><code>research/</code> package</a>.</p>
-<h2 id="when-to-use-ltpred">When to use ltpred<a class="headerlink" href="#when-to-use-ltpred" title="Permanent link">&para;</a></h2>
-<p>Uses I and II need, per proband, a binary <strong>status</strong> and ideally an <strong>age</strong>
-(onset for cases, last follow-up for controls); for LT-FH/LT-FH++ the same
-for relatives of known relationship; and a population prevalence plus a
-liability-scale <code>h²</code> for that disease. Prefer an external <code>h²</code>, or
-cross-check it with <code>ltpred.tetrachoric</code> (<code>h² ~ 2 ×</code> a first-degree
-tetrachoric). Use III can stop at those population parameters. The joint
-fit is the <a href="../vignette/#joint-heritability-and-geneticenvironmental-correlation">vignette's worked example</a>.</p>
+<p>Teach the <a href="../tutorial/">tutorial</a> before this table. Steps 1–4 are one hour:
+build a population with a known genetic liability, see why death changes the
+incidence curve, score with the diagnosis included, then score with it hidden.
+Step 5 is a second hour, two traits in one fit. The six typed rows are the
+<a href="../quickstart/">quickstart</a>. The contract is the
+<a href="../vignette/#three-uses">vignette</a>.</p>
+<p>When a student brings their own table, pick a row below. PA is the default
+for one trait. Gibbs is the sampling check. The mixture is PA-only, and it
+is not the register-standardised FGRS of
+<a href="https://doi.org/10.1001/jamapsychiatry.2021.0336">Kendler et al. (2021)</a>.
+Uses I and II need a binary status, an age when you have one (onset for
+cases, last follow-up for controls), relatives of known relationship for
+LT-FH/LT-FH++, a population prevalence, and a liability-scale <code>h²</code> for that
+disease. Prefer an external <code>h²</code>, or cross-check it with <code>ltpred.tetrachoric</code>
+(<code>h² ~ 2 ×</code> a first-degree tetrachoric). Use III can stop at those
+parameters. Unsupported fitters stay in
+<a href="../research/"><code>research/</code></a>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Family-data fitting needs a declared sampling design</p>
 <p><code>fit_heritability</code>, <code>fit_variance_components</code>, <code>fit_pairwise</code> and
@@ -1267,7 +1197,8 @@ helper encoding PA-FGRS_ADT: it is not a faithful implementation of that publish
 specification. The
 <a href="../data-preparation/#getting-lowerupper-from-status-and-age">data-preparation page</a>
 shows the base recipe explicitly.</p>
-<p>New here? Start with the <strong><a href="../quickstart/">quickstart</a></strong>.</p>
+<p>After the lab, a student's own rows start at the
+<strong><a href="../quickstart/">quickstart</a></strong>.</p>
 
 
 

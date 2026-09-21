@@ -13,10 +13,10 @@
         <link rel="canonical" href="https://bvilhjal.github.io/ltpred/tutorial/">
       
       
-        <link rel="prev" href="../quickstart/">
+        <link rel="prev" href="..">
       
       
-        <link rel="next" href="../vignette/">
+        <link rel="next" href="../guide/">
       
       
         
@@ -288,60 +288,6 @@
       
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="../guide/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Choose a method
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../quickstart/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Quickstart
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
     
   
   
@@ -460,10 +406,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-this-tutorial-skips" class="md-nav__link">
+  <a href="#what-this-lab-is-not" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What this tutorial skips
+        What this lab is not
       
     </span>
   </a>
@@ -485,6 +431,60 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choose a method
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1251,10 +1251,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-this-tutorial-skips" class="md-nav__link">
+  <a href="#what-this-lab-is-not" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What this tutorial skips
+        What this lab is not
       
     </span>
   </a>
@@ -1293,24 +1293,56 @@
 
 
 <h1 id="tutorial">Tutorial<a class="headerlink" href="#tutorial" title="Permanent link">&para;</a></h1>
-<p>A complete, runnable analysis on <strong>simulated</strong> data, start to finish: build a
-population cohort with known truth, estimate the incidence curve it needs, score
-every proband, and check the scores against that truth. About 30 lines of code
-and a few seconds of runtime.</p>
-<p>Every block below runs in order — copy the page into a script, or run the blocks
-one at a time in a REPL, and each will work because each only uses names the
-earlier blocks defined. <code>tests/test_tutorial.py</code> executes the page's blocks on
-every commit, so the code cannot rot away from the prose.</p>
-<p>This page is deliberately narrow. It states <em>what to type</em> and <em>what you should
-see</em>; it does not restate the modelling contracts. Everything it simplifies is
-listed in <a href="#what-this-tutorial-skips">what this tutorial skips</a> at the end, with
-a link to the page that carries the full caveat. If you need to know whether a
-step is valid for <em>your</em> data, that is the <a href="../vignette/">vignette</a>.</p>
+<p>A lab in five questions. Run the blocks in order: each one uses only names
+the earlier blocks defined. Copy the page into a script, or paste one block
+at a time. <code>tests/test_tutorial.py</code> re-runs the blocks and checks the
+printouts.</p>
+<p>Teach steps 1–4 as one hour (one disease, known truth). Step 5 is a second
+hour (two traits). The <a href="../guide/">method guide</a> is what you open when a
+student brings their own table. Contracts this lab simplifies are at the end.</p>
+<table>
+<thead>
+<tr>
+<th>step</th>
+<th>question</th>
+<th>the printout should show</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Can we build a population whose genetic liability we know?</td>
+<td>variance of <code>genetic</code> near 0.5, and not everyone diagnosed by 70</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Kaplan–Meier or Aalen–Johansen when people die?</td>
+<td>KM stays near the no-death curve; AJ drops</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Does a GWAS score recover that liability?</td>
+<td>correlation about 0.55; most of Var(g) is still posterior uncertainty</td>
+</tr>
+<tr>
+<td>4</td>
+<td>What if the proband's own diagnosis is hidden?</td>
+<td>correlation falls to about 0.31</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Can one fit recover two traits?</td>
+<td>each estimate within about 2 SE of its truth</td>
+</tr>
+</tbody>
+</table>
 <h2 id="step-1-simulate-a-population-cohort">Step 1 — Simulate a population cohort<a class="headerlink" href="#step-1-simulate-a-population-cohort" title="Permanent link">&para;</a></h2>
-<p>ltpred ships the generators, so you do not need real register data to learn the
-pipeline. <code>simulate_pedigree</code> builds a multi-generation parent-pointer table;
-<code>simulate_register_liabilities</code> draws <strong>one</strong> liability field over the whole
-pedigree and turns it into diagnosis records.</p>
+<p><strong>Question.</strong> If we know the genetic liability, can we still see a realistic
+diagnosis register?</p>
+<p><code>simulate_pedigree</code> builds the parent pointers. <code>simulate_register_liabilities</code>
+draws <strong>one</strong> liability for the whole population and turns it into diagnoses.
+A person who sits in several pedigrees therefore has one status and one
+genetic value.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate_pedigree</span><span class="p">,</span> <span class="n">simulate_register_liabilities</span>
@@ -1340,19 +1372,18 @@ pedigree and turns it into diagnosis records.</p>
 var(true genetic liability) = 0.5083  (target 0.5)
 birth years: [1920.0, 1950.0, 1980.0]
 </code></pre></div>
-<p><code>cohort</code> carries the register columns (<code>ids</code>, <code>father</code>, <code>mother</code>, <code>status</code>,
-<code>age</code>, <code>birth_time</code>) <strong>and</strong> the truth (<code>genetic</code>, <code>onset</code>, <code>residual_var</code>), so
-every later step can be scored rather than merely run. The 8.2% diagnosis rate
-tracks the generating curve at age 70 (7.8%), not the 10% lifetime
-prevalence — that gap is
-the whole reason step 2 exists.</p>
-<p>The pedigree is drawn once for the population, not per proband, so a person who
-appears in several probands' pedigrees has one status and one genetic value.</p>
+<p><strong>Answer.</strong> The variance of <code>genetic</code> is the heritability we asked for.
+The generating curve at age 70 is 7.8%, not the 10% lifetime prevalence,
+and 81 diagnoses out of 984 is one draw from that curve. That is why step 2
+estimates a curve instead of plugging in 0.10. <code>cohort.genetic</code> is the truth
+later steps correlate against. The register columns are <code>status</code>, <code>age</code>, and
+<code>birth_time</code>.</p>
 <h2 id="step-2-estimate-the-incidence-curve">Step 2 — Estimate the incidence curve<a class="headerlink" href="#step-2-estimate-the-incidence-curve" title="Permanent link">&para;</a></h2>
-<p>Bounds need a cumulative-incidence curve. With follow-up records — entry age,
-exit age, and an event code — ltpred estimates one. <code>simulate_followup_records</code>
-makes records from a <strong>known</strong> logistic curve so the estimate can be checked.</p>
-<p>First without competing mortality:</p>
+<p><strong>Question.</strong> When death competes with diagnosis, which estimator moves?</p>
+<p>These 50,000 records are a <strong>new</strong> sample, not the 984 people above. A CIP
+from 81 events is too noisy to teach the difference. <code>simulate_followup_records</code>
+draws from the same logistic curve so the estimate can be checked.</p>
+<p>First, nobody dies:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">kaplan_meier_cip</span><span class="p">,</span> <span class="n">simulate_followup_records</span>
 
 <span class="n">plain</span> <span class="o">=</span> <span class="n">simulate_followup_records</span><span class="p">(</span>
@@ -1368,8 +1399,7 @@ makes records from a <strong>known</strong> logistic curve so the estimate can b
 <div class="highlight"><pre><span></span><code>49,999 records; worst error on the age grid 0.0032
 KM(70) = 0.0757   true = 0.0777
 </code></pre></div>
-<p>Now add a competing risk of death. This is the case that separates the two
-estimators:</p>
+<p>Now death competes. This is the comparison the step exists for:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">aalen_johansen_cip</span>
 
 <span class="n">mort</span> <span class="o">=</span> <span class="n">simulate_followup_records</span><span class="p">(</span>
@@ -1387,16 +1417,17 @@ estimators:</p>
 Aalen-Johansen(70) = 0.0626
 Kaplan-Meier(70)   = 0.0761   (was 0.0757 with no deaths)
 </code></pre></div>
-<p>Read that last line carefully, because it is the trap. Kaplan–Meier barely moved
-when 21,066 people died: treating death as ordinary censoring reproduces the
-no-death curve. It is not broken — it consistently estimates <em>its own</em> estimand,
-the risk you would see if nobody died. But a dead person cannot be diagnosed, so
-the quantity a registry actually measures is lower, and Aalen–Johansen is the
-estimator that targets it. See <a href="../cip-estimation/">CIP estimation</a>.</p>
+<p><strong>Answer.</strong> Two different quantities, not two estimators of one curve.
+Kaplan–Meier, treating death as censoring, stays at 0.076, next to the
+generating curve at 70 (0.078): that is the net risk if nobody died.
+Aalen–Johansen is the proportion actually diagnosed by 70 when death can
+come first, 0.063. Do not pass that lower curve into step 3 in place of
+<code>TRUE_CIP</code>; step 3's bounds were built from the net curve. See
+<a href="../cip-estimation/">CIP estimation</a>.</p>
 <h2 id="step-3-score-the-population">Step 3 — Score the population<a class="headerlink" href="#step-3-score-the-population" title="Permanent link">&para;</a></h2>
-<p><code>estimate_liabilities</code> is the register driver: it takes the parent-pointer table
-plus per-person diagnosis records, walks each proband's pedigree, and returns one
-genetic-liability score per proband.</p>
+<p><strong>Question.</strong> If the proband's own diagnosis is included, how close is the
+score to the genetic liability from step 1?</p>
+<p><code>estimate_liabilities</code> walks each proband's pedigree and returns one score.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liabilities</span>
 
 <span class="n">scores</span> <span class="o">=</span> <span class="n">estimate_liabilities</span><span class="p">(</span>
@@ -1418,23 +1449,21 @@ score sd = 0.3898   mean posterior variance = 0.3558
 median relatives conditioned on = 23
 records with an unresolved parent = 0.0000
 </code></pre></div>
-<p>Three things to notice. The score correlates 0.55 with the truth it never saw.
-The posterior <strong>variance</strong> is returned per proband and is almost as large as the
-score's own spread — most of these people have few informative relatives, so the
-score is genuinely uncertain and should not be used as if it were a measurement.
-And <code>frac_records_with_unresolved_parents</code> is a data-quality diagnostic you
-should check on real data, where a parent id may point at someone outside the
-extract.</p>
-<p>Here the generating curve is passed straight in. On real data you would pass the
-curve estimated in step 2, stratified by sex and birth cohort —
-<code>strata</code> plus <code>cip_by_stratum</code> — because one curve for everyone is exactly the
-approximation step 2 exists to remove.</p>
+<p><strong>Answer.</strong> The correlation, 0.55, is with the true genetic liability, which
+the scorer was not given. It is not a disease-risk correlation. Square the
+score standard deviation and add the mean posterior variance:
+0.390² + 0.356 = 0.508, the variance of <code>genetic</code> in step 1. The data
+identified about 0.15 of that variance; about 0.36 is still posterior
+uncertainty, so the score is not a measurement. The 984 scores are
+overlapping pedigrees, not 984 independent people. Unresolved parents are 0
+because every parent id was in the table. This step passes the generating
+net curve back in. A real analysis passes a stratified estimate
+(<code>strata</code>, <code>cip_by_stratum</code>).</p>
 <h2 id="step-4-score-prospectively-without-the-probands-own-diagnosis">Step 4 — Score prospectively, without the proband's own diagnosis<a class="headerlink" href="#step-4-score-prospectively-without-the-probands-own-diagnosis" title="Permanent link">&para;</a></h2>
-<p><code>use="gwas"</code> builds a GWAS phenotype and includes the proband's own diagnosis.
-<code>use="prediction"</code> hides it, so the score can be used to predict <em>future</em> onset
-in people who are still disease-free. That changes the observation set, so it
-needs a calendar: <code>birth_time</code> for every person and <code>index_time</code> for every
-proband.</p>
+<p><strong>Question.</strong> How much of step 3 was just the proband's own diagnosis?</p>
+<p><code>use="prediction"</code> hides that diagnosis. It needs a calendar: <code>birth_time</code>
+for every person, <code>index_time</code> for every proband. Those two arrays have
+different lengths.</p>
 <div class="highlight"><pre><span></span><code><span class="n">at_risk</span> <span class="o">=</span> <span class="n">cohort</span><span class="o">.</span><span class="n">onset</span> <span class="o">&gt;</span> <span class="n">INDEX_AGE</span>          <span class="c1"># still undiagnosed at the cut</span>
 <span class="n">index_time</span> <span class="o">=</span> <span class="n">cohort</span><span class="o">.</span><span class="n">birth_time</span> <span class="o">+</span> <span class="n">INDEX_AGE</span>
 
@@ -1456,18 +1485,18 @@ proband.</p>
 corr(score, truth) = 0.3069   score sd = 0.2134
 proband states: ['disease_free_and_followed']
 </code></pre></div>
-<p>The correlation drops from 0.55 to 0.31 — not a defect, the price of the
-question. Step 3 was allowed to see each proband's own diagnosis; step 4 is not,
-so it has only relatives to work with. Restricting <code>probands</code> to the at-risk set
-is not optional either: scoring someone already diagnosed and calling the result
-prospective is leakage, and the driver warns if you do it. <code>proband_state</code> tells
-you how each proband was classified.</p>
-<p>Note <code>index_time</code> is aligned to <strong>probands</strong>, while <code>birth_time</code> is aligned to
-<strong>ids</strong> — they are different lengths, and passing the wrong one raises.</p>
+<p><strong>Answer.</strong> The drop from 0.55 to 0.31 is still a correlation with genetic
+liability, now without the proband's own diagnosis. It is not the accuracy
+of predicting who becomes a case after 40. Restricting <code>probands</code> to people
+undiagnosed at 40 is part of that question: scoring someone already diagnosed
+and calling it prospective is leakage, and the driver warns. <code>proband_state</code>
+is that check.</p>
 <h2 id="step-5-two-traits-at-once">Step 5 — Two traits at once<a class="headerlink" href="#step-5-two-traits-at-once" title="Permanent link">&para;</a></h2>
-<p>For two binary traits, <code>simulate_under_LTM_multi</code> builds families with
-per-trait bounds and <code>fit_pairwise_multi</code> fits heritabilities, the genetic
-correlation and the residual environmental correlation together.</p>
+<p><strong>Question.</strong> On a second cohort, can one fit recover both heritabilities,
+the genetic correlation, and the residual correlation?</p>
+<p>This cohort is not the register from step 1. <code>simulate_under_LTM_multi</code>
+builds nuclear families with two binary traits. <code>fit_pairwise_multi</code> fits
+them together. Read <code>inference_status</code> before reading a standard error.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_pairwise_multi</span><span class="p">,</span> <span class="n">simulate_under_LTM_multi</span>
 
 <span class="n">multi</span> <span class="o">=</span> <span class="n">simulate_under_LTM_multi</span><span class="p">(</span><span class="n">n_families</span><span class="o">=</span><span class="mi">3000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
@@ -1498,49 +1527,32 @@ correlation and the residual environmental correlation together.</p>
   residual re fitted -0.4432 ± 0.1651   truth -0.35   (0.56 SE)
 inference status: interior_cluster_sandwich
 </code></pre></div>
-<p>The first line is a check on the <em>simulator</em>: the realised correlation matches
-the parameter it was built from. The rest are checks on the <em>fitter</em>, and every
-one lands within about two standard errors of its target — which is what one
-cohort of 3,000 families should give, and is not evidence of calibration. Always
-read <code>inference_status</code> before quoting a standard error: fits that reach a
-covariance boundary withhold them. The replicated evidence — 1,800 fits across
-nine scenarios, heritability bias below 0.004 where the model is correctly
-specified — is in <code>benchmarks/RESULTS.md</code> §33.</p>
-<h2 id="what-this-tutorial-skips">What this tutorial skips<a class="headerlink" href="#what-this-tutorial-skips" title="Permanent link">&para;</a></h2>
-<p>Each of these is a real modelling decision, deliberately left out so the page
-stays runnable. Follow the link before applying any of it to real data.</p>
-<div class="admonition warning">
-<p class="admonition-title">This is a demonstration, not an analysis template</p>
-<p><strong>One incidence curve for everyone.</strong> Steps 3 and 4 pass a single
-<code>TRUE_CIP</code>. Real LT-FH++ needs sex- and birth-cohort-stratified curves via
-<code>strata</code> and <code>cip_by_stratum</code>, because incidence differs enough between
-strata that a pooled curve biases the bounds.
-→ <a href="../cip-estimation/">CIP estimation</a>, <a href="../data-preparation/">data preparation</a></p>
-<p><strong><code>h2</code> was given, not chosen.</strong> The tutorial hard-codes <code>h2 = 0.5</code> and the
-simulator obeys it, so recovery is unsurprising. On real data <code>h2</code> is the
-liability-scale heritability <em>of that disease</em>, it has no default, and
-pedigree/twin and SNP estimates differ. Fitting it from family data requires
-a declared sampling design.
-→ <a href="../data-preparation/#getting-heritability-on-the-liability-scale">data preparation, "Which h²?"</a>,
-<a href="../inference/">inference</a></p>
-<p><strong>The generating curve was fed back in.</strong> Step 3 uses <code>TRUE_CIP</code> rather than
-the curve estimated in step 2, to keep the two steps separable. Passing a
-misspecified curve is a real failure mode with a measured effect.
-→ <a href="../assumptions/">assumptions</a></p>
-<p><strong>Nothing is ascertained.</strong> The cohort is an unascertained population sample
-(<code>sampling="population"</code>). Biobanks are usually selected on observed status,
-which changes what the fitters estimate.
-→ <a href="../inference/#ascertained-samples">inference, ascertainment</a></p>
-<p><strong>The score is not a risk probability.</strong> It is a posterior mean genetic
-liability on a standardised scale. Turning it into absolute risk needs the
-future-risk calculation, and using it in a GWAS needs residualisation for
-design covariates and an explicit join on the returned proband ids.
-→ <a href="../estimation/">estimation</a>, <a href="../vignette/">vignette</a></p>
-<p><strong>One simulation illustrates an API.</strong> Steps 1–5 are single seeded runs.
-Every quantitative claim ltpred makes is replicated across seeds in
-<code>benchmarks/RESULTS.md</code>, and the prose elsewhere links to it rather than
-repeating numbers.</p>
-</div>
+<p><strong>Answer.</strong> The first line checks the simulator. Trait 1's heritability is
+the noisy draw: 0.43 against 0.35, 1.63 standard errors. The other three sit
+closer. That is one cohort of 3,000 families, not a calibration study.
+<code>interior_cluster_sandwich</code> means those standard errors were produced; a
+boundary fit withholds them. The replicated fits are in
+<code>benchmarks/RESULTS.md</code> §33.</p>
+<h2 id="what-this-lab-is-not">What this lab is not<a class="headerlink" href="#what-this-lab-is-not" title="Permanent link">&para;</a></h2>
+<p>Do not hand a student a real register and tell them to change the filenames.
+Each shortcut below is a real decision, with the page that carries it.</p>
+<ul>
+<li><strong>One curve for everyone.</strong> Steps 3 and 4 pass <code>TRUE_CIP</code>. Real LT-FH++
+  stratifies by sex and birth year.
+  <a href="../cip-estimation/">CIP estimation</a>,
+  <a href="../data-preparation/">data preparation</a>.</li>
+<li><strong><code>h² = 0.5</code> was given.</strong> It is the liability-scale heritability of this
+  disease, it has no default, and fitting it needs a declared sampling design.
+  <a href="../data-preparation/#getting-heritability-on-the-liability-scale">Which h²?</a>,
+  <a href="../inference/">inference</a>.</li>
+<li><strong>The generating curve was fed back in.</strong> Passing a wrong curve is a measured
+  failure mode. <a href="../assumptions/">Assumptions</a>.</li>
+<li><strong>The sample is unascertained.</strong> Biobanks selected on case status are not.
+  <a href="../inference/#ascertained-samples">Ascertainment</a>.</li>
+<li><strong>The score is not a risk.</strong> It is a posterior mean liability. A GWAS joins
+  it on the returned proband ids and residualises the design covariates.
+  <a href="../estimation/">Estimation</a>, <a href="../vignette/">vignette</a>.</li>
+</ul>
 <h2 id="where-to-go-next">Where to go next<a class="headerlink" href="#where-to-go-next" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1551,36 +1563,20 @@ repeating numbers.</p>
 </thead>
 <tbody>
 <tr>
-<td>the full contract: three uses, <code>h²</code>, pedigrees, CIPs, family history</td>
-<td><a href="../vignette/">Vignette</a></td>
+<td>which function to call on a student's own table</td>
+<td><a href="../guide/">Choose a method</a></td>
 </tr>
 <tr>
-<td>the smallest possible hand-typed example</td>
+<td>six hand-typed rows</td>
 <td><a href="../quickstart/">Quickstart</a></td>
 </tr>
 <tr>
-<td>prepare your own register or family-table data</td>
-<td><a href="../data-preparation/">Data preparation</a></td>
+<td>the full contract</td>
+<td><a href="../vignette/">Vignette</a></td>
 </tr>
 <tr>
-<td>estimate a stratified CIP from real follow-up records</td>
-<td><a href="../cip-estimation/">CIP estimation</a></td>
-</tr>
-<tr>
-<td>choose an inference engine, or scale to biobank size</td>
-<td><a href="../estimation/">Estimation</a></td>
-</tr>
-<tr>
-<td>fit <code>h²</code>, correlations or A/C/M components properly</td>
-<td><a href="../inference/">Inference</a></td>
-</tr>
-<tr>
-<td>the real-data checklist before you trust a score</td>
-<td><a href="../assumptions/">Assumptions &amp; checklist</a></td>
-</tr>
-<tr>
-<td>a function signature</td>
-<td><a href="../api/">API reference</a></td>
+<td>the checklist before a real analysis</td>
+<td><a href="../assumptions/">Assumptions</a></td>
 </tr>
 </tbody>
 </table>
