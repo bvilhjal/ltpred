@@ -115,6 +115,27 @@ behind the published evidence were not reachable from an installed package.
 - `docs/api.md`, `docs/index.md`, `docs/guide.md` and `mkdocs.yml` list the
   tutorial and the new generators.
 
+### Fixed
+
+- Display equations no longer carry ~58px of dead vertical space above and
+  below them. KaTeX's `auto-render` wraps each display equation in an inline
+  `<span>` around the block-level `.katex-display`, and an inline box
+  containing a block box inflates its line box to ~104px for a 24px equation.
+  Measured in headless Chrome against the built site: 58px gaps above and below
+  equation (1), against the intended 1em margins. `docs/javascripts/katex.js`
+  now sets that wrapper to `display: block` after rendering, collapsing the
+  gaps to 32px. All 191 equations on the vignette render with zero KaTeX errors
+  before and after, so this is a layout fix only.
+- `docs/assets/pipeline.svg` set its mathematics as literal source text —
+  `D_F`, `μ_i`, `r_g`, `T(K)` with visible underscores — which read as
+  unrendered LaTeX inside a figure. Subscripts are now real `tspan` baseline
+  shifts and variables italic, in both the light and the dark palette. The
+  stray dashed connector in the left track is replaced by a centred annotation
+  row matching the right track's, and the two exit cards are symmetric (cards
+  with track-coloured titles) instead of one white card and one solid slab.
+  Content, palette tokens, dark-mode behaviour and the `aria-label` are
+  unchanged, so the vignette's alt text still describes the figure accurately.
+
 ### Not changed
 
 - The nine exported result containers still undocumented in prose

@@ -13,4 +13,15 @@ document$.subscribe(function () {
     throwOnError: false,
     ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
   });
+
+  /* auto-render wraps each display equation in an inline <span> around the
+   * block-level .katex-display. An inline box containing a block box inflates
+   * its line box to ~104px for a 24px equation, which shows up as ~58px of dead
+   * vertical space above and below every displayed equation. Making the
+   * wrapper a block collapses it to the equation's own height (gaps fall to
+   * the intended 1em margins). Measured in headless Chrome, 2026-09-21. */
+  document.querySelectorAll(".katex-display").forEach(function (display) {
+    var wrapper = display.parentElement;
+    if (wrapper && wrapper.tagName === "SPAN") wrapper.style.display = "block";
+  });
 });
