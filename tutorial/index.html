@@ -1,0 +1,1675 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+      
+      
+      
+        <link rel="canonical" href="https://bvilhjal.github.io/ltpred/tutorial/">
+      
+      
+        <link rel="prev" href="../quickstart/">
+      
+      
+        <link rel="next" href="../vignette/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Tutorial - ltpred</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+3:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Source Sans 3";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/smartbiomed.css">
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tutorial" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ltpred" class="md-header__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ltpred
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Tutorial
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ltpred" class="md-nav__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../assets/logo.svg" alt="logo">
+
+    </a>
+    ltpred
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choose a method
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-simulate-a-population-cohort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1 — Simulate a population cohort
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-estimate-the-incidence-curve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — Estimate the incidence curve
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-score-the-population" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3 — Score the population
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-score-prospectively-without-the-probands-own-diagnosis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4 — Score prospectively, without the proband's own diagnosis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-two-traits-at-once" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 — Two traits at once
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-tutorial-skips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this tutorial skips
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-to-go-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where to go next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vignette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vignette
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflow
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-preparation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data preparation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cip-estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CIP estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assumptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assumptions & checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm & model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../research/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ROADMAP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PAPER_PLAN/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RELEASING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Releasing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reviews/REVIEW_2026-08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.3.4)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reviews/REVIEW_2026-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.4.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reviews/REVIEW_2026-09b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.5.1)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reviews/REVIEW_2026-09c/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.6.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reviews/REVIEW_2026-09d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.7.0, documentation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#step-1-simulate-a-population-cohort" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1 — Simulate a population cohort
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-estimate-the-incidence-curve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — Estimate the incidence curve
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-3-score-the-population" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3 — Score the population
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-4-score-prospectively-without-the-probands-own-diagnosis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4 — Score prospectively, without the proband's own diagnosis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-5-two-traits-at-once" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 — Two traits at once
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-tutorial-skips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this tutorial skips
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-to-go-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where to go next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="tutorial">Tutorial<a class="headerlink" href="#tutorial" title="Permanent link">&para;</a></h1>
+<p>A complete, runnable analysis on <strong>simulated</strong> data, start to finish: build a
+population cohort with known truth, estimate the incidence curve it needs, score
+every proband, and check the scores against that truth. About 30 lines of code
+and a few seconds of runtime.</p>
+<p>Every block below runs in order — copy the page into a script, or run the blocks
+one at a time in a REPL, and each will work because each only uses names the
+earlier blocks defined. <code>tests/test_tutorial.py</code> executes the page's blocks on
+every commit, so the code cannot rot away from the prose.</p>
+<p>This page is deliberately narrow. It states <em>what to type</em> and <em>what you should
+see</em>; it does not restate the modelling contracts. Everything it simplifies is
+listed in <a href="#what-this-tutorial-skips">what this tutorial skips</a> at the end, with
+a link to the page that carries the full caveat. If you need to know whether a
+step is valid for <em>your</em> data, that is the <a href="../vignette/">vignette</a>.</p>
+<h2 id="step-1-simulate-a-population-cohort">Step 1 — Simulate a population cohort<a class="headerlink" href="#step-1-simulate-a-population-cohort" title="Permanent link">&para;</a></h2>
+<p>ltpred ships the generators, so you do not need real register data to learn the
+pipeline. <code>simulate_pedigree</code> builds a multi-generation parent-pointer table;
+<code>simulate_register_liabilities</code> draws <strong>one</strong> liability field over the whole
+pedigree and turns it into diagnosis records.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate_pedigree</span><span class="p">,</span> <span class="n">simulate_register_liabilities</span>
+
+<span class="n">H2</span> <span class="o">=</span> <span class="mf">0.5</span>                                      <span class="c1"># liability-scale heritability</span>
+<span class="n">CIP_K</span><span class="p">,</span> <span class="n">CIP_MID</span><span class="p">,</span> <span class="n">CIP_SLOPE</span> <span class="o">=</span> <span class="mf">0.10</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span>
+<span class="n">EVAL_AGE</span> <span class="o">=</span> <span class="mf">70.0</span>                               <span class="c1"># everyone is followed to here</span>
+<span class="n">INDEX_AGE</span> <span class="o">=</span> <span class="mf">40.0</span>                              <span class="c1"># the prospective cut in step 4</span>
+
+<span class="c1"># the generating cumulative-incidence curve, on a 1-year age grid</span>
+<span class="n">AGE_GRID</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">121</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+<span class="n">TRUE_CIP</span> <span class="o">=</span> <span class="n">CIP_K</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">((</span><span class="n">CIP_MID</span> <span class="o">-</span> <span class="n">AGE_GRID</span><span class="p">)</span> <span class="o">*</span> <span class="n">CIP_SLOPE</span><span class="p">))</span>
+
+<span class="n">ids</span><span class="p">,</span> <span class="n">father</span><span class="p">,</span> <span class="n">mother</span> <span class="o">=</span> <span class="n">simulate_pedigree</span><span class="p">(</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">20260921</span><span class="p">),</span> <span class="n">n_founder_pairs</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">gens</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="n">cohort</span> <span class="o">=</span> <span class="n">simulate_register_liabilities</span><span class="p">(</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">20260921</span><span class="p">),</span> <span class="n">ids</span><span class="p">,</span> <span class="n">father</span><span class="p">,</span> <span class="n">mother</span><span class="p">,</span>
+    <span class="n">h2</span><span class="o">=</span><span class="n">H2</span><span class="p">,</span> <span class="n">cip_ages</span><span class="o">=</span><span class="n">AGE_GRID</span><span class="p">,</span> <span class="n">cip_values</span><span class="o">=</span><span class="n">TRUE_CIP</span><span class="p">,</span> <span class="n">eval_age</span><span class="o">=</span><span class="n">EVAL_AGE</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">ids</span><span class="p">)</span><span class="si">}</span><span class="s2"> people, </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">cohort</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">}</span><span class="s2"> diagnosed by age "</span>
+      <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">EVAL_AGE</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">cohort</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"var(true genetic liability) = </span><span class="si">{</span><span class="n">cohort</span><span class="o">.</span><span class="n">genetic</span><span class="o">.</span><span class="n">var</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  (target </span><span class="si">{</span><span class="n">H2</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"birth years: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">cohort</span><span class="o">.</span><span class="n">birth_time</span><span class="o">.</span><span class="n">tolist</span><span class="p">()))</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>984 people, 69 diagnosed by age 70 (7.0%)
+var(true genetic liability) = 0.5109  (target 0.5)
+birth years: [1920.0, 1950.0, 1980.0]
+</code></pre></div>
+<p><code>cohort</code> carries the register columns (<code>ids</code>, <code>father</code>, <code>mother</code>, <code>status</code>,
+<code>age</code>, <code>birth_time</code>) <strong>and</strong> the truth (<code>genetic</code>, <code>onset</code>, <code>residual_var</code>), so
+every later step can be scored rather than merely run. The 7.0% diagnosis rate is
+the generating curve at age 70, not the 10% lifetime prevalence — that gap is
+the whole reason step 2 exists.</p>
+<p>The pedigree is drawn once for the population, not per proband, so a person who
+appears in several probands' pedigrees has one status and one genetic value.</p>
+<h2 id="step-2-estimate-the-incidence-curve">Step 2 — Estimate the incidence curve<a class="headerlink" href="#step-2-estimate-the-incidence-curve" title="Permanent link">&para;</a></h2>
+<p>Bounds need a cumulative-incidence curve. With follow-up records — entry age,
+exit age, and an event code — ltpred estimates one. <code>simulate_followup_records</code>
+makes records from a <strong>known</strong> logistic curve so the estimate can be checked.</p>
+<p>First without competing mortality:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">kaplan_meier_cip</span><span class="p">,</span> <span class="n">simulate_followup_records</span>
+
+<span class="n">plain</span> <span class="o">=</span> <span class="n">simulate_followup_records</span><span class="p">(</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">7</span><span class="p">),</span> <span class="mi">50_000</span><span class="p">,</span>
+    <span class="n">pop_prev</span><span class="o">=</span><span class="n">CIP_K</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="n">CIP_MID</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="n">CIP_SLOPE</span><span class="p">)</span>
+
+<span class="n">km</span> <span class="o">=</span> <span class="n">kaplan_meier_cip</span><span class="p">(</span><span class="n">plain</span><span class="o">.</span><span class="n">age_entry</span><span class="p">,</span> <span class="n">plain</span><span class="o">.</span><span class="n">age_exit</span><span class="p">,</span> <span class="n">plain</span><span class="o">.</span><span class="n">event</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">km_at_70</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="mf">70.0</span><span class="p">,</span> <span class="n">km</span><span class="o">.</span><span class="n">ages</span><span class="p">,</span> <span class="n">km</span><span class="o">.</span><span class="n">values</span><span class="p">))</span>
+<span class="n">worst</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">AGE_GRID</span><span class="p">,</span> <span class="n">km</span><span class="o">.</span><span class="n">ages</span><span class="p">,</span> <span class="n">km</span><span class="o">.</span><span class="n">values</span><span class="p">)</span> <span class="o">-</span> <span class="n">TRUE_CIP</span><span class="p">)))</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">km</span><span class="o">.</span><span class="n">n_entered</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> records; worst error on the age grid </span><span class="si">{</span><span class="n">worst</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"KM(70) = </span><span class="si">{</span><span class="n">km_at_70</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">   true = </span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="mf">70.0</span><span class="p">,</span><span class="w"> </span><span class="n">AGE_GRID</span><span class="p">,</span><span class="w"> </span><span class="n">TRUE_CIP</span><span class="p">))</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>49,999 records; worst error on the age grid 0.0032
+KM(70) = 0.0757   true = 0.0777
+</code></pre></div>
+<p>Now add a competing risk of death. This is the case that separates the two
+estimators:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">aalen_johansen_cip</span>
+
+<span class="n">mort</span> <span class="o">=</span> <span class="n">simulate_followup_records</span><span class="p">(</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">7</span><span class="p">),</span> <span class="mi">50_000</span><span class="p">,</span>
+    <span class="n">pop_prev</span><span class="o">=</span><span class="n">CIP_K</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="n">CIP_MID</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="n">CIP_SLOPE</span><span class="p">,</span> <span class="n">mortality</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">aj</span> <span class="o">=</span> <span class="n">aalen_johansen_cip</span><span class="p">(</span><span class="n">mort</span><span class="o">.</span><span class="n">age_entry</span><span class="p">,</span> <span class="n">mort</span><span class="o">.</span><span class="n">age_exit</span><span class="p">,</span> <span class="n">mort</span><span class="o">.</span><span class="n">event</span><span class="p">)</span>
+<span class="n">km_m</span> <span class="o">=</span> <span class="n">kaplan_meier_cip</span><span class="p">(</span><span class="n">mort</span><span class="o">.</span><span class="n">age_entry</span><span class="p">,</span> <span class="n">mort</span><span class="o">.</span><span class="n">age_exit</span><span class="p">,</span> <span class="n">mort</span><span class="o">.</span><span class="n">event</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">int</span><span class="p">((</span><span class="n">mort</span><span class="o">.</span><span class="n">event</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> died before diagnosis"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Aalen-Johansen(70) = </span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="mf">70.0</span><span class="p">,</span><span class="w"> </span><span class="n">aj</span><span class="o">.</span><span class="n">ages</span><span class="p">,</span><span class="w"> </span><span class="n">aj</span><span class="o">.</span><span class="n">values</span><span class="p">))</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Kaplan-Meier(70)   = </span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="mf">70.0</span><span class="p">,</span><span class="w"> </span><span class="n">km_m</span><span class="o">.</span><span class="n">ages</span><span class="p">,</span><span class="w"> </span><span class="n">km_m</span><span class="o">.</span><span class="n">values</span><span class="p">))</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span>
+      <span class="sa">f</span><span class="s2">"   (was </span><span class="si">{</span><span class="n">km_at_70</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> with no deaths)"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>21,066 died before diagnosis
+Aalen-Johansen(70) = 0.0626
+Kaplan-Meier(70)   = 0.0761   (was 0.0757 with no deaths)
+</code></pre></div>
+<p>Read that last line carefully, because it is the trap. Kaplan–Meier barely moved
+when 21,066 people died: treating death as ordinary censoring reproduces the
+no-death curve. It is not broken — it consistently estimates <em>its own</em> estimand,
+the risk you would see if nobody died. But a dead person cannot be diagnosed, so
+the quantity a registry actually measures is lower, and Aalen–Johansen is the
+estimator that targets it. See <a href="../cip-estimation/">CIP estimation</a>.</p>
+<h2 id="step-3-score-the-population">Step 3 — Score the population<a class="headerlink" href="#step-3-score-the-population" title="Permanent link">&para;</a></h2>
+<p><code>estimate_liabilities</code> is the register driver: it takes the parent-pointer table
+plus per-person diagnosis records, walks each proband's pedigree, and returns one
+genetic-liability score per proband.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liabilities</span>
+
+<span class="n">scores</span> <span class="o">=</span> <span class="n">estimate_liabilities</span><span class="p">(</span>
+    <span class="n">cohort</span><span class="o">.</span><span class="n">ids</span><span class="p">,</span> <span class="n">cohort</span><span class="o">.</span><span class="n">father</span><span class="p">,</span> <span class="n">cohort</span><span class="o">.</span><span class="n">mother</span><span class="p">,</span>
+    <span class="n">probands</span><span class="o">=</span><span class="n">cohort</span><span class="o">.</span><span class="n">ids</span><span class="p">,</span>
+    <span class="n">status</span><span class="o">=</span><span class="n">cohort</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">age</span><span class="o">=</span><span class="n">cohort</span><span class="o">.</span><span class="n">age</span><span class="p">,</span>
+    <span class="n">use</span><span class="o">=</span><span class="s2">"gwas"</span><span class="p">,</span>                          <span class="c1"># the proband's own diagnosis is used</span>
+    <span class="n">cip_ages</span><span class="o">=</span><span class="n">AGE_GRID</span><span class="p">,</span> <span class="n">cip_values</span><span class="o">=</span><span class="n">TRUE_CIP</span><span class="p">,</span> <span class="n">k_pop</span><span class="o">=</span><span class="n">CIP_K</span><span class="p">,</span>
+    <span class="n">h2</span><span class="o">=</span><span class="n">H2</span><span class="p">)</span>
+
+<span class="n">est</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">est</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"corr(score, true genetic liability) = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">est</span><span class="p">,</span><span class="w"> </span><span class="n">cohort</span><span class="o">.</span><span class="n">genetic</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"score sd = </span><span class="si">{</span><span class="n">est</span><span class="o">.</span><span class="n">std</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">   mean posterior variance = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">var</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"median relatives conditioned on = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">n_relatives</span><span class="p">)</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"records with an unresolved parent = </span><span class="si">{</span><span class="n">scores</span><span class="o">.</span><span class="n">frac_records_with_unresolved_parents</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>corr(score, true genetic liability) = 0.5887
+score sd = 0.3617   mean posterior variance = 0.3592
+median relatives conditioned on = 23
+records with an unresolved parent = 0.0000
+</code></pre></div>
+<p>Three things to notice. The score correlates 0.59 with the truth it never saw.
+The posterior <strong>variance</strong> is returned per proband and is almost as large as the
+score's own spread — most of these people have few informative relatives, so the
+score is genuinely uncertain and should not be used as if it were a measurement.
+And <code>frac_records_with_unresolved_parents</code> is a data-quality diagnostic you
+should check on real data, where a parent id may point at someone outside the
+extract.</p>
+<p>Here the generating curve is passed straight in. On real data you would pass the
+curve estimated in step 2, stratified by sex and birth cohort —
+<code>strata</code> plus <code>cip_by_stratum</code> — because one curve for everyone is exactly the
+approximation step 2 exists to remove.</p>
+<h2 id="step-4-score-prospectively-without-the-probands-own-diagnosis">Step 4 — Score prospectively, without the proband's own diagnosis<a class="headerlink" href="#step-4-score-prospectively-without-the-probands-own-diagnosis" title="Permanent link">&para;</a></h2>
+<p><code>use="gwas"</code> builds a GWAS phenotype and includes the proband's own diagnosis.
+<code>use="prediction"</code> hides it, so the score can be used to predict <em>future</em> onset
+in people who are still disease-free. That changes the observation set, so it
+needs a calendar: <code>birth_time</code> for every person and <code>index_time</code> for every
+proband.</p>
+<div class="highlight"><pre><span></span><code><span class="n">at_risk</span> <span class="o">=</span> <span class="n">cohort</span><span class="o">.</span><span class="n">onset</span> <span class="o">&gt;</span> <span class="n">INDEX_AGE</span>          <span class="c1"># still undiagnosed at the cut</span>
+<span class="n">index_time</span> <span class="o">=</span> <span class="n">cohort</span><span class="o">.</span><span class="n">birth_time</span> <span class="o">+</span> <span class="n">INDEX_AGE</span>
+
+<span class="n">predicted</span> <span class="o">=</span> <span class="n">estimate_liabilities</span><span class="p">(</span>
+    <span class="n">cohort</span><span class="o">.</span><span class="n">ids</span><span class="p">,</span> <span class="n">cohort</span><span class="o">.</span><span class="n">father</span><span class="p">,</span> <span class="n">cohort</span><span class="o">.</span><span class="n">mother</span><span class="p">,</span>
+    <span class="n">probands</span><span class="o">=</span><span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">keep</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">cohort</span><span class="o">.</span><span class="n">ids</span><span class="p">,</span> <span class="n">at_risk</span><span class="p">)</span> <span class="k">if</span> <span class="n">keep</span><span class="p">],</span>
+    <span class="n">status</span><span class="o">=</span><span class="n">cohort</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">age</span><span class="o">=</span><span class="n">cohort</span><span class="o">.</span><span class="n">age</span><span class="p">,</span>
+    <span class="n">use</span><span class="o">=</span><span class="s2">"prediction"</span><span class="p">,</span>
+    <span class="n">cip_ages</span><span class="o">=</span><span class="n">AGE_GRID</span><span class="p">,</span> <span class="n">cip_values</span><span class="o">=</span><span class="n">TRUE_CIP</span><span class="p">,</span> <span class="n">k_pop</span><span class="o">=</span><span class="n">CIP_K</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="n">H2</span><span class="p">,</span>
+    <span class="n">birth_time</span><span class="o">=</span><span class="n">cohort</span><span class="o">.</span><span class="n">birth_time</span><span class="p">,</span> <span class="n">index_time</span><span class="o">=</span><span class="n">index_time</span><span class="p">[</span><span class="n">at_risk</span><span class="p">])</span>
+
+<span class="n">pred_est</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">predicted</span><span class="o">.</span><span class="n">est</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">at_risk</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">ids</span><span class="p">)</span><span class="si">}</span><span class="s2"> probands are disease-free at age </span><span class="si">{</span><span class="n">INDEX_AGE</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"corr(score, truth) = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">pred_est</span><span class="p">,</span><span class="w"> </span><span class="n">cohort</span><span class="o">.</span><span class="n">genetic</span><span class="p">[</span><span class="n">at_risk</span><span class="p">])[</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span>
+      <span class="sa">f</span><span class="s2">"   score sd = </span><span class="si">{</span><span class="n">pred_est</span><span class="o">.</span><span class="n">std</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"proband states: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span><span class="w"> </span><span class="n">predicted</span><span class="o">.</span><span class="n">proband_state</span><span class="p">)))</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>972 of 984 probands are disease-free at age 40
+corr(score, truth) = 0.2896   score sd = 0.1928
+proband states: ['disease_free_and_followed']
+</code></pre></div>
+<p>The correlation drops from 0.59 to 0.29 — not a defect, the price of the
+question. Step 3 was allowed to see each proband's own diagnosis; step 4 is not,
+so it has only relatives to work with. Restricting <code>probands</code> to the at-risk set
+is not optional either: scoring someone already diagnosed and calling the result
+prospective is leakage, and the driver warns if you do it. <code>proband_state</code> tells
+you how each proband was classified.</p>
+<p>Note <code>index_time</code> is aligned to <strong>probands</strong>, while <code>birth_time</code> is aligned to
+<strong>ids</strong> — they are different lengths, and passing the wrong one raises.</p>
+<h2 id="step-5-two-traits-at-once">Step 5 — Two traits at once<a class="headerlink" href="#step-5-two-traits-at-once" title="Permanent link">&para;</a></h2>
+<p>For two or more binary traits, <code>simulate_under_LTM_multi</code> builds families with
+per-trait bounds and <code>fit_pairwise_multi</code> fits heritabilities, the genetic
+correlation and the residual environmental correlation together.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_pairwise_multi</span><span class="p">,</span> <span class="n">simulate_under_LTM_multi</span>
+
+<span class="n">multi</span> <span class="o">=</span> <span class="n">simulate_under_LTM_multi</span><span class="p">(</span><span class="n">n_families</span><span class="o">=</span><span class="mi">3000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">truth</span> <span class="o">=</span> <span class="n">multi</span><span class="o">.</span><span class="n">truth</span>
+
+<span class="n">joint</span> <span class="o">=</span> <span class="n">fit_pairwise_multi</span><span class="p">(</span>
+    <span class="n">multi</span><span class="o">.</span><span class="n">families</span><span class="p">,</span> <span class="n">components</span><span class="o">=</span><span class="p">(</span><span class="s2">"A"</span><span class="p">,</span> <span class="s2">"C"</span><span class="p">,</span> <span class="s2">"M"</span><span class="p">),</span>
+    <span class="n">sampling</span><span class="o">=</span><span class="s2">"population"</span><span class="p">,</span> <span class="n">phen_names</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">multi</span><span class="o">.</span><span class="n">phen_names</span><span class="p">))</span>
+
+<span class="n">emp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">multi</span><span class="o">.</span><span class="n">liabilities</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span>
+                  <span class="n">multi</span><span class="o">.</span><span class="n">liabilities</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">())[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"simulated trait correlation </span><span class="si">{</span><span class="n">emp</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> (target "</span>
+      <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">truth</span><span class="p">[</span><span class="s1">'target_trait_corr'</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">fitted</span><span class="p">,</span> <span class="n">se</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="p">(</span>
+        <span class="p">(</span><span class="s2">"h2 trait 1"</span><span class="p">,</span> <span class="n">joint</span><span class="o">.</span><span class="n">h2</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">joint</span><span class="o">.</span><span class="n">se</span><span class="p">[</span><span class="s2">"h2"</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">truth</span><span class="p">[</span><span class="s2">"h2"</span><span class="p">][</span><span class="mi">0</span><span class="p">]),</span>
+        <span class="p">(</span><span class="s2">"h2 trait 2"</span><span class="p">,</span> <span class="n">joint</span><span class="o">.</span><span class="n">h2</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">joint</span><span class="o">.</span><span class="n">se</span><span class="p">[</span><span class="s2">"h2"</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">truth</span><span class="p">[</span><span class="s2">"h2"</span><span class="p">][</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="p">(</span><span class="s2">"rg"</span><span class="p">,</span> <span class="n">joint</span><span class="o">.</span><span class="n">rg</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">joint</span><span class="o">.</span><span class="n">se</span><span class="p">[</span><span class="s2">"rg"</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">truth</span><span class="p">[</span><span class="s2">"rg"</span><span class="p">]),</span>
+        <span class="p">(</span><span class="s2">"residual re"</span><span class="p">,</span> <span class="n">joint</span><span class="o">.</span><span class="n">re</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">joint</span><span class="o">.</span><span class="n">se</span><span class="p">[</span><span class="s2">"re"</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+         <span class="n">truth</span><span class="p">[</span><span class="s2">"residual_re"</span><span class="p">])):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  </span><span class="si">{</span><span class="n">name</span><span class="si">:</span><span class="s2">11s</span><span class="si">}</span><span class="s2"> fitted </span><span class="si">{</span><span class="n">fitted</span><span class="si">:</span><span class="s2">+.4f</span><span class="si">}</span><span class="s2"> ± </span><span class="si">{</span><span class="n">se</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">   truth </span><span class="si">{</span><span class="n">target</span><span class="si">:</span><span class="s2">+.2f</span><span class="si">}</span><span class="s2">"</span>
+          <span class="sa">f</span><span class="s2">"   (</span><span class="si">{</span><span class="nb">abs</span><span class="p">(</span><span class="n">fitted</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">target</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">se</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> SE)"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"inference status: </span><span class="si">{</span><span class="n">joint</span><span class="o">.</span><span class="n">inference_status</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>simulated trait correlation 0.1551 (target 0.1511)
+  h2 trait 1  fitted +0.4314 ± 0.0500   truth +0.35   (1.63 SE)
+  h2 trait 2  fitted +0.4137 ± 0.0355   truth +0.40   (0.39 SE)
+  rg          fitted +0.5435 ± 0.0760   truth +0.50   (0.57 SE)
+  residual re fitted -0.4432 ± 0.1651   truth -0.35   (0.56 SE)
+inference status: interior_cluster_sandwich
+</code></pre></div>
+<p>The first line is a check on the <em>simulator</em>: the realised correlation matches
+the parameter it was built from. The rest are checks on the <em>fitter</em>, and every
+one lands within about two standard errors of its target — which is what one
+cohort of 3,000 families should give, and is not evidence of calibration. Always
+read <code>inference_status</code> before quoting a standard error: fits that reach a
+covariance boundary withhold them. The replicated evidence — 1,800 fits across
+nine scenarios, heritability bias below 0.004 where the model is correctly
+specified — is in <code>benchmarks/RESULTS.md</code> §33.</p>
+<h2 id="what-this-tutorial-skips">What this tutorial skips<a class="headerlink" href="#what-this-tutorial-skips" title="Permanent link">&para;</a></h2>
+<p>Each of these is a real modelling decision, deliberately left out so the page
+stays runnable. Follow the link before applying any of it to real data.</p>
+<div class="admonition warning">
+<p class="admonition-title">This is a demonstration, not an analysis template</p>
+<p><strong>One incidence curve for everyone.</strong> Steps 3 and 4 pass a single
+<code>TRUE_CIP</code>. Real LT-FH++ needs sex- and birth-cohort-stratified curves via
+<code>strata</code> and <code>cip_by_stratum</code>, because incidence differs enough between
+strata that a pooled curve biases the bounds.
+→ <a href="../cip-estimation/">CIP estimation</a>, <a href="../data-preparation/">data preparation</a></p>
+<p><strong><code>h2</code> was given, not chosen.</strong> The tutorial hard-codes <code>h2 = 0.5</code> and the
+simulator obeys it, so recovery is unsurprising. On real data <code>h2</code> is the
+liability-scale heritability <em>of that disease</em>, it has no default, and
+pedigree/twin and SNP estimates differ. Fitting it from family data requires
+a declared sampling design.
+→ <a href="../data-preparation/#getting-heritability-on-the-liability-scale">data preparation, "Which h²?"</a>,
+<a href="../inference/">inference</a></p>
+<p><strong>The generating curve was fed back in.</strong> Step 3 uses <code>TRUE_CIP</code> rather than
+the curve estimated in step 2, to keep the two steps separable. Passing a
+misspecified curve is a real failure mode with a measured effect.
+→ <a href="../assumptions/">assumptions</a></p>
+<p><strong>Nothing is ascertained.</strong> The cohort is an unascertained population sample
+(<code>sampling="population"</code>). Biobanks are usually selected on observed status,
+which changes what the fitters estimate.
+→ <a href="../inference/#ascertained-samples">inference, ascertainment</a></p>
+<p><strong>The score is not a risk probability.</strong> It is a posterior mean genetic
+liability on a standardised scale. Turning it into absolute risk needs the
+future-risk calculation, and using it in a GWAS needs residualisation for
+design covariates and an explicit join on the returned proband ids.
+→ <a href="../estimation/">estimation</a>, <a href="../vignette/">vignette</a></p>
+<p><strong>One simulation illustrates an API.</strong> Steps 1–5 are single seeded runs.
+Every quantitative claim ltpred makes is replicated across seeds in
+<code>benchmarks/RESULTS.md</code>, and the prose elsewhere links to it rather than
+repeating numbers.</p>
+</div>
+<h2 id="where-to-go-next">Where to go next<a class="headerlink" href="#where-to-go-next" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>you want to…</th>
+<th>see</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>the full contract: three uses, <code>h²</code>, pedigrees, CIPs, family history</td>
+<td><a href="../vignette/">Vignette</a></td>
+</tr>
+<tr>
+<td>the smallest possible hand-typed example</td>
+<td><a href="../quickstart/">Quickstart</a></td>
+</tr>
+<tr>
+<td>prepare your own register or family-table data</td>
+<td><a href="../data-preparation/">Data preparation</a></td>
+</tr>
+<tr>
+<td>estimate a stratified CIP from real follow-up records</td>
+<td><a href="../cip-estimation/">CIP estimation</a></td>
+</tr>
+<tr>
+<td>choose an inference engine, or scale to biobank size</td>
+<td><a href="../estimation/">Estimation</a></td>
+</tr>
+<tr>
+<td>fit <code>h²</code>, correlations or A/C/M components properly</td>
+<td><a href="../inference/">Inference</a></td>
+</tr>
+<tr>
+<td>the real-data checklist before you trust a score</td>
+<td><a href="../assumptions/">Assumptions &amp; checklist</a></td>
+</tr>
+<tr>
+<td>a function signature</td>
+<td><a href="../api/">API reference</a></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Developed with the support of <a href="https://smartbiomed.dk/">SMARTbiomed</a>.
+
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://smartbiomed.dk/" target="_blank" rel="noopener" title="SMARTbiomed" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/bvilhjal/ltpred" target="_blank" rel="noopener" title="ltpred on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+      
+        <script src="../javascripts/katex.js"></script>
+      
+    
+  </body>
+</html>

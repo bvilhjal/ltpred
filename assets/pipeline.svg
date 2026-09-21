@@ -6,7 +6,11 @@
      * from ../stylesheets/smartbiomed.css. Type never drops below 16 units:
      * the figure is scaled to the content column, so small units vanish.
      * Contrast: every text pair meets WCAG 1.4.3 (>= 4.5:1) and every
-     * border/connector pair meets 1.4.11 (>= 3:1), in BOTH palettes. */
+     * border/connector pair meets 1.4.11 (>= 3:1), in BOTH palettes.
+     *
+     * Mathematics is set with real subscripts (tspan dy shifts) and italic
+     * variables rather than literal underscores, so D_F and mu_i read as
+     * symbols and not as unrendered source. */
     svg { --ground:#f4f3f4; --card:#ffffff; --title:#002546; --body:#3d5368;
           --accent:#00667a; --panel-a:#e7f4f6; --panel-b:#e8eef2;
           --solid-a:#00667a; --solid-b:#002546; --on-solid:#ffffff;
@@ -24,8 +28,12 @@
     .b  { fill: var(--body);  font-size: 18px; }
     .k  { fill: var(--accent); font-size: 17px; font-weight: 700; letter-spacing: .06em; }
     .ks { fill: var(--body); font-size: 17px; }
+    .n  { fill: var(--body); font-size: 16px; font-style: italic; }
     .s  { fill: var(--on-solid); font-size: 19px; font-weight: 700; }
     .ss { fill: var(--on-solid); font-size: 17px; }
+    .ta { fill: var(--edge-a); font-size: 22px; font-weight: 700; }
+    .tb { fill: var(--edge-b); font-size: 22px; font-weight: 700; }
+    .mi { font-style: italic; }
     .card  { fill: var(--card); stroke: var(--edge-a); stroke-width: 1.2; }
     .cardb { fill: var(--card); stroke: var(--edge-b); stroke-width: 1.2; }
     .line  { stroke: var(--edge-a); stroke-width: 2; fill: none; }
@@ -53,16 +61,15 @@
   <circle cx="58" cy="158" r="15" fill="var(--solid-a)"/>
   <text x="58" y="165" text-anchor="middle" class="s">0</text>
   <text x="84" y="158" class="t">Heritability and covariances</text>
-  <text x="84" y="186" class="b">liability-scale h² (+ c², m², r_g)</text>
+  <text x="84" y="186" class="b">liability-scale <tspan class="mi">h</tspan>² (+ <tspan class="mi">c</tspan>², <tspan class="mi">m</tspan>², <tspan class="mi">r</tspan><tspan class="mi" dy="4" font-size="12.5">g</tspan><tspan dy="-4">)</tspan></text>
 
-  <line x1="58" y1="204" x2="58" y2="228" class="line" stroke-dasharray="4 4" marker-start="url(#arr)"/>
-  <text x="80" y="223" class="ks">Lee: this K converts an observed-scale h²</text>
+  <text x="228" y="222" text-anchor="middle" class="n"><tspan class="mi">K</tspan> from step 2 converts observed-scale <tspan class="mi">h</tspan>² (Lee et al.)</text>
 
   <rect x="30" y="232" width="396" height="74" rx="5" class="card"/>
   <circle cx="58" cy="260" r="15" fill="var(--solid-a)"/>
   <text x="58" y="267" text-anchor="middle" class="s">2</text>
   <text x="84" y="260" class="t">CIP or lifetime prevalence</text>
-  <text x="84" y="288" class="b">K(t; sex, cohort), or one lifetime K</text>
+  <text x="84" y="288" class="b"><tspan class="mi">K</tspan>(<tspan class="mi">t</tspan>; sex, cohort), or one lifetime <tspan class="mi">K</tspan></text>
 
   <rect x="30" y="316" width="396" height="34" rx="5" fill="var(--solid-a)"/>
   <text x="228" y="339" text-anchor="middle" class="s">III  Aetiology · stop at 0 and/or 2</text>
@@ -76,16 +83,15 @@
   <circle cx="502" cy="158" r="15" fill="var(--solid-b)"/>
   <text x="502" y="165" text-anchor="middle" class="s">1</text>
   <text x="528" y="158" class="t">Pedigree</text>
-  <text x="528" y="186" class="b">who is related to whom → additive A</text>
+  <text x="528" y="186" class="b">who is related to whom → additive <tspan class="mi">A</tspan></text>
 
-  <line x1="502" y1="204" x2="502" y2="228" class="line" stroke="var(--edge-b)"/>
-  <text x="524" y="223" class="ks">records are grouped by this pedigree</text>
+  <text x="672" y="222" text-anchor="middle" class="n">the records in step 3 are grouped by this pedigree</text>
 
   <rect x="474" y="232" width="396" height="74" rx="5" class="cardb"/>
   <circle cx="502" cy="260" r="15" fill="var(--solid-b)"/>
   <text x="502" y="267" text-anchor="middle" class="s">3</text>
   <text x="528" y="260" class="t">Family history</text>
-  <text x="528" y="288" class="b">status and age, on the people in A</text>
+  <text x="528" y="288" class="b">status and age, on the people in <tspan class="mi">A</tspan></text>
 
   <rect x="474" y="316" width="396" height="34" rx="5" fill="var(--solid-b)"/>
   <text x="672" y="339" text-anchor="middle" class="s">I and II continue · III stops here</text>
@@ -95,12 +101,12 @@
   <line x1="672" y1="352" x2="672" y2="374" class="line" stroke="var(--edge-b)" marker-end="url(#arrb)"/>
 
   <rect x="16" y="380" width="424" height="66" rx="5" class="card"/>
-  <text x="228" y="408" text-anchor="middle" class="t">Σ = h²A + (1 − h²)I</text>
+  <text x="228" y="408" text-anchor="middle" class="t">Σ = <tspan class="mi">h</tspan>²<tspan class="mi">A</tspan> + (1 − <tspan class="mi">h</tspan>²)<tspan class="mi">I</tspan></text>
   <text x="228" y="432" text-anchor="middle" class="b">unit diagonal · BLUP weights · needs 0 and 1</text>
 
   <rect x="460" y="380" width="424" height="66" rx="5" class="cardb"/>
-  <text x="672" y="408" text-anchor="middle" class="t">Observation intervals  D_F</text>
-  <text x="672" y="432" text-anchor="middle" class="b">status + age + T(K) · needs 2 and 3</text>
+  <text x="672" y="408" text-anchor="middle" class="t">Observation intervals  <tspan class="mi">D</tspan><tspan class="mi" dy="5" font-size="15">F</tspan></text>
+  <text x="672" y="432" text-anchor="middle" class="b">status + age + <tspan class="mi">T</tspan>(<tspan class="mi">K</tspan>) · needs 2 and 3</text>
 
   <path d="M228 446 L228 470 L450 470" class="line"/>
   <path d="M672 446 L672 470 L450 470" class="line"/>
@@ -108,7 +114,7 @@
 
   <rect x="130" y="496" width="640" height="68" rx="5" fill="var(--solid-a)"/>
   <text x="450" y="524" text-anchor="middle" class="s">4   estimate_liability</text>
-  <text x="450" y="550" text-anchor="middle" class="ss">μᵢ = E[ aᵢ | D_F, A, h², K(·) ]</text>
+  <text x="450" y="550" text-anchor="middle" class="ss"><tspan class="mi">μ</tspan><tspan class="mi" dy="4" font-size="12">i</tspan><tspan dy="-4"> = E[ </tspan><tspan class="mi">a</tspan><tspan class="mi" dy="4" font-size="12">i</tspan><tspan dy="-4"> | </tspan><tspan class="mi">D</tspan><tspan class="mi" dy="4" font-size="12">F</tspan><tspan dy="-4">, </tspan><tspan class="mi">A</tspan><tspan>, </tspan><tspan class="mi">h</tspan>², <tspan class="mi">K</tspan>(·) ]</text>
 
   <!-- ============ exits ============ -->
   <path d="M450 564 L450 578 L228 578" class="line"/>
@@ -117,12 +123,12 @@
   <line x1="672" y1="578" x2="672" y2="596" class="line" stroke="var(--edge-b)" marker-end="url(#arrb)"/>
 
   <rect x="16" y="602" width="424" height="84" rx="5" class="card"/>
-  <text x="228" y="630" text-anchor="middle" class="t">I   Risk prediction</text>
-  <text x="228" y="654" text-anchor="middle" class="b">own status out of D_F</text>
+  <text x="228" y="630" text-anchor="middle" class="ta">I   Risk prediction</text>
+  <text x="228" y="654" text-anchor="middle" class="b">own status out of <tspan class="mi">D</tspan><tspan class="mi" dy="4" font-size="12.5">F</tspan></text>
   <text x="228" y="676" text-anchor="middle" class="b">steps 0–5 · a PGS is downstream</text>
 
-  <rect x="460" y="602" width="424" height="84" rx="5" fill="var(--solid-b)"/>
-  <text x="672" y="630" text-anchor="middle" class="s">II   Enhance GWAS signal</text>
-  <text x="672" y="654" text-anchor="middle" class="ss">own status in · μ as the phenotype</text>
-  <text x="672" y="676" text-anchor="middle" class="ss">steps 0–5 · ADuLT skips relatives</text>
+  <rect x="460" y="602" width="424" height="84" rx="5" class="cardb"/>
+  <text x="672" y="630" text-anchor="middle" class="tb">II   Enhance GWAS signal</text>
+  <text x="672" y="654" text-anchor="middle" class="b">own status in · <tspan class="mi">μ</tspan> as the phenotype</text>
+  <text x="672" y="676" text-anchor="middle" class="b">steps 0–5 · ADuLT skips relatives</text>
 </svg>

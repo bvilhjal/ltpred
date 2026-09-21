@@ -1,0 +1,1746 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+      
+      
+      
+        <link rel="canonical" href="https://bvilhjal.github.io/ltpred/research/">
+      
+      
+        <link rel="prev" href="../algorithm/">
+      
+      
+        <link rel="next" href="../report/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Research extensions - ltpred</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+3:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Source Sans 3";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/smartbiomed.css">
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#research-extensions" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ltpred" class="md-header__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ltpred
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Research extensions
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ltpred" class="md-nav__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../assets/logo.svg" alt="logo">
+
+    </a>
+    ltpred
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choose a method
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vignette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vignette
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflow
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-preparation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data preparation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cip-estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CIP estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assumptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assumptions & checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm & model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research extensions
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#covariance-extensions-researchcovariance_extensionspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Covariance extensions (research/covariance_extensions.py)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Covariance extensions (research/covariance_extensions.py)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#direct-and-indirect-genetic-nurture-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Direct and indirect (genetic-nurture) effects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sex-limited-genetic-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sex-limited genetic architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multi-trait-fitters-researchadvanced_fittingpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-trait fitters (research/advanced_fitting.py)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Multi-trait fitters (research/advanced_fitting.py)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fitting-the-genetic-correlation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fitting the genetic correlation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#onset-age-structured-genetic-correlation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Onset-age-structured genetic correlation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genetic-factor-structure-common-factor-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Genetic factor structure (common-factor model)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ROADMAP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PAPER_PLAN/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RELEASING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Releasing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reviews/REVIEW_2026-08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.3.4)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reviews/REVIEW_2026-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.4.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reviews/REVIEW_2026-09b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.5.1)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reviews/REVIEW_2026-09c/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.6.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reviews/REVIEW_2026-09d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.7.0, documentation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#covariance-extensions-researchcovariance_extensionspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Covariance extensions (research/covariance_extensions.py)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Covariance extensions (research/covariance_extensions.py)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#direct-and-indirect-genetic-nurture-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Direct and indirect (genetic-nurture) effects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sex-limited-genetic-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sex-limited genetic architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multi-trait-fitters-researchadvanced_fittingpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-trait fitters (research/advanced_fitting.py)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Multi-trait fitters (research/advanced_fitting.py)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fitting-the-genetic-correlation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fitting the genetic correlation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#onset-age-structured-genetic-correlation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Onset-age-structured genetic correlation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genetic-factor-structure-common-factor-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Genetic factor structure (common-factor model)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="research-extensions">Research extensions<a class="headerlink" href="#research-extensions" title="Permanent link">&para;</a></h1>
+<p>The <code>research/</code> package holds unsupported, checkout-only code: it is not
+installed with ltpred, it is not part of the public API, and its interfaces may
+change without notice. It is exercised by its own tests (<code>research/tests</code>, run
+by a CI job) and imported by five benchmark scripts, so it stays importable from
+a source checkout as <code>research.&lt;module&gt;</code> with the repository root on <code>sys.path</code>.
+The <a href="https://github.com/bvilhjal/ltpred/blob/main/research/README.md"><code>research/</code> README</a>
+inventories the modules and the <a href="../ROADMAP/#graduation-rule">roadmap</a> states
+when a capability graduates into <code>ltpred</code> proper.</p>
+<p>This page documents the models behind those modules. The supported core is
+described in <a href="../algorithm/">Algorithm &amp; model</a>; these sections were moved out of
+that page so that it describes only what the installed package does.</p>
+<h2 id="covariance-extensions-researchcovariance_extensionspy">Covariance extensions (<code>research/covariance_extensions.py</code>)<a class="headerlink" href="#covariance-extensions-researchcovariance_extensionspy" title="Permanent link">&para;</a></h2>
+<h3 id="direct-and-indirect-genetic-nurture-effects">Direct and indirect (genetic-nurture) effects<a class="headerlink" href="#direct-and-indirect-genetic-nurture-effects" title="Permanent link">&para;</a></h3>
+<p>Caution (i) in the algorithm page's
+<a href="../algorithm/#adding-environmental-covariance-to-improve-prediction">environmental-covariance section</a>
+says a symmetric shared-environment matrix is not a maternal
+effect, because that is a <em>directional</em> path. <code>construct_covmat_nurture</code> (in
+<code>research/covariance_extensions.py</code> — research code, not the supported core)
+builds
+the directional model instead, from the path structure rather than from
+kinship:</p>
+<div class="highlight"><pre><span></span><code>A_o = (A_m + A_f)/2 + w_o              # transmission + Mendelian sampling
+l_o = A_o + n*(A_m + A_f) + e_o        # own genes, plus parental nurture
+l_m = A_m + e_m                        # parents are founders here
+</code></pre></div>
+<p><code>n</code> (<code>nurture</code>) scales the <strong>indirect</strong> path: the parents' genotypes shaping the
+offspring's environment. The target row <code>g</code> remains the proband's <strong>own</strong>
+additive value <code>A_o</code> -- what a GWAS phenotype should predict -- while the
+indirect path contributes to their <em>liability</em> without being part of their
+direct effect.</p>
+<p>Writing <code>h</code> for <code>h2</code>, the entries are no longer <code>2*phi * h</code>:</p>
+<table>
+<thead>
+<tr>
+<th>pair</th>
+<th>additive model</th>
+<th>with nurture</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>parent - offspring liability</td>
+<td><code>h/2</code></td>
+<td><code>h/2 + n*h</code></td>
+</tr>
+<tr>
+<td>sib - sib liability</td>
+<td><code>h/2</code></td>
+<td><code>h/2 + 2*n*h + 2*n^2*h</code></td>
+</tr>
+<tr>
+<td><code>Cov(A_o, l_parent)</code></td>
+<td><code>h/2</code></td>
+<td><code>h/2</code> (unchanged)</td>
+</tr>
+<tr>
+<td><code>Cov(A_o, l_o)</code></td>
+<td><code>h</code></td>
+<td><code>h*(1 + n)</code></td>
+</tr>
+<tr>
+<td><code>Cov(A_o, l_sibling)</code></td>
+<td><code>h/2</code></td>
+<td><code>h/2 + n*h</code></td>
+</tr>
+</tbody>
+</table>
+<p>Three things follow. <strong>The two familial covariances inflate by different
+amounts</strong>, which is what makes <code>n</code> identifiable from a nuclear family at all.
+<strong>The <code>g</code> row changes selectively</strong>: <code>Cov(A_o, l_parent)</code> remains <code>h/2</code>, but
+<code>Cov(A_o, l_o)</code> and <code>Cov(A_o, l_sibling)</code> increase because the parental
+genotypes driving nurture are correlated with <code>A_o</code>. This directional,
+pair-specific pattern cannot be represented by one symmetric kinship-scaled
+component, which is why it needs a separate constructor rather than another
+entry in the <code>A</code>/<code>C</code>/<code>M</code> bank. <strong><code>n = 0</code> reproduces
+<code>construct_covmat_single</code> exactly.</strong></p>
+<p><strong>The identifiability trap.</strong> The sib-sib inflation <code>2*n*h + 2*n^2*h</code> is shared
+by every offspring of the couple, so <em>on sibling covariance alone genetic
+nurture is indistinguishable from a sibship environment <code>C</code></em>. What separates
+them is the parent-offspring covariance: <code>C</code> leaves it untouched, nurture
+raises it by <code>n*h</code>. Fitting both from sibs only is not identified, and a study
+with no parental phenotypes cannot tell the two apart at all -- it will load
+whichever one it is offered.</p>
+<p>Offspring liabilities are standardised to unit variance, so thresholds keep
+their prevalence meaning; this requires <code>1 - h - 2*n^2*h - 2*n*h &gt;= 0</code>, since
+the shared nurture term takes variance the residual must give up.</p>
+<p><strong>Fitting <code>n</code>.</strong> Unlike the sex-limitation parameters, <code>n</code> need not be
+supplied. The two moment equations</p>
+<div class="highlight"><pre><span></span><code>cov_parent_offspring = h*(1 + 2n)/2
+cov_sib_sib          = h*(1 + 2n)^2/2
+</code></pre></div>
+<p>are two equations in two unknowns, and the ratio isolates the indirect path, so
+<code>fit_nurture</code> (in <code>research/advanced_fitting.py</code>) inverts them in closed form
+rather than iteratively:</p>
+<div class="highlight"><pre><span></span><code>1 + 2n = cov_sib_sib / cov_parent_offspring
+h      = 2 * cov_parent_offspring^2 / cov_sib_sib
+</code></pre></div>
+<p>Both inputs are liability-scale covariances between the two relative types; from
+binary data obtain them with <code>ltpred.tetrachoric</code> rather than from
+observed-scale correlations. It is a moment estimator, so it carries no standard
+errors and inherits whatever bias the input covariances have. It also reports
+<code>h2_additive_po</code> and <code>h2_additive_sib</code> -- what a nurture-blind additive model
+would claim from each relative type alone -- whose <strong>disagreement is the
+diagnostic</strong>, and which is zero exactly when <code>n</code> is zero. A sibling covariance
+<em>below</em> the parent-offspring one yields a negative <code>n</code> (a contrast effect),
+returned rather than clipped.</p>
+<p><strong>Scope.</strong> Nuclear roles only (<code>m</code>, <code>f</code>, <code>s...</code>). Extending to grandparents
+means propagating the path model up the pedigree, which stops the parents being
+founders -- their liabilities would gain their own nurture terms from the
+grandparents. That recursion is not implemented, and silently treating a
+grandparent as a founder would understate the covariance, so those roles are
+rejected. Like the other covariance constructors, the result is an ordinary
+<code>Covmat</code> and feeds <code>pa_algorithm</code> / <code>rtmvnorm_gibbs</code> / <code>pa_estimate_batched</code>
+directly.</p>
+<h3 id="sex-limited-genetic-architecture">Sex-limited genetic architecture<a class="headerlink" href="#sex-limited-genetic-architecture" title="Permanent link">&para;</a></h3>
+<p>Everywhere else in ltpred, sex enters through the <strong>threshold</strong>: a sex-specific
+CIP gives each person their own <code>T</code>. That is where it belongs for calibration,
+but the predictor factorises as <code>g0 = w' mu</code>, with <code>mu</code> the vector of
+folded truncated means and <code>w = V^-1 c</code> the BLUP weights. The weights <code>w</code>
+depend on heritability and kinship only — they are threshold-free. So a
+sex-specific threshold moves <code>mu</code> and can reorder scores through the truncated
+means, but it never changes how much weight a relative carries.</p>
+<p><code>construct_covmat_sex_limited</code> (in <code>research/covariance_extensions.py</code>) puts
+sex in <code>V</code> instead:</p>
+<div class="highlight"><pre><span></span><code>Cov(g_i, g_j) = 2*phi_ij * sqrt(h2_i * h2_j) * rg_cross^[sex_i != sex_j]
+</code></pre></div>
+<p>with <code>h2_i</code> the heritability of person <code>i</code>'s sex. This is the standard
+sex-limitation model of the twin/family literature, in two parts:</p>
+<ul>
+<li><strong>Scalar (quantitative) sex limitation</strong> — <code>h2_female != h2_male</code>. The same
+  genes act in both sexes, with different variance. A relative of the
+  higher-heritability sex is more informative and gets more weight.</li>
+<li><strong>Qualitative sex limitation</strong> — <code>rg_cross &lt; 1</code>. Partly <em>different</em> genetic
+  architectures between the sexes, so an opposite-sex relative tells you less
+  about the proband than a same-sex relative at the same kinship.</li>
+</ul>
+<p>Full liabilities keep unit variance, so thresholds retain their prevalence
+meaning; only the genetic scale differs by sex. Setting <code>h2_female == h2_male</code>
+and <code>rg_cross == 1</code> reproduces <code>construct_covmat_single</code> exactly.</p>
+<p>The matrix is positive semi-definite for any <code>|rg_cross| &lt;= 1</code>. Writing it as
+<code>D^(1/2) (A o Rg) D^(1/2)</code>, where <code>o</code> is the Hadamard product, <code>D</code> holds the
+per-person heritabilities and <code>Rg</code> has <code>1</code> within a sex and <code>rg_cross</code> between,
+both <code>A</code> and <code>Rg</code> are PSD, so their Schur product is PSD and the symmetric
+scaling preserves it.</p>
+<p>The role grammar fixes the sex of parents and grandparents (<code>m</code>, <code>f</code>, <code>mgm</code>,
+<code>mgf</code>, <code>pgm</code>, <code>pgf</code>). Siblings, children, half-sibs and aunts/uncles are
+ambiguous — <code>mau</code>/<code>pau</code> covers both aunts and uncles — and must be declared in
+<code>sex=</code>; the constructor raises rather than defaulting, since a silent default
+would impose one sex's heritability on the other. The genetic row <code>g</code> follows
+the proband <code>o</code>.</p>
+<p>Two cautions. <strong>(i)</strong> These are <em>inputs</em>, not fitted quantities: the constructor
+takes <code>h2_female</code>, <code>h2_male</code> and <code>rg_cross</code> and builds the covariance. Nothing
+here estimates them, and the identification requirements are real — separating
+<code>rg_cross</code> from a scalar difference needs opposite-sex relative pairs
+(brother–sister, and opposite-sex avuncular or half-sib links) contrasted
+against same-sex pairs at matched kinship, which nuclear families supply
+sparsely. <strong>(ii)</strong> A sex difference in <em>observed</em> prevalence is not by itself
+evidence of sex-limited genetics; it is exactly what a sex-specific threshold
+already absorbs. Reach for this model when same- and opposite-sex relative
+correlations differ <strong>after</strong> the thresholds are personalised.</p>
+<p>Because the result is an ordinary <code>Covmat</code>, it feeds the covariance-level
+entry points (<code>pa_algorithm</code>, <code>rtmvnorm_gibbs</code>, <code>pa_estimate_batched</code>)
+directly, the same route documented for any user-supplied kernel. The
+role-based <code>estimate_liability</code> still takes a scalar <code>h2</code>.</p>
+<h2 id="multi-trait-fitters-researchadvanced_fittingpy">Multi-trait fitters (<code>research/advanced_fitting.py</code>)<a class="headerlink" href="#multi-trait-fitters-researchadvanced_fittingpy" title="Permanent link">&para;</a></h2>
+<p>The supported <a href="../algorithm/#multiple-traits">multi-trait scorer</a> takes
+covariance parameters as inputs. For joint common-threshold fitting, use the
+installed <a href="../inference/#joint-heritability-and-cross-trait-correlations"><code>fit_pairwise_multi</code></a>
+API, including optional sibship/couple covariance and family-cluster sampling
+SEs. The alternative prototypes below remain uninstalled, checkout-only code;
+their moment and EM routes carry the caveats stated in each section.</p>
+<h3 id="fitting-the-genetic-correlation">Fitting the genetic correlation<a class="headerlink" href="#fitting-the-genetic-correlation" title="Permanent link">&para;</a></h3>
+<p><code>fit_genetic_correlation</code> (in <code>research/advanced_fitting.py</code>) estimates <code>rho_g</code>
+between traits from family data — the
+multi-trait analogue of <code>fit_heritability</code>, a <strong>cross-trait</strong> Haseman–Elston
+regression. Each member carries one case/control interval per trait. Each sweep
+draws the members' <code>P</code>-trait liabilities from the full truncated-MVN under the
+current parameters, then regresses the sampled cross-products on the additive
+relationship <code>A</code>:</p>
+<div class="highlight"><pre><span></span><code>same trait, diff relatives:  h2_p    = sum A_ij l_ip l_jp / sum A_ij^2
+diff trait, diff relatives:  G[p,q]  = sum A_ij (l_ip l_jq + l_iq l_jp) / (2 sum A_ij^2)
+same individual, diff trait: rp[p,q] = mean_i l_ip l_iq              (phenotypic corr)
+</code></pre></div>
+<p>so the genetic correlation is <code>rg[p,q] = G[p,q] / sqrt(h2_p h2_q)</code>. The
+cross-relative, cross-trait resemblance carries the genetic covariance because only
+the genetic part transmits by relatedness, so <code>E[l_ip l_jq] = A_ij G[p,q]</code> for
+<code>i != j</code> — the within-individual environmental covariance drops out. The phenotypic
+correlation then splits into genetic and environmental covariances, <code>rp = G + E</code>,
+so the <strong>environmental correlation</strong> <code>re[p,q] = (rp[p,q] - G[p,q]) / sqrt(e2_p e2_q)</code>
+(<code>e2 = 1 - h2</code>) is returned alongside <code>rg</code>.</p>
+<p>The moment step is unconstrained, so its raw <code>G</code> and <code>E = rp - G</code> need not be
+positive semi-definite — especially with few families or a large <code>|rg|</code>. Each sweep
+therefore projects both onto the convex set of correlation matrices (the PSD cone
+intersected with the unit-diagonal constraint) with the fitted variances held
+fixed (an eigenvalue projection, then a shrink towards the identity
+that leaves the diagonal alone), and the chain carries the two projected
+<em>covariance</em> states rather than ratios. The reported estimates are the post-burn-in
+averages of those states — averaging covariances is convex, so <code>G_est</code> and <code>E_est</code>
+are PSD too — with <code>rg</code>, <code>re</code> and <code>rp</code> all derived from that same pair. So the
+returned object is one coherent model: <code>rp == genetic_cov + env_cov</code> exactly, and
+every correlation it reports comes from a single PSD fit rather than from
+separately averaged ratios. In the repository benchmarks it was approximately
+unbiased near the null (no
+spurious <code>rg</code> when traits are genetically independent but
+phenotypically correlated), with mild attenuation at large <code>|rg|</code> (the bounded
+ratio estimator); use an iid-family cluster bootstrap for sampling uncertainty when
+its assumptions hold. This is the pedigree-scale analogue
+of bivariate GREML / cross-trait LD-score regression.</p>
+<h3 id="onset-age-structured-genetic-correlation">Onset-age-structured genetic correlation<a class="headerlink" href="#onset-age-structured-genetic-correlation" title="Permanent link">&para;</a></h3>
+<p><code>fit_genetic_correlation_decay</code> (also <code>research/advanced_fitting.py</code>) generalises
+<code>fit_genetic_correlation</code> to a genetic
+correlation that <strong>decays with the difference in age at onset</strong> between two
+relatives (or between two traits). The motivating idea is that genetic liability
+need not be one static quantity: the genes driving early- and late-onset forms of
+the same trait may overlap only partly, and two traits diagnosed at very different
+ages may share fewer genetic drivers than their lifetime correlation suggests. The
+genetic covariance between relative <code>i</code>'s trait <code>p</code> (onset age <code>a_ip</code>) and relative
+<code>j</code>'s trait <code>q</code> (onset age <code>a_jq</code>) is</p>
+<div class="highlight"><pre><span></span><code>Cov(g_i^p, g_j^q) = A_ij * sqrt(h2_p h2_q) * rho_g * K(|a_ip - a_jq| ; lam)
+</code></pre></div>
+<p>where <code>A_ij</code> is the additive relationship, <code>rho_g</code> the headline genetic
+correlation at equal onset age, and <code>K</code> a decay kernel with rate scalar <code>lam</code> --
+the age-difference importance parameter. <code>lam = 0</code> gives <code>K = 1</code> and recovers the
+scalar <code>fit_genetic_correlation</code> model exactly (the structured covariance reduces
+to the scalar one); larger <code>lam</code> makes the shared genetic signal die faster with
+onset-age distance. Three kernels are offered: <strong>OU / exponential</strong>
+<code>K(d) = exp(-lam |d|)</code> (the default), <strong>Gaussian</strong> <code>K(d) = exp(-(lam d)^2 / 2)</code>,
+and <strong>tent</strong> <code>K(d) = (1 - lam |d|)+</code>. The exponential is preferred: it is the
+Markovian (Ornstein-Uhlenbeck) covariance, positive-definite for any configuration
+of ages, and has the deepest precedent for age/time-varying genetic correlation
+(random-regression and character-process models in quantitative genetics, e.g.
+Pletcher &amp; Geyer 1999; Jaffrezic &amp; Pletcher 2000; genetic "simplex" models; the
+phylogenetic OU model). Within a trait (<code>p == q</code>) the same structure models
+genetic heterogeneity by onset age; across traits it is the <code>rho_g</code> decay above.
+With a single shared rate across blocks the covariance is positive-definite by
+construction (a Schur/Kronecker sum of PSD terms).</p>
+<p><strong>Estimation is by Monte-Carlo EM, not moments.</strong> The natural cross-trait
+Haseman-Elston step (regressing the augmented cross-products <code>l_ip l_jq</code> on
+<code>A_ij K</code>) fails here, for a reason worth understanding: case/control ascertainment
+truncates the liabilities, and the resulting inflation of <code>E[l_ip l_jq]</code> is itself
+age-dependent -- closely related, similar-onset pairs are more often jointly
+affected, so their cross-products are inflated most, and that extra, steeply
+age-decaying signal is indistinguishable from fast genetic decay. A moment
+regression therefore drives <code>lam</code> to its bound. The fit instead maximises the
+expected complete-data Gaussian log-likelihood: the E-step imputes each family's
+liability second moment <code>M_f = E[x_f x_f' | status, ages, params]</code> with a
+truncated-MVN Gibbs sampler (averaged over <code>n_draw</code> draws), and the M-step
+maximises <code>Q = -1/2 sum_f [ log|Sig_f| + tr(Sig_f^-1 M_f) ]</code> over the
+heritabilities, the genetic/environmental covariances and the decay rates by
+L-BFGS with the analytic score. Each family's covariance <code>Sig_f</code> depends on its
+own onset ages, so the E-step loops over families; the M-step is batched.</p>
+<p><strong>Identifiability is the limiting factor, and it is worth being honest about.</strong>
+The amplitude (<code>rho_g</code>) and the rate (<code>lam</code>) trade off along a likelihood ridge --
+a strong correlation that decays fast can mimic a weak one that decays slowly --
+and the cross-trait genetic signal competes with the environmental correlation.
+The model is identifiable <em>in principle</em> (the cross-relative cross-trait
+covariance <code>A G K</code> is purely genetic here, since environment is not shared across
+relatives), but only <strong>data-rich</strong> designs pin it down: the repository kill-test
+(<code>benchmarks/bench_aod_decay.py</code>) recovers both <code>rho_g</code> and <code>lam</code> well at
+<code>n_fam ~ 2500</code> (<code>r_g ~ 0.51-0.53</code>, <code>lam ~ 0.041</code> vs true 0.5 / 0.04; <code>lam ~ 0.001</code>
+under the scalar null, and <code>r_g ~ 0.009</code> at the <code>r_g = 0</code> null), but at
+<code>n_fam ~ 1000</code> both run high (<code>~0.58</code> / <code>~0.063</code>) -- the ridge makes the model
+<strong>data-hungry</strong>, converging only as <code>n</code> grows into the thousands with several
+dozen EM iterations, and the across-replicate SD of <code>r_g</code> is ~0.11-0.18 even at
+<code>n_fam = 2500</code>, so single estimates carry wide intervals. With few families or
+little onset-age spread within relative pairs the estimates are noisy and
+ridge-dominated; use the scalar model there.</p>
+<p>Two robustness caveats matter for application (<code>benchmarks/bench_aod_decay.py</code>
+panel (d), <code>--robustness</code>).
+The fitted amplitude is <strong>robust to the kernel shape</strong> (fitting OU to Gaussian-decay
+data still gives <code>r_g ~ 0.55</code> vs true 0.5), so the OU default is not a fragile
+choice. But the model is <strong>fragile to unmodelled shared family environment</strong>: it
+has no cross-relative environmental component, so a family-level environmental
+correlation is attributed to genetics -- inflating <code>h2</code> and thereby <em>attenuating</em>
+<code>r_g = G / sqrt(h2_0 h2_1)</code> (<code>r_g ~ 0.33</code> vs true 0.5 at <code>c2 = 0.10</code>). For traits
+with real household effects this is the binding limitation.</p>
+<p><strong>Options that address these limits.</strong> <code>shared_lambda</code> ties every block's decay
+rate to a single scalar -- fewer parameters, a guaranteed-PSD covariance, and less
+amplitude-decay ridge; it is the recommended default unless there is reason to let
+the rates differ. <code>shared_env</code> adds the shared-family environmental component <code>C</code>
+directly to the model (an onset-age <strong>ACE decomposition</strong>: genetics <code>A</code>, shared
+environment <code>C</code>, unique environment <code>E</code>), so household environment is estimated
+rather than absorbed into genetics -- it recovers <code>c2</code> and stops the <code>h2</code>
+inflation. But note the honest caveat: the <em>cross-trait</em> genetic-vs-shared-env
+separation is itself hard (both produce cross-trait familial covariance, one
+scaling with relatedness and age, the other constant), so <code>shared_env</code> can
+overestimate <code>r_g</code> at moderate <code>n</code>; it is a variance-attribution tool, not a free
+<code>r_g</code> fix. <code>n_starts</code> re-runs the EM from perturbed inits and keeps the best
+objective (the likelihood is multi-modal at small <code>n</code>), and the result carries a
+<code>converged</code> flag plus the <code>negq</code> objective trace. The analytic gradient of every
+block (genetic, environmental, decay, shared-environment) is pinned against
+finite differences in <code>research/tests/test_decay.py</code>.</p>
+<h3 id="genetic-factor-structure-common-factor-model">Genetic factor structure (common-factor model)<a class="headerlink" href="#genetic-factor-structure-common-factor-model" title="Permanent link">&para;</a></h3>
+<p>With more than a handful of traits, the genetic correlation matrix <code>r_g</code> is itself a
+structured object worth summarising. <code>fit_genetic_factor</code> (in
+<code>research/advanced_fitting.py</code>) fits a <strong>common-factor
+model</strong> to it,</p>
+<div class="highlight"><pre><span></span><code>r_g ≈ Λ Λ' + Ψ ,     Ψ = diag(uniquenesses),
+</code></pre></div>
+<p>where <code>Λ</code> is a <code>P × m</code> matrix of factor loadings and <code>Ψ</code> the trait-specific genetic
+residuals — the pedigree-scale analogue of the <strong>Genomic SEM</strong> common-factor model
+(Grotzinger et al. 2019), which fits the same structure to an LD-score-regression
+genetic covariance. For <code>m = 1</code> it answers a concrete question: does a <em>single</em>
+latent genetic factor — one general axis of shared genetic liability — reproduce all
+the pairwise <code>r_g</code>, or do the traits split into several genetic dimensions?</p>
+<p>The fit is <strong>MINRES</strong> (minimum-residual) factor analysis: choose <code>Λ</code> to minimise the
+sum of squared <strong>off-diagonal</strong> residuals of <code>r_g − Λ Λ'</code>,</p>
+<div class="highlight"><pre><span></span><code>minimise  sum_{p≠q} w_pq (r_g[p,q] − (Λ Λ')[p,q])^2 ,   then  Ψ_p = 1 − (Λ Λ')_pp .
+</code></pre></div>
+<p>The diagonal is <em>excluded</em> from the objective and absorbed afterwards by the
+uniquenesses, so the factors are pinned by the <strong>cross-trait correlations</strong> — the
+shared signal — not by each trait's own heritable variance. (This is the factor-
+analytic counterpart of what the <code>C</code>/<code>M</code> environment components do in the
+variance-component fit: model the off-diagonal resemblance, leave the diagonal to a
+residual.) Loadings come back on the correlation scale — a covariance input is
+standardised first — so <code>communality_p = sum_k Λ_pk^2</code> is the fraction of trait <code>p</code>'s
+<em>genetic</em> variance explained by the common factor(s). The optimisation is warm-started
+from the top-<code>m</code> eigenvectors of <code>r_g</code> (principal factors) and polished by L-BFGS-B
+with the analytic gradient <code>−2 (W∘R_res) Λ</code>; an optional weight matrix <code>W</code> (e.g.
+<code>1/se²</code> of each <code>r_g</code>) gives a diagonally-weighted (DWLS) fit.</p>
+<p>Fit is read off the <strong>off-diagonal residuals</strong>: <code>srmr</code> is their standardised
+root-mean-square, and <code>prop_explained</code> is the fraction of off-diagonal structure
+captured. Values around 0.05–0.08 are informal descriptive heuristics, not a
+calibrated factor-number test. The optimizer constrains each communality
+<code>sum_k Λ_pk²</code> to <code>[0, 1]</code>; a value at 1 is a Heywood boundary. A single factor
+requires <code>P ≥ 3</code> traits, and in
+general the usual parameter count requires
+<code>df = ½((P − m)² − (P + m)) ≥ 0</code>. At <code>P = 3, m = 1</code>, <code>df = 0</code>, but sign and
+communality constraints can still prevent an exact representation. As with the
+<code>r_g</code> estimate itself the loadings carry no inference of their own — bootstrap the whole
+<code>fit_genetic_correlation → fit_genetic_factor</code> pipeline over families for uncertainty,
+since the within-dataset <code>se</code> understates it. <code>benchmarks/bench_genetic_correlation.py</code>
+panel (c)
+recovers planted loadings end-to-end and shows <code>srmr</code> rising when a one-factor model
+is fit to two-factor data.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Developed with the support of <a href="https://smartbiomed.dk/">SMARTbiomed</a>.
+
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://smartbiomed.dk/" target="_blank" rel="noopener" title="SMARTbiomed" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/bvilhjal/ltpred" target="_blank" rel="noopener" title="ltpred on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+      
+        <script src="../javascripts/katex.js"></script>
+      
+    
+  </body>
+</html>

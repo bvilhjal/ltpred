@@ -1,0 +1,1847 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+      
+      
+      
+        <link rel="canonical" href="https://bvilhjal.github.io/ltpred/reviews/REVIEW_2026-09c/">
+      
+      
+        <link rel="prev" href="../REVIEW_2026-09b/">
+      
+      
+        <link rel="next" href="../REVIEW_2026-09d/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Independent review (v0.6.2) - ltpred</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+3:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Source Sans 3";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/smartbiomed.css">
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#independent-review-of-ltpred-v062-2026-09-10" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ltpred" class="md-header__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ltpred
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Independent review (v0.6.2)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ltpred" class="md-nav__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    ltpred
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choose a method
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vignette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vignette
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflow
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data-preparation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data preparation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cip-estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CIP estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../inference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../assumptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assumptions & checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm & model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ROADMAP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../PAPER_PLAN/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../RELEASING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Releasing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.3.4)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.4.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.5.1)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.6.2)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.6.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-scope-and-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Scope and method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-verdicts-by-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Verdicts by area
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-independent-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Independent verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-what-this-review-did-not-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. What this review did not do
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.7.0, documentation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-scope-and-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Scope and method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-verdicts-by-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Verdicts by area
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-independent-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Independent verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-what-this-review-did-not-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. What this review did not do
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="independent-review-of-ltpred-v062-2026-09-10">Independent review of ltpred v0.6.2 (2026-09-10)<a class="headerlink" href="#independent-review-of-ltpred-v062-2026-09-10" title="Permanent link">&para;</a></h1>
+<p>A read-only audit of the 0.6.0 inference delta. This review covers the tree at
+commit <code>e9bfa66</code> (v0.6.2). It follows, and is independent of, the v0.3.4 audit
+in <code>REVIEW_2026-08.md</code>, the v0.4.2 audit in <code>REVIEW_2026-09.md</code>, and the v0.5.1
+audit in <code>REVIEW_2026-09b.md</code>. The audit itself changed no package code; the
+T1-1 and T2-1 findings it reports were then fixed in the same change set that
+adds this document, and T3-1 was <strong>withdrawn</strong> after the validation study it
+asked for failed to reproduce it (section 4 records the dispositions, including
+two corrections to the T1-1 measurements found while fixing it; see the
+CHANGELOG for the release entry).</p>
+<h2 id="1-scope-and-method">1. Scope and method<a class="headerlink" href="#1-scope-and-method" title="Permanent link">&para;</a></h2>
+<p>The previous three audits covered the statistical core and the register driver
+through v0.5.1. Version 0.6.0 added an inference engine and a fitter, and
+deliberately changed some existing scores:</p>
+<ul>
+<li><code>quadrature.py</code>, a new opt-in engine that integrates at most two parental
+  factors for additive nuclear families;</li>
+<li><code>pairwise.py</code> (<code>fit_pairwise</code>), a new A/C/M composite-likelihood fitter;</li>
+<li><code>_selected_kinship.py</code>, bounded memoized selected relationship entries, used
+  by the register driver behind a new covariance-reduction guard;</li>
+<li><code>pearson_aitken.py</code>, where no-mixture PA now conditions all pins jointly and
+  marginalizes uninformative rows before folding intervals — a stated,
+  deliberate change to some pinned-family scores.</li>
+</ul>
+<p>This review concentrates on that delta. It does not re-derive the liability
+model, the covariance construction, the Gibbs conditionals, or the existing
+fitters; three audits in the preceding six weeks did, and nothing in the delta
+alters them.</p>
+<p>Two stages. First, the project's own gates were run (Table 1). Second, every
+claim that matters was re-derived by execution against oracles written for this
+review, not by the package: a dense linear-Gaussian conditioning plus 1-D
+quadrature oracle for posterior moments (exact for at most two non-pin
+intervals), a Monte-Carlo oracle drawn directly from the model definition
+(<code>Sigma = h2 A + (1 - h2) I</code>) with exact pin conditioning, and direct numerical
+integration of the bivariate normal for the pairwise cell probabilities. Severity
+tiers as before: <strong>T1</strong>, correctness or scientific validity; <strong>T2</strong>, robustness,
+evidence integrity, or maintainability; <strong>T3</strong>, style, clarity, or polish.</p>
+<p><em>Table 1. Baseline checks on the review machine (macOS, Apple silicon; repo venv:
+CPython 3.10.20, NumPy 2.2.6, SciPy 1.15.3, Numba 0.67.0; BLAS pinned to one
+thread as in CI).</em></p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Test suite</td>
+<td><code>pytest -q</code></td>
+<td>800 passed, 60 s</td>
+</tr>
+<tr>
+<td>Lint</td>
+<td><code>ruff check .</code></td>
+<td>clean</td>
+</tr>
+<tr>
+<td>Evidence guard</td>
+<td><code>scripts/check_evidence.py</code></td>
+<td>internally consistent: scaling 392–518×; PA stress floor 0.9991; IPW 0.468/0.521; R locks 6.786 ± 0.079× and 1418 ± 30×; PGS 0.338 / 0.236 / 0.170; time/memory 7 matched cases; PDF v0.6.2</td>
+</tr>
+<tr>
+<td>Documented quadrature example</td>
+<td><code>docs/estimation.md</code> snippet, verbatim</td>
+<td>runs; est 1.036112, var 0.229013, error 1.13e-14, 64 nodes</td>
+</tr>
+<tr>
+<td>Example script</td>
+<td><code>examples/vignette.py</code></td>
+<td>runs end to end; GWAS +1.013217, prediction −0.072034, post-index and closure invariance 0.0</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-verdicts-by-area">2. Verdicts by area<a class="headerlink" href="#2-verdicts-by-area" title="Permanent link">&para;</a></h2>
+<p><strong>Quadrature engine (<code>quadrature.py</code>).</strong> The mathematics is correct and the
+answers are accurate to floating-point; the mode-finding step has a hard
+failure mode that makes the engine unusable on a few percent of ordinary
+inputs. Every reduction was checked by hand and by execution. The analytic
+branches are right: a proband pinned under <code>out="full"</code> returns the pin with
+zero variance; <code>h2 = 0</code> returns the prior; the parents-only branch returns
+<code>0.5 h2 E[l_m | interval]</code> for the genetic target and <code>h2 - 0.25 h2² (1 - v)</code>
+for its variance, both of which follow from the covariance algebra
+(<code>Var(g_o | l_m in I) = 0.25 Var(g_m | I) + 0.25 h2 + 0.5 h2</code>); and the
+one-remaining-interval branch is the exact bivariate truncated-normal formula.
+The Newton mode search is right too: at the returned iterate the gradient
+vanishes to 1e-17 and the returned Hessian matches a finite-difference Hessian
+of the same objective (Table 2), so my initial suspicion of a sign error in the
+<code>(noise - v) / noise²</code> term was wrong — it is the correct
+<code>(1 - dt/dm) / s²</code> with <code>dt/dm = v/s²</code>. The importance-weighted tensor grid is
+a consistent self-normalized estimator with a valid proposal. End to end, the
+estimator is exact to ~1e-15 against the dense oracle on every reduction it
+claims to close, and consistent with independent Monte Carlo on the general
+multi-interval case (mean z = +0.14, sd 0.87, no |z| &gt; 3 in 78 runs). The defect
+is not in the arithmetic but in the stopping rule (finding T1-1).</p>
+<p><strong>PA pin conditioning (<code>pearson_aitken.py</code>).</strong> Correct. Where the result is
+claimed exact it is exact: all-pins, pin plus one interval, and pins plus two
+intervals all reproduce the dense oracle to 0.0 or 1e-17 (Table 2). The
+deliberate score change is real and is visible in the example script: the
+vignette's GWAS score moved from +1.017439 (v0.5.1) to +1.013217, while the
+prediction-mode score is unchanged at −0.072034, which is what one expects from
+conditioning pins jointly before the interval fold.</p>
+<p><strong>Pairwise fitter (<code>pairwise.py</code>).</strong> Correct. The four cell probabilities match
+independent bivariate integration to 1.8e-16 over <code>t</code> in [−0.7, 4] and
+<code>rho</code> in [0.01, 0.99]; the first and second derivatives match
+Richardson-extrapolated finite differences (5e-9 and 7.6e-10 relative), which
+matters because the optimizer consumes them as analytic scores. The composite
+likelihood, the cluster-robust sandwich, and the KKT re-check are standard and
+are used consistently on a per-family scale. In a recovery experiment I ran
+independently — 40 replicates of 3,000 simulated five-member families with
+known <code>A = 0.30, C = 0.15, M = 0.10</code> — all three components were recovered
+with well-scaled uncertainty (Table 3). This is new evidence for a fitter whose
+changelog entry says efficiency and coverage "still require broader
+validation"; one small caveat is recorded as T3-1.</p>
+<p><strong>Selected kinship and the register driver.</strong> Correct. <code>_SelectedKinship</code>
+reproduces <code>kinship_from_pedigree</code> exactly for full pedigrees, random subsets,
+and caches of 0 through 100,000 entries, including inbred pedigrees (the
+full-sib-mating child gets the correct diagonal 1.25) and deliberate
+self-mating. The bound in <code>_covariance_reduction_is_safe</code> is sound: over three
+structures and ten values of <code>h2</code>, whenever it claimed safety the selected path
+was bit-identical to the legacy full-matrix path, and its claimed eigenvalue
+lower bound was never violated (worst sampled margin 20.9×); it correctly
+defers at <code>h2 &lt;= 1e-6</code> and at <code>h2 = 1</code>. The two boundary diagnostics added in
+0.5.2 in response to the previous review behave as documented: an all-unresolved
+parent column and an integer-id/string-parent mismatch both raise, a 20%
+unresolved share scores silently, and <code>proband_state</code> classifies all three
+proband states while leaving every score unchanged.</p>
+<p><strong>Method dispatch and model boundaries.</strong> Correct and never silent. A requested
+<code>method="quadrature"</code> is refused rather than quietly downgraded for
+multi-trait input, nonzero <code>c2</code>/<code>m2</code>, the mixture, <code>h2 = 1</code>, and arbitrary
+kinship matrices.</p>
+<h2 id="3-independent-verification">3. Independent verification<a class="headerlink" href="#3-independent-verification" title="Permanent link">&para;</a></h2>
+<p><em>Table 2. Checks re-derived for this review, independent of the package's own
+tests. "Oracle" is the dense Gaussian-conditioning reference written for this
+review.</em></p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>_mode</code> gradient at the returned iterate</td>
+<td>max abs 5.8e-9 (1-D), 4.3e-8 (2-D narrow); vanishes</td>
+</tr>
+<tr>
+<td><code>_mode</code> Hessian vs finite differences</td>
+<td>max abs deviation 1.3e-5 on a scale of 2.0, at minimum eigenvalue 1.22–2.32</td>
+</tr>
+<tr>
+<td><code>_grid(n, 1)</code> weights, <code>n = 16 … 512</code></td>
+<td>sum = √(2π) to 1e-14; E[x²] = 1, E[x⁴] = 3, E[x⁶] = 15 to machine precision; the <code>n = 512</code> underflow fallback is as accurate as SciPy's own weights</td>
+</tr>
+<tr>
+<td><code>_log_mass</code> vs direct integration</td>
+<td>worst relative error 1.3e-14 over means ±9 and widths 1e-7 … 3 sd; deep tails finite (log mass −454.32 at [30, 31])</td>
+</tr>
+<tr>
+<td><code>_moments</code> narrow-window branch</td>
+<td>worst relative error 5.2e-12</td>
+</tr>
+<tr>
+<td>Quadrature vs oracle, exact reductions (pins, ≤ 2 intervals, both targets)</td>
+<td>worst est 1.3e-15, worst var 2.3e-15 over 10 cases</td>
+</tr>
+<tr>
+<td>Quadrature vs Monte Carlo, general structures</td>
+<td>78 runs, mean z +0.14, sd 0.87, max</td>
+</tr>
+<tr>
+<td>PA vs oracle, pins + ≤ 2 intervals</td>
+<td>max difference 0.0 to 2.8e-17</td>
+</tr>
+<tr>
+<td>Pairwise cell probabilities vs bivariate integration</td>
+<td>max error 1.8e-16; cells sum to 1</td>
+</tr>
+<tr>
+<td>Pairwise derivatives vs finite differences</td>
+<td>5e-9 (first), 7.6e-10 (second, Richardson)</td>
+</tr>
+<tr>
+<td><code>_SelectedKinship</code> vs <code>kinship_from_pedigree</code></td>
+<td>exact for full pedigrees, random subsets, caches 0–100,000, inbred and self-mated pedigrees</td>
+</tr>
+<tr>
+<td>Register-driver guard vs legacy path</td>
+<td>bit-identical where the guard claims safety (30 combinations); bound margin ≥ 20.9×</td>
+</tr>
+<tr>
+<td>0.5.2 boundary diagnostics</td>
+<td>all-unresolved and dtype-mismatch raise; <code>proband_state</code> correct and score-neutral</td>
+</tr>
+</tbody>
+</table>
+<p><em>Table 3. <code>fit_pairwise</code> recovery, 40 replicates of 3,000 five-member families
+(<code>o, m, f, s1, s2</code>), common threshold at 10% prevalence, <code>sampling="population"</code>.
+</em><em>Forty replicates give SE(mean) of 0.0068, 0.0054 and 0.0076 for A, C and M, so
+the bias column below is not resolvable at the size of the deviations it shows.</em><em>
+Table 4 repeats the design with 73 times more replicates; read that one.</em></p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th style="text-align: right;">Truth</th>
+<th style="text-align: right;">Mean estimate</th>
+<th style="text-align: right;">Empirical SD</th>
+<th style="text-align: right;">Mean reported SE</th>
+<th style="text-align: right;">SE/SD</th>
+<th style="text-align: right;">95% coverage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td style="text-align: right;">0.300</td>
+<td style="text-align: right;">0.2841</td>
+<td style="text-align: right;">0.0429</td>
+<td style="text-align: right;">0.0474</td>
+<td style="text-align: right;">1.11</td>
+<td style="text-align: right;">0.97</td>
+</tr>
+<tr>
+<td>C</td>
+<td style="text-align: right;">0.150</td>
+<td style="text-align: right;">0.1634</td>
+<td style="text-align: right;">0.0344</td>
+<td style="text-align: right;">0.0353</td>
+<td style="text-align: right;">1.03</td>
+<td style="text-align: right;">0.95</td>
+</tr>
+<tr>
+<td>M</td>
+<td style="text-align: right;">0.100</td>
+<td style="text-align: right;">0.1056</td>
+<td style="text-align: right;">0.0480</td>
+<td style="text-align: right;">0.0509</td>
+<td style="text-align: right;">1.06</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+</tbody>
+</table>
+<p><em>Table 4. The same design and truths at five cohort sizes, 11,364 replicates
+totalling 43,974,000 simulated families. Replicates are allocated proportional
+to 1/N, so SE(bias) is 0.0009, 0.0007 and 0.0009 for A, C and M at every size
+and the sizes are directly comparable. Coverage is of the nominal 95% normal
+interval; "pinned" is the share of replicates with a component held at the
+non-negativity boundary, where a reported SE is unavailable by design.</em></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">N</th>
+<th style="text-align: right;">replicates</th>
+<th style="text-align: right;">bias A</th>
+<th style="text-align: right;">bias C</th>
+<th style="text-align: right;">bias M</th>
+<th style="text-align: right;">SE/SD A</th>
+<th style="text-align: right;">coverage A</th>
+<th style="text-align: right;">pinned</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1,500</td>
+<td style="text-align: right;">5,866</td>
+<td style="text-align: right;">−0.0032</td>
+<td style="text-align: right;">−0.0005</td>
+<td style="text-align: right;">−0.0019</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">0.948</td>
+<td style="text-align: right;">10.3%</td>
+</tr>
+<tr>
+<td style="text-align: right;">3,000</td>
+<td style="text-align: right;">2,933</td>
+<td style="text-align: right;">−0.0014</td>
+<td style="text-align: right;">−0.0009</td>
+<td style="text-align: right;">−0.0024</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">0.952</td>
+<td style="text-align: right;">2.9%</td>
+</tr>
+<tr>
+<td style="text-align: right;">6,000</td>
+<td style="text-align: right;">1,466</td>
+<td style="text-align: right;">−0.0005</td>
+<td style="text-align: right;">−0.0009</td>
+<td style="text-align: right;">−0.0007</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">0.953</td>
+<td style="text-align: right;">0.4%</td>
+</tr>
+<tr>
+<td style="text-align: right;">12,000</td>
+<td style="text-align: right;">733</td>
+<td style="text-align: right;">+0.0002</td>
+<td style="text-align: right;">+0.0005</td>
+<td style="text-align: right;">+0.0008</td>
+<td style="text-align: right;">0.96</td>
+<td style="text-align: right;">0.944</td>
+<td style="text-align: right;">0.0%</td>
+</tr>
+<tr>
+<td style="text-align: right;">24,000</td>
+<td style="text-align: right;">366</td>
+<td style="text-align: right;">−0.0009</td>
+<td style="text-align: right;">+0.0007</td>
+<td style="text-align: right;">+0.0002</td>
+<td style="text-align: right;">0.97</td>
+<td style="text-align: right;">0.940</td>
+<td style="text-align: right;">0.0%</td>
+</tr>
+</tbody>
+</table>
+<p>No fit failed and none was discarded, at any size. Weighted least squares on
+<code>bias(N) = b0 + b1/N</code> puts the asymptotic bias <code>b0</code> at +0.00005 for A (95% CI
+−0.00113 to +0.00123), +0.00020 for C (−0.00066 to +0.00107) and +0.00024 for
+M (−0.00099 to +0.00147), all centred within 0.0002 of zero, with the whole
+signal in the <code>1/N</code> term (<code>b1</code> of −4.67, −1.57 and −3.96; chi2/df 0.42 to 1.21,
+p 0.30 to 0.74). This study is committed as
+<code>benchmarks/bench_pairwise_recovery.py</code>, with its numbers in
+<code>benchmarks/bench_pairwise_recovery.csv</code>, section 32 of
+<code>benchmarks/RESULTS.md</code>, and a provenance row in
+<code>benchmarks/run_manifest.jsonl</code>. It reuses the repository's own
+<code>simulate_families_components</code>: the review's first scratch harness was found to
+construct the same covariance and was therefore a duplicate. That first harness
+was run independently and agrees with the committed campaign at every size
+(largest discrepancy 2.1 SE, at N = 1,500).</p>
+<h2 id="4-findings">4. Findings<a class="headerlink" href="#4-findings" title="Permanent link">&para;</a></h2>
+<p><strong>T1-1. <code>method="quadrature"</code> refuses ordinary inputs because the mode-search
+stopping rule sits below the floating-point noise floor.</strong> This is the one
+finding that changes what a user can do; everything else in the delta held up.</p>
+<p><code>_mode</code> (<code>quadrature.py:135</code>) stops when
+<code>max|step| &lt;= 1e-10 * (1 + max|x|)</code>. On affected inputs the Newton iterate
+reaches the true optimum at the second iteration and then cannot shrink its
+step below roughly <code>3e-10</code>, so the test can never pass, the loop runs out its
+80 iterations, and the estimator raises. Instrumenting the real code path shows
+the mechanism exactly: from iteration 2 to iteration 79 the objective is
+bit-identical (0.459686633802) and <code>x</code> equals SciPy's minimizer to eight
+decimals, while <code>|step|</code> stalls at 2.8e-10 against a tolerance of 1.13e-10; the
+Armijo line search accepts only scales of 1e-8 to 1e-7 because the predicted
+decrease <code>gradient @ step</code> is roundoff. The reproducibility is exact:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred.quadrature</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability_quadrature_arrays</span> <span class="k">as</span> <span class="n">est</span>
+<span class="n">est</span><span class="p">([</span><span class="s2">"o"</span><span class="p">,</span> <span class="s2">"m"</span><span class="p">,</span> <span class="s2">"f"</span><span class="p">],</span> <span class="p">[[</span><span class="o">-</span><span class="mf">1.324</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.238</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.508</span><span class="p">]],</span> <span class="p">[[</span><span class="mf">0.796</span><span class="p">,</span> <span class="mf">1.200</span><span class="p">,</span> <span class="mf">0.958</span><span class="p">]],</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="c1"># RuntimeError: family 0: quadrature posterior-mode iteration did not converge</span>
+</code></pre></div>
+<p>Three properties make this T1 rather than a nuisance. First, the failure rate on
+plausible input is not negligible: 48 of 720 randomized bound sets (6.7%),
+broken down as 7.5% for two-sided intervals, 9.2% for one-sided population
+bounds, and 3.3% for the classic LT-FH++ encoding with a pinned proband — the
+regime the engine is advertised for. Second, <strong>no public control rescues an
+affected family</strong>: <code>quadrature_atol</code> and <code>quadrature_max_nodes</code> do not reach
+<code>_mode</code>, and every combination tried (atol from 1e-8 to 1e-2, max_nodes 128 and
+512) still raised on all 16 two-sided refusals sampled. Third, because the
+estimator raises on the first failing family, the method is unusable at cohort
+scale: a batch of 50 realistic families raised at family 30, and a batch of
+1,000 raised at family 0. The error text also misdescribes the cause — the mode
+iteration did converge.</p>
+<p>The code already contains the intended tolerance for this situation in the
+line-search <code>else</code> branch, whose comment reads "At floating-point resolution the
+objective may stop changing before the derivative. This point remains a valid
+importance proposal; quadrature refinement still determines acceptance." That
+branch is unreachable here, because the line search does find a (tiny) scale.
+Recommendation: make the stopping rule noise-aware — accept when the objective
+stops changing at representable resolution, or when the accepted line-search
+scale falls below a threshold, or relax the tolerance to the gradient's
+resolution (about <code>1e-8 * (1 + max|x|)</code>) — and treat the mode as a proposal
+rather than a result, which is what the importance reweighting already does.
+A randomized bound test alongside the existing hand-picked cases would have
+caught this; <code>tests/test_quadrature.py</code> currently uses only round-number bounds.
+The refinement diagnostic did not mask the problem, because the estimator
+raises rather than returning a value.</p>
+<p><em>Two corrections to the measurements above, from re-running them while fixing
+the defect.</em> The incidence is environment-dependent, because the noise floor of
+the exact gradient follows SciPy's truncated-moment accuracy: on identical
+inputs the two-sided/one-sided refusal rates are 6.2%/9.6% under NumPy 1.26
+with SciPy 1.15 but 2.1%/4.2% under NumPy 2.4 with SciPy 1.18, and the minimal
+reproduction above returns rather than raising on the latter. The defect is
+present in both; only which families trip it changes. Second, the stall is
+sharper than "the line search accepts tiny scales": the accepted step changes
+the objective by <em>exactly zero</em>, because <code>scale * step</code> (about 1e-8 x 5e-9)
+falls below an ulp of <code>x</code>, so <code>candidate</code> equals <code>x</code> bit-for-bit and the Armijo
+threshold underflows to <code>value</code>. The iterate therefore cannot move at all,
+rather than moving slowly.</p>
+<p><strong>Disposition: fixed.</strong> <code>_mode</code> now also returns when an accepted line-search
+step fails to change the objective at representable resolution
+(<code>value - candidate_value &lt;= 8 * eps * (1 + |value|)</code>) — the tolerance the
+<code>else</code> branch already documented but could not reach. The Newton decrement
+<code>gradient @ step</code> was measured as the more principled alternative and rejected
+on evidence: across 700 traces its stalled values (up to 2.9e-15) overlap the
+smallest values seen on genuinely productive iterations (down to 6.4e-20), so
+no threshold separates the two states.</p>
+<p>Validation. Over 1,200 randomized families spanning four role sets, six bound
+styles, six <code>h2</code> values and both <code>out</code> modes, mode refusals fall from 49 to 0
+and no family that previously returned now raises: the 1,031 answered before
+are a subset of the 1,076 answered after, 775 of them bit-identical and the
+rest differing by at most 8.8e-14 in <code>est</code> and 3.0e-13 in <code>var</code>, against the
+method's own 1e-8 criterion. Four rescued families are genuinely node-limited
+and now raise the refinement message instead, which <code>max_nodes=128</code> resolves —
+an actionable refusal in place of an unrescuable one. On nine previously
+refused inputs both moments reproduce an independently written 800x800
+Gauss-Legendre integration over the two parental breeding values to within
+2.0e-15 (<code>est</code>) and 8.9e-16 (<code>var</code>), the oracle being self-consistent to 1e-16
+under order doubling, and agree with 40M-draw rejection sampling (max |z| =
+1.8). Two regression tests were added: one pins the four verified answers, the
+other supplies the randomized bound coverage whose absence let this through.
+Seven of the eight new test cases fail on the pre-fix tree, and the suite (808
+tests) passes under both dependency sets above.</p>
+<p><strong>T2-1. The node-refinement refusal reports a change that already satisfies the
+criterion.</strong> The convergence test requires two <em>consecutive</em> refinements within
+<code>atol</code>, but the failure message prints only the last one:</p>
+<div class="highlight"><pre><span></span><code>quadrature did not converge by 128 nodes per dimension (last change 7.48e-14, atol 1e-08)
+</code></pre></div>
+<p>Here the last change is one hundred million times smaller than the tolerance, so
+the message reads as a contradiction; the actual reason is that the previous
+refinement exceeded <code>atol</code>. Separately, with the default <code>max_nodes=128</code> only
+three refinement comparisons exist (16→32→64→128), so a family that stabilizes
+at 256 nodes is refused; that case is rescued by <code>max_nodes=512</code> (error 7.5e-14
+at 256 nodes), but the message does not mention the knob. Recommendation: report
+<code>max(changes[-2:])</code> and name the refinement that failed, and mention
+<code>quadrature_max_nodes</code> in the message.</p>
+<p><strong>Disposition: fixed.</strong> The refusal now reports <code>max(changes[-2:])</code>, the
+quantity the criterion actually tests, worded as "largest of the last two
+changes". Re-measuring while fixing it relocated the binding case: it is
+<code>max_nodes=64</code>, the documented <em>minimum</em>, where the ladder 16→32→64 leaves only
+two changes and so forces the coarse first refinement into the acceptance test.
+A deep-tail family at <code>h2=0.95</code> refused with <code>changes = [7.76e-06, 9.58e-09]</code>
+while reporting only 9.58e-09 — and that same family returns at
+<code>max_nodes=128</code> carrying <code>error</code> equal to 9.58e-09, the very number the refusal
+had quoted. The two-successive-refinements rule is documented behaviour and was
+left alone; only the message changed, plus two sentences in
+<code>docs/estimation.md</code> recording that both changes must pass and that raising
+<code>quadrature_max_nodes</code> is the remedy.</p>
+<p><strong>T3-1. WITHDRAWN. The reported negative bias in the <code>A</code> component of
+<code>fit_pairwise</code> was an artifact of using 40 replicates.</strong> The finding as first
+written read: mean <code>A</code> of 0.284 against a truth of 0.300, about −0.37 empirical
+SD with a nominal t near −2.4, offered as an observation for a validation study
+to pursue. The validation study was run (Table 4) and does not reproduce it.</p>
+<p>At the identical design and cohort size, 2,933 replicates give a bias in <code>A</code> of
+−0.0011 ± 0.0009 — indistinguishable from zero and fourteen times smaller than
+the −0.0159 first reported. The original design was replicated faithfully: the
+sampling SDs of Table 3 agree with those of the large study to within 0.7
+standard errors of an SD from 40 draws. What was not adequate was the number of
+replicates. Forty draws put SE(mean) at 0.0068 for <code>A</code>, so the reported
+deviation was a 2.3 SE fluctuation of the review's own mean; the <code>C</code> deviation
+was +2.5 SE in the opposite direction. Two further facts complete the account.
+Three components were examined, and the probability that at least one shows
+|t| &gt; 2.3 by chance is 0.06. And <code>Â</code> and <code>Ĉ</code> are negatively correlated across
+replicates, at −0.54 to −0.63, so a single under-powered replicate set tends to
+show exactly the observed signature of <code>A</code> low with <code>C</code> high.</p>
+<p>The mechanism the finding proposed was also wrong on theory, independently of
+the numbers. It suggested that ignoring within-family dependence beyond the
+cluster sandwich would bias the additive component. It does not: a pairwise
+composite likelihood with correctly specified bivariate margins is consistent
+whatever the dependence among pairs, which costs efficiency and corrupts naive
+variance estimates but not consistency. There is a real intrinsic bias in this
+estimator, and it is negative, but it is <code>O(1/N)</code> and far too small to see here.
+In the one-component, one-pair-per-family design at threshold zero the composite
+MLE is exactly <code>2 sin(π(p̂ − ½))</code> in the concordant fraction, which is concave
+for <code>A &gt; 0</code> since <code>g''(p) = −π²A</code>; enumerating the binomial sampling
+distribution gives <code>N × bias → −0.3667</code>, so about −0.0001 at N = 3,000.</p>
+<p><strong>Disposition: withdrawn, and the study it asked for is now reported.</strong> No
+defect is demonstrated, and the estimator is consistent here: the asymptotic
+bias is within 0.0002 of zero for all three components, with confidence
+intervals no wider than ±0.0013. What remains is a genuine but small negative
+finite-sample bias of about <code>−4.7/N</code> in <code>A</code>, which is −0.0032 at N = 1,500 —
+roughly 1% of the parameter — and negligible by N = 6,000. Its sign is the one
+the concavity argument above predicts, and its coefficient is about thirteen
+times the reducible case's −0.3667, the direction ten dependent pairs, three
+components and a 10% case rate should move it. The positive result is the
+calibration the changelog said was missing: SE/SD between 0.96 and 1.10,
+coverage between 0.940 and 0.975, no failed or discarded fits in 11,364
+replicates, and boundary pinning confined to <code>M</code> — the component nearest zero —
+falling from 10.3% at N = 1,500 to nil by N = 12,000, with <code>A</code> never pinned.
+An earlier scratch run had shown the <code>A</code> interval covering 0.926 with SE/SD 0.92
+at N = 12,000, flagged then as possibly a small-sample SE effect; the committed
+campaign gives 0.944 and 0.96 at that size, so it was the expected outlier among
+fifteen cells and not a property of the estimator.</p>
+<p><strong>T3-2. The quadrature documentation could name its practical failure
+surface.</strong> <code>docs/estimation.md</code> correctly states that failure to meet the
+refinement criterion raises and that no unchecked value is returned. Once T1-1
+is fixed it would still help to say that the engine is a cross-check on
+nuclear-family structures rather than a cohort-scale workhorse, and that
+refusals are input-dependent rather than rare.</p>
+<p><strong>Disposition: partly addressed.</strong> The concrete, measured part is now
+documented (the two-change acceptance rule and the <code>max_nodes</code> remedy, under
+T2-1). The broader positioning claim was left out: with mode refusals removed,
+the remaining refusals are the documented refinement criterion doing its job,
+and characterizing the engine's cohort-scale standing is a judgement for the
+maintainer rather than a review finding.</p>
+<h2 id="5-what-this-review-did-not-do">5. What this review did not do<a class="headerlink" href="#5-what-this-review-did-not-do" title="Permanent link">&para;</a></h2>
+<p>It did not re-derive the liability model, the covariance construction, the
+Gibbs conditionals, the CIP estimators, the existing fitters, or the tetrachoric
+and liability-scale helpers; three audits in the preceding six weeks did, and
+the delta does not touch them. It did not re-run the benchmark suite, the R
+lock comparisons, or the HAPNEST path; the evidence guard was run instead, and
+the 0.6.1 time/memory claims were not recomputed. It did not audit the
+<code>benchmarks/</code> or <code>research/</code> trees. The numerical probes were run on one machine
+and one stack (Table 1); the quadrature Monte-Carlo comparisons used 2.5–4
+million draws, so agreement is established at the 1e-4 level there and at
+1e-15 only where a closed-form oracle applies.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Developed with the support of <a href="https://smartbiomed.dk/">SMARTbiomed</a>.
+
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://smartbiomed.dk/" target="_blank" rel="noopener" title="SMARTbiomed" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/bvilhjal/ltpred" target="_blank" rel="noopener" title="ltpred on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "content.code.copy", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+      
+        <script src="../../javascripts/katex.js"></script>
+      
+    
+  </body>
+</html>

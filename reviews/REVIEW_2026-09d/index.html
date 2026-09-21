@@ -1,0 +1,2117 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation, tutorial and simulated-data audit of ltpred v0.7.0.">
+      
+      
+      
+        <link rel="canonical" href="https://bvilhjal.github.io/ltpred/reviews/REVIEW_2026-09d/">
+      
+      
+        <link rel="prev" href="../REVIEW_2026-09c/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Independent review (v0.7.0, documentation) - ltpred</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+3:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Source Sans 3";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/smartbiomed.css">
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#documentation-and-onboarding-review-of-ltpred-v070-2026-09-21" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ltpred" class="md-header__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ltpred
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Independent review (v0.7.0, documentation)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ltpred" class="md-nav__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    ltpred
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choose a method
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vignette/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vignette
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflow
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data-preparation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data preparation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cip-estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CIP estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../inference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../assumptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assumptions & checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algorithm & model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Technical report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ROADMAP/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../PAPER_PLAN/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../RELEASING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Releasing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-08/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.3.4)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.4.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.5.1)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../REVIEW_2026-09c/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.6.2)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.7.0, documentation)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Independent review (v0.7.0, documentation)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-scope-and-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Scope and method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-what-holds-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. What holds up
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-measurements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Measurements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-recommendations-in-priority-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Recommendations, in priority order
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-what-this-review-did-not-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. What this review did not do
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-dispositions-same-day" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Dispositions (same day)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-scope-and-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Scope and method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-what-holds-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. What holds up
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-measurements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Measurements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-recommendations-in-priority-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Recommendations, in priority order
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-what-this-review-did-not-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. What this review did not do
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-dispositions-same-day" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Dispositions (same day)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="documentation-and-onboarding-review-of-ltpred-v070-2026-09-21">Documentation and onboarding review of ltpred v0.7.0 (2026-09-21)<a class="headerlink" href="#documentation-and-onboarding-review-of-ltpred-v070-2026-09-21" title="Permanent link">&para;</a></h1>
+<p>A read-only audit of the <strong>user-facing surface</strong>: the documentation set, the
+runnable examples, and the simulated data a new user can obtain. This review
+covers the tree at commit <code>2722a59</code> (v0.7.0). It follows, and is independent of,
+the four preceding audits — v0.3.4 (<code>REVIEW_2026-08.md</code>), v0.4.2
+(<code>REVIEW_2026-09.md</code>), v0.5.1 (<code>REVIEW_2026-09b.md</code>) and v0.6.2
+(<code>REVIEW_2026-09c.md</code>, at <code>e9bfa66</code>), fifteen commits behind this one.</p>
+<p>Those four audits re-derived the statistical core against independent oracles.
+<strong>This one does not, and deliberately so.</strong> It examines a surface no previous
+audit touched: whether a person who installs ltpred can actually learn to use
+it. Every claim below is either a file/line citation or a measurement I ran;
+nothing is re-derived from the model, and no numerical finding of the earlier
+audits is reopened. The audit changed no package code.</p>
+<p>Severity tiers follow the chain, re-read for this domain: <strong>T1</strong>, a user cannot
+complete a documented task, or a document states something false; <strong>T2</strong>,
+significant friction, a broken promise to installed users, or duplication that
+will drift; <strong>T3</strong>, clarity and polish.</p>
+<h2 id="1-scope-and-method">1. Scope and method<a class="headerlink" href="#1-scope-and-method" title="Permanent link">&para;</a></h2>
+<p>Two questions frame the audit. First: <em>can a reader execute what the
+documentation shows?</em> Second: <em>can a user obtain simulated data for every
+supported route?</em> The second question matters more than it looks, because
+ltpred's whole value proposition is that a user supplies a cohort — and the
+only way to learn a pipeline that consumes a cohort is to have one.</p>
+<p>Method. I read the complete documentation set (twelve pages, 31,730 words) and
+all four examples. I then <strong>ran</strong> every copy-paste path a new user is offered:
+the README quickstart, <code>docs/quickstart.md</code> steps 1–5, the multi-trait recipe in
+<code>docs/data-preparation.md</code>, and all four <code>examples/*.py</code>. I inventoried the
+distribution artifacts to establish what an installed user actually receives,
+and I counted the exported API surface against the documentation. Where a
+suspicion proved wrong on execution, that is recorded too (§2, §3).</p>
+<p><em>Table 1. Baseline checks on the review machine (macOS arm64; CPython 3.10.20,
+NumPy 1.26.4, SciPy 1.15.3, Numba 0.66.0; BLAS pinned to one thread as in CI).
+The repository's own <code>.venv</code> could not be used: its SciPy fails to <code>dlopen</code>
+(<code>_spropack...so</code>, "zero-fill section type, but offset field is not zero"), a
+local packaging problem unrelated to ltpred.</em></p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lint</td>
+<td><code>ruff check .</code></td>
+<td>clean</td>
+</tr>
+<tr>
+<td>All examples</td>
+<td><code>python examples/*.py</code></td>
+<td>4/4 exit 0, 5.2–14.6 s each, empty stderr</td>
+</tr>
+<tr>
+<td>README quickstart</td>
+<td>verbatim into a scratch script</td>
+<td>runs; <code>est</code>/<code>var</code> shape <code>(2000,)</code>; <code>se</code> 0; PA vs Gibbs on 200 families corr 0.99946, max abs diff <strong>0.0104</strong> — the claimed "~1e-2" is accurate</td>
+</tr>
+<tr>
+<td><code>docs/quickstart.md</code> §1–5</td>
+<td>verbatim into a scratch script</td>
+<td>runs in 1.5 s; <code>[('P1', 1.357058752244415), ('P2', 0.4619554497275081)]</code></td>
+</tr>
+<tr>
+<td><code>data-preparation.md</code> multi-trait recipe</td>
+<td>verbatim, <code>(n_people, n_traits)</code> bounds</td>
+<td>runs; <code>families_from_columns</code> accepts 2-D bounds and gives each <code>Member</code> per-trait arrays. I suspected this snippet was wrong; it is not</td>
+</tr>
+<tr>
+<td>Wheel contents</td>
+<td><code>unzip -l dist/ltpred-0.4.0-py3-none-any.whl</code></td>
+<td>22 files, <strong>all</strong> under <code>ltpred/</code></td>
+</tr>
+<tr>
+<td>Sdist contents</td>
+<td><code>tar tzf dist/ltpred-0.4.0.tar.gz</code></td>
+<td><code>ltpred/</code>, README, CHANGELOG, CITATION, LICENSE, MANIFEST.in, PKG-INFO, pyproject.toml, setup.cfg. <strong>No</strong> <code>docs/</code>, <code>examples/</code>, <code>benchmarks/</code>, <code>tests/</code>, <code>research/</code></td>
+</tr>
+<tr>
+<td>Docs build</td>
+<td>not re-run</td>
+<td>CI builds <code>mkdocs build --strict</code> on every push</td>
+</tr>
+</tbody>
+</table>
+<p>Nothing here is broken in the sense of failing. Every documented command that
+claims to run, runs. The findings are about what the documentation set does not
+offer, and about a gap between the package a user installs and the package the
+docs describe.</p>
+<h2 id="2-what-holds-up">2. What holds up<a class="headerlink" href="#2-what-holds-up" title="Permanent link">&para;</a></h2>
+<p>The documentation is <strong>accurate</strong>. That is worth stating plainly, because it is
+the hard part and it is done. I found no false statement. Every number I could
+re-derive matched: the README's PA/Gibbs agreement claim reproduced at 0.0104
+against a claimed "~1e-2"; the quickstart's scores came out of a verbatim
+transcription; the multi-trait recipe I expected to be a documentation bug is
+correct, because <code>families_from_columns</code> genuinely accepts per-trait bound
+columns.</p>
+<p>The <strong>hedging discipline is a genuine strength</strong> and should not be traded away.
+The distinction between Monte-Carlo error and approximation error (<code>res.se</code> is
+exactly 0 under PA, "which is not the same as zero approximation error"); the
+warning that a family-history phenotype can <em>concentrate</em> a birth-cohort trend
+rather than dilute it (λ = 10.275 with one lifetime K against 4.616 for the raw
+label); the insistence that <code>use="prediction"</code> hides own diagnosis but does not
+select a disease-free risk set; the note that the sib tetrachoric estimates
+<code>h² + 2c²</code> and is not interchangeable with the parent–offspring one — these are
+exactly the errors a competent analyst makes, and the docs prevent them. Most
+packages would not think to mention them.</p>
+<p>The <strong>engineering hygiene is above the norm</strong>. CI runs all four examples end to
+end (<code>.github/workflows/ci.yml</code>, job <code>examples</code>), with a comment recording that
+they "were previously run by neither the tests nor CI, so they could rot
+silently". The docs job builds <code>--strict</code> and notes that strict mode still
+leaves link resolution at INFO. <code>scripts/check_evidence.py</code> reconciles
+release-defining numbers against committed artifacts. <code>tests/test_vignette.py</code>
+pins the register example's calendar and closure contracts. The provenance
+instinct is consistently good.</p>
+<p>The <strong>information architecture is sound at the page level</strong>. <code>index → guide →
+quickstart → vignette → workflow(5) → reference(4)</code> is a sensible shape, and
+"choose a method" as a distinct page is the right call for a package where four
+published method names describe observation models rather than algorithms.</p>
+<p>So the problem is not accuracy or rigour. It is <strong>genre</strong>: the documentation set
+is written as a contract, and a contract is what a user needs <em>second</em>.</p>
+<h2 id="3-measurements">3. Measurements<a class="headerlink" href="#3-measurements" title="Permanent link">&para;</a></h2>
+<p><em>Table 2. Volume, redundancy and executability of the user-facing documentation.</em></p>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th style="text-align: right;">Lines</th>
+<th style="text-align: right;">Words</th>
+<th style="text-align: right;">Python blocks</th>
+<th style="text-align: right;">Blocks that define their own data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>README.md</code></td>
+<td style="text-align: right;">255</td>
+<td style="text-align: right;">1,626</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td><code>docs/index.md</code></td>
+<td style="text-align: right;">40</td>
+<td style="text-align: right;">237</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td><code>docs/guide.md</code></td>
+<td style="text-align: right;">176</td>
+<td style="text-align: right;">1,343</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td><code>docs/quickstart.md</code></td>
+<td style="text-align: right;">108</td>
+<td style="text-align: right;">614</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td><code>docs/vignette.md</code></td>
+<td style="text-align: right;">948</td>
+<td style="text-align: right;">6,481</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;"><strong>2</strong></td>
+</tr>
+<tr>
+<td><code>docs/data-preparation.md</code></td>
+<td style="text-align: right;">463</td>
+<td style="text-align: right;">3,113</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr>
+<td><code>docs/cip-estimation.md</code></td>
+<td style="text-align: right;">290</td>
+<td style="text-align: right;">2,176</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td><code>docs/estimation.md</code></td>
+<td style="text-align: right;">486</td>
+<td style="text-align: right;">3,597</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td><code>docs/inference.md</code></td>
+<td style="text-align: right;">420</td>
+<td style="text-align: right;">2,876</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td><code>docs/assumptions.md</code></td>
+<td style="text-align: right;">192</td>
+<td style="text-align: right;">1,639</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr>
+<td><strong>subtotal before <code>api.md</code></strong></td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;"><strong>23,702</strong></td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;"></td>
+</tr>
+<tr>
+<td><code>docs/algorithm.md</code></td>
+<td style="text-align: right;">1,056</td>
+<td style="text-align: right;">8,028</td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;"></td>
+</tr>
+</tbody>
+</table>
+<p><em>Table 3. Redundancy and register, measured on the documentation set.</em></p>
+<table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Restatements of the "own status in / out" rule</td>
+<td><strong>28</strong> across 7 files (README 4, guide 3, quickstart 1, vignette <strong>13</strong>, data-preparation 1, estimation 2, assumptions 4)</td>
+</tr>
+<tr>
+<td>Pages enumerating the three uses</td>
+<td>6 (README, index, guide, vignette, estimation, algorithm)</td>
+</tr>
+<tr>
+<td>Vignette caveat vocabulary</td>
+<td>"not" ×66, "do not" ×12, "does not" ×10, "must" ×4, "cannot" ×3, "rejected" ×3</td>
+</tr>
+<tr>
+<td>Vignette line-initial imperatives (Run/Call/Pass/Use/Supply/Build/Choose)</td>
+<td><strong>9</strong></td>
+</tr>
+<tr>
+<td>Exported names (<code>_EXPORTS</code>)</td>
+<td>60</td>
+</tr>
+<tr>
+<td>Exported names never mentioned in <code>docs/*.md</code> or README</td>
+<td><strong>9</strong>: <code>BootstrapResult</code>, <code>CipCurve</code>, <code>FitResult</code>, <code>MultiTraitPairwiseResult</code>, <code>TetrachoricResult</code>, <code>VarCompResult</code>, <code>liability_threshold</code>, <code>tetrachoric_matrix</code>, <code>tetrachoric_table</code></td>
+</tr>
+<tr>
+<td>Public simulation entry points</td>
+<td><strong>1</strong> (<code>simulate_under_LTM_single</code>)</td>
+</tr>
+<tr>
+<td>Simulation helpers in <code>benchmarks/</code>, unreachable by an installed user</td>
+<td><strong>6</strong> (Table 4)</td>
+</tr>
+</tbody>
+</table>
+<p><em>Table 4. Simulators that exist in the repository but ship in neither the wheel
+nor the sdist (<code>MANIFEST.in</code> has <code>prune tests</code>, <code>prune benchmarks</code>,
+<code>prune report</code>; <code>pyproject.toml</code> sets <code>packages = ["ltpred"]</code>).</em></p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Location</th>
+<th>What it produces</th>
+<th>Tutorial use it would serve</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>build_register</code></td>
+<td><code>benchmarks/bench_register_pipeline.py:139</code></td>
+<td><code>(status, age, onset, genetic, birth_time, residual_var)</code> over one consistent population liability field</td>
+<td><strong>the register driver's input, with known truth</strong></td>
+</tr>
+<tr>
+<td><code>pedigree_birth_times</code></td>
+<td><code>benchmarks/bench_register_pipeline.py:76</code></td>
+<td>generation-coherent calendar birth times (union-find over co-parents)</td>
+<td><code>birth_time</code> / <code>index_time</code> for use I</td>
+</tr>
+<tr>
+<td><code>simulate_registry</code></td>
+<td><code>benchmarks/bench_cip_estimation.py:87</code></td>
+<td>per-person follow-up: entry age, exit age, event (0 censor / 1 diagnosis / 2 death), Gompertz mortality</td>
+<td>step 2 — estimating a CIP, competing risks</td>
+</tr>
+<tr>
+<td><code>simulate_families_multi</code></td>
+<td><code>benchmarks/_common.py:135</code></td>
+<td>multi-trait families from <code>construct_covmat_multi</code>, parameterised by <code>h2_vec</code>/<code>rg</code>/<code>rp</code>; optional onset-age decay branch</td>
+<td>multi-trait scoring, <code>fit_pairwise_multi</code></td>
+</tr>
+<tr>
+<td><code>simulate_families_components</code></td>
+<td><code>benchmarks/_common.py:216</code></td>
+<td>families under <code>sum_c props[c] K_c + e2 I</code> for A/C/M proportions, optionally returning true <code>g</code></td>
+<td><code>fit_variance_components</code>, accuracy checks</td>
+</tr>
+<tr>
+<td><code>simulate_genotype_families</code></td>
+<td><code>benchmarks/_common.py:260</code></td>
+<td>standardised genotypes, causal index, true <code>g</code>, families</td>
+<td>use II end-to-end, GWAS phenotype</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-findings">4. Findings<a class="headerlink" href="#4-findings" title="Permanent link">&para;</a></h2>
+<p><strong>T1-1. The package exports one simulator, and it cannot produce input for the
+package's own register driver.</strong></p>
+<p><code>ltpred/__init__.py</code> sets <code>_EXPORTS["simulate"] = ["simulate_under_LTM_single",
+"Simulation"]</code>. That single entry point builds <strong>role-grammar</strong> families
+(<code>fam_vec=["m","f","s1",…]</code>) for <strong>one trait</strong> under <strong>one logistic CIP</strong>; its
+own docstring concedes the limit — "This helper has one logistic CIP and does
+not simulate the full sex/birth-cohort personalisation of LT-FH++".</p>
+<p>The installed, supported, public route for real data is the population
+trio-register driver <code>estimate_liabilities</code>, which needs <code>ids</code>, <code>father</code>,
+<code>mother</code>, <code>status</code>, <code>age</code>, and for use I <code>birth_time</code> and <code>index_time</code>, plus
+<code>strata</code> and <code>cip_by_stratum</code>. <strong>No public function produces any of it.</strong> There
+is no <code>ltpred.datasets</code>, no bundled <code>.csv</code>/<code>.npz</code>, no loader, no fetcher; the
+only data files in the repository are the R-lock fixtures under <code>tests/fixtures/</code>
+(pruned from the sdist) and benchmark output CSVs (likewise pruned).</p>
+<p>The consequence is concrete. The only worked register input anywhere in the
+documentation is <strong>six hand-typed people</strong> in
+<code>examples/vignette.py:register_example</code> — a leakage/invariance check with a toy
+CIP, which the script itself correctly labels "not clinical calibration or new
+performance evidence". A user who wants to learn the route the docs recommend
+for real data has no simulated cohort to learn it on, and no way to reproduce
+the RESULTS §§20–21 design on their own machinery.</p>
+<p>This is not a missing-capability finding. <strong>The capability exists and is
+stranded.</strong> Table 4 lists six simulators in <code>benchmarks/</code>, including one
+(<code>build_register</code>) that returns exactly the register columns plus the true
+genetic value, and one (<code>pedigree_birth_times</code>) that is a self-contained
+union-find generation assigner with no statistical content at all. They are
+unreachable because <code>MANIFEST.in</code> prunes <code>benchmarks</code> and <code>packages = ["ltpred"]</code>
+— verified against the built wheel (22 files, all <code>ltpred/</code>) and the sdist.</p>
+<p><code>build_register</code> is parameterised by module globals (<code>H2</code>, <code>EVAL_AGE</code>,
+<code>TRUE_CIP</code>, <code>AGE_GRID</code>, <code>BASE_BIRTH_TIME</code>, <code>GENERATION_YEARS</code>), so promotion
+means turning six constants into arguments, not a rewrite. <code>pedigree_birth_times</code>
+needs only two. Recommendation: promote them into <code>ltpred/simulate.py</code> (or a new
+<code>ltpred/datasets.py</code>), and have <code>bench_register_pipeline.py</code> import the promoted
+function so the evidence ledger and the tutorial <strong>cannot drift apart</strong> — the
+same argument the repository already applies to its benchmark numbers via
+<code>scripts/check_evidence.py</code>. <code>simulate_registry</code> should follow, since step 2
+(CIP estimation) currently has no simulated follow-up data either, and competing
+mortality is precisely the subtlety the CIP page warns about.</p>
+<p><strong>T1-2. The vignette is described as the run-book, but nothing executes its
+code: 12 of its 14 blocks are fragments, and the page binds only four names.</strong></p>
+<p><code>README.md</code> calls the vignette "the run-book"; <code>docs/index.md</code> and <code>guide.md</code>
+both route a new user to it as the answer to "how to run ltpred". Measured
+against that promise: 14 Python blocks, 118 lines of code, <strong>2</strong> of which define
+their own data.</p>
+<p>To be precise about what is and is not there, because the page deserves credit
+for part of it: it <em>does</em> have a literal cohort preamble (§"How to read the code
+on this page", lines 192–200) that binds <code>sim</code>, <code>h2</code>, <code>K</code> and <code>n_fam</code> from one
+runnable <code>simulate_under_LTM_single</code> call, and it does disclose that "Most blocks
+below are <strong>fragments</strong>: they show a call with your own columns". So this is a
+design choice with a partial mitigation, not an oversight, and I do not report it
+as a falsehood.</p>
+<p>What remains is that the fragments reach far beyond what that preamble binds.
+The names they use and no block on the page ever defines are <code>status</code>, <code>age</code>,
+<code>cip_ages</code>, <code>cip_values</code>, <code>fam_id</code>, <code>role</code>, <code>pid</code>, <code>ids</code>, <code>father</code>, <code>mother</code>,
+<code>birth_time</code>, <code>index_time</code>, <code>strata</code>, <code>cip_by_stratum</code>, <code>age_entry</code>, <code>age_exit</code>,
+<code>event</code>, <code>status_o</code>, <code>status_m</code>, <code>c2</code>, <code>m2</code>, <code>C</code>, <code>M</code>, <code>gwas_ids</code>,
+<code>prediction_ids</code> and <code>lifetime_K</code> — including the entire register-route input,
+which is the route the page recommends for real data.</p>
+<p>And nothing guards any of it. <code>tests/test_vignette.py</code> is 32 lines and exercises
+only <code>register_example()</code> and <code>_incident_risk</code>. CI runs the examples, not the
+prose. So a signature change in <code>thresholds_from_cip</code> or <code>estimate_liabilities</code>
+would leave twelve unrunnable blocks in the page the README calls the run-book,
+and every gate would stay green.</p>
+<p>The consequence is that the documentation has <strong>no executable middle ground</strong>:
+below the vignette is a 614-word quickstart on two families; above it is a
+375-line example script that prints a wall of caveats. Neither is a dataset a
+reader can modify and explore.</p>
+<p>Recommendation: keep the vignette as the contract — it is good at that — and put
+the runnable middle ground on a new page rather than retrofitting 948 lines.
+Extend the existing preamble to bind the register columns too, and add a test
+that executes the page's blocks. The repository already has the mechanism
+(<code>tests/_helpers.load_script</code>) and the precedent in <code>test_vignette.py</code>; this is
+an extension of an existing pattern, not new machinery.</p>
+<p><strong>T2-1. The README's headline quickstart runs a materially weaker cohort than
+the vignette's, and than every number quoted in the documentation.</strong></p>
+<p><code>README.md</code> opens with <code>simulate_under_LTM_single(..., use_age=True, seed=1)</code>;
+the vignette's canonical cohort — the one behind Table 4, the law-of-total-variance
+check, the tetrachoric 0.237, the fitted ĥ² = 0.363 — uses <code>use_age=False</code>.
+Measured at <code>n_sim=2000</code>, seed 1, h² = 0.5, K = 0.05:</p>
+<table>
+<thead>
+<tr>
+<th>Cohort</th>
+<th style="text-align: right;">Proband cases</th>
+<th style="text-align: right;">Score SD</th>
+<th style="text-align: right;">corr(score, true <em>g</em>)</th>
+<th style="text-align: right;">Mean posterior variance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>use_age=True</code> (README)</td>
+<td style="text-align: right;"><strong>11</strong> / 2000 (0.55%)</td>
+<td style="text-align: right;">0.1846</td>
+<td style="text-align: right;">0.2667</td>
+<td style="text-align: right;">0.4682</td>
+</tr>
+<tr>
+<td><code>use_age=False</code> (vignette)</td>
+<td style="text-align: right;">93 / 2000 (4.65%)</td>
+<td style="text-align: right;">0.2881</td>
+<td style="text-align: right;">0.3967</td>
+<td style="text-align: right;">0.4135</td>
+</tr>
+</tbody>
+</table>
+<p>The first thing a new user runs therefore yields 11 informative cases instead of
+93, a score with 36% less spread, and a correlation with the truth of 0.267
+rather than 0.397. The README's PA/Gibbs agreement claim is <em>accurate</em> on that
+cohort (I measured 0.0104), but it is a weak demonstration: with 98.5% of
+probands carrying no case information, the two engines are largely agreeing
+about the prior. A reader who then opens the vignette finds different numbers
+from a different cohort with no statement of why.</p>
+<p>Recommendation: make the README quickstart <code>use_age=False</code>, matching the
+vignette and every quoted figure, and present the age-aware variant as a
+labelled second block that says what changes. This is a one-token edit with a
+disproportionate effect on first contact.</p>
+<p><strong>T2-2. The only worked multi-trait example is imported from a directory that
+ships in neither distribution — and duplicates a benchmark helper.</strong></p>
+<p><code>docs/vignette.md</code>, §0, instructs:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">examples.joint_inference</span><span class="w"> </span><span class="kn">import</span> <span class="n">example_families</span>
+</code></pre></div>
+<p><code>examples/</code> is not in <code>packages</code>, is not named in <code>MANIFEST.in</code>, and is absent
+from both the built wheel and the sdist (Table 1). The import works from a
+checkout only. The vignette does say "runs from a source checkout", so this is
+disclosed rather than concealed — but ROADMAP priority 7 is <em>publish the first
+package release</em>, and after that the vignette's only multi-trait example is dead
+on arrival for every <code>pip install ltpred</code> user. The same applies to all four
+<code>examples/*.py</code> links in <code>README.md</code> and <code>guide.md</code>, which resolve only on
+GitHub.</p>
+<p>Second, <code>example_families()</code> is not an example — it is a <strong>simulator</strong>: 40 lines
+building a two-trait covariance as <code>np.kron(g, a) + np.kron(s, c) + np.kron(t, m)
++ np.kron(e, np.eye(5))</code>, Cholesky-factoring it, drawing 3,000 × 10 latents and
+reshaping trait-major to person-major. It is built entirely from public API
+(<code>kinship_from_pedigree</code> for the additive block, <code>prevalence_thresholds</code>,
+<code>families_from_columns</code>) plus NumPy, so it needs no new dependency to promote —
+it belongs beside <code>simulate_under_LTM_single</code>.</p>
+<p>Third, it is the <strong>third</strong> private route to component-structured family
+liabilities in this repository, and the three are not copies of one another,
+which is worse: they are three different parameterisations of the same object,
+so a reader cannot tell which is canonical.</p>
+<table>
+<thead>
+<tr>
+<th>Generator</th>
+<th>Traits</th>
+<th>Parameterised by</th>
+<th>Covariance route</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>_common.py:135 simulate_families_multi</code></td>
+<td>multi</td>
+<td><code>h2_vec</code>, genetic corr <code>rg</code>, full-liability corr <code>rp</code></td>
+<td><code>construct_covmat_multi</code>; optional onset-age decay branch importing <code>research.advanced_fitting._decay_cov</code></td>
+</tr>
+<tr>
+<td><code>_common.py:216 simulate_families_components</code></td>
+<td>single</td>
+<td>A/C/M variance <strong>proportions</strong></td>
+<td><code>_component_matrix</code>, summed; can return true <code>g</code></td>
+</tr>
+<tr>
+<td><code>examples/joint_inference.py:24 example_families</code></td>
+<td>two</td>
+<td>h², <code>rg</code>, sibship-C, couple-M, residual <code>re</code></td>
+<td>explicit <code>np.kron</code> sum, A from <code>kinship_from_pedigree</code>, hand-built C/M indicators</td>
+</tr>
+</tbody>
+</table>
+<p>None is in the public API. Recommendation: promote one multi-trait simulator
+into <code>ltpred</code> (the example's is the best candidate — public-API-only, no
+<code>research/</code> dependency, and its truth is quoted in the vignette), have
+<code>examples/joint_inference.py</code> call it, and document why the two benchmark
+generators remain internal rather than leaving three unexplained variants.</p>
+<p><strong>T2-3. <code>examples/registry_pipeline.py</code> is misnamed: it never calls the register
+driver, and it is the register driver that real-data users need.</strong></p>
+<p>The file's docstring promises "End-to-end template: a registry-style status/age
+table -&gt; a GWAS phenotype". Grepping it for <code>estimate_liabilities</code>,
+<code>birth_time</code>, <code>index_time</code>, <code>father</code>, <code>mother</code>, <code>strata</code> returns one hit — the
+word "mother" in a sentence about family structure. It imports
+<code>age_thresholds</code>, <code>families_from_columns</code>, <code>estimate_liability</code>: the <strong>role</strong>
+API. So the example named for the register route demonstrates the other route,
+and the route it demonstrates is the one already covered by the quickstart.</p>
+<p>The gap this leaves is the same one as T1-1 seen from the examples side: the
+supported public driver for population data — the one with <code>use="gwas"</code> /
+<code>use="prediction"</code>, calendar-time familywise censoring, <code>proband_state</code> and
+<code>frac_records_with_unresolved_parents</code> diagnostics — has a single six-person
+illustration and no realistic worked example anywhere.</p>
+<p>Recommendation: either rename the file to reflect the role API
+(<code>role_pipeline.py</code>), or — better, given T1-1 — retarget it at
+<code>estimate_liabilities</code> over a promoted simulated register, which would make it
+the missing end-to-end template for the route the docs actually recommend.</p>
+<p><strong>T2-4. The documentation set is optimised as a contract, and the tutorial it
+contains is 614 words on two families.</strong></p>
+<p>23,702 words stand between a new user and the API reference; <code>algorithm.md</code> adds
+8,028 more. The single most important rule in the package — whether the
+proband's own diagnosis enters <code>D_F</code> — appears <strong>28 times</strong> across seven files,
+13 of them in the vignette. The three uses are enumerated on six pages (README,
+guide, vignette, estimation, assumptions, algorithm), plus a one-line summary on
+<code>index.md</code>. In the vignette, caveat vocabulary ("not" ×66, "do not" ×12,
+"does not" ×10, "cannot" ×3, "rejected" ×3) outnumbers line-initial imperatives
+by roughly ten to one.</p>
+<p><strong>The 28 needs unpacking, because as a bare number it misleads — see the
+correction in §7.</strong> Reading every site: only <strong>6</strong> of the 28 are enumerations of
+the three uses, and each of those six already cites the canonical home
+(vignette Table 1) in the same breath. The other ~22 are <em>distinct</em> statements
+that happen to contain the phrase — the leakage warning
+(<code>use="prediction"</code> hides own diagnosis but does not select a disease-free risk
+set), the prospective-cohort warning ("This removes own status only"), the
+mathematical claim that with own status out of <code>D_F</code> the residual <code>e_i</code> is
+independent, the <code>n_conditioned</code> diagnostic definition, the role-grammar entry
+for <code>o</code>, the checklist item, the evidence caveat about simulation checks. None
+of those is a duplicate of another, and deleting any of them would remove a
+real warning.</p>
+<p>None of those statements is wrong, and most are load-bearing; §2 argues they
+should be kept. But repetition is a symptom of a document that cannot assume its
+reader has internalised anything, because it is simultaneously the tutorial, the
+reference, and the liability disclaimer. The two genres have opposite
+requirements: a tutorial must let a reader <em>succeed quickly</em> and defer caveats;
+a contract must state every caveat <em>at the point of risk</em>. One page cannot do
+both, and the vignette currently tries, at 6,481 words.</p>
+<p>The quickstart inherits the problem in miniature. At 614 words it is admirably
+short, but its dataset is two families and six hand-typed rows — small enough
+that the page must immediately warn "Do <strong>not</strong> fit <code>h²</code> from this two-family toy
+example", and small enough that nothing about grouping, heterogeneity of family
+structure, or score alignment is actually exercised. It is too small to learn
+from and too caveated to be a fast start.</p>
+<p>Recommendation: split the genres explicitly. Keep the vignette as the contract
+and let it stay long. Add one <strong>tutorial</strong> page — a single simulated cohort
+obtained from one call, five numbered steps, every block runnable, with all
+caveats collected into one closing "what this tutorial skipped" admonition that
+links into the contract rather than interrupting the flow.</p>
+<p>Do <strong>not</strong> follow this with a de-duplication pass driven by the count of 28. The
+breakdown above is the reason: six terse per-page enumerations that each already
+point at the canonical Table 1, and about twenty-two distinct warnings. The
+volume finding is about <em>genre</em>, not repetition — the fix is a page that lets a
+reader succeed without reading the contract, not a shorter contract.</p>
+<p><strong>T3-1. <code>make_toy_table</code> recovers case status from bound finiteness rather than
+from the simulator's own <code>status</code> field.</strong></p>
+<p><code>examples/registry_pipeline.py:52</code> sets <code>is_case = np.isfinite(m.lower)</code>,
+reading the answer off the interval encoding, when <code>sim.status[role]</code> is
+authoritative and already returned by the simulator. It is correct for the
+default <code>case_encoding="pin"</code> and would silently change meaning under
+<code>"interval"</code> or an uninformative member. The same coupling appears in
+<code>examples/vignette.py</code> (§2 and the final block, <code>int(np.isfinite(m.lower))</code>).
+Cheap to fix and worth fixing, because these are the files a new user reads to
+learn what the fields mean.</p>
+<p><strong>T3-2. First-run stderr noise.</strong> With Numba present, the README quickstart
+prints <code>OMP: Info #276: omp_set_nested routine deprecated, please use
+omp_set_max_active_levels instead.</code> It is informational and harmless, but it is
+the first thing a new user sees immediately after their first successful run, it
+is not from ltpred, and it reads like an error. Worth a note in the
+installation section or a suppression at import.</p>
+<p><strong>T3-3. The quickstart's headline threshold helper is downgraded on two
+reference pages, without a warning at the point of use.</strong> <code>docs/quickstart.md</code>
+step 2 builds bounds with <code>age_thresholds(status, age, pop_prev=0.05)</code>.
+<code>data-preparation.md</code>'s builder table labels that same function "personalised
+demo", and <code>guide.md</code>'s route table labels the logistic path "age-only
+demonstration, not full LT-FH++". Each is right; the quickstart is nonetheless
+the page a beginner copies, and it does carry a one-line pointer to
+<code>thresholds_from_cip</code>. An admonition at the point of use — rather than only
+downstream — would prevent the copy-paste.</p>
+<p><strong>T3-4. Nine exported names never appear in the documentation.</strong> Mostly result
+containers (<code>FitResult</code>, <code>VarCompResult</code>, <code>BootstrapResult</code>, <code>CipCurve</code>,
+<code>TetrachoricResult</code>, <code>MultiTraitPairwiseResult</code>), plus <code>liability_threshold</code>,
+<code>tetrachoric_matrix</code> and <code>tetrachoric_table</code>. <code>docs/api.md</code> is 175 lines /
+1,097 words for a 60-name surface. Low impact — mkdocstrings renders the
+docstrings — but a user searching the prose for "what does <code>fit_heritability</code>
+return" will not find the type named.</p>
+<h2 id="5-recommendations-in-priority-order">5. Recommendations, in priority order<a class="headerlink" href="#5-recommendations-in-priority-order" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Promote the stranded simulators (T1-1, T2-2, T2-3).</strong> Add a register
+   simulator, a multi-trait simulator, and a follow-up/CIP simulator to the
+   public API by lifting <code>build_register</code>, <code>pedigree_birth_times</code>,
+   <code>simulate_registry</code>, <code>simulate_families_multi</code> and
+   <code>simulate_families_components</code> out of <code>benchmarks/</code>, converting their module
+   globals into arguments. Have the benchmarks import the promoted functions so
+   the ledger and the tutorial share one generator. This is the single change
+   that unlocks the most: it makes the register route learnable, makes the
+   multi-trait vignette example installable, removes a duplicate implementation,
+   and gives the tutorial in (3) something to run on.</li>
+<li><strong>Make the vignette executable (T1-2).</strong> One literal cohort preamble; every
+   block runnable; a test that concatenates and executes them, reusing
+   <code>tests/_helpers.load_script</code>.</li>
+<li><strong>Write the tutorial page (T2-4).</strong> One cohort, five steps, no inline
+   caveats, one closing "what this skipped" admonition. Link the contract, do
+   not restate it. Then de-duplicate the 28 restatements down to the canonical
+   home plus pointers.</li>
+<li><strong>Fix the README cohort (T2-1).</strong> <code>use_age=False</code>; move the age-aware variant
+   to a labelled second block.</li>
+<li><strong>Retarget or rename <code>examples/registry_pipeline.py</code> (T2-3)</strong>, and fix the
+   <code>isfinite(m.lower)</code> status recovery in both example scripts (T3-1).</li>
+<li><strong>Polish:</strong> the OMP notice (T3-2), a point-of-use admonition on
+   <code>age_thresholds</code> (T3-3), and the nine undocumented export names (T3-4).</li>
+</ol>
+<p>Items 1–4 are the ones that change what a new user can do. Items 5–6 are
+hygiene. None of them requires touching the statistical core, and none of them
+weakens a caveat: the recommendation throughout is to <em>relocate</em> rigour, not
+reduce it.</p>
+<h2 id="6-what-this-review-did-not-do">6. What this review did not do<a class="headerlink" href="#6-what-this-review-did-not-do" title="Permanent link">&para;</a></h2>
+<p>It did not re-derive the liability model, the covariance construction, the
+Gibbs conditionals, the Pearson–Aitken recursion, the quadrature engine, the CIP
+estimators, the fitters, or the tetrachoric and liability-scale helpers; four
+audits in the preceding seven weeks did, and this one has nothing to add to
+them. It did not re-run the benchmark suite, the R locks, the evidence guard, or
+the HAPNEST path. It did not audit the <code>research/</code> tree beyond noting that its
+documentation page (<code>docs/research.md</code>, 365 lines) is new since <code>e9bfa66</code> and
+was read only for consistency with the package docs. It did not assess the
+typeset technical report (<code>report/ltpred_methods.pdf</code>) or <code>CITATION.cff</code> beyond
+confirming they ship. It did not build the documentation site, relying on the
+CI <code>--strict</code> job. Its measurements were made on one machine and one stack
+(Table 1), and the distribution inventory was taken from a <strong>stale local
+<code>dist/</code> at v0.4.0</strong> rather than a fresh v0.7.0 build; the packaging
+configuration that determines those contents (<code>MANIFEST.in</code>,
+<code>[tool.setuptools] packages</code>) is unchanged since, but a rebuilt artifact should
+be checked before release — which ROADMAP priority 7 and <code>docs/RELEASING.md</code>
+already call for.</p>
+<h2 id="7-dispositions-same-day">7. Dispositions (same day)<a class="headerlink" href="#7-dispositions-same-day" title="Permanent link">&para;</a></h2>
+<p>Most of §5 was implemented on 2026-09-21 in the same working tree, except where
+the table below records otherwise; the detail is in the <code>[Unreleased]</code> section of
+<code>CHANGELOG.md</code>. Per finding, with the evidence that each claim holds:</p>
+<table>
+<thead>
+<tr>
+<th>Finding</th>
+<th>Disposition</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T1-1 one simulator, register route unteachable</td>
+<td><strong>Implemented.</strong> <code>simulate_pedigree</code>, <code>pedigree_birth_times</code>, <code>simulate_register_liabilities</code>, <code>simulate_followup_records</code> promoted to <code>ltpred.simulate</code>; benchmarks delegate to them</td>
+<td>bit-identical to the originals at <code>atol=0</code>/<code>rtol=0</code> in every arm, including all three <code>simulate_registry</code> arms; <code>test_benchmark_generators_are_the_public_ones</code> pins the delegation</td>
+</tr>
+<tr>
+<td>T1-2 vignette not executable</td>
+<td><strong>Implemented, narrowed.</strong> Rather than retrofit 948 lines, a new runnable page carries the middle ground and the vignette keeps its contract role; its preamble now binds the register names too</td>
+<td><code>docs/tutorial.md</code>; <code>tests/test_tutorial.py</code> executes its blocks in order and diffs each against the quoted output. Teeth confirmed by negative control</td>
+</tr>
+<tr>
+<td>T2-1 README cohort weaker than the vignette's</td>
+<td><strong>Implemented.</strong> README uses <code>use_age=False</code>; the age-aware variant is a labelled second block</td>
+<td>re-ran verbatim: 4.65% proband cases, PA/Gibbs max abs diff 0.0132</td>
+</tr>
+<tr>
+<td>T2-2 multi-trait example unreachable when installed</td>
+<td><strong>Implemented.</strong> <code>simulate_under_LTM_multi</code> promoted; the vignette and the example both use it</td>
+<td><code>examples/joint_inference.py</code> output unchanged to the last printed digit; the new vignette block reproduces <code>rg = 0.5434515836721618</code> exactly</td>
+</tr>
+<tr>
+<td>T2-3 <code>registry_pipeline.py</code> misnamed</td>
+<td><strong>Implemented.</strong> Renamed to <code>examples/role_pipeline.py</code>, matching the documentation's own "role API vs register API" dichotomy; its docstring now states which driver it does <em>not</em> use and points at the tutorial</td>
+<td><code>docs/guide.md</code> link updated; CI globs <code>examples/*.py</code>, so the rename needs no workflow change; the script's stdout is unchanged</td>
+</tr>
+<tr>
+<td>T2-4 volume and genre</td>
+<td><strong>Implemented, and the recommendation narrowed.</strong> The genres are separated and the tutorial collects its caveats in one closing admonition. A count-driven de-duplication pass is <strong>not</strong> recommended — see the third correction below</td>
+<td><code>docs/tutorial.md</code> §"What this tutorial skips"; one genuine local duplicate removed (<code>assumptions.md</code>'s checklist preamble restated its own item 8)</td>
+</tr>
+<tr>
+<td>T3-1 status read off bound finiteness</td>
+<td><strong>Implemented</strong> in both example scripts</td>
+<td>both examples' stdout byte-identical before and after</td>
+</tr>
+<tr>
+<td>T3-2 OMP notice</td>
+<td><strong>Implemented</strong> — noted in the quickstart's install section</td>
+<td>—</td>
+</tr>
+<tr>
+<td>T3-3 <code>age_thresholds</code> downgraded only downstream</td>
+<td><strong>Implemented</strong> — a point-of-use admonition in quickstart step 2</td>
+<td>—</td>
+</tr>
+<tr>
+<td>T3-4 nine undocumented exports</td>
+<td><strong>Not implemented — deferred</strong></td>
+<td>recorded under "Not changed" in the CHANGELOG</td>
+</tr>
+</tbody>
+</table>
+<p>Two corrections to this report, made during implementation when execution
+disproved them:</p>
+<ul>
+<li><strong>T2-2 overstated the duplication.</strong> <code>example_families</code> is not a copy of
+  <code>_common.simulate_families_multi</code>. There are three private routes to
+  component-structured family liabilities, differently parameterised (see the
+  table in T2-2); the finding is stronger as written there, but the original
+  "second private copy" phrasing was wrong.</li>
+<li><strong>T1-2 understated the vignette.</strong> The page already had a literal cohort
+  preamble binding <code>sim</code>/<code>h2</code>/<code>K</code>/<code>n_fam</code> and already disclosed that the rest are
+  fragments. The finding stands only for the register-route names, which nothing
+  on the page bound, and for the absent execution guard. T1-2 has been rewritten
+  accordingly.</li>
+<li><strong>T2-4's headline metric was accurate but misleading.</strong> "Stated 28 times"
+  counts lines matching a phrase, and only <strong>6</strong> of the 28 are enumerations of
+  the three uses — each already citing the canonical vignette Table 1 in the same
+  sentence. The other ~22 are distinct, load-bearing warnings: the leakage
+  caveat, the prospective-cohort caveat, the residual-independence claim, the
+  <code>n_conditioned</code> definition, the role-grammar entry for <code>o</code>, the checklist item,
+  the evidence caveat. Two instances in <code>docs/estimation.md</code> were missed on the
+  first pass because they capitalise "Own status". T2-4 now carries the
+  breakdown and advises <em>against</em> a count-driven de-duplication pass; the volume
+  finding is about genre, and the tutorial is the fix.</li>
+</ul>
+<p>Also recorded: <code>tests/test_pairwise_multi.py::test_boundary_withholds_uncertainty_and_zero_variance_correlations</code>
+<strong>fails at clean <code>2722a59</code></strong> on this machine's stack (CPython 3.10.20, NumPy
+1.26.4, SciPy 1.15.3, Numba 0.66.0) — a <code>pytest.warns</code> block reports "Emitted
+warnings: []". Verified pre-existing by <code>git stash</code> and re-run; it is unrelated
+to anything in this audit and was left alone. Everything else passes: 884 tests,
+<code>ruff check .</code> clean, <code>mkdocs build --strict</code> clean, all four examples exit 0.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Developed with the support of <a href="https://smartbiomed.dk/">SMARTbiomed</a>.
+
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://smartbiomed.dk/" target="_blank" rel="noopener" title="SMARTbiomed" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/bvilhjal/ltpred" target="_blank" rel="noopener" title="ltpred on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "content.code.copy", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+      
+        <script src="../../javascripts/katex.js"></script>
+      
+    
+  </body>
+</html>
