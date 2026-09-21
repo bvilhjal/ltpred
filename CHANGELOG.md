@@ -14,6 +14,16 @@ behind the published evidence were not reachable from an installed package.
 
 ### Added
 
+- **Chunked array drivers** (`ltpred.chunked`, merged from the
+  `chunked-array-driver` branch): `estimate_liability_pa_chunked` and
+  `estimate_liability_gibbs_chunked` stream homogeneous family batches through
+  the existing array kernels with a bounded working set, and
+  `estimate_liability_pa_batches` / `estimate_liability_gibbs_batches` yield
+  bound batches without ever holding them all, so biobank analyses need not
+  materialise every family's bounds. `h2` is a **required** argument on all four,
+  matching the rest of the score surface; the branch's `h2 = 0.5` default was
+  dropped on merge and its tests now pass `h2` explicitly. ROADMAP item 5 is
+  done.
 - **Public simulation generators**, promoted out of `benchmarks/` and
   `examples/` so an installed user can obtain simulated data for every supported
   route (audit T1-1). `MANIFEST.in` prunes `benchmarks` and

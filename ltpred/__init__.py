@@ -45,6 +45,10 @@ if TYPE_CHECKING:
                              construct_covmat_multi, construct_covmat_single,
                              correct_positive_definite, get_relatedness,
                              kinship_from_pedigree)
+    from .chunked import (estimate_liability_gibbs_batches,  # noqa: F401
+                          estimate_liability_gibbs_chunked,
+                          estimate_liability_pa_batches,
+                          estimate_liability_pa_chunked)
     from .estimate import (LiabilityResult, batch_means,  # noqa: F401
                            estimate_liability,
                            estimate_liability_from_kinship,
@@ -108,6 +112,10 @@ _EXPORTS = {
                  "estimate_liability_pa_arrays", "estimate_liability_gibbs_arrays",
                  "estimate_liability_from_kinship", "batch_means",
                  "LiabilityResult"],
+    "chunked": ["estimate_liability_pa_chunked",
+                "estimate_liability_gibbs_chunked",
+                "estimate_liability_pa_batches",
+                "estimate_liability_gibbs_batches"],
     "simulate": ["simulate_under_LTM_single", "Simulation",
                  "simulate_pedigree", "pedigree_birth_times",
                  "simulate_register_liabilities", "RegisterSimulation",

@@ -34,6 +34,8 @@ is also a top-level export.
 |---|---|
 | `estimate_liability_pa_arrays` / `estimate_liability_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
 | `estimate_liability_quadrature_arrays` | opt-in numerical posterior moments for additive, noninbred nuclear families with `0 <= h2 < 1`; separate refinement diagnostics, no mixture or shared environment |
+| `estimate_liability_pa_chunked` / `estimate_liability_gibbs_chunked` | chunked array API — same kernels, bounded working set |
+| `estimate_liability_pa_batches` / `estimate_liability_gibbs_batches` | streaming iterator of bound batches; never holds all bounds |
 | `fit_variance_components` | **fit** additive `A` + shared-environment `C` (sibship) / `M` (couple) as proportions under the same population-sampling contract |
 | `fit_pairwise` | opt-in deterministic A/C/M binary-pair composite likelihood; common thresholds, independent families and explicit population/IPW sampling contract; conditional interior cluster-sandwich SEs |
 | `fit_pairwise_multi` | opt-in joint h²/rg/re and optional multivariate sibship/couple covariance; observed-pair identification, PSD components, population/IPW and conditional cluster-sandwich SEs |
@@ -84,6 +86,9 @@ its zero `se` means no Monte-Carlo noise. See the
 [worked example and model scope](estimation.md#nuclear-family-quadrature).
 
 ::: ltpred.quadrature
+## Chunked array drivers — `ltpred.chunked`
+
+::: ltpred.chunked
 
 ## Liability-scale transformations — `ltpred.liability_scale`
 

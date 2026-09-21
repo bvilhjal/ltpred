@@ -55,10 +55,11 @@ it is part of the public API ([research extensions](research.md)).
    R = 5 on both metrics -- a larger-R rerun is the remaining evidence gap
    before quoting a relatives'-events payoff.
 
-5. **Add a chunked driver.** Stream homogeneous family batches through the array
-   kernels so biobank analyses need not hold all families and bounds in memory.
-   The design should preserve deterministic grouping and the existing `O(F)`
-   summary-memory contract.
+5. **Add a chunked driver.** Done: `ltpred.chunked` streams homogeneous family
+   batches through the array kernels with bounded working set
+   (`estimate_liability_pa_chunked` / `estimate_liability_gibbs_chunked`) and a
+   streaming batch iterator (`*_batches`), preserving deterministic grouping
+   and the `O(F)` summary-memory contract.
 
 6. **Validate a real-LD workflow.** Extend the opt-in HAPNEST path into a complete
    genotype-to-liability-to-LMM example with held-out calibration and null-marker
