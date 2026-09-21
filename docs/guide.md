@@ -45,7 +45,8 @@ The guide is split into short, task-focused pages:
 
 | page | what's in it |
 |---|---|
-| **[Quickstart](quickstart.md)** | one complete runnable analysis, start to finish |
+| **[Quickstart](quickstart.md)** | the estimator on six hand-typed rows — the input format, start to finish |
+| **[Tutorial](tutorial.md)** | one complete runnable analysis on a **simulated** cohort whose truth is known: cohort, CIP estimation, scoring, prospective scoring, two traits |
 | **[Vignette](vignette.md)** | how to run ltpred: three uses, then `h²`, pedigree, CIP, family history |
 | **[Data preparation](data-preparation.md)** | inputs, role grammar, arbitrary pedigrees, threshold builders, CIPs, getting `h²` |
 | **[CIP estimation](cip-estimation.md)** | estimating cumulative incidence from follow-up records (Kaplan-Meier, Aalen-Johansen), estimands, stratification |
@@ -60,8 +61,9 @@ they are not installed with ltpred ([research extensions](research.md)).
 
 See [algorithm.md](algorithm.md) for the model and the estimators, and the
 [benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
-for model and engine comparisons. For how to run the pipeline see the [vignette](vignette.md)
-([`examples/vignette.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py)).
+for model and engine comparisons. For how to run the pipeline see the
+[tutorial](tutorial.md) on simulated data, then the [vignette](vignette.md) for
+the full contract ([`examples/vignette.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py)).
 Other runnable scripts:
 [`examples/joint_inference.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/joint_inference.py)
 (joint heritability and genetic/environmental correlation),

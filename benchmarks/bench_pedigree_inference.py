@@ -45,6 +45,7 @@ from ltpred.covariance import (construct_covmat_from_kinship,  # noqa: E402
 from ltpred.estimate import estimate_liability, estimate_liability_from_kinship  # noqa: E402
 from ltpred.family import Family, Member  # noqa: E402
 from ltpred.pedigree import build_parent_graph, extract_pedigree  # noqa: E402
+from ltpred.simulate import simulate_pedigree  # noqa: E402
 from ltpred.thresholds import liability_threshold  # noqa: E402
 
 SEED = 20260719
@@ -59,43 +60,9 @@ CSV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "bench_pedigree_inference.csv")
 
 
-def simulate_population(rng, n_founder_pairs=150, gens=3, remarry=0.10):
-    """3-generation population with remarriages (half-sibs) and cousins."""
-    ids, father, mother = [], [], []
-
-    def add(f, m):
-        pid = f"p{len(ids)}"
-        ids.append(pid)
-        father.append(f)
-        mother.append(m)
-        return pid
-
-    couples = [(add(None, None), add(None, None)) for _ in range(n_founder_pairs)]
-    prev_children = []
-    for g in range(gens):
-        if g > 0:
-            pool = list(prev_children)
-            rng.shuffle(pool)
-            couples = []
-            i = 0
-            while i + 1 < len(pool):
-                a, b = pool[i], pool[i + 1]
-                i += 2
-                # avoid mating recorded siblings (same recorded parent)
-                fa, ma = father[ids.index(a)], mother[ids.index(a)]
-                fb, mb = father[ids.index(b)], mother[ids.index(b)]
-                if fa is not None and (fa in (fb, mb) or ma in (fb, mb)):
-                    continue
-                couples.append((a, b))
-        next_children = []
-        for fa, mo in couples:
-            for _ in range(int(rng.integers(2, 5))):
-                next_children.append(add(fa, mo))
-            if rng.uniform() < remarry:           # second union -> half-sibs
-                mate = add(None, None)
-                next_children.append(add(fa, mate))
-        prev_children = next_children
-    return ids, father, mother
+# Promoted to the public API: the tutorial and this benchmark must generate
+# pedigrees with one function, or their numbers stop being comparable.
+simulate_population = simulate_pedigree
 
 
 def payoff_replicate(rng, n_est, n_founder_pairs):

@@ -39,6 +39,7 @@ nav:
   - Overview: index.md
   - Choose a method: guide.md
   - Quickstart: quickstart.md
+  - Tutorial: tutorial.md
   - Vignette: vignette.md
   - Workflow:
       - Data preparation: data-preparation.md
@@ -59,6 +60,7 @@ nav:
       - Independent review (v0.4.2): reviews/REVIEW_2026-09.md
       - Independent review (v0.5.1): reviews/REVIEW_2026-09b.md
       - Independent review (v0.6.2): reviews/REVIEW_2026-09c.md
+      - Independent review (v0.7.0, documentation): reviews/REVIEW_2026-09d.md
 
 markdown_extensions:
   - admonition

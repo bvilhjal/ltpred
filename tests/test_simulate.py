@@ -268,3 +268,198 @@ def test_pin_encoding_warns_without_threshold_crossing():
         simulate_under_LTM_single(fam_vec=["m"], n_sim=5, use_age=True,
                                   onset_model="stochastic",
                                   case_encoding="pin", seed=1)
+
+
+# ---------------------------------------------------------------------------
+# Promoted population-register, follow-up and multi-trait generators
+# (docs/reviews/REVIEW_2026-09d.md, T1-1/T2-2). These were benchmark-private;
+# the guards below are what make them safe to teach from.
+# ---------------------------------------------------------------------------
+
+from ltpred.simulate import (pedigree_birth_times,  # noqa: E402
+                             simulate_followup_records, simulate_pedigree,
+                             simulate_register_liabilities,
+                             simulate_under_LTM_multi)
+
+_CIP_AGES = np.arange(0, 121, 1.0)
+_CIP_K, _CIP_MID, _CIP_SLOPE = 0.10, 60.0, 1.0 / 8.0
+_CIP_VALUES = _CIP_K / (1.0 + np.exp((_CIP_MID - _CIP_AGES) * _CIP_SLOPE))
+
+
+def test_simulate_pedigree_is_a_valid_trio_table():
+    ids, father, mother = simulate_pedigree(np.random.default_rng(3),
+                                            n_founder_pairs=12, gens=3)
+    assert len(ids) == len(father) == len(mother)
+    assert len(set(ids)) == len(ids), "person ids must be unique"
+    known = set(ids)
+    for column in (father, mother):
+        assert all(p is None or p in known for p in column), \
+            "a recorded parent must be a person in the pedigree"
+    assert any(p is None for p in father), "founders must remain"
+    assert any(p is not None for p in father), "and so must their descendants"
+
+
+def test_pedigree_birth_times_put_coparents_together_and_children_later():
+    ids, father, mother = simulate_pedigree(np.random.default_rng(3),
+                                            n_founder_pairs=8, gens=3)
+    birth = pedigree_birth_times(ids, father, mother)
+    pos = {p: i for i, p in enumerate(ids)}
+    unique = np.unique(birth)
+    # founders plus one generation per `gens` step, evenly spaced
+    np.testing.assert_array_equal(unique, 1920.0 + 30.0 * np.arange(len(unique)))
+    assert len(unique) == 4, "three child generations on top of the founders"
+    for child, (fa, mo) in enumerate(zip(father, mother)):
+        if fa in pos and mo in pos:
+            assert birth[pos[fa]] == birth[pos[mo]], "co-parents share a generation"
+            assert birth[child] > birth[pos[fa]], "children are a later generation"
+
+
+def test_pedigree_birth_times_honours_the_calendar_arguments():
+    ids = ["a", "b", "c"]
+    birth = pedigree_birth_times(ids, [None, None, "a"], [None, None, "b"],
+                                 base_birth_year=1900.0, generation_years=25.0)
+    np.testing.assert_array_equal(birth, [1900.0, 1900.0, 1925.0])
+
+
+def test_simulate_register_liabilities_recovers_the_generating_parameters():
+    ids, father, mother = simulate_pedigree(np.random.default_rng(11),
+                                            n_founder_pairs=60, gens=2)
+    sim = simulate_register_liabilities(np.random.default_rng(11), ids, father,
+                                        mother, h2=0.5, cip_ages=_CIP_AGES,
+                                        cip_values=_CIP_VALUES, eval_age=70.0)
+    n = len(ids)
+    assert sim.status.shape == sim.age.shape == sim.genetic.shape == (n,)
+    # var(g) = h2 on the standardised liability scale
+    assert sim.genetic.var() == pytest.approx(0.5, abs=0.08)
+    # observed cases are exactly those diagnosed by the evaluation age, and the
+    # rate is the CIP at that age
+    np.testing.assert_array_equal(sim.status, sim.onset <= 70.0)
+    np.testing.assert_allclose(sim.age, np.where(sim.status, sim.onset, 70.0))
+    assert sim.status.mean() == pytest.approx(float(np.interp(70.0, _CIP_AGES,
+                                                              _CIP_VALUES)),
+                                              abs=0.02)
+    # a case is diagnosed by the evaluation age; a non-case may still carry a
+    # finite onset, meaning a lifetime case diagnosed *after* eval_age
+    assert np.all(np.isfinite(sim.onset[sim.status]))
+    assert np.all(sim.onset[sim.status] <= 70.0)
+    assert np.all(sim.onset[~sim.status] > 70.0)
+    assert np.all(sim.residual_var > 0.0)
+
+
+def test_register_simulation_feeds_the_public_register_driver():
+    """The point of promoting it: a tutorial can reach estimate_liabilities."""
+    from ltpred.pipeline import estimate_liabilities
+
+    ids, father, mother = simulate_pedigree(np.random.default_rng(5),
+                                            n_founder_pairs=40, gens=2)
+    sim = simulate_register_liabilities(np.random.default_rng(5), ids, father,
+                                        mother, h2=0.5, cip_ages=_CIP_AGES,
+                                        cip_values=_CIP_VALUES, eval_age=70.0)
+    scores = estimate_liabilities(
+        sim.ids, sim.father, sim.mother, probands=sim.ids,
+        status=sim.status.astype(int), age=sim.age, use="gwas",
+        cip_ages=_CIP_AGES, cip_values=_CIP_VALUES, k_pop=_CIP_K, h2=0.5)
+    est = np.asarray(scores.est)
+    assert est.shape[0] == len(ids)
+    assert np.all(np.isfinite(est))
+    # a real signal, not a perfect one: the truth is the standardised g
+    assert np.corrcoef(est, sim.genetic)[0, 1] > 0.3
+
+    # the calendar-time route (use I) is where birth_time/index_time belong;
+    # `use="gwas"` rejects them, which is itself part of the contract
+    with pytest.raises(ValueError, match="must be omitted"):
+        estimate_liabilities(
+            sim.ids, sim.father, sim.mother, probands=sim.ids,
+            status=sim.status.astype(int), age=sim.age, use="gwas",
+            cip_ages=_CIP_AGES, cip_values=_CIP_VALUES, k_pop=_CIP_K, h2=0.5,
+            birth_time=sim.birth_time)
+    # Restrict the prospective cohort to probands still disease-free at their
+    # index time, as the pipeline's own prevalent-case warning instructs;
+    # scoring an already-diagnosed proband prospectively is leakage.
+    index_time = sim.birth_time + 40.0
+    at_risk = sim.onset > 40.0
+    assert 0 < at_risk.sum() < len(ids)
+    predicted = estimate_liabilities(
+        sim.ids, sim.father, sim.mother,
+        probands=[p for p, keep in zip(sim.ids, at_risk) if keep],
+        status=sim.status.astype(int), age=sim.age, use="prediction",
+        cip_ages=_CIP_AGES, cip_values=_CIP_VALUES, k_pop=_CIP_K, h2=0.5,
+        birth_time=sim.birth_time, index_time=index_time[at_risk])
+    assert np.all(np.isfinite(np.asarray(predicted.est)))
+
+
+def test_simulate_followup_records_codes_the_competing_risk():
+    rec = simulate_followup_records(np.random.default_rng(2), 20_000,
+                                    pop_prev=_CIP_K, mid_point=_CIP_MID,
+                                    slope=_CIP_SLOPE, mortality=True)
+    assert set(np.unique(rec.event)) <= {0, 1, 2}
+    assert (rec.event == 2).sum() > 0, "mortality arm must produce deaths"
+    assert (rec.event == 1).sum() > 0, "and diagnoses"
+    assert rec.age_entry.shape == rec.age_exit.shape == rec.event.shape
+    assert np.all(rec.age_exit > rec.age_entry)
+    assert rec.n_dropped == 20_000 - len(rec.event)
+    # a death is only coded 2 when it precedes onset
+    died = rec.event == 2
+    assert np.all(rec.death_age[died] <= rec.age_exit[died])
+
+
+def test_simulate_followup_records_without_mortality_has_no_deaths():
+    rec = simulate_followup_records(np.random.default_rng(2), 5_000,
+                                    pop_prev=_CIP_K, mid_point=_CIP_MID,
+                                    slope=_CIP_SLOPE, mortality=False)
+    assert not np.any(rec.event == 2)
+    assert np.all(np.isinf(rec.death_age))
+
+
+def test_simulate_followup_records_left_truncates_on_delayed_entry():
+    rng_a, rng_b = np.random.default_rng(4), np.random.default_rng(4)
+    full = simulate_followup_records(rng_a, 20_000, pop_prev=_CIP_K,
+                                     mid_point=_CIP_MID, slope=_CIP_SLOPE,
+                                     mortality=True)
+    late = simulate_followup_records(rng_b, 20_000, pop_prev=_CIP_K,
+                                     mid_point=_CIP_MID, slope=_CIP_SLOPE,
+                                     mortality=True, register_start_year=1995)
+    assert len(late.event) < len(full.event), "delayed entry drops records"
+    assert late.n_dropped > full.n_dropped
+    # entry ages are still 0 for people born after the register opens, but the
+    # cohort as a whole is observed from later in life
+    assert late.age_entry.mean() > full.age_entry.mean()
+
+
+def test_simulate_under_LTM_multi_hits_its_target_trait_correlation():
+    sim = simulate_under_LTM_multi(n_families=4_000, seed=1)
+    n_traits = len(sim.pop_prev)
+    assert n_traits == 2
+    assert sim.liabilities.shape == (4_000, len(sim.roles), n_traits)
+    assert sim.status.shape == (4_000 * len(sim.roles), n_traits)
+    # unit liability variance per trait, and the documented cross-correlation
+    for p in range(n_traits):
+        assert sim.liabilities[:, :, p].var() == pytest.approx(1.0, abs=0.05)
+        assert sim.status[:, p].mean() == pytest.approx(float(sim.pop_prev[p]),
+                                                        abs=0.02)
+    empirical = np.corrcoef(sim.liabilities[:, :, 0].ravel(),
+                            sim.liabilities[:, :, 1].ravel())[0, 1]
+    assert empirical == pytest.approx(sim.truth["target_trait_corr"], abs=0.02)
+    # one bound interval per trait, so fit_pairwise_multi can consume it
+    member = sim.families[0].members[0]
+    assert len(member.lower) == len(member.upper) == n_traits
+
+
+def test_simulate_under_LTM_multi_rejects_mismatched_shapes():
+    with pytest.raises(ValueError, match="one prevalence per trait"):
+        simulate_under_LTM_multi(n_families=4, seed=1, pop_prev=(0.1,))
+    with pytest.raises(ValueError, match="sib_shared"):
+        simulate_under_LTM_multi(n_families=4, seed=1,
+                                 sib_shared=((0.15, 0.075),))
+
+
+def test_register_liabilities_rejects_a_non_invertible_cip():
+    ids, father, mother = ["a", "b"], [None, "a"], [None, None]
+    with pytest.raises(ValueError, match="strictly increasing"):
+        simulate_register_liabilities(np.random.default_rng(0), ids, father,
+                                      mother, h2=0.5, cip_ages=[0.0, 1.0],
+                                      cip_values=[0.1, 0.1], eval_age=70.0)
+    with pytest.raises(ValueError, match="same shape"):
+        simulate_register_liabilities(np.random.default_rng(0), ids, father,
+                                      mother, h2=0.5, cip_ages=[0.0, 1.0],
+                                      cip_values=[0.1], eval_age=70.0)

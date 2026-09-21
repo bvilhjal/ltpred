@@ -188,7 +188,8 @@ def main():
         for m in fam.members:
             fam_id.append(f"fam{i}")
             role.append(m.role)
-            is_case = np.isfinite(m.lower)
+            # status comes from the simulator, not from which bound is finite
+            is_case = bool(sim.status[m.role][i])
             st.append(int(is_case))
             lower_l.append(m.lower)
             upper_l.append(m.upper)
@@ -330,7 +331,7 @@ def main():
         for m in fam.members:
             fid.append(f"fam{i}")
             rol.append(m.role)
-            sta.append(int(np.isfinite(m.lower)))
+            sta.append(int(sim_age.status[m.role][i]))
     lo_c, hi_c = prevalence_thresholds(np.array(sta), pop_prev=K)
     classic = estimate_liability(families_from_columns(fid, rol, lo_c, hi_c), h2=H2)
     r_classic = _corr(classic.genetic, sim_age.genetic)

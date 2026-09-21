@@ -3,6 +3,7 @@
 import numpy as np
 
 from _helpers import load_script
+from ltpred.covariance import kinship_from_pedigree
 
 
 MODULE = load_script("benchmarks/bench_register_pipeline.py")
@@ -41,7 +42,7 @@ def test_build_register_uses_the_public_inbreeding_scale():
         np.random.default_rng(seed), ids, father, mother)
     status, age, onset, genetic, _, residual_var = observed
 
-    _, relationship = MODULE.kinship_from_pedigree(ids, father, mother)
+    _, relationship = kinship_from_pedigree(ids, father, mother)
     replay = np.random.default_rng(seed)
     raw_genetic = replay.multivariate_normal(
         np.zeros(len(ids)), MODULE.H2 * relationship)
@@ -85,3 +86,38 @@ def test_inbred_prior_future_risk_uses_target_specific_residual_variance():
     expected = (cip_eval - cip_index) / (1.0 - cip_index)
 
     np.testing.assert_allclose(risk, [expected], rtol=1e-14, atol=0.0)
+
+
+def test_benchmark_generators_are_the_public_ones():
+    """The ledger and the tutorial must not be able to drift apart.
+
+    ``build_register`` and ``pedigree_birth_times`` here are thin bindings of
+    this benchmark's constants around :mod:`ltpred.simulate`. If either stops
+    delegating, the promoted public generator and the published benchmark would
+    be two different simulations producing incomparable numbers -- so pin the
+    delegation bit for bit rather than trusting the import line.
+    """
+    from ltpred.simulate import pedigree_birth_times, simulate_register_liabilities
+
+    ids, father, mother = MODULE.simulate_population(
+        np.random.default_rng(17), n_founder_pairs=25, gens=2)
+
+    np.testing.assert_array_equal(
+        MODULE.pedigree_birth_times(ids, father, mother),
+        pedigree_birth_times(ids, father, mother,
+                             base_birth_year=MODULE.BASE_BIRTH_TIME,
+                             generation_years=MODULE.GENERATION_YEARS))
+
+    bound = simulate_register_liabilities(
+        np.random.default_rng(23), ids, father, mother, h2=MODULE.H2,
+        cip_ages=MODULE.AGE_GRID, cip_values=MODULE.TRUE_CIP,
+        eval_age=MODULE.EVAL_AGE)
+    expected = (bound.status, bound.age, bound.onset, bound.genetic,
+                bound.birth_time, bound.residual_var)
+    observed = MODULE.build_register(np.random.default_rng(23), ids, father,
+                                     mother)
+    assert len(observed) == len(expected)
+    for got, want in zip(observed, expected):
+        # atol=0/rtol=0: same generator, same seed, same constants must give the
+        # same bits, not merely the same numbers to within a tolerance
+        np.testing.assert_array_equal(got, want)

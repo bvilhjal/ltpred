@@ -6,6 +6,113 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+Documentation, tutorial and simulated-data audit:
+[`docs/reviews/REVIEW_2026-09d.md`](docs/reviews/REVIEW_2026-09d.md). The four
+preceding audits re-derived the statistical core; this one examined whether a
+user who installs the package can learn to use it, and found that the generators
+behind the published evidence were not reachable from an installed package.
+
+### Added
+
+- **Public simulation generators**, promoted out of `benchmarks/` and
+  `examples/` so an installed user can obtain simulated data for every supported
+  route (audit T1-1). `MANIFEST.in` prunes `benchmarks` and
+  `[tool.setuptools] packages = ["ltpred"]`, so none of this previously shipped:
+  - `simulate_pedigree` — a multi-generation population trio table
+    (`ids`, `father`, `mother`) with remarriages and half-siblings, from
+    `bench_pedigree_inference.simulate_population`.
+  - `pedigree_birth_times` — generation-coherent calendar birth times
+    (union-find over co-parents), for the `birth_time`/`index_time` columns the
+    calendar-time (use I) route needs.
+  - `simulate_register_liabilities` / `RegisterSimulation` — **one** consistent
+    liability field over a whole pedigree, returning the register columns
+    `estimate_liabilities` consumes *plus* the true genetic liability and
+    residual variance, so a score can be checked against truth. From
+    `bench_register_pipeline.build_register`, including its inbred-person
+    rescaling onto the unit-full-liability scale.
+  - `simulate_followup_records` / `FollowupSimulation` — registry follow-up
+    (entry age, exit age, event code) from a known logistic incidence curve, with
+    optional competing Gompertz mortality and delayed entry, from
+    `bench_cip_estimation.simulate_registry`. This is the input to
+    `kaplan_meier_cip` / `aalen_johansen_cip`, so the competing-risks estimand
+    difference is now demonstrable without real records.
+  - `simulate_under_LTM_multi` / `MultiTraitSimulation` — families with two or
+    more traits under explicit A/C/M/E Kronecker components, from
+    `examples/joint_inference.example_families`. Uses `fit._component_matrix` for
+    the shared-sibship and couple blocks rather than hand-built indicators, so it
+    generalises to other role sets, and returns `.truth` including the implied
+    trait correlation.
+- `docs/tutorial.md` — a complete analysis on a simulated cohort with the truth
+  known: build the cohort, estimate the incidence curve (with and without
+  competing mortality), score the population, score it prospectively, and fit two
+  traits. About 30 lines, a few seconds, every block running in order on a shared
+  namespace (audit T1-2, T2-4).
+- `tests/test_tutorial.py` — extracts the tutorial's `python` blocks, executes
+  them in sequence, and asserts each prints exactly the `text` block quoted
+  beneath it; also asserts the page imports nothing a `pip install` would not
+  provide. Verified by negative control: corrupting a quoted number or
+  introducing an undefined name each fails the test.
+- `tests/test_simulate.py` — twelve tests for the promoted generators: pedigree
+  validity, generation-coherent birth times, recovery of `h²` and the CIP at the
+  evaluation age, an end-to-end pass through `estimate_liabilities` on both
+  `use="gwas"` and `use="prediction"`, competing-risk event coding, delayed
+  entry, and the multi-trait target correlation.
+- `tests/test_benchmark_register.py::test_benchmark_generators_are_the_public_ones`
+  — pins the delegation bit for bit, so the published benchmark and the tutorial
+  cannot drift into being two different simulations.
+
+### Changed
+
+- **No numeric drift.** Every promoted generator is bit-identical to the
+  benchmark or example code it replaced, verified by direct comparison at
+  `atol=0`/`rtol=0` across all arms: `simulate_pedigree` against
+  `simulate_population`; `pedigree_birth_times`; `simulate_register_liabilities`
+  against `build_register`; `simulate_followup_records` against
+  `simulate_registry` in all three arms (no mortality, mortality, mortality with
+  delayed entry from 1995); and `simulate_under_LTM_multi(n_families=3000,
+  seed=1)` against `example_families`, whose fitted output is unchanged to the
+  last printed digit. `benchmarks/` and `examples/` now delegate to the public
+  functions, binding their own constants, so no committed CSV or ledger number
+  was regenerated.
+- README quickstart now simulates with `use_age=False`, matching the vignette's
+  canonical cohort and every figure quoted in the documentation. It previously
+  used `use_age=True`, which at `pop_prev=0.05` leaves 11 informative proband
+  cases in 2,000 rather than 93, and a score correlating 0.267 with the truth
+  rather than 0.397 (audit T2-1). The age-aware variant is kept as a labelled
+  second block that says what changes.
+- `docs/vignette.md` no longer tells readers to
+  `from examples.joint_inference import example_families` — a path present in
+  neither the wheel nor the sdist — and uses the public
+  `simulate_under_LTM_multi` instead (audit T2-2). Its "how to read the code"
+  preamble now also binds the register-route names (`ids`, `father`, `mother`,
+  `status`, `age`, `cip_ages`, `cip_values`, `birth_time`, `index_time`), which
+  the fragments used but no block on the page defined.
+- `docs/quickstart.md` marks `age_thresholds` as a demonstration at the point of
+  use rather than only downstream (audit T3-3), notes the harmless
+  `OMP: Info #276` notice Numba's OpenMP runtime prints on a first run (T3-2),
+  and points at the tutorial.
+- `examples/registry_pipeline.py` and `examples/vignette.py` now take case status
+  from the simulator's authoritative `status` field instead of inferring it from
+  `np.isfinite(m.lower)`, which reads the bound encoding and would silently
+  change meaning under `case_encoding="interval"` (audit T3-1). Output is
+  byte-identical.
+- `docs/api.md`, `docs/index.md`, `docs/guide.md` and `mkdocs.yml` list the
+  tutorial and the new generators.
+
+### Not changed
+
+- `examples/registry_pipeline.py` keeps its name. The audit (T2-3) found it
+  demonstrates the **role** API, not the register driver `estimate_liabilities`,
+  which its name suggests; the register route is now covered end to end by the
+  tutorial, so retargeting the script would duplicate that. Renaming it is a
+  one-line change plus one `docs/guide.md` reference, and was left for a separate
+  decision.
+- The nine exported result containers still undocumented in prose
+  (`FitResult`, `VarCompResult`, `BootstrapResult`, `CipCurve`,
+  `TetrachoricResult`, `MultiTraitPairwiseResult`, `liability_threshold`,
+  `tetrachoric_matrix`, `tetrachoric_table`; audit T3-4). `docs/api.md` renders
+  their docstrings via mkdocstrings.
+
 ## 0.7.0 — 2026-09-16
 
 ### Added

@@ -13,6 +13,10 @@ aetiology** from $h^2$, genetic/environmental covariances and/or the CIP — see
 - **[Choose a method](guide.md)** — identify the appropriate model, bounds and
   inference engine.
 - **[Quickstart](quickstart.md)** — run the estimator on a small tutorial dataset.
+- **[Tutorial](tutorial.md)** — the whole pipeline on a **simulated** population
+  cohort with the truth known: build the cohort, estimate the incidence curve,
+  score it, score it prospectively, fit two traits. Every block runs in order and
+  a test checks the printed output.
 - **[Vignette](vignette.md)** — how to run ltpred: three uses (prediction,
   GWAS, aetiology), then $h^2$, pedigree, CIP, family history. Live page:
   [bvilhjal.github.io/ltpred/vignette](https://bvilhjal.github.io/ltpred/vignette/).

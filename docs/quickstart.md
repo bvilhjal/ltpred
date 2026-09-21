@@ -6,6 +6,11 @@ of the [vignette](vignette.md) (a GWAS phenotype, own status in). The data
 below are tutorial-only, not a production analysis. Skip steps the vignette
 says your use does not need. Each step links to the deeper reference.
 
+The six rows below are typed by hand so the input *format* is visible. To run
+the same pipeline on a realistic simulated cohort where the true liabilities are
+known — and to go through CIP estimation, the register driver and the
+prospective use — go to the [tutorial](tutorial.md).
+
 ## Install
 
 PyPI publication is pending. Until then, installation from a source checkout is
@@ -17,6 +22,10 @@ pip install -e ".[fast]"     # [fast] adds the Numba JIT — recommended for rea
 
 `numpy` and `scipy` are the only hard dependencies; `numba` (the `[fast]` extra) is
 optional but strongly recommended at scale.
+
+With Numba installed, the first run may print
+`OMP: Info #276: omp_set_nested routine deprecated…` to stderr. That notice comes
+from the OpenMP runtime Numba links against, not from ltpred, and is harmless.
 
 ## 1. Describe your data
 
@@ -48,8 +57,16 @@ from ltpred import age_thresholds
 lower, upper = age_thresholds(status, age, pop_prev=0.05)   # pop_prev = lifetime prevalence
 ```
 
-For **real register data**, use [`thresholds_from_cip`](data-preparation.md#a-real-register-data-recipe)
-with your population's cumulative-incidence curve instead of the built-in logistic one.
+!!! warning "This builder is a demonstration, not the production path"
+
+    `age_thresholds` uses one built-in logistic incidence curve shared by every
+    person, so it cannot represent the sex- and birth-cohort-specific risk that
+    LT-FH++ is built around. It is here to make step 2 runnable on six typed
+    rows. For **real register data**, use
+    [`thresholds_from_cip`](data-preparation.md#a-real-register-data-recipe) with
+    your population's estimated cumulative-incidence curve — see
+    [CIP estimation](cip-estimation.md) for how to get that curve, and the
+    [tutorial](tutorial.md) for both steps run end to end on simulated data.
 
 ## 3. Build the families
 
@@ -99,6 +116,7 @@ The score is not an absolute disease-risk probability.
 
 | you want to… | see |
 |---|---|
+| run the whole pipeline on a realistic **simulated** cohort, with the truth known | [Tutorial](tutorial.md) |
 | how to run the pipeline (three uses, then `h²`, pedigree, CIP, family history) | [Vignette](vignette.md) |
 | understand roles, pedigrees, CIPs, real-data prep | [Data preparation](data-preparation.md) |
 | choose Gibbs vs PA, scale to biobank size, multi-trait, GWAS export | [Estimation](estimation.md) |

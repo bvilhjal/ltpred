@@ -53,15 +53,18 @@ identical, just slower. For biobank-scale runs see the guide's
 ```python
 from ltpred import simulate_under_LTM_single, estimate_liability
 
-# simulate families (proband + mother, father, one sibling) under h²=0.5
+# Simulate families (proband + mother, father, one sibling) under h²=0.5.
+# use_age=False is the classic LT-FH observation model — every relative is a
+# lifetime case or control — and it is the cohort every number in
+# docs/vignette.md comes from, so the two are directly comparable.
 sim = simulate_under_LTM_single(
     fam_vec=["m", "f", "s1"], h2=0.5, pop_prev=0.05, n_sim=2000,
-    use_age=True, seed=1,
+    use_age=False, seed=1,
 )
 
-# PA approximation to posterior mean genetic liability per proband. This is an
-# age-only, no-mixture family example for GWAS-phenotype construction; full
-# LT-FH++ uses sex/birth-cohort-stratified CIPs.
+# PA approximation to posterior mean genetic liability per proband. This is a
+# single-prevalence, no-mixture family example for GWAS-phenotype construction;
+# full LT-FH++ uses sex/birth-cohort-stratified CIPs.
 # The deterministic, fast PA inference engine is the single-trait default.
 # h2 is required: the liability-scale heritability of *this* disease, with no
 # disease-independent default (docs/data-preparation.md, "Which h²?").
@@ -76,6 +79,19 @@ pa.var["genetic"]      # posterior variance Var(g | family) — how uncertain th
 gibbs = estimate_liability(sim.families[:200], h2=0.5, method="gibbs",
                            tol=0.03, n_sim=25_000, burn_in=800, seed=1)
 gibbs.est["genetic"]   # agrees with PA to ~1e-2 in this no-mixture example
+```
+
+The age-aware variant is LT-FH++'s own observation model — a relative counts as
+an observed case only once their onset age has passed. Use it whenever your data
+has ages, but note that it makes the phenotype much sparser: at `pop_prev=0.05`
+the proband case rate falls from ~4.7% to ~0.6%, so scores carry less
+information and are **not** comparable with the vignette's numbers.
+
+```python
+age_sim = simulate_under_LTM_single(
+    fam_vec=["m", "f", "s1"], h2=0.5, pop_prev=0.05, n_sim=2000,
+    use_age=True, seed=1,
+)
 ```
 
 For additive nuclear families, `method="quadrature"` integrates at most two
@@ -226,7 +242,10 @@ one).
 
 ## Documentation
 
-- **User guide** — the [quickstart](docs/quickstart.md) (a complete run), then
+- **User guide** — the [quickstart](docs/quickstart.md) (six hand-typed rows,
+  start to finish), the [tutorial](docs/tutorial.md) (a complete analysis on a
+  **simulated** cohort whose truth is known — every block runs in order and a
+  test checks the printed output), then
   the [vignette](https://bvilhjal.github.io/ltpred/vignette/) (how to run:
   three uses — prediction, GWAS, aetiology — then h², pedigree, CIP,
   family history; source [docs/vignette.md](docs/vignette.md)),
@@ -234,6 +253,15 @@ one).
   [estimation](docs/estimation.md),
   [inference](docs/inference.md), [assumptions & checklist](docs/assumptions.md),
   and the [API reference](docs/api.md). ([Choose a method](docs/guide.md).)
+- **Simulated data** — the generators ship with the package, so you do not need a
+  real register to learn, test or validate the pipeline:
+  `simulate_pedigree` + `simulate_register_liabilities` (population trio records
+  **and the true genetic liability**, so a score can be checked against truth),
+  `simulate_followup_records` (follow-up records from a known incidence curve,
+  with optional competing mortality and delayed entry),
+  `simulate_under_LTM_single` (role-grammar families) and
+  `simulate_under_LTM_multi` (two or more traits). The
+  [tutorial](docs/tutorial.md) runs all of them end to end.
 - **[Algorithm & model](docs/algorithm.md)** — the liability-threshold model, both
   estimators, the Pearson–Aitken selection formula, the censoring mixture, and the
   implementation/performance notes.

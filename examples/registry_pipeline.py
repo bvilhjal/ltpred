@@ -46,10 +46,12 @@ def make_toy_table(n_fam=1500, seed=0):
     fam_id, role, status, age = [], [], [], []
     for i, fam in enumerate(sim.families):
         for m in fam.members:
-            # The simulator pins cases at their onset threshold and upper-bounds
-            # controls at their follow-up threshold. Invert that same threshold
-            # to recover a registry-style age column before rebuilding the bounds.
-            is_case = np.isfinite(m.lower)
+            # Take case status from the simulator's own `status` field rather
+            # than from which bounds happen to be finite: the bound encoding is
+            # a representation choice (pin / interval / lifetime), so reading
+            # status off it would silently change meaning under another one.
+            # The threshold to invert back to an age still depends on it.
+            is_case = bool(sim.status[m.role][i])
             threshold = m.lower if is_case else m.upper
             fam_id.append(f"fam{i}")
             role.append(m.role)

@@ -50,8 +50,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _common import mean_se  # noqa: E402 — also puts the repo root on sys.path
 from bench_pedigree_inference import paired_summary, simulate_population  # noqa: E402
 from ltpred.cip import aalen_johansen_cip  # noqa: E402
-from ltpred.covariance import kinship_from_pedigree  # noqa: E402
 from ltpred.pipeline import estimate_liabilities  # noqa: E402
+from ltpred.simulate import (pedigree_birth_times as _pedigree_birth_times,  # noqa: E402
+                             simulate_register_liabilities)
 from scipy.stats import norm  # noqa: E402
 
 SEED = 20260719
@@ -74,102 +75,25 @@ CSV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 def pedigree_birth_times(ids, father, mother):
-    """Assign coherent generation birth times on one numeric calendar scale.
-
-    Co-parents are placed in the same generation; every child's generation is
-    one later than its recorded parents. The simulated pedigree is acyclic, so
-    this yields exact 30-year generation spacing without pretending that the
-    proband's attained age is a calendar cutoff for older or younger relatives.
-    """
-    n = len(ids)
-    pos = {pid: i for i, pid in enumerate(ids)}
-    representative = list(range(n))
-
-    def find(i):
-        while representative[i] != i:
-            representative[i] = representative[representative[i]]
-            i = representative[i]
-        return i
-
-    def union(i, j):
-        left, right = find(i), find(j)
-        if left != right:
-            representative[right] = left
-
-    for fa, mo in zip(father, mother):
-        if fa in pos and mo in pos:
-            union(pos[fa], pos[mo])
-
-    component = np.array([find(i) for i in range(n)], dtype=np.intp)
-    members = {root: [] for root in set(component.tolist())}
-    for i, root in enumerate(component):
-        members[root].append(i)
-    children = {root: set() for root in members}
-    indegree = {root: 0 for root in members}
-    for child, (fa, mo) in enumerate(zip(father, mother)):
-        child_root = int(component[child])
-        for parent_id in (fa, mo):
-            if parent_id not in pos:
-                continue
-            parent_root = int(component[pos[parent_id]])
-            if child_root != parent_root and child_root not in children[parent_root]:
-                children[parent_root].add(child_root)
-                indegree[child_root] += 1
-
-    frontier = [root for root, count in indegree.items() if count == 0]
-    generation = {root: 0 for root in frontier}
-    visited = 0
-    while frontier:
-        root = frontier.pop()
-        visited += 1
-        for child_root in children[root]:
-            generation[child_root] = max(
-                generation.get(child_root, 0), generation[root] + 1)
-            indegree[child_root] -= 1
-            if indegree[child_root] == 0:
-                frontier.append(child_root)
-    if visited != len(members):
-        raise ValueError("simulated pedigree contains a generational cycle")
-    return np.array([
-        BASE_BIRTH_TIME + GENERATION_YEARS * generation[int(root)]
-        for root in component
-    ])
+    """This benchmark's calendar scale, via the promoted public generator."""
+    return _pedigree_birth_times(ids, father, mother,
+                                 base_birth_year=BASE_BIRTH_TIME,
+                                 generation_years=GENERATION_YEARS)
 
 
 def build_register(rng, ids, father, mother):
     """One CONSISTENT liability field for the whole population, then records.
 
-    Draws raw genetic liabilities G ~ N(0, h2 * A_full) once and residuals E,
-    then divides both the full liability G + E and its genetic coordinate G by
-    each person's raw full-liability SD. This is a no-op for non-inbred people
-    and matches the public kinship path's unit-threshold scale when A_ii > 1.
-    (Drawing each proband's pedigree independently would fix a shared person's
-    status from one draw and the proband's g from another, silently decorrelating
-    them.) Onsets follow the threshold-crossing model with the true CIP. Everyone
-    is observed through age 70 unless diagnosed earlier; records are aligned to
-    ids and birth times share one calendar scale."""
-    _, A_full = kinship_from_pedigree(ids, father, mother)
-    n = len(ids)
-    raw_genetic = rng.multivariate_normal(np.zeros(n), H2 * A_full)
-    residual = rng.standard_normal(n) * np.sqrt(1.0 - H2)
-    scale = np.sqrt(H2 * np.diag(A_full) + (1.0 - H2))
-    genetic = raw_genetic / scale
-    liability = (raw_genetic + residual) / scale
-    residual_var = (1.0 - H2) / scale ** 2
-    status = np.zeros(n, dtype=bool)
-    age = np.full(n, EVAL_AGE)
-    onset = np.full(n, np.inf)
-    for k in range(n):
-        need = 1.0 - norm.cdf(liability[k])
-        if need <= TRUE_CIP[-1]:
-            # Tiny positive floor avoids a zero-length follow-up event in the
-            # Aalen-Johansen estimate for the rare extreme liability.
-            onset[k] = float(max(np.interp(need, TRUE_CIP, AGE_GRID), 1e-9))
-        status[k] = onset[k] <= EVAL_AGE
-        if status[k]:
-            age[k] = onset[k]
-    birth_time = pedigree_birth_times(ids, father, mother)
-    return status, age, onset, genetic, birth_time, residual_var
+    Delegates to :func:`ltpred.simulate.simulate_register_liabilities`, binding
+    this benchmark's ``H2``/``TRUE_CIP``/``AGE_GRID``/``EVAL_AGE``; see that
+    function for why the population is drawn once rather than per proband, and
+    how the inbred-person rescaling works. Returns the six columns aligned to
+    ``ids``."""
+    sim = simulate_register_liabilities(rng, ids, father, mother, h2=H2,
+                                        cip_ages=AGE_GRID, cip_values=TRUE_CIP,
+                                        eval_age=EVAL_AGE)
+    return (sim.status, sim.age, sim.onset, sim.genetic, sim.birth_time,
+            sim.residual_var)
 
 
 def auc_rank(scores, labels):

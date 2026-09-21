@@ -35,6 +35,7 @@ from ltpred.cip import aalen_johansen_cip, kaplan_meier_cip  # noqa: E402
 from ltpred.covariance import construct_covmat_single, correct_positive_definite  # noqa: E402
 from ltpred.estimate import estimate_liability  # noqa: E402
 from ltpred.family import Family, Member  # noqa: E402
+from ltpred.simulate import simulate_followup_records  # noqa: E402
 from ltpred.thresholds import thresholds_from_cip  # noqa: E402
 
 SEED = 20260719
@@ -46,6 +47,10 @@ N_PERSONS_E2E = 20_000
 FAM_VEC = ["m", "f", "s1"]
 H2 = 0.5
 REPS_E2E = 3
+# Gompertz mortality hazard exp(GOMPERTZ_LOG_A + GOMPERTZ_B * age). Shared with
+# true_crude_cif so the competing-risks estimand cannot drift from the generator.
+GOMPERTZ_LOG_A = -9.0
+GOMPERTZ_B = 0.085
 
 
 def true_cip(age):
@@ -62,44 +67,25 @@ def true_crude_cif(age):
     a = np.linspace(0, 120, 12001)
     z = np.exp((MID - a) * SLOPE)
     f_diag = K_POP * SLOPE * z / (1.0 + z) ** 2
-    haz = np.exp(-9.0 + 0.085 * a)
+    haz = np.exp(GOMPERTZ_LOG_A + GOMPERTZ_B * a)
     s_death = np.exp(-np.cumsum(haz) * (a[1] - a[0]))
     crude = np.cumsum(f_diag * s_death) * (a[1] - a[0])
     return np.interp(age, a, crude)
 
 
-def draw_onset(rng, n):
-    """Onset ages: case with prob K_POP, onset from the CIP inverse CDF."""
-    u = rng.uniform(size=n)
-    is_case = u < K_POP
-    aoo = np.full(n, np.inf)
-    v = rng.uniform(size=int(is_case.sum()))
-    aoo[is_case] = MID + np.log(v / (1 - v)) / SLOPE
-    return is_case, np.maximum(aoo, 0.0)
-
-
-def draw_death(rng, n):
-    """Gompertz mortality: hazard h(a) = exp(-9 + 0.085 a)."""
-    u = rng.uniform(size=n)
-    return np.log(1.0 + 0.085 * (-np.log(u)) / np.exp(-9.0)) / 0.085
-
-
 def simulate_registry(rng, n, mortality, register_start_year=None):
-    """Per-person follow-up: entry age, exit age, event (0 censor, 1 diag, 2 death)."""
-    birth_year = rng.uniform(1900, 2000, n)
-    admin_end = 2015.0
-    entry_age = np.zeros(n)
-    if register_start_year is not None:
-        entry_age = np.maximum(0.0, register_start_year - birth_year)
-    is_case, aoo = draw_onset(rng, n)
-    death = draw_death(rng, n) if mortality else np.full(n, np.inf)
-    admin = np.maximum(entry_age, admin_end - birth_year)
-    exit_age = np.minimum(np.minimum(aoo, death), admin)
-    event = np.zeros(n, dtype=int)
-    event[(aoo <= exit_age) & np.isfinite(aoo)] = 1
-    event[(death <= exit_age) & (aoo > death)] = 2
-    ok = exit_age > entry_age
-    return entry_age[ok], exit_age[ok], event[ok]
+    """Per-person follow-up: entry age, exit age, event (0 censor, 1 diag, 2 death).
+
+    Delegates to :func:`ltpred.simulate.simulate_followup_records`, binding this
+    benchmark's logistic CIP (``K_POP``/``MID``/``SLOPE``) and its Gompertz
+    mortality. The promoted function documents the left-truncation and
+    competing-risks semantics; ``true_crude_cif`` below is the estimand the
+    mortality arms target."""
+    records = simulate_followup_records(
+        rng, n, pop_prev=K_POP, mid_point=MID, slope=SLOPE,
+        mortality=mortality, gompertz_log_a=GOMPERTZ_LOG_A,
+        gompertz_b=GOMPERTZ_B, register_start_year=register_start_year)
+    return records.age_entry, records.age_exit, records.event
 
 
 def curve_error(curve, grid_eval):

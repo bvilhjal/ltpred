@@ -20,7 +20,11 @@ is also a top-level export.
 | `families_from_columns` | build family inputs from flat columns |
 | `kinship_from_pedigree` / `estimate_liability_from_kinship` | arbitrary-pedigree input and PA-default estimation; caller-supplied `c_kernel`/`m_kernel` support environmental components, and `use_mixture=True` with `K_i`/`K_pop` enables the PA-FGRS censored-control mixture |
 | `estimate_liabilities` | supported population-trio driver: pedigree discovery, pinned-onset empirical-CIP bounds, explicit GWAS versus prospective-prediction observation sets, and calendar-time censoring |
-| `simulate_under_LTM_single` | simulate families for testing/benchmarking |
+| `simulate_under_LTM_single` | simulate role-grammar families for one trait, for testing/benchmarking |
+| `simulate_pedigree` / `pedigree_birth_times` | simulate a population trio table (`ids`, `father`, `mother`) and give it generation-coherent calendar birth times |
+| `simulate_register_liabilities` | simulate **one** consistent liability field over a pedigree and return the register columns plus the true genetic liability, so a score can be checked against truth |
+| `simulate_followup_records` | simulate registry follow-up (entry age, exit age, event code) from a known incidence curve, with optional competing mortality and delayed entry — the input to `kaplan_meier_cip` / `aalen_johansen_cip` |
+| `simulate_under_LTM_multi` | simulate families with two or more traits under A/C/M/E components, for `fit_pairwise_multi` |
 | `observed_to_liability_h2` / `liability_to_observed_h2` | observed ↔ liability-scale `h²` (Lee et al.) |
 | `set_num_threads` | set the Numba-parallel thread count |
 

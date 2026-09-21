@@ -67,7 +67,12 @@ if TYPE_CHECKING:
     from .quadrature import QuadratureResult, estimate_liability_quadrature_arrays  # noqa: F401
     from .pairwise import PairwiseFitResult, fit_pairwise  # noqa: F401
     from .pairwise_multi import MultiTraitPairwiseResult, fit_pairwise_multi  # noqa: F401
-    from .simulate import Simulation, simulate_under_LTM_single  # noqa: F401
+    from .simulate import (Simulation, simulate_under_LTM_single,  # noqa: F401
+                           FollowupSimulation, MultiTraitSimulation,
+                           RegisterSimulation, pedigree_birth_times,
+                           simulate_followup_records, simulate_pedigree,
+                           simulate_register_liabilities,
+                           simulate_under_LTM_multi)
     from .tetrachoric import (TetrachoricResult, tetrachoric,  # noqa: F401
                               tetrachoric_matrix, tetrachoric_table)
     from .thresholds import (age_thresholds, convert_age_to_cir,  # noqa: F401
@@ -103,7 +108,11 @@ _EXPORTS = {
                  "estimate_liability_pa_arrays", "estimate_liability_gibbs_arrays",
                  "estimate_liability_from_kinship", "batch_means",
                  "LiabilityResult"],
-    "simulate": ["simulate_under_LTM_single", "Simulation"],
+    "simulate": ["simulate_under_LTM_single", "Simulation",
+                 "simulate_pedigree", "pedigree_birth_times",
+                 "simulate_register_liabilities", "RegisterSimulation",
+                 "simulate_followup_records", "FollowupSimulation",
+                 "simulate_under_LTM_multi", "MultiTraitSimulation"],
     "fit": ["fit_heritability", "FitResult", "fit_variance_components",
             "VarCompResult", "bootstrap_fit", "BootstrapResult"],
     "_numba": ["set_num_threads"],

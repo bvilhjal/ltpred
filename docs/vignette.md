@@ -172,7 +172,10 @@ observation contract and are evidence for the public driver.
 ## How to read the code on this page
 
 Most blocks below are **fragments**: they show a call with your own columns
-(`status`, `age`, `cip_ages`, `fam_id`, `role`, `pid`). Two listings do run end to end:
+(`status`, `age`, `cip_ages`, `fam_id`, `role`, `pid`). For a page whose blocks
+all run in sequence on one simulated cohort, with the truth known and every
+quoted output checked by a test, see the **[tutorial](tutorial.md)**. Two
+listings do run end to end:
 
 - [`examples/vignette.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/vignette.py)
   — the role workflow on simulated data, followed by a six-person public
@@ -201,6 +204,35 @@ sim = simulate_under_LTM_single(
 `use_age=False` makes it classic LT-FH under the liability-threshold
 model: one $K$, not a CIP. On real data, delete this block and start
 from your own table.
+
+The register-route fragments use unique population IDs rather than a role
+grammar, so they need a different cohort. This block binds the names they
+assume — `ids`, `father`, `mother`, `status`, `age`, `cip_ages`, `cip_values`,
+`birth_time`, `index_time` — from a simulated population whose true liabilities
+are also known:
+
+```python
+import numpy as np
+from ltpred import simulate_pedigree, simulate_register_liabilities
+
+cip_ages = np.arange(0, 121, 1.0)
+cip_values = 0.10 / (1.0 + np.exp((60.0 - cip_ages) / 8.0))
+ids, father, mother = simulate_pedigree(
+    np.random.default_rng(20260921), n_founder_pairs=100, gens=2)
+reg = simulate_register_liabilities(
+    np.random.default_rng(20260921), ids, father, mother,
+    h2=0.5, cip_ages=cip_ages, cip_values=cip_values, eval_age=70.0)
+
+status, age = reg.status.astype(int), reg.age
+birth_time, index_time = reg.birth_time, reg.birth_time + 40.0
+```
+
+This block is self-contained and does not reuse the role cohort's `h2` or `K`:
+the two cohorts are different simulations, with different prevalences (0.05
+lifetime versus a 0.10-horizon incidence curve) and different observation
+models. `reg.genetic` is the truth these fragments cannot see. The
+[tutorial](tutorial.md) runs both cohorts end to end and scores the result;
+the blocks here stay fragments because each illustrates one contract.
 
 ## Before software
 
@@ -342,17 +374,18 @@ Details: [Inference](inference.md).
 
 For two or more binary traits, `fit_pairwise_multi` fits the covariance
 components together using observed-pair probabilities. It is deterministic;
-there is no Gibbs burn-in or Monte-Carlo trace. The following example runs
-from a source checkout; the helper generates a **separate** population cohort
-of 3,000 nuclear families with two traits at prevalences 0.10 and 0.20:
+there is no Gibbs burn-in or Monte-Carlo trace. `simulate_under_LTM_multi`
+generates a **separate** population cohort of 3,000 nuclear families with two
+traits at prevalences 0.10 and 0.20, and reports the generating design in
+`.truth`:
 
 ```python
-from examples.joint_inference import example_families
-from ltpred import fit_pairwise_multi
+from ltpred import fit_pairwise_multi, simulate_under_LTM_multi
 
+multi = simulate_under_LTM_multi(n_families=3000, seed=1)
 joint = fit_pairwise_multi(
-    example_families(), components=("A", "C", "M"),
-    sampling="population", phen_names=["trait_1", "trait_2"],
+    multi.families, components=("A", "C", "M"),
+    sampling="population", phen_names=list(multi.phen_names),
 )
 joint.h2                      # per-trait liability-scale heritability
 joint.rg[0, 1]                # genetic correlation
@@ -363,9 +396,14 @@ joint.inference_status        # inspect before interpreting uncertainty
 joint.se["h2"], joint.se["rg"][0, 1], joint.se["re"][0, 1]
 ```
 
-The simulation has $h^2=(0.35,0.40)$, $r_g=0.50$ and residual $r_e=-0.35$.
-Run [`examples/joint_inference.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/joint_inference.py)
-for the fitted estimates. For real data, prepare one row per person with
+The simulation has $h^2=(0.35,0.40)$, $r_g=0.50$ and residual $r_e=-0.35$;
+`multi.truth` echoes them. [Tutorial step 5](tutorial.md#step-5-two-traits-at-once)
+prints this fit against its truth with standard errors, and
+[`examples/joint_inference.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/joint_inference.py)
+runs it as a script. A single cohort illustrates the API, not its calibration:
+the replicated recovery evidence is
+[RESULTS §33](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md).
+For real data, prepare one row per person with
 one bound per trait ([input recipe](data-preparation.md#preparing-multiple-traits-for-covariance-fitting)).
 Thresholds may differ between traits, but not between people for a given
 trait. A missing diagnosis is `(-inf, inf)`, not a control; missingness must
