@@ -6,6 +6,12 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Removed
+
+- `examples/joint_inference.py`, `examples/role_pipeline.py` and
+  `examples/ltfh_power_demo.py`. The tutorial, the quickstart and
+  `examples/vignette.py` already run those paths.
+
 Documentation, tutorial and simulated-data audit:
 [`docs/reviews/REVIEW_2026-09d.md`](docs/reviews/REVIEW_2026-09d.md). The four
 preceding audits re-derived the statistical core; this one examined whether a

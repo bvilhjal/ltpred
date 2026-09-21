@@ -11,17 +11,11 @@ case/control label when the liability model and supplied inputs are appropriate.
 Typical use (single-trait inference defaults to Pearson-Aitken)::
 
     from ltpred import simulate_under_LTM_single, estimate_liability
-    sim = simulate_under_LTM_single(h2=0.5, pop_prev=0.05, n_sim=2000,
-                                    use_age=True, seed=1)
-    res = estimate_liability(sim.families, h2=0.5, out=("genetic",))
-    res.est["genetic"]        # genetic-liability estimate per proband
-
-The pieces, if you want them directly:
-
-* :func:`~ltpred.covariance.construct_covmat_single` / ``construct_covmat_multi`` -- family covariance from relatedness
-* :func:`~ltpred.thresholds.age_thresholds` / ``prevalence_thresholds`` -- status+age -> bounds
-* :func:`~ltpred.gibbs.rtmvnorm_gibbs` -- the truncated-MVN Gibbs sampler
-* :func:`~ltpred.estimate.estimate_liability` -- the end-to-end estimator
+    sim = simulate_under_LTM_single(
+        fam_vec=["m", "f", "s1"], h2=0.5, pop_prev=0.05, n_sim=2000,
+        use_age=False, seed=1)
+    res = estimate_liability(sim.families, h2=0.5)
+    res.est["genetic"]
 
 numpy and scipy are required; an optional Numba JIT (the ``[fast]`` extra)
 accelerates the Gibbs sweep. Names are imported lazily (PEP 562) so

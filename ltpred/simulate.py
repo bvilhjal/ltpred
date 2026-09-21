@@ -788,9 +788,9 @@ def simulate_under_LTM_multi(n_families: int = 1000, *,
     ``sib_shared``/``couple_shared`` the per-trait shared-sibship and
     shared-couple covariance matrices, and ``residual_re`` the residual
     environmental correlation. The defaults are the design
-    ``examples/joint_inference.py`` fits and ``docs/vignette.md`` documents, so
+    ``docs/vignette.md`` and the tutorial document, so
     ``simulate_under_LTM_multi(n_families=3000, seed=1)`` reproduces that
-    example's families bit for bit.
+    cohort bit for bit.
 
     Each trait's liability has unit variance (the four component diagonals sum
     to 1), so the implied full-liability correlation between traits is

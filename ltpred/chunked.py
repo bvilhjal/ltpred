@@ -118,24 +118,12 @@ def estimate_liability_pa_chunked(roles: Sequence[str], lower: ArrayLike,
                                   c2: float | None = None, m2: float | None = None,
                                   chunk_size: int = 65536
                                   ) -> tuple[np.ndarray, np.ndarray]:
-    """Chunked Pearson-Aitken driver over the array kernel.
+    """PA over row-chunks of one role-set. Returns ``(est, var)`` of length ``F``.
 
-    Validates the full ``(F, k)`` bound (and mixture) arrays once, then streams
-    homogeneous family rows through :func:`ltpred.estimate._pa_from_role_arrays`
-    in blocks of ``chunk_size``. Default behaviour of
-    :func:`~ltpred.estimate.estimate_liability_pa_arrays` is unchanged; this
-    is an additional entry point.
-
-    In-memory ``ndarray`` inputs still occupy ``F x k`` for the bounds; use a
-    memmap for those arrays or :func:`estimate_liability_pa_batches` to actually
-    avoid holding every family's bounds. Mixed pedigrees still need one call
-    per role-set. Summary outputs stay ``O(F)``. Pearson-Aitken is
-    deterministic, so there is no Monte-Carlo SE. Default ``chunk_size`` is
-    65536: large enough that the hot kernel still saturates, small enough that
-    float32 bounds for a nuclear family are a few MB. Rebuilding the tiny
-    ``d x d`` covariance per chunk is intentional.
-
-    Returns ``(est, var)`` of length ``F`` for the single ``out`` column.
+    Validates the full bound arrays once, then calls the array kernel on slices
+    of ``chunk_size`` (default 65536). An in-memory array still holds every
+    bound; stream with :func:`estimate_liability_pa_batches` to avoid that.
+    One call per role-set. No Monte-Carlo SE.
     """
     chunk_size = _validate_chunk_size(chunk_size)
     coord = _single_out(out)
@@ -169,24 +157,13 @@ def estimate_liability_gibbs_chunked(roles: Sequence[str], lower: ArrayLike,
                                      chunk_size: int = 4096,
                                      return_var: bool = False
                                      ) -> tuple[np.ndarray, ...]:
-    """Chunked Gibbs driver over the array kernel.
+    """Gibbs over row-chunks of one role-set.
 
-    Computes per-family seeds on the full cohort with
-    :func:`ltpred.estimate._base_seeds` and passes ``seeds[sl]`` into each
-    chunk, so the result agrees with
+    Seeds come from :func:`ltpred.estimate._base_seeds` on the full cohort and
+    are sliced per chunk, so the draws match
     :func:`~ltpred.estimate.estimate_liability_gibbs_arrays` at the same
-    ``seed``. Restarting the sampler from ``seed=`` per chunk would break that
-    agreement. Default ``chunk_size`` is 4096 because Gibbs accumulators are
-    ``O(F_chunk x ncols)`` float64 and the sampler is heavier than PA.
-
-    In-memory ``ndarray`` inputs still occupy ``F x k`` for the bounds; use a
-    memmap or :func:`estimate_liability_gibbs_batches` to actually avoid holding
-    every family's bounds. Mixed pedigrees still need one call per role-set.
-    Summary outputs stay ``O(F)``. Unconverged families are warned once on the
-    concatenated SE.
-
-    Returns ``(est, se)`` of length ``F``, or ``(est, se, var)`` with
-    ``return_var=True``.
+    ``seed``. Default ``chunk_size`` is 4096. Returns ``(est, se)``, or
+    ``(est, se, var)`` with ``return_var=True``.
     """
     chunk_size = _validate_chunk_size(chunk_size)
     coord = _single_out(out)
@@ -215,20 +192,12 @@ def estimate_liability_pa_batches(roles: Sequence[str],
                                   use_mixture: bool = False,
                                   c2: float | None = None, m2: float | None = None
                                   ) -> tuple[np.ndarray, np.ndarray]:
-    """Stream Pearson-Aitken estimates from an iterator of bound batches.
+    """PA from an iterator of bound batches, concatenated in order.
 
-    ``batches`` yields either ``(lower, upper)``, ``(lower, upper, K_i, K_pop)``,
-    or a mapping with keys ``lower``, ``upper`` and optional ``K_i``/``K_pop``.
-    Results are concatenated in iterator order; an empty iterator returns empty
-    arrays. The caller never has to hold every family's bounds at once — that
-    is the memory contract. In-memory ndarrays still occupy ``F x k`` if you
-    build them first; memmap or a true iterator is how you avoid that.
-
-    Mixture inputs are validated **per batch** (the stream cannot see the whole
-    cohort). A mixture batch with no valid ``K_i``/``K_pop`` pair raises, unlike
-    the sliced ``*_chunked`` APIs which gate once globally so an all-cases
-    chunk does not fail. Mixed pedigrees still need one call per role-set.
-    Pearson-Aitken is deterministic (no SE). Summary outputs stay ``O(F)``.
+    Each item is ``(lower, upper)``, ``(lower, upper, K_i, K_pop)``, or a
+    mapping with those keys. An empty iterator returns empty arrays. Mixture
+    inputs are checked per batch, so a batch with no valid ``K`` pair raises;
+    the chunked API gates that once on the whole cohort instead.
     """
     coord = _single_out(out)
     roles = list(roles)
@@ -263,21 +232,13 @@ def estimate_liability_gibbs_batches(roles: Sequence[str],
                                      m2: float | None = None,
                                      return_var: bool = False
                                      ) -> tuple[np.ndarray, ...]:
-    """Stream Gibbs estimates from an iterator of bound batches.
+    """Gibbs from consecutive bound batches of one virtual cohort.
 
-    Batches are treated as consecutive blocks of a virtual concatenated
-    cohort: a running family offset ``start`` assigns
-    ``seeds = _base_seeds(seed, start + n, max_rounds)[start:]`` to a batch
-    of size ``n``. Concatenating the same batches as one array therefore
-    matches one-shot :func:`~ltpred.estimate.estimate_liability_gibbs_arrays`
-    with the same ``seed``. Bound arrays are not retained across batches.
-
-    In-memory ndarrays still occupy ``F x k`` if you build them first; memmap
-    or a true iterator is how you avoid holding all bounds. Mixed pedigrees
-    still need one call per role-set. Summary outputs stay ``O(F)``. Unconverged
-    families are warned once on the concatenated SE.
-
-    Returns ``(est, se)``, or ``(est, se, var)`` with ``return_var=True``.
+    Batch ``n`` at offset ``start`` receives
+    ``_base_seeds(seed, start + n, max_rounds)[start:]``, so concatenating the
+    batches matches :func:`~ltpred.estimate.estimate_liability_gibbs_arrays`
+    at the same ``seed``. Returns ``(est, se)``, or ``(est, se, var)`` with
+    ``return_var=True``.
     """
     coord = _single_out(out)
     roles = list(roles)

@@ -192,34 +192,10 @@ sim = simulate_under_LTM_single(
 model: one $K$, not a CIP. On real data, delete this block and start
 from your own table.
 
-The register-route fragments use unique population IDs rather than a role
-grammar, so they need a different cohort. This block binds the names they
-assume — `ids`, `father`, `mother`, `status`, `age`, `cip_ages`, `cip_values`,
-`birth_time`, `index_time` — from a simulated population whose true liabilities
-are also known:
-
-```python
-import numpy as np
-from ltpred import simulate_pedigree, simulate_register_liabilities
-
-cip_ages = np.arange(0, 121, 1.0)
-cip_values = 0.10 / (1.0 + np.exp((60.0 - cip_ages) / 8.0))
-ids, father, mother = simulate_pedigree(
-    np.random.default_rng(20260921), n_founder_pairs=100, gens=2)
-reg = simulate_register_liabilities(
-    np.random.default_rng(20260921), ids, father, mother,
-    h2=0.5, cip_ages=cip_ages, cip_values=cip_values, eval_age=70.0)
-
-status, age = reg.status.astype(int), reg.age
-birth_time, index_time = reg.birth_time, reg.birth_time + 40.0
-```
-
-This block is self-contained and does not reuse the role cohort's `h2` or `K`:
-the two cohorts are different simulations, with different prevalences (0.05
-lifetime versus a 0.10-horizon incidence curve) and different observation
-models. `reg.genetic` is the truth these fragments cannot see. The
-[tutorial](tutorial.md) runs both cohorts end to end and scores the result;
-the blocks here stay fragments because each illustrates one contract.
+Register-route fragments use a different cohort from the role grammar above:
+unique population ids, a 0.10-horizon incidence curve, and `h2=0.5`. The
+[tutorial](tutorial.md) builds that cohort, scores it, and checks the score
+against `reg.genetic`. The blocks here stay fragments.
 
 ## Before software
 
@@ -372,9 +348,8 @@ joint.se["h2"], joint.se["rg"][0, 1], joint.se["re"][0, 1]
 
 The simulation has $h^2=(0.35,0.40)$, $r_g=0.50$ and residual $r_e=-0.35$;
 `multi.truth` echoes them. [Tutorial step 5](tutorial.md#step-5-two-traits-at-once)
-prints this fit against its truth with standard errors, and
-[`examples/joint_inference.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/joint_inference.py)
-runs it as a script. A single cohort illustrates the API, not its calibration:
+prints this fit against its truth with standard errors. A single cohort
+illustrates the API, not its calibration:
 the replicated recovery evidence is
 [RESULTS §33](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md).
 For real data, prepare one row per person with
@@ -653,20 +628,10 @@ records and closure-only diagnoses leaves the prediction mean and variance
 exactly unchanged. This is an API/leakage check using a toy CIP, not clinical
 calibration or new performance evidence.
 
-**Sizing the run.** On the reference machine at 4 Numba threads the
-object path scores 208,000–221,000 families/s under PA and 503–512/s
-under Gibbs, so 500,000 probands is a few seconds under PA and roughly
-17 minutes under Gibbs
-([RESULTS §2](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)).
-Past a few million families, `Family` construction rather than the PA
-arithmetic dominates: switch to `estimate_liability_pa_arrays`, which
-takes already-aligned `(n_families, k)` bound arrays, and set the thread
-count with `ltpred.set_num_threads(n)`
-([Estimation](estimation.md#scaling-to-large-cohorts)).
-Those timings measure grouped, already prepared role families; they do not
-include per-proband register extraction, kinship construction and CIP
-alignment. Do not extrapolate them to `estimate_liabilities`. Its historical
-throughput results remain stale pending a provenance-tracked rerun.
+Those object-path timings are grouped role families. They omit per-proband
+register extraction, kinship, and CIP alignment, so do not extrapolate them
+to `estimate_liabilities`. Its historical throughput results remain stale
+pending a provenance-tracked rerun.
 
 ### Did it work?
 

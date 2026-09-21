@@ -53,132 +53,21 @@ identical, just slower. For biobank-scale runs see the guide's
 ```python
 from ltpred import simulate_under_LTM_single, estimate_liability
 
-# Simulate families (proband + mother, father, one sibling) under h²=0.5.
-# use_age=False is the classic LT-FH observation model — every relative is a
-# lifetime case or control — and it is the cohort every number in
-# docs/vignette.md comes from, so the two are directly comparable.
 sim = simulate_under_LTM_single(
     fam_vec=["m", "f", "s1"], h2=0.5, pop_prev=0.05, n_sim=2000,
     use_age=False, seed=1,
 )
-
-# PA approximation to posterior mean genetic liability per proband. This is a
-# single-prevalence, no-mixture family example for GWAS-phenotype construction;
-# full LT-FH++ uses sex/birth-cohort-stratified CIPs.
-# The deterministic, fast PA inference engine is the single-trait default.
-# h2 is required: the liability-scale heritability of *this* disease, with no
-# disease-independent default (docs/data-preparation.md, "Which h²?").
 pa = estimate_liability(sim.families, h2=0.5)
-pa.est["genetic"]      # (n_families,) PA approximations to posterior means
-pa.var["genetic"]      # posterior variance Var(g | family) — how uncertain this
-                        # proband is; both engines report it (PA as a moment
-                        # approximation). pa.se is 0: deterministic, which is
-                        # not the same as zero approximation error.
-
-# ...or the Gibbs truncated-MVN sampler as a sampling-based cross-check.
-gibbs = estimate_liability(sim.families[:200], h2=0.5, method="gibbs",
-                           tol=0.03, n_sim=25_000, burn_in=800, seed=1)
-gibbs.est["genetic"]   # agrees with PA to ~1e-2 in this no-mixture example
+pa.est["genetic"]
 ```
 
-The age-aware variant is LT-FH++'s own observation model — a relative counts as
-an observed case only once their onset age has passed. Use it whenever your data
-has ages, but note that it makes the phenotype much sparser: at `pop_prev=0.05`
-the proband case rate falls from ~4.7% to ~0.6%, so scores carry less
-information and are **not** comparable with the vignette's numbers.
-
-```python
-age_sim = simulate_under_LTM_single(
-    fam_vec=["m", "f", "s1"], h2=0.5, pop_prev=0.05, n_sim=2000,
-    use_age=True, seed=1,
-)
-```
-
-For additive nuclear families, `method="quadrature"` integrates at most two
-parental factors, regardless of the number of siblings. It reports convergence
-diagnostics for both posterior moments and raises if refinement does not settle;
-see [estimation](docs/estimation.md). Ordinary PA now conditions pins jointly
-before approximating any remaining intervals. The [methods report](report/README.md)
-derives both reductions and their exactness boundaries.
-
-### Bring your own data
-
-Build families from flat, tibble-style columns:
-
-```python
-import numpy as np
-from ltpred import families_from_columns, age_thresholds, estimate_liability
-
-# status (1=case) and age (age of onset for cases, current age otherwise)
-lower, upper = age_thresholds(status, age, pop_prev=0.05)   # shared personalised bounds
-
-families = families_from_columns(
-    fam_id=fam_id,       # groups rows into families
-    role=role,           # "o" = proband, "m"/"f"/"s1"/"mgm"/... = relatives
-    lower=lower, upper=upper,
-)
-# Relative rows make this a family-history analysis. With real stratum-specific
-# CIPs it is LT-FH++; keep only role="o" for family-free ADuLT.
-res = estimate_liability(families, h2=0.5)          # PA is the single-trait default
-score = res.genetic
-```
-
-Roles follow the LTFHPlus grammar (`o` proband, `m`/`f` parents, `s1`/`s2` sibs,
-grandparents, half-sibs, aunts/uncles, children); the genetic row `g` is added
-automatically. For **age-censored controls**, **multiple correlated traits**,
-choosing between the methods, and using the score in a GWAS, see
-**[choose a method](docs/guide.md)**.
-
-## Three uses
-
-One rule decides the job: if the proband's own diagnosis is in the input,
-`estimate_liability` conditions on it (a GWAS phenotype); to *predict* that
-diagnosis from family history, leave it out — keep the row with uninformative
-bounds (dropping the row also works, but `pids` then falls back to the family
-ID). [`examples/vignette.py`](examples/vignette.py) shows both. The three uses
-(the [vignette](https://bvilhjal.github.io/ltpred/vignette/) is the run-book):
-
-- **I. Risk prediction** from family history (own status *out*). Same
-  `estimate_liability` call; leave their own diagnosis out of the input
-  (the example script does this). Combining
-  family-derived and genotype-derived predictors is a separate downstream
-  model; see
-  [Hujoel et al. 2022, *Cell Genomics*](https://doi.org/10.1016/j.xgen.2022.100152)
-  and
-  [Dybdahl Krebs et al. 2026, *AJHG*](https://doi.org/10.1016/j.ajhg.2025.11.016).
-- **II. A quantitative GWAS phenotype** in place of the 0/1 label (own status
-  *in*), the LT-FH association use. This is what you get if you pass their
-  diagnosis in the usual way. ADuLT skips relatives.
-- **III. Architecture, relationships, aetiology** from liability-scale h² and
-  genetic/environmental covariances and/or the CIP. Pedigree scoring is optional.
-
-## How it works
-
-For each proband, ltpred conditions on the whole family under the
-liability-threshold model:
-
-1. **Covariance** — a liability splits into a genetic part `l_g ~ N(0, h²)` and an
-   environmental part, summing to a full liability `l_o ~ N(0, 1)`. Two relatives'
-   genetic parts correlate by the fraction of DNA they share, so an
-   *off-diagonal* entry is `shared_DNA × h²` while every full liability keeps
-   unit variance: `Sigma = h²A + (1 - h²)I`. Optional sibship and couple
-   components add their own kernels off the diagonal —
-   `Sigma = h²A + c²C + m²M + e²I` with `e² = 1 - h² - c² - m²` — and the
-   residual absorbs them, so the diagonal is still 1.
-2. **Thresholds and family context** — classic LT-FH uses non-personalised
-   case/control bounds with family history. LT-FH++ uses age-, birth-year- and
-   sex-specific prevalence for the proband and relatives. ADuLT uses the same
-   personalised construction for the proband alone, without family history.
-3. **Inference** — a **Gibbs** sampler (the sampling-based reference;
-   untruncated genetic coordinates are integrated out of the sweep) or the
-   deterministic **Pearson–Aitken** (PA) engine turns the covariance and
-   intervals into an estimate of the posterior mean of the proband's genetic (`g`)
-   and/or full (`o`) liability. PA has no Monte-Carlo error, but retains
-   sequential approximation error. The PA-FGRS censoring mixture is PA-only.
-
-See [estimation](docs/estimation.md#choosing-gibbs-vs-pearsonaitken) for how to choose,
-and [algorithm.md](docs/algorithm.md) for the math and the performance internals
-(Numba JIT, thread-parallel per-structure kernels, and the biobank-scale array API).
+`use_age=False` is the classic LT-FH cohort whose numbers the
+[vignette](docs/vignette.md) quotes. `h²` is required and disease-specific.
+Own diagnosis in the input is a GWAS phenotype; leave it out to predict from
+family history. The [quickstart](docs/quickstart.md) is six hand-typed rows,
+the [tutorial](docs/tutorial.md) is the simulated register pipeline, and
+[choose a method](docs/guide.md) is the bounds/estimator table. The model is
+in [algorithm.md](docs/algorithm.md).
 
 ## Benchmarks
 
@@ -242,35 +131,13 @@ one).
 
 ## Documentation
 
-- **User guide** — the [quickstart](docs/quickstart.md) (six hand-typed rows,
-  start to finish), the [tutorial](docs/tutorial.md) (a complete analysis on a
-  **simulated** cohort whose truth is known — every block runs in order and a
-  test checks the printed output), then
-  the [vignette](https://bvilhjal.github.io/ltpred/vignette/) (how to run:
-  three uses — prediction, GWAS, aetiology — then h², pedigree, CIP,
-  family history; source [docs/vignette.md](docs/vignette.md)),
-  [data preparation](docs/data-preparation.md), [CIP estimation](docs/cip-estimation.md),
-  [estimation](docs/estimation.md),
-  [inference](docs/inference.md), [assumptions & checklist](docs/assumptions.md),
-  and the [API reference](docs/api.md). ([Choose a method](docs/guide.md).)
-- **Simulated data** — the generators ship with the package, so you do not need a
-  real register to learn, test or validate the pipeline:
-  `simulate_pedigree` + `simulate_register_liabilities` (population trio records
-  **and the true genetic liability**, so a score can be checked against truth),
-  `simulate_followup_records` (follow-up records from a known incidence curve,
-  with optional competing mortality and delayed entry),
-  `simulate_under_LTM_single` (role-grammar families) and
-  `simulate_under_LTM_multi` (two or more traits). The
-  [tutorial](docs/tutorial.md) runs all of them end to end.
-- **[Algorithm & model](docs/algorithm.md)** — the liability-threshold model, both
-  estimators, the Pearson–Aitken selection formula, the censoring mixture, and the
-  implementation/performance notes.
-- **[Methods note](report/ltpred_methods.pdf)** — estimand, three uses,
-  observation models, PA exactness, and simulation evidence, written
-  for colleagues (`report/ltpred_methods.tex`).
-- **[Benchmarks](benchmarks/RESULTS.md)** — accuracy, speed and independent-SNP
-  causal-NCP evidence, plus matched runtime and memory comparisons between
-  package versions.
+[Quickstart](docs/quickstart.md), [tutorial](docs/tutorial.md) (every block is
+executed in `tests/test_tutorial.py`), and the
+[vignette](https://bvilhjal.github.io/ltpred/vignette/). The generators used
+there ship in the package. Model and evidence:
+[algorithm.md](docs/algorithm.md),
+[methods note](report/ltpred_methods.pdf),
+[benchmarks](benchmarks/RESULTS.md).
 
 ## Development
 
