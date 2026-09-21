@@ -67,8 +67,8 @@ the full contract ([`examples/vignette.py`](https://github.com/bvilhjal/ltpred/b
 Other runnable scripts:
 [`examples/joint_inference.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/joint_inference.py)
 (joint heritability and genetic/environmental correlation),
-[`examples/registry_pipeline.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/registry_pipeline.py)
-(status/age table to a score) and
+[`examples/role_pipeline.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/role_pipeline.py)
+(role-API status/age table to a GWAS phenotype) and
 [`examples/ltfh_power_demo.py`](https://github.com/bvilhjal/ltpred/blob/main/examples/ltfh_power_demo.py).
 
 ## When to use ltpred

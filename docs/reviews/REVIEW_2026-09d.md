@@ -330,11 +330,25 @@ contains is 614 words on two families.**
 
 23,702 words stand between a new user and the API reference; `algorithm.md` adds
 8,028 more. The single most important rule in the package — whether the
-proband's own diagnosis enters `D_F` — is stated **28 times** across seven
-files, 13 of them in the vignette. The three uses are enumerated on six pages.
-In the vignette, caveat vocabulary ("not" ×66, "do not" ×12, "does not" ×10,
-"cannot" ×3, "rejected" ×3) outnumbers line-initial imperatives by roughly ten
-to one.
+proband's own diagnosis enters `D_F` — appears **28 times** across seven files,
+13 of them in the vignette. The three uses are enumerated on six pages (README,
+guide, vignette, estimation, assumptions, algorithm), plus a one-line summary on
+`index.md`. In the vignette, caveat vocabulary ("not" ×66, "do not" ×12,
+"does not" ×10, "cannot" ×3, "rejected" ×3) outnumbers line-initial imperatives
+by roughly ten to one.
+
+**The 28 needs unpacking, because as a bare number it misleads — see the
+correction in §7.** Reading every site: only **6** of the 28 are enumerations of
+the three uses, and each of those six already cites the canonical home
+(vignette Table 1) in the same breath. The other ~22 are *distinct* statements
+that happen to contain the phrase — the leakage warning
+(`use="prediction"` hides own diagnosis but does not select a disease-free risk
+set), the prospective-cohort warning ("This removes own status only"), the
+mathematical claim that with own status out of `D_F` the residual `e_i` is
+independent, the `n_conditioned` diagnostic definition, the role-grammar entry
+for `o`, the checklist item, the evidence caveat about simulation checks. None
+of those is a duplicate of another, and deleting any of them would remove a
+real warning.
 
 None of those statements is wrong, and most are load-bearing; §2 argues they
 should be kept. But repetition is a symptom of a document that cannot assume its
@@ -355,9 +369,13 @@ Recommendation: split the genres explicitly. Keep the vignette as the contract
 and let it stay long. Add one **tutorial** page — a single simulated cohort
 obtained from one call, five numbered steps, every block runnable, with all
 caveats collected into one closing "what this tutorial skipped" admonition that
-links into the contract rather than interrupting the flow. Then the 28
-restatements can fall to a handful, because the rule will have one canonical
-home and the tutorial will have already demonstrated it.
+links into the contract rather than interrupting the flow.
+
+Do **not** follow this with a de-duplication pass driven by the count of 28. The
+breakdown above is the reason: six terse per-page enumerations that each already
+point at the canonical Table 1, and about twenty-two distinct warnings. The
+volume finding is about *genre*, not repetition — the fix is a page that lets a
+reader succeed without reading the contract, not a shorter contract.
 
 **T3-1. `make_toy_table` recovers case status from bound finiteness rather than
 from the simulator's own `status` field.**
@@ -459,8 +477,8 @@ the table below records otherwise; the detail is in the `[Unreleased]` section o
 | T1-2 vignette not executable | **Implemented, narrowed.** Rather than retrofit 948 lines, a new runnable page carries the middle ground and the vignette keeps its contract role; its preamble now binds the register names too | `docs/tutorial.md`; `tests/test_tutorial.py` executes its blocks in order and diffs each against the quoted output. Teeth confirmed by negative control |
 | T2-1 README cohort weaker than the vignette's | **Implemented.** README uses `use_age=False`; the age-aware variant is a labelled second block | re-ran verbatim: 4.65% proband cases, PA/Gibbs max abs diff 0.0132 |
 | T2-2 multi-trait example unreachable when installed | **Implemented.** `simulate_under_LTM_multi` promoted; the vignette and the example both use it | `examples/joint_inference.py` output unchanged to the last printed digit; the new vignette block reproduces `rg = 0.5434515836721618` exactly |
-| T2-3 `registry_pipeline.py` misnamed | **Not implemented — deferred.** The tutorial now covers the register route end to end, so retargeting the script would duplicate it; renaming is a separate call | recorded under "Not changed" in the CHANGELOG |
-| T2-4 volume and genre | **Partly implemented.** The genres are now separated (tutorial vs contract) and the tutorial collects its caveats in one closing admonition. The 28 restatements of the own-status rule were **not** de-duplicated: doing so safely means editing the contract pages, which needs its own pass | `docs/tutorial.md` §"What this tutorial skips" |
+| T2-3 `registry_pipeline.py` misnamed | **Implemented.** Renamed to `examples/role_pipeline.py`, matching the documentation's own "role API vs register API" dichotomy; its docstring now states which driver it does *not* use and points at the tutorial | `docs/guide.md` link updated; CI globs `examples/*.py`, so the rename needs no workflow change; the script's stdout is unchanged |
+| T2-4 volume and genre | **Implemented, and the recommendation narrowed.** The genres are separated and the tutorial collects its caveats in one closing admonition. A count-driven de-duplication pass is **not** recommended — see the third correction below | `docs/tutorial.md` §"What this tutorial skips"; one genuine local duplicate removed (`assumptions.md`'s checklist preamble restated its own item 8) |
 | T3-1 status read off bound finiteness | **Implemented** in both example scripts | both examples' stdout byte-identical before and after |
 | T3-2 OMP notice | **Implemented** — noted in the quickstart's install section | — |
 | T3-3 `age_thresholds` downgraded only downstream | **Implemented** — a point-of-use admonition in quickstart step 2 | — |
@@ -479,6 +497,16 @@ disproved them:
   fragments. The finding stands only for the register-route names, which nothing
   on the page bound, and for the absent execution guard. T1-2 has been rewritten
   accordingly.
+- **T2-4's headline metric was accurate but misleading.** "Stated 28 times"
+  counts lines matching a phrase, and only **6** of the 28 are enumerations of
+  the three uses — each already citing the canonical vignette Table 1 in the same
+  sentence. The other ~22 are distinct, load-bearing warnings: the leakage
+  caveat, the prospective-cohort caveat, the residual-independence claim, the
+  `n_conditioned` definition, the role-grammar entry for `o`, the checklist item,
+  the evidence caveat. Two instances in `docs/estimation.md` were missed on the
+  first pass because they capitalise "Own status". T2-4 now carries the
+  breakdown and advises *against* a count-driven de-duplication pass; the volume
+  finding is about genre, and the tutorial is the fix.
 
 Also recorded: `tests/test_pairwise_multi.py::test_boundary_withholds_uncertainty_and_zero_variance_correlations`
 **fails at clean `2722a59`** on this machine's stack (CPython 3.10.20, NumPy

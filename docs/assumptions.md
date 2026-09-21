@@ -102,7 +102,7 @@ First pick a **use** ([vignette](vignette.md) Table 1): **I** family-history
 risk prediction (own status out; optional PGS afterwards), **II** a
 quantitative GWAS phenotype (own status in), or **III** architecture /
 relationships / aetiology from `h²`, `r_g`, residual `r_e` and/or the CIP. Use III can skip
-pedigree scoring; I and II disagree on role `o`.
+pedigree scoring; where uses I and II part company is item 8 below.
 
 Then, before running a production analysis:
 

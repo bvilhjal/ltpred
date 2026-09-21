@@ -1,4 +1,13 @@
-"""End-to-end template: a registry-style status/age table -> a GWAS phenotype.
+"""End-to-end template for the **role** API: a status/age table -> a GWAS phenotype.
+
+One row per observed person *within a proband's family* (``fam_id``, ``role``,
+``status``, ``age``), scored with ``estimate_liability``. This is **not** the
+population trio-register driver ``estimate_liabilities``, which takes unique
+person IDs with ``father``/``mother`` pointers and extracts the overlapping
+pedigrees itself; for that route see ``docs/tutorial.md``. The input is what
+``docs/data-preparation.md`` calls a registry-style status/age table — the rows
+come from a registry, but the API being demonstrated is the role one, which is
+why this file is not called a register pipeline.
 
 Mirrors the "bring your own data" flow in docs/guide.md on a small **synthetic**
 table, so you have a copy-paste starting point for the plumbing. One step is
@@ -16,7 +25,7 @@ steps are:
 Replace `make_toy_table()` with your own table (e.g. read a CSV into the same
 columns) and set `H2` / `POP_PREV` for your disease.
 
-Run (from the repo root): python examples/registry_pipeline.py
+Run (from the repo root): python examples/role_pipeline.py
 (installs not required — this inserts the repo root on sys.path; or `pip install -e .`.)
 """
 

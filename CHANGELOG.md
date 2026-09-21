@@ -91,22 +91,32 @@ behind the published evidence were not reachable from an installed package.
   use rather than only downstream (audit T3-3), notes the harmless
   `OMP: Info #276` notice Numba's OpenMP runtime prints on a first run (T3-2),
   and points at the tutorial.
-- `examples/registry_pipeline.py` and `examples/vignette.py` now take case status
+- `examples/role_pipeline.py` and `examples/vignette.py` now take case status
   from the simulator's authoritative `status` field instead of inferring it from
   `np.isfinite(m.lower)`, which reads the bound encoding and would silently
   change meaning under `case_encoding="interval"` (audit T3-1). Output is
   byte-identical.
+- `examples/registry_pipeline.py` is now **`examples/role_pipeline.py`** (audit
+  T2-3). The old name suggested the population trio-register driver
+  `estimate_liabilities`, but the script demonstrates the **role** API
+  (`fam_id`/`role`/`status`/`age` rows through `estimate_liability`) and never
+  calls the register driver at all — the only match for `father`, `mother`,
+  `birth_time`, `index_time` or `strata` in it was the word "mother" in a
+  sentence. The new name matches the documentation's own "role API versus
+  register API" dichotomy, and the docstring now says which driver it does *not*
+  use and points at the tutorial for that route. `docs/guide.md`'s link is
+  updated; CI globs `examples/*.py`, so no workflow change was needed, and the
+  script's output is unchanged.
+- `docs/assumptions.md`'s checklist preamble no longer restates its own item 8.
+  This was the one genuine local duplicate found when every instance of the
+  own-status rule was read: the other ~22 of the 28 occurrences the audit counted
+  are distinct warnings, not repetitions, and were deliberately left alone (see
+  the third correction in `docs/reviews/REVIEW_2026-09d.md` §7).
 - `docs/api.md`, `docs/index.md`, `docs/guide.md` and `mkdocs.yml` list the
   tutorial and the new generators.
 
 ### Not changed
 
-- `examples/registry_pipeline.py` keeps its name. The audit (T2-3) found it
-  demonstrates the **role** API, not the register driver `estimate_liabilities`,
-  which its name suggests; the register route is now covered end to end by the
-  tutorial, so retargeting the script would duplicate that. Renaming it is a
-  one-line change plus one `docs/guide.md` reference, and was left for a separate
-  decision.
 - The nine exported result containers still undocumented in prose
   (`FitResult`, `VarCompResult`, `BootstrapResult`, `CipCurve`,
   `TetrachoricResult`, `MultiTraitPairwiseResult`, `liability_threshold`,
