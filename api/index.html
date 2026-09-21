@@ -5058,21 +5058,11 @@ per call) and the <code>O(F)</code> summary-memory contract of the array APIs.</
 
     <div class="doc doc-contents ">
 
-        <p>Chunked Pearson-Aitken driver over the array kernel.</p>
-<p>Validates the full <code>(F, k)</code> bound (and mixture) arrays once, then streams
-homogeneous family rows through :func:<code>ltpred.estimate._pa_from_role_arrays</code>
-in blocks of <code>chunk_size</code>. Default behaviour of
-:func:<code>~ltpred.estimate.estimate_liability_pa_arrays</code> is unchanged; this
-is an additional entry point.</p>
-<p>In-memory <code>ndarray</code> inputs still occupy <code>F x k</code> for the bounds; use a
-memmap for those arrays or :func:<code>estimate_liability_pa_batches</code> to actually
-avoid holding every family's bounds. Mixed pedigrees still need one call
-per role-set. Summary outputs stay <code>O(F)</code>. Pearson-Aitken is
-deterministic, so there is no Monte-Carlo SE. Default <code>chunk_size</code> is
-65536: large enough that the hot kernel still saturates, small enough that
-float32 bounds for a nuclear family are a few MB. Rebuilding the tiny
-<code>d x d</code> covariance per chunk is intentional.</p>
-<p>Returns <code>(est, var)</code> of length <code>F</code> for the single <code>out</code> column.</p>
+        <p>PA over row-chunks of one role-set. Returns <code>(est, var)</code> of length <code>F</code>.</p>
+<p>Validates the full bound arrays once, then calls the array kernel on slices
+of <code>chunk_size</code> (default 65536). An in-memory array still holds every
+bound; stream with :func:<code>estimate_liability_pa_batches</code> to avoid that.
+One call per role-set. No Monte-Carlo SE.</p>
 
 
     </div>
@@ -5092,21 +5082,12 @@ float32 bounds for a nuclear family are a few MB. Rebuilding the tiny
 
     <div class="doc doc-contents ">
 
-        <p>Chunked Gibbs driver over the array kernel.</p>
-<p>Computes per-family seeds on the full cohort with
-:func:<code>ltpred.estimate._base_seeds</code> and passes <code>seeds[sl]</code> into each
-chunk, so the result agrees with
+        <p>Gibbs over row-chunks of one role-set.</p>
+<p>Seeds come from :func:<code>ltpred.estimate._base_seeds</code> on the full cohort and
+are sliced per chunk, so the draws match
 :func:<code>~ltpred.estimate.estimate_liability_gibbs_arrays</code> at the same
-<code>seed</code>. Restarting the sampler from <code>seed=</code> per chunk would break that
-agreement. Default <code>chunk_size</code> is 4096 because Gibbs accumulators are
-<code>O(F_chunk x ncols)</code> float64 and the sampler is heavier than PA.</p>
-<p>In-memory <code>ndarray</code> inputs still occupy <code>F x k</code> for the bounds; use a
-memmap or :func:<code>estimate_liability_gibbs_batches</code> to actually avoid holding
-every family's bounds. Mixed pedigrees still need one call per role-set.
-Summary outputs stay <code>O(F)</code>. Unconverged families are warned once on the
-concatenated SE.</p>
-<p>Returns <code>(est, se)</code> of length <code>F</code>, or <code>(est, se, var)</code> with
-<code>return_var=True</code>.</p>
+<code>seed</code>. Default <code>chunk_size</code> is 4096. Returns <code>(est, se)</code>, or
+<code>(est, se, var)</code> with <code>return_var=True</code>.</p>
 
 
     </div>
@@ -5126,18 +5107,11 @@ concatenated SE.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Stream Pearson-Aitken estimates from an iterator of bound batches.</p>
-<p><code>batches</code> yields either <code>(lower, upper)</code>, <code>(lower, upper, K_i, K_pop)</code>,
-or a mapping with keys <code>lower</code>, <code>upper</code> and optional <code>K_i</code>/<code>K_pop</code>.
-Results are concatenated in iterator order; an empty iterator returns empty
-arrays. The caller never has to hold every family's bounds at once — that
-is the memory contract. In-memory ndarrays still occupy <code>F x k</code> if you
-build them first; memmap or a true iterator is how you avoid that.</p>
-<p>Mixture inputs are validated <strong>per batch</strong> (the stream cannot see the whole
-cohort). A mixture batch with no valid <code>K_i</code>/<code>K_pop</code> pair raises, unlike
-the sliced <code>*_chunked</code> APIs which gate once globally so an all-cases
-chunk does not fail. Mixed pedigrees still need one call per role-set.
-Pearson-Aitken is deterministic (no SE). Summary outputs stay <code>O(F)</code>.</p>
+        <p>PA from an iterator of bound batches, concatenated in order.</p>
+<p>Each item is <code>(lower, upper)</code>, <code>(lower, upper, K_i, K_pop)</code>, or a
+mapping with those keys. An empty iterator returns empty arrays. Mixture
+inputs are checked per batch, so a batch with no valid <code>K</code> pair raises;
+the chunked API gates that once on the whole cohort instead.</p>
 
 
     </div>
@@ -5157,18 +5131,12 @@ Pearson-Aitken is deterministic (no SE). Summary outputs stay <code>O(F)</code>.
 
     <div class="doc doc-contents ">
 
-        <p>Stream Gibbs estimates from an iterator of bound batches.</p>
-<p>Batches are treated as consecutive blocks of a virtual concatenated
-cohort: a running family offset <code>start</code> assigns
-<code>seeds = _base_seeds(seed, start + n, max_rounds)[start:]</code> to a batch
-of size <code>n</code>. Concatenating the same batches as one array therefore
-matches one-shot :func:<code>~ltpred.estimate.estimate_liability_gibbs_arrays</code>
-with the same <code>seed</code>. Bound arrays are not retained across batches.</p>
-<p>In-memory ndarrays still occupy <code>F x k</code> if you build them first; memmap
-or a true iterator is how you avoid holding all bounds. Mixed pedigrees
-still need one call per role-set. Summary outputs stay <code>O(F)</code>. Unconverged
-families are warned once on the concatenated SE.</p>
-<p>Returns <code>(est, se)</code>, or <code>(est, se, var)</code> with <code>return_var=True</code>.</p>
+        <p>Gibbs from consecutive bound batches of one virtual cohort.</p>
+<p>Batch <code>n</code> at offset <code>start</code> receives
+<code>_base_seeds(seed, start + n, max_rounds)[start:]</code>, so concatenating the
+batches matches :func:<code>~ltpred.estimate.estimate_liability_gibbs_arrays</code>
+at the same <code>seed</code>. Returns <code>(est, se)</code>, or <code>(est, se, var)</code> with
+<code>return_var=True</code>.</p>
 
 
     </div>
@@ -8601,9 +8569,9 @@ per family, thresholded per trait at <code>pop_prev</code>, and packaged as
 <code>sib_shared</code>/<code>couple_shared</code> the per-trait shared-sibship and
 shared-couple covariance matrices, and <code>residual_re</code> the residual
 environmental correlation. The defaults are the design
-<code>examples/joint_inference.py</code> fits and <code>docs/vignette.md</code> documents, so
+<code>docs/vignette.md</code> and the tutorial document, so
 <code>simulate_under_LTM_multi(n_families=3000, seed=1)</code> reproduces that
-example's families bit for bit.</p>
+cohort bit for bit.</p>
 <p>Each trait's liability has unit variance (the four component diagonals sum
 to 1), so the implied full-liability correlation between traits is
 <code>G12 + S12 + M12 + E12</code> — 0.1511 for the defaults, echoed in

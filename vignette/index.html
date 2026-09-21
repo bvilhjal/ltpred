@@ -1761,31 +1761,10 @@ The cohort behind them is</p>
 <p><code>use_age=False</code> makes it classic LT-FH under the liability-threshold
 model: one <span class="arithmatex">\(K\)</span>, not a CIP. On real data, delete this block and start
 from your own table.</p>
-<p>The register-route fragments use unique population IDs rather than a role
-grammar, so they need a different cohort. This block binds the names they
-assume — <code>ids</code>, <code>father</code>, <code>mother</code>, <code>status</code>, <code>age</code>, <code>cip_ages</code>, <code>cip_values</code>,
-<code>birth_time</code>, <code>index_time</code> — from a simulated population whose true liabilities
-are also known:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate_pedigree</span><span class="p">,</span> <span class="n">simulate_register_liabilities</span>
-
-<span class="n">cip_ages</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">121</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
-<span class="n">cip_values</span> <span class="o">=</span> <span class="mf">0.10</span> <span class="o">/</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">((</span><span class="mf">60.0</span> <span class="o">-</span> <span class="n">cip_ages</span><span class="p">)</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">))</span>
-<span class="n">ids</span><span class="p">,</span> <span class="n">father</span><span class="p">,</span> <span class="n">mother</span> <span class="o">=</span> <span class="n">simulate_pedigree</span><span class="p">(</span>
-    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">20260921</span><span class="p">),</span> <span class="n">n_founder_pairs</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">gens</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-<span class="n">reg</span> <span class="o">=</span> <span class="n">simulate_register_liabilities</span><span class="p">(</span>
-    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">20260921</span><span class="p">),</span> <span class="n">ids</span><span class="p">,</span> <span class="n">father</span><span class="p">,</span> <span class="n">mother</span><span class="p">,</span>
-    <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">cip_ages</span><span class="o">=</span><span class="n">cip_ages</span><span class="p">,</span> <span class="n">cip_values</span><span class="o">=</span><span class="n">cip_values</span><span class="p">,</span> <span class="n">eval_age</span><span class="o">=</span><span class="mf">70.0</span><span class="p">)</span>
-
-<span class="n">status</span><span class="p">,</span> <span class="n">age</span> <span class="o">=</span> <span class="n">reg</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">),</span> <span class="n">reg</span><span class="o">.</span><span class="n">age</span>
-<span class="n">birth_time</span><span class="p">,</span> <span class="n">index_time</span> <span class="o">=</span> <span class="n">reg</span><span class="o">.</span><span class="n">birth_time</span><span class="p">,</span> <span class="n">reg</span><span class="o">.</span><span class="n">birth_time</span> <span class="o">+</span> <span class="mf">40.0</span>
-</code></pre></div>
-<p>This block is self-contained and does not reuse the role cohort's <code>h2</code> or <code>K</code>:
-the two cohorts are different simulations, with different prevalences (0.05
-lifetime versus a 0.10-horizon incidence curve) and different observation
-models. <code>reg.genetic</code> is the truth these fragments cannot see. The
-<a href="../tutorial/">tutorial</a> runs both cohorts end to end and scores the result;
-the blocks here stay fragments because each illustrates one contract.</p>
+<p>Register-route fragments use a different cohort from the role grammar above:
+unique population ids, a 0.10-horizon incidence curve, and <code>h2=0.5</code>. The
+<a href="../tutorial/">tutorial</a> builds that cohort, scores it, and checks the score
+against <code>reg.genetic</code>. The blocks here stay fragments.</p>
 <h2 id="before-software">Before software<a class="headerlink" href="#before-software" title="Permanent link">&para;</a></h2>
 <p>Fix a case definition, follow-up, and a family-history source that you are
 willing to defend
@@ -1956,9 +1935,8 @@ traits at prevalences 0.10 and 0.20, and reports the generating design in
 </code></pre></div>
 <p>The simulation has <span class="arithmatex">\(h^2=(0.35,0.40)\)</span>, <span class="arithmatex">\(r_g=0.50\)</span> and residual <span class="arithmatex">\(r_e=-0.35\)</span>;
 <code>multi.truth</code> echoes them. <a href="../tutorial/#step-5-two-traits-at-once">Tutorial step 5</a>
-prints this fit against its truth with standard errors, and
-<a href="https://github.com/bvilhjal/ltpred/blob/main/examples/joint_inference.py"><code>examples/joint_inference.py</code></a>
-runs it as a script. A single cohort illustrates the API, not its calibration:
+prints this fit against its truth with standard errors. A single cohort
+illustrates the API, not its calibration:
 the replicated recovery evidence is
 <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS §33</a>.
 For real data, prepare one row per person with
@@ -2193,20 +2171,10 @@ GWAS has four conditioned records. Changing only post-index proband/mother
 records and closure-only diagnoses leaves the prediction mean and variance
 exactly unchanged. This is an API/leakage check using a toy CIP, not clinical
 calibration or new performance evidence.</p>
-<p><strong>Sizing the run.</strong> On the reference machine at 4 Numba threads the
-object path scores 208,000–221,000 families/s under PA and 503–512/s
-under Gibbs, so 500,000 probands is a few seconds under PA and roughly
-17 minutes under Gibbs
-(<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS §2</a>).
-Past a few million families, <code>Family</code> construction rather than the PA
-arithmetic dominates: switch to <code>estimate_liability_pa_arrays</code>, which
-takes already-aligned <code>(n_families, k)</code> bound arrays, and set the thread
-count with <code>ltpred.set_num_threads(n)</code>
-(<a href="../estimation/#scaling-to-large-cohorts">Estimation</a>).
-Those timings measure grouped, already prepared role families; they do not
-include per-proband register extraction, kinship construction and CIP
-alignment. Do not extrapolate them to <code>estimate_liabilities</code>. Its historical
-throughput results remain stale pending a provenance-tracked rerun.</p>
+<p>Those object-path timings are grouped role families. They omit per-proband
+register extraction, kinship, and CIP alignment, so do not extrapolate them
+to <code>estimate_liabilities</code>. Its historical throughput results remain stale
+pending a provenance-tracked rerun.</p>
 <h3 id="did-it-work">Did it work?<a class="headerlink" href="#did-it-work" title="Permanent link">&para;</a></h3>
 <p>The model implies checks you can run on the returned object. The law of
 total variance is the useful one: conditioning splits the genetic
