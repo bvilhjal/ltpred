@@ -413,8 +413,7 @@ def main():
           f"-> {f['age_fh_gain']:.2f}x eff-N over the label")
     print(f"corr(age-aware LT-FH++,       true g) {r_age:.3f}   "
           f"-> {f['age_gain']:.2f}x eff-N over classic")
-    print(f"NOT comparable with the {r_pa:.3f} above — different cohort, "
-          f"{f['case_rate'] / f['age_case_rate']:.0f}x fewer observed cases.")
+    print(f"NOT comparable with the {r_pa:.3f} above — different cohort.")
     print("And note the split: family history does nearly all the work here; the")
     print(f"age term adds {f['age_gain']:.2f}x on top, inside the 1.02-1.05x that")
     print("RESULTS section 10 reports. Do not credit family history's gain to age.")

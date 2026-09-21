@@ -602,10 +602,9 @@ LT-FH++ with deterministic PA**. Use the lower-level APIs for C/M kernels,
 Gibbs, interval cases or PA-FGRS mixtures. It returns `PopulationScores`,
 not `LiabilityResult`: there is no `genetic` property or Monte-Carlo `se`
 column. `est` and `var` are PA mean and posterior-variance approximations.
-Its payoff and throughput evidence (RESULTS §§20–21, regenerated 2026-09-03
-under the provenance wrapper): degree-3 corr(est, true g) 0.574 ± 0.021 vs
-degree-1 0.539 ± 0.015, prospective familywise-censored AUC 0.680 ± 0.039,
-~380 probands/s throughput.
+Its payoff and throughput evidence (RESULTS §§20–21, regenerated 2026-09-21):
+degree-3 corr(est, true g) 0.567 ± 0.029 vs degree-1 0.522 ± 0.031,
+prospective familywise-censored AUC 0.654 ± 0.021, ~276 probands/s throughput.
 
 Check `n_relatives` (non-proband members within the chosen degree),
 `n_conditioned` (informative diagnosis bounds, including own status for

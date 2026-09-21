@@ -24,7 +24,7 @@ is also a top-level export.
 | `simulate_pedigree` / `pedigree_birth_times` | simulate a population trio table (`ids`, `father`, `mother`) and give it generation-coherent calendar birth times |
 | `simulate_register_liabilities` | simulate **one** consistent liability field over a pedigree and return the register columns plus the true genetic liability, so a score can be checked against truth |
 | `simulate_followup_records` | simulate registry follow-up (entry age, exit age, event code) from a known incidence curve, with optional competing mortality and delayed entry — the input to `kaplan_meier_cip` / `aalen_johansen_cip` |
-| `simulate_under_LTM_multi` | simulate families with two or more traits under A/C/M/E components, for `fit_pairwise_multi` |
+| `simulate_under_LTM_multi` | simulate families with two traits under A/C/M/E components, for `fit_pairwise_multi` |
 | `observed_to_liability_h2` / `liability_to_observed_h2` | observed ↔ liability-scale `h²` (Lee et al.) |
 | `set_num_threads` | set the Numba-parallel thread count |
 
@@ -113,10 +113,10 @@ additionally conditioned on the proband being disease-free at the landmark; the
 two agree on ranking within an age but differ in level across ages, because
 surviving to an older age disease-free is evidence of lower liability. The
 driver's payoff and throughput evidence (RESULTS §§20–21, regenerated
-2026-09-03 under the provenance wrapper): the API is supported, with the
-payoff quantified there -- degree-3 corr(est, true g) 0.574 ± 0.021 vs
-degree-1 0.539 ± 0.015 (paired contrast +0.035 ± 0.012), prospective
-familywise-censored AUC 0.680 ± 0.039, and ~380 probands/s throughput.
+2026-09-21): the API is supported, with the
+payoff quantified there -- degree-3 corr(est, true g) 0.567 ± 0.029 vs
+degree-1 0.522 ± 0.031 (paired contrast +0.045 ± 0.009), prospective
+familywise-censored AUC 0.654 ± 0.021, and ~276 probands/s throughput.
 The relatives'-events contrast is unresolved at R = 5 on both metrics and
 is not quoted as a payoff.
 

@@ -49,13 +49,12 @@ def test_stable_factor_reproduces_the_covariance(h2, fam_vec):
     np.testing.assert_allclose(L @ L.T, cov.matrix, atol=1e-9)
 
 
-def test_stable_factor_warns_only_on_a_genuinely_indefinite_covariance():
-    """`multivariate_normal(check_valid="warn")` used to be the safety net."""
+def test_stable_factor_rejects_a_materially_indefinite_covariance():
     singular = construct_covmat_single(fam_vec=["m", "f"], h2=1.0).matrix
     with warnings.catch_warnings():
         warnings.simplefilter("error")          # a rounding-level negative
         _stable_factor(singular)                # eigenvalue must stay silent
-    with pytest.warns(RuntimeWarning, match="not positive-semidefinite"):
+    with pytest.raises(np.linalg.LinAlgError, match="not positive-semidefinite"):
         _stable_factor(np.array([[1.0, 0.9], [0.9, 0.5]]))
 
 
@@ -519,6 +518,8 @@ def test_simulate_under_LTM_multi_hits_its_target_trait_correlation():
 
 
 def test_simulate_under_LTM_multi_rejects_mismatched_shapes():
+    with pytest.raises(ValueError, match="two traits"):
+        simulate_under_LTM_multi(n_families=4, seed=1, h2=(0.3,))
     with pytest.raises(ValueError, match="one prevalence per trait"):
         simulate_under_LTM_multi(n_families=4, seed=1, pop_prev=(0.1,))
     with pytest.raises(ValueError, match="sib_shared"):
@@ -528,6 +529,10 @@ def test_simulate_under_LTM_multi_rejects_mismatched_shapes():
 
 def test_register_liabilities_rejects_a_non_invertible_cip():
     ids, father, mother = ["a", "b"], [None, "a"], [None, None]
+    with pytest.raises(ValueError, match=r"\(0, 1\]"):
+        simulate_register_liabilities(np.random.default_rng(0), ids, father,
+                                      mother, h2=1.5, cip_ages=[0.0, 1.0],
+                                      cip_values=[0.01, 0.1], eval_age=70.0)
     with pytest.raises(ValueError, match="strictly increasing"):
         simulate_register_liabilities(np.random.default_rng(0), ids, father,
                                       mother, h2=0.5, cip_ages=[0.0, 1.0],

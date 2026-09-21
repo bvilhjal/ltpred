@@ -217,6 +217,10 @@ def test_chunked_and_batches_reject_duplicate_and_g_roles(name):
         chunked(["g", "o", "m"], lower, upper, **extra)
     with pytest.raises(ValueError, match="must not contain 'g'"):
         batches(["g", "o", "m"], [(lower, upper)], **extra)
+    if name == "gibbs":
+        with pytest.raises(ValueError, match="no censoring mixture"):
+            batches(["o", "m"], [(lower[:, :2], upper[:, :2], lower[:, :2],
+                                  upper[:, :2])], **extra)
 
 
 @pytest.mark.parametrize("name", ["pa", "gibbs"])

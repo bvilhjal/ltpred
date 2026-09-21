@@ -247,7 +247,10 @@ def estimate_liability_gibbs_batches(roles: Sequence[str],
     est_parts, se_parts, var_parts = [], [], []
     start = 0
     for item in batches:
-        lower, upper, _K_i, _K_pop = _unpack_batch(item)
+        lower, upper, K_i, K_pop = _unpack_batch(item)
+        if K_i is not None or K_pop is not None:
+            raise ValueError(
+                "Gibbs batches have no censoring mixture; omit K_i and K_pop")
         lower = as_bounds(lower)
         n = 0 if lower.ndim != 2 else lower.shape[0]
         seeds = _base_seeds(seed, start + n, max_rounds)[start:]

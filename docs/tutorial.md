@@ -213,7 +213,7 @@ Note `index_time` is aligned to **probands**, while `birth_time` is aligned to
 
 ## Step 5 — Two traits at once
 
-For two or more binary traits, `simulate_under_LTM_multi` builds families with
+For two binary traits, `simulate_under_LTM_multi` builds families with
 per-trait bounds and `fit_pairwise_multi` fits heritabilities, the genetic
 correlation and the residual environmental correlation together.
 

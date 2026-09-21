@@ -284,12 +284,10 @@ def _stable_factor(cov):
     evals = np.linalg.eigvalsh(cov)
     scale = max(float(np.trace(cov)) / cov.shape[0], 1.0)
     # eigvalsh returns eigenvalues a rounding step below zero for a singular
-    # covariance; anything materially negative is a real input problem, and
-    # used to surface as `multivariate_normal`'s own check_valid="warn".
+    # covariance. A materially negative eigenvalue is not that case.
     if evals.min() < -1e-8 * scale:
-        warnings.warn("covariance is not positive-semidefinite; the spectrum "
-                      "was lifted to make it factorable", RuntimeWarning,
-                      stacklevel=2)
+        raise np.linalg.LinAlgError(
+            "covariance is not positive-semidefinite")
     base = max(0.0, -float(evals.min()))
     eye = np.eye(cov.shape[0])
     for step in (1e-12, 1e-10, 1e-8, 1e-6, 1e-4):
@@ -345,12 +343,7 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     generating liability. With ``onset_resolution=None``, the old exact-onset
     behavior is preserved: ``"pin"`` is a point and ``"interval"`` starts at
     that point. The age-0 clamp remains an upper-open liability interval because
-    arbitrarily high liabilities map to onset age zero.
-
-    A given ``seed`` reproduces the same families on every platform, up to
-    floating-point rounding: the liabilities are drawn through a canonical
-    factorisation of the covariance (:func:`_stable_factor`) rather than
-    NumPy's default SVD, whose signs vary with the LAPACK build."""
+    arbitrarily high liabilities map to onset age zero."""
     onset_resolution = _validate_onset_resolution(onset_resolution)
     onset_model, case_encoding, onset_rho = _resolve_age_options(
         use_age, onset_model, case_encoding, onset_rho)
@@ -361,8 +354,6 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
         raise ValueError("simulation requires add_ind=True (needs g and o)")
     d = len(roles)
     rng = np.random.default_rng(seed)
-    # Not `rng.multivariate_normal`: its default SVD factorisation is not
-    # sign-canonical, so a seed would not reproduce across LAPACK builds.
     liab = rng.standard_normal((n_sim, d)) @ _stable_factor(cov_obj.matrix).T
 
     t = float(liability_threshold(pop_prev))
@@ -602,12 +593,7 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
     curve (see :func:`~ltpred.cip.kaplan_meier_cip`). ``rng`` is a
     :class:`numpy.random.Generator`; the pedigree usually comes from
     :func:`simulate_pedigree` and ``birth_time`` from
-    :func:`pedigree_birth_times`, which this function calls for you.
-
-    A given ``rng`` reproduces the same register on every platform, up to
-    floating-point rounding: the population liability field is drawn through
-    the canonical factorisation of :func:`_stable_factor`, not NumPy's
-    sign-arbitrary SVD."""
+    :func:`pedigree_birth_times`, which this function calls for you."""
     cip_ages = np.asarray(cip_ages, dtype=float)
     cip_values = np.asarray(cip_values, dtype=float)
     if cip_ages.shape != cip_values.shape:
@@ -617,10 +603,10 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
     if cip_values.size < 2 or np.any(np.diff(cip_values) <= 0.0):
         raise ValueError("cip_values must have at least two strictly increasing "
                          "entries to be invertible by interpolation")
+    if not (0.0 < h2 <= 1.0):
+        raise ValueError("h2 must be in (0, 1]")
     _, A_full = kinship_from_pedigree(ids, father, mother)
     n = len(ids)
-    # Not `rng.multivariate_normal`: its default SVD factorisation is not
-    # sign-canonical, so a seed would not reproduce across LAPACK builds.
     raw_genetic = rng.standard_normal(n) @ _stable_factor(h2 * A_full).T
     residual = rng.standard_normal(n) * np.sqrt(1.0 - h2)
     scale = np.sqrt(h2 * np.diag(A_full) + (1.0 - h2))
@@ -803,6 +789,9 @@ def simulate_under_LTM_multi(n_families: int = 1000, *,
     d = len(roles)
     h2 = np.asarray(h2, dtype=float)
     n_traits = h2.size
+    if n_traits != 2:
+        raise ValueError(
+            f"simulate_under_LTM_multi simulates two traits; got {n_traits}")
     pop_prev = np.asarray(pop_prev, dtype=float)
     if pop_prev.size != n_traits:
         raise ValueError(
@@ -827,9 +816,6 @@ def simulate_under_LTM_multi(n_families: int = 1000, *,
 
     rng = np.random.default_rng(seed)
     latent = rng.standard_normal((n_families, n_traits * d))
-    # `_stable_factor` is `cholesky` for a positive-definite sigma -- the usual
-    # case, numerically identical -- and lifts the spectrum instead of failing
-    # when a component choice makes it exactly singular.
     latent = latent @ _stable_factor(sigma).T
     # Covariance coordinates are trait-major; family rows are people.
     latent = latent.reshape(n_families, n_traits, d).transpose(0, 2, 1)

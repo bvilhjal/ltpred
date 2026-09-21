@@ -61,7 +61,7 @@
   <circle cx="58" cy="158" r="15" fill="var(--solid-a)"/>
   <text x="58" y="165" text-anchor="middle" class="s">0</text>
   <text x="84" y="158" class="t">Heritability and covariances</text>
-  <text x="84" y="186" class="b">liability-scale <tspan class="mi">h</tspan>² (+ <tspan class="mi">c</tspan>², <tspan class="mi">m</tspan>², <tspan class="mi">r</tspan><tspan class="mi" dy="4" font-size="12.5">g</tspan><tspan dy="-4">)</tspan></text>
+  <text x="84" y="186" class="b">liability-scale <tspan class="mi">h</tspan>² (+ <tspan class="mi">c</tspan>², <tspan class="mi">m</tspan>², <tspan class="mi">r</tspan><tspan class="mi" dy="4">g</tspan><tspan dy="-4">)</tspan></text>
 
   <text x="228" y="222" text-anchor="middle" class="n"><tspan class="mi">K</tspan> from step 2 converts observed-scale <tspan class="mi">h</tspan>² (Lee et al.)</text>
 
@@ -114,7 +114,7 @@
 
   <rect x="130" y="496" width="640" height="68" rx="5" fill="var(--solid-a)"/>
   <text x="450" y="524" text-anchor="middle" class="s">4   estimate_liability</text>
-  <text x="450" y="550" text-anchor="middle" class="ss"><tspan class="mi">μ</tspan><tspan class="mi" dy="4" font-size="12">i</tspan><tspan dy="-4"> = E[ </tspan><tspan class="mi">a</tspan><tspan class="mi" dy="4" font-size="12">i</tspan><tspan dy="-4"> | </tspan><tspan class="mi">D</tspan><tspan class="mi" dy="4" font-size="12">F</tspan><tspan dy="-4">, </tspan><tspan class="mi">A</tspan><tspan>, </tspan><tspan class="mi">h</tspan>², <tspan class="mi">K</tspan>(·) ]</text>
+  <text x="450" y="550" text-anchor="middle" class="ss"><tspan class="mi">μ</tspan><tspan class="mi" dy="4">i</tspan><tspan dy="-4"> = E[ </tspan><tspan class="mi">a</tspan><tspan class="mi" dy="4">i</tspan><tspan dy="-4"> | </tspan><tspan class="mi">D</tspan><tspan class="mi" dy="4">F</tspan><tspan dy="-4">, </tspan><tspan class="mi">A</tspan><tspan>, </tspan><tspan class="mi">h</tspan>², <tspan class="mi">K</tspan>(·) ]</text>
 
   <!-- ============ exits ============ -->
   <path d="M450 564 L450 578 L228 578" class="line"/>
@@ -124,7 +124,7 @@
 
   <rect x="16" y="602" width="424" height="84" rx="5" class="card"/>
   <text x="228" y="630" text-anchor="middle" class="ta">I   Risk prediction</text>
-  <text x="228" y="654" text-anchor="middle" class="b">own status out of <tspan class="mi">D</tspan><tspan class="mi" dy="4" font-size="12.5">F</tspan></text>
+  <text x="228" y="654" text-anchor="middle" class="b">own status out of <tspan class="mi">D</tspan><tspan class="mi" dy="4">F</tspan></text>
   <text x="228" y="676" text-anchor="middle" class="b">steps 0–5 · a PGS is downstream</text>
 
   <rect x="460" y="602" width="424" height="84" rx="5" class="cardb"/>

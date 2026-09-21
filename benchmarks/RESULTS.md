@@ -890,17 +890,10 @@ paper's path-counting approximation.
 
 ## 21. End-to-end register pipeline (`bench_register_pipeline.py`)
 
-> **Evidence status (2026-09-03):** regenerated with the supported
-> `ltpred.pipeline` driver -- explicit `birth_time`, calendar `index_time`
-> per proband, and closure-only bounds uninformative by default. Same
-> provenance as section 20 (commit `bad41ad`, free-threaded CPython 3.14.6,
-> Numba at 4 threads, BLAS pinned to 1; manifest `run_manifest.jsonl`). The
-> historical `research.pipeline` numbers (attained-age censoring shared across
-> generations, closure diagnoses conditioned on) are superseded, not retained:
-> they validated a different observation model. Note the simulator draws fresh
-> liabilities per replicate, so cross-stack reruns are different datasets, not
-> bit-identical ones; the claims below are replicate-mean claims, not
-> seed-locked constants.
+> **Evidence status (2026-09-21):** regenerated from
+> `simulate_register_liabilities`' Cholesky draw of `h2 A`. Same design as
+> the 2026-09-03 run (five registers, BLAS pinned to 1). The claims below
+> are replicate means, not seed-locked constants.
 
 `ltpred.pipeline.estimate_liabilities` chains trio records -> pedigree
 discovery -> per-stratum CIP thresholds -> per-proband scores. Over five
@@ -914,45 +907,39 @@ values are in `bench_register_pipeline.csv` (long format: rep, metric,
 value; rep 0 marks the single-run throughput part).
 
 - **Accuracy / which relatives matter:** corr(est, true g) is
-  **0.574 ± 0.021** at degree 3 (first cousins) vs **0.539 ± 0.015** at
-  degree 1 (first-degree only), with calibration slopes 1.08 ± 0.03 and
-  1.08 ± 0.03. The paired degree-3-minus-degree-1 contrast,
-  **+0.0354 ± 0.0115** with 95% CI [+0.003, +0.068], resolves the
+  **0.567 ± 0.029** at degree 3 (first cousins) vs **0.522 ± 0.031** at
+  degree 1 (first-degree only), with calibration slopes 1.05 ± 0.05 and
+  1.05 ± 0.05. The paired degree-3-minus-degree-1 contrast,
+  **+0.0451 ± 0.0092** with 95% CI [+0.020, +0.071], resolves the
   second/third-degree contribution as a small real gain -- the LT-FGRS
   effect, in the realistic direction. (corr ~0.57 is the accuracy at these
   registers' case rates and age structure under the supported driver's
   pinned-onset LT-FH++ bounds; the pedigree benchmark's 0.569 used a 10% rate
   with a uniform lifetime threshold.)
-- **CIP estimated from the register itself:** 0.5728 ± 0.0214 vs
-  0.5741 ± 0.0214 with the oracle curve. The paired estimated-minus-oracle
-  contrast is -0.0013 ± 0.0007, 95% CI [-0.0031, +0.0005]: any cost of
-  estimating the CIP from follow-up records at this register size is at most
-  a few thousandths of a correlation point (consistent with section 19).
+- **CIP estimated from the register itself:** 0.5671 ± 0.0288 vs
+  0.5668 ± 0.0291 with the oracle curve. The paired estimated-minus-oracle
+  contrast is +0.0003 ± 0.0003, 95% CI [-0.0006, +0.0012]: any difference
+  from estimating the CIP at this register size is a few thousandths of a
+  correlation point (consistent with section 19).
 - **Prospective prediction** (diagnosis in (40, 70] after index age 40;
-  observed future-case rate 0.072 ± 0.005): the honest familywise-censored
-  score reaches corr 0.187 ± 0.042 with the future outcome and rank
-  (Mann-Whitney) AUC **0.680 ± 0.039**, and is calibrated in the large --
-  mean model-consistent predicted future-case risk 0.072 ± 0.002 vs the
-  observed 0.072 (the prediction integrates the proband's posterior g and
-  the residual E against the CIP; the linear calibration slope of future on
-  score is 0.19 ± 0.04). Adding relatives' post-index events gives corr
-  0.179 ± 0.040 and AUC 0.664 ± 0.039; leaking the proband's own future
-  outcome inflates to corr 0.665 ± 0.015 and AUC 0.992 ± 0.001.
+  observed future-case rate 0.081 ± 0.006): the honest familywise-censored
+  score reaches corr 0.167 ± 0.007 with the future outcome and rank
+  (Mann-Whitney) AUC **0.654 ± 0.021**. Mean predicted future-case risk is
+  0.071 ± 0.001; the linear calibration slope of future on score is
+  0.19 ± 0.02. Adding relatives' post-index events gives corr
+  0.211 ± 0.023 and AUC 0.697 ± 0.027; leaking the proband's own future
+  outcome inflates to corr 0.692 ± 0.018 and AUC 0.991 ± 0.002.
   - **The relatives'-events contrast is unresolved at R = 5, on both
-    metrics.** Paired (b)-(a): Δcorr **-0.0082 ± 0.0206**, 95% CI
-    [-0.066, +0.049]; ΔAUC **-0.0164 ± 0.0200**, 95% CI [-0.072, +0.039].
-    The historical run had resolved a ΔAUC gain (+0.065 ± 0.014) for
-    post-index relative events; under the supported driver's calendar
-    censoring that direction does not reproduce, and neither direction is
-    resolved here. Do not quote a relatives'-events payoff from this panel.
+    metrics.** Paired (b)-(a): Δcorr **+0.0436 ± 0.0220**, 95% CI
+    [-0.018, +0.105]; ΔAUC **+0.0429 ± 0.0248**, 95% CI [-0.026, +0.112].
+    Neither direction is resolved. Do not quote a relatives'-events payoff
+    from this panel.
   - The proband's-own-outcome leakage is unambiguous and large: paired
-    (c)-(a) Δcorr **+0.4778 ± 0.0384**, 95% CI [+0.371, +0.585]; ΔAUC
-    +0.312 ± 0.039, 95% CI [+0.204, +0.419]. Honest censoring costs real
+    (c)-(a) Δcorr **+0.524 ± 0.014**, 95% CI [+0.486, +0.562]; ΔAUC
+    +0.337 ± 0.020, 95% CI [+0.282, +0.391]. Honest censoring costs real
     accuracy, and leaking the proband's own future buys plenty.
-- **Throughput:** 380 probands/s (400 probands in 1.1 s; single run, not
-  replicated, on a 10-core Apple M2 Pro at load ~4-5 with Numba at 4
-  threads), per-proband extraction plus a small dense kinship covariance
-  each.
+- **Throughput:** 276 probands/s (400 probands in 1.45 s; single run, BLAS
+  pinned to 1).
 
 ## 22. Tetrachoric correlations (`bench_tetrachoric.py`)
 

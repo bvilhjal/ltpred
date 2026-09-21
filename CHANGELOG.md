@@ -52,8 +52,8 @@ behind the published evidence were not reachable from an installed package.
     `bench_cip_estimation.simulate_registry`. This is the input to
     `kaplan_meier_cip` / `aalen_johansen_cip`, so the competing-risks estimand
     difference is now demonstrable without real records.
-  - `simulate_under_LTM_multi` / `MultiTraitSimulation` — families with two or
-    more traits under explicit A/C/M/E Kronecker components, from
+  - `simulate_under_LTM_multi` / `MultiTraitSimulation` — families with two
+    traits under explicit A/C/M/E Kronecker components, from
     `examples/joint_inference.example_families`. Uses `fit._component_matrix` for
     the shared-sibship and couple blocks rather than hand-built indicators, so it
     generalises to other role sets, and returns `.truth` including the implied
@@ -79,17 +79,14 @@ behind the published evidence were not reachable from an installed package.
 
 ### Changed
 
-- **No numeric drift.** Every promoted generator is bit-identical to the
-  benchmark or example code it replaced, verified by direct comparison at
-  `atol=0`/`rtol=0` across all arms: `simulate_pedigree` against
-  `simulate_population`; `pedigree_birth_times`; `simulate_register_liabilities`
-  against `build_register`; `simulate_followup_records` against
-  `simulate_registry` in all three arms (no mortality, mortality, mortality with
-  delayed entry from 1995); and `simulate_under_LTM_multi(n_families=3000,
-  seed=1)` against `example_families`, whose fitted output is unchanged to the
-  last printed digit. `benchmarks/` and `examples/` now delegate to the public
-  functions, binding their own constants, so no committed CSV or ledger number
-  was regenerated.
+- **No numeric drift on the arms that kept their draws.** `simulate_pedigree`
+  matches `simulate_population`; `pedigree_birth_times` and
+  `simulate_followup_records` (no mortality, mortality, delayed entry from
+  1995) match the benchmark streams; `simulate_under_LTM_multi(n_families=3000,
+  seed=1)` matches the old `example_families` fit to the last printed digit.
+  `simulate_register_liabilities` draws through the Cholesky factor, not the
+  SVD factor of the generator it replaced, so `bench_register_pipeline.csv`
+  and RESULTS §21 are regenerated from it.
 - README quickstart now simulates with `use_age=False`, matching the vignette's
   canonical cohort and every figure quoted in the documentation. It previously
   used `use_age=True`, which at `pop_prev=0.05` leaves 11 informative proband
@@ -107,22 +104,10 @@ behind the published evidence were not reachable from an installed package.
   use rather than only downstream (audit T3-3), notes the harmless
   `OMP: Info #276` notice Numba's OpenMP runtime prints on a first run (T3-2),
   and points at the tutorial.
-- `examples/role_pipeline.py` and `examples/vignette.py` now take case status
-  from the simulator's authoritative `status` field instead of inferring it from
+- `examples/vignette.py` now takes case status from the simulator's
+  authoritative `status` field instead of inferring it from
   `np.isfinite(m.lower)`, which reads the bound encoding and would silently
-  change meaning under `case_encoding="interval"` (audit T3-1). Output is
-  byte-identical.
-- `examples/registry_pipeline.py` is now **`examples/role_pipeline.py`** (audit
-  T2-3). The old name suggested the population trio-register driver
-  `estimate_liabilities`, but the script demonstrates the **role** API
-  (`fam_id`/`role`/`status`/`age` rows through `estimate_liability`) and never
-  calls the register driver at all — the only match for `father`, `mother`,
-  `birth_time`, `index_time` or `strata` in it was the word "mother" in a
-  sentence. The new name matches the documentation's own "role API versus
-  register API" dichotomy, and the docstring now says which driver it does *not*
-  use and points at the tutorial for that route. `docs/guide.md`'s link is
-  updated; CI globs `examples/*.py`, so no workflow change was needed, and the
-  script's output is unchanged.
+  change meaning under `case_encoding="interval"` (audit T3-1).
 - `docs/assumptions.md`'s checklist preamble no longer restates its own item 8.
   This was the one genuine local duplicate found when every instance of the
   own-status rule was read: the other ~22 of the 28 occurrences the audit counted
@@ -257,24 +242,6 @@ behind the published evidence were not reachable from an installed package.
 - A family with no members now raises rather than warning and returning the
   prior mean 0 (a silent-looking GWAS phenotype if the warning was ignored).
 - `research/README.md` no longer claims its tests run in CI.
-- Display equations no longer carry ~58px of dead vertical space above and
-  below them. KaTeX's `auto-render` wraps each display equation in an inline
-  `<span>` around the block-level `.katex-display`, and an inline box
-  containing a block box inflates its line box to ~104px for a 24px equation.
-  Measured in headless Chrome against the built site: 58px gaps above and below
-  equation (1), against the intended 1em margins. `docs/javascripts/katex.js`
-  now sets that wrapper to `display: block` after rendering, collapsing the
-  gaps to 32px. All 191 equations on the vignette render with zero KaTeX errors
-  before and after, so this is a layout fix only.
-- `docs/assets/pipeline.svg` set its mathematics as literal source text —
-  `D_F`, `μ_i`, `r_g`, `T(K)` with visible underscores — which read as
-  unrendered LaTeX inside a figure. Subscripts are now real `tspan` baseline
-  shifts and variables italic, in both the light and the dark palette. The
-  stray dashed connector in the left track is replaced by a centred annotation
-  row matching the right track's, and the two exit cards are symmetric (cards
-  with track-coloured titles) instead of one white card and one solid slab.
-  Content, palette tokens, dark-mode behaviour and the `aria-label` are
-  unchanged, so the vignette's alt text still describes the figure accurately.
 
 ### Not changed
 
