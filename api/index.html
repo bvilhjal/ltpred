@@ -1002,6 +1002,84 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#chunked-array-drivers-ltpredchunked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chunked array drivers — ltpred.chunked
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Chunked array drivers — ltpred.chunked">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.chunked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        chunked
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="chunked">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.chunked.estimate_liability_pa_chunked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimate_liability_pa_chunked
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.chunked.estimate_liability_gibbs_chunked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimate_liability_gibbs_chunked
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.chunked.estimate_liability_pa_batches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimate_liability_pa_batches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.chunked.estimate_liability_gibbs_batches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimate_liability_gibbs_batches
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#liability-scale-transformations-ltpredliability_scale" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2836,6 +2914,84 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#chunked-array-drivers-ltpredchunked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chunked array drivers — ltpred.chunked
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Chunked array drivers — ltpred.chunked">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.chunked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        chunked
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="chunked">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.chunked.estimate_liability_pa_chunked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimate_liability_pa_chunked
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.chunked.estimate_liability_gibbs_chunked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimate_liability_gibbs_chunked
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.chunked.estimate_liability_pa_batches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimate_liability_pa_batches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ltpred.chunked.estimate_liability_gibbs_batches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estimate_liability_gibbs_batches
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#liability-scale-transformations-ltpredliability_scale" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4255,6 +4411,14 @@ is also a top-level export.</p>
 <td>opt-in numerical posterior moments for additive, noninbred nuclear families with <code>0 &lt;= h2 &lt; 1</code>; separate refinement diagnostics, no mixture or shared environment</td>
 </tr>
 <tr>
+<td><code>estimate_liability_pa_chunked</code> / <code>estimate_liability_gibbs_chunked</code></td>
+<td>chunked array API — same kernels, bounded working set</td>
+</tr>
+<tr>
+<td><code>estimate_liability_pa_batches</code> / <code>estimate_liability_gibbs_batches</code></td>
+<td>streaming iterator of bound batches; never holds all bounds</td>
+</tr>
+<tr>
 <td><code>fit_variance_components</code></td>
 <td><strong>fit</strong> additive <code>A</code> + shared-environment <code>C</code> (sibship) / <code>M</code> (couple) as proportions under the same population-sampling contract</td>
 </tr>
@@ -4827,6 +4991,184 @@ largest tensor grid to 262144 points. Failure raises <code>RuntimeError</code> w
 family index, rather than returning an unchecked estimate. Analytic zero/
 one-interval cases and families with only parental observations require no
 nodes. No Monte-Carlo SE is defined.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="chunked-array-drivers-ltpredchunked">Chunked array drivers — <code>ltpred.chunked</code><a class="headerlink" href="#chunked-array-drivers-ltpredchunked" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h3 id="ltpred.chunked" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">ltpred.chunked</span>
+
+
+<a href="#ltpred.chunked" class="headerlink" title="Permanent link">&para;</a></h3>
+
+    <div class="doc doc-contents first">
+
+        <p>Chunked and streaming drivers over the array liability kernels.</p>
+<p>The in-memory <code>*_chunked</code> entry points still take <code>(F, k)</code> bound arrays;
+they only bound the kernel's working set. The <code>*_batches</code> entry points
+consume an iterator of bound blocks so the caller need never hold every
+family's bounds at once. Both preserve deterministic grouping (one role-set
+per call) and the <code>O(F)</code> summary-memory contract of the array APIs.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="ltpred.chunked.estimate_liability_pa_chunked" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">estimate_liability_pa_chunked</span>
+
+
+<a href="#ltpred.chunked.estimate_liability_pa_chunked" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability_pa_chunked</span><span class="p">(</span><span class="n">roles</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s1">'genetic'</span><span class="p">,</span> <span class="n">K_i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">K_pop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">use_mixture</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">65536</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Chunked Pearson-Aitken driver over the array kernel.</p>
+<p>Validates the full <code>(F, k)</code> bound (and mixture) arrays once, then streams
+homogeneous family rows through :func:<code>ltpred.estimate._pa_from_role_arrays</code>
+in blocks of <code>chunk_size</code>. Default behaviour of
+:func:<code>~ltpred.estimate.estimate_liability_pa_arrays</code> is unchanged; this
+is an additional entry point.</p>
+<p>In-memory <code>ndarray</code> inputs still occupy <code>F x k</code> for the bounds; use a
+memmap for those arrays or :func:<code>estimate_liability_pa_batches</code> to actually
+avoid holding every family's bounds. Mixed pedigrees still need one call
+per role-set. Summary outputs stay <code>O(F)</code>. Pearson-Aitken is
+deterministic, so there is no Monte-Carlo SE. Default <code>chunk_size</code> is
+65536: large enough that the hot kernel still saturates, small enough that
+float32 bounds for a nuclear family are a few MB. Rebuilding the tiny
+<code>d x d</code> covariance per chunk is intentional.</p>
+<p>Returns <code>(est, var)</code> of length <code>F</code> for the single <code>out</code> column.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="ltpred.chunked.estimate_liability_gibbs_chunked" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">estimate_liability_gibbs_chunked</span>
+
+
+<a href="#ltpred.chunked.estimate_liability_gibbs_chunked" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability_gibbs_chunked</span><span class="p">(</span><span class="n">roles</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s1">'genetic'</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_rounds</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">4096</span><span class="p">,</span> <span class="n">return_var</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Chunked Gibbs driver over the array kernel.</p>
+<p>Computes per-family seeds on the full cohort with
+:func:<code>ltpred.estimate._base_seeds</code> and passes <code>seeds[sl]</code> into each
+chunk, so the result agrees with
+:func:<code>~ltpred.estimate.estimate_liability_gibbs_arrays</code> at the same
+<code>seed</code>. Restarting the sampler from <code>seed=</code> per chunk would break that
+agreement. Default <code>chunk_size</code> is 4096 because Gibbs accumulators are
+<code>O(F_chunk x ncols)</code> float64 and the sampler is heavier than PA.</p>
+<p>In-memory <code>ndarray</code> inputs still occupy <code>F x k</code> for the bounds; use a
+memmap or :func:<code>estimate_liability_gibbs_batches</code> to actually avoid holding
+every family's bounds. Mixed pedigrees still need one call per role-set.
+Summary outputs stay <code>O(F)</code>. Unconverged families are warned once on the
+concatenated SE.</p>
+<p>Returns <code>(est, se)</code> of length <code>F</code>, or <code>(est, se, var)</code> with
+<code>return_var=True</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="ltpred.chunked.estimate_liability_pa_batches" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">estimate_liability_pa_batches</span>
+
+
+<a href="#ltpred.chunked.estimate_liability_pa_batches" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability_pa_batches</span><span class="p">(</span><span class="n">roles</span><span class="p">,</span> <span class="n">batches</span><span class="p">,</span> <span class="n">h2</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s1">'genetic'</span><span class="p">,</span> <span class="n">use_mixture</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Stream Pearson-Aitken estimates from an iterator of bound batches.</p>
+<p><code>batches</code> yields either <code>(lower, upper)</code>, <code>(lower, upper, K_i, K_pop)</code>,
+or a mapping with keys <code>lower</code>, <code>upper</code> and optional <code>K_i</code>/<code>K_pop</code>.
+Results are concatenated in iterator order; an empty iterator returns empty
+arrays. The caller never has to hold every family's bounds at once — that
+is the memory contract. In-memory ndarrays still occupy <code>F x k</code> if you
+build them first; memmap or a true iterator is how you avoid that.</p>
+<p>Mixture inputs are validated <strong>per batch</strong> (the stream cannot see the whole
+cohort). A mixture batch with no valid <code>K_i</code>/<code>K_pop</code> pair raises, unlike
+the sliced <code>*_chunked</code> APIs which gate once globally so an all-cases
+chunk does not fail. Mixed pedigrees still need one call per role-set.
+Pearson-Aitken is deterministic (no SE). Summary outputs stay <code>O(F)</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="ltpred.chunked.estimate_liability_gibbs_batches" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">estimate_liability_gibbs_batches</span>
+
+
+<a href="#ltpred.chunked.estimate_liability_gibbs_batches" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">estimate_liability_gibbs_batches</span><span class="p">(</span><span class="n">roles</span><span class="p">,</span> <span class="n">batches</span><span class="p">,</span> <span class="n">h2</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s1">'genetic'</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span> <span class="n">burn_in</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_rounds</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_var</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Stream Gibbs estimates from an iterator of bound batches.</p>
+<p>Batches are treated as consecutive blocks of a virtual concatenated
+cohort: a running family offset <code>start</code> assigns
+<code>seeds = _base_seeds(seed, start + n, max_rounds)[start:]</code> to a batch
+of size <code>n</code>. Concatenating the same batches as one array therefore
+matches one-shot :func:<code>~ltpred.estimate.estimate_liability_gibbs_arrays</code>
+with the same <code>seed</code>. Bound arrays are not retained across batches.</p>
+<p>In-memory ndarrays still occupy <code>F x k</code> if you build them first; memmap
+or a true iterator is how you avoid holding all bounds. Mixed pedigrees
+still need one call per role-set. Summary outputs stay <code>O(F)</code>. Unconverged
+families are warned once on the concatenated SE.</p>
+<p>Returns <code>(est, se)</code>, or <code>(est, se, var)</code> with <code>return_var=True</code>.</p>
 
 
     </div>
@@ -8078,6 +8420,10 @@ generating liability. With <code>onset_resolution=None</code>, the old exact-ons
 behavior is preserved: <code>"pin"</code> is a point and <code>"interval"</code> starts at
 that point. The age-0 clamp remains an upper-open liability interval because
 arbitrarily high liabilities map to onset age zero.</p>
+<p>A given <code>seed</code> reproduces the same families on every platform, up to
+floating-point rounding: the liabilities are drawn through a canonical
+factorisation of the covariance (:func:<code>_stable_factor</code>) rather than
+NumPy's default SVD, whose signs vary with the LAPACK build.</p>
 
 
     </div>
@@ -8180,6 +8526,10 @@ curve (see :func:<code>~ltpred.cip.kaplan_meier_cip</code>). <code>rng</code> is
 :class:<code>numpy.random.Generator</code>; the pedigree usually comes from
 :func:<code>simulate_pedigree</code> and <code>birth_time</code> from
 :func:<code>pedigree_birth_times</code>, which this function calls for you.</p>
+<p>A given <code>rng</code> reproduces the same register on every platform, up to
+floating-point rounding: the population liability field is drawn through
+the canonical factorisation of :func:<code>_stable_factor</code>, not NumPy's
+sign-arbitrary SVD.</p>
 
 
     </div>

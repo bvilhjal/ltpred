@@ -1336,14 +1336,15 @@ pedigree and turns it into diagnosis records.</p>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"var(true genetic liability) = </span><span class="si">{</span><span class="n">cohort</span><span class="o">.</span><span class="n">genetic</span><span class="o">.</span><span class="n">var</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">  (target </span><span class="si">{</span><span class="n">H2</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"birth years: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">cohort</span><span class="o">.</span><span class="n">birth_time</span><span class="o">.</span><span class="n">tolist</span><span class="p">()))</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>984 people, 69 diagnosed by age 70 (7.0%)
-var(true genetic liability) = 0.5109  (target 0.5)
+<div class="highlight"><pre><span></span><code>984 people, 81 diagnosed by age 70 (8.2%)
+var(true genetic liability) = 0.5083  (target 0.5)
 birth years: [1920.0, 1950.0, 1980.0]
 </code></pre></div>
 <p><code>cohort</code> carries the register columns (<code>ids</code>, <code>father</code>, <code>mother</code>, <code>status</code>,
 <code>age</code>, <code>birth_time</code>) <strong>and</strong> the truth (<code>genetic</code>, <code>onset</code>, <code>residual_var</code>), so
-every later step can be scored rather than merely run. The 7.0% diagnosis rate is
-the generating curve at age 70, not the 10% lifetime prevalence — that gap is
+every later step can be scored rather than merely run. The 8.2% diagnosis rate
+tracks the generating curve at age 70 (7.8%), not the 10% lifetime
+prevalence — that gap is
 the whole reason step 2 exists.</p>
 <p>The pedigree is drawn once for the population, not per proband, so a person who
 appears in several probands' pedigrees has one status and one genetic value.</p>
@@ -1412,12 +1413,12 @@ genetic-liability score per proband.</p>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"median relatives conditioned on = </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">scores</span><span class="o">.</span><span class="n">n_relatives</span><span class="p">)</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"records with an unresolved parent = </span><span class="si">{</span><span class="n">scores</span><span class="o">.</span><span class="n">frac_records_with_unresolved_parents</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>corr(score, true genetic liability) = 0.5887
-score sd = 0.3617   mean posterior variance = 0.3592
+<div class="highlight"><pre><span></span><code>corr(score, true genetic liability) = 0.5502
+score sd = 0.3898   mean posterior variance = 0.3558
 median relatives conditioned on = 23
 records with an unresolved parent = 0.0000
 </code></pre></div>
-<p>Three things to notice. The score correlates 0.59 with the truth it never saw.
+<p>Three things to notice. The score correlates 0.55 with the truth it never saw.
 The posterior <strong>variance</strong> is returned per proband and is almost as large as the
 score's own spread — most of these people have few informative relatives, so the
 score is genuinely uncertain and should not be used as if it were a measurement.
@@ -1451,11 +1452,11 @@ proband.</p>
       <span class="sa">f</span><span class="s2">"   score sd = </span><span class="si">{</span><span class="n">pred_est</span><span class="o">.</span><span class="n">std</span><span class="p">()</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"proband states: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span><span class="w"> </span><span class="n">predicted</span><span class="o">.</span><span class="n">proband_state</span><span class="p">)))</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>972 of 984 probands are disease-free at age 40
-corr(score, truth) = 0.2896   score sd = 0.1928
+<div class="highlight"><pre><span></span><code>974 of 984 probands are disease-free at age 40
+corr(score, truth) = 0.3069   score sd = 0.2134
 proband states: ['disease_free_and_followed']
 </code></pre></div>
-<p>The correlation drops from 0.59 to 0.29 — not a defect, the price of the
+<p>The correlation drops from 0.55 to 0.31 — not a defect, the price of the
 question. Step 3 was allowed to see each proband's own diagnosis; step 4 is not,
 so it has only relatives to work with. Restricting <code>probands</code> to the at-risk set
 is not optional either: scoring someone already diagnosed and calling the result

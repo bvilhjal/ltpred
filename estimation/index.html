@@ -1755,6 +1755,42 @@ Skip the objects with the <strong>array API</strong>, which takes already-aligne
 Control the thread count with <code>ltpred.set_num_threads(n)</code>, and warm up once (the
 first call JIT-compiles) before timing. Different family structures still need
 separate array calls (one covariance each); the object API groups them for you.</p>
+<p>The array APIs still hold every family's bounds in RAM. The <strong>chunked driver</strong>
+streams homogeneous family batches through the same kernels so the working set
+is a few thousand (Gibbs) or tens of thousands (PA) rows at a time. Grouping
+stays deterministic — mixed pedigrees still need one call per role-set — and
+the summaries stay <code>O(F)</code>. Gibbs seeds are computed on the full cohort, then
+sliced per chunk, so the result agrees with <code>estimate_liability_gibbs_arrays</code>
+at the same <code>seed</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="n">estimate_liability_pa_chunked</span><span class="p">,</span>
+                    <span class="n">estimate_liability_gibbs_chunked</span><span class="p">)</span>
+
+<span class="n">est</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">estimate_liability_pa_chunked</span><span class="p">(</span>
+    <span class="n">roles</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">65536</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">est</span><span class="p">,</span> <span class="n">se</span> <span class="o">=</span> <span class="n">estimate_liability_gibbs_chunked</span><span class="p">(</span>
+    <span class="n">roles</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">4096</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>In-memory <code>ndarray</code> inputs still occupy <code>F × k</code> for the bounds. To actually
+avoid holding all families and bounds, stream them with a memmap or an
+iterator of batches. PA does not return an SE (it is deterministic). A mixture
+batch with no valid <code>K_i</code>/<code>K_pop</code> pair raises — the sliced <code>*_chunked</code> APIs
+gate that once globally, so an all-cases chunk does not fail:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability_pa_batches</span>
+
+<span class="c1"># each item is (lower, upper) or a mapping with those keys; optional K_i/K_pop</span>
+<span class="n">est</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">estimate_liability_pa_batches</span><span class="p">(</span>
+    <span class="n">roles</span><span class="p">,</span>
+    <span class="p">((</span><span class="n">lower_mm</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="mi">65_536</span><span class="p">],</span> <span class="n">upper_mm</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="mi">65_536</span><span class="p">])</span>
+     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n_families</span><span class="p">,</span> <span class="mi">65_536</span><span class="p">)),</span>
+    <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Gibbs batches are consecutive blocks of a virtual concatenated cohort: a
+running family offset keeps <code>_base_seeds(seed, start + n, max_rounds)[start:]</code>
+aligned with one-shot <code>estimate_liability_gibbs_arrays</code> on the concatenated
+arrays at the same <code>seed</code>.</p>
 <p><strong>Shape contract.</strong> <code>roles</code> is a length-<code>k</code> list (<code>"o"</code> + relatives; <code>g</code> is added
 internally); <code>lower</code> and <code>upper</code> are both <code>(n_families, k)</code>, column <code>j</code> aligned to
 <code>roles[j]</code>. A relative that is <strong>absent or uninformative</strong> for a given family is

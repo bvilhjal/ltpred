@@ -1285,10 +1285,11 @@ it is part of the public API (<a href="../research/">research extensions</a>).</
    before quoting a relatives'-events payoff.</p>
 </li>
 <li>
-<p><strong>Add a chunked driver.</strong> Stream homogeneous family batches through the array
-   kernels so biobank analyses need not hold all families and bounds in memory.
-   The design should preserve deterministic grouping and the existing <code>O(F)</code>
-   summary-memory contract.</p>
+<p><strong>Add a chunked driver.</strong> Done: <code>ltpred.chunked</code> streams homogeneous family
+   batches through the array kernels with bounded working set
+   (<code>estimate_liability_pa_chunked</code> / <code>estimate_liability_gibbs_chunked</code>) and a
+   streaming batch iterator (<code>*_batches</code>), preserving deterministic grouping
+   and the <code>O(F)</code> summary-memory contract.</p>
 </li>
 <li>
 <p><strong>Validate a real-LD workflow.</strong> Extend the opt-in HAPNEST path into a complete
