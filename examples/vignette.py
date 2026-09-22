@@ -9,7 +9,7 @@ Pipeline (same numbering as the vignette)::
     4. estimate_liability  (+ the "did it work?" checks)
     5. prediction (I) and/or GWAS (II); aetiology (III) may stop at 0/2
 
-This is a teaching script, not a production analysis. The opening block
+This script demonstrates the pipeline. It is not a production analysis. The opening block
 simulates a nuclear cohort so the later calls have input; on real data,
 skip it and start from your table. Swap the logistic CIP helpers for
 ``thresholds_from_cip`` before a real GWAS.

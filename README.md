@@ -1,8 +1,8 @@
 # ltpred
 
-**For a class:** [tutorial](docs/tutorial.md) — five questions on a simulated
-cohort whose genetic liability is known. Steps 1–4 are one hour; step 5 is a
-second hour. Then [choose a method](docs/guide.md).
+**Tutorial:** [five questions](docs/tutorial.md) on a simulated cohort whose
+genetic liability is known. Steps 1–4 are one disease; step 5 is two traits.
+Then [choose a method](docs/guide.md).
 **Reference:** [vignette](https://bvilhjal.github.io/ltpred/vignette/)
 · [markdown](docs/vignette.md)
 
@@ -66,9 +66,10 @@ pa.est["genetic"]
 
 `use_age=False` is the classic LT-FH call. `h²` is required and
 disease-specific. Own diagnosis in the input is a GWAS phenotype; leave it
-out to predict from family history. A class should start at the
-[tutorial](docs/tutorial.md), not this snippet: the tutorial's printouts are
-checked, and each step names the quantity it estimates. Six hand-typed rows
+out to predict from family history. The
+[tutorial](docs/tutorial.md) walks the same calls on a simulated register:
+its printouts are checked, and each step names the quantity it estimates.
+Six hand-typed rows
 are the [quickstart](docs/quickstart.md). The model is in
 [algorithm.md](docs/algorithm.md).
 

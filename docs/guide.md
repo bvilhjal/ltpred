@@ -1,13 +1,13 @@
 # Choose a method
 
-Teach the [tutorial](tutorial.md) before this table. Steps 1–4 are one hour:
-build a population with a known genetic liability, see why death changes the
-incidence curve, score with the diagnosis included, then score with it hidden.
-Step 5 is a second hour, two traits in one fit. The six typed rows are the
+Read the [tutorial](tutorial.md) before this table. Steps 1–4 are one
+disease: build a population with a known genetic liability, see why death
+changes the incidence curve, score with the diagnosis included, then score
+with it hidden. Step 5 is two traits in one fit. The six typed rows are the
 [quickstart](quickstart.md). The contract is the
 [vignette](vignette.md#three-uses).
 
-When a student brings their own table, pick a row below. PA is the default
+When the table is your own, pick a row below. PA is the default
 for one trait. Gibbs is the sampling check. The mixture is PA-only, and it
 is not the register-standardised FGRS of
 [Kendler et al. (2021)](https://doi.org/10.1001/jamapsychiatry.2021.0336).
@@ -65,5 +65,5 @@ specification. The
 [data-preparation page](data-preparation.md#getting-lowerupper-from-status-and-age)
 shows the base recipe explicitly.
 
-After the lab, a student's own rows start at the
+Worked rows for your own data start at the
 **[quickstart](quickstart.md)**.

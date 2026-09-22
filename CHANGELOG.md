@@ -8,8 +8,9 @@ version is 0 the public API may still change between minor releases.
 
 ### Changed
 
-- The tutorial is a five-question lab (steps 1–4 one disease, step 5 two
-  traits). The method guide says to teach that lab before the decision table.
+- The tutorial is five questions (steps 1–4 one disease, step 5 two traits).
+  The method guide points at it before the decision table. Docs no longer
+  address a class.
 
 ### Removed
 

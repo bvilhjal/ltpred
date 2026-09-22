@@ -1,13 +1,13 @@
 # Tutorial
 
-A lab in five questions. Run the blocks in order: each one uses only names
-the earlier blocks defined. Copy the page into a script, or paste one block
-at a time. `tests/test_tutorial.py` re-runs the blocks and checks the
-printouts.
+Five questions on a simulated cohort whose genetic liability is known. Run
+the blocks in order: each one uses only names the earlier blocks defined.
+Copy the page into a script, or paste one block at a time.
+`tests/test_tutorial.py` re-runs the blocks and checks the printouts.
 
-Teach steps 1–4 as one hour (one disease, known truth). Step 5 is a second
-hour (two traits). The [method guide](guide.md) is what you open when a
-student brings their own table. Contracts this lab simplifies are at the end.
+Steps 1–4 are one disease. Step 5 is two traits. The
+[method guide](guide.md) is the decision table for a real table. Contracts
+this tutorial simplifies are at the end.
 
 | step | question | the printout should show |
 |---|---|---|
@@ -260,10 +260,10 @@ closer. That is one cohort of 3,000 families, not a calibration study.
 boundary fit withholds them. The replicated fits are in
 `benchmarks/RESULTS.md` §33.
 
-## What this lab is not
+## What this tutorial does not do
 
-Do not hand a student a real register and tell them to change the filenames.
-Each shortcut below is a real decision, with the page that carries it.
+A real register is not this script with the filenames changed. Each shortcut
+below is a real decision, with the page that carries it.
 
 - **One curve for everyone.** Steps 3 and 4 pass `TRUE_CIP`. Real LT-FH++
   stratifies by sex and birth year.
@@ -285,7 +285,7 @@ Each shortcut below is a real decision, with the page that carries it.
 
 | you want to… | see |
 |---|---|
-| which function to call on a student's own table | [Choose a method](guide.md) |
+| which function to call on your own table | [Choose a method](guide.md) |
 | six hand-typed rows | [Quickstart](quickstart.md) |
 | the full contract | [Vignette](vignette.md) |
 | the checklist before a real analysis | [Assumptions](assumptions.md) |

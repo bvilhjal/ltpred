@@ -10,11 +10,10 @@ aetiology** from $h^2$, genetic/environmental covariances and/or the CIP — see
 
 ## Start here
 
-- **[Tutorial](tutorial.md)** — the lab: five questions on a simulated cohort
-  whose genetic liability is known. Steps 1–4 are one disease; step 5 is two
+- **[Tutorial](tutorial.md)** — five questions on a simulated cohort whose
+  genetic liability is known. Steps 1–4 are one disease; step 5 is two
   traits. Every block runs in order and a test checks the printed output.
-- **[Choose a method](guide.md)** — after the lab, which bounds and estimator
-  a student's own table needs.
+- **[Choose a method](guide.md)** — which bounds and estimator a table needs.
 - **[Quickstart](quickstart.md)** — six hand-typed rows of that table.
 - **[Vignette](vignette.md)** — how to run ltpred: three uses (prediction,
   GWAS, aetiology), then $h^2$, pedigree, CIP, family history. Live page:
