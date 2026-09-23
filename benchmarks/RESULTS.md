@@ -938,8 +938,12 @@ value; rep 0 marks the single-run throughput part).
     (c)-(a) Δcorr **+0.524 ± 0.014**, 95% CI [+0.486, +0.562]; ΔAUC
     +0.337 ± 0.020, 95% CI [+0.282, +0.391]. Honest censoring costs real
     accuracy, and leaking the proband's own future buys plenty.
-- **Throughput:** 276 probands/s (400 probands in 1.45 s; single run, BLAS
-  pinned to 1).
+- **Throughput:** 987 probands/s (400 probands in 0.41 s; single run, BLAS
+  pinned to 1; v0.7.1 commit `5b42b13`, rerun 2026-09-23 at one-minute load
+  2.1). v0.7.0 recorded 276 probands/s (1.45 s). A proband with many selected
+  relatives now gets its relationships from a dense matrix over the extracted
+  pedigree instead of memoized pair recursion. Every accuracy, CIP and
+  prospective value above reproduced exactly.
 
 ## 22. Tetrachoric correlations (`bench_tetrachoric.py`)
 
@@ -1687,6 +1691,15 @@ intervals. The capsule includes first-call timings (with reached compilation),
 all warm repetitions, raw memory measurements, provenance and reproduction
 instructions. v0.6.2 changes documentation and its checks; the numerical
 implementation is unchanged from the measured v0.6.1 source.
+
+### 31a. v0.7.1 versus v0.7.0
+
+The [v0.7.1 capsule](results/2026-09-23-time-memory-v071/README.md) reran the
+same seven cases (`5b42b13` against `ac78ba3`) under `ltpred314`, since the
+`.venv` above no longer imports SciPy on this macOS. All outputs matched
+exactly and every warm median is within 2% (register scoring 0.084 / 0.082 s).
+The v0.7.1 speedups sit on paths this driver does not measure; the
+many-relative register gain is in section 21.
 
 ## 32. Pairwise composite-likelihood recovery (`bench_pairwise_recovery.py`)
 

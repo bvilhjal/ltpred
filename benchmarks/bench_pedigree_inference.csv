@@ -20,4 +20,4 @@ rep,metric,value
 5,part2_corr_named_role,0.5357855375770415
 5,part2_corr_between_arms,0.9059903869670675
 5,part2_delta_corr_degree_minus_role,0.05160370315830398
-0,part3_seconds_3000_extractions,0.18529105186462402
+0,part3_seconds_3000_extractions,0.17946434020996094

@@ -144,5 +144,5 @@ rep,metric,value
 5,part3_delta_auc_leak_rel_minus_honest,0.03131115459882583
 5,part3_delta_auc_leak_full_minus_honest,0.30919765166340507
 5,population_size,2643.0
-0,part4_probands_per_second,275.74132158219606
-0,part4_seconds,1.4506349563598633
+0,part4_probands_per_second,987.0593751783385
+0,part4_seconds,0.4052441120147705

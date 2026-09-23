@@ -1,0 +1,28 @@
+{
+  "started_at_utc": "2026-09-23T10:35:30.404707+00:00",
+  "finished_at_utc": "2026-09-23T10:36:58.675926+00:00",
+  "elapsed_seconds": 88.27,
+  "candidate_revision": "5b42b139c1026c44822e0bcb758b64de31fa8c16",
+  "baseline_revision": "ac78ba36d2069e31c81de89a27c4fd472b579135",
+  "command": [
+    "benchmarks/bench_time_memory.py",
+    "--baseline-ref",
+    "ac78ba3",
+    "--reps",
+    "5",
+    "--output",
+    "/private/tmp/claude-1963871236/-Users-au507860-REPOS/f3a2617e-2bf1-41c7-b8f3-802e8083579c/scratchpad/tm071c"
+  ],
+  "interpreter_note": "ltpred314 (free-threaded CPython 3.14.6); the documented .venv could not import SciPy on macOS 27 (_spropack dlopen rejected)",
+  "package_source_status_before": "clean (only benchmark CSV outputs and run_manifest.jsonl modified)",
+  "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "logical_cpus": 10,
+  "worker_load_1min_range": [
+    2.76904296875,
+    4.10693359375
+  ],
+  "exit_code": 0,
+  "source_stable": true,
+  "results_sha256": "6ca7b9b9d44d5c45e458321caa21b0ed3293eb352f8cc774bf25b746c9d03e3c"
+}
