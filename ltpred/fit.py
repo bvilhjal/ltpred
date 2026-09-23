@@ -65,7 +65,7 @@ from ._validation import validate_bounds
 from .covariance import get_relatedness, _is_full_sib, _is_mates
 from .gibbs import (gibbs_params, gibbs_advance,
                     _init_chain, _FIXED_TOL, _seed_rng)
-from .family import _is_missing_id
+from .family import _pid_key
 from .estimate import (_assert_nonempty_families, _check_unique_roles,
                        _group_by_structure, batch_means)
 
@@ -135,33 +135,6 @@ def _validate_weights(weights, n_families, context):
             "family that could not have been sampled, which is a positivity "
             "failure rather than something to down-weight")
     return w
-
-
-def _pid_key(pid):
-    """Hashable identity for a member ``pid``, or ``None`` if it is missing.
-
-    Missing values cannot witness overlap. Numpy scalars are unwrapped so
-    ``np.int64(1)`` and ``1`` compare equal. Unhashable objects fall back to
-    ``str`` rather than crashing the check.
-    """
-    if _is_missing_id(pid):
-        return None
-    if isinstance(pid, np.generic):
-        pid = pid.item()
-        if _is_missing_id(pid):
-            return None
-    if isinstance(pid, bytes):
-        pid = pid.decode("utf-8", "replace")
-    if isinstance(pid, str):
-        pid = pid.strip()
-        if _is_missing_id(pid):
-            return None
-        return pid
-    try:
-        hash(pid)
-    except TypeError:
-        return str(pid)
-    return pid
 
 
 def _assert_nonoverlapping_pids(families, context):

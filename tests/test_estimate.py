@@ -966,6 +966,30 @@ def test_families_from_columns_keeps_legitimate_string_ids():
     assert [f.fam_id for f in fams] == ["NAME", "0"]
 
 
+@pytest.mark.parametrize("fam_id", [[1, "1"], [np.int64(2), "2"], [1.0, "b"]])
+def test_families_from_columns_rejects_mixed_string_and_numeric_ids(fam_id):
+    # NumPy would stringify both to "1" and merge two unrelated families.
+    with pytest.raises(ValueError, match="mixes string and non-string"):
+        families_from_columns(fam_id=fam_id, role=["o", "o"],
+                              lower=np.zeros(2), upper=np.ones(2))
+
+
+def test_same_pid_under_two_roles_is_rejected_but_shared_relatives_are_not():
+    t = float(stats.norm.isf(0.05))
+    base = [Member("o", -np.inf, t, pid="p"), Member("m", -np.inf, t, pid=7),
+            Member("s1", t, np.inf, pid="sib")]
+    for dup in (Member("s2", t, np.inf, pid="sib"), Member("f", -np.inf, t,
+                                                            pid=np.int64(7))):
+        with pytest.raises(ValueError, match="more than once in family"):
+            estimate_liability([Family("F", base + [dup])], h2=0.5)
+    # Missing ids witness nothing; one person in two families is a shared
+    # register relative, not a duplicate.
+    ok = [Family("F", base + [Member("s2", t, np.inf, pid="NA"),
+                              Member("f", -np.inf, t, pid=None)]),
+          Family("G", [Member("o", -np.inf, t, pid="sib")])]
+    assert estimate_liability(ok, h2=0.5).genetic.shape == (2,)
+
+
 def test_families_from_columns_rejects_mismatched_bound_shapes():
     with pytest.raises(ValueError, match="same shape"):
         families_from_columns(fam_id=[1, 1], role=["o", "m"],

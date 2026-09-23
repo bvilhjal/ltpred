@@ -235,7 +235,7 @@ def estimate_liability_gibbs_batches(roles: Sequence[str],
     """Gibbs from consecutive bound batches of one virtual cohort.
 
     Batch ``n`` at offset ``start`` receives
-    ``_base_seeds(seed, start + n, max_rounds)[start:]``, so concatenating the
+    ``_base_seeds(seed, n, max_rounds, start=start)``, so concatenating the
     batches matches :func:`~ltpred.estimate.estimate_liability_gibbs_arrays`
     at the same ``seed``. Returns ``(est, se)``, or ``(est, se, var)`` with
     ``return_var=True``.
@@ -253,7 +253,7 @@ def estimate_liability_gibbs_batches(roles: Sequence[str],
                 "Gibbs batches have no censoring mixture; omit K_i and K_pop")
         lower = as_bounds(lower)
         n = 0 if lower.ndim != 2 else lower.shape[0]
-        seeds = _base_seeds(seed, start + n, max_rounds)[start:]
+        seeds = _base_seeds(seed, n, max_rounds, start=start)
         e, s, v = _gibbs_from_role_arrays(
             roles, lower, upper, h2, [coord], seeds,
             tol, n_sim, burn_in, max_rounds, c2=c2, m2=m2)

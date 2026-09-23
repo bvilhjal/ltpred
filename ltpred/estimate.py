@@ -42,6 +42,7 @@ from .gibbs import (gibbs_params, gibbs_estimate_batched, as_bounds, _MAX_SEED,
 from .pearson_aitken import pa_estimate_batched, _tnorm_moments_loc
 from ._numba import _jit
 from ._validation import validate_bounds, validate_mixture_inputs
+from .family import _pid_key
 
 __all__ = ["LiabilityResult", "batch_means", "estimate_liability",
            "estimate_liability_pa_arrays", "estimate_liability_gibbs_arrays",
@@ -384,7 +385,9 @@ def _check_unique_roles(families):
     into one covariance coordinate. Number repeated relatives instead (``s1``,
     ``s2``). ``g`` is never legitimate user input: the estimator adds the genetic
     coordinate itself, so a supplied ``g`` row would silently condition that
-    coordinate on the member's bounds."""
+    coordinate on the member's bounds. Likewise one non-missing ``pid`` under
+    two roles would count one person's record twice; the same person in
+    different families (a shared register relative) is legitimate."""
     for fam in families:
         roles = [m.role for m in fam.members]
         if "g" in roles:
@@ -398,6 +401,22 @@ def _check_unique_roles(families):
             raise ValueError(
                 f"family {fam.fam_id!r} has duplicate role(s) {dup}; each role "
                 "names one individual — number repeated relatives (s1, s2, ...).")
+        pids = [m.pid for m in fam.members if m.pid is not None]
+        try:
+            clash = len(pids) != len(set(pids))
+        except TypeError:                  # unhashable pids: compare keys
+            clash = True
+        # Normalise only on a raw clash: it can dismiss missing ids ("NA").
+        keys = [k for k in map(_pid_key, pids) if k is not None] if clash else ()
+        if len(keys) != len(set(keys)):
+            dup = sorted({repr(k) for k in keys if keys.count(k) > 1})
+            raise ValueError(
+                f"pid(s) {', '.join(dup)} appear more than once in family "
+                f"{fam.fam_id!r}, under different roles; one person's record "
+                "would count as independent evidence. A person who fills two "
+                "roles (consanguinity) needs "
+                "the kinship route: estimate_liability_from_kinship or "
+                "estimate_liabilities.")
 
 
 def _check_unique_role_labels(roles):
@@ -480,7 +499,7 @@ def _group_by_structure(families):
     return [(key, groups[key]) for key in order]
 
 
-def _base_seeds(seed, n, max_rounds):
+def _base_seeds(seed, n, max_rounds, start=0):
     """Per-family base seeds; family ``i`` owns the block starting at ``i*max_rounds``
     so each round of :func:`_estimate_group` gets its own stream.
 
@@ -490,11 +509,13 @@ def _base_seeds(seed, n, max_rounds):
     the derived block inside the uint32 range the kernel's RNG accepts. The
     ``(seed + i*max_rounds) % 2**32`` block wrap can collide two families'
     streams when ``n * max_rounds`` exceeds 2**32 (at the default
-    ``max_rounds=100`` that is beyond ~43M families per call)."""
+    ``max_rounds=100`` that is beyond ~43M families per call). ``start`` is the
+    first family's global index, so a streamed batch builds only its own seeds."""
     if seed is None:
         return np.full(n, -1, dtype=np.int64)
     seed = _validate_seed(seed)
-    return (seed + np.arange(n, dtype=np.int64) * int(max_rounds)) % (_MAX_SEED + 1)
+    families = np.arange(start, start + n, dtype=np.int64)   # global indices
+    return (seed + families * int(max_rounds)) % (_MAX_SEED + 1)
 
 
 def _estimate_liability_single(families, h2, out=("genetic",), tol=0.01, n_sim=100_000, burn_in=1000, seed=None, max_rounds=100, dtype=np.float64, c2=None, m2=None):

@@ -257,15 +257,28 @@ def thresholds_from_cip(status: ArrayLike, age: ArrayLike, cip_ages: ArrayLike,
     ``(lower, upper, K_i, K_pop)``."""
     status = _validate_status(status)
     age = np.asarray(age, dtype=float)
-    cip_ages = np.asarray(cip_ages, dtype=float)
-    cip_values = np.asarray(cip_values, dtype=float)
     if status.ndim != 1 or age.ndim != 1 or status.shape != age.shape:
         raise ValueError("status and age must be one-dimensional arrays of equal length")
+    if not np.all(np.isfinite(age)):
+        raise ValueError("age and cip_ages must contain only finite values")
+    curve = _validate_cip_curve(cip_ages, cip_values, k_pop, min_cip)
+    if case_mode not in ("pin", "interval"):
+        raise ValueError("case_mode must be 'pin' or 'interval'")
+    return _cip_bounds(status, age, curve, case_mode, min_cip)
+
+
+def _validate_cip_curve(cip_ages, cip_values, k_pop=None, min_cip=1e-5):
+    """Validate one CIP curve once; returns ``(cip_ages, cip_values, k_pop)``.
+
+    Split from :func:`thresholds_from_cip` so a caller scoring many people
+    against one curve (the register driver) pays the O(curve) checks once."""
+    cip_ages = np.asarray(cip_ages, dtype=float)
+    cip_values = np.asarray(cip_values, dtype=float)
     if cip_ages.ndim != 1 or cip_values.ndim != 1 or cip_ages.size == 0:
         raise ValueError("cip_ages and cip_values must be non-empty one-dimensional arrays")
     if cip_ages.shape != cip_values.shape:
         raise ValueError("cip_ages and cip_values must have equal length")
-    if not np.all(np.isfinite(age)) or not np.all(np.isfinite(cip_ages)):
+    if not np.all(np.isfinite(cip_ages)):
         raise ValueError("age and cip_ages must contain only finite values")
     if not np.all(np.isfinite(cip_values)):
         raise ValueError("cip_values must contain only finite values")
@@ -275,8 +288,6 @@ def thresholds_from_cip(status: ArrayLike, age: ArrayLike, cip_ages: ArrayLike,
         raise ValueError("cip_values must be non-decreasing (a cumulative incidence)")
     if np.any((cip_values < 0.0) | (cip_values >= 1.0)):
         raise ValueError("cip_values must lie in [0, 1)")
-    if case_mode not in ("pin", "interval"):
-        raise ValueError("case_mode must be 'pin' or 'interval'")
     if not np.isfinite(min_cip) or not 0.0 < min_cip < 1.0:
         raise ValueError("min_cip must lie in (0, 1)")
     cip_max = float(np.max(cip_values))
@@ -289,11 +300,15 @@ def thresholds_from_cip(status: ArrayLike, age: ArrayLike, cip_ages: ArrayLike,
         raise ValueError(
             f"k_pop ({kpop}) is below max(cip_values) ({cip_max}); lifetime "
             "prevalence must be at least the largest cumulative incidence")
+    return cip_ages, cip_values, kpop
 
+
+def _cip_bounds(status, age, curve, case_mode="pin", min_cip=1e-5):
+    """Bounds for validated ``status``/``age`` against a validated curve."""
+    cip_ages, cip_values, kpop = curve
     cip = np.interp(age, cip_ages, cip_values)          # CIP at each person's age
     cip = np.clip(cip, min_cip, kpop)
     thr = -norm_ppf(cip)           # -ppf(p) avoids the 1-p tail cancellation
-
     lower = np.where(status, thr, -np.inf)
     if case_mode == "pin":
         upper = thr.copy()

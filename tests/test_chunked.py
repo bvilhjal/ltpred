@@ -182,6 +182,15 @@ def test_pa_batches_concat_matches_arrays():
 
 
 @pytest.mark.jit_required
+def test_batch_seeds_use_global_offsets_not_the_whole_prefix():
+    from ltpred.estimate import _base_seeds
+    for seed in (None, 11, 2**32 - 5):
+        full = _base_seeds(seed, 5_000, 100)
+        for start, n in ((0, 7), (1_234, 777), (4_990, 10)):
+            np.testing.assert_array_equal(
+                _base_seeds(seed, n, 100, start=start), full[start:start + n])
+
+
 def test_gibbs_batches_concat_matches_arrays_same_seed():
     roles, lower, upper, _t = _nuclear_bounds(9, seed=4)
     kwargs = dict(h2=0.5, n_sim=20_000, burn_in=400, seed=11, tol=0.05)

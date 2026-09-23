@@ -82,6 +82,33 @@ def _is_missing_id(x: object) -> bool:
     return False
 
 
+def _pid_key(pid):
+    """Hashable identity for a member ``pid``, or ``None`` if it is missing.
+
+    Missing values cannot witness overlap. Numpy scalars are unwrapped so
+    ``np.int64(1)`` and ``1`` compare equal. Unhashable objects fall back to
+    ``str`` rather than crashing the check.
+    """
+    if _is_missing_id(pid):
+        return None
+    if isinstance(pid, np.generic):
+        pid = pid.item()
+        if _is_missing_id(pid):
+            return None
+    if isinstance(pid, bytes):
+        pid = pid.decode("utf-8", "replace")
+    if isinstance(pid, str):
+        pid = pid.strip()
+        if _is_missing_id(pid):
+            return None
+        return pid
+    try:
+        hash(pid)
+    except TypeError:
+        return str(pid)
+    return pid
+
+
 def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
                           upper: ArrayLike, pid: ArrayLike | None = None,
                           K_i: ArrayLike | None = None,
@@ -97,7 +124,19 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
     Missing or non-finite numeric ``fam_id`` values are rejected: they cannot
     group records and would otherwise fragment silently into one-member families.
     """
+    raw_fam_id = fam_id
     fam_id = np.asarray(fam_id)
+    if fam_id.dtype.kind in "US" and not (
+            isinstance(raw_fam_id, np.ndarray) and raw_fam_id.dtype.kind in "US"):
+        # NumPy stringifies a mixed sequence, so 1 and "1" would silently
+        # group as one family. Refuse the ambiguity instead of guessing.
+        items = np.asarray(raw_fam_id, dtype=object).ravel()
+        if not all(isinstance(x, (str, bytes)) or _is_missing_id(x)
+                   for x in items):
+            raise ValueError(
+                "fam_id mixes string and non-string ids (e.g. 1 and '1'), "
+                "which would merge distinct families; convert every fam_id "
+                "to one type first")
     role = np.asarray(role, dtype=object)
     lower = np.asarray(lower, dtype=float)
     upper = np.asarray(upper, dtype=float)

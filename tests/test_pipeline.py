@@ -255,6 +255,28 @@ def test_population_record_permutation_preserves_stratified_prediction():
     np.testing.assert_allclose(base.var, permuted.var, rtol=0, atol=0)
 
 
+def test_each_cip_curve_is_validated_once_not_per_proband(monkeypatch):
+    import ltpred.pipeline as pipeline_module
+    calls = []
+    real = pipeline_module._validate_cip_curve
+
+    def counting(*args, **kwargs):
+        calls.append(1)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(pipeline_module, "_validate_cip_curve", counting)
+    strata = np.array(["A", "B", "A", "B", "A", "B", "A"])
+    curves = {"A": (CIP_AGES, CIP_VALUES, K_POP),
+              "B": (CIP_AGES, CIP_VALUES * 1.2, K_POP * 1.2)}
+    for use, extra in (("gwas", {}), ("prediction", dict(
+            birth_time=BIRTH, index_time=np.full(3, 2020.0)))):
+        calls.clear()
+        estimate_liabilities(IDS, FATHER, MOTHER, probands=["o", "m", "f"],
+                             status=STATUS, age=AGE, use=use, strata=strata,
+                             cip_by_stratum=curves, h2=0.5, **extra)
+        assert len(calls) == 2
+
+
 @pytest.mark.parametrize("bad_status", [
     [2, 0, 0, 1, 0, 0, 0],
     [np.nan, 0, 0, 1, 0, 0, 0],

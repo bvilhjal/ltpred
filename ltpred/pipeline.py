@@ -33,7 +33,7 @@ from ._selected_kinship import _SelectedKinship, _covariance_reduction_is_safe
 from .covariance import kinship_from_pedigree
 from .estimate import estimate_liability_from_kinship
 from .pedigree import build_parent_graph, extract_pedigree
-from .thresholds import thresholds_from_cip
+from .thresholds import _cip_bounds, _validate_cip_curve
 
 __all__ = ["PopulationScores", "estimate_liabilities"]
 
@@ -219,6 +219,34 @@ def estimate_liabilities(
     strata_array = _validate_cip_inputs(
         n, cip_ages=cip_ages, cip_values=cip_values, k_pop=k_pop,
         strata=strata, cip_by_stratum=cip_by_stratum)
+    # Validate each curve once, not once per proband: an empirical CIP can
+    # carry one point per event age.
+    if strata_array is None:
+        curves = {None: _validate_cip_curve(cip_ages, cip_values, k_pop)}
+    else:
+        curves = {}
+        for label in set(strata_array.tolist()):
+            try:
+                curve = cip_by_stratum[label]
+                if len(curve) != 3:
+                    raise ValueError
+                curve_ages, curve_values, curve_k_pop = curve
+            except (TypeError, ValueError):
+                raise ValueError(
+                    "each cip_by_stratum value must be "
+                    "(cip_ages, cip_values, k_pop)") from None
+            curves[label] = _validate_cip_curve(curve_ages, curve_values, curve_k_pop)
+
+    def bounds(member_status, member_age, member_strata):
+        if member_strata is None:
+            return _cip_bounds(member_status, member_age, curves[None])[:2]
+        lower = np.empty(member_status.shape[0])
+        upper = np.empty(member_status.shape[0])
+        for label in set(member_strata.tolist()):
+            selected = member_strata == label
+            lower[selected], upper[selected] = _cip_bounds(
+                member_status[selected], member_age[selected], curves[label])[:2]
+        return lower, upper
 
     birth_array = None
     index_array = None
@@ -322,6 +350,9 @@ def estimate_liabilities(
     n_closure_only = np.empty(n_probands, dtype=int)
     degree_max = np.empty(n_probands, dtype=int)
 
+    if use == "gwas":            # every record enters unchanged: bounds once
+        gwas_lower, gwas_upper = bounds(status_array, age_array, strata_array)
+
     for k, proband in enumerate(probands):
         ped = extract_pedigree(graph, proband, max_degree=max_degree)
         m = len(ped.ids)
@@ -346,31 +377,13 @@ def estimate_liabilities(
             member_status[not_born] = False
             member_age[not_born] = 0.0
 
-        if strata_array is None:
-            lower, upper, _, _ = thresholds_from_cip(
-                member_status, member_age, cip_ages, cip_values,
-                k_pop=k_pop, case_mode="pin")
+        if use == "prediction":
+            lower, upper = bounds(member_status, member_age,
+                                  None if strata_array is None
+                                  else strata_array[member_index])
         else:
-            lower = np.empty(m)
-            upper = np.empty(m)
-            member_strata = strata_array[member_index]
-            for label in set(member_strata.tolist()):
-                selected = member_strata == label
-                try:
-                    curve = cip_by_stratum[label]
-                    if len(curve) != 3:
-                        raise ValueError
-                    curve_ages, curve_values, curve_k_pop = curve
-                except (TypeError, ValueError):
-                    raise ValueError(
-                        "each cip_by_stratum value must be "
-                        "(cip_ages, cip_values, k_pop)") from None
-                lo, hi, _, _ = thresholds_from_cip(
-                    member_status[selected], member_age[selected],
-                    curve_ages, curve_values, k_pop=curve_k_pop,
-                    case_mode="pin")
-                lower[selected] = lo
-                upper[selected] = hi
+            lower = gwas_lower[member_index]
+            upper = gwas_upper[member_index]
 
         uninformative = np.zeros(m, dtype=bool)
         if not condition_closure:

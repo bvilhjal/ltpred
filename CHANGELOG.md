@@ -17,6 +17,23 @@ version is 0 the public API may still change between minor releases.
   Numba runs on its `workqueue` threading layer (the only one in the macOS
   pip wheel, and the cause of the macOS CI abort). Parallel kernel launches
   are serialised on that layer; OpenMP and TBB run unlocked.
+- Scoring rejects a family that lists one non-missing `pid` under two roles:
+  a duplicated sibling record (roles `s1` and `s2`, same `pid`) used to count
+  as a second affected sibling, moving the score from 0.59 to 0.97. Missing
+  ids and one person shared across families remain allowed; a person who
+  truly fills two roles needs the kinship route.
+- `families_from_columns` rejects a `fam_id` column mixing strings and
+  non-strings. NumPy stringified `[1, "1"]` to one id and merged two families.
+
+### Performance
+
+- `estimate_liabilities` validates each CIP curve once per call instead of
+  once per proband, and computes GWAS-mode bounds once for all records
+  (scores bit-identical). With a 100,001-point curve, 1,000 probands took
+  1.32 s before and 0.90 s after, the same as with a 121-point curve.
+- `estimate_liability_gibbs_batches` builds only the current batch's seeds from
+  its global offset (same seeds). Seed bookkeeping for 1,000 batches of 1,000
+  families fell from 2.4 s and 23 MiB to 5 ms.
 
 ## 0.7.1 — 2026-09-23
 
