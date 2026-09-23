@@ -2234,12 +2234,14 @@ same two-moment approximation PA makes.</p>
 10 replicates of 4,000 relatives-only families the predicted rate is
 <span class="arithmatex">\(0.0501 \pm 0.0001\)</span> against an observed <span class="arithmatex">\(0.0504 \pm 0.0014\)</span> (a gap of
 0.2 standard errors); the top decile is <span class="arithmatex">\(0.1192 \pm 0.0006\)</span> predicted
-against <span class="arithmatex">\(0.1167 \pm 0.0077\)</span> observed (0.3 SE); the bottom decile is
-<span class="arithmatex">\(0.0401\)</span> predicted against <span class="arithmatex">\(0.0427 \pm 0.0039\)</span> observed (0.7 SE). The
+against <span class="arithmatex">\(0.1175 \pm 0.0073\)</span> observed (0.2 SE); the bottom decile is
+<span class="arithmatex">\(0.0401\)</span> predicted against <span class="arithmatex">\(0.0420 \pm 0.0013\)</span> observed (1.5 SE). The
 bottom decile's <em>predicted</em> rate has no replicate-to-replicate spread at
 all: with three relatives at <span class="arithmatex">\(K=0.05\)</span>, 86% of families share the single
 lowest-risk configuration — no affected relative — so the lowest 400 are
-an arbitrary subset of one stratum rather than a tail. A <em>single</em> replicate can look off
+an arbitrary subset of one stratum rather than a tail. The script breaks
+such ties with a stable sort (simulation order), so every platform picks
+the same families. A <em>single</em> replicate can look off
 by two or three standard errors in the tail, so do not read one run as a
 bias. The formula is <strong>not</strong> valid for use II, where the proband's own
 status is already in <span class="arithmatex">\(D_F\)</span>.</p>

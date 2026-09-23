@@ -5705,7 +5705,9 @@ Pearson--Aitken; use the lower-level APIs for interval/mixture models.</p>
 disease-independent default, for the same reason <code>pop_prev</code> has none. See
 data-preparation.md, "Which h²?", for choosing between pedigree/twin and
 SNP estimates and for the sensitivity analysis.</p>
-<p>Only target and informative observation relationships are materialized;
+<p>Only target and informative observation relationships are used. They
+come from a dense matrix over the extracted pedigree when most members
+are selected, otherwise from selected pair recursion, where
 <code>kinship_cache_size</code> bounds the number of ancestor-pair results reused
 across probands (zero disables memoization). The parent graph is checked
 for cycles once. Near covariance singularities the full extracted matrix
