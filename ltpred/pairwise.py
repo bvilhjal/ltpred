@@ -28,7 +28,7 @@ from scipy.optimize import minimize
 from scipy.special import ndtr
 
 from .estimate import _assert_nonempty_families, _check_unique_roles, _group_by_structure
-from .fit import (_COMPONENT_OFFDIAG, _component_matrix, _assert_common_thresholds,
+from .fit import (_validate_components, _component_matrix, _assert_common_thresholds,
                   _assert_nonoverlapping_pids, _assert_population_case_rate,
                   _validate_population_sampling, _validate_weights,
                   _validate_update_controls)
@@ -172,6 +172,33 @@ def _family_scores(groups, cell_scores, weights):
     return scores * weights[:, None]
 
 
+def _cluster_sandwich(hessian, groups, cell_scores, weights, at_boundary):
+    """Sampling covariance from independent family scores, or a reason to withhold it."""
+    n, p = len(weights), hessian.shape[0]
+    covariance = np.full((p, p), np.nan)
+    if at_boundary:
+        inference_status = "unavailable_boundary"
+    elif n <= p:
+        inference_status = "unavailable_clusters"
+    else:
+        score = _family_scores(groups, cell_scores, weights)
+        score -= score.mean(axis=0)
+        meat = (score.T @ score) * n / (n - 1)
+        if (not np.all(np.isfinite(hessian)) or np.linalg.eigvalsh(hessian).min() <= 0
+                or np.linalg.matrix_rank(hessian) < p or np.linalg.matrix_rank(meat) < p):
+            inference_status = "unavailable_information"
+        else:
+            left = np.linalg.solve(hessian, meat)
+            covariance = np.linalg.solve(hessian, left.T).T
+            covariance = (covariance + covariance.T) / 2
+            if not np.all(np.isfinite(covariance)) or np.any(np.diag(covariance) < 0):
+                covariance[:] = np.nan
+                inference_status = "unavailable_information"
+            else:
+                inference_status = "interior_cluster_sandwich"
+    return covariance, inference_status
+
+
 def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
                  sampling: str | None = None, weights: ArrayLike | None = None,
                  eps: float = 1e-6, maxiter: int = 200,
@@ -200,16 +227,7 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
     asymptotic, conditional on the supplied threshold/weights; no ordinary
     chi-square likelihood-ratio calibration is claimed for this composite fit.
     """
-    try:
-        components = tuple(components)
-    except TypeError:
-        raise TypeError("components must be a non-empty sequence") from None
-    if not components:
-        raise ValueError("components must contain at least one component")
-    if any(c not in _COMPONENT_OFFDIAG for c in components):
-        raise ValueError("unknown component: supported components are A, C, M")
-    if len(set(components)) != len(components):
-        raise ValueError("duplicate components")
+    components = tuple(_validate_components(components))
     _, eps = _validate_update_controls(0.2, eps)
     if isinstance(maxiter, (bool, np.bool_)):
         raise TypeError("maxiter must be a positive integer")
@@ -279,27 +297,8 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
                     float(np.max(np.maximum(-reduced[~positive], 0))) if np.any(~positive) else 0.)
     if not np.isfinite(value) or violation > max(1e-5, 10 * math.sqrt(tol)):
         raise RuntimeError("pairwise optimization failed its constrained score check")
-    covariance = np.full((p, p), np.nan)
-    if at_boundary:
-        inference_status = "unavailable_boundary"
-    elif n <= p:
-        inference_status = "unavailable_clusters"
-    else:
-        score = _family_scores(groups, cell_scores, normalized_weights)
-        score -= score.mean(axis=0)
-        meat = (score.T @ score) * n / (n - 1)
-        if (not np.all(np.isfinite(hessian)) or np.linalg.eigvalsh(hessian).min() <= 0
-                or np.linalg.matrix_rank(hessian) < p or np.linalg.matrix_rank(meat) < p):
-            inference_status = "unavailable_information"
-        else:
-            left = np.linalg.solve(hessian, meat)
-            covariance = np.linalg.solve(hessian, left.T).T
-            covariance = (covariance + covariance.T) / 2
-            if not np.all(np.isfinite(covariance)) or np.any(np.diag(covariance) < 0):
-                covariance[:] = np.nan
-                inference_status = "unavailable_information"
-            else:
-                inference_status = "interior_cluster_sandwich"
+    covariance, inference_status = _cluster_sandwich(
+        hessian, groups, cell_scores, normalized_weights, at_boundary)
     if inference_status != "interior_cluster_sandwich":
         warnings.warn("pairwise sampling SEs unavailable: " + inference_status
                       + "; boundary-aware profile or design-appropriate bootstrap inference needs separate calibration",

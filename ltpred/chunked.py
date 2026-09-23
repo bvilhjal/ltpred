@@ -16,10 +16,10 @@ from typing import Any
 import numpy as np
 from numpy.typing import ArrayLike
 
-from ._validation import validate_bounds, validate_mixture_inputs
+from ._validation import validate_mixture_inputs
 from .estimate import (_OUT_NAMES, _base_seeds, _check_unique_role_labels,
                        _gibbs_from_role_arrays, _pa_from_role_arrays,
-                       _single_out, _warn_unconverged)
+                       _prepare_role_arrays, _single_out, _warn_unconverged)
 from .gibbs import as_bounds
 
 __all__ = ["estimate_liability_pa_chunked", "estimate_liability_gibbs_chunked",
@@ -39,20 +39,6 @@ def _validate_chunk_size(chunk_size):
     return chunk_size
 
 
-def _prepare_role_arrays(roles, lower, upper):
-    """Validate roles and bound arrays once; return ``(roles, lower, upper)``."""
-    roles = list(roles)
-    _check_unique_role_labels(roles)
-    lower = as_bounds(lower)
-    upper = as_bounds(upper)
-    if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
-        raise ValueError(
-            f"lower and upper must be (n_families, {len(roles)}) -- one "
-            f"column per role {roles}; got {lower.shape} and {upper.shape}")
-    validate_bounds(lower, upper, context="array estimator bounds")
-    return roles, lower, upper
-
-
 def _row_slices(n, chunk_size):
     """Yield row slices covering ``n`` families, including a ``(0, 0)`` empty."""
     if n == 0:
@@ -60,12 +46,6 @@ def _row_slices(n, chunk_size):
         return
     for start in range(0, n, chunk_size):
         yield slice(start, min(start + chunk_size, n))
-
-
-def _concat(parts):
-    if not parts:
-        return np.empty(0)
-    return np.concatenate(parts)
 
 
 def _unpack_batch(item):
@@ -133,7 +113,7 @@ def estimate_liability_pa_chunked(roles: Sequence[str], lower: ArrayLike,
             K_i, K_pop, expected_shape=lower.shape, require_pair=True,
             lower=lower, upper=upper,
             context="array estimator mixture inputs")
-    est_parts, var_parts = [], []
+    est, var = np.empty(lower.shape[0]), np.empty(lower.shape[0])
     for sl in _row_slices(lower.shape[0], chunk_size):
         e, v = _pa_from_role_arrays(
             roles, lower[sl], upper[sl], h2, [coord],
@@ -141,9 +121,8 @@ def estimate_liability_pa_chunked(roles: Sequence[str], lower: ArrayLike,
             K_pop=None if K_pop is None else K_pop[sl],
             use_mixture=use_mixture, c2=c2, m2=m2,
             mixture_require_pair=False)
-        est_parts.append(e[coord])
-        var_parts.append(v[coord])
-    return _concat(est_parts), _concat(var_parts)
+        est[sl], var[sl] = e[coord], v[coord]
+    return est, var
 
 
 def estimate_liability_gibbs_chunked(roles: Sequence[str], lower: ArrayLike,
@@ -170,15 +149,15 @@ def estimate_liability_gibbs_chunked(roles: Sequence[str], lower: ArrayLike,
     roles, lower, upper = _prepare_role_arrays(roles, lower, upper)
     F = lower.shape[0]
     seeds = _base_seeds(seed, F, max_rounds)
-    est_parts, se_parts, var_parts = [], [], []
+    est, se = np.empty(F), np.empty(F)
+    var = np.empty(F) if return_var else None
     for sl in _row_slices(F, chunk_size):
         e, s, v = _gibbs_from_role_arrays(
             roles, lower[sl], upper[sl], h2, [coord], seeds[sl],
             tol, n_sim, burn_in, max_rounds, c2=c2, m2=m2)
-        est_parts.append(e[:, 0])
-        se_parts.append(s[:, 0])
-        var_parts.append(v[:, 0])
-    est, se, var = _concat(est_parts), _concat(se_parts), _concat(var_parts)
+        est[sl], se[sl] = e[:, 0], s[:, 0]
+        if return_var:
+            var[sl] = v[:, 0]
     name = _OUT_NAMES[coord]
     _warn_unconverged({name: se}, [name], tol, max_rounds, F)
     if return_var:

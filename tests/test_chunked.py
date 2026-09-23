@@ -40,20 +40,25 @@ def _mixture_bounds(n_control=20, n_case=10):
 
 
 @pytest.mark.parametrize("chunk_size", [1, 7, 50, 10 ** 9])
-def test_pa_chunked_matches_pa_arrays(chunk_size):
+@pytest.mark.parametrize("out", ["genetic", "full"])
+@pytest.mark.parametrize("components", [{}, {"c2": 0.1, "m2": 0.05}])
+def test_pa_chunked_matches_pa_arrays(chunk_size, out, components):
     roles, lower, upper, _t = _nuclear_bounds(50)
-    est_a, var_a = estimate_liability_pa_arrays(roles, lower, upper, h2=0.5)
+    est_a, var_a = estimate_liability_pa_arrays(
+        roles, lower, upper, h2=0.5, out=out, **components)
     est_c, var_c = estimate_liability_pa_chunked(
-        roles, lower, upper, h2=0.5, chunk_size=chunk_size)
+        roles, lower, upper, h2=0.5, out=out, chunk_size=chunk_size, **components)
     np.testing.assert_array_equal(est_c, est_a)
     np.testing.assert_array_equal(var_c, var_a)
 
 
 @pytest.mark.jit_required
 @pytest.mark.parametrize("chunk_size", [1, 7, 10 ** 9])
-def test_gibbs_chunked_matches_gibbs_arrays(chunk_size):
+@pytest.mark.parametrize("out", ["genetic", "full"])
+def test_gibbs_chunked_matches_gibbs_arrays(chunk_size, out):
     roles, lower, upper, _t = _nuclear_bounds(12, seed=2)
-    kwargs = dict(h2=0.5, n_sim=20_000, burn_in=400, seed=3, tol=0.05)
+    kwargs = dict(h2=0.5, c2=0.1, m2=0.05, out=out,
+                  n_sim=20_000, burn_in=400, seed=3, tol=0.05)
     est_a, se_a = estimate_liability_gibbs_arrays(roles, lower, upper, **kwargs)
     est_c, se_c = estimate_liability_gibbs_chunked(
         roles, lower, upper, chunk_size=chunk_size, **kwargs)

@@ -6,8 +6,22 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.7.2 — 2026-09-23
+
+### Changed
+
+- Array and chunked estimators share their role/bounds validation; the two
+  pairwise fitters share their family-cluster sampling-covariance calculation.
+  Family grouping uses dictionary insertion order without a second order list.
+- Chunked scoring fills final output arrays directly, avoiding retention and
+  concatenation of every chunk's results. Gibbs retains posterior variances
+  only when `return_var=True`. Public signatures and seeded draws are unchanged.
+
 ### Fixed
 
+- Duplicate-person checks normalize every non-missing `pid` before comparing:
+  `"sib"`, `" sib "` and `b"sib"` identify the same person, as in the fitters.
+  Previously the raw-id shortcut could count these as different relatives.
 - The vignette's decile calibration picked its top/bottom 400 families with
   numpy's unstable default sort, over risks with only 8 distinct values, so
   the observed decile rates differed by platform and numpy version (CI

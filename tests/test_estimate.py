@@ -990,6 +990,15 @@ def test_same_pid_under_two_roles_is_rejected_but_shared_relatives_are_not():
     assert estimate_liability(ok, h2=0.5).genetic.shape == (2,)
 
 
+@pytest.mark.parametrize("method", ["pa", "gibbs", "quadrature"])
+@pytest.mark.parametrize("pid", [" sib ", b"sib", np.bytes_("sib")])
+def test_duplicate_pid_check_uses_normalized_identity(method, pid):
+    family = Family("F", [Member("s1", 1.6, np.inf, pid="sib"),
+                          Member("s2", 1.6, np.inf, pid=pid)])
+    with pytest.raises(ValueError, match="more than once in family"):
+        estimate_liability([family], h2=0.5, method=method)
+
+
 def test_families_from_columns_rejects_mismatched_bound_shapes():
     with pytest.raises(ValueError, match="same shape"):
         families_from_columns(fam_id=[1, 1], role=["o", "m"],

@@ -179,19 +179,17 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
             "records and would silently fragment them into one-member "
             "families")
 
-    order = []
     groups = {}
     for i in range(n):
         key = fam_id[i]
         if key not in groups:
             groups[key] = []
-            order.append(key)
         groups[key].append(i)
 
     families = []
-    for key in order:
+    for key, indices in groups.items():
         members = []
-        for i in groups[key]:
+        for i in indices:
             members.append(Member(role=str(role[i]), lower=lower[i], upper=upper[i],
                                    pid=(None if pid is None else pid[i]),
                                    K_i=(None if K_i is None else K_i[i]),

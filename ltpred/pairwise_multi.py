@@ -30,7 +30,7 @@ from .fit import (_component_matrix, _assert_common_thresholds,
                   _assert_nonoverlapping_pids, _assert_population_case_rate,
                   _validate_population_sampling, _validate_weights,
                   _validate_update_controls)
-from .pairwise import _family_scores
+from .pairwise import _cluster_sandwich
 
 __all__ = ["MultiTraitPairwiseResult", "fit_pairwise_multi"]
 
@@ -407,26 +407,7 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
     # square root when deciding whether an eigenvalue is numerically interior.
     boundary_tol = max(1e-7, 10*math.sqrt(tol))
     boundary = bool(np.min(cone(x)) <= boundary_tol)
-    covariance = np.full((d, d), np.nan)
-    if boundary:
-        status = "unavailable_boundary"
-    elif n <= d:
-        status = "unavailable_clusters"
-    else:
-        scores = _family_scores(groups, cell_scores, w)
-        scores -= scores.mean(axis=0)
-        meat = scores.T @ scores * n/(n-1)
-        if (not np.all(np.isfinite(hessian)) or np.linalg.eigvalsh(hessian).min() <= 0
-                or np.linalg.matrix_rank(hessian) < d or np.linalg.matrix_rank(meat) < d):
-            status = "unavailable_information"
-        else:
-            left = np.linalg.solve(hessian, meat)
-            covariance = np.linalg.solve(hessian, left.T).T
-            covariance = (covariance+covariance.T)/2
-            status = "interior_cluster_sandwich"
-            if not np.all(np.isfinite(covariance)) or np.any(np.diag(covariance) < 0):
-                covariance[:] = np.nan
-                status = "unavailable_information"
+    covariance, status = _cluster_sandwich(hessian, groups, cell_scores, w, boundary)
     if status != "interior_cluster_sandwich":
         warnings.warn("joint pairwise sampling SEs unavailable: " + status,
                       RuntimeWarning, stacklevel=2)

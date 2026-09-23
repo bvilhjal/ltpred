@@ -402,12 +402,7 @@ def _check_unique_roles(families):
                 f"family {fam.fam_id!r} has duplicate role(s) {dup}; each role "
                 "names one individual — number repeated relatives (s1, s2, ...).")
         pids = [m.pid for m in fam.members if m.pid is not None]
-        try:
-            clash = len(pids) != len(set(pids))
-        except TypeError:                  # unhashable pids: compare keys
-            clash = True
-        # Normalise only on a raw clash: it can dismiss missing ids ("NA").
-        keys = [k for k in map(_pid_key, pids) if k is not None] if clash else ()
+        keys = [key for key in map(_pid_key, pids) if key is not None]
         if len(keys) != len(set(keys)):
             dup = sorted({repr(k) for k in keys if keys.count(k) > 1})
             raise ValueError(
@@ -489,14 +484,12 @@ def _group_by_structure(families):
     downstream, so order within a family does not matter. Yields
     ``(role_tuple, [global_index, ...])``."""
     groups = {}
-    order = []
     for i, fam in enumerate(families):
         key = tuple(sorted(m.role for m in fam.members))
         if key not in groups:
             groups[key] = []
-            order.append(key)
         groups[key].append(i)
-    return [(key, groups[key]) for key in order]
+    return list(groups.items())
 
 
 def _base_seeds(seed, n, max_rounds, start=0):
@@ -794,6 +787,20 @@ def _adult_full_moments(lower, upper):
     return mean, variance
 
 
+def _prepare_role_arrays(roles, lower, upper):
+    """Validate role columns and bounds; return ``(roles, lower, upper)``."""
+    roles = list(roles)
+    _check_unique_role_labels(roles)
+    lower = as_bounds(lower)
+    upper = as_bounds(upper)
+    if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
+        raise ValueError(
+            f"lower and upper must be (n_families, {len(roles)}) -- one "
+            f"column per role {roles}; got {lower.shape} and {upper.shape}")
+    validate_bounds(lower, upper, context="array estimator bounds")
+    return roles, lower, upper
+
+
 def _pa_from_role_arrays(roles, lower, upper, h2, out_coords, K_i=None,
                          K_pop=None, use_mixture=False, c2=None, m2=None,
                          mixture_require_pair=True):
@@ -806,15 +813,7 @@ def _pa_from_role_arrays(roles, lower, upper, h2, out_coords, K_i=None,
     group may legitimately contain no mixture pair of its own (e.g. every
     family in the group is all-cases), so re-requiring one per group would
     reject a call the global gate accepted."""
-    roles = list(roles)
-    _check_unique_role_labels(roles)
-    lower = as_bounds(lower)
-    upper = as_bounds(upper)
-    if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
-        raise ValueError(
-            f"lower and upper must be (n_families, {len(roles)}) -- one "
-            f"column per role {roles}; got {lower.shape} and {upper.shape}")
-    validate_bounds(lower, upper, context="array estimator bounds")
+    roles, lower, upper = _prepare_role_arrays(roles, lower, upper)
     # det(cov[g,o])/trace(cov[g,o]) bounds its smallest eigenvalue. Stay well
     # above the legacy repair threshold; boundary requests retain that path.
     if (roles == ["o"] and not use_mixture and c2 in (None, 0) and m2 in (None, 0)
@@ -855,15 +854,7 @@ def _gibbs_from_role_arrays(roles, lower, upper, h2, out_coords, seeds,
     """Gibbs estimates for one or more targets on same-structure role arrays.
 
     Returns ``(est, se, var)`` exactly as :func:`_estimate_group` does."""
-    roles = list(roles)
-    _check_unique_role_labels(roles)
-    lower = as_bounds(lower)
-    upper = as_bounds(upper)
-    if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
-        raise ValueError(
-            f"lower and upper must be (n_families, {len(roles)}) -- one "
-            f"column per role {roles}; got {lower.shape} and {upper.shape}")
-    validate_bounds(lower, upper, context="array estimator bounds")
+    roles, lower, upper = _prepare_role_arrays(roles, lower, upper)
     cov_obj, cov = _single_trait_cov(roles, h2, c2, m2, "Gibbs sampling")
     lo, hi = _align_to_cov(roles, cov_obj.roles, (lower, upper),
                            (-np.inf, np.inf))
