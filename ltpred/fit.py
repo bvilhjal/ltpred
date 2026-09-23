@@ -227,6 +227,27 @@ _CASE_RATE_RATIO_TOL = 1.15
 _CASE_RATE_Z_TOL = 6.0
 
 
+def _member_bounds(families, n_pheno):
+    """Every member's bounds as ``(M, n_pheno)`` arrays, plus roles and family index.
+
+    Scalars broadcast across traits; the per-member fallback raises the same
+    shape error ``np.broadcast_to`` gives for a wrong-length bound."""
+    members = [(f, m) for f, family in enumerate(families) for m in family.members]
+    shape = (len(members), n_pheno)
+    try:
+        lo = np.asarray([m.lower for _, m in members], dtype=float)
+        hi = np.asarray([m.upper for _, m in members], dtype=float)
+        lo = np.broadcast_to(lo.reshape(len(members), -1), shape)
+        hi = np.broadcast_to(hi.reshape(len(members), -1), shape)
+    except ValueError:
+        lo = np.array([np.broadcast_to(np.asarray(m.lower, dtype=float), (n_pheno,))
+                       for _, m in members]).reshape(shape)
+        hi = np.array([np.broadcast_to(np.asarray(m.upper, dtype=float), (n_pheno,))
+                       for _, m in members]).reshape(shape)
+    return (lo, hi, [m.role for _, m in members],
+            np.fromiter((f for f, _ in members), dtype=np.intp, count=len(members)))
+
+
 def _assert_population_case_rate(families, n_pheno, *, context, weights=None):
     """Check the observed case rate against the one the thresholds assert.
 
@@ -259,27 +280,27 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None):
     ``(sum w)^2 / sum w^2``, so heavy weights widen the tolerance instead of
     manufacturing significance.
     """
+    lo_all, hi_all, roles, fam_index = _member_bounds(families, n_pheno)
+    w = (np.ones(len(roles)) if weights is None
+         else np.asarray(weights, dtype=float)[fam_index])
+    # after _assert_common_thresholds: finite lower => case, finite upper =>
+    # control, and the finite end IS the threshold. An UNINFORMATIVE member --
+    # (-inf, inf), which the prediction path uses routinely to unbind a
+    # proband -- is neither, and counting it as a control deflates the role's
+    # rate and manufactures a failure on legitimate data.
+    is_case = np.isfinite(lo_all)
+    informative = is_case | np.isfinite(hi_all)
+    thr_all = np.where(is_case, lo_all, hi_all)
     per_role = {}
-    for fam_index, family in enumerate(families):
-        w = 1.0 if weights is None else float(weights[fam_index])
-        for member in family.members:
-            lo = np.broadcast_to(np.asarray(member.lower, dtype=float), (n_pheno,))
-            hi = np.broadcast_to(np.asarray(member.upper, dtype=float), (n_pheno,))
-            for p in range(n_pheno):
-                # after _assert_common_thresholds: finite lower => case,
-                # finite upper => control, and the finite end IS the threshold.
-                # An UNINFORMATIVE member -- (-inf, inf), which the prediction
-                # path uses routinely to unbind a proband -- is neither, and
-                # counting it as a control deflates the role's rate and
-                # manufactures a failure on legitimate data.
-                lo_p, hi_p = lo[p], hi[p]
-                is_case = bool(np.isfinite(lo_p))
-                if not is_case and not np.isfinite(hi_p):
-                    continue
-                thr = lo_p if is_case else hi_p
-                sw, sw2, k, t = per_role.get((member.role, p), (0.0, 0.0, 0.0, thr))
-                per_role[(member.role, p)] = (sw + w, sw2 + w * w,
-                                              k + w * int(is_case), t)
+    for role in set(roles):
+        rows = np.fromiter((r == role for r in roles), dtype=bool, count=len(roles))
+        for p in range(n_pheno):
+            use = rows & informative[:, p]
+            if use.any():
+                wr = w[use]
+                per_role[(role, p)] = (wr.sum(), (wr * wr).sum(),
+                                       (wr * is_case[use, p]).sum(),
+                                       thr_all[use, p][0])
 
     worst = None
     for (role, pheno), (sw, sw2, k, thr) in sorted(per_role.items()):
@@ -353,36 +374,24 @@ def _assert_common_thresholds(families, n_pheno, *, context):
     friends) are unaffected -- they *condition* on a supplied ``h2`` rather than
     fitting it, and personalised bounds are exactly what they are designed for.
     """
-    los, his = [], []
-    for family in families:
-        for member in family.members:
-            los.append(np.broadcast_to(np.asarray(member.lower, dtype=float), (n_pheno,)))
-            his.append(np.broadcast_to(np.asarray(member.upper, dtype=float), (n_pheno,)))
-    if not los:
+    lo_all, hi_all, _roles, _fam_index = _member_bounds(families, n_pheno)
+    if not lo_all.size:
         return
-    lo_all = np.asarray(los)
-    hi_all = np.asarray(his)
     # Structural bounds validation runs first so a NaN or reversed interval gets
     # its own precise error rather than being miscounted as a pin/interval below.
     validate_bounds(lo_all, hi_all, context=context)
 
-    pinned = interval = 0
-    thresholds = [[] for _ in range(n_pheno)]
-    for row_lo, row_hi in zip(lo_all, hi_all):
-        for p in range(n_pheno):
-            lo, hi = row_lo[p], row_hi[p]
-            if hi - lo < 1e-8:
-                pinned += 1
-            elif np.isneginf(lo) and np.isfinite(hi):
-                thresholds[p].append(float(hi))
-            elif np.isfinite(lo) and np.isposinf(hi):
-                thresholds[p].append(float(lo))
-            elif np.isfinite(lo) and np.isfinite(hi):
-                interval += 1
+    pin = hi_all - lo_all < 1e-8
+    control = ~pin & np.isneginf(lo_all) & np.isfinite(hi_all)
+    case = ~pin & np.isfinite(lo_all) & np.isposinf(hi_all)
+    pinned = int(pin.sum())
+    interval = int((~pin & np.isfinite(lo_all) & np.isfinite(hi_all)).sum())
+    thr_all = np.where(control, hi_all, lo_all)
+    thresholds = [thr_all[control[:, p] | case[:, p], p] for p in range(n_pheno)]
     # rtol=1e-6 tolerates the ~1e-7 gap between the float32 and float64
     # representations of one common threshold; genuine age-/CIP-specific
     # thresholds differ by orders of magnitude more.
-    varying = any(v and not np.allclose(v, v[0], rtol=1e-6, atol=1e-9)
+    varying = any(v.size and not np.allclose(v, v[0], rtol=1e-6, atol=1e-9)
                   for v in thresholds)
     if not (pinned or interval or varying):
         return

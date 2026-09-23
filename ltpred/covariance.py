@@ -551,16 +551,20 @@ def kinship_from_pedigree(ids: Sequence, father: Sequence,
     if len(order) < n:
         raise ValueError("pedigree has a cycle (an individual is its own ancestor)")
 
-    A = np.zeros((n, n), dtype=np.float64)
-    for i in order:
-        s, d = sire[i], dam[i]
-        A[i, i] = 1.0 + (0.5 * A[s, d] if (s != -1 and d != -1) else 0.0)
-        for j in order:
-            if j == i:
-                break                                    # only already-placed j
-            aij = 0.5 * ((A[s, j] if s != -1 else 0.0) + (A[d, j] if d != -1 else 0.0))
-            A[i, j] = A[j, i] = aij
-    return ids, A
+    # Fill in topological order, one vectorised row per individual. Row/column
+    # ``n`` is an all-zero stand-in for an unknown parent, so the tabular
+    # recursion needs no founder branches.
+    pos = np.empty(n, dtype=np.intp)
+    pos[order] = np.arange(n)
+    s = [pos[sire[i]] if sire[i] != -1 else n for i in order]
+    d = [pos[dam[i]] if dam[i] != -1 else n for i in order]
+    A = np.zeros((n + 1, n + 1), dtype=np.float64)
+    for k in range(n):
+        row = 0.5 * (A[s[k], :k] + A[d[k], :k])
+        A[k, :k] = row
+        A[:k, k] = row
+        A[k, k] = 1.0 + 0.5 * A[s[k], d[k]]
+    return ids, A[np.ix_(pos, pos)]
 
 
 def _validate_kinship_component(value, kernel, name, n):

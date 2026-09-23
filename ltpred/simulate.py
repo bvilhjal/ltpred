@@ -368,6 +368,9 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
             for r in non_g
         }
         status = {r: onset[r] <= ages[r] for r in non_g}
+        control_thr = {r: convert_age_to_thresh(ages[r], pop_prev=pop_prev,
+                                                mid_point=mid_point, slope=slope)
+                       for r in non_g}
     else:
         ages = onset = None
         status = {r: liab[:, roles.index(r)] > t for r in non_g}
@@ -399,10 +402,7 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
                     lower, upper = (thr, np.inf) if case_encoding == "interval" \
                         else (thr, thr)
             else:
-                thr = float(convert_age_to_thresh(
-                    ages[r][i], pop_prev=pop_prev, mid_point=mid_point,
-                    slope=slope))
-                lower, upper = -np.inf, thr
+                lower, upper = -np.inf, float(control_thr[r][i])
             members.append(Member(role=r, lower=lower, upper=upper,
                                    pid=f"fam_{i}_{r}"))
         families.append(Family(fam_id=f"fam_{i}", members=members))

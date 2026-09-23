@@ -6,11 +6,29 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.7.1 — 2026-09-23
+
 ### Changed
 
 - The tutorial is five questions (steps 1–4 one disease, step 5 two traits).
   The method guide points at it before the decision table. Docs no longer
   address a class.
+
+### Performance
+
+Outputs are unchanged (bit-identical where checked).
+
+- `kinship_from_pedigree` fills one vectorised row per individual instead of
+  a scalar double loop: 25x faster on a 2,683-person register.
+- `estimate_liabilities` builds each extracted pedigree's relationship matrix
+  densely (exact, since the extraction holds every ancestor). Pedigrees over
+  1,500 members keep the bounded selected-pair recursion. 4x throughput on the
+  register benchmark (400 probands: 1.54 s to 0.38 s).
+- `simulate_under_LTM_single(use_age=True)` computes control thresholds once
+  per role rather than once per person: 4x faster.
+- The fitters' common-threshold and case-rate guards stack member bounds once
+  and run vectorised; the object-input PA path skips array coercion for scalar
+  bounds (0.61 s to 0.36 s on 50k families).
 
 ### Removed
 

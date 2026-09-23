@@ -98,13 +98,15 @@ def test_selected_pipeline_preserves_rejection_of_unrepairable_covariance():
 def test_pipeline_selected_relationships_are_bounded_and_cache_size_independent(monkeypatch):
     import ltpred.pipeline as pipeline_module
 
-    # The default covariance is safely PD, so constructing full closure A
-    # would be unnecessary work. Ancestors still determine selected entries.
-    def forbidden(*args, **kwargs):
-        raise AssertionError("default inference constructed full closure kinship")
-
-    monkeypatch.setattr(pipeline_module, "kinship_from_pedigree", forbidden)
     reference = estimate_liabilities(**pipeline_kwargs(probands=["o", "m", "f"]))
+
+    # Beyond the dense cap the safely-PD path must not build the closure A;
+    # ancestors still determine the selected entries, whatever the cache.
+    def forbidden(*args, **kwargs):
+        raise AssertionError("large-pedigree inference constructed full closure kinship")
+
+    monkeypatch.setattr(pipeline_module, "_DENSE_KINSHIP_MAX_MEMBERS", 0)
+    monkeypatch.setattr(pipeline_module, "kinship_from_pedigree", forbidden)
     for size in [0, 1, 5]:
         result = estimate_liabilities(**pipeline_kwargs(
             probands=["o", "m", "f"], kinship_cache_size=size))

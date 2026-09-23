@@ -605,12 +605,12 @@ def _estimate_liability_pa(families, h2, out=("genetic",), use_mixture=False,
             roles, lowers, uppers, h2, out_coords, K_i=K_is, K_pop=K_pops,
             use_mixture=use_mixture, c2=c2, m2=m2,
             mixture_require_pair=False)  # the global gate above already ran
-        for slot, f in enumerate(idx):
+        for slot, f in enumerate(idx):     # ids may be tuples: no fancy index
             fam_ids[f] = families[f].fam_id
             pids[f] = group_pids[slot]
-            for c, name in zip(out_coords, names):
-                est[name][f] = group_est[c][slot]
-                var[name][f] = group_var[c][slot]
+        for c, name in zip(out_coords, names):
+            est[name][idx] = group_est[c]
+            var[name][idx] = group_var[c]
 
     se = {name: np.zeros(n) for name in names}   # deterministic: no Monte-Carlo error
     return LiabilityResult(fam_ids=fam_ids, pids=pids, est=est, se=se, var=var)
@@ -633,8 +633,9 @@ def _estimate_liability_quadrature(families, h2, out, dtype, atol, max_nodes):
     for role_key, idx in _group_by_structure(families):
         roles = list(role_key)
         lo, hi, _, _, group_pids = _stack_object_members(families, idx, roles, dtype)
-        fam_ids[idx] = [families[f].fam_id for f in idx]
-        pids[idx] = group_pids
+        for slot, f in enumerate(idx):     # ids may be tuples: no fancy index
+            fam_ids[f] = families[f].fam_id
+            pids[f] = group_pids[slot]
         for name in names:
             result = estimate_liability_quadrature_arrays(
                 roles, lo, hi, h2=h2, out=name, atol=atol, max_nodes=max_nodes)
@@ -852,6 +853,10 @@ def _gibbs_from_role_arrays(roles, lower, upper, h2, out_coords, seeds,
 
 def _scalar_member_bounds(member, fam_id):
     """Return one member's single-trait bounds with the public shape error."""
+    lo, hi = member.lower, member.upper
+    if isinstance(lo, (float, int, np.floating, np.integer)) and isinstance(
+            hi, (float, int, np.floating, np.integer)):
+        return float(lo), float(hi)      # fast path: already scalars
     lo = np.asarray(member.lower, dtype=float)
     hi = np.asarray(member.upper, dtype=float)
     if lo.size != 1 or hi.size != 1:
