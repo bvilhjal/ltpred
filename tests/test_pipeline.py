@@ -98,20 +98,24 @@ def test_selected_pipeline_preserves_rejection_of_unrepairable_covariance():
 def test_pipeline_selected_relationships_are_bounded_and_cache_size_independent(monkeypatch):
     import ltpred.pipeline as pipeline_module
 
+    monkeypatch.setattr(pipeline_module, "_DENSE_KINSHIP_COST_PER_MEMBER", 0)
     reference = estimate_liabilities(**pipeline_kwargs(probands=["o", "m", "f"]))
 
-    # Beyond the dense cap the safely-PD path must not build the closure A;
-    # ancestors still determine the selected entries, whatever the cache.
+    # Beyond the dense cap, or with few selected members, the safely-PD path
+    # must not build the closure A; ancestors still determine the selected
+    # entries, whatever the cache.
     def forbidden(*args, **kwargs):
-        raise AssertionError("large-pedigree inference constructed full closure kinship")
+        raise AssertionError("selected-pair inference constructed full closure kinship")
 
-    monkeypatch.setattr(pipeline_module, "_DENSE_KINSHIP_MAX_MEMBERS", 0)
     monkeypatch.setattr(pipeline_module, "kinship_from_pedigree", forbidden)
-    for size in [0, 1, 5]:
-        result = estimate_liabilities(**pipeline_kwargs(
-            probands=["o", "m", "f"], kinship_cache_size=size))
-        np.testing.assert_array_equal(result.est, reference.est)
-        np.testing.assert_array_equal(result.var, reference.var)
+    for cap, cost in [(0, 2), (10**6, 10**6)]:     # too deep; too few selected
+        monkeypatch.setattr(pipeline_module, "_DENSE_KINSHIP_MAX_MEMBERS", cap)
+        monkeypatch.setattr(pipeline_module, "_DENSE_KINSHIP_COST_PER_MEMBER", cost)
+        for size in [0, 1, 5]:
+            result = estimate_liabilities(**pipeline_kwargs(
+                probands=["o", "m", "f"], kinship_cache_size=size))
+            np.testing.assert_array_equal(result.est, reference.est)
+            np.testing.assert_array_equal(result.var, reference.var)
 
 
 def test_pipeline_rejects_cycle_outside_selected_proband_component():

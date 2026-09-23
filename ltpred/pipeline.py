@@ -40,9 +40,12 @@ __all__ = ["PopulationScores", "estimate_liabilities"]
 # Share of records carrying an unresolved non-null parent above which a
 # register boundary stops being a plausible explanation on its own.
 _UNRESOLVED_PARENT_WARN_FRACTION = 0.5
-# Extracted pedigrees up to this size (an 18 MB dense A) use the dense
-# relationship matrix; deeper ones fall back to bounded selected recursion.
+# A proband's relationships come from a dense A over its extracted pedigree
+# when many members are selected (cheaper than per-pair recursion), and from
+# bounded, memoized selected-pair recursion when few are or the pedigree is
+# too deep for a dense A (1,500 members is 18 MB).
 _DENSE_KINSHIP_MAX_MEMBERS = 1500
+_DENSE_KINSHIP_COST_PER_MEMBER = 2
 
 
 @dataclass
@@ -165,10 +168,11 @@ def estimate_liabilities(
     data-preparation.md, "Which h²?", for choosing between pedigree/twin and
     SNP estimates and for the sensitivity analysis.
 
-    Each extracted pedigree's relationship matrix is built densely; only
-    pedigrees beyond 1,500 members (ancestry included) switch to selected
-    pair recursion, where ``kinship_cache_size`` bounds the number of
-    ancestor-pair results reused across probands (zero disables memoization). The parent graph is checked
+    Only target and informative observation relationships are used. They
+    come from a dense matrix over the extracted pedigree when most members
+    are selected, otherwise from selected pair recursion, where
+    ``kinship_cache_size`` bounds the number of ancestor-pair results reused
+    across probands (zero disables memoization). The parent graph is checked
     for cycles once. Near covariance singularities the full extracted matrix
     is retained to preserve the existing positive-definite correction.
 
@@ -377,24 +381,27 @@ def estimate_liabilities(
         lower[uninformative] = -np.inf
         upper[uninformative] = np.inf
 
-        reduce = _covariance_reduction_is_safe(h2, m)
-        if not reduce or m <= _DENSE_KINSHIP_MAX_MEMBERS:
-            # The extracted pedigree holds every ancestor, so its dense A is
-            # exact and far cheaper than per-pair recursion at register sizes.
-            _, full = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
-        if reduce:
+        if _covariance_reduction_is_safe(h2, m):
             selected = np.flatnonzero(~uninformative)
             if uninformative[0]:
                 selected = np.concatenate(([0], selected))
-            relationship = (full[np.ix_(selected, selected)]
-                            if m <= _DENSE_KINSHIP_MAX_MEMBERS
-                            else selected_kinship.matrix(member_index[selected]))
+            n_sel = selected.size
+            # Cached pair recursion costs about one lookup per selected pair
+            # (ancestors are shared across probands); a dense A over the
+            # extracted pedigree -- exact, since it holds every ancestor --
+            # costs about _DENSE_KINSHIP_COST_PER_MEMBER lookups per member.
+            if (m <= _DENSE_KINSHIP_MAX_MEMBERS
+                    and n_sel * (n_sel + 1) // 2 > _DENSE_KINSHIP_COST_PER_MEMBER * m):
+                _, full = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
+                relationship = full[np.ix_(selected, selected)]
+            else:
+                relationship = selected_kinship.matrix(member_index[selected])
             inference_lower = lower[selected]
             inference_upper = upper[selected]
         else:
             # Repair depends on the full covariance, not only its selected
             # principal block. Preserve that behavior at h2=1 and nearby.
-            relationship = full
+            _, relationship = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
             inference_lower, inference_upper = lower, upper
         estimate, _, posterior_var = estimate_liability_from_kinship(
             relationship, inference_lower[None, :], inference_upper[None, :], h2=h2,

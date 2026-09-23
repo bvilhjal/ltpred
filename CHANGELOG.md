@@ -20,10 +20,12 @@ Outputs are unchanged (bit-identical where checked).
 
 - `kinship_from_pedigree` fills one vectorised row per individual instead of
   a scalar double loop: 25x faster on a 2,683-person register.
-- `estimate_liabilities` builds each extracted pedigree's relationship matrix
-  densely (exact, since the extraction holds every ancestor). Pedigrees over
-  1,500 members keep the bounded selected-pair recursion. 4x throughput on the
-  register benchmark (400 probands: 1.54 s to 0.38 s).
+- `estimate_liabilities` builds a proband's relationships from a dense matrix
+  over its extracted pedigree (exact, since the extraction holds every
+  ancestor) when the selected pairs outnumber twice the pedigree size, and
+  keeps the memoized selected-pair recursion otherwise or beyond 1,500
+  members. 4x throughput on the degree-3 register benchmark; a deep shared
+  ancestry scored at degree 1 keeps the pair recursion.
 - `simulate_under_LTM_single(use_age=True)` computes control thresholds once
   per role rather than once per person: 4x faster.
 - The fitters' common-threshold and case-rate guards stack member bounds once
