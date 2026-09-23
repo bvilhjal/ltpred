@@ -6,6 +6,14 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Fixed
+
+- The vignette's decile calibration picked its top/bottom 400 families with
+  numpy's unstable default sort, over risks with only 8 distinct values, so
+  the observed decile rates differed by platform and numpy version (CI
+  failed on every OS but the local Mac). A stable sort fixes the choice; the
+  page quotes the regenerated values.
+
 ## 0.7.1 — 2026-09-23
 
 ### Changed

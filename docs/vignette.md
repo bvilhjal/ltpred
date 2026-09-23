@@ -705,12 +705,14 @@ At $h^2=0.5$, $K=0.05$ it is calibrated overall and in both tails. Over
 10 replicates of 4,000 relatives-only families the predicted rate is
 $0.0501 \pm 0.0001$ against an observed $0.0504 \pm 0.0014$ (a gap of
 0.2 standard errors); the top decile is $0.1192 \pm 0.0006$ predicted
-against $0.1167 \pm 0.0077$ observed (0.3 SE); the bottom decile is
-$0.0401$ predicted against $0.0427 \pm 0.0039$ observed (0.7 SE). The
+against $0.1175 \pm 0.0073$ observed (0.2 SE); the bottom decile is
+$0.0401$ predicted against $0.0420 \pm 0.0013$ observed (1.5 SE). The
 bottom decile's *predicted* rate has no replicate-to-replicate spread at
 all: with three relatives at $K=0.05$, 86% of families share the single
 lowest-risk configuration — no affected relative — so the lowest 400 are
-an arbitrary subset of one stratum rather than a tail. A *single* replicate can look off
+an arbitrary subset of one stratum rather than a tail. The script breaks
+such ties with a stable sort (simulation order), so every platform picks
+the same families. A *single* replicate can look off
 by two or three standard errors in the tail, so do not read one run as a
 bias. The formula is **not** valid for use II, where the proband's own
 status is already in $D_F$.
