@@ -6,6 +6,18 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Fixed
+
+- The vignette's decile calibration picked its top/bottom 400 families with
+  numpy's unstable default sort, over risks with only 8 distinct values, so
+  the observed decile rates differed by platform and numpy version (CI
+  failed on every OS but the local Mac). A stable sort fixes the choice; the
+  page quotes the regenerated values.
+- Concurrent calls from Python threads no longer abort the process when
+  Numba runs on its `workqueue` threading layer (the only one in the macOS
+  pip wheel, and the cause of the macOS CI abort). Parallel kernel launches
+  are serialised on that layer; OpenMP and TBB run unlocked.
+
 ## 0.7.1 — 2026-09-23
 
 ### Changed

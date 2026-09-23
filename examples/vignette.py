@@ -351,7 +351,7 @@ def main():
         fh = estimate_liability(_unbind_role(sim_p.families, "o"), h2=H2)
         risk = norm.sf((T - fh.genetic) / np.sqrt(fh.var["genetic"] + 1 - H2))
         obs_status = sim_p.status["o"].astype(float)
-        order = np.argsort(risk)
+        order = np.argsort(risk, kind="stable")  # risk has <= 8 tied values
         top, bot = order[-400:], order[:400]
         cells.append((risk.mean(), obs_status.mean(),
                       risk[top].mean(), obs_status[top].mean(),
