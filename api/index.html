@@ -5133,7 +5133,7 @@ the chunked API gates that once on the whole cohort instead.</p>
 
         <p>Gibbs from consecutive bound batches of one virtual cohort.</p>
 <p>Batch <code>n</code> at offset <code>start</code> receives
-<code>_base_seeds(seed, start + n, max_rounds)[start:]</code>, so concatenating the
+<code>_base_seeds(seed, n, max_rounds, start=start)</code>, so concatenating the
 batches matches :func:<code>~ltpred.estimate.estimate_liability_gibbs_arrays</code>
 at the same <code>seed</code>. Returns <code>(est, se)</code>, or <code>(est, se, var)</code> with
 <code>return_var=True</code>.</p>
