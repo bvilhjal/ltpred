@@ -327,6 +327,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choose a method
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -343,6 +361,36 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#choosing-a-fitter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a fitter
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1132,6 +1180,25 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#choosing-a-fitter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a fitter
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1190,7 +1257,7 @@ identifying contrasts among jointly observed relatives. Personalised
 CIP/onset bounds remain scoring inputs; unobserved relatives cannot
 identify a fitted component.</p>
 </div>
-<p><strong>Which path to run:</strong></p>
+<p><strong>Table 1. Scoring paths by observation model.</strong></p>
 <table>
 <thead>
 <tr>
@@ -1206,6 +1273,12 @@ identify a fitted component.</p>
 <td><code>prevalence_thresholds</code>; relatives + optional <code>o</code></td>
 <td>PA or Gibbs</td>
 <td>classic LT-FH</td>
+</tr>
+<tr>
+<td>additive, noninbred nuclear family; no C/M or mixture</td>
+<td>roles <code>o/m/f/s1/s2/…</code>, <code>0 &lt;= h2 &lt; 1</code></td>
+<td>quadrature, with refinement diagnostics</td>
+<td>same no-mixture posterior as Gibbs, integrated numerically</td>
 </tr>
 <tr>
 <td>personalised CIP, with relatives</td>
@@ -1269,6 +1342,45 @@ specification. The
 shows the base recipe explicitly.</p>
 <p>Worked rows for your own data start at the
 <strong><a href="../quickstart/">quickstart</a></strong>.</p>
+<h2 id="choosing-a-fitter">Choosing a fitter<a class="headerlink" href="#choosing-a-fitter" title="Permanent link">&para;</a></h2>
+<p><strong>Table 2. Fitters for independent families with common binary thresholds.</strong></p>
+<table>
+<thead>
+<tr>
+<th>fitter</th>
+<th>use when</th>
+<th>computation and uncertainty</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fit_heritability</code></td>
+<td>estimate additive h² with no shared-environment component</td>
+<td>iterative stochastic moment fit; <code>bootstrap_fit</code> supplies family-resampling uncertainty</td>
+</tr>
+<tr>
+<td><code>fit_variance_components</code></td>
+<td>distinguish additive, sibship and/or couple components using identifying relationships</td>
+<td>iterative stochastic moment fit; family bootstrap for uncertainty</td>
+</tr>
+<tr>
+<td><code>fit_pairwise</code></td>
+<td>deterministic A/C/M fitting from binary pair patterns is appropriate</td>
+<td>composite likelihood; conditional cluster-sandwich covariance for identifiable interior fits</td>
+</tr>
+<tr>
+<td><code>fit_pairwise_multi</code></td>
+<td>jointly estimate trait h², genetic/residual correlations and optional C/M covariance</td>
+<td>multivariate pairwise composite likelihood; same identification, sampling and boundary caveats</td>
+</tr>
+</tbody>
+</table>
+<p>All four need the sampling contract above. PA is the fast approximate scoring
+default. Quadrature is a deterministic cross-check for its restricted additive
+nuclear-family model; Gibbs covers the wider and multi-trait scoring models.
+Set <code>seed</code> explicitly for reproducible Gibbs estimates; multi-trait requests
+with <code>method=None</code> select Gibbs. Non-default sampler controls warn when supplied
+to deterministic engines.</p>
 
 
 

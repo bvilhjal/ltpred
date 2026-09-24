@@ -1823,7 +1823,7 @@ from your own table.</p>
 <p>Register-route fragments use a different cohort from the role grammar above:
 unique population ids, a 0.10-horizon incidence curve, and <code>h2=0.5</code>. The
 <a href="../tutorial/">tutorial</a> builds that cohort, scores it, and checks the score
-against <code>reg.genetic</code>. The blocks here stay fragments.</p>
+against <code>cohort.genetic</code>. The blocks here stay fragments.</p>
 <h2 id="before-software">Before software<a class="headerlink" href="#before-software" title="Permanent link">&para;</a></h2>
 <p>Fix a case definition, follow-up, and a family-history source that you are
 willing to defend
@@ -2131,7 +2131,8 @@ the same way (<a href="../estimation/#scaling-to-large-cohorts">Estimation</a>).
 <p>Include role <code>o</code> for <strong>use II</strong> (<span class="arithmatex">\(\mu_i\)</span> is a GWAS phenotype of that
 diagnosis). For <strong>use I</strong>, give <code>o</code> bounds of <span class="arithmatex">\((-\infty,\infty)\)</span> rather
 than dropping the row: <code>res.pids</code> is read off the role-<code>o</code> record and
-falls back to <code>fam_id</code> when there is no <code>o</code> row, which silently changes
+uses <code>fam_id</code> only when no member has a pid. If relatives have pids but the
+proband does not, estimation raises to prevent silently changing
 your join key. ADuLT with <code>o</code> unbound has nothing left to condition on.
 Use III may skip this step.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">families_from_columns</span>
@@ -2249,7 +2250,7 @@ must add back to <span class="arithmatex">\(h^2\)</span>.</p>
 <span class="n">mu</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">genetic</span><span class="p">,</span> <span class="n">res</span><span class="o">.</span><span class="n">var</span><span class="p">[</span><span class="s2">"genetic"</span><span class="p">]</span>
 <span class="c1"># these are per-proband, aligned to res.pids — not the per-row `status` column.</span>
 <span class="c1"># The subset lines up with `mu` only if every family carries an `o` row; role</span>
-<span class="c1"># `o` is optional, so join on `res.pids` instead when some families lack one.</span>
+<span class="c1"># Join on res.pids; retain an uninformative o row when using personal IDs.</span>
 <span class="n">own</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">status</span><span class="p">)[</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">role</span><span class="p">)</span> <span class="o">==</span> <span class="s2">"o"</span><span class="p">]</span>
 
 <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">pids</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">families</span><span class="p">)</span>                           <span class="c1"># one score per proband</span>
@@ -2351,7 +2352,7 @@ would otherwise use.</p>
 <td>0.353</td>
 </tr>
 <tr>
-<td>Relatives only, no role <code>o</code></td>
+<td>Relatives only, uninformative <code>o</code></td>
 <td>0.288</td>
 </tr>
 <tr>

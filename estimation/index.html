@@ -1492,6 +1492,8 @@ estimator at all; see the <a href="../vignette/">vignette</a>.</p>
   encoding; inclusion of relatives distinguishes LT-FH++ from ADuLT. The engine
   is orthogonal to both. PA-FGRS is the exception: its published name includes PA,
   and ltpred's censoring mixture is PA-only.</li>
+<li><code>dtype</code> — <code>np.float64</code> by default; <code>np.float32</code> halves bound storage,
+  while numerical accumulators retain double precision.</li>
 <li><code>out</code> — which liabilities to return: <code>"genetic"</code> (the proband's <code>g</code>), <code>"full"</code>
   (the proband's <code>o</code>), or both.</li>
 <li><code>use_mixture</code> — PA only: turn on the age-censored-control mixture (needs
@@ -1515,7 +1517,7 @@ estimator at all; see the <a href="../vignette/">vignette</a>.</p>
 </tr>
 <tr>
 <td><code>res.pids</code></td>
-<td>one proband id per result (the <code>o</code> member's <code>pid</code>, else the <code>fam_id</code>)</td>
+<td>one proband id per result (the <code>o</code> member's <code>pid</code>; <code>fam_id</code> is used only when no member has a pid)</td>
 </tr>
 <tr>
 <td><code>res.est["genetic"]</code></td>
@@ -1549,7 +1551,15 @@ refinement. On a seven-observation
 family fold PA's <code>var</code> sits within 5% of the sampler's
 (<code>tests/test_pearson_aitken.py::test_pa_conditional_variance_matches_gibbs_multi_truncation</code>).</p>
 <p><code>res.genetic</code> is shorthand for <code>res.est["genetic"]</code> (the usual single-trait output).
-Multi-trait columns are suffixed with the phenotype name, e.g.
+<code>res.to_dict()</code> copies aligned columns (<code>fam_id</code>, <code>pid</code>, <code>genetic</code>,
+<code>se_genetic</code>, <code>var_genetic</code>, and any quadrature diagnostics).
+<code>res.to_frame()</code> returns the same columns as a pandas DataFrame (install pandas
+separately). Neither collapses repeated pids; validate the intended join cardinality.
+<code>PopulationScores</code> and <code>QuadratureResult</code> also support these exports and <code>.se</code>/<code>.var</code>;
+their zero <code>.se</code> means no Monte Carlo noise, not exact inference. Array tuple APIs
+retain their documented return order; Gibbs exposes posterior variance with
+<code>return_var=True</code>.</p>
+<p>Multi-trait columns are suffixed with the phenotype name, e.g.
 <code>res.est["genetic_height"]</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="n">score</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">genetic</span>             <span class="c1"># use this as your GWAS phenotype / risk score</span>
 </code></pre></div>
@@ -1558,7 +1568,7 @@ Multi-trait columns are suffixed with the phenotype name, e.g.
 on each supported engine. No-mixture PA conditions exact pins jointly first;
 an unpinned target's interval is folded after the remaining relative intervals
 (an unbounded <code>g</code> is a no-op). A lone case therefore gives a
-positive PA <code>full</code>, matching Gibbs, not zero. Omit role <code>o</code> or set its
+positive PA <code>full</code>, matching Gibbs, not zero. Retain role <code>o</code> with its pid and set its
 bounds to <code>(-inf, inf)</code> when you want a relatives-only predictor — the
 same rule as for prospective prediction. The canonical GWAS phenotype is
 still <code>out="genetic"</code>.</p>
@@ -1592,8 +1602,8 @@ family-history analogue of a BLUP / selection-index breeding value (see
 </ul>
 <p>Use II deliberately allows the proband's observed status into the
 phenotype construction. It is <strong>not</strong> a leakage-free disease predictor. When the
-same diagnosis is the prediction/classification outcome (use I), omit role <code>o</code>
-or set its bounds to <code>(-inf, inf)</code> and estimate from family history alone, and
+same diagnosis is the prediction/classification outcome (use I), retain role <code>o</code>
+with its pid and set its bounds to <code>(-inf, inf)</code>. Estimate from family history alone, and
 censor every relative's record at the prediction landmark (a relative born at
 <code>b</code> is observed only to age <code>t - b</code>): a relative's later diagnosis leaks the
 future just as the proband's own does. Only the register driver
@@ -2025,6 +2035,12 @@ adjustment or guarantee calibration under other misspecification.</p>
 </table>
 <p><code>n_sim</code>/<code>tol</code> trade speed for Monte-Carlo precision; the defaults converge for
 typical families. PA ignores all Gibbs options.</p>
+<p>For large simulated registers, <code>simulate_register_liabilities(method="mendelian")</code>
+avoids the dense relationship matrix and its factorization. It preserves the
+Gaussian pedigree model, including inbreeding, using linear person-level storage
+and a bounded relationship cache. Deep, related pedigrees can still require
+substantial recursion work. The default <code>method="dense"</code> preserves historical
+seeded draws; the two methods agree in distribution, not draw by draw.</p>
 
 
 

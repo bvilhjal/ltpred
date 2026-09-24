@@ -471,6 +471,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#population-register-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Population register input
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#where-to-go-next" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1319,6 +1330,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#population-register-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Population register input
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#where-to-go-next" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1444,6 +1466,16 @@ the phenotype for sex, cohort, ancestry PCs, batch and other design covariates,
 and validate calibration under the actual sampling design; see
 <a href="../estimation/#using-the-estimate-in-a-gwas">Using the estimate in a GWAS</a>.
 The score is not an absolute disease-risk probability.</p>
+<h2 id="population-register-input">Population register input<a class="headerlink" href="#population-register-input" title="Permanent link">&para;</a></h2>
+<p>For an <code>ids</code>/<code>father</code>/<code>mother</code> table, use the supported <code>estimate_liabilities</code>
+driver instead of assigning role labels yourself. Supply aligned <code>status</code> and
+<code>age</code> columns, <code>probands</code>, liability-scale <code>h2</code>, and either one empirical CIP
+or <code>strata</code> with <code>cip_by_stratum={label: (ages, values, k_pop)}</code>.
+Choose <code>use="gwas"</code> to include own diagnosis; prospective <code>use="prediction"</code>
+also requires calendar <code>birth_time</code> and per-proband <code>index_time</code> so relatives'
+records are censored at that landmark. The <a href="../data-preparation/#beyond-the-role-grammar-arbitrary-pedigrees">register recipe</a>
+shows a complete call. <code>result.to_dict()</code> exports aligned columns;
+<code>result.to_frame()</code> additionally requires pandas.</p>
 <h2 id="where-to-go-next">Where to go next<a class="headerlink" href="#where-to-go-next" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

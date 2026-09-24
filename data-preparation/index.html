@@ -1492,8 +1492,10 @@ relatedness comes from the recorded parents (<code>0.25·h²</code> through the 
 parent, with no implied second-parent sharing).</p>
 <p>Conditioning on <code>o</code> is an analysis choice, not a structural requirement. Include
 it for <strong>use II</strong> (a GWAS phenotype from the proband's diagnosis). For <strong>use I</strong>
-(prospective prediction/classification of that diagnosis), omit <code>o</code> or make its
-bounds uninformative; otherwise the outcome leaks directly into the predictor.</p>
+(prospective prediction/classification of that diagnosis), keep <code>o</code> and its <code>pid</code>
+but make its bounds uninformative; otherwise the outcome leaks directly into the predictor.</p>
+<p>Unnumbered <code>s</code> is a supported label for one sibling; use <code>s1</code>, <code>s2</code>, … for
+multiple siblings. It is not an input error. Repeated labels still raise.</p>
 <h3 id="beyond-the-role-grammar-arbitrary-pedigrees">Beyond the role grammar: arbitrary pedigrees<a class="headerlink" href="#beyond-the-role-grammar-arbitrary-pedigrees" title="Permanent link">&para;</a></h3>
 <p>If the pedigree itself must be <em>discovered</em> from population parent-offspring
 records, <code>ltpred.pedigree</code> does that first: <code>build_parent_graph(ids, father,
@@ -1689,8 +1691,10 @@ mixture. With the built-in logistic curve, construct those inputs as follows:</p
 <p>For real data, obtain <code>K_i</code> from the population CIP rather than the logistic demo,
 retain lifetime bounds from <code>prevalence_thresholds</code> (using the matching stratum's
 <code>K_pop</code>), and provide <code>K_i</code>/<code>K_pop</code> only for controls. Instead of unbinding <code>o</code> as
-above, you may omit its row entirely; ltpred inserts an uninformative target-status
-coordinate automatically.</p>
+above, you may omit its row only when no member has a <code>pid</code>; the output then
+uses <code>fam_id</code> as its join key. With personal IDs, retain <code>o</code> and its <code>pid</code> with
+<code>(-inf, inf)</code> bounds. Missing or absent proband pids raise rather than silently
+changing the join key.</p>
 <p>You can also build the bounds yourself: any <code>(lower, upper)</code> interval per person
 is valid (<code>lower == upper</code> pins a liability exactly; <code>(-inf, inf)</code> is
 uninformative).</p>
