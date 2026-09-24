@@ -63,7 +63,7 @@ CHECKS = [
      [("tet_sib_rho_big", 3, 1), ("tet_sib_se_big", 3, 1)]),
     (r"observed_to_liability_h2\(0\.20, pop_prev=0\.05\) # -> ([\d.]+)",
      [("lee", 3, 1)]),
-    (r"returns \$\\hat h\^2=([\d.]+)\$ against a truth", [("fit_h2", 3, 1)]),
+    (r"returns\s+\$\\hat h\^2=([\d.]+)\$ against a truth", [("fit_h2", 3, 1)]),
     (r"Monte-Carlo standard error of \$([\d.]+)\$", [("fit_h2_se", 3, 1)]),
     # -- 4. estimate, and the "did it work?" checks --
     (r"\$\\mathrm\{Var\}\(\\hat\\mu\)=([\d.]+)\$ plus a mean posterior\n"
@@ -92,7 +92,8 @@ CHECKS = [
     (r"np\.corrcoef\(status, true_g\)\[0, 1\] +# ([\d.]+)", [("corr_status", 3, 1)]),
     (r"np\.corrcoef\(pa\.genetic, true_g\)\[0, 1\] +# ([\d.]+)", [("corr_pa", 3, 1)]),
     (r"\| Proband 0/1 status \(baseline\) \| ([\d.]+) \|", [("corr_status", 3, 1)]),
-    (r"\| ADuLT, one lifetime \$T\$ \| ([\d.]+) \|", [("corr_adult", 3, 1)]),
+    (r"\| Own status only \(no ages; ADuLT's degenerate case\) \| ([\d.]+) \|",
+     [("corr_adult", 3, 1)]),
     (r"\| Relatives only, no role `o` \| ([\d.]+) \|", [("corr_rel", 3, 1)]),
     (r"\| Classic LT-FH via PA \(`o` plus `m`, `f`, `s1`\) \| ([\d.]+) \|",
      [("corr_pa", 3, 1)]),
@@ -111,7 +112,8 @@ CHECKS = [
     (r"\$\\mathrm\{Corr\}=([\d.]+)\$ there is \*\*not\*\* comparable with the "
      r"([\d.]+) above", [("age_corr_aware", 3, 1), ("corr_pa", 3, 1)]),
     (r"reaches ([\d.]+); classic one-\$K\$ LT-FH", [("age_corr_label", 3, 1)]),
-    (r"already reaches ([\d.]+); the age-aware encoding then\nreaches ([\d.]+)\.",
+    (r"already reaches ([\d.]+); the age-aware encoding, given\nthe simulator's "
+     r"true incidence curve, then reaches ([\d.]+)\.",
      [("age_corr_classic", 3, 1), ("age_corr_aware", 3, 1)]),
     (r"\(\$([\d.]+)\\times\$ on the squared-correlation proxy\) and the age term "
      r"adds\n\$([\d.]+)\\times\$", [("age_fh_gain", 2, 1), ("age_gain", 2, 1)]),

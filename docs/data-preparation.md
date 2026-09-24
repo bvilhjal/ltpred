@@ -89,12 +89,16 @@ prediction_scores = estimate_liabilities(
 )
 ```
 
-Here `birth_time` is aligned to `ids` and `index_time` to `probands`. They must
+Here `birth_time` and `strata` (a stratum label per person, the keys of
+`cip_by_stratum`) are aligned to `ids`, and `index_time` to `probands`. They must
 use one numeric calendar scale (for example decimal calendar year), and that
 scale's unit must match the unit of `age`. At landmark `t`, a relative born at
 `b` is censored at attained age `t - b`; assigning every generation the
 proband's attained age is not familywise calendar censoring. A person born at
-or after `t` has no follow-up and is uninformative.
+or after `t` has no follow-up and is uninformative. Prevalent cases and
+probands whose follow-up ended before the landmark are not dropped but flagged
+in `proband_state`; only `"disease_free_and_followed"` probands belong in a
+prospective evaluation.
 
 The extracted pedigree retains ancestors beyond `max_degree` when they are
 needed for exact kinship, but marks them `Pedigree.closure_only`. The supported
@@ -135,8 +139,10 @@ no-mixture sampler. Shared-environment scoring is also supported, but the
 relationship classes must be explicit: pass `c2` with an aligned `c_kernel`
 and/or `m2` with `m_kernel`. They cannot be recovered from `A` alone.
 
-For a pedigree that *does* fit the role grammar the two paths give identical
-results (same covariance); the pedigree path additionally handles half-sibs of any
+For a pedigree that *does* fit the role grammar the two paths use the identical
+covariance (except for same-side half-sibs, below); Gibbs agrees to Monte-Carlo
+error and PA up to its fold-order difference (about 0.1% of the score SD,
+RESULTS §14); the pedigree path additionally handles half-sibs of any
 degree, cousins, and inbred pedigrees (where a self-relationship can exceed 1).
 For inbred pedigrees, the raw additive covariance is formed from `A` and then
 standardised so every full liability has unit marginal variance; standard-normal
@@ -284,8 +290,10 @@ curve = aalen_johansen_cip(age_entry, age_exit, event_type)   # competing risks
 # finite-risk-set, tie-correct Aalen (1978) SE.
 ```
 
-Use `aalen_johansen_cip` when the target is the **crude (marginal) diagnosed
-proportion** in a population where death can preclude diagnosis. Death remains
+Use `aalen_johansen_cip` when the target is the **crude diagnosed
+proportion** in a population where death can preclude diagnosis (the LT-FH++
+convention; which curve the thresholds need is discussed under
+[the estimand choice](cip-estimation.md#the-estimand-choice-the-most-important-decision-on-this-page)). Death remains
 a competing event even if death and diagnosis are statistically independent.
 Treating death as censoring asks for the different, hypothetical no-death
 **net risk** and generally overestimates the diagnosed proportion (quantified
@@ -406,7 +414,9 @@ the family covariance to represent — the model is additive-genetic only (see
 twin **narrow-sense** estimate captures more of the family-history signal but can
 be inflated by shared environment, assortative mating or indirect genetic effects
 if those are not separately modelled; a **SNP-heritability** estimate is smaller
-but better aligned with a downstream molecular GWAS. Neither is uniquely "correct",
+and understates the total additive resemblance between relatives that the
+`h²·A` covariance represents, so treat it as a conservative lower bound. Neither
+is uniquely "correct",
 so run a **sensitivity analysis** over plausible `h²` values (and prevalence/CIP)
 and check how much the score and downstream results move — see
 [Inference](inference.md#sensitivity-to-the-assumed-heritability). Don't have any external
@@ -414,8 +424,11 @@ value? [Fit `h²` from the families themselves](inference.md#fitting-heritabilit
 or get a fast, fitting-free cross-check from **tetrachoric correlations**
 (`ltpred.tetrachoric`): the tetrachoric correlation between two relatives'
 case/control statuses estimates their latent liability correlation directly
-from the 2x2 table, and first-degree relatives give `h² / 2` under the model
-(the classic Falconer route):
+from the 2x2 table, and parent–offspring pairs give `h² / 2` under an additive
+model without shared or transmitted environment (the classic Falconer route;
+siblings also carry shared environment). The table's thresholds come from the
+sample's own case rates, so the check assumes population sampling and
+age-complete statuses — relatives still young and undiagnosed pull it down:
 
 ```python
 from ltpred import tetrachoric

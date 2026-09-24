@@ -126,7 +126,11 @@ family-history analogue of a BLUP / selection-index breeding value (see
 Use II deliberately allows the proband's observed status into the
 phenotype construction. It is **not** a leakage-free disease predictor. When the
 same diagnosis is the prediction/classification outcome (use I), omit role `o`
-or set its bounds to `(-inf, inf)` and estimate from family history alone.
+or set its bounds to `(-inf, inf)` and estimate from family history alone, and
+censor every relative's record at the prediction landmark (a relative born at
+`b` is observed only to age `t - b`): a relative's later diagnosis leaks the
+future just as the proband's own does. Only the register driver
+(`estimate_liabilities(use="prediction")`) applies that censoring itself.
 
 Combining this family-derived score with a SNP polygenic score is a **separate
 downstream prediction model**, not an operation performed by ltpred. Hujoel et al.
@@ -513,7 +517,7 @@ adjustment or guarantee calibration under other misspecification.
 | option | default | use |
 |---|---:|---|
 | `method` | `None` → PA (single-trait), Gibbs (multi-trait) | `"pearson-aitken"`, `"gibbs"`, or opt-in nuclear-family `"quadrature"` |
-| `h2` | `0.5` | liability-scale heritability (scalar, or vector for multi-trait) |
+| `h2` | — (required) | liability-scale heritability (scalar, or vector for multi-trait) |
 | `out` | `("genetic",)` | `"genetic"`, `"full"`, or both |
 | `use_mixture` | `False` | PA age-censored-control mixture (needs `K_i`/`K_pop`) |
 | `c2`, `m2` | `None` (0) | single-trait only: sibship (`C`) / couple (`M`) shared-environment components; `h2 + c2 + m2 <= 1` |

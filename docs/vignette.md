@@ -135,7 +135,7 @@ dependencies:
 
 Lee's map
 ([Lee et al. 2011](https://doi.org/10.1016/j.ajhg.2011.02.002))
-is the only backward dependency — the dashed link in Figure 1:
+is the only backward dependency — noted between steps 0 and 2 in Figure 1:
 converting an observed-scale $h^2$ uses the same population $K$ as the
 thresholds.
 
@@ -149,8 +149,10 @@ at 50%
 ([RESULTS §10](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)).
 The gain is largest exactly where cases are rare. Adding age and cohort
 personalisation on top is a further $1.02$–$1.05\times$ across the same
-grid. If your cohort is heavily case-enriched, decide whether that
-increment is worth the pipeline before you build it.
+grid, and that increment grows rather than shrinks with case enrichment.
+Its larger role is elsewhere: the CIP is what keeps cohort differences in
+follow-up from confounding the score (section 3 and
+[RESULTS §13](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md#13-cohort-confounding-bench_confoundingpy)).
 
 ## How to read the code on this page
 
@@ -173,8 +175,8 @@ and say so where they appear: the tetrachoric convergence check in
 section 0 (25,000 families), the use-I risk figures in section 5 (10
 replicates of 4,000), and the age-censored comparison at the end
 (20,000). `tests/test_vignette_numbers.py` re-runs the script and fails
-if any figure on this page has drifted from it. They check the API; they
-are not a benchmark — for measured behaviour see
+if the figures it checks have drifted; numbers quoted from RESULTS are not
+re-run. The figures check the API; they are not a benchmark — for measured behaviour see
 [RESULTS](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md).
 The cohort behind them is
 
@@ -267,7 +269,8 @@ the single lifetime $K$ of classic LT-FH). If the GWAS over-samples cases,
 pass that fraction as `prop_cases`.
 
 ```python
-from ltpred import tetrachoric, observed_to_liability_h2
+from ltpred.tetrachoric import tetrachoric
+from ltpred import observed_to_liability_h2
 
 po = tetrachoric(status_o, status_m)          # parent-offspring statuses
 po.rho, po.se                                 # always read the SE
@@ -312,9 +315,11 @@ different contract on three counts.
    bounds, or bring an external $h^2$.
 3. *Scale.* Even when the contract holds, a few hundred families is not
    much data. On the 800 simulated families above, `fit_heritability`
-   returns $\hat h^2=0.469$ against a truth of $0.5$, with a
-   within-dataset Monte-Carlo standard error of $0.011$ — that number is
-   a fixed-point diagnostic, not a sampling interval. Across cohorts of
+   with a short schedule (`n_iter=250, burn_in=80`) returns
+   $\hat h^2=0.469$ against a truth of $0.5$, with a within-dataset
+   Monte-Carlo standard error of $0.011$ — that number is a fixed-point
+   diagnostic, not a sampling interval, and the default schedule
+   (1500/500) moves the estimate to $0.443 \pm 0.007$ at the same seed. Across cohorts of
    this size the spread is an order of magnitude larger. Use
    `bootstrap_fit` for a family-cluster interval.
 
@@ -367,7 +372,8 @@ from `joint.env_cov` when `C` or `M` is fitted. The default
 genetic/residual attribution. Merely adding them does not solve that problem:
 the observed relationship contrasts must identify every fitted component.
 
-Unlike the HE diagnostic above, these SEs quantify asymptotic **sampling**
+Unlike `fit_heritability`'s Monte-Carlo `h2_se` above, these SEs quantify
+asymptotic **sampling**
 uncertainty, clustering all pairs from the same family. They treat thresholds
 and weights as fixed. Any covariance boundary withholds all normal SEs
 (`NaN`); a correlation with negligible component variance is also undefined.
@@ -404,16 +410,18 @@ ped = extract_pedigree(graph, proband_id, max_degree=2)   # one proband
 _, A = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
 ```
 
-**How deep?** First-degree relatives carry most of the signal. Adding
-grandparents and aunts/uncles to parents-plus-siblings bought nothing in
-the package's calibration grid: correlation with the true genetic value
-$0.431 \pm 0.004$ against $0.429 \pm 0.008$ at $K=0.05$ and
-$0.593 \pm 0.003$ against $0.595 \pm 0.006$ at $K=0.20$ — inside one
-standard error — while at $K=0.01$ the extended pedigree was *lower*,
-$0.249 \pm 0.004$ against $0.259 \pm 0.003$
-([RESULTS §12](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)).
-Start at `max_degree=2` and treat anything deeper as something to
-justify.
+**How deep?** First-degree relatives carry most of the signal, and
+more distant ones add a small, real amount. In the register pipeline,
+correlation with the true genetic value was $0.567 \pm 0.029$ at degree 3
+against $0.522 \pm 0.031$ at degree 1, a paired gain of $+0.045$ (95% CI
+$+0.020$ to $+0.071$;
+[RESULTS §21](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md#21-end-to-end-register-pipeline-bench_register_pipelinepy)),
+and all relatives to third degree beat the named-role subset by $+0.071$
+([RESULTS §20](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md#20-pedigree-inference-from-trio-records-bench_pedigree_inferencepy)).
+The calibration grid's structure contrast is not a depth contrast: it
+swaps one sibling for four grandparents
+([RESULTS §12](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md#12-score-calibration-bench_calibrationpy)).
+`estimate_liabilities` defaults to `max_degree=3`.
 
 Scoring may use overlapping extracted pedigrees (one per proband). Fitting
 $h^2$ in step 0 may not. ADuLT has no relatives: skip this step.
@@ -534,7 +542,7 @@ score = res.genetic                                # aligned to res.pids
 ```
 
 - `res.se["genetic"]` is Monte-Carlo error in $\hat{\mu}_i$ — exactly 0
-  under PA, which is deterministic. That is no *sampling* error, not no
+  under PA, which is deterministic. Zero means no Monte-Carlo error, not no
   approximation error: PA folds coordinates sequentially and keeps two
   moments.
 - `res.var["genetic"]` is $\mathrm{Var}(a_i\mid D_F)$, which does not
@@ -594,8 +602,8 @@ The proband's observation is always uninformative under `use="prediction"`.
 That makes the prediction estimand $\mathbb{E}[g \mid \text{relatives'
 records at the landmark}]$ — it is not additionally conditioned on the
 proband being disease-free at the landmark; the two agree on ranking within
-an age but differ in level across ages, since surviving to an older age
-disease-free is evidence of lower liability.
+an age and family structure but differ in level across ages, since
+surviving to an older age disease-free is evidence of lower liability.
 
 The driver currently supports **single-trait, additive-only, pinned-onset
 LT-FH++ with deterministic PA**. Use the lower-level APIs for C/M kernels,
@@ -604,7 +612,8 @@ not `LiabilityResult`: there is no `genetic` property or Monte-Carlo `se`
 column. `est` and `var` are PA mean and posterior-variance approximations.
 Its payoff and throughput evidence (RESULTS §§20–21, regenerated 2026-09-21):
 degree-3 corr(est, true g) 0.567 ± 0.029 vs degree-1 0.522 ± 0.031,
-prospective familywise-censored AUC 0.654 ± 0.021, ~276 probands/s throughput.
+prospective familywise-censored AUC 0.654 ± 0.021, and 987 probands/s
+(v0.7.1, rerun 2026-09-23).
 
 Check `n_relatives` (non-proband members within the chosen degree),
 `n_conditioned` (informative diagnosis bounds, including own status for
@@ -629,8 +638,7 @@ calibration or new performance evidence.
 
 Those object-path timings are grouped role families. They omit per-proband
 register extraction, kinship, and CIP alignment, so do not extrapolate them
-to `estimate_liabilities`. Its historical throughput results remain stale
-pending a provenance-tracked rerun.
+to `estimate_liabilities`.
 
 ### Did it work?
 
@@ -666,10 +674,12 @@ variance of $0.415$ gives $0.496$ against $h^2=0.5$; $\hat\mu$ has mean
 $-0.008$ and standard deviation $0.285$; cases average $+1.05$ and
 controls $-0.06$.
 
-When a check fails, it usually means one of two things. A sum far
-*below* $h^2$ says the families carry almost no information — check that
-the join did not drop the relative rows. A mean far from 0 says the
-assumed prevalence disagrees with the observed case rate.
+The sum holds however much information the families carry, so a sum far
+from $h^2$ points to a misspecified prevalence or CIP, ascertainment, or
+an approximation error, not to missing relatives. It tracks the *assumed*
+$h^2$, so it cannot detect a wrong one. A mean far from 0 says the assumed
+prevalence disagrees with the observed case rate; that check holds only
+under population sampling.
 
 ## 5. What you do with the score
 
@@ -701,7 +711,8 @@ assumes no shared-environment components ($c^2=m^2=0$, or $e_i$ is coupled
 to the relatives), and it treats $a_i \mid D_F$ as Gaussian, which is the
 same two-moment approximation PA makes.
 
-At $h^2=0.5$, $K=0.05$ it is calibrated overall and in both tails. Over
+At $h^2=0.5$, $K=0.05$, under the generating model, it is calibrated
+overall and in the top decile. Over
 10 replicates of 4,000 relatives-only families the predicted rate is
 $0.0501 \pm 0.0001$ against an observed $0.0504 \pm 0.0014$ (a gap of
 0.2 standard errors); the top decile is $0.1192 \pm 0.0006$ predicted
@@ -747,7 +758,7 @@ would otherwise use.
 | Score | Correlation with $a_i$ |
 |---|---|
 | Proband 0/1 status (baseline) | 0.353 |
-| ADuLT, one lifetime $T$ | 0.353 |
+| Own status only (no ages; ADuLT's degenerate case) | 0.353 |
 | Relatives only, no role `o` | 0.288 |
 | Classic LT-FH via PA (`o` plus `m`, `f`, `s1`) | 0.426 |
 
@@ -772,8 +783,9 @@ approximation error, not round-off and not Monte-Carlo noise.
 
 The script's last block reruns the same design with `use_age=True`,
 where a person counts as a case only once onset precedes their current
-age. That censors almost every proband: the observed case rate falls
-from 0.045 to 0.0050, so the block uses **20,000** families to leave 99
+age. Simulated proband ages are young (median 37, against the incidence
+curve's mid-point of 60), so about 89% of would-be proband cases become
+censored controls: the observed case rate falls from 0.045 to 0.0050, so the block uses **20,000** families to leave 99
 observed cases behind the own-status baseline — at $n=800$ it would rest
 on one to five, and the ratios below would be noise. The
 $\mathrm{Corr}=0.251$ there is **not** comparable with the 0.426 above.
@@ -781,8 +793,8 @@ $\mathrm{Corr}=0.251$ there is **not** comparable with the 0.426 above.
 The block also carries a control that is easy to omit and easy to
 misread without. On that censored cohort the proband's own 0/1 label
 reaches 0.139; classic one-$K$ LT-FH on the *same* rows, using no age
-information at all, already reaches 0.245; the age-aware encoding then
-reaches 0.251. So family history does nearly all the work
+information at all, already reaches 0.245; the age-aware encoding, given
+the simulator's true incidence curve, then reaches 0.251. So family history does nearly all the work
 ($3.11\times$ on the squared-correlation proxy) and the age term adds
 $1.05\times$ on top — inside the $1.02$–$1.05\times$ quoted above and
 in RESULTS §10. Credit the gain to the right input.

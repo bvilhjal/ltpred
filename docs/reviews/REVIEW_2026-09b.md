@@ -1,5 +1,12 @@
 # Independent review of ltpred v0.5.1 (2026-09-02)
 
+!!! warning "Historical document"
+
+    This review audits **v0.5.1** as it stood on 2026-09-02. Its findings have since been
+    addressed or superseded, and some files and scripts it names no longer
+    exist. Kept for provenance; do not read it as a description of the current
+    release.
+
 A read-only audit of what changed since the v0.4.2 review, plus the two
 installed modules that neither previous review examined. This review covers
 the tree at commit `a6b18be` (v0.5.1). It follows, and is independent of, the

@@ -47,9 +47,10 @@ pytest -q          # optional: confirm the install
 ```
 
 `numpy` and `scipy` are required. `[fast]` adds an optional **Numba** JIT for the
-Gibbs sweep and is strongly recommended — the pure-Python fallback is numerically
-identical, just slower. For biobank-scale runs see the guide's
-[scaling section](docs/estimation.md#scaling-to-large-cohorts).
+Gibbs sweep and the batched Pearson–Aitken kernels, and is strongly recommended —
+the pure-Python fallback is numerically identical, just slower. For
+biobank-scale runs see
+[Estimation → scaling](docs/estimation.md#scaling-to-large-cohorts).
 
 ## Quickstart
 
@@ -60,18 +61,15 @@ sim = simulate_under_LTM_single(
     fam_vec=["m", "f", "s1"], h2=0.5, pop_prev=0.05, n_sim=2000,
     use_age=False, seed=1,
 )
-pa = estimate_liability(sim.families, h2=0.5)
-pa.est["genetic"]
+res = estimate_liability(sim.families, h2=0.5)
+res.genetic                  # one posterior-mean genetic liability per family
 ```
 
 `use_age=False` is the classic LT-FH call. `h²` is required and
-disease-specific. Own diagnosis in the input is a GWAS phenotype; leave it
-out to predict from family history. The
-[tutorial](docs/tutorial.md) walks the same calls on a simulated register:
-its printouts are checked, and each step names the quantity it estimates.
-Six hand-typed rows
-are the [quickstart](docs/quickstart.md). The model is in
-[algorithm.md](docs/algorithm.md).
+disease-specific. Including the proband's own row (role `o`) gives a GWAS
+phenotype; omit it to predict from family history alone (the vignette's uses
+II and I). The [tutorial](docs/tutorial.md) and
+[quickstart](docs/quickstart.md) take it from there.
 
 ## Benchmarks
 

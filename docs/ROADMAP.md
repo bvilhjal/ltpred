@@ -49,28 +49,21 @@ it is part of the public API ([research extensions](research.md)).
    recursion and bounded reuse now reduce the repeated local register work;
    they do not remove a dense matrix for a genuinely large informative family.
 
-4. **Regenerate the register evidence.** Done 2026-09-03: both repaired
-   benchmarks rerun under the provenance wrapper (RESULTS §§20–21, committed
-   CSVs, manifest records). The relatives'-events contrast is unresolved at
-   R = 5 on both metrics -- a larger-R rerun is the remaining evidence gap
-   before quoting a relatives'-events payoff.
+4. **Resolve the relatives'-events contrast.** The repaired register benchmarks
+   were rerun under the provenance wrapper (RESULTS §§20–21), but the
+   relatives'-events contrast is unresolved at R = 5 on both metrics; a
+   larger-R rerun is needed before quoting a relatives'-events payoff.
 
-5. **Add a chunked driver.** Done: `ltpred.chunked` streams homogeneous family
-   batches through the array kernels with bounded working set
-   (`estimate_liability_pa_chunked` / `estimate_liability_gibbs_chunked`) and a
-   streaming batch iterator (`*_batches`), preserving deterministic grouping
-   and the `O(F)` summary-memory contract.
-
-6. **Validate a real-LD workflow.** Extend the opt-in HAPNEST path into a complete
+5. **Validate a real-LD workflow.** Extend the opt-in HAPNEST path into a complete
    genotype-to-liability-to-LMM example with held-out calibration and null-marker
    diagnostics. Independent-SNP evidence is not a substitute for this test.
 
-7. **Publish the first package release.** Register the PyPI trusted publisher,
-   create the version tag and GitHub Release, verify the workflow-built wheel and
-   sdist, and deploy the documentation site. The mechanical checklist is in
-   [RELEASING.md](RELEASING.md).
+6. **Publish on PyPI.** Version tags exist and CI deploys the documentation
+   site from `main`; what remains is registering the PyPI trusted publisher,
+   creating a GitHub Release, and verifying the workflow-built wheel and sdist
+   on upload. The mechanical checklist is in [RELEASING.md](RELEASING.md).
 
-8. **Investigate multi-trait Pearson--Aitken inference.** Promote it only if a
+7. **Investigate multi-trait Pearson--Aitken inference.** Promote it only if a
    benchmark demonstrates adequate accuracy across rare traits, asymmetric
    truncation, and larger pedigrees; otherwise retain Gibbs as the honest
    multi-trait engine.

@@ -5,6 +5,13 @@ description: Documentation, tutorial and simulated-data audit of ltpred v0.7.0.
 
 # Documentation and onboarding review of ltpred v0.7.0 (2026-09-21)
 
+!!! warning "Historical document"
+
+    This review audits **v0.7.0** as it stood on 2026-09-21. Its findings have
+    since been addressed or superseded, and some files and scripts it names no longer
+    exist. Kept for provenance; do not read it as a description of the current
+    release.
+
 A read-only audit of the **user-facing surface**: the documentation set, the
 runnable examples, and the simulated data a new user can obtain. This review
 covers the tree at commit `2722a59` (v0.7.0). It follows, and is independent of,

@@ -11,10 +11,10 @@ this tutorial simplifies are at the end.
 
 | step | question | the printout should show |
 |---|---|---|
-| 1 | Can we build a population whose genetic liability we know? | variance of `genetic` near 0.5, and not everyone diagnosed by 70 |
+| 1 | Can we build a population whose genetic liability we know? | variance of `genetic` near 0.5, about 8% diagnosed by 70 |
 | 2 | Kaplan–Meier or Aalen–Johansen when people die? | KM stays near the no-death curve; AJ drops |
 | 3 | Does a GWAS score recover that liability? | correlation about 0.55; most of Var(g) is still posterior uncertainty |
-| 4 | What if the proband's own diagnosis is hidden? | correlation falls to about 0.31 |
+| 4 | What does a score made at age 40 lose? | correlation falls to about 0.31 |
 | 5 | Can one fit recover two traits? | each estimate within about 2 SE of its truth |
 
 ## Step 1 — Simulate a population cohort
@@ -73,7 +73,9 @@ later steps correlate against. The register columns are `status`, `age`, and
 
 These 50,000 records are a **new** sample, not the 984 people above. A CIP
 from 81 events is too noisy to teach the difference. `simulate_followup_records`
-draws from the same logistic curve so the estimate can be checked.
+draws from the same logistic curve so the estimate can be checked. The
+estimator reports 49,999 entered records: one simulated onset at age 0 has no
+follow-up and is dropped (`plain.n_dropped`).
 
 First, nobody dies:
 
@@ -123,9 +125,15 @@ Kaplan-Meier(70)   = 0.0761   (was 0.0757 with no deaths)
 Kaplan–Meier, treating death as censoring, stays at 0.076, next to the
 generating curve at 70 (0.078): that is the net risk if nobody died.
 Aalen–Johansen is the proportion actually diagnosed by 70 when death can
-come first, 0.063. Do not pass that lower curve into step 3 in place of
-`TRUE_CIP`; step 3's bounds were built from the net curve. See
-[CIP estimation](cip-estimation.md).
+come first, 0.063.
+
+Which one a score needs depends on how the diagnoses were generated. Step 1's
+cohort was drawn from the net curve and nobody in it dies, so steps 3 and 4
+pass that curve (`TRUE_CIP`). A real register has deaths, and the choice is
+then a modelling decision: published LT-FH++ used the Aalen–Johansen curve
+per stratum, while the threshold-crossing model with death independent of
+liability implies the net curve. See
+[CIP estimation](cip-estimation.md#the-estimand-choice-the-most-important-decision-on-this-page).
 
 ## Step 3 — Score the population
 
@@ -148,23 +156,25 @@ scores = estimate_liabilities(
 est = np.asarray(scores.est)
 print(f"corr(score, true genetic liability) = {np.corrcoef(est, cohort.genetic)[0, 1]:.4f}")
 print(f"score sd = {est.std():.4f}   mean posterior variance = {np.asarray(scores.var).mean():.4f}")
-print(f"median relatives conditioned on = {np.median(scores.n_relatives):.0f}")
+print(f"median relatives within 3 degrees = {np.median(scores.n_relatives):.0f}")
 print(f"records with an unresolved parent = {scores.frac_records_with_unresolved_parents:.4f}")
 ```
 
 ```text
 corr(score, true genetic liability) = 0.5502
 score sd = 0.3898   mean posterior variance = 0.3558
-median relatives conditioned on = 23
+median relatives within 3 degrees = 23
 records with an unresolved parent = 0.0000
 ```
 
 **Answer.** The correlation, 0.55, is with the true genetic liability, which
 the scorer was not given. It is not a disease-risk correlation. Square the
 score standard deviation and add the mean posterior variance:
-0.390² + 0.356 = 0.508, the variance of `genetic` in step 1. The data
-identified about 0.15 of that variance; about 0.36 is still posterior
-uncertainty, so the score is not a measurement. The 984 scores are
+0.390² + 0.356 = 0.508, the variance of `genetic` in step 1. The scores' own
+variance, 0.15, is the part the family data explain (0.15 / 0.51 ≈ 0.30 ≈
+0.55², the squared correlation); about 0.36 is still posterior uncertainty,
+so the score is not a measurement. `estimate_liabilities` walks relatives up
+to `max_degree=3` by default. The 984 scores are
 overlapping pedigrees, not 984 independent people. Unresolved parents are 0
 because every parent id was in the table. This step passes the generating
 net curve back in. A real analysis passes a stratified estimate
@@ -172,11 +182,12 @@ net curve back in. A real analysis passes a stratified estimate
 
 ## Step 4 — Score prospectively, without the proband's own diagnosis
 
-**Question.** How much of step 3 was just the proband's own diagnosis?
+**Question.** What does a score made at each proband's 40th birthday lose?
 
-`use="prediction"` hides that diagnosis. It needs a calendar: `birth_time`
-for every person, `index_time` for every proband. Those two arrays have
-different lengths.
+`use="prediction"` scores at an index time: it hides the proband's own
+diagnosis and every relative's diagnosis made after that date. It needs a
+calendar: `birth_time` for every person, `index_time` for every proband.
+Those two arrays have different lengths.
 
 ```python
 at_risk = cohort.onset > INDEX_AGE          # still undiagnosed at the cut
@@ -204,8 +215,10 @@ proband states: ['disease_free_and_followed']
 ```
 
 **Answer.** The drop from 0.55 to 0.31 is still a correlation with genetic
-liability, now without the proband's own diagnosis. It is not the accuracy
-of predicting who becomes a case after 40. Restricting `probands` to people
+liability. Two kinds of information went: the proband's own diagnosis, and
+the relatives' diagnoses after the index date, and on this cohort the second
+costs about as much as the first. It is not the accuracy of predicting who
+becomes a case after 40. Restricting `probands` to people
 undiagnosed at 40 is part of that question: scoring someone already diagnosed
 and calling it prospective is leakage, and the driver warns. `proband_state`
 is that check.
@@ -217,7 +230,12 @@ the genetic correlation, and the residual correlation?
 
 This cohort is not the register from step 1. `simulate_under_LTM_multi`
 builds nuclear families with two binary traits. `fit_pairwise_multi` fits
-them together. Read `inference_status` before reading a standard error.
+them together. The components are A (additive genetic), C (an environment
+shared by full siblings) and M (one shared by a couple); the simulator has
+both C and M, and leaving them out would push h² up. `sampling="population"`
+declares the families unselected (see [inference](inference.md)). `re` is the
+correlation of the non-shared residuals. Read `inference_status` before
+reading a standard error.
 
 ```python
 from ltpred import fit_pairwise_multi, simulate_under_LTM_multi
@@ -256,17 +274,20 @@ inference status: interior_cluster_sandwich
 **Answer.** The first line checks the simulator. Trait 1's heritability is
 the noisy draw: 0.43 against 0.35, 1.63 standard errors. The other three sit
 closer. That is one cohort of 3,000 families, not a calibration study.
-`interior_cluster_sandwich` means those standard errors were produced; a
-boundary fit withholds them. The replicated fits are in
-`benchmarks/RESULTS.md` §33.
+`interior_cluster_sandwich` means the estimate is inside the parameter space
+and the standard errors are family-clustered sandwich estimates; a fit at a
+boundary withholds them. Replicated fits are in
+[`benchmarks/RESULTS.md`](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
+§33.
 
 ## What this tutorial does not do
 
 A real register is not this script with the filenames changed. Each shortcut
 below is a real decision, with the page that carries it.
 
-- **One curve for everyone.** Steps 3 and 4 pass `TRUE_CIP`. Real LT-FH++
-  stratifies by sex and birth year.
+- **One curve for everyone.** Steps 3 and 4 pass `TRUE_CIP`, the net
+  generating curve. Real LT-FH++ passes an estimated curve per sex and
+  birth-year stratum (Aalen–Johansen in the published method).
   [CIP estimation](cip-estimation.md),
   [data preparation](data-preparation.md).
 - **`h² = 0.5` was given.** It is the liability-scale heritability of this

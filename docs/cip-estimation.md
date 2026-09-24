@@ -101,14 +101,14 @@ S(t) = prod_{t_j <= t} (1 - d_j / Y_j),
 F_k(t) = sum_{t_j <= t} S(t_j-) * d_kj / Y_j .
 ```
 
-`F_k` is the **crude (marginal) cumulative incidence**: the probability of
-being diagnosed by age `t` *in the presence of* death and emigration. This is
-what LT-FH++ estimated for its CIPs ("the cumulative incidence function for
-each disorder was estimated with the Aalen-Johansen approach considering death
-and emigration as competing events", Pedersen et al. 2022, one curve per sex
-and birth year), and it is the right estimand for the threshold construction:
-a person who died undiagnosed cannot be diagnosed later, and the population
-fraction *diagnosed* by an age is the crude one.
+`F_k` is the **crude cumulative incidence**: the probability of being
+diagnosed by age `t` *in the presence of* death and emigration. This is what
+LT-FH++ estimated for its CIPs ("the cumulative incidence function for each
+disorder was estimated with the Aalen-Johansen approach considering death and
+emigration as competing events", Pedersen et al. 2022, one curve per sex and
+birth year), and it is the population fraction actually *diagnosed* by an
+age. Whether it is also the right input for the thresholds depends on the
+observation model; see [the estimand choice](#the-estimand-choice-the-most-important-decision-on-this-page).
 
 Pointwise standard errors use the finite-risk-set, tie-correct **Aalen (1978)
 variance** reported by `cmprsk::cuminc`. The implementation follows its grouped
@@ -148,16 +148,28 @@ asymptotically equivalent, not finite-sample identities.
 
 Three quantities are easily confused:
 
-- **Net incidence** (`1 - Kaplan-Meier`): incidence in a hypothetical world
-  without death. Almost never what a health registry means by the observed
-  diagnosed proportion.
-- **Crude / marginal cumulative incidence** (Aalen-Johansen): the
-  real-population probability of being diagnosed by age `t` while death
-  removes people. What LT-FH++ used, and what `thresholds_from_cip` expects.
+- **Net incidence** (`1 - Kaplan-Meier`, death treated as censoring):
+  incidence in a hypothetical world without death. Almost never what a health
+  registry reports as the diagnosed proportion.
+- **Crude cumulative incidence** (Aalen-Johansen): the real-population
+  probability of being diagnosed by age `t` while death removes people. What
+  LT-FH++ used; `thresholds_from_cip` accepts either curve.
 - **Plain proportions by age** (`#diagnosed / #people of that age`): only
   valid for a birth cohort with essentially complete follow-up past the
   target age. On modern, heavily right-censored cohorts it under-counts late
-  onsets and can bias badly; do not use it for iPSYCH-era birth years.
+  onsets and can bias badly; do not use it for recent birth cohorts.
+
+Which curve the thresholds need is a modelling choice, not only an estimation
+one. In the threshold-crossing model a person's onset age is when liability
+crosses `T(t)`; if death is independent of liability, a living undiagnosed
+person satisfies `P(l > T(t)) =` the **net** risk, so the net curve is the
+one the model implies and the crude curve sets thresholds slightly too high
+(more so where death is common). If death is related to liability, or the
+estimand is the population diagnosed fraction, the crude curve is the
+natural choice, and it is the published LT-FH++ convention. The two differ
+little where death before onset is rare. The end-to-end validation below
+used the net curve on a cohort without mortality; no benchmark yet tests
+Aalen-Johansen thresholds with mortality present.
 
 `benchmarks/bench_cip_estimation.py` measures all of this on a simulated
 registry with a known curve: AJ recovers the crude curve to ~0.002 absolute
@@ -170,17 +182,23 @@ CIPs are stratum-specific: LT-FH++ uses one curve per **sex x birth year**.
 Estimate each curve separately by calling the estimator once per stratum:
 
 ```python
+import numpy as np
 from ltpred import aalen_johansen_cip, thresholds_from_cip
 
-curves = {}
-for (sex, cohort), idx in df.groupby(["sex", "birth_year"]).groups.items():
-    sub = df.loc[idx]
-    curves[(sex, cohort)] = aalen_johansen_cip(
-        sub.age_entry.values, sub.age_exit.values, sub.event.values)
-
-# then, per person, the curve of their stratum:
-lower, upper, K_i, K_pop = thresholds_from_cip(
-    status, age, curve.ages, curve.values, k_pop=k_pop_for_stratum)
+# register arrays, one row per person: sex, birth_year, age_entry, age_exit,
+# event (0 censored, 1 diagnosis, 2 death), status and age of the analysis
+stratum = np.char.add(sex.astype(str), birth_year.astype(str))
+lower = np.empty(len(status))
+upper = np.empty(len(status))
+for key in np.unique(stratum):
+    m = stratum == key
+    curve = aalen_johansen_cip(age_entry[m], age_exit[m], event[m])
+    # start the grid at age 0 so nobody is given incidence before the
+    # first observed event age (np.interp would hold the first value)
+    ages = np.r_[0.0, curve.ages]
+    values = np.r_[0.0, curve.values]
+    lower[m], upper[m], _, _ = thresholds_from_cip(
+        status[m], age[m], ages, values)
 ```
 
 Practical guidance:
@@ -250,10 +268,17 @@ At the horizon, `F_diag + F_death = 0.563 + 0.438 = 1 = 1 - S`, as required.
   exhausts the risk set. The estimate is valid, but
   `thresholds_from_cip` rejects it because prevalence one has no finite
   probit threshold. Use an earlier or externally justified lifetime horizon.
-- **Emigration:** can be coded either as censoring (`0`) or as a competing
-  event (its own code). The difference is small (emigrants are few percent);
-  LT-FH++ treated it as competing. Death, however, must be a competing event
-  whenever it is common — never ordinary censoring.
+- **Emigration:** emigrants remain at risk but are no longer observed, so
+  under the liability model emigration is censoring (`0`); LT-FH++ coded it as
+  a competing event. The difference is small (emigrants are a few percent).
+  Death is different: code it as its own event so both curves can be formed,
+  then choose between them as described above.
+- **Before the first event age:** a curve starts at its first event age, and
+  `thresholds_from_cip` interpolates linearly and holds the end values
+  constant, so prepend `(0, 0.0)` as in the stratification example, or a
+  young control is given the incidence of the first event age. Values are
+  clipped to `[min_cip, k_pop]` (`min_cip=1e-5`), which pins a case whose
+  onset falls where the curve is zero at an arbitrary high threshold.
 - **Monotonicity:** guaranteed by construction (the estimator is a sum of
   nonnegative increments); `thresholds_from_cip` validates it.
 - **Uncertainty propagation:** LT-FH++ used point estimates of the CIP and
@@ -271,7 +296,8 @@ events including an exhausted final risk set, and runs the curve into
 curve, mortality, administrative censoring and a register-start year, and
 shows exact recovery, the KM competing-risks bias, and the end-to-end cost of
 using an estimated curve (calibration slope 1.0023 vs 1.0069 oracle,
-identical correlation).
+identical correlation). That end-to-end arm estimates the net (Kaplan-Meier)
+curve on families simulated without mortality.
 
 ## References
 

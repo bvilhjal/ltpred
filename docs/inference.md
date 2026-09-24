@@ -23,7 +23,8 @@ Unsupported experimental inferential machinery lives in the checkout-only
     per-family `weights` (see [Ascertained samples](#ascertained-samples)).
     Nothing else is supported: `bootstrap_fit` does not repair selection bias,
     and a design that samples *no* families from some stratum cannot be
-    reweighted at all.
+    reweighted at all. Omitting `sampling` warns and proceeds as
+    `"population"`.
 
     `sampling="population"` is **screened for marginal inconsistency** with your
     data, not taken entirely on trust. Your thresholds assert a prevalence, so
@@ -258,16 +259,18 @@ silently folding shared covariance into `full_corrmat`.
 Selection on phenotype also matters for pairwise fitting. The quantified
 failure below concerns the HE/data-augmentation fitter. From the
 dose-response in `benchmarks/bench_ascertainment.py` (nuclear families,
-true `h²` = 0.5, K = 0.05, N = 2,000):
+true `h²` = 0.5, K = 0.05, N = 2,000, two replicates):
 
 | realised case share ÷ assumed K | 0.95× | 1.51× | 1.96× | ≥ 2× |
 |---|---:|---:|---:|---:|
 | fitted `h²` | 0.420 | 0.984 | 0.998 | 1.000 |
 
-A 7.6% case rate against an assumed 5.0% already inflates `h²` by +0.48. This is
-**bias, not noise**: it does not shrink with N (constant +0.500 from N = 1,000 to
-10,000) and it is not an unconverged run (the same value is reached from
-`h2_init` 0.05 and 0.95).
+A 7.6% case rate against an assumed 5.0% already inflates `h²` by +0.48 (the
+unenriched cell, 0.420 with SD 0.070, is this small grid's noise floor). It is
+**bias, not noise**: in the proband-ascertained arm the bias stays at +0.500
+from N = 1,000 to 10,000, and the fit reaches the same value from `h2_init`
+0.05, 0.5 and 0.95
+([RESULTS §29](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md#29-ascertainment-what-the-fitters-do-on-selected-samples-bench_ascertainmentpy)).
 
 ### When you can correct it: `sampling="ipw"`
 

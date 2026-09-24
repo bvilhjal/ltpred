@@ -3,8 +3,8 @@
 A runnable tour of the estimator — from a small status/age table to one
 genetic-liability score per proband — on a single page. This is **use II**
 of the [vignette](vignette.md) (a GWAS phenotype, own status in). The data
-below are tutorial-only, not a production analysis. Skip steps the vignette
-says your use does not need. Each step links to the deeper reference.
+below are for demonstration only, not a production analysis. Each step links
+to the deeper reference.
 
 The six rows below are typed by hand so the input *format* is visible. To run
 the same pipeline on a realistic simulated cohort where the true liabilities are
@@ -17,6 +17,8 @@ PyPI publication is pending. Until then, installation from a source checkout is
 the supported path:
 
 ```bash
+git clone https://github.com/bvilhjal/ltpred.git
+cd ltpred
 pip install -e ".[fast]"     # [fast] adds the Numba JIT — recommended for real runs
 ```
 
@@ -48,9 +50,12 @@ and for [arbitrary pedigrees](data-preparation.md#beyond-the-role-grammar-arbitr
 
 ## 2. Turn status + age into liability bounds
 
-Threshold builders set the observation encoding; family rows distinguish
-LT-FH++ from ADuLT. This example includes relatives, so the onset-pinned bounds
-form a family-history analysis. The logistic builder is tutorial-only:
+Each person's status and age become an interval on the liability scale
+(`lower`, `upper`): a case is pinned at the threshold for their onset age, and a
+control lies below the threshold for their current age. Because relatives are
+included, this is a family-history (LT-FH++-style) analysis. `age_thresholds`
+uses one built-in logistic incidence curve (`mid_point=60`, `slope=1/8`) and is
+for demonstration only:
 
 ```python
 from ltpred import age_thresholds
@@ -66,7 +71,9 @@ lower, upper = age_thresholds(status, age, pop_prev=0.05)   # pop_prev = lifetim
     [`thresholds_from_cip`](data-preparation.md#a-real-register-data-recipe) with
     your population's estimated cumulative-incidence curve — see
     [CIP estimation](cip-estimation.md) for how to get that curve, and the
-    [tutorial](tutorial.md) for both steps run end to end on simulated data.
+    [tutorial](tutorial.md) for CIP estimation and the register driver on
+    simulated data (it feeds the generating curve back in; see its last
+    section).
 
 ## 3. Build the families
 
@@ -100,10 +107,17 @@ with known inclusion probabilities (`sampling="ipw"` with weights); see
 
 ## 5. Inspect and align the score
 
-`score` is aligned to `res.pids`, not to the input row order:
+`score` has one value per family (proband), aligned to `res.pids`, not to the
+input row order:
 
 ```python
-list(zip(res.pids, score))
+for proband, value in zip(res.pids, score):
+    print(proband, round(float(value), 3))
+```
+
+```text
+P1 1.357
+P2 0.462
 ```
 
 For a GWAS, explicitly join `res.pids` to the genotyped proband IDs, residualize
@@ -117,7 +131,7 @@ The score is not an absolute disease-risk probability.
 | you want to… | see |
 |---|---|
 | run the whole pipeline on a realistic **simulated** cohort, with the truth known | [Tutorial](tutorial.md) |
-| how to run the pipeline (three uses, then `h²`, pedigree, CIP, family history) | [Vignette](vignette.md) |
+| learn how to run the pipeline (three uses, then `h²`, pedigree, CIP, family history) | [Vignette](vignette.md) |
 | understand roles, pedigrees, CIPs, real-data prep | [Data preparation](data-preparation.md) |
 | choose Gibbs vs PA, scale to biobank size, multi-trait, GWAS export | [Estimation](estimation.md) |
 | fit `h²`, genetic/residual environmental correlations or A/C/M components | [Inference](inference.md) |

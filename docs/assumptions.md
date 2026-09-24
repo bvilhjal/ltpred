@@ -114,7 +114,9 @@ Then, before running a production analysis:
 3. **Stratify** CIPs by sex, birth year/cohort, ancestry and calendar period where
    incidence differs. With independent right censoring and no competing events,
    `1 − Kaplan–Meier` estimates risk; with competing death or diagnoses, use a
-   cause-specific cumulative-incidence estimator such as Aalen–Johansen.
+   cause-specific cumulative-incidence estimator such as Aalen–Johansen, and
+   decide which of the two curves the thresholds need
+   ([the estimand choice](cip-estimation.md#the-estimand-choice-the-most-important-decision-on-this-page)).
 4. Make each CIP age grid cover the analysed onset/follow-up ages and supply
    `k_pop` explicitly unless its final value is a defensible lifetime prevalence;
    the helper holds endpoint values constant outside the grid.
@@ -172,8 +174,9 @@ Then, before running a production analysis:
   estimate) is added for you. If `o` is omitted, it is inserted unbounded; use that
   path to avoid outcome leakage in disease prediction/classification.
 - **Prevalence and CIPs should match the population** the thresholds refer to;
-  stratify by sex/birth-year if your incidence differs across strata (pass the
-  per-person `K_i`).
+  stratify by sex/birth-year if your incidence differs across strata (one CIP
+  per stratum when building the bounds with `thresholds_from_cip`; the
+  per-person `K_i` matters only for the PA mixture, `use_mixture=True`).
 - **CIP interpolation is flat beyond its age grid.** It does not extrapolate an
   incidence trend; cover the analysed ages and do not equate the last observed CIP
   with lifetime prevalence unless the curve reaches that horizon.

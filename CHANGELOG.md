@@ -6,6 +6,36 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Documentation
+
+- CIP estimation states the estimand choice honestly: Aalen–Johansen (crude)
+  curves are the published LT-FH++ convention, while the threshold-crossing
+  model with liability-independent death implies the net curve; the cited
+  end-to-end validation used the net curve without mortality. The tutorial,
+  data-preparation and assumptions pages now say the same. Emigration is
+  recommended as censoring, and a curve should start at age 0 before it is
+  passed to `thresholds_from_cip`.
+- Tutorial step 4 attributes the prospective accuracy drop to both hidden
+  sources (the proband's own diagnosis and relatives' post-landmark
+  diagnoses), explains the A/C/M components and `interior_cluster_sandwich`,
+  and relabels the `n_relatives` printout.
+- Vignette: the variance-decomposition check is interpreted correctly (it
+  cannot detect missing relatives or a wrong h²); the depth evidence cites the
+  register-pipeline contrasts instead of a structure swap; register throughput
+  is the current 987 probands/s; the `fit_heritability` figure names its
+  schedule; calibration is claimed overall and in the top decile only.
+- `algorithm.md` no longer says `fit_heritability` accepts onset-pinned bounds
+  (it rejects them), names the quadrature engine and the public Gibbs entry
+  point, and qualifies the role-grammar half-sib equivalence.
+- `estimation.md` lists `h2` as required; the use-I guidance says to censor
+  relatives at the landmark; `inference.md` documents that omitting `sampling`
+  warns and proceeds as population sampling, and attributes the ascertainment
+  bias checks to the arm that produced them.
+- The guide gains rows for the register driver and the arbitrary-pedigree
+  kinship path; the quickstart shows its expected output; the stratified CIP
+  example runs; ROADMAP, RELEASING and the report page are brought up to date,
+  and the dated reviews are grouped as historical documents.
+
 ## 0.7.2 — 2026-09-23
 
 ### Changed

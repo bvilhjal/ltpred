@@ -110,13 +110,15 @@ the pedigree's exact-kinship closure are not diagnosis observations unless
 `condition_closure=True` is explicitly requested. Under `use="prediction"` the
 estimand is `E[g | relatives' records at the landmark]` — it is *not*
 additionally conditioned on the proband being disease-free at the landmark; the
-two agree on ranking within an age but differ in level across ages, because
+two agree on ranking within an age and family structure but differ in level
+across ages, because
 surviving to an older age disease-free is evidence of lower liability. The
 driver's payoff and throughput evidence (RESULTS §§20–21, regenerated
 2026-09-21): the API is supported, with the
 payoff quantified there -- degree-3 corr(est, true g) 0.567 ± 0.029 vs
 degree-1 0.522 ± 0.031 (paired contrast +0.045 ± 0.009), prospective
-familywise-censored AUC 0.654 ± 0.021, and ~276 probands/s throughput.
+familywise-censored AUC 0.654 ± 0.021, and 987 probands/s throughput (v0.7.1,
+rerun 2026-09-23).
 The relatives'-events contrast is unresolved at R = 5 on both metrics and
 is not quoted as a payoff.
 

@@ -1,7 +1,8 @@
 # Algorithm and model
 
 This page records the estimand, the observation models, and the two
-algorithms that compute the score. Which steps to run, and which of
+general algorithms that compute the score (a restricted nuclear-family
+[quadrature](estimation.md#nuclear-family-quadrature) is a third engine). Which steps to run, and which of
 three uses they serve, is in the [vignette](vignette.md) and
 [guide.md](guide.md). The typeset companion is the
 [methods note](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf).
@@ -145,8 +146,10 @@ are put on the same standardised full-liability scale, so its variance is
 `h2 A_tt / (1 + h2 (A_tt - 1))`. Thus every observed full
 liability retains variance 1, and `Phi^-1(1-K)` retains its prevalence meaning,
 even when `A_ii > 1`; for non-inbred pedigrees the scaling is a no-op. This
-reproduces the role-grammar covariance entry-for-entry where they overlap and
-additionally covers half-sibs of any degree, cousins and inbred pedigrees;
+reproduces the role-grammar covariance entry-for-entry where they overlap
+(except that the role grammar treats two same-side half-sibs as sharing their
+other parent) and additionally covers half-sibs of any degree, cousins and
+inbred pedigrees;
 `estimate_liability_from_kinship` runs PA by default or Gibbs on request.
 That high-level kinship API accepts `lower`/`upper`, caller-supplied
 `c2`/`c_kernel` and `m2`/`m_kernel` components, and, with Pearson–Aitken,
@@ -579,9 +582,10 @@ both estimators.
 There is no closed form for `E[ℓ_F | ℓ_F ∈ C_F]`
 once several intervals are live. Algorithm G samples the truncated
 multivariate normal by coordinate-wise inverse-CDF draws
-(Kotecha & Djurić 1999). The public estimator is
-`gibbs_estimate_batched`; the low-level chain `rtmvnorm_gibbs` draws
-the full vector and is never collapsed.
+(Kotecha & Djurić 1999). The public entry point is
+`estimate_liability(method="gibbs")`, whose kernel is
+`ltpred.gibbs.gibbs_estimate_batched`; the low-level chain `rtmvnorm_gibbs`
+draws the full vector and is never collapsed.
 
 Write `Σ` for the family covariance, `Q = Σ⁻¹` for
 its precision, and
@@ -796,7 +800,11 @@ implementation of the mixture, so this is a PA-only check.
 
 Both estimators above *condition* on a known `h2`. `fit_heritability` instead
 **fits** it — estimating the liability-scale heritability from the case/control
-(and age-of-onset) statuses of relatives — with a Gibbs sampler modelled on
+statuses of relatives under one common threshold per trait
+(`prevalence_thresholds` bounds; personalised or onset-pinned LT-FH++ bounds
+are rejected, see
+[inference](inference.md#fitting-heritability-from-the-family-data)) — with a
+Gibbs sampler modelled on
 bipred's joint effect/parameter loop (sample the latents, then re-estimate the
 covariance parameters each sweep). It treats the latent liabilities as missing
 data and alternates:
@@ -828,7 +836,7 @@ Omitting `sampling` still warns.
 
 1. **Augment** — one persistent truncated-MVN sweep per family under the current
    covariance `Sigma(h2) = (1-h2) I + h2 A` (`A` the additive relationship matrix
-   over the observed relatives), holding pinned cases (`gibbs_advance`).
+   over the observed relatives) (`gibbs_advance`).
 2. **Update** — a damped moment step for `h2`: a Haseman–Elston regression of the
    sampled liability cross-products on relatedness, pooled over all related pairs
    in all families,

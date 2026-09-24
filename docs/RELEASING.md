@@ -31,7 +31,12 @@ Optionally add the same as a trusted publisher on
    heading. Two files carry the version independently of that attribute and
    drift silently when missed: `CITATION.cff` (`version` and `date-released`)
    and `report/ltpred_methods.tex`.
-2. Confirm CI is green on `main` (tests on 3.9–3.13, macOS 3.12 and 3.14t, `ruff`, strict docs build, wheel build).
+2. Confirm CI is green on `main`: `test` (3.9–3.13 and 3.14t, plus macOS 3.12),
+   `research-tests`, `lint` (`ruff`), `test-no-numba`, `oldest-deps` (3.9 at the
+   minimum NumPy/SciPy), `examples`, `build` (wheel and sdist) and `docs` (strict
+   build plus `scripts/check_evidence.py`). The `docs` job also deploys the site
+   on every push to `main`, so the published documentation tracks `main`, not
+   the latest release.
 3. Rebuild the tracked methods PDF and check its release-defining claims against
    the committed CSVs. If a benchmark artifact must change, first commit its
    source, then regenerate CSV/PNG outputs through `benchmarks/run_benchmark.py`

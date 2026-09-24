@@ -1,5 +1,12 @@
 # Independent review of ltpred v0.6.2 (2026-09-10)
 
+!!! warning "Historical document"
+
+    This review audits **v0.6.2** as it stood on 2026-09-10. Its findings have since been
+    addressed or superseded, and some files and scripts it names no longer
+    exist. Kept for provenance; do not read it as a description of the current
+    release.
+
 A read-only audit of the 0.6.0 inference delta. This review covers the tree at
 commit `e9bfa66` (v0.6.2). It follows, and is independent of, the v0.3.4 audit
 in `REVIEW_2026-08.md`, the v0.4.2 audit in `REVIEW_2026-09.md`, and the v0.5.1

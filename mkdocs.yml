@@ -56,11 +56,12 @@ nav:
       - Roadmap: ROADMAP.md
       - Paper plan: PAPER_PLAN.md
       - Releasing: RELEASING.md
-      - Independent review (v0.3.4): reviews/REVIEW_2026-08.md
-      - Independent review (v0.4.2): reviews/REVIEW_2026-09.md
-      - Independent review (v0.5.1): reviews/REVIEW_2026-09b.md
-      - Independent review (v0.6.2): reviews/REVIEW_2026-09c.md
-      - Independent review (v0.7.0, documentation): reviews/REVIEW_2026-09d.md
+      - Past reviews (historical):
+          - v0.3.4 (2026-08): reviews/REVIEW_2026-08.md
+          - v0.4.2 (2026-08-28): reviews/REVIEW_2026-09.md
+          - v0.5.1 (2026-09-02): reviews/REVIEW_2026-09b.md
+          - v0.6.2 (2026-09-10): reviews/REVIEW_2026-09c.md
+          - v0.7.0 documentation: reviews/REVIEW_2026-09d.md
 
 markdown_extensions:
   - admonition

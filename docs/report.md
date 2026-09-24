@@ -10,7 +10,7 @@ repository, not in the lean source distribution or this HTML site:
 - PDF: [`report/ltpred_methods.pdf`](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf)
 - LaTeX source: [`report/ltpred_methods.tex`](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.tex)
 
-The tracked report describes v0.7.0, including joint heritability and
+The tracked report describes v0.7.2 (dated 23 September 2026), including joint heritability and
 genetic/residual environmental covariance fitting. For its input contract,
 replicated evidence and runnable code, see the
 [Inference guide](inference.md#joint-heritability-and-cross-trait-correlations)
@@ -37,8 +37,9 @@ The "Time and memory between versions" subsection reports the
 [9 September 2026 efficiency rerun](https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-09-time-memory-v061-rerun)
 of v0.6.1 against v0.6.0, with matched workloads, warm runtimes, process RSS
 and exact output agreement. The evidence check binds its table to the saved
-JSON measurements and source provenance. v0.6.2 updates the documentation;
-its numerical implementation is unchanged from the measured v0.6.1 source.
+JSON measurements and source provenance. The newer
+[v0.7.1 versus v0.7.0 rerun](https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-23-time-memory-v071)
+(RESULTS §31a) is not yet in the report.
 
 The report states the estimand and assumptions first, then the
 liability-threshold model and BLUP identity, Algorithms G
@@ -56,7 +57,8 @@ ascertainment.
 Those tables are historical snapshots; see
 [`benchmarks/RESULTS.md`](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
 for provenance.
-The old register-depth and prospective figures are no longer presented as
-current evidence: the corrected driver needs a clean-source benchmark rerun.
-The runnable vignette's small register example checks the input contract,
-not predictive performance.
+The report's register-depth and prospective section still asks for a rerun
+of the corrected driver; that rerun is in RESULTS §§20–21 (regenerated
+2026-09-21 and 2026-09-23), which the [vignette](vignette.md) quotes, and
+the report has not yet been updated to it. The runnable vignette's small
+register example checks the input contract, not predictive performance.
