@@ -57,8 +57,8 @@ ascertainment.
 Those tables are historical snapshots; see
 [`benchmarks/RESULTS.md`](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
 for provenance.
-The report's register-depth and prospective section still asks for a rerun
-of the corrected driver; that rerun is in RESULTS §§20–21 (regenerated
-2026-09-21 and 2026-09-23), which the [vignette](vignette.md) quotes, and
-the report has not yet been updated to it. The runnable vignette's small
-register example checks the input contract, not predictive performance.
+The report's register-depth and prospective section quotes the corrected
+driver's rerun in RESULTS §§20–21 (regenerated 2026-09-21, throughput
+2026-09-23), the same figures the [vignette](vignette.md) quotes. The
+runnable vignette's small register example checks the input contract, not
+predictive performance.

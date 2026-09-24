@@ -1317,24 +1317,53 @@ so under proband ascertainment every augmented proband is redrawn
 above $T$, its relatives are pulled with it, and the cross-products
 stay positive whatever the truth.
 
-\subsection{Register depth and prospective evidence: rerun required}
+\subsection{Register depth and prospective evidence}
 
-The historical pedigree-payoff and end-to-end register artifacts are
-superseded, not current validation of the driver in
-Section~\ref{sec:impl}. They conditioned on closure-only ancestors
-beyond the requested depth; the prospective path also used a common
-attained-age cutoff across generations instead of
-\eqref{eq:calendar-censor}. The repaired benchmark separates ordinary
-GWAS sampling from disease-free-at-landmark prediction and standardizes
-inbred truth on the same scale as the estimator.
+Both benchmarks were regenerated under the repaired observation contract.
+Closure-only ancestors keep uninformative bounds, and the prospective
+arm censors each relative at \eqref{eq:calendar-censor}.
+Each benchmark uses five independent synthetic three-generation
+registers of 2{,}529--2{,}719 persons with remarriages
+(\texttt{benchmarks/RESULTS.md} \S\S20--21).
+The pipeline benchmark draws one consistent liability field
+$G\sim N(0,\h A)$ by Cholesky.
 
-Exact kinship can be checked against the full-population matrix while
-the observation set is separately checked for closure and post-index
-invariance. The six-person vignette example demonstrates those software
-contracts, not prediction accuracy or an optimal depth. The quantitative
-depth, leakage, calibration, and throughput claims require regeneration
-from a clean source snapshot through the provenance wrapper. No
-replacement register numbers are asserted here.
+Extraction is exact.
+With the full ancestral closure, the extracted sub-pedigree's kinship
+equals the full-population kinship over 300 probands (max abs
+difference $0.0$).
+The degree limit selects which relatives are conditioned on.
+It never changes the kinship among them.
+
+Relatives beyond the named-role grammar carry information.
+On 300 probands per register, all relatives up to third degree give
+corr(est, $g$) $0.569\pm 0.013$ against $0.498\pm 0.016$ for the fixed
+role subset.
+The paired gain is $+0.0706\pm 0.0060$, 95\% CI $[+0.054,+0.087]$.
+Through the driver of Section~\ref{sec:impl}, degree~3 gives
+$0.567\pm 0.029$ and degree~1 gives $0.522\pm 0.031$.
+The paired difference is $+0.0451\pm 0.0092$ (95\% CI
+$[+0.020,+0.071]$), and both calibration slopes are $1.05\pm 0.05$.
+A CIP estimated from the register itself matches the oracle curve to
+$+0.0003\pm 0.0003$.
+
+The prospective result is modest.
+The target is diagnosis in $(40,70]$ after index age $40$, and the
+future-case rate is $0.081\pm 0.006$.
+With familywise censoring the score reaches rank AUC $0.654\pm 0.021$
+and corr $0.167\pm 0.007$.
+Adding relatives' post-index events gives AUC $0.697\pm 0.027$, but
+the paired difference is unresolved at five registers on both metrics
+($\Delta\mathrm{AUC}=+0.043$, 95\% CI $[-0.026,+0.112]$), so no
+relatives'-events payoff is claimed.
+Leaking the proband's own future outcome is unambiguous: AUC
+$0.991\pm 0.002$, paired $\Delta\mathrm{corr}=+0.524\pm 0.014$.
+The driver scores 987 probands/s at one BLAS thread (v0.7.1).
+
+These are simulated registers under the crossing model with a logistic
+CIP.
+The six-person vignette example checks software contracts (closure,
+post-index invariance), not accuracy.
 
 %----------------------------------------------------------------------
 \section{What this does not do}

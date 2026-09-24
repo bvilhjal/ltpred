@@ -155,6 +155,20 @@ def test_cohort_sizes_on_the_page_match_the_script(page, figures):
 
 
 
+_WORDS = {2: "two", 3: "three", 4: "four", 5: "five"}
+
+
+def test_register_route_counts_on_the_page_match_the_script(page, figures):
+    """The six-person register example's counts, which the page spells out."""
+    plain = " ".join(page.replace("**", "").split())
+    assert (f"Prediction has {_WORDS[figures['reg_relatives']]} relatives, "
+            f"{_WORDS[figures['reg_closure_only']]} closure-only ancestors and "
+            f"{_WORDS[figures['reg_conditioned_prediction']]} conditioned records"
+            ) in plain
+    assert (f"GWAS has {_WORDS[figures['reg_conditioned_gwas']]} conditioned "
+            "records") in plain
+
+
 def test_law_of_total_variance_holds_in_the_script(figures):
     """The identity the page tells readers to assert."""
     assert figures["lotv_sum"] == pytest.approx(figures["h2"], abs=0.02)

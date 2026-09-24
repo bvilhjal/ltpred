@@ -14,10 +14,10 @@ simulates a nuclear cohort so the later calls have input; on real data,
 skip it and start from your table. Swap the logistic CIP helpers for
 ``thresholds_from_cip`` before a real GWAS.
 
-Every number printed here is quoted in docs/vignette.md, and
+The figures docs/vignette.md quotes come from this script, and
 ``tests/test_vignette_numbers.py`` fails if the two drift apart. ``main``
-returns them as a dict for that test; if you change the script, re-run it
-and update the page.
+returns them as a dict for that test (it also prints intermediate lines the
+page does not quote); if you change the script, re-run it and update the page.
 
 Run from the repository root::
 
@@ -39,14 +39,8 @@ from ltpred import (  # noqa: E402
     estimate_liabilities,
     families_from_columns, fit_heritability, kinship_from_pedigree,
     observed_to_liability_h2, prevalence_thresholds, simulate_under_LTM_single,
+    tetrachoric,
 )
-# `from ltpred import tetrachoric` is the form the vignette shows and it is
-# correct in a script like this one -- but the package exports a *function*
-# under the same name as its module, so in a process that has already imported
-# `ltpred.tetrachoric` (a test suite, say) the package attribute is the module
-# and the call raises `TypeError: 'module' object is not callable`. Import from
-# the owning module, which api.md documents and which is never ambiguous.
-from ltpred.tetrachoric import tetrachoric  # noqa: E402
 
 H2 = 0.5
 K = 0.05
@@ -418,6 +412,17 @@ def main():
     print(f"age term adds {f['age_gain']:.2f}x on top, inside the 1.02-1.05x that")
     print("RESULTS section 10 reports. Do not credit family history's gain to age.")
     print("real LT-FH++ needs thresholds_from_cip with stratified population CIPs")
+
+    print("\n== Population trio-register route (six-person toy) ==")
+    gwas, prediction, _, _, _ = register_example()
+    f["reg_relatives"] = int(prediction.n_relatives[0])
+    f["reg_closure_only"] = int(prediction.n_closure_only[0])
+    f["reg_conditioned_prediction"] = int(prediction.n_conditioned[0])
+    f["reg_conditioned_gwas"] = int(gwas.n_conditioned[0])
+    print(f"prediction: {f['reg_relatives']} relatives, {f['reg_closure_only']} "
+          f"closure-only ancestors, {f['reg_conditioned_prediction']} conditioned records")
+    print(f"GWAS: {f['reg_conditioned_gwas']} conditioned records")
+    print("post-index and closure-only diagnoses leave the prediction score unchanged")
     print("done.")
     return f
 

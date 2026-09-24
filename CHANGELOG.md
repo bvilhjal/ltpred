@@ -6,7 +6,33 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Fixed
+
+- `from ltpred import tetrachoric` returns the function in every import
+  order. Previously, once `ltpred.tetrachoric` had been loaded -- by
+  `from ltpred.tetrachoric import ...` or by accessing `tetrachoric_matrix` /
+  `tetrachoric_table` / `TetrachoricResult` -- the import system bound the
+  submodule over the lazily exported function, and the call raised
+  `TypeError: 'module' object is not callable`. The package now keeps the
+  function bound; the module is still importable by its dotted name
+  (`from ltpred.tetrachoric import ...`, `importlib.import_module`), but the
+  attribute chain `ltpred.tetrachoric.<name>` now reaches the function, not
+  the module. The strict `xfail` in `tests/test_public_api.py` is a regular
+  test over three import orders.
+
 ### Documentation
+
+- `examples/vignette.py` never called `register_example()`, so the six-person
+  register example's leakage assertions never ran and the counts the vignette
+  quotes for it (relatives, closure-only ancestors, conditioned records) were
+  unchecked. `main()` now runs it and returns the counts, and
+  `tests/test_vignette_numbers.py` checks them against the page. The script's
+  docstring no longer claims every printed number is quoted.
+- The methods report's "Register depth and prospective evidence" section
+  still asked for a rerun that RESULTS §§20–21 had already recorded. It now
+  quotes those figures (exact extraction, the degree-3 versus degree-1 and
+  role-grammar contrasts, the prospective AUC and the unresolved
+  relatives'-events contrast, throughput); the PDF is rebuilt.
 
 - CIP estimation states the estimand choice honestly: Aalen–Johansen (crude)
   curves are the published LT-FH++ convention, while the threshold-crossing

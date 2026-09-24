@@ -23,6 +23,8 @@ accelerates the Gibbs sweep. Names are imported lazily (PEP 562) so
 """
 
 import importlib
+import sys
+import types
 from typing import TYPE_CHECKING
 
 __version__ = "0.7.2"
@@ -148,3 +150,25 @@ def __getattr__(name):
 
 def __dir__():
     return sorted(__all__)
+
+
+# ``tetrachoric`` names both a public function and the submodule defining it.
+# Loading a submodule makes the import system bind it as a package attribute,
+# which would shadow the lazily exported function whenever the submodule was
+# imported first (``from ltpred.tetrachoric import ...``, or any other name it
+# exports). Keep the function bound instead. The module itself stays importable
+# as ``ltpred.tetrachoric`` through ``from ltpred.tetrachoric import ...`` and
+# ``importlib.import_module``; only the attribute chain
+# ``ltpred.tetrachoric.<name>`` no longer reaches it.
+_FUNCTION_NAMED_MODULES = frozenset(
+    name for name, mod in _NAME_TO_MODULE.items() if name == mod)
+
+
+class _Package(types.ModuleType):
+    def __setattr__(self, name, value):
+        if name in _FUNCTION_NAMED_MODULES and isinstance(value, types.ModuleType):
+            value = getattr(value, name)
+        super().__setattr__(name, value)
+
+
+sys.modules[__name__].__class__ = _Package
