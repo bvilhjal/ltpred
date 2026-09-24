@@ -997,6 +997,55 @@
   
   
   
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Past reviews (historical)
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Past reviews (historical)
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../reviews/REVIEW_2026-08/" class="md-nav__link">
         
@@ -1005,7 +1054,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.3.4)
+    v0.3.4 (2026-08)
   
 
     
@@ -1033,7 +1082,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.4.2)
+    v0.4.2 (2026-08-28)
   
 
     
@@ -1061,7 +1110,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.5.1)
+    v0.5.1 (2026-09-02)
   
 
     
@@ -1089,7 +1138,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.6.2)
+    v0.6.2 (2026-09-10)
   
 
     
@@ -1117,7 +1166,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.7.0, documentation)
+    v0.7.0 documentation
   
 
     
@@ -1126,6 +1175,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1278,18 +1335,10 @@ it is part of the public API (<a href="../research/">research extensions</a>).</
    they do not remove a dense matrix for a genuinely large informative family.</p>
 </li>
 <li>
-<p><strong>Regenerate the register evidence.</strong> Done 2026-09-03: both repaired
-   benchmarks rerun under the provenance wrapper (RESULTS §§20–21, committed
-   CSVs, manifest records). The relatives'-events contrast is unresolved at
-   R = 5 on both metrics -- a larger-R rerun is the remaining evidence gap
-   before quoting a relatives'-events payoff.</p>
-</li>
-<li>
-<p><strong>Add a chunked driver.</strong> Done: <code>ltpred.chunked</code> streams homogeneous family
-   batches through the array kernels with bounded working set
-   (<code>estimate_liability_pa_chunked</code> / <code>estimate_liability_gibbs_chunked</code>) and a
-   streaming batch iterator (<code>*_batches</code>), preserving deterministic grouping
-   and the <code>O(F)</code> summary-memory contract.</p>
+<p><strong>Resolve the relatives'-events contrast.</strong> The repaired register benchmarks
+   were rerun under the provenance wrapper (RESULTS §§20–21), but the
+   relatives'-events contrast is unresolved at R = 5 on both metrics; a
+   larger-R rerun is needed before quoting a relatives'-events payoff.</p>
 </li>
 <li>
 <p><strong>Validate a real-LD workflow.</strong> Extend the opt-in HAPNEST path into a complete
@@ -1297,10 +1346,10 @@ it is part of the public API (<a href="../research/">research extensions</a>).</
    diagnostics. Independent-SNP evidence is not a substitute for this test.</p>
 </li>
 <li>
-<p><strong>Publish the first package release.</strong> Register the PyPI trusted publisher,
-   create the version tag and GitHub Release, verify the workflow-built wheel and
-   sdist, and deploy the documentation site. The mechanical checklist is in
-   <a href="../RELEASING/">RELEASING.md</a>.</p>
+<p><strong>Publish on PyPI.</strong> Version tags exist and CI deploys the documentation
+   site from <code>main</code>; what remains is registering the PyPI trusted publisher,
+   creating a GitHub Release, and verifying the workflow-built wheel and sdist
+   on upload. The mechanical checklist is in <a href="../RELEASING/">RELEASING.md</a>.</p>
 </li>
 <li>
 <p><strong>Investigate multi-trait Pearson--Aitken inference.</strong> Promote it only if a

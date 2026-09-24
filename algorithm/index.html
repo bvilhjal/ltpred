@@ -1147,6 +1147,55 @@
   
   
   
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Past reviews (historical)
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Past reviews (historical)
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../reviews/REVIEW_2026-08/" class="md-nav__link">
         
@@ -1155,7 +1204,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.3.4)
+    v0.3.4 (2026-08)
   
 
     
@@ -1183,7 +1232,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.4.2)
+    v0.4.2 (2026-08-28)
   
 
     
@@ -1211,7 +1260,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.5.1)
+    v0.5.1 (2026-09-02)
   
 
     
@@ -1239,7 +1288,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.6.2)
+    v0.6.2 (2026-09-10)
   
 
     
@@ -1267,7 +1316,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.7.0, documentation)
+    v0.7.0 documentation
   
 
     
@@ -1276,6 +1325,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1530,7 +1587,8 @@
 
 <h1 id="algorithm-and-model">Algorithm and model<a class="headerlink" href="#algorithm-and-model" title="Permanent link">&para;</a></h1>
 <p>This page records the estimand, the observation models, and the two
-algorithms that compute the score. Which steps to run, and which of
+general algorithms that compute the score (a restricted nuclear-family
+<a href="../estimation/#nuclear-family-quadrature">quadrature</a> is a third engine). Which steps to run, and which of
 three uses they serve, is in the <a href="../vignette/">vignette</a> and
 <a href="../guide/">guide.md</a>. The typeset companion is the
 <a href="https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf">methods note</a>.</p>
@@ -1645,8 +1703,10 @@ are put on the same standardised full-liability scale, so its variance is
 <code>h2 A_tt / (1 + h2 (A_tt - 1))</code>. Thus every observed full
 liability retains variance 1, and <code>Phi^-1(1-K)</code> retains its prevalence meaning,
 even when <code>A_ii &gt; 1</code>; for non-inbred pedigrees the scaling is a no-op. This
-reproduces the role-grammar covariance entry-for-entry where they overlap and
-additionally covers half-sibs of any degree, cousins and inbred pedigrees;
+reproduces the role-grammar covariance entry-for-entry where they overlap
+(except that the role grammar treats two same-side half-sibs as sharing their
+other parent) and additionally covers half-sibs of any degree, cousins and
+inbred pedigrees;
 <code>estimate_liability_from_kinship</code> runs PA by default or Gibbs on request.
 That high-level kinship API accepts <code>lower</code>/<code>upper</code>, caller-supplied
 <code>c2</code>/<code>c_kernel</code> and <code>m2</code>/<code>m_kernel</code> components, and, with Pearson–Aitken,
@@ -2049,9 +2109,10 @@ both estimators.</p>
 <p>There is no closed form for <code>E[ℓ_F | ℓ_F ∈ C_F]</code>
 once several intervals are live. Algorithm G samples the truncated
 multivariate normal by coordinate-wise inverse-CDF draws
-(Kotecha &amp; Djurić 1999). The public estimator is
-<code>gibbs_estimate_batched</code>; the low-level chain <code>rtmvnorm_gibbs</code> draws
-the full vector and is never collapsed.</p>
+(Kotecha &amp; Djurić 1999). The public entry point is
+<code>estimate_liability(method="gibbs")</code>, whose kernel is
+<code>ltpred.gibbs.gibbs_estimate_batched</code>; the low-level chain <code>rtmvnorm_gibbs</code>
+draws the full vector and is never collapsed.</p>
 <p>Write <code>Σ</code> for the family covariance, <code>Q = Σ⁻¹</code> for
 its precision, and</p>
 <div class="highlight"><pre><span></span><code>sd_j   =  (1 / Q_jj)^{1/2} ,
@@ -2218,7 +2279,11 @@ implementation of the mixture, so this is a PA-only check.</p>
 <h2 id="fitting-the-covariance-heritability">Fitting the covariance (heritability)<a class="headerlink" href="#fitting-the-covariance-heritability" title="Permanent link">&para;</a></h2>
 <p>Both estimators above <em>condition</em> on a known <code>h2</code>. <code>fit_heritability</code> instead
 <strong>fits</strong> it — estimating the liability-scale heritability from the case/control
-(and age-of-onset) statuses of relatives — with a Gibbs sampler modelled on
+statuses of relatives under one common threshold per trait
+(<code>prevalence_thresholds</code> bounds; personalised or onset-pinned LT-FH++ bounds
+are rejected, see
+<a href="../inference/#fitting-heritability-from-the-family-data">inference</a>) — with a
+Gibbs sampler modelled on
 bipred's joint effect/parameter loop (sample the latents, then re-estimate the
 covariance parameters each sweep). It treats the latent liabilities as missing
 data and alternates:</p>
@@ -2248,7 +2313,7 @@ Omitting <code>sampling</code> still warns.</p>
 <ol>
 <li><strong>Augment</strong> — one persistent truncated-MVN sweep per family under the current
    covariance <code>Sigma(h2) = (1-h2) I + h2 A</code> (<code>A</code> the additive relationship matrix
-   over the observed relatives), holding pinned cases (<code>gibbs_advance</code>).</li>
+   over the observed relatives) (<code>gibbs_advance</code>).</li>
 <li><strong>Update</strong> — a damped moment step for <code>h2</code>: a Haseman–Elston regression of the
    sampled liability cross-products on relatedness, pooled over all related pairs
    in all families,</li>

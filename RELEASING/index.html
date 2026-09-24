@@ -975,6 +975,55 @@
   
   
   
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Past reviews (historical)
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Past reviews (historical)
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../reviews/REVIEW_2026-08/" class="md-nav__link">
         
@@ -983,7 +1032,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.3.4)
+    v0.3.4 (2026-08)
   
 
     
@@ -1011,7 +1060,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.4.2)
+    v0.4.2 (2026-08-28)
   
 
     
@@ -1039,7 +1088,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.5.1)
+    v0.5.1 (2026-09-02)
   
 
     
@@ -1067,7 +1116,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.6.2)
+    v0.6.2 (2026-09-10)
   
 
     
@@ -1095,7 +1144,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.7.0, documentation)
+    v0.7.0 documentation
   
 
     
@@ -1104,6 +1153,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1234,7 +1291,12 @@ token is stored in the repository.</p>
    heading. Two files carry the version independently of that attribute and
    drift silently when missed: <code>CITATION.cff</code> (<code>version</code> and <code>date-released</code>)
    and <code>report/ltpred_methods.tex</code>.</li>
-<li>Confirm CI is green on <code>main</code> (tests on 3.9–3.13, macOS 3.12 and 3.14t, <code>ruff</code>, strict docs build, wheel build).</li>
+<li>Confirm CI is green on <code>main</code>: <code>test</code> (3.9–3.13 and 3.14t, plus macOS 3.12),
+   <code>research-tests</code>, <code>lint</code> (<code>ruff</code>), <code>test-no-numba</code>, <code>oldest-deps</code> (3.9 at the
+   minimum NumPy/SciPy), <code>examples</code>, <code>build</code> (wheel and sdist) and <code>docs</code> (strict
+   build plus <code>scripts/check_evidence.py</code>). The <code>docs</code> job also deploys the site
+   on every push to <code>main</code>, so the published documentation tracks <code>main</code>, not
+   the latest release.</li>
 <li>Rebuild the tracked methods PDF and check its release-defining claims against
    the committed CSVs. If a benchmark artifact must change, first commit its
    source, then regenerate CSV/PNG outputs through <code>benchmarks/run_benchmark.py</code>

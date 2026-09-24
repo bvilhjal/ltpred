@@ -1053,6 +1053,55 @@
   
   
   
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Past reviews (historical)
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Past reviews (historical)
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../reviews/REVIEW_2026-08/" class="md-nav__link">
         
@@ -1061,7 +1110,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.3.4)
+    v0.3.4 (2026-08)
   
 
     
@@ -1089,7 +1138,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.4.2)
+    v0.4.2 (2026-08-28)
   
 
     
@@ -1117,7 +1166,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.5.1)
+    v0.5.1 (2026-09-02)
   
 
     
@@ -1145,7 +1194,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.6.2)
+    v0.6.2 (2026-09-10)
   
 
     
@@ -1173,7 +1222,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.7.0, documentation)
+    v0.7.0 documentation
   
 
     
@@ -1182,6 +1231,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1467,12 +1524,16 @@ reconstructs every relative's record at a common calendar landmark:</p>
     <span class="n">max_degree</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
-<p>Here <code>birth_time</code> is aligned to <code>ids</code> and <code>index_time</code> to <code>probands</code>. They must
+<p>Here <code>birth_time</code> and <code>strata</code> (a stratum label per person, the keys of
+<code>cip_by_stratum</code>) are aligned to <code>ids</code>, and <code>index_time</code> to <code>probands</code>. They must
 use one numeric calendar scale (for example decimal calendar year), and that
 scale's unit must match the unit of <code>age</code>. At landmark <code>t</code>, a relative born at
 <code>b</code> is censored at attained age <code>t - b</code>; assigning every generation the
 proband's attained age is not familywise calendar censoring. A person born at
-or after <code>t</code> has no follow-up and is uninformative.</p>
+or after <code>t</code> has no follow-up and is uninformative. Prevalent cases and
+probands whose follow-up ended before the landmark are not dropped but flagged
+in <code>proband_state</code>; only <code>"disease_free_and_followed"</code> probands belong in a
+prospective evaluation.</p>
 <p>The extracted pedigree retains ancestors beyond <code>max_degree</code> when they are
 needed for exact kinship, but marks them <code>Pedigree.closure_only</code>. The supported
 driver leaves their diagnoses uninformative by default, so <code>max_degree</code> really
@@ -1507,8 +1568,10 @@ PA-FGRS censored-control mixture. Pass <code>method="gibbs"</code> only for the
 no-mixture sampler. Shared-environment scoring is also supported, but the
 relationship classes must be explicit: pass <code>c2</code> with an aligned <code>c_kernel</code>
 and/or <code>m2</code> with <code>m_kernel</code>. They cannot be recovered from <code>A</code> alone.</p>
-<p>For a pedigree that <em>does</em> fit the role grammar the two paths give identical
-results (same covariance); the pedigree path additionally handles half-sibs of any
+<p>For a pedigree that <em>does</em> fit the role grammar the two paths use the identical
+covariance (except for same-side half-sibs, below); Gibbs agrees to Monte-Carlo
+error and PA up to its fold-order difference (about 0.1% of the score SD,
+RESULTS §14); the pedigree path additionally handles half-sibs of any
 degree, cousins, and inbred pedigrees (where a self-relationship can exceed 1).
 For inbred pedigrees, the raw additive covariance is formed from <code>A</code> and then
 standardised so every full liability has unit marginal variance; standard-normal
@@ -1667,8 +1730,10 @@ example, edge cases -- is in <a href="../cip-estimation/">CIP estimation</a>:</p
 <span class="c1"># yield exactly 1, which has no finite probit threshold. curve.se is the</span>
 <span class="c1"># finite-risk-set, tie-correct Aalen (1978) SE.</span>
 </code></pre></div>
-<p>Use <code>aalen_johansen_cip</code> when the target is the <strong>crude (marginal) diagnosed
-proportion</strong> in a population where death can preclude diagnosis. Death remains
+<p>Use <code>aalen_johansen_cip</code> when the target is the <strong>crude diagnosed
+proportion</strong> in a population where death can preclude diagnosis (the LT-FH++
+convention; which curve the thresholds need is discussed under
+<a href="../cip-estimation/#the-estimand-choice-the-most-important-decision-on-this-page">the estimand choice</a>). Death remains
 a competing event even if death and diagnosis are statistically independent.
 Treating death as censoring asks for the different, hypothetical no-death
 <strong>net risk</strong> and generally overestimates the diagnosed proportion (quantified
@@ -1777,7 +1842,9 @@ the family covariance to represent — the model is additive-genetic only (see
 twin <strong>narrow-sense</strong> estimate captures more of the family-history signal but can
 be inflated by shared environment, assortative mating or indirect genetic effects
 if those are not separately modelled; a <strong>SNP-heritability</strong> estimate is smaller
-but better aligned with a downstream molecular GWAS. Neither is uniquely "correct",
+and understates the total additive resemblance between relatives that the
+<code>h²·A</code> covariance represents, so treat it as a conservative lower bound. Neither
+is uniquely "correct",
 so run a <strong>sensitivity analysis</strong> over plausible <code>h²</code> values (and prevalence/CIP)
 and check how much the score and downstream results move — see
 <a href="../inference/#sensitivity-to-the-assumed-heritability">Inference</a>. Don't have any external
@@ -1785,8 +1852,11 @@ value? <a href="../inference/#fitting-heritability-from-the-family-data">Fit <co
 or get a fast, fitting-free cross-check from <strong>tetrachoric correlations</strong>
 (<code>ltpred.tetrachoric</code>): the tetrachoric correlation between two relatives'
 case/control statuses estimates their latent liability correlation directly
-from the 2x2 table, and first-degree relatives give <code>h² / 2</code> under the model
-(the classic Falconer route):</p>
+from the 2x2 table, and parent–offspring pairs give <code>h² / 2</code> under an additive
+model without shared or transmitted environment (the classic Falconer route;
+siblings also carry shared environment). The table's thresholds come from the
+sample's own case rates, so the check assumes population sampling and
+age-complete statuses — relatives still young and undiagnosed pull it down:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">tetrachoric</span>
 <span class="n">r</span> <span class="o">=</span> <span class="n">tetrachoric</span><span class="p">(</span><span class="n">proband_status</span><span class="p">,</span> <span class="n">mother_status</span><span class="p">)</span>   <span class="c1"># -&gt; r.rho, r.se</span>
 <span class="n">h2_falconer</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">r</span><span class="o">.</span><span class="n">rho</span>

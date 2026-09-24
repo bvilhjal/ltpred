@@ -960,6 +960,55 @@
   
   
   
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Past reviews (historical)
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Past reviews (historical)
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="reviews/REVIEW_2026-08/" class="md-nav__link">
         
@@ -968,7 +1017,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.3.4)
+    v0.3.4 (2026-08)
   
 
     
@@ -996,7 +1045,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.4.2)
+    v0.4.2 (2026-08-28)
   
 
     
@@ -1024,7 +1073,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.5.1)
+    v0.5.1 (2026-09-02)
   
 
     
@@ -1052,7 +1101,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.6.2)
+    v0.6.2 (2026-09-10)
   
 
     
@@ -1080,7 +1129,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.7.0, documentation)
+    v0.7.0 documentation
   
 
     
@@ -1089,6 +1138,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1162,7 +1219,8 @@
 <p>ltpred is a Python toolkit for estimating genetic liability under the
 liability-threshold model. It implements LT-FH, LT-FH++, ADuLT and PA-FGRS for
 family-history, age-of-onset and registry-scale analyses. The same core has
-three uses: family-history <strong>risk prediction</strong> (optionally with a PGS), a
+three uses: family-history <strong>risk prediction</strong> (a PGS can be combined
+downstream), a
 quantitative <strong>GWAS phenotype</strong>, and <strong>architecture / relationships /
 aetiology</strong> from <span class="arithmatex">\(h^2\)</span>, genetic/environmental covariances and/or the CIP — see the
 <a href="vignette/">vignette</a>.</p>
@@ -1177,7 +1235,8 @@ aetiology</strong> from <span class="arithmatex">\(h^2\)</span>, genetic/environ
   GWAS, aetiology), then <span class="arithmatex">\(h^2\)</span>, pedigree, CIP, family history. Live page:
   <a href="https://bvilhjal.github.io/ltpred/vignette/">bvilhjal.github.io/ltpred/vignette</a>.</li>
 <li><strong><a href="data-preparation/">Workflow pages</a></strong> — prepare data, estimate scores and
-  understand the population/positive-IPW fitting contract. For joint <span class="arithmatex">\(h^2\)</span>,
+  learn when the fitters are valid (unselected samples, or known sampling
+  weights). For joint <span class="arithmatex">\(h^2\)</span>,
   <span class="arithmatex">\(r_g\)</span> and residual <span class="arithmatex">\(r_e\)</span>, start with the <a href="vignette/#joint-heritability-and-geneticenvironmental-correlation">vignette example</a>.</li>
 <li><strong><a href="api/">API reference</a></strong> — inspect the public workflow and advanced APIs.</li>
 </ul>
@@ -1187,9 +1246,11 @@ summarises the checks to make before a real-data analysis.
 A typeset technical report (theory, implementation, and committed simulation
 numbers) ships in the repository as
 <a href="https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf"><code>report/ltpred_methods.pdf</code></a>.</p>
-<p>For measured runtime and memory changes, see the
-<a href="https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-09-time-memory-v061-rerun">v0.6.1 versus v0.6.0 benchmark rerun</a>
-and the <a href="estimation/#scaling-to-large-cohorts">PA memory notes</a>.</p>
+<p>For measured runtime and memory, see the latest
+<a href="https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-23-time-memory-v071">time/memory benchmark</a>
+(v0.7.1 versus v0.7.0) and the <a href="estimation/#scaling-to-large-cohorts">PA memory notes</a>.</p>
+<p>Install from a source checkout (PyPI publication is pending): see the
+<a href="quickstart/#install">quickstart</a>.</p>
 <p>Unsupported experimental fitters and covariance extensions live in the source
 checkout's <a href="https://github.com/bvilhjal/ltpred/tree/main/research"><code>research/</code> directory</a>;
 they are not installed with ltpred and are documented on the

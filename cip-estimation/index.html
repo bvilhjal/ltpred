@@ -1063,6 +1063,55 @@
   
   
   
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Past reviews (historical)
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Past reviews (historical)
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../reviews/REVIEW_2026-08/" class="md-nav__link">
         
@@ -1071,7 +1120,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.3.4)
+    v0.3.4 (2026-08)
   
 
     
@@ -1099,7 +1148,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.4.2)
+    v0.4.2 (2026-08-28)
   
 
     
@@ -1127,7 +1176,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.5.1)
+    v0.5.1 (2026-09-02)
   
 
     
@@ -1155,7 +1204,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.6.2)
+    v0.6.2 (2026-09-10)
   
 
     
@@ -1183,7 +1232,7 @@
   <span class="md-ellipsis">
     
   
-    Independent review (v0.7.0, documentation)
+    v0.7.0 documentation
   
 
     
@@ -1192,6 +1241,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1460,14 +1517,14 @@ event-free survival (any event),</p>
 <div class="highlight"><pre><span></span><code>S(t) = prod_{t_j &lt;= t} (1 - d_j / Y_j),
 F_k(t) = sum_{t_j &lt;= t} S(t_j-) * d_kj / Y_j .
 </code></pre></div>
-<p><code>F_k</code> is the <strong>crude (marginal) cumulative incidence</strong>: the probability of
-being diagnosed by age <code>t</code> <em>in the presence of</em> death and emigration. This is
-what LT-FH++ estimated for its CIPs ("the cumulative incidence function for
-each disorder was estimated with the Aalen-Johansen approach considering death
-and emigration as competing events", Pedersen et al. 2022, one curve per sex
-and birth year), and it is the right estimand for the threshold construction:
-a person who died undiagnosed cannot be diagnosed later, and the population
-fraction <em>diagnosed</em> by an age is the crude one.</p>
+<p><code>F_k</code> is the <strong>crude cumulative incidence</strong>: the probability of being
+diagnosed by age <code>t</code> <em>in the presence of</em> death and emigration. This is what
+LT-FH++ estimated for its CIPs ("the cumulative incidence function for each
+disorder was estimated with the Aalen-Johansen approach considering death and
+emigration as competing events", Pedersen et al. 2022, one curve per sex and
+birth year), and it is the population fraction actually <em>diagnosed</em> by an
+age. Whether it is also the right input for the thresholds depends on the
+observation model; see <a href="#the-estimand-choice-the-most-important-decision-on-this-page">the estimand choice</a>.</p>
 <p>Pointwise standard errors use the finite-risk-set, tie-correct <strong>Aalen (1978)
 variance</strong> reported by <code>cmprsk::cuminc</code>. The implementation follows its grouped
 recurrence, because a closed form that collapses all causes into <code>d_j</code> is not
@@ -1497,17 +1554,28 @@ asymptotically equivalent, not finite-sample identities.</p>
 <h2 id="the-estimand-choice-the-most-important-decision-on-this-page">The estimand choice (the most important decision on this page)<a class="headerlink" href="#the-estimand-choice-the-most-important-decision-on-this-page" title="Permanent link">&para;</a></h2>
 <p>Three quantities are easily confused:</p>
 <ul>
-<li><strong>Net incidence</strong> (<code>1 - Kaplan-Meier</code>): incidence in a hypothetical world
-  without death. Almost never what a health registry means by the observed
-  diagnosed proportion.</li>
-<li><strong>Crude / marginal cumulative incidence</strong> (Aalen-Johansen): the
-  real-population probability of being diagnosed by age <code>t</code> while death
-  removes people. What LT-FH++ used, and what <code>thresholds_from_cip</code> expects.</li>
+<li><strong>Net incidence</strong> (<code>1 - Kaplan-Meier</code>, death treated as censoring):
+  incidence in a hypothetical world without death. Almost never what a health
+  registry reports as the diagnosed proportion.</li>
+<li><strong>Crude cumulative incidence</strong> (Aalen-Johansen): the real-population
+  probability of being diagnosed by age <code>t</code> while death removes people. What
+  LT-FH++ used; <code>thresholds_from_cip</code> accepts either curve.</li>
 <li><strong>Plain proportions by age</strong> (<code>#diagnosed / #people of that age</code>): only
   valid for a birth cohort with essentially complete follow-up past the
   target age. On modern, heavily right-censored cohorts it under-counts late
-  onsets and can bias badly; do not use it for iPSYCH-era birth years.</li>
+  onsets and can bias badly; do not use it for recent birth cohorts.</li>
 </ul>
+<p>Which curve the thresholds need is a modelling choice, not only an estimation
+one. In the threshold-crossing model a person's onset age is when liability
+crosses <code>T(t)</code>; if death is independent of liability, a living undiagnosed
+person satisfies <code>P(l &gt; T(t)) =</code> the <strong>net</strong> risk, so the net curve is the
+one the model implies and the crude curve sets thresholds slightly too high
+(more so where death is common). If death is related to liability, or the
+estimand is the population diagnosed fraction, the crude curve is the
+natural choice, and it is the published LT-FH++ convention. The two differ
+little where death before onset is rare. The end-to-end validation below
+used the net curve on a cohort without mortality; no benchmark yet tests
+Aalen-Johansen thresholds with mortality present.</p>
 <p><code>benchmarks/bench_cip_estimation.py</code> measures all of this on a simulated
 registry with a known curve: AJ recovers the crude curve to ~0.002 absolute
 error at N = 50,000 (with or without delayed entry), while KM-as-censoring
@@ -1515,17 +1583,23 @@ overshoots the crude curve by ~0.022 at a 42% death share.</p>
 <h2 id="stratification">Stratification<a class="headerlink" href="#stratification" title="Permanent link">&para;</a></h2>
 <p>CIPs are stratum-specific: LT-FH++ uses one curve per <strong>sex x birth year</strong>.
 Estimate each curve separately by calling the estimator once per stratum:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">aalen_johansen_cip</span><span class="p">,</span> <span class="n">thresholds_from_cip</span>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">aalen_johansen_cip</span><span class="p">,</span> <span class="n">thresholds_from_cip</span>
 
-<span class="n">curves</span> <span class="o">=</span> <span class="p">{}</span>
-<span class="k">for</span> <span class="p">(</span><span class="n">sex</span><span class="p">,</span> <span class="n">cohort</span><span class="p">),</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">"sex"</span><span class="p">,</span> <span class="s2">"birth_year"</span><span class="p">])</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-    <span class="n">sub</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
-    <span class="n">curves</span><span class="p">[(</span><span class="n">sex</span><span class="p">,</span> <span class="n">cohort</span><span class="p">)]</span> <span class="o">=</span> <span class="n">aalen_johansen_cip</span><span class="p">(</span>
-        <span class="n">sub</span><span class="o">.</span><span class="n">age_entry</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">sub</span><span class="o">.</span><span class="n">age_exit</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">sub</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
-
-<span class="c1"># then, per person, the curve of their stratum:</span>
-<span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">K_i</span><span class="p">,</span> <span class="n">K_pop</span> <span class="o">=</span> <span class="n">thresholds_from_cip</span><span class="p">(</span>
-    <span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">curve</span><span class="o">.</span><span class="n">ages</span><span class="p">,</span> <span class="n">curve</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">k_pop</span><span class="o">=</span><span class="n">k_pop_for_stratum</span><span class="p">)</span>
+<span class="c1"># register arrays, one row per person: sex, birth_year, age_entry, age_exit,</span>
+<span class="c1"># event (0 censored, 1 diagnosis, 2 death), status and age of the analysis</span>
+<span class="n">stratum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">char</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">sex</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">),</span> <span class="n">birth_year</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">))</span>
+<span class="n">lower</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">status</span><span class="p">))</span>
+<span class="n">upper</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">status</span><span class="p">))</span>
+<span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">stratum</span><span class="p">):</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">stratum</span> <span class="o">==</span> <span class="n">key</span>
+    <span class="n">curve</span> <span class="o">=</span> <span class="n">aalen_johansen_cip</span><span class="p">(</span><span class="n">age_entry</span><span class="p">[</span><span class="n">m</span><span class="p">],</span> <span class="n">age_exit</span><span class="p">[</span><span class="n">m</span><span class="p">],</span> <span class="n">event</span><span class="p">[</span><span class="n">m</span><span class="p">])</span>
+    <span class="c1"># start the grid at age 0 so nobody is given incidence before the</span>
+    <span class="c1"># first observed event age (np.interp would hold the first value)</span>
+    <span class="n">ages</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">curve</span><span class="o">.</span><span class="n">ages</span><span class="p">]</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">curve</span><span class="o">.</span><span class="n">values</span><span class="p">]</span>
+    <span class="n">lower</span><span class="p">[</span><span class="n">m</span><span class="p">],</span> <span class="n">upper</span><span class="p">[</span><span class="n">m</span><span class="p">],</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">thresholds_from_cip</span><span class="p">(</span>
+        <span class="n">status</span><span class="p">[</span><span class="n">m</span><span class="p">],</span> <span class="n">age</span><span class="p">[</span><span class="n">m</span><span class="p">],</span> <span class="n">ages</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span>
 </code></pre></div>
 <p>Practical guidance:</p>
 <ul>
@@ -1635,10 +1709,17 @@ At the horizon, <code>F_diag + F_death = 0.563 + 0.438 = 1 = 1 - S</code>, as re
   exhausts the risk set. The estimate is valid, but
   <code>thresholds_from_cip</code> rejects it because prevalence one has no finite
   probit threshold. Use an earlier or externally justified lifetime horizon.</li>
-<li><strong>Emigration:</strong> can be coded either as censoring (<code>0</code>) or as a competing
-  event (its own code). The difference is small (emigrants are few percent);
-  LT-FH++ treated it as competing. Death, however, must be a competing event
-  whenever it is common — never ordinary censoring.</li>
+<li><strong>Emigration:</strong> emigrants remain at risk but are no longer observed, so
+  under the liability model emigration is censoring (<code>0</code>); LT-FH++ coded it as
+  a competing event. The difference is small (emigrants are a few percent).
+  Death is different: code it as its own event so both curves can be formed,
+  then choose between them as described above.</li>
+<li><strong>Before the first event age:</strong> a curve starts at its first event age, and
+  <code>thresholds_from_cip</code> interpolates linearly and holds the end values
+  constant, so prepend <code>(0, 0.0)</code> as in the stratification example, or a
+  young control is given the incidence of the first event age. Values are
+  clipped to <code>[min_cip, k_pop]</code> (<code>min_cip=1e-5</code>), which pins a case whose
+  onset falls where the curve is zero at an arbitrary high threshold.</li>
 <li><strong>Monotonicity:</strong> guaranteed by construction (the estimator is a sum of
   nonnegative increments); <code>thresholds_from_cip</code> validates it.</li>
 <li><strong>Uncertainty propagation:</strong> LT-FH++ used point estimates of the CIP and
@@ -1655,7 +1736,8 @@ events including an exhausted final risk set, and runs the curve into
 curve, mortality, administrative censoring and a register-start year, and
 shows exact recovery, the KM competing-risks bias, and the end-to-end cost of
 using an estimated curve (calibration slope 1.0023 vs 1.0069 oracle,
-identical correlation).</p>
+identical correlation). That end-to-end arm estimates the net (Kaplan-Meier)
+curve on families simulated without mortality.</p>
 <h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Pedersen et al. (2022), <em>Am J Hum Genet</em> — LT-FH++; its CIPs are
