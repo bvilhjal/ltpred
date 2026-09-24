@@ -1,7 +1,7 @@
 """Supported population-register scoring from trio records and empirical CIPs.
 
-The low-level pieces live in :mod:`ltpred.pedigree`, :mod:`ltpred.thresholds`
-and :mod:`ltpred.estimate`. This module supplies the small but consequential
+The low-level pieces live in `ltpred.pedigree`, `ltpred.thresholds`
+and `ltpred.estimate`. This module supplies the small but consequential
 glue between them: row alignment, the distinction between pedigree closure and
 the observation set, and calendar-time censoring for prospective prediction.
 
@@ -34,6 +34,8 @@ from .covariance import kinship_from_pedigree
 from .estimate import estimate_liability_from_kinship
 from .pedigree import build_parent_graph, extract_pedigree
 from .thresholds import _cip_bounds, _validate_cip_curve
+from .family import _is_missing_id, _is_missing_parent
+from ._results import _TableExport
 
 __all__ = ["PopulationScores", "estimate_liabilities"]
 
@@ -49,7 +51,7 @@ _DENSE_KINSHIP_COST_PER_MEMBER = 2
 
 
 @dataclass
-class PopulationScores:
+class PopulationScores(_TableExport):
     """Per-proband register-pipeline output, aligned to ``probands``.
 
     ``est`` is the Pearson--Aitken approximation to the posterior mean genetic
@@ -80,6 +82,24 @@ class PopulationScores:
     degree_max: np.ndarray
     frac_records_with_unresolved_parents: float = 0.0
     proband_state: np.ndarray | None = None
+
+    @property
+    def se(self):
+        """Zero Monte-Carlo error for deterministic PA, not approximation error."""
+        return np.zeros_like(self.est)
+
+    def to_dict(self):
+        """Copy aligned columns, including pid, est, se, var and cohort diagnostics."""
+        columns = {"pid": np.asarray(self.probands, dtype=object).copy(),
+                   "se": self.se}
+        for name in ("est", "var", "n_relatives", "n_conditioned", "n_closure_only",
+                     "degree_max", "proband_state"):
+            value = getattr(self, name)
+            if value is not None:
+                columns[name] = np.asarray(value).copy()
+        columns["frac_records_with_unresolved_parents"] = np.full(
+            len(self.probands), self.frac_records_with_unresolved_parents)
+        return columns
 
 
 def _validate_cip_inputs(n: int, *, cip_ages: ArrayLike | None,
@@ -143,7 +163,7 @@ def estimate_liabilities(
     ``status`` and ``age`` are aligned to ``ids``: ``age`` is attained age at
     diagnosis for a case and attained age at last follow-up/exit for a control.
     Supply either one empirical population CIP (``cip_ages``, ``cip_values``,
-    optional ``k_pop``) or per-person ``strata`` plus a mapping from each label
+    optional ``k_pop``) or per-person ``strata`` plus ``cip_by_stratum``, a mapping from each label
     to ``(cip_ages, cip_values, k_pop)``.
 
     ``use`` is required because it changes the observation set. ``"gwas"``
@@ -165,7 +185,7 @@ def estimate_liabilities(
 
     ``h2``: Liability-scale additive heritability for this disease. Required: there is no
     disease-independent default, for the same reason ``pop_prev`` has none. See
-    data-preparation.md, "Which h²?", for choosing between pedigree/twin and
+    the data-preparation guide, "Getting heritability on the liability scale", for choosing between pedigree/twin and
     SNP estimates and for the sensitivity analysis.
 
     Only target and informative observation relationships are used. They
@@ -199,6 +219,12 @@ def estimate_liabilities(
     probands = list(probands)
     if not probands:
         raise ValueError("probands must contain at least one id")
+    if any(_is_missing_id(pid) for pid in probands):
+        raise ValueError("probands must not contain missing ids")
+    if len(set(probands)) != len(probands):
+        raise ValueError("probands must be unique; duplicate ids would duplicate scores")
+    if h2 is None:
+        raise ValueError("h2 must be a numeric liability-scale heritability in (0, 1]")
     if use not in ("gwas", "prediction"):
         raise ValueError("use must be 'gwas' or 'prediction'")
     if not isinstance(condition_closure, (bool, np.bool_)):
@@ -279,12 +305,12 @@ def estimate_liabilities(
     # register boundary. But the same rule absorbs an id-format mismatch or a
     # failed join, which turns every family-history score into an
     # own-status-only score, so the resolution rate is surfaced instead of
-    # silent. Declared-unknown parents (None/nan) never count.
+    # silent. Shared missing-id markers and unlisted zero markers never count.
     n_refs = 0
     n_unresolved_records = 0
     for fid, mid in zip(father, mother):
-        f_null = fid is None or (isinstance(fid, float) and np.isnan(fid))
-        m_null = mid is None or (isinstance(mid, float) and np.isnan(mid))
+        f_null = _is_missing_parent(fid, pos)
+        m_null = _is_missing_parent(mid, pos)
         n_refs += (not f_null) + (not m_null)
         n_unresolved_records += ((not f_null and fid not in pos)
                                  or (not m_null and mid not in pos))

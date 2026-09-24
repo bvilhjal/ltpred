@@ -43,11 +43,12 @@ at those parameters. Unsupported fitters stay in
     CIP/onset bounds remain scoring inputs; unobserved relatives cannot
     identify a fitted component.
 
-**Which path to run:**
+**Table 1. Scoring paths by observation model.**
 
 | use case | bounds and observed-person records | estimator | model |
 |---|---|---|---|
 | no age, with relatives | `prevalence_thresholds`; relatives + optional `o` | PA or Gibbs | classic LT-FH |
+| additive, noninbred nuclear family; no C/M or mixture | roles `o/m/f/s1/s2/…`, `0 <= h2 < 1` | quadrature, with refinement diagnostics | same no-mixture posterior as Gibbs, integrated numerically |
 | personalised CIP, with relatives | `thresholds_from_cip(…, case_mode="pin")`; relatives + optional `o` | PA (default); Gibbs reference | LT-FH++ |
 | personalised CIP, no relatives | same pinned bounds; include role `o` only | PA (default); Gibbs reference | ADuLT |
 | logistic demo ([quickstart](quickstart.md)) | `age_thresholds` with either row pattern above | PA or Gibbs | age-only demonstration, not full LT-FH++ |
@@ -70,3 +71,21 @@ shows the base recipe explicitly.
 
 Worked rows for your own data start at the
 **[quickstart](quickstart.md)**.
+
+## Choosing a fitter
+
+**Table 2. Fitters for independent families with common binary thresholds.**
+
+| fitter | use when | computation and uncertainty |
+|---|---|---|
+| `fit_heritability` | estimate additive h² with no shared-environment component | iterative stochastic moment fit; `bootstrap_fit` supplies family-resampling uncertainty |
+| `fit_variance_components` | distinguish additive, sibship and/or couple components using identifying relationships | iterative stochastic moment fit; family bootstrap for uncertainty |
+| `fit_pairwise` | deterministic A/C/M fitting from binary pair patterns is appropriate | composite likelihood; conditional cluster-sandwich covariance for identifiable interior fits |
+| `fit_pairwise_multi` | jointly estimate trait h², genetic/residual correlations and optional C/M covariance | multivariate pairwise composite likelihood; same identification, sampling and boundary caveats |
+
+All four need the sampling contract above. PA is the fast approximate scoring
+default. Quadrature is a deterministic cross-check for its restricted additive
+nuclear-family model; Gibbs covers the wider and multi-trait scoring models.
+Set `seed` explicitly for reproducible Gibbs estimates; multi-trait requests
+with `method=None` select Gibbs. Non-default sampler controls warn when supplied
+to deterministic engines.

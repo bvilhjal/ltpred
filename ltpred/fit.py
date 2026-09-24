@@ -22,7 +22,7 @@ selection probabilities can instead be handled by inverse-probability weighting;
 unknown probabilities, zero-probability strata, and overlapping pedigrees require
 an estimator that models the sampling process.
 
-:func:`fit_heritability` fits the single additive component. :func:`fit_variance_components`
+`fit_heritability` fits the single additive component. `fit_variance_components`
 generalises the same data-augmentation to several components via a **multiple**
 Haseman-Elston regression (regressing the sampled cross-products on more than one
 relationship matrix at once), fitting additive ``A`` alongside a **bank of
@@ -44,7 +44,7 @@ inferential machinery built on top of it — the Monte-Carlo EM likelihood
 variance-component fit, the multi-trait genetic-correlation and onset-age-decay
 fits, the common-factor model, the parametric-bootstrap significance tests, and
 the genetic-nurture moment fit — lives in ``research/advanced_fitting.py`` as
-unsupported research code. :func:`bootstrap_fit` here is the family-cluster
+unsupported research code. `bootstrap_fit` here is the family-cluster
 resampling helper shared by those fits and these.
 """
 
@@ -180,7 +180,7 @@ def _assert_nonoverlapping_pids(families, context):
 #: Specificity matters more, because a false positive here refuses a legitimate
 #: analysis. Two things push the null z above what a single clean test would
 #: give: the check runs once per role (so several correlated tests per fit), and
-#: :func:`bootstrap_fit` re-runs the whole estimator on resamples that are
+#: `bootstrap_fit` re-runs the whole estimator on resamples that are
 #: centred on the *cohort's* rate rather than on K, so their z carries the
 #: cohort's own sampling error as a systematic offset. A legitimate 1500-family
 #: cohort (role rate 0.110 against K = 0.100, p = 0.20) produced a resample at
@@ -190,7 +190,7 @@ def _assert_nonoverlapping_pids(families, context):
 #: negligible even across a 25-resample bootstrap, while every ascertainment
 #: scheme in the benchmark fires at z >= +67. The cost is power at small N.
 #: Detectable enrichment is the ratio at which |z| reaches the bar,
-#: ``1 + 6*sqrt((1-K)/(K*n))``, so it depends on BOTH n and the prevalence: at
+#: ``max(1.15, 1 + 6*sqrt((1-K)/(K*n)))``, so it depends on BOTH n and the prevalence: at
 #: K = 0.05 it is ~1.67x at n = 1,500 and ~1.26x at n = 10,000; at K = 0.10,
 #: ~1.46x and ~1.18x. (Quoting one figure without its K mixes the two.) MILD
 #: enrichment on a small cohort therefore passes, and remains the caller's
@@ -233,7 +233,7 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None):
     So the count for role ``r`` is ``Binomial(n_families, K)`` and a plain
     binomial z-test applies, with no clustering correction needed.
 
-    This runs after :func:`_assert_common_thresholds`, which guarantees exactly
+    This runs after `_assert_common_thresholds`, which guarantees exactly
     the input this assumes: one threshold per trait, every member a one-sided
     case or control, no pins or two-sided intervals.
 
@@ -343,7 +343,7 @@ def _assert_common_thresholds(families, n_pheno, *, context):
     bias for every personalised observation model. This implementation therefore
     refuses the unsupported geometry rather than returning an uncertified fit.
 
-    The prediction estimators (:func:`~ltpred.estimate.estimate_liability` and
+    The prediction estimators (`ltpred.estimate.estimate_liability` and
     friends) are unaffected -- they *condition* on a supplied ``h2`` rather than
     fitting it, and personalised bounds are exactly what they are designed for.
     """
@@ -462,7 +462,7 @@ def _validate_h2_init(h2_init):
 
 @dataclass
 class FitResult:
-    """Result of :func:`fit_heritability`.
+    """Result of `fit_heritability`.
 
     ``h2`` is the liability-scale heritability — the post-burn-in average of the
     fixed-point ``h2`` trace (a stochastic-approximation estimate, **not** a
@@ -504,7 +504,7 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
 
     That acknowledgement is now **checked against the data**, not merely taken on
     trust: the supplied thresholds assert a prevalence, and each role's case rate
-    is compared against it (:func:`_assert_population_case_rate`). A gross
+    is compared against it (`_assert_population_case_rate`). A gross
     mismatch raises, because the failure it guards is severe and silent -- on
     ascertained families with a true ``h2`` of 0, this fitter returns
     ``h2 = 1.0``. The check is deliberately conservative, so it catches the
@@ -512,7 +512,7 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     enrichment on a small cohort still passes and remains your responsibility.
     When members carry ``pid``, a person who appears in more than one family
     (distinct ``fam_id``) is rejected; prediction on overlapping register
-    pedigrees is :func:`~ltpred.estimate.estimate_liability`.
+    pedigrees is `ltpred.estimate.estimate_liability`.
 
     **Selected samples:** ``sampling="ipw"`` with per-family ``weights`` handles
     selection on observed status when the inclusion probability is known and
@@ -536,11 +536,11 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     bias.
 
     The case-rate check has a stated blind spot: the enrichment it can detect is
-    ``1 + 6*sqrt((1-K)/(K*n))``, which at K = 0.05 is ~1.67x at n = 1,500 and
+    ``max(1.15, 1 + 6*sqrt((1-K)/(K*n)))``, which at K = 0.05 is ~1.67x at n = 1,500 and
     ~1.26x at n = 10,000. Milder enrichment passes, and the benchmark's
     dose-response shows that is not harmless.
 
-    ``families`` is a list of :class:`~ltpred.family.Family` whose members carry
+    ``families`` is a list of `ltpred.family.Family` whose members carry
     liability bounds (from a threshold builder). Alternates a Gibbs augmentation of
     the latent liabilities with a damped Haseman–Elston update of ``h2`` — a
     **stochastic-approximation fixed point** (not posterior sampling of ``h2``) that
@@ -548,7 +548,7 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     docstring). ``inner_sweeps`` truncated-MVN sweeps are taken per outer
     iteration; ``damp`` in ``(0, 1]`` controls the moment-update stability and
     ``eps`` in ``[1e-8, 0.5)`` keeps the covariance away from a singular boundary.
-    Returns a :class:`FitResult`.
+    Returns a `FitResult`.
 
     Needs relatives (at least one related pair); a set of lone probands carries no
     information about ``h2`` and raises. ``seed`` must be a non-boolean integer in
@@ -560,8 +560,8 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     the same ``N(0, 1)`` population, so personalised (age-/CIP-specific) or
     onset-pinned LT-FH++ bounds — even perfectly coherent ones — fall outside
     that estimating contract. Those inputs are **rejected**, not silently fitted
-    (see :func:`_assert_common_thresholds`). Fit from common-threshold bounds; the
-    prediction path (:func:`~ltpred.estimate.estimate_liability`) is unaffected,
+    (see `_assert_common_thresholds`). Fit from common-threshold bounds; the
+    prediction path (`ltpred.estimate.estimate_liability`) is unaffected,
     since it conditions on ``h2`` rather than fitting it. Standard NaN and
     interval-order validation still applies."""
     n_iter, burn_in, inner_sweeps = _validate_iteration_controls(
@@ -570,7 +570,7 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     damp, eps = _validate_update_controls(damp, eps)
     weights = _validate_weights(weights, len(families), "fit_heritability")
     _validate_population_sampling(sampling, "fit_heritability", weights=weights)
-    _check_unique_roles(families)
+    _check_unique_roles(families, check_pids=False)
     _assert_nonempty_families(families)
     _assert_nonoverlapping_pids(families, "fit_heritability")
     _assert_common_thresholds(families, 1, context="fit_heritability")
@@ -605,7 +605,7 @@ _COMPONENT_OFFDIAG = {
 # parent-offspring "shared environment" is deliberately
 # not offered because it is not an equivalence relation (parent-offspring
 # cohabitation chains across generations), so its indicator matrix is not PSD and
-# would be a mis-specified component -- :func:`_component_matrix` guards against it.
+# would be a mis-specified component -- `_component_matrix` guards against it.
 #
 # Dominance ("D") is likewise not offered. It requires an explicit dominance
 # relationship kernel and contrasts linearly independent of the additive and
@@ -615,13 +615,13 @@ _COMPONENT_OFFDIAG = {
 
 @dataclass
 class VarCompResult:
-    """Result of :func:`fit_variance_components`.
+    """Result of `fit_variance_components`.
 
     ``components`` maps each fitted component (``"A"`` additive, ``"C"`` sibship
     common environment, ``"M"`` couple/spousal environment) to its estimated
     **proportion** of the liability variance; ``residual`` is the remaining ``e2``.
     So ``A`` is the (narrow-sense) heritability. ``se`` is a within-dataset
-    Monte-Carlo diagnostic (same caveat as :class:`FitResult`), not
+    Monte-Carlo diagnostic (same caveat as `FitResult`), not
     across-dataset sampling uncertainty. Use an appropriately designed
     family-cluster bootstrap for sampling uncertainty. ``traces`` are the
     post-burn-in proportion traces per component."""
@@ -641,7 +641,7 @@ def _component_matrix(roles, comp):
     is one sufficient construction for a shared-environment kernel). A non-PSD ``K`` — e.g. a
     vertical parent-offspring "environment" whose sharing chains across generations —
     is not a proper component and would be silently distorted downstream by
-    :func:`~ltpred.covariance.correct_positive_definite`, so it is rejected here."""
+    `ltpred.covariance.correct_positive_definite`, so it is rejected here."""
     off = _COMPONENT_OFFDIAG[comp]
     k = len(roles)
     K = np.eye(k)
@@ -804,21 +804,21 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
                             weights: ArrayLike | None = None) -> VarCompResult:
     """Fit liability-scale variance components by a multiple Haseman-Elston regression.
 
-    **Sampling contract:** like :func:`fit_heritability`, this supports
+    **Sampling contract:** like `fit_heritability`, this supports
     independent, non-overlapping families sampled either directly from the
     population or with known, strictly positive family-level selection
     probabilities. Pass ``sampling="population"`` for the former, or
     ``sampling="ipw"`` with reciprocal-probability ``weights`` for the latter (see
-    :func:`fit_heritability` for both, including the marginal-check, positivity,
+    `fit_heritability` for both, including the marginal-check, positivity,
     pid-overlap, and efficiency limits). Without one of those, this fitter does not correct
     case/control or family-history ascertainment; under it the components
     saturate, exhausting the residual variance rather than sitting at the
     elementwise clamp.
 
-    Generalises :func:`fit_heritability` from one component to several. Each sweep
+    Generalises `fit_heritability` from one component to several. Each sweep
     it (1) draws the latent liabilities from the **full family truncated-MVN**
     ``N(0, sum_c h2_c K_c + e2 I)`` (the well-mixing collapsed data-augmentation
-    step, shared with :func:`fit_heritability`), then (2) updates all proportions
+    step, shared with `fit_heritability`), then (2) updates all proportions
     at once by regressing the sampled cross-products on the component relationship
     matrices over every related pair,
 
@@ -854,14 +854,14 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
     Runs a data-augmentation sweep of ``inner_sweeps`` truncated-MVN sweeps per
     outer iteration; ``damp`` must lie in ``(0, 1]`` and ``eps`` in
     ``[1e-8, 0.5)`` keeps a positive residual floor. Returns a
-    :class:`VarCompResult`. Simulation benchmarks recover ``A`` and ``A+C`` with
+    `VarCompResult`. Simulation benchmarks recover ``A`` and ``A+C`` with
     small bias relative to their across-dataset SD. ``se`` is only a within-fit
     Monte-Carlo diagnostic. Use family resampling for a sampling interval when
     clusters are independent and representative. ``seed`` must be a non-boolean
     integer in ``[0, 2**32 - 1]`` or ``None``.
 
     **Requires a common case/control threshold per trait**, exactly as
-    :func:`fit_heritability` does and for the same reason: personalised or
+    `fit_heritability` does and for the same reason: personalised or
     onset-pinned LT-FH++ bounds fall outside the supported pooled-moment
     estimating contract, so they are **rejected** rather than silently fitted.
     Standard NaN and interval-order validation still applies."""
@@ -873,7 +873,7 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
                                 "fit_variance_components")
     _validate_population_sampling(sampling, "fit_variance_components",
                                   weights=weights)
-    _check_unique_roles(families)
+    _check_unique_roles(families, check_pids=False)
     _assert_nonempty_families(families)
     _assert_nonoverlapping_pids(families, "fit_variance_components")
     _assert_common_thresholds(families, 1, context="fit_variance_components")
@@ -895,7 +895,7 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
 
 @dataclass
 class BootstrapResult:
-    """Result of :func:`bootstrap_fit`.
+    """Result of `bootstrap_fit`.
 
     ``estimate`` is the point estimate from the full data; ``se`` the bootstrap
     standard error (SD of the resampled estimates); ``ci_low`` / ``ci_high`` the
@@ -917,8 +917,8 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *,
                   ci_level: float = 0.95) -> BootstrapResult:
     """Approximate percentile uncertainty by **resampling family clusters**.
 
-    The HE ``se`` reported by :func:`fit_heritability` and
-    :func:`fit_variance_components` is a
+    The HE ``se`` reported by `fit_heritability` and
+    `fit_variance_components` is a
     *within-dataset* Monte-Carlo diagnostic and can substantially understate
     sampling variability. This helper resamples families with replacement
     ``n_boot`` times and reports the refit SD and percentile interval. Its sampling
@@ -950,7 +950,7 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *,
 
     Fix the estimator's internal ``seed`` so each refit is deterministic given its
     resample — then the bootstrap spread reflects family sampling, not the sampler's
-    own Monte-Carlo noise. Returns a :class:`BootstrapResult`. Cost is ``n_boot + 1``
+    own Monte-Carlo noise. Returns a `BootstrapResult`. Cost is ``n_boot + 1``
     fits, so this is deliberately expensive; lower ``n_boot`` for a quick check.
 
     ``estimator`` must return a stable scalar/array shape. ``n_boot`` is an integer

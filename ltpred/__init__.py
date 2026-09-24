@@ -27,7 +27,7 @@ import sys
 import types
 from typing import TYPE_CHECKING
 
-__version__ = "0.7.2"
+__version__ = "0.7.3"
 
 if TYPE_CHECKING:
     # Static re-exports. At runtime ``__getattr__`` below imports these lazily,
@@ -133,6 +133,8 @@ __all__ = [
     "prevalence_thresholds", "age_thresholds", "pa_thresholds",
     "thresholds_from_cip",
     "estimate_liability", "LiabilityResult",
+    "estimate_liabilities", "PopulationScores",
+    "kaplan_meier_cip", "aalen_johansen_cip",
     "kinship_from_pedigree", "estimate_liability_from_kinship",
     "simulate_under_LTM_single", "fit_heritability", "set_num_threads",
 ]

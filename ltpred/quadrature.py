@@ -23,10 +23,12 @@ from scipy.special import log_ndtr, logsumexp, roots_hermitenorm, roots_legendre
 
 from ._validation import validate_bounds
 from .pearson_aitken import _tnorm_moments_loc
+from ._numba import _jit
+from ._results import _TableExport
 
 
 @dataclass(frozen=True)
-class QuadratureResult:
+class QuadratureResult(_TableExport):
     """Per-family posterior ``est`` and ``var``, and numerical diagnostics.
 
     ``error`` is the largest change in either moment across the last two
@@ -39,6 +41,16 @@ class QuadratureResult:
     var: np.ndarray
     error: np.ndarray
     n_nodes: np.ndarray
+
+    @property
+    def se(self):
+        """Zero Monte-Carlo error; numerical refinement is reported in error."""
+        return np.zeros_like(self.est)
+
+    def to_dict(self):
+        """Copy est, se, var, error and n_nodes in input-row order (no ids supplied)."""
+        return {name: np.asarray(getattr(self, name)).copy()
+                for name in ("est", "se", "var", "error", "n_nodes")}
 
 
 _LOG_SQRT_2PI = 0.5 * math.log(2.0 * math.pi)
@@ -90,6 +102,29 @@ def _moments(mean, variance, lower, upper):
             shift = float(weight @ delta)
             return center + shift, float(weight @ (delta - shift)**2)
     return _tnorm_moments_loc(float(mean), math.sqrt(variance), float(lower), float(upper))
+
+
+@_jit
+def _moments_array(means, variance, lower, upper):
+    """Node-wise moments; retain the scalar oracle and its narrow-tail guard."""
+    result = np.empty((means.size, 2))
+    sd = math.sqrt(variance)
+    narrow = (lower != upper and math.isfinite(lower) and math.isfinite(upper)
+              and (upper - lower) / sd <= 1e-3)
+    for i in range(means.size):
+        mean = means[i]
+        if narrow and abs((lower + 0.5 * (upper - lower) - mean) * (upper - lower) / variance) <= 10.0:
+            center = lower + 0.5 * (upper - lower)
+            delta = 0.5 * (upper - lower) * _GL_X
+            logw = np.log(_GL_W) - ((center - mean) * delta + 0.5 * delta**2) / variance
+            weight = np.exp(logw - np.max(logw))
+            weight /= np.sum(weight)
+            shift = np.sum(weight * delta)
+            result[i, 0] = center + shift
+            result[i, 1] = np.sum(weight * (delta - shift)**2)
+        else:
+            result[i, 0], result[i, 1] = _tnorm_moments_loc(mean, sd, lower, upper)
+    return result
 
 
 @lru_cache(maxsize=16)
@@ -249,7 +284,7 @@ def _family(roles, lower, upper, h2, out, atol, max_nodes):
             target_mean = coefficient * s + constant
             target_var = np.full(len(s), residual + coefficient**2 * discarded)
         else:
-            moments = np.array([_moments(value, v, own_lo, own_hi) for value in s])
+            moments = _moments_array(s, v, own_lo, own_hi)
             if out == "genetic":
                 target_mean = s + (a / v) * (moments[:, 0] - s)
                 target_var = a - a*a/v + (a/v)**2 * moments[:, 1]
@@ -300,7 +335,7 @@ def estimate_liability_quadrature_arrays(roles: Sequence[str], lower: ArrayLike,
         raise ValueError("quadrature supports only nuclear-family roles o, m, f, s1, s2, ...")
     if len(set(roles)) != len(roles):
         raise ValueError("quadrature roles must be unique")
-    if isinstance(h2, (bool, np.bool_)) or np.ndim(h2) != 0 or not np.isfinite(h2) or not 0 <= h2 < 1:
+    if h2 is None or isinstance(h2, (bool, np.bool_)) or np.ndim(h2) != 0 or not np.isfinite(h2) or not 0 <= h2 < 1:
         raise ValueError("quadrature requires scalar h2 in [0, 1)")
     if out not in ("genetic", "full"):
         raise ValueError("out must be 'genetic' or 'full'")
@@ -312,12 +347,19 @@ def estimate_liability_quadrature_arrays(roles: Sequence[str], lower: ArrayLike,
     if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
         raise ValueError("lower and upper must have shape (n_families, len(roles))")
     validate_bounds(lower, upper, context="quadrature bounds")
-    n = lower.shape[0]
+    # Equal deterministic problems share all moments and diagnostics. Keep the
+    # first original index for errors; only the output scatter follows sorting.
+    rows, first, inverse = np.unique(
+        np.concatenate((lower, upper), axis=1), axis=0,
+        return_index=True, return_inverse=True)
+    n = len(first)
     est, var, error = np.empty(n), np.empty(n), np.empty(n)
     nodes = np.empty(n, dtype=int)
-    for i in range(n):
+    inverse = inverse.reshape(-1)
+    k = len(roles)
+    for j, i in enumerate(first):
         try:
-            est[i], var[i], error[i], nodes[i] = _family(roles, lower[i], upper[i], float(h2), out, float(atol), int(max_nodes))
+            est[j], var[j], error[j], nodes[j] = _family(roles, rows[j, :k], rows[j, k:], float(h2), out, float(atol), int(max_nodes))
         except RuntimeError as exc:
             raise RuntimeError(f"family {i}: {exc}") from exc
-    return QuadratureResult(est, var, error, nodes)
+    return QuadratureResult(est[inverse], var[inverse], error[inverse], nodes[inverse])

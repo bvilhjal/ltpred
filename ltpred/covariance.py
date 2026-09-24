@@ -3,13 +3,13 @@
 Under the liability-threshold model a person's liability splits into a genetic
 part ``l_g ~ N(0, h2)`` and an environmental part, summing to a full liability
 ``l_o ~ N(0, 1)``. Two relatives' genetic parts correlate by the fraction of DNA
-they share, so every covariance entry is ``shared_DNA * h2`` (:func:`get_relatedness`).
-:func:`construct_covmat_single` assembles the matrix for a proband's genetic
-liability ``g``, full liability ``o`` and any relatives; :func:`construct_covmat_multi`
+they share, so every covariance entry is ``shared_DNA * h2`` (`get_relatedness`).
+`construct_covmat_single` assembles the matrix for a proband's genetic
+liability ``g``, full liability ``o`` and any relatives; `construct_covmat_multi`
 extends it to several genetically/environmentally correlated traits.
 
 These are ports of LTFHPlus's ``get_relatedness`` / ``construct_covmat*`` and the
-matrix they build is exactly what :mod:`ltpred.gibbs` and :mod:`ltpred.estimate`
+matrix they build is exactly what `ltpred.gibbs` and `ltpred.estimate`
 sample from.
 """
 
@@ -147,7 +147,7 @@ def get_relatedness(s1: str, s2: str, h2: float = 0.5) -> float:
     related ``0.5*h2`` *to each other* — the role grammar cannot name their second
     parents, so it implies a shared one (they are treated as full sibs of each
     other). A pedigree in which same-side half-sibs have distinct other parents is
-    not expressible in this grammar; use :func:`construct_covmat_from_kinship`
+    not expressible in this grammar; use `construct_covmat_from_kinship`
     for those."""
     s1, s2 = s1.lower(), s2.lower()
     _validate_relative(s1)
@@ -353,14 +353,14 @@ def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mg
 
     Entry ``(i, j)`` is ``get_relatedness(role_i, role_j, h2)``. With the defaults
     the matrix covers a proband and both parents, a sibling and all four
-    grandparents. Returns a :class:`Covmat`; ``.roles`` gives the row ordering the
+    grandparents. Returns a `Covmat`; ``.roles`` gives the row ordering the
     Gibbs sampler expects (``g``, ``o`` first when ``add_ind``). ``c2``/``m2`` add
     the sibship (``C``) and couple (``M``) shared-environment components of
     ``docs/algorithm.md`` to the relatives' covariance (off-diagonals only; the
     residual environmental variance absorbs them, so full liabilities keep unit
     variance and the genetic target stays coupled through ``h2 * A`` only).
     Requires ``h2 + c2 + m2 <= 1``."""
-    if not (0.0 < h2 <= 1.0):
+    if h2 is None or not (0.0 < h2 <= 1.0):
         raise ValueError(
             "h2 must be in (0, 1] -- a zero h2 makes the genetic liability "
             "identically zero, so its row of the covariance is degenerate "
@@ -473,7 +473,7 @@ def construct_covmat_multi(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm
 def _parent_links(ids, father, mother):
     """Index a pedigree: ``(ids, index, sire, dam, children, n_unresolved)``.
 
-    Unknown or founder markers (``None``/NaN) map to -1, as does any value not
+    Missing-id markers map to -1, as does any value not
     among ``ids``; the latter are counted in ``n_unresolved``. Raises on a
     length mismatch, duplicate ids, and a person recorded as their own parent.
     """
@@ -481,6 +481,9 @@ def _parent_links(ids, father, mother):
     n = len(ids)
     if not (len(father) == len(mother) == n):
         raise ValueError("ids, father and mother must share length")
+    from .family import _is_missing_id, _is_missing_parent
+    if any(_is_missing_id(pid) for pid in ids):
+        raise ValueError("ids must not contain missing values")
     if len(set(ids)) != n:
         raise ValueError("ids must be unique")
     index = {pid: i for i, pid in enumerate(ids)}
@@ -488,7 +491,7 @@ def _parent_links(ids, father, mother):
 
     def _idx(p):
         nonlocal unresolved
-        if p is None or (isinstance(p, float) and np.isnan(p)):
+        if _is_missing_parent(p, index):
             return -1
         j = index.get(p, -1)
         unresolved += j == -1
@@ -511,21 +514,22 @@ def kinship_from_pedigree(ids: Sequence, father: Sequence,
                           mother: Sequence) -> tuple[list, np.ndarray]:
     """Additive relationship matrix ``A`` (= 2×kinship) from a pedigree.
 
-    Generalises the fixed role grammar (:func:`get_relatedness`) to **arbitrary
+    Generalises the fixed role grammar (`get_relatedness`) to **arbitrary
     pedigrees**: instead of naming relatives ``m``/``f``/``s1``/``mgm``… you give the
     parent of each individual and the relatedness is computed from the pedigree.
 
     ``ids`` is a sequence of unique individual ids; ``father`` and ``mother`` are the
     same-length sequences giving each individual's parents. A parent that is not
     itself one of ``ids`` (``None``, ``0``, ``""``, ``nan``, or any unlisted value)
-    is treated as an unknown **founder**. Returns ``(ids, A)`` with ``A`` an
+    is treated as an unknown **founder**. Missing-id strings and pandas NA/NaT
+    are also unknown; zero/``"0"`` remains a valid parent when listed in ``ids``. Returns ``(ids, A)`` with ``A`` an
     ``(n, n)`` matrix in the given ``ids`` order: ``A[i,i] = 1 + F_i`` (``F_i`` the
     inbreeding coefficient) and ``A[i,j] = 2 × kinship(i, j)`` — e.g. 0.5 for
     parent–offspring and full sibs, 0.25 for grandparent/half-sib, 0.125 for first
     cousins. Computed by the recursive tabular method (Henderson 1976), which
     handles inbreeding and any pedigree depth.
 
-    Feed ``A`` to :func:`construct_covmat_from_kinship` to build the liability
+    Feed ``A`` to `construct_covmat_from_kinship` to build the liability
     covariance for these individuals."""
     ids, _index, sire, dam, children, _unresolved = _parent_links(
         ids, father, mother)
@@ -623,8 +627,8 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
                                   m_kernel: ArrayLike | None = None) -> Covmat:
     """Liability-scale covariance from an additive relationship matrix ``A``.
 
-    The kinship-based counterpart of :func:`construct_covmat_single`: given ``A``
-    (``n×n``, e.g. from :func:`kinship_from_pedigree`) it first builds the raw
+    The kinship-based counterpart of `construct_covmat_single`: given ``A``
+    (``n×n``, e.g. from `kinship_from_pedigree`) it first builds the raw
     covariance ``V = h2 * A + c2 * C + m2 * M + e2 * I``, where
     ``e2 = 1 - h2 - c2 - m2``, and then divides row/column ``i`` by
     ``sqrt(V[i, i])``. ``C`` and ``M`` are optional caller-supplied
@@ -646,13 +650,13 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
     ``sd(o_target)`` scale when the target is inbred, not the role-based ``g``
     scale; rescale by ``sqrt(V[t, t])`` before comparing the two routes. Row order
     is ``[g, o_0, …, o_{n-1}]``; the ``target``'s own full-liability row is labelled
-    ``o`` and the rest ``rel<i>``. Returns a :class:`Covmat`.
+    ``o`` and the rest ``rel<i>``. Returns a `Covmat`.
 
     This is exactly the matrix the Gibbs / PA samplers consume, so a kinship-derived
     covariance is a drop-in for the role-based one; for a standard pedigree the two
     agree entry for entry. One qualification: the role grammar's inherited
     convention takes two same-side half-sibs (``mhs1``, ``mhs2``) to share a second
-    parent (:func:`get_relatedness`), so the entry-for-entry agreement holds only
+    parent (`get_relatedness`), so the entry-for-entry agreement holds only
     for pedigrees whose same-side half-sib sets satisfy that convention — a
     pedigree giving them distinct other parents legitimately disagrees with the
     role-based matrix there."""
@@ -660,7 +664,7 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
     n = A.shape[0]
     if A.shape != (n, n):
         raise ValueError("A must be square")
-    if not (0.0 < h2 <= 1.0):
+    if h2 is None or not (0.0 < h2 <= 1.0):
         raise ValueError(
             "h2 must be in (0, 1] -- a zero h2 makes the genetic liability "
             "identically zero, so its row of the covariance is degenerate "
@@ -721,7 +725,7 @@ def correct_positive_definite(covmat: ArrayLike, correction_val: float = 0.99,
 
     Relatedness rounding can leave the assembled matrix with a tiny (or negative)
     eigenvalue, which breaks the Gibbs conditional variances and the ``solve`` in
-    :func:`ltpred.gibbs.gibbs_params`. Following LTFHPlus, this repeatedly shrinks
+    `ltpred.gibbs.gibbs_params`. Following LTFHPlus, this repeatedly shrinks
     the off-diagonal (multiply the whole matrix by ``correction_val``, then restore
     the diagonal) until the smallest eigenvalue exceeds ``eps`` (strictly PD, not
     merely PSD) or ``correction_limit`` is hit. Returns ``(corrected, n_iter)`` and

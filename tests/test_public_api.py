@@ -6,12 +6,12 @@ import pytest
 def test_primary_top_level_api_is_curated():
     import ltpred
 
-    assert len(ltpred.__all__) <= 20
+    assert len(ltpred.__all__) <= 24
     assert "estimate_liability" in ltpred.__all__
     assert "thresholds_from_cip" in ltpred.__all__
     assert "rtmvnorm_gibbs" not in ltpred.__all__
-    assert "estimate_liabilities" not in ltpred.__all__
-    assert "PopulationScores" not in ltpred.__all__
+    assert "estimate_liabilities" in ltpred.__all__
+    assert "PopulationScores" in ltpred.__all__
     assert dir(ltpred) == sorted(ltpred.__all__)
 
 

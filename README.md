@@ -67,8 +67,8 @@ res.genetic                  # one posterior-mean genetic liability per family
 
 `use_age=False` is the classic LT-FH call. `h²` is required and
 disease-specific. Including the proband's own row (role `o`) gives a GWAS
-phenotype; omit it to predict from family history alone (the vignette's uses
-II and I). The [tutorial](docs/tutorial.md) and
+phenotype. For family-history-only prediction, keep role `o` and its `pid`,
+but set its bounds to `(-inf, inf)` (the vignette's uses II and I). The [tutorial](docs/tutorial.md) and
 [quickstart](docs/quickstart.md) take it from there.
 
 ## Benchmarks

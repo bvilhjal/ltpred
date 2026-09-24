@@ -77,7 +77,11 @@ numerically identical, just slower). Each script takes CLI flags (`--reps`,
 
 ## Time and memory between versions
 
-The [v0.6.1 rerun against v0.6.0](results/2026-09-09-time-memory-v061-rerun/README.md)
+The latest committed comparison is [v0.7.1 versus v0.7.0](results/2026-09-23-time-memory-v071/README.md),
+covering matched graph, PA and register-scoring workloads. These are
+historical source-bound measurements, not timings of the current tree.
+
+The earlier [v0.6.1 rerun against v0.6.0](results/2026-09-09-time-memory-v061-rerun/README.md)
 covers two parent-graph sizes, four PA batches of 200,000 families, and a small
 register-scoring workload. Mixed-mask PA and million-record graph construction
 gained the most on warm calls, with lower RSS; the small register case barely
@@ -236,3 +240,8 @@ HAPNEST path.
   automatically to the current source tree. `scripts/check_evidence.py`
   reconciles the release-defining scaling, IPW, R-lock and PGS claims with their
   stored artifacts; verify other numbers against their CSVs when quoting them.
+- CI never re-runs a benchmark, by design: they are minutes to hours of
+  stochastic work whose value is the recorded provenance. The `docs` job runs
+  `scripts/check_evidence.py`, which checks the committed artifacts against the
+  prose, not against the current code. Re-run a script locally before quoting
+  its number as current.

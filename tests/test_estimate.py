@@ -174,6 +174,25 @@ def test_families_from_columns_round_trip():
     assert fams[0].members[0].pid == "a_o"
 
 
+def test_families_from_columns_groups_non_contiguous_rows_and_2d_bounds():
+    # Rows of one family need not be adjacent; order is first appearance, and
+    # multi-trait (rows x phenotypes) bounds and the optional columns follow
+    # their row into the member.
+    lower = [[1.6, -np.inf], [-np.inf, 0.5], [-np.inf, -np.inf]]
+    upper = [[np.inf, 0.5], [1.6, np.inf], [1.6, np.inf]]
+    fams = families_from_columns(
+        fam_id=[7, 3, 7], role=["o", "o", "m"], lower=lower, upper=upper,
+        K_i=[np.nan, 0.02, 0.03], K_pop=[np.nan, 0.1, 0.1],
+        aod=[40.0, 55.0, 61.0])
+    assert [f.fam_id for f in fams] == [7, 3]
+    assert [m.role for m in fams[0].members] == ["o", "m"]
+    m = fams[0].members[1]
+    np.testing.assert_array_equal(m.lower, lower[2])
+    np.testing.assert_array_equal(m.upper, upper[2])
+    assert (m.K_i, m.K_pop, m.aod) == (0.03, 0.1, 61.0)
+    assert fams[1].members[0].aod == 55.0
+
+
 def test_result_pids_default_to_o_member():
     fam = Family("f1", [Member("o", 1.6, np.inf, pid="proband1")])
     res = estimate_liability([fam], h2=0.5, out=("genetic",),

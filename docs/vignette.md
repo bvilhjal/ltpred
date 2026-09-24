@@ -197,7 +197,7 @@ from your own table.
 Register-route fragments use a different cohort from the role grammar above:
 unique population ids, a 0.10-horizon incidence curve, and `h2=0.5`. The
 [tutorial](tutorial.md) builds that cohort, scores it, and checks the score
-against `reg.genetic`. The blocks here stay fragments.
+against `cohort.genetic`. The blocks here stay fragments.
 
 ## Before software
 
@@ -515,7 +515,8 @@ the same way ([Estimation](estimation.md#scaling-to-large-cohorts)).
 Include role `o` for **use II** ($\mu_i$ is a GWAS phenotype of that
 diagnosis). For **use I**, give `o` bounds of $(-\infty,\infty)$ rather
 than dropping the row: `res.pids` is read off the role-`o` record and
-falls back to `fam_id` when there is no `o` row, which silently changes
+uses `fam_id` only when no member has a pid. If relatives have pids but the
+proband does not, estimation raises to prevent silently changing
 your join key. ADuLT with `o` unbound has nothing left to condition on.
 Use III may skip this step.
 
@@ -653,7 +654,7 @@ import numpy as np
 mu, v = res.genetic, res.var["genetic"]
 # these are per-proband, aligned to res.pids — not the per-row `status` column.
 # The subset lines up with `mu` only if every family carries an `o` row; role
-# `o` is optional, so join on `res.pids` instead when some families lack one.
+# Join on res.pids; retain an uninformative o row when using personal IDs.
 own = np.asarray(status)[np.asarray(role) == "o"]
 
 assert len(res.pids) == len(families)                           # one score per proband
@@ -759,7 +760,7 @@ would otherwise use.
 |---|---|
 | Proband 0/1 status (baseline) | 0.353 |
 | Own status only (no ages; ADuLT's degenerate case) | 0.353 |
-| Relatives only, no role `o` | 0.288 |
+| Relatives only, uninformative `o` | 0.288 |
 | Classic LT-FH via PA (`o` plus `m`, `f`, `s1`) | 0.426 |
 
 0.426 against 0.353 is a squared-correlation gain of $1.46\times$, the

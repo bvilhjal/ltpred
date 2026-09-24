@@ -48,6 +48,8 @@ res = estimate_liability(families, h2=0.5, out=("genetic",))
   encoding; inclusion of relatives distinguishes LT-FH++ from ADuLT. The engine
   is orthogonal to both. PA-FGRS is the exception: its published name includes PA,
   and ltpred's censoring mixture is PA-only.
+- `dtype` — `np.float64` by default; `np.float32` halves bound storage,
+  while numerical accumulators retain double precision.
 - `out` — which liabilities to return: `"genetic"` (the proband's `g`), `"full"`
   (the proband's `o`), or both.
 - `use_mixture` — PA only: turn on the age-censored-control mixture (needs
@@ -62,7 +64,7 @@ res = estimate_liability(families, h2=0.5, out=("genetic",))
 | field | meaning |
 |---|---|
 | `res.fam_ids` | one family id per result, in first-appearance family order |
-| `res.pids` | one proband id per result (the `o` member's `pid`, else the `fam_id`) |
+| `res.pids` | one proband id per result (the `o` member's `pid`; `fam_id` is used only when no member has a pid) |
 | `res.est["genetic"]` | posterior-mean genetic-liability score: estimated by Gibbs sampling, approximated by PA moments, or computed numerically by quadrature |
 | `res.est["full"]` | corresponding full-liability estimate, if requested; see below |
 | `res.se["genetic"]` | Gibbs batch-means **Monte-Carlo** SE; zero for deterministic PA and quadrature, which does not imply zero approximation or integration error |
@@ -77,6 +79,15 @@ family fold PA's `var` sits within 5% of the sampler's
 (`tests/test_pearson_aitken.py::test_pa_conditional_variance_matches_gibbs_multi_truncation`).
 
 `res.genetic` is shorthand for `res.est["genetic"]` (the usual single-trait output).
+`res.to_dict()` copies aligned columns (`fam_id`, `pid`, `genetic`,
+`se_genetic`, `var_genetic`, and any quadrature diagnostics).
+`res.to_frame()` returns the same columns as a pandas DataFrame (install pandas
+separately). Neither collapses repeated pids; validate the intended join cardinality.
+`PopulationScores` and `QuadratureResult` also support these exports and `.se`/`.var`;
+their zero `.se` means no Monte Carlo noise, not exact inference. Array tuple APIs
+retain their documented return order; Gibbs exposes posterior variance with
+`return_var=True`.
+
 Multi-trait columns are suffixed with the phenotype name, e.g.
 `res.est["genetic_height"]`.
 
@@ -88,7 +99,7 @@ score = res.genetic             # use this as your GWAS phenotype / risk score
 > on each supported engine. No-mixture PA conditions exact pins jointly first;
 > an unpinned target's interval is folded after the remaining relative intervals
 > (an unbounded `g` is a no-op). A lone case therefore gives a
-> positive PA `full`, matching Gibbs, not zero. Omit role `o` or set its
+> positive PA `full`, matching Gibbs, not zero. Retain role `o` with its pid and set its
 > bounds to `(-inf, inf)` when you want a relatives-only predictor — the
 > same rule as for prospective prediction. The canonical GWAS phenotype is
 > still `out="genetic"`.
@@ -125,8 +136,8 @@ family-history analogue of a BLUP / selection-index breeding value (see
 
 Use II deliberately allows the proband's observed status into the
 phenotype construction. It is **not** a leakage-free disease predictor. When the
-same diagnosis is the prediction/classification outcome (use I), omit role `o`
-or set its bounds to `(-inf, inf)` and estimate from family history alone, and
+same diagnosis is the prediction/classification outcome (use I), retain role `o`
+with its pid and set its bounds to `(-inf, inf)`. Estimate from family history alone, and
 censor every relative's record at the prediction landmark (a relative born at
 `b` is observed only to age `t - b`): a relative's later diagnosis leaks the
 future just as the proband's own does. Only the register driver
@@ -531,3 +542,10 @@ adjustment or guarantee calibration under other misspecification.
 
 `n_sim`/`tol` trade speed for Monte-Carlo precision; the defaults converge for
 typical families. PA ignores all Gibbs options.
+
+For large simulated registers, `simulate_register_liabilities(method="mendelian")`
+avoids the dense relationship matrix and its factorization. It preserves the
+Gaussian pedigree model, including inbreeding, using linear person-level storage
+and a bounded relationship cache. Deep, related pedigrees can still require
+substantial recursion work. The default `method="dense"` preserves historical
+seeded draws; the two methods agree in distribution, not draw by draw.

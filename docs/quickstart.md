@@ -126,6 +126,18 @@ and validate calibration under the actual sampling design; see
 [Using the estimate in a GWAS](estimation.md#using-the-estimate-in-a-gwas).
 The score is not an absolute disease-risk probability.
 
+## Population register input
+
+For an `ids`/`father`/`mother` table, use the supported `estimate_liabilities`
+driver instead of assigning role labels yourself. Supply aligned `status` and
+`age` columns, `probands`, liability-scale `h2`, and either one empirical CIP
+or `strata` with `cip_by_stratum={label: (ages, values, k_pop)}`.
+Choose `use="gwas"` to include own diagnosis; prospective `use="prediction"`
+also requires calendar `birth_time` and per-proband `index_time` so relatives'
+records are censored at that landmark. The [register recipe](data-preparation.md#beyond-the-role-grammar-arbitrary-pedigrees)
+shows a complete call. `result.to_dict()` exports aligned columns;
+`result.to_frame()` additionally requires pandas.
+
 ## Where to go next
 
 | you want to… | see |

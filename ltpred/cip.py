@@ -2,7 +2,7 @@
 
 The personalised thresholds of LT-FH++ / ADuLT / PA-FGRS consume a
 cumulative-incidence curve per stratum (sex x birth cohort) through
-:func:`ltpred.thresholds.thresholds_from_cip`. This module estimates that curve
+`ltpred.thresholds.thresholds_from_cip`. This module estimates that curve
 from individual follow-up records: per person an entry age (start of
 follow-up), an exit age, and what happened at exit.
 
@@ -12,13 +12,13 @@ follow-up). Delayed entry must be independent of the event process conditional
 on the modelled strata, with overlapping risk-set support; right censoring
 must likewise be conditionally non-informative:
 
-* :func:`kaplan_meier_cip` -- the product-limit estimator ``CIP = 1 - S`` for
+* `kaplan_meier_cip` -- the product-limit estimator ``CIP = 1 - S`` for
   the single-event setting. Under independent censoring it estimates net risk:
   incidence in a hypothetical world without the censoring process. Death must
   not be treated as censoring when the target is the crude diagnosed
   proportion, even if death and diagnosis are independent. Greenwood standard
   errors.
-* :func:`aalen_johansen_cip` -- the Aalen--Johansen estimator of the
+* `aalen_johansen_cip` -- the Aalen--Johansen estimator of the
   cause-specific cumulative incidence with competing risks (diagnosis vs
   death without diagnosis). This is the estimator LT-FH++ used for its CIPs
   (Pedersen et al. 2022: Aalen-Johansen with death and emigration as
@@ -37,9 +37,9 @@ ages. Stratification (e.g. by sex x birth-year bands) is done by calling an
 estimator once per stratum -- see the worked example in the docstring of each
 estimator and ``benchmarks/bench_cip_estimation.py``.
 
-The returned :class:`CipCurve` carries ascending ``ages``, non-decreasing
+The returned `CipCurve` carries ascending ``ages``, non-decreasing
 ``values`` in ``[0, 1]``, pointwise standard errors and event counts.
-:func:`~ltpred.thresholds.thresholds_from_cip` consumes a non-degenerate curve
+`ltpred.thresholds.thresholds_from_cip` consumes a non-degenerate curve
 only (all values below one). If a terminal event exhausts the empirical risk
 set, the valid estimate is exactly one but cannot define a finite probit
 threshold; choose a scientifically justified earlier/lifetime horizon rather
@@ -66,7 +66,7 @@ class CipCurve:
 
     ``ages`` are ascending and ``values`` non-decreasing in ``[0, 1]``.
     Values strictly below one feed
-    :func:`ltpred.thresholds.thresholds_from_cip`; an exact terminal one is a
+    `ltpred.thresholds.thresholds_from_cip`; an exact terminal one is a
     valid estimate but has no finite probit threshold. ``se`` is the
     pointwise standard error (Greenwood for Kaplan-Meier, the finite-risk-set,
     tie-correct Aalen (1978) variance for Aalen-Johansen); ``n_events`` counts
@@ -138,7 +138,7 @@ def kaplan_meier_cip(age_entry: ArrayLike, age_exit: ArrayLike,
     hypothetical world without the censoring process. When the target is the
     proportion actually diagnosed, death before diagnosis is a competing
     event rather than censoring, irrespective of whether its time is
-    statistically independent of diagnosis. Use :func:`aalen_johansen_cip`
+    statistically independent of diagnosis. Use `aalen_johansen_cip`
     with death as the competing event; the two estimands are compared in
     ``benchmarks/bench_cip_estimation.py``.
     """
@@ -182,7 +182,7 @@ def aalen_johansen_cip(age_entry: ArrayLike, age_exit: ArrayLike,
     Parameters
     ----------
     age_entry, age_exit
-        Per-person follow-up ages (as in :func:`kaplan_meier_cip`).
+        Per-person follow-up ages (as in `kaplan_meier_cip`).
     event_type
         Integer code per person: 0 = censored, ``cause`` = event of interest
         (default 1, diagnosis), any other positive code = competing event
@@ -203,7 +203,7 @@ def aalen_johansen_cip(age_entry: ArrayLike, age_exit: ArrayLike,
     The estimator is ``F_cause(t) = sum S(t_i-) * d_cause(t_i) / Y(t_i)``,
     where ``S`` is the overall survival (any event). The competing events are
     not censorable in the Kaplan-Meier sense; comparing against
-    :func:`kaplan_meier_cip` (which treats them as censoring) quantifies the
+    `kaplan_meier_cip` (which treats them as censoring) quantifies the
     estimand difference. This is the estimator LT-FH++ used for its CIPs
     (Pedersen et al. 2022: Aalen-Johansen with death and emigration as
     competing events, sex x birth-year strata). The variance includes the
@@ -252,7 +252,7 @@ def _aj_on_grid(age_entry, age_exit, event_type, cause, grid):
 
     An empty risk set (``Y == 0``) at a grid age leaves the increment undefined:
     there is no one left to have had the event, yet the grid says one did.
-    Raises, matching :func:`kaplan_meier_cip`."""
+    Raises, matching `kaplan_meier_cip`."""
     Y = _risk_sets(age_entry, age_exit, grid).astype(float)
     d_all = _count_at(np.sort(age_exit[event_type > 0]), grid).astype(float)
     d_cause = _count_at(np.sort(age_exit[event_type == cause]), grid).astype(float)

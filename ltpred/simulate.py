@@ -3,7 +3,7 @@
 Draws each family's liabilities from the liability-threshold family covariance (genetic ``g``, full
 ``o``, and relatives jointly multivariate normal), assigns case/control status by
 thresholding the full liabilities, and packages the per-member truncation bounds
-as ready-to-estimate :class:`~ltpred.family.Family` objects. Two flavours:
+as ready-to-estimate `ltpred.family.Family` objects. Two flavours:
 
 * ``use_age=False`` -- classic LT-FH: a single prevalence threshold ``T``, cases
   ``(T, inf)`` and controls ``(-inf, T)``. Self-consistent, handy for validating
@@ -13,7 +13,7 @@ as ready-to-estimate :class:`~ltpred.family.Family` objects. Two flavours:
   is a censored control, not a case). ``onset_model`` chooses how onset is
   generated; ``case_encoding`` chooses the bound written for observed cases.
 
-The returned :class:`Simulation` also keeps the true liabilities so downstream
+The returned `Simulation` also keeps the true liabilities so downstream
 tests can check that the estimated genetic liability tracks the simulated one.
 Port of LTFHPlus::simulate_under_LTM(_single), with coherent follow-up.
 """
@@ -23,11 +23,13 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 import warnings
+from types import SimpleNamespace
 
 import numpy as np
 from numpy.typing import ArrayLike
 
-from .covariance import construct_covmat_single, kinship_from_pedigree
+from .covariance import construct_covmat_single, kinship_from_pedigree, _parent_links
+from ._selected_kinship import _SelectedKinship
 from .family import Family, Member, families_from_columns
 from .fit import _component_matrix
 from ._mathfun import norm_cdf, norm_ppf
@@ -77,7 +79,7 @@ def _draw_ages(roles, n, rng):
 
 @dataclass
 class Simulation:
-    """Output of :func:`simulate_under_LTM_single`.
+    """Output of `simulate_under_LTM_single`.
 
     ``liabilities`` is ``(n_sim, d)`` with columns in ``roles`` order (``g``, ``o``,
     relatives); ``genetic``/``full`` are its first two columns for convenience.
@@ -116,7 +118,7 @@ def _record_onset(aoo, onset_resolution):
     ``onset_resolution=None`` records the exact simulated onset. That makes the
     pin reproduce the true liability up to the round trip through the CIP curve,
     which is lossless except at the extreme upper tail, where
-    :func:`~ltpred.thresholds._convert_cir_to_age` clamps the implied onset age
+    `ltpred.thresholds._convert_cir_to_age` clamps the implied onset age
     at 0 and the liability cannot be recovered from it."""
     if onset_resolution is None:
         return aoo
@@ -313,7 +315,7 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     """Simulate ``n_sim`` families for a single trait.
 
     Builds the covariance from ``fam_vec``/``n_fam`` (``g``/``o`` prepended when
-    ``add_ind``), draws liabilities, and returns a :class:`Simulation`.
+    ``add_ind``), draws liabilities, and returns a `Simulation`.
 
     With ``use_age=False`` (default) the bounds are classic LT-FH: one lifetime
     threshold, status ``l > T``.
@@ -423,15 +425,15 @@ def simulate_pedigree(rng: np.random.Generator, n_founder_pairs: int = 150,
     """Simulate a multi-generation pedigree as trio columns.
 
     Returns ``(ids, father, mother)`` — the three columns
-    :func:`~ltpred.pipeline.estimate_liabilities`,
-    :func:`~ltpred.pedigree.build_parent_graph` and
-    :func:`~ltpred.covariance.kinship_from_pedigree` all take directly.
+    `ltpred.pipeline.estimate_liabilities`,
+    `ltpred.pedigree.build_parent_graph` and
+    `ltpred.covariance.kinship_from_pedigree` all take directly.
     Founders have ``None`` parents. ``gens`` generations are built from
     ``n_founder_pairs`` unrelated founder couples; each couple has 2–4 children,
     and with probability ``remarry`` a partner forms a second union, which is
     what produces half-siblings. Recorded full siblings are never paired.
 
-    ``rng`` is a :class:`numpy.random.Generator`; pass
+    ``rng`` is a `numpy.random.Generator`; pass
     ``np.random.default_rng(seed)`` for a reproducible pedigree."""
     ids, father, mother = [], [], []
 
@@ -478,12 +480,12 @@ def pedigree_birth_times(ids: Sequence, father: Sequence, mother: Sequence, *,
     Co-parents are placed in the same generation (a union-find over couples) and
     every child one generation later than its recorded parents, so birth times
     are ``base_birth_year + generation_years * generation``. Use this to obtain
-    the ``birth_time`` column :func:`~ltpred.pipeline.estimate_liabilities`
+    the ``birth_time`` column `ltpred.pipeline.estimate_liabilities`
     needs for calendar-time (use I) censoring when the pedigree itself carries no
     dates.
 
     Raises ``ValueError`` on a generational cycle. Unlike
-    :func:`simulate_pedigree` this consumes no randomness, so it is deterministic
+    `simulate_pedigree` this consumes no randomness, so it is deterministic
     for a given pedigree."""
     n = len(ids)
     pos = {pid: i for i, pid in enumerate(ids)}
@@ -542,10 +544,10 @@ def pedigree_birth_times(ids: Sequence, father: Sequence, mother: Sequence, *,
 
 @dataclass
 class RegisterSimulation:
-    """Output of :func:`simulate_register_liabilities`.
+    """Output of `simulate_register_liabilities`.
 
     ``ids``/``father``/``mother``/``status``/``age``/``birth_time`` are the
-    columns :func:`~ltpred.pipeline.estimate_liabilities` consumes, aligned by
+    columns `ltpred.pipeline.estimate_liabilities` consumes, aligned by
     position. ``onset`` is the age at diagnosis (``inf`` if never affected);
     ``genetic`` is the **true** standardised additive genetic liability and
     ``residual_var`` the matching residual variance, so an estimate can be scored
@@ -561,11 +563,40 @@ class RegisterSimulation:
     residual_var: np.ndarray
 
 
+def _mendelian_draw(ids, father, mother, innovations):
+    """Draw with covariance A, without materializing A; retain exact inbreeding.
+
+    Each child inherits half of each known parent's value. Its independent
+    innovation has variance 1 minus one quarter of each known parent's A_ii.
+    Unknown parents contribute neither a value nor a variance subtraction.
+    Selected-pair recursion supplies diagonals with bounded memoization; its
+    runtime depends on pedigree depth and relatedness, not just person count.
+    """
+    ids, _, sire, dam, children, _ = _parent_links(ids, father, mother)
+    graph = SimpleNamespace(ids=ids, sire=sire, dam=dam, children=children)
+    kinship = _SelectedKinship(graph)
+    n = len(ids)
+    order = np.empty(n, dtype=np.intp)
+    order[kinship._rank] = np.arange(n)
+    diagonal = np.empty(n)
+    genetic = np.empty(n)
+    for i in order:
+        diagonal[i] = kinship._pair(int(i), int(i))
+        inherited, variance = 0.0, 1.0
+        for parent in (sire[i], dam[i]):
+            if parent != -1:
+                inherited += 0.5 * genetic[parent]
+                variance -= 0.25 * diagonal[parent]
+        genetic[i] = inherited + np.sqrt(max(0.0, variance)) * innovations[i]
+    return genetic, diagonal
+
+
 def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
                                   father: Sequence, mother: Sequence, *,
                                   h2: float, cip_ages: ArrayLike,
                                   cip_values: ArrayLike,
-                                  eval_age: float) -> RegisterSimulation:
+                                  eval_age: float,
+                                  method: str = "dense") -> RegisterSimulation:
     """Simulate one **consistent** population liability field, then records.
 
     Draws raw genetic liabilities ``G ~ N(0, h2 * A_full)`` once for the whole
@@ -589,11 +620,18 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
     ``status`` is *observed* case at ``eval_age`` and ``age`` is onset for cases
     and ``eval_age`` otherwise.
 
+    ``method="dense"`` preserves historical seeded draws. For large pedigrees,
+    ``method="mendelian"`` draws the same Gaussian model using independent
+    parent-to-child innovations and exact inbreeding variances, without a dense
+    relationship matrix or factor. Storage is linear in person count plus a
+    bounded relationship cache; runtime depends on pedigree structure. The two
+    methods have the same distribution but different draws for the same seed.
+
     ``cip_ages``/``cip_values`` are a strictly increasing cumulative-incidence
-    curve (see :func:`~ltpred.cip.kaplan_meier_cip`). ``rng`` is a
-    :class:`numpy.random.Generator`; the pedigree usually comes from
-    :func:`simulate_pedigree` and ``birth_time`` from
-    :func:`pedigree_birth_times`, which this function calls for you."""
+    curve (see `ltpred.cip.kaplan_meier_cip`). ``rng`` is a
+    `numpy.random.Generator`; the pedigree usually comes from
+    `simulate_pedigree` and ``birth_time`` from
+    `pedigree_birth_times`, which this function calls for you."""
     cip_ages = np.asarray(cip_ages, dtype=float)
     cip_values = np.asarray(cip_values, dtype=float)
     if cip_ages.shape != cip_values.shape:
@@ -605,11 +643,19 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
                          "entries to be invertible by interpolation")
     if not (0.0 < h2 <= 1.0):
         raise ValueError("h2 must be in (0, 1]")
-    _, A_full = kinship_from_pedigree(ids, father, mother)
     n = len(ids)
-    raw_genetic = rng.standard_normal(n) @ _stable_factor(h2 * A_full).T
+    if method == "dense":
+        _, A_full = kinship_from_pedigree(ids, father, mother)
+        raw_genetic = rng.standard_normal(n) @ _stable_factor(h2 * A_full).T
+        diagonal = np.diag(A_full)
+    elif method == "mendelian":
+        raw_genetic, diagonal = _mendelian_draw(
+            ids, father, mother, rng.standard_normal(n))
+        raw_genetic *= np.sqrt(h2)
+    else:
+        raise ValueError("method must be 'dense' or 'mendelian'")
     residual = rng.standard_normal(n) * np.sqrt(1.0 - h2)
-    scale = np.sqrt(h2 * np.diag(A_full) + (1.0 - h2))
+    scale = np.sqrt(h2 * diagonal + (1.0 - h2))
     genetic = raw_genetic / scale
     liability = (raw_genetic + residual) / scale
     residual_var = (1.0 - h2) / scale ** 2
@@ -636,11 +682,11 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
 
 @dataclass
 class FollowupSimulation:
-    """Output of :func:`simulate_followup_records`.
+    """Output of `simulate_followup_records`.
 
     ``age_entry``/``age_exit``/``event`` are the three columns
-    :func:`~ltpred.cip.aalen_johansen_cip` and
-    :func:`~ltpred.cip.kaplan_meier_cip` consume, with ``event`` coded
+    `ltpred.cip.aalen_johansen_cip` and
+    `ltpred.cip.kaplan_meier_cip` consume, with ``event`` coded
     0 = administratively censored, 1 = diagnosed, 2 = died. ``onset`` and
     ``death_age`` are the underlying latent times (``inf`` when the event never
     happens), kept so an estimate can be checked against the generating curve.
@@ -669,7 +715,7 @@ def simulate_followup_records(rng: np.random.Generator, n: int, *,
     case indicator with probability ``pop_prev``, and — if a case — an onset age
     from the inverse CDF of the logistic cumulative-incidence curve with
     ``mid_point``/``slope`` (the same parameterisation
-    :func:`~ltpred.thresholds.thresholds_from_cip` expects). With
+    `ltpred.thresholds.thresholds_from_cip` expects). With
     ``register_start_year`` given, follow-up is left-truncated: nobody is
     observed before that calendar year, which is what a register opened mid-life
     looks like. Everyone is administratively censored at ``admin_end``.
@@ -677,9 +723,9 @@ def simulate_followup_records(rng: np.random.Generator, n: int, *,
     With ``mortality=True`` a competing Gompertz death time is drawn with hazard
     ``exp(gompertz_log_a + gompertz_b * age)`` and coded ``event = 2`` when it
     precedes onset. This is the case that makes the difference between the two
-    estimators visible: :func:`~ltpred.cip.kaplan_meier_cip` treats death as
+    estimators visible: `ltpred.cip.kaplan_meier_cip` treats death as
     independent censoring and therefore **overestimates** incidence, while
-    :func:`~ltpred.cip.aalen_johansen_cip` targets the crude cumulative
+    `ltpred.cip.aalen_johansen_cip` targets the crude cumulative
     incidence in the presence of the competing risk.
 
     Records with ``age_exit <= age_entry`` are dropped and counted in
@@ -727,12 +773,12 @@ _MULTI_MOTHER = ("m", None, None, "m", "m")
 
 @dataclass
 class MultiTraitSimulation:
-    """Output of :func:`simulate_under_LTM_multi`.
+    """Output of `simulate_under_LTM_multi`.
 
     ``liabilities`` is ``(n_families, d, n_traits)`` with ``roles`` ordering the
     ``d`` people; ``status`` is the ``(n_families * d, n_traits)`` person-major
     boolean case matrix the bounds were built from; ``families`` is the list to
-    pass to :func:`~ltpred.fit.fit_pairwise_multi`. ``truth`` echoes the
+    pass to `ltpred.fit.fit_pairwise_multi`. ``truth`` echoes the
     generating variance parameters, so a fit can be scored against them."""
     roles: list
     phen_names: tuple
@@ -764,11 +810,11 @@ def simulate_under_LTM_multi(n_families: int = 1000, *,
     relationship matrix per variance component —
     ``kron(G, A) + kron(S, C) + kron(M_mat, M) + kron(E, I)`` — where ``A`` is
     the additive relationship from
-    :func:`~ltpred.covariance.kinship_from_pedigree` and ``C``/``M`` are the
+    `ltpred.covariance.kinship_from_pedigree` and ``C``/``M`` are the
     shared-sibship and shared-couple indicators from the same component matrices
-    :func:`~ltpred.fit.fit_variance_components` uses. Liabilities are drawn once
+    `ltpred.fit.fit_variance_components` uses. Liabilities are drawn once
     per family, thresholded per trait at ``pop_prev``, and packaged as
-    :class:`~ltpred.family.Family` objects with one interval per trait.
+    `ltpred.family.Family` objects with one interval per trait.
 
     ``h2`` is the per-trait additive variance, ``rg`` the genetic correlation,
     ``sib_shared``/``couple_shared`` the per-trait shared-sibship and
@@ -836,4 +882,3 @@ def simulate_under_LTM_multi(n_families: int = 1000, *,
                "couple_shared": t.copy(), "residual_re": float(residual_re),
                "target_trait_corr": float(g[0, 1] + s[0, 1] + t[0, 1]
                                           + e[0, 1])})
-

@@ -6,6 +6,33 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.7.3 — 2026-09-24
+
+### Review remediation
+
+- Preserve personal join keys: identified relatives now require a proband `o`
+  row with its pid. For prediction, retain that row with uninformative bounds.
+  Pid-free inputs still use `fam_id`. Recognize pandas NA/NaT and shared missing
+  markers across family/register inputs; unlisted zero parent markers are
+  unknown, while explicitly listed zero IDs still resolve. Reject duplicate
+  probands and empty family lists; clarify missing h² and prevalence errors.
+- Expose register scoring and CIP estimators in the curated public namespace.
+  Scoring results support copied column exports (`to_dict`, optional-pandas
+  `to_frame`) with separate posterior variance and Monte Carlo SE. Non-default
+  Gibbs controls warn when passed to deterministic engines. Tuple APIs and
+  Gibbs sampling defaults remain unchanged.
+- Compile quadrature node moments and reuse identical deterministic bound rows,
+  including refinement diagnostics. Keep independent Gibbs streams. Speed up
+  ordinary string-pid validation and avoid repeated within-family pid checks in
+  single-trait fitters.
+- Add opt-in `simulate_register_liabilities(method="mendelian")` using exact
+  pedigree innovations, including inbreeding, without a dense matrix. The
+  `dense` default retains historical seeded draws; Mendelian draws have the
+  same model distribution, but different seeded realizations.
+- Repair rendered API roles/indentation, method/fitter guidance, public-name
+  coverage, stale references and the prediction example. Local correctness and
+  time/memory evidence: `benchmarks/results/2026-09-24-review/README.md`.
+
 ### Fixed
 
 - `from ltpred import tetrachoric` returns the function in every import

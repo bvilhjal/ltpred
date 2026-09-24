@@ -8,11 +8,11 @@ by the prevalence. Everything in this module follows from that identity.
 residual variance to one. For a SNP with minor-allele frequency ``f`` and effect
 ``beta``, ``2 f (1-f) beta^2`` is genetic variance in those residual-variance
 units. It is not yet a fraction of total latent variance; for a single predictor
-that fraction is ``q / (1 + q)``. :func:`probit_liability_r2` retains its
+that fraction is ``q / (1 + q)``. `probit_liability_r2` retains its
 historical name but documents this distinction explicitly.
 
 A squared GWAS z-statistic contains one unit of expected null sampling noise.
-:func:`liability_r2_from_z` subtracts that null contribution by default; set
+`liability_r2_from_z` subtracts that null contribution by default; set
 ``subtract_null=False`` only when the raw second moment is deliberately wanted.
 
 **The Lee transformation is a bridge to the observed scale.** When
@@ -26,8 +26,8 @@ case/control studies, the sample case proportion ``P``) with
 * ``h²_liab  = h²_obs  * [K(1-K)/z²] * [K(1-K)/(P(1-P))]``   (Lee et al. 2011;
   the second factor applies only to ascertained studies)
 
-:func:`observed_to_liability_h2` is the forward h² bridge and
-:func:`liability_to_observed_h2` its inverse.
+`observed_to_liability_h2` is the forward h² bridge and
+`liability_to_observed_h2` its inverse.
 """
 from __future__ import annotations
 
@@ -83,7 +83,7 @@ def observed_to_liability_h2(obs_h2: ArrayLike, pop_prev: ArrayLike,
 def liability_to_observed_h2(liab_h2: ArrayLike, pop_prev: ArrayLike,
                              prop_cases: ArrayLike | None = None) -> np.ndarray | np.floating:
     """Liability-scale h² -> observed scale (inverse of
-    :func:`observed_to_liability_h2`)."""
+    `observed_to_liability_h2`)."""
     pop_prev, z = _z_density(pop_prev)
     factor = (z * z) / (pop_prev * (1.0 - pop_prev))
     return np.asarray(liab_h2, dtype=float) * factor / _ascertainment(
@@ -130,7 +130,7 @@ def liability_r2_from_z(z: ArrayLike, n: ArrayLike, pop_prev: ArrayLike,
     (2013, *PLoS ONE* 8:e71494, eq. 2-3; their non-centrality
     ``E[chi²] - 1 ~ N * q_liab * z_K² P(1-P) / (K(1-K))²``), and the factor
     ``c`` is exactly the Lee et al. (2011) master factor used by
-    :func:`observed_to_liability_h2`. Without ``prop_cases`` the
+    `observed_to_liability_h2`. Without ``prop_cases`` the
     ascertainment factor drops out (population samples). ``n`` is the per-SNP
     sample size (scalar or per-SNP array). Null subtraction is unbiased in
     expectation but permits negative per-SNP estimates; aggregate before

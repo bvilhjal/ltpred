@@ -59,11 +59,6 @@ def _corr(a, b):
     return float(np.corrcoef(a, b)[0, 1])
 
 
-def _drop_role(families, role):
-    return [Family(fam.fam_id, [m for m in fam.members if m.role != role])
-            for fam in families]
-
-
 def _keep_role(families, role):
     return [Family(fam.fam_id, [m for m in fam.members if m.role == role])
             for fam in families]
@@ -73,7 +68,7 @@ def _unbind_role(families, role):
     """Use-I encoding: keep the row, drop the observation.
 
     Scores identically to removing the row, but ``pids`` still comes from the
-    role-``o`` record instead of falling back to ``fam_id``.
+    role-``o`` record. Identified relatives without a proband pid now raise.
     """
     out = []
     for fam in families:
@@ -247,7 +242,7 @@ def main():
     print(f"families_from_columns: {len(rebuilt)} families, "
           f"roles {sorted({r for r in role})}")
     print("use II (GWAS): include role o; use I (prediction): keep o but")
-    print("unbind it — dropping the row makes pids fall back to fam_id")
+    print("unbind it — keep its pid so the result still joins to that person")
     print("use III (aetiology): this step is optional")
 
     print("\n== 4. Estimate mu ==")
@@ -271,7 +266,7 @@ def main():
     print(f"corr(case/control, true g) {r_status:.3f}")
     print(f"corr(LT-FH PA,     true g) {r_pa:.3f}")
     print(f"squared-corr eff-N proxy   {f['eff_n']:.2f}x")
-    rel = estimate_liability(_drop_role(sim.families, "o"), h2=H2)
+    rel = estimate_liability(_unbind_role(sim.families, "o"), h2=H2)
     f["corr_rel"] = _corr(rel.genetic, true_g)
     print(f"corr(relatives-only, true g) {f['corr_rel']:.3f}")
     adult = estimate_liability(_keep_role(sim.families, "o"), h2=H2)

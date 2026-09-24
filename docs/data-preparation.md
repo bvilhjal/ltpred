@@ -52,8 +52,11 @@ parent, with no implied second-parent sharing).
 
 Conditioning on `o` is an analysis choice, not a structural requirement. Include
 it for **use II** (a GWAS phenotype from the proband's diagnosis). For **use I**
-(prospective prediction/classification of that diagnosis), omit `o` or make its
-bounds uninformative; otherwise the outcome leaks directly into the predictor.
+(prospective prediction/classification of that diagnosis), keep `o` and its `pid`
+but make its bounds uninformative; otherwise the outcome leaks directly into the predictor.
+
+Unnumbered `s` is a supported label for one sibling; use `s1`, `s2`, … for
+multiple siblings. It is not an input error. Repeated labels still raise.
 
 ### Beyond the role grammar: arbitrary pedigrees
 
@@ -243,8 +246,10 @@ res = estimate_liability(
 For real data, obtain `K_i` from the population CIP rather than the logistic demo,
 retain lifetime bounds from `prevalence_thresholds` (using the matching stratum's
 `K_pop`), and provide `K_i`/`K_pop` only for controls. Instead of unbinding `o` as
-above, you may omit its row entirely; ltpred inserts an uninformative target-status
-coordinate automatically.
+above, you may omit its row only when no member has a `pid`; the output then
+uses `fam_id` as its join key. With personal IDs, retain `o` and its `pid` with
+`(-inf, inf)` bounds. Missing or absent proband pids raise rather than silently
+changing the join key.
 
 You can also build the bounds yourself: any `(lower, upper)` interval per person
 is valid (`lower == upper` pins a liability exactly; `(-inf, inf)` is

@@ -41,8 +41,8 @@ def _validate_pop_prev(pop_prev):
     "case" pin at ``(inf, inf)`` reaches the sampler), and outside the interval
     the ppf is NaN -- both silent on the way in, so reject them here."""
     prev = np.asarray(pop_prev, dtype=float)
-    if np.any((prev <= 0.0) | (prev >= 1.0)):
-        raise ValueError("pop_prev must lie in the open interval (0, 1)")
+    if np.any(~np.isfinite(prev) | (prev <= 0.0) | (prev >= 1.0)):
+        raise ValueError("pop_prev must lie in the open interval (0, 1); supply a fraction, not a percentage (0.05 for 5%)")
     return prev
 
 
@@ -79,7 +79,7 @@ def convert_age_to_cir(age: ArrayLike, pop_prev: ArrayLike,
 
 
 def _convert_cir_to_age(cir, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
-    """Invert :func:`convert_age_to_cir`: the age at a cumulative incidence ``cir``.
+    """Invert `convert_age_to_cir`: the age at a cumulative incidence ``cir``.
 
     ``mid_point - log(pop_prev/cir - 1) / slope``, clamped at 0. Returns ``nan``
     where ``cir >= pop_prev`` (that incidence is never reached). Vectorised."""
@@ -97,7 +97,7 @@ def convert_age_to_thresh(age: ArrayLike, pop_prev: ArrayLike,
     """Liability threshold implied by an age (or age of onset).
 
     The threshold is ``Phi^-1(1 - cir(age))`` where ``cir`` is
-    :func:`convert_age_to_cir`, so a younger onset (lower incidence) gives a
+    `convert_age_to_cir`, so a younger onset (lower incidence) gives a
     higher threshold, i.e. a more extreme liability. Vectorised over ``age``.
     Port of LTFHPlus::convert_age_to_thresh (the logistic branch; the
     truncated-normal ``dist="normal"`` alternative is not ported)."""
@@ -112,7 +112,7 @@ def convert_liability_to_aoo(liability: ArrayLike, pop_prev: ArrayLike,
                              slope: float = 1.0 / 8.0) -> np.ndarray | np.floating:
     """Age of onset implied by a case's true liability.
 
-    Higher liability -> earlier onset: :func:`_convert_cir_to_age` applied to
+    Higher liability -> earlier onset: `_convert_cir_to_age` applied to
     the incidence ``1 - Phi(liability)``. Vectorised. Port of
     LTFHPlus::convert_liability_to_aoo (the logistic branch; the
     truncated-normal ``dist="normal"`` alternative is not ported)."""
@@ -148,10 +148,10 @@ def age_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
     (``lower = -inf``, ``upper = thresh(current_age)``). ``age`` is the age of
     onset for cases and the current/censoring age for controls. ``status`` must
     be a one-dimensional Boolean or exact numeric 0/1 array. Returns ``(lower,
-    upper)`` arrays ready for :func:`ltpred.estimate.estimate_liability`.
+    upper)`` arrays ready for `ltpred.estimate.estimate_liability`.
 
     This helper uses one logistic CIP curve and is mainly for simulation and
-    tutorials. For full LT-FH++, use :func:`thresholds_from_cip` with age-, birth-
+    tutorials. For full LT-FH++, use `thresholds_from_cip` with age-, birth-
     year- and sex-specific curves and include relatives. The same personalised
     construction with proband rows only is ADuLT."""
     status = _validate_status(status)
@@ -179,10 +179,10 @@ def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
     variant, not the base model.
 
     For **base PA-FGRS**, obtain lifetime case/control intervals with
-    :func:`prevalence_thresholds`, supply ``K_i``/``K_pop`` for controls, and use
+    `prevalence_thresholds`, supply ``K_i``/``K_pop`` for controls, and use
     the Pearson-Aitken estimator with ``use_mixture=True``. To infer onset-pinned
-    LT-FH++ or ADuLT with Pearson-Aitken, use :func:`age_thresholds` or
-    :func:`thresholds_from_cip` with ``case_mode="pin"`` and pass the resulting
+    LT-FH++ or ADuLT with Pearson-Aitken, use `age_thresholds` or
+    `thresholds_from_cip` with ``case_mode="pin"`` and pass the resulting
     families to the default estimator.
 
     ``status`` must be a one-dimensional Boolean or exact numeric 0/1 array. A
@@ -190,13 +190,13 @@ def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
     nan``). An age-censored control gets ``(-inf, thresh(current_age))``
     together with its cumulative incidence ``K_i = cir(current_age)`` and the
     lifetime prevalence ``K_pop = pop_prev``. Feed the result to
-    :func:`ltpred.estimate.estimate_liability` with ``method="pearson-aitken"``.
+    `ltpred.estimate.estimate_liability` with ``method="pearson-aitken"``.
 
     The control ``upper`` is the *age-specific* threshold ``Phi^-1(1 - K_i)``, and
     how the estimator reads it depends on ``use_mixture``:
 
     * ``use_mixture=False`` -- the supplied intervals are used directly. Controls
-      have the same age-specific upper bound as :func:`age_thresholds`, but cases
+      have the same age-specific upper bound as `age_thresholds`, but cases
       remain intervals rather than the point pins used by LT-FH++ and ADuLT; the
       encodings are not equivalent.
     * ``use_mixture=True`` -- the PA-FGRS censored-control correction switches on. It
@@ -270,7 +270,7 @@ def thresholds_from_cip(status: ArrayLike, age: ArrayLike, cip_ages: ArrayLike,
 def _validate_cip_curve(cip_ages, cip_values, k_pop=None, min_cip=1e-5):
     """Validate one CIP curve once; returns ``(cip_ages, cip_values, k_pop)``.
 
-    Split from :func:`thresholds_from_cip` so a caller scoring many people
+    Split from `thresholds_from_cip` so a caller scoring many people
     against one curve (the register driver) pays the O(curve) checks once."""
     cip_ages = np.asarray(cip_ages, dtype=float)
     cip_values = np.asarray(cip_values, dtype=float)

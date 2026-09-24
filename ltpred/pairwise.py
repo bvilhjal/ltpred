@@ -245,7 +245,7 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
     families = list(families)
     weights = _validate_weights(weights, len(families), "fit_pairwise")
     _validate_population_sampling(sampling, "fit_pairwise", weights=weights)
-    _check_unique_roles(families)
+    _check_unique_roles(families, check_pids=False)
     _assert_nonempty_families(families)
     if not families:
         raise ValueError("fit_pairwise needs at least one family")

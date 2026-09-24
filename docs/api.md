@@ -10,6 +10,8 @@ is also a top-level export.
 
 ## Primary workflow
 
+**Table 1. Primary workflow functions.**
+
 | function | purpose |
 |---|---|
 | `estimate_liability` | end-to-end estimator (PA by default for one trait, Gibbs for multi-trait; opt-in `method="quadrature"` for additive nuclear families) |
@@ -29,6 +31,8 @@ is also a top-level export.
 | `set_num_threads` | set the Numba-parallel thread count |
 
 ## Advanced fitting and scale APIs
+
+**Table 2. Advanced estimation and fitting.**
 
 | function | purpose |
 |---|---|
@@ -56,6 +60,8 @@ follow NumPy's `default_rng` contract.
 
 ## Low-level numerical APIs
 
+**Table 3. Numerical building blocks.**
+
 | function | purpose |
 |---|---|
 | `pa_algorithm` / `pa_estimate_batched` | Pearson–Aitken selection updates |
@@ -70,6 +76,27 @@ marginal variances. Gibbs requires strict positive-definiteness because it forms
 precision-based conditional variances.
 The sex-limited and genetic-nurture covariance constructors live in the
 checkout-only `research/covariance_extensions.py`.
+
+## Additional public names
+
+**Table 4. Supporting functions and result containers.**
+
+| names | purpose |
+|---|---|
+| `Member`, `Family`, `LiabilityResult`, `QuadratureResult`, `PopulationScores` | family inputs and scoring outputs; scoring results export columns with `to_dict()` or optional-pandas `to_frame()` |
+| `CipCurve`, `kaplan_meier_cip`, `aalen_johansen_cip` | empirical cumulative-incidence estimation and curve result |
+| `ParentGraph`, `Pedigree`, `build_parent_graph`, `extract_pedigree` | indexed register relationships and proband pedigree extraction |
+| `Covmat`, `correct_positive_definite` | labelled covariance and explicit positive-definite repair |
+| `tetrachoric`, `tetrachoric_table`, `tetrachoric_matrix`, `TetrachoricResult` | binary-data liability-correlation diagnostics |
+| `probit_liability_r2`, `liability_r2_from_z` | liability-scale explained-variance summaries |
+| `convert_liability_to_aoo`, `liability_threshold` | liability-to-onset and prevalence-to-threshold conversion |
+| `gibbs_params`, `batch_means` | conditional sampler parameters and Monte Carlo SE calculation |
+| `Simulation`, `RegisterSimulation`, `FollowupSimulation`, `MultiTraitSimulation` | simulated records with generating values |
+| `FitResult`, `VarCompResult`, `BootstrapResult`, `PairwiseFitResult`, `MultiTraitPairwiseResult` | parameter-fitting results; their uncertainty describes parameter estimation, not individual liability |
+
+The older array APIs keep their tuple contracts: PA `(est, var)`, Gibbs
+`(est, se)` or `(est, se, var)` with `return_var=True`, and kinship
+`(est, se, var)`. Posterior variance and Monte Carlo SE are distinct quantities.
 
 ## Estimation — `ltpred.estimate`
 
@@ -101,8 +128,7 @@ its zero `se` means no Monte-Carlo noise. See the
 ## Register pipeline — `ltpred.pipeline`
 
 `PopulationScores` and `estimate_liabilities` are installed public APIs and are
-also available as explicit lazy imports from `ltpred`. They are deliberately
-absent from the curated wildcard-import list. Prediction requires per-person
+also available as explicit lazy imports from `ltpred`. They are included in the curated wildcard-import list. Prediction requires per-person
 `birth_time` and per-proband `index_time` on a common numeric calendar scale
 whose unit matches `age`; this is what gives relatives from different birth
 years their correct attained-age censoring landmarks. Structural ancestors in

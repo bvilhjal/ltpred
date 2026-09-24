@@ -23,12 +23,12 @@ error**. Zero Monte-Carlo error does not mean zero approximation error. For a
 single truncation the moments are exact; for several they are the standard
 sequential-selection approximation, which is orders of magnitude faster than Gibbs.
 
-The PA-FGRS component for **age-censored controls** (:func:`_tnorm_mixture`)
+The PA-FGRS component for **age-censored controls** (`_tnorm_mixture`)
 models an as-yet-unaffected relative as a mixture of a true control and a
 not-yet-onset future case, weighted by how far their individual cumulative
 incidence ``K_i`` lags the population lifetime prevalence ``K_pop``. Base PA-FGRS
 uses a lifetime-threshold interval for observed cases; the age-specific case
-intervals emitted by :func:`ltpred.thresholds.pa_thresholds` are the LT-FH++
+intervals emitted by `ltpred.thresholds.pa_thresholds` are the LT-FH++
 interval encoding (LTFHPlus's default ``use_fixed_case_thr = FALSE``), so
 combining them with the mixture is an age-dependent PA-FGRS-style variant.
 """
@@ -224,7 +224,7 @@ def _tnorm_moments_loc(mu, sd, lower, upper):
     """Mean and variance of ``N(mu, sd^2)`` truncated to ``(lower, upper)``.
 
     Returns ``(mu, sd^2)`` for an infinite interval and ``(lower, 0)`` for a
-    point mass. One call into :func:`_std_tnorm_moments` — the sweep used to
+    point mass. One call into `_std_tnorm_moments` — the sweep used to
     evaluate the mean and variance kernels separately on the same interval."""
     if lower == -math.inf and upper == math.inf:
         return mu, sd * sd
@@ -254,7 +254,7 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     ``upper`` only flags a censored control (finite) versus an observed case
     (``+inf``); its exact value is irrelevant in mixture mode, so feeding either the
     lifetime bound ``thr_pop`` or an age-specific bound ``Phi^-1(1 - K_i)`` (as
-    :func:`ltpred.thresholds.pa_thresholds` emits for the no-mixture interval path)
+    `ltpred.thresholds.pa_thresholds` emits for the no-mixture interval path)
     yields the same censored-control moments. Sourcing the split from ``upper``
     instead would double-correct an age-specific bound -- the censoring gets
     encoded twice."""
@@ -336,7 +336,7 @@ def _pa_family_nomix(cov, lower, upper):
     """PA sweep **without** the mixture -- plain truncated-normal moments.
 
     The default fast path: skips all ``K_i``/``K_pop`` handling (no NaN arrays, no
-    per-coordinate mixture branch). Same active-block update as :func:`_pa_family`,
+    per-coordinate mixture branch). Same active-block update as `_pa_family`,
     including the final target-interval update."""
     d = cov.shape[0]
     mu = np.zeros(d)
@@ -545,7 +545,7 @@ def _pa_reduced_nomix(cov, lowers, uppers):
 def _validate_pa_covmat(covmat):
     """Return a supported positive-semidefinite covariance as float64.
 
-    The PA counterpart of the Gibbs gate (:func:`ltpred.gibbs._validate_covmat`),
+    The PA counterpart of the Gibbs gate (`ltpred.gibbs._validate_covmat`),
     with the same scale-relative symmetry tolerance. PA does not require strict
     positive-definiteness; pin conditioning checks singular support and the
     interval fold uses rank-1 updates. It still requires a genuine covariance and positive
@@ -623,7 +623,7 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
                         target: int = 0, K_is: ArrayLike | None = None,
                         K_pops: ArrayLike | None = None
                         ) -> tuple[np.ndarray, np.ndarray]:
-    """Vectorised :func:`pa_algorithm` over families sharing one covariance.
+    """Vectorised `pa_algorithm` over families sharing one covariance.
 
     ``lowers``/``uppers`` are ``(F, d)`` per-family bounds; ``covmat`` is shared.
     Reorders once so the target is row 0, then runs the parallel kernel. When no

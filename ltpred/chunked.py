@@ -102,7 +102,7 @@ def estimate_liability_pa_chunked(roles: Sequence[str], lower: ArrayLike,
 
     Validates the full bound arrays once, then calls the array kernel on slices
     of ``chunk_size`` (default 65536). An in-memory array still holds every
-    bound; stream with :func:`estimate_liability_pa_batches` to avoid that.
+    bound; stream with `estimate_liability_pa_batches` to avoid that.
     One call per role-set. No Monte-Carlo SE.
     """
     chunk_size = _validate_chunk_size(chunk_size)
@@ -138,9 +138,9 @@ def estimate_liability_gibbs_chunked(roles: Sequence[str], lower: ArrayLike,
                                      ) -> tuple[np.ndarray, ...]:
     """Gibbs over row-chunks of one role-set.
 
-    Seeds come from :func:`ltpred.estimate._base_seeds` on the full cohort and
+    Seeds come from `ltpred.estimate._base_seeds` on the full cohort and
     are sliced per chunk, so the draws match
-    :func:`~ltpred.estimate.estimate_liability_gibbs_arrays` at the same
+    `ltpred.estimate.estimate_liability_gibbs_arrays` at the same
     ``seed``. Default ``chunk_size`` is 4096. Returns ``(est, se)``, or
     ``(est, se, var)`` with ``return_var=True``.
     """
@@ -215,7 +215,7 @@ def estimate_liability_gibbs_batches(roles: Sequence[str],
 
     Batch ``n`` at offset ``start`` receives
     ``_base_seeds(seed, n, max_rounds, start=start)``, so concatenating the
-    batches matches :func:`~ltpred.estimate.estimate_liability_gibbs_arrays`
+    batches matches `ltpred.estimate.estimate_liability_gibbs_arrays`
     at the same ``seed``. Returns ``(est, se)``, or ``(est, se, var)`` with
     ``return_var=True``.
     """

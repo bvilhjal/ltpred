@@ -94,7 +94,7 @@ CHECKS = [
     (r"\| Proband 0/1 status \(baseline\) \| ([\d.]+) \|", [("corr_status", 3, 1)]),
     (r"\| Own status only \(no ages; ADuLT's degenerate case\) \| ([\d.]+) \|",
      [("corr_adult", 3, 1)]),
-    (r"\| Relatives only, no role `o` \| ([\d.]+) \|", [("corr_rel", 3, 1)]),
+    (r"\| Relatives only, uninformative `o` \| ([\d.]+) \|", [("corr_rel", 3, 1)]),
     (r"\| Classic LT-FH via PA \(`o` plus `m`, `f`, `s1`\) \| ([\d.]+) \|",
      [("corr_pa", 3, 1)]),
     (r"squared-correlation gain of \$([\d.]+)\\times\$", [("eff_n", 2, 1)]),

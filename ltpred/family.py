@@ -2,8 +2,8 @@
 
 The family-history models condition on a proband plus zero or more relatives,
 each with a ``role`` (``o`` = the proband's own status, ``m``/``f``/``s1``/... =
-relatives) and a liability interval ``(lower, upper)``. A :class:`Member` holds
-one such observed-person record; a :class:`Family` groups records for one proband. The
+relatives) and a liability interval ``(lower, upper)``. A `Member` holds
+one such observed-person record; a `Family` groups records for one proband. The
 genetic-liability row ``g`` is added automatically by the estimator.
 
 Model identity depends on both the bounds and the rows supplied: personalised
@@ -13,7 +13,7 @@ LT-FH.
 
 For a single trait ``lower``/``upper`` are scalars. For the multi-trait model they
 are length-``n_pheno`` sequences (one interval per phenotype, in ``phen_names``
-order). :func:`families_from_columns` builds the list from flat, tibble-style
+order). `families_from_columns` builds the list from flat, tibble-style
 columns -- the shape the R package's ``.tbl`` input uses.
 """
 
@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Optional
+import sys
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -79,7 +80,16 @@ def _is_missing_id(x: object) -> bool:
         x = x.decode("utf-8", "replace")
     if isinstance(x, str):
         return x.strip().lower() in _MISSING_IDS
+    # pandas is optional; a caller supplying NA/NaT has already imported it.
+    pandas = sys.modules.get("pandas")
+    if pandas is not None and (x is pandas.NA or x is pandas.NaT):
+        return True
     return False
+
+
+def _is_missing_parent(pid, index):
+    """Unknown-parent markers; zero remains a valid explicitly listed id."""
+    return _is_missing_id(pid) or (pid in (0, "0") and pid not in index)
 
 
 def _pid_key(pid):
@@ -89,6 +99,9 @@ def _pid_key(pid):
     ``np.int64(1)`` and ``1`` compare equal. Unhashable objects fall back to
     ``str`` rather than crashing the check.
     """
+    if isinstance(pid, str):
+        key = pid.strip()
+        return None if key.lower() in _MISSING_IDS else key
     if _is_missing_id(pid):
         return None
     if isinstance(pid, np.generic):
@@ -109,6 +122,19 @@ def _pid_key(pid):
     return pid
 
 
+def _proband_pid(family):
+    """Preserve personal join keys; family ids are only a pid-free fallback."""
+    own = next((m for m in family.members if m.role == "o"), None)
+    if own is not None and not _is_missing_id(own.pid):
+        return own.pid
+    if any(not _is_missing_id(m.pid) for m in family.members):
+        raise ValueError(
+            f"family {family.fam_id!r} supplies member pids but no proband pid; "
+            "include role 'o' with its pid. For family-history-only prediction, "
+            "retain that row with uninformative (-inf, inf) bounds.")
+    return family.fam_id
+
+
 def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
                           upper: ArrayLike, pid: ArrayLike | None = None,
                           K_i: ArrayLike | None = None,
@@ -118,9 +144,12 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
 
     Mirrors the R ``.tbl`` input (columns ``fam_id``, ``role``, ``lower``,
     ``upper`` and optionally ``pid``). Records sharing a ``fam_id`` become one
-    :class:`Family`; family order follows first appearance. For the multi-trait
+    `Family`; family order follows first appearance. For the multi-trait
     model pass ``lower``/``upper`` as 2-D (rows x phenotypes). ``K_i``/``K_pop`` are
     optional per-row columns for the Pearson-Aitken censored-control mixture.
+    ``pid`` supplies personal join keys and overlap checks; retain the proband
+    as role ``o`` with its pid even when its bounds are uninformative. ``aod``
+    records diagnosis/last-follow-up age for the research age-decay fitter.
     Missing or non-finite numeric ``fam_id`` values are rejected: they cannot
     group records and would otherwise fragment silently into one-member families.
     """

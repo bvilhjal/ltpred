@@ -1,0 +1,47 @@
+[
+  {
+    "case": "moments",
+    "seconds_before": 0.09762345801573247,
+    "seconds_after": 0.0024415000225417316,
+    "speedup": 39.98503260880631,
+    "allocation_before": 13013744,
+    "allocation_after": 1048886,
+    "max_abs_difference": 0.0
+  },
+  {
+    "case": "quadrature",
+    "seconds_before": 0.5431375839980319,
+    "seconds_after": 0.006733292015269399,
+    "speedup": 80.66449260871704,
+    "allocation_before": 1025217,
+    "allocation_after": 457932,
+    "max_abs_difference": 0.0
+  },
+  {
+    "case": "unique",
+    "seconds_before": 0.5535178339923732,
+    "seconds_after": 0.10285008297068998,
+    "speedup": 5.381792780372512,
+    "allocation_before": 1025418,
+    "allocation_after": 465825,
+    "max_abs_difference": 0.0
+  },
+  {
+    "case": "pid",
+    "seconds_before": 0.04679262498393655,
+    "seconds_after": 0.010070208983961493,
+    "speedup": 4.646638918662135,
+    "allocation_before": 1512848,
+    "allocation_after": 1512848,
+    "max_abs_difference": null
+  },
+  {
+    "case": "dense",
+    "seconds_before": 0.00415295799029991,
+    "seconds_after": 0.004452875000424683,
+    "speedup": 0.9326464340238231,
+    "allocation_before": 3858272,
+    "allocation_after": 3858272,
+    "max_abs_difference": 0.0
+  }
+]

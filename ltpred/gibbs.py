@@ -101,7 +101,7 @@ def _std_tnorm_quantile(a, b, u):
     Past ``|z| ~ 38.5`` even the survival scale underflows to exactly 0 and the
     inverse returns an infinity that no clamp can catch (the opposite bound is
     typically infinite too).  Those intervals hand off to
-    :func:`_far_right_std_tnorm_quantile`, mirrored for the left tail.
+    `_far_right_std_tnorm_quantile`, mirrored for the left tail.
     """
     if a >= 0.0:
         sa = _norm_cdf(-a)
@@ -210,8 +210,8 @@ def gibbs_params(covmat: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     This is one ``O(d^3)`` inverse instead of ``d`` size-``(d-1)`` solves
     (``O(d^4)``) -- a few-fold speed-up that matters for multi-trait / large
     pedigrees. Computed once and reused across the convergence loop in
-    :mod:`ltpred.estimate`. Mathematically identical to the conditional-regression
-    form; ``Sigma`` is strictly PD (see :func:`correct_positive_definite`).
+    `ltpred.estimate`. Mathematically identical to the conditional-regression
+    form; ``Sigma`` is strictly PD (see `correct_positive_definite`).
 
     ``covmat`` must be finite, symmetric to ``1e-10`` relative to its largest
     absolute entry, and
@@ -560,7 +560,7 @@ def _validate_burn_in(burn_in):
 
     The sweep kernels loop ``range(-burn_in, n_sim)``, so a negative burn-in
     silently drops initial output rows while ``n_sim`` draws are still credited.
-    As for :func:`_validate_seed`, ``bool`` and non-integers are rejected rather
+    As for `_validate_seed`, ``bool`` and non-integers are rejected rather
     than truncated."""
     if isinstance(burn_in, (bool, np.bool_)) \
             or not isinstance(burn_in, (int, np.integer)):
@@ -601,10 +601,10 @@ def _advance_rng():
 def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
     """Advance many families' truncated-MVN chains in place by ``n_sweeps`` sweeps.
 
-    Unlike :func:`gibbs_estimate_batched` (which runs independent short chains and
+    Unlike `gibbs_estimate_batched` (which runs independent short chains and
     returns their means), this keeps a **persistent** state ``x`` (``F x d``) that
     the caller carries across outer iterations — the data-augmentation step of a
-    variance-component fit (:mod:`ltpred.fit`), where the covariance (hence ``P`` /
+    variance-component fit (`ltpred.fit`), where the covariance (hence ``P`` /
     ``sd``) changes between calls. ``fixed[f, j]`` coordinates (pinned cases) are
     held. The family loop is parallel when Numba is installed and serial otherwise.
     This is an internal fitting primitive; public callers should control
@@ -637,7 +637,7 @@ def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
 def _gibbs_advance_m2(P, sd, lowers, uppers, fixed, x, uniforms, out_m):
     """Random-free kernel: advance and accumulate ``sum_sweep outer(x, x)``.
 
-    Same in-place advance as :func:`_gibbs_advance`, but after each full sweep it
+    Same in-place advance as `_gibbs_advance`, but after each full sweep it
     adds the current state's outer product into ``out_m`` (the caller divides by
     the sweep count). Used by moment-accumulating variance-component fits that
     need the average second moment ``E[x x']`` over the chain, not just draws."""
@@ -663,9 +663,9 @@ def gibbs_advance_moment(P, sd, lowers, uppers, fixed, x, n_sweeps):
     Returns ``out_m[f] = (1/n_sweeps) * sum_sweep outer(x_f, x_f)`` -- the average
     second moment over the chain, the sufficient statistic a moment/EM
     variance-component M-step needs. Far cheaper than calling
-    :func:`gibbs_advance` once per draw and accumulating in Python (one RNG /
+    `gibbs_advance` once per draw and accumulating in Python (one RNG /
     dispatch instead of ``n_sweeps``). ``x`` is carried across calls exactly as
-    for :func:`gibbs_advance`."""
+    for `gibbs_advance`."""
     n_sweeps = int(n_sweeps)
     n_families, d = x.shape
     out_m = np.zeros((n_families, d, d))
@@ -703,7 +703,7 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
     lower, upper : float or (d,) array
         Per-coordinate truncation bounds; scalars are broadcast. Every ``upper``
         must be greater than or equal to its corresponding ``lower``; reversed
-        bounds raise :class:`ValueError`.
+        bounds raise `ValueError`.
     fixed : (d,) bool array, optional
         Coordinates to hold constant instead of resampling. Defaults to
         ``upper - lower < 1e-8`` (a pinned point mass, e.g. an age-of-onset case).
@@ -724,7 +724,7 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
         estimators seed each family inside the parallel kernel and are safe for
         concurrent seeded use.
     params : (P, sd), optional
-        Precomputed :func:`gibbs_params` output; recomputed from ``covmat`` when
+        Precomputed `gibbs_params` output; recomputed from ``covmat`` when
         omitted. The supplied ``covmat`` is still validated because it defines
         the marginal initialisation; ``params`` must have been computed from
         that same matrix.

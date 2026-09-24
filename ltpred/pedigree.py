@@ -1,12 +1,12 @@
 """Discovering relatives from parent-offspring (trio) records.
 
-The role grammar and :func:`~ltpred.covariance.kinship_from_pedigree` start
+The role grammar and `ltpred.covariance.kinship_from_pedigree` start
 from a **specified** pedigree. Register data instead arrive as population-scale
 parent-offspring records (``id, father, mother`` per person), and the pedigree
 must be *discovered*: which people are this proband's relatives, and how are
 they connected? This module builds the parent-child graph once
-(:func:`build_parent_graph`) and then extracts each proband's pedigree by
-breadth-first traversal (:func:`extract_pedigree`) — the graph-based relative
+(`build_parent_graph`) and then extracts each proband's pedigree by
+breadth-first traversal (`extract_pedigree`) — the graph-based relative
 extraction of Pedersen
 et al. (2025, *Front Genet*): a relative is anyone within ``max_degree``
 relationship degrees of the proband.
@@ -24,8 +24,8 @@ relative's mate is distance 3 via the relative's child; they are genetically
 unrelated to the proband but belong to the pedigree (and to the
 spousal-environment component of `fit_variance_components`).
 
-The extracted :class:`Pedigree` carries ``ids``/``father``/``mother`` in the
-exact form :func:`~ltpred.covariance.kinship_from_pedigree` consumes (a parent
+The extracted `Pedigree` carries ``ids``/``father``/``mother`` in the
+exact form `ltpred.covariance.kinship_from_pedigree` consumes (a parent
 outside the records is a founder), plus each member's relationship ``degree``
 from the proband and a ``closure_only`` mask. Extraction then closes on **all
 recorded ancestors** of the set, so the pedigree's kinship is exact for every
@@ -60,7 +60,8 @@ class ParentGraph:
     parents) — the sib edges that make traversal distance equal the standard
     relationship degree (Pedersen et al. 2025). ``n_unresolved_parents``
     counts non-null father/mother values that matched no id; declared-unknown
-    parents (``None``/``nan``) are not counted."""
+    parents (``None``, NaN, pandas NA/NaT or empty/NA strings) are not counted.
+    Zero/``"0"`` is unknown only when it is not an explicitly listed person id."""
     ids: list
     sire: list
     dam: list
@@ -75,7 +76,7 @@ class Pedigree:
     """One proband's extracted pedigree.
 
     ``ids``/``father``/``mother`` feed
-    :func:`~ltpred.covariance.kinship_from_pedigree` directly (parents outside
+    `ltpred.covariance.kinship_from_pedigree` directly (parents outside
     the extracted set are founders). ``degree[i]`` is the relationship-degree
     distance of member ``i`` from the proband (0 = proband).
     ``closure_only[i]`` is true when the member was added only to preserve exact
@@ -102,7 +103,7 @@ def build_parent_graph(ids: Sequence, father: Sequence,
     boundary from an id-format mismatch or a failed join. Raises on duplicate
     ids and on a person recorded as their own parent. (Cycle detection -- a
     person being their own ancestor -- happens in
-    :func:`~ltpred.covariance.kinship_from_pedigree`, which raises on it.)
+    `ltpred.covariance.kinship_from_pedigree`, which raises on it.)
     """
     ids, index, sire, dam, children, n_unresolved = _parent_links(
         ids, father, mother)
@@ -137,7 +138,7 @@ def extract_pedigree(graph: ParentGraph, proband: object,
     included. ``closure_only`` marks ancestors added after the traversal, so a
     downstream scorer can retain them for kinship without automatically using
     their diagnoses. A parent not present in the records at all is an unknown
-    founder, as :func:`~ltpred.covariance.kinship_from_pedigree` expects.
+    founder, as `ltpred.covariance.kinship_from_pedigree` expects.
     """
     if isinstance(max_degree, bool) or not isinstance(max_degree,
                                                        (int, np.integer)):
