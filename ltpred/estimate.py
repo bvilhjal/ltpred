@@ -918,25 +918,44 @@ def _stack_object_members(families, idx, roles, dtype, use_mixture=False):
     """Stack one structure group's member scalars into ``(F, len(roles))`` arrays.
 
     ``roles`` is the group's user-role key (no ``g``). Missing ``o`` is not
-    inserted here — `_align_to_cov` fills it as unbounded."""
+    inserted here — `_align_to_cov` fills it as unbounded. One pass over each
+    family's members against a role→column map (no per-family role dict, no
+    per-cell scalar setitems — the PA object path spent most of its time in
+    those). Bounds that are already scalars go straight into the row lists;
+    anything else falls back to `_scalar_member_bounds`, so the public shape
+    error is unchanged."""
     F, k = len(idx), len(roles)
     lowers = np.empty((F, k), dtype=dtype)
     uppers = np.empty((F, k), dtype=dtype)
     K_is = np.empty((F, k), dtype=dtype) if use_mixture else None
     K_pops = np.empty((F, k), dtype=dtype) if use_mixture else None
+    column = {role: j for j, role in enumerate(roles)}
+    scalar = (float, int, np.floating, np.integer)
     pids = []
     for slot, f in enumerate(idx):
         fam = families[f]
-        by_role = {m.role: m for m in fam.members}
-        for j, role in enumerate(roles):
-            member = by_role[role]
-            lowers[slot, j], uppers[slot, j] = _scalar_member_bounds(
-                member, fam.fam_id)
+        lo_row = [0.0] * k
+        hi_row = [0.0] * k
+        if use_mixture:
+            ki_row = [np.nan] * k
+            kp_row = [np.nan] * k
+        for member in fam.members:
+            j = column[member.role]
+            lo, hi = member.lower, member.upper
+            if isinstance(lo, scalar) and isinstance(hi, scalar):
+                lo_row[j], hi_row[j] = float(lo), float(hi)
+            else:
+                lo_row[j], hi_row[j] = _scalar_member_bounds(member, fam.fam_id)
             if use_mixture:
-                K_is[slot, j] = (np.nan if member.K_i is None
-                                 else float(member.K_i))
-                K_pops[slot, j] = (np.nan if member.K_pop is None
-                                   else float(member.K_pop))
+                if member.K_i is not None:
+                    ki_row[j] = float(member.K_i)
+                if member.K_pop is not None:
+                    kp_row[j] = float(member.K_pop)
+        lowers[slot] = lo_row
+        uppers[slot] = hi_row
+        if use_mixture:
+            K_is[slot] = ki_row
+            K_pops[slot] = kp_row
         pids.append(_proband_pid(fam))
     return lowers, uppers, K_is, K_pops, pids
 

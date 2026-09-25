@@ -31,6 +31,12 @@ version is 0 the public API may still change between minor releases.
 - `construct_covmat_multi` builds one k×k shared-DNA fraction table instead
   of re-running the role regexes for every phenotype pair (T2-13); the matrix
   is reproduced element for element.
+- The PA object path stacks each structure group's members in one pass with
+  per-family row assignment instead of 2·F·k scalar setitems and a per-family
+  role dict (T1-4) — 1.22× end-to-end on a 20,000-family four-structure
+  cohort here, against the review's fused-probe 1.34–1.38× on its cohorts.
+  `est`/`var` bit-identical; non-scalar bounds still hit
+  `_scalar_member_bounds`, so the public shape error is unchanged.
 
 ### Fixed
 
