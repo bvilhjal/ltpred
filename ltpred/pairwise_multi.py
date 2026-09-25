@@ -28,8 +28,8 @@ from .estimate import (_assert_nonempty_families, _check_unique_roles,
                        _group_by_structure, _validate_multitrait_bounds)
 from .fit import (_component_matrix, _assert_common_thresholds,
                   _assert_nonoverlapping_pids, _assert_population_case_rate,
-                  _validate_population_sampling, _validate_weights,
-                  _validate_update_controls)
+                  _member_bounds, _validate_population_sampling,
+                  _validate_weights, _validate_update_controls)
 from .pairwise import _cluster_sandwich
 
 __all__ = ["MultiTraitPairwiseResult", "fit_pairwise_multi"]
@@ -160,7 +160,16 @@ def _covariance_basis(components, p):
     return order, offset, basis
 
 
-def _prepare_multi_pairs(families, components, p, order, weights):
+def _prepare_multi_pairs(families, components, p, order, weights, member_bounds):
+    """Aggregate pair counts from pre-stacked, role-sorted member bounds.
+
+    ``member_bounds`` is `_member_bounds`'s ``(lo, hi, roles, fam_index)``
+    output — stacked family-major with members sorted by role within each
+    family, so each structure group's rows are one fancy index and the
+    case/observed masks are vectorised instead of re-derived per member.
+    ``thresholds[a]`` keeps the per-member loop's semantics: the value of the
+    *last* observed member in (family, role) order."""
+    lo_all, hi_all, _roles, fam_index = member_bounds
     patterns, counts, groups, thresholds = [], [], [], np.full(p, np.nan)
     lookup = {}
     n_pairs = 0
@@ -169,17 +178,20 @@ def _prepare_multi_pairs(families, components, p, order, weights):
         k = len(roles)
         kernels = {c: _component_matrix(roles, c) for c in components}
         kernels["E"] = np.eye(k)
-        cases = np.zeros((len(indices), p*k), dtype=bool)
-        observed = np.zeros_like(cases)
-        for slot, fi in enumerate(indices):
-            for i, member in enumerate(sorted(families[fi].members, key=lambda m: m.role)):
-                lo, hi = np.asarray(member.lower), np.asarray(member.upper)
-                cases[slot, i::k] = np.isfinite(lo)
-                observed[slot, i::k] = np.isfinite(lo) | np.isfinite(hi)
-                for a in range(p):
-                    if observed[slot, a*k+i]:
-                        thresholds[a] = lo[a] if cases[slot, a*k+i] else hi[a]
         indices = np.asarray(indices, dtype=int)
+        starts = np.searchsorted(fam_index, indices, side="left")
+        rows = (starts[:, None] + np.arange(k)).ravel()
+        lo = lo_all[rows].reshape(len(indices), k, p)
+        hi = hi_all[rows].reshape(len(indices), k, p)
+        case = np.isfinite(lo)
+        observed = case | np.isfinite(hi)
+        cases = case.transpose(0, 2, 1).reshape(len(indices), p * k)
+        observed = observed.transpose(0, 2, 1).reshape(len(indices), p * k)
+        for a in range(p):
+            where = np.argwhere(observed[:, a*k:(a+1)*k])
+            if len(where):
+                slot, i = where[-1]
+                thresholds[a] = lo[slot, i, a] if case[slot, i, a] else hi[slot, i, a]
         pairs = []
         for u in range(p*k):
             a, i = divmod(u, k)
@@ -210,6 +222,14 @@ def _prepare_multi_pairs(families, components, p, order, weights):
     return design, np.asarray(counts), pair_thresholds, groups, n_pairs
 
 
+#: Cross-call memo for `_probability_limits`. The bisection is a deterministic
+#: function of ``(t1, t2, eps)``, but it costs a 32-step bisection per sign per
+#: distinct threshold pair (two adaptive quads a step) — 22% of a multi-trait
+#: fit — and `bootstrap_fit` repays it B+1 times on inputs that never change
+#: between resamples of one cohort. Keyed by eps, then by the float pair.
+_PROBABILITY_LIMITS_MEMO = {}
+
+
 def _probability_limits(thresholds, eps):
     """Locate safe trial-step continuation points without flooring any cell.
 
@@ -217,10 +237,10 @@ def _probability_limits(thresholds, eps):
     Leave a large floating-point margin for optimization; the returned fit is
     always re-evaluated with the unextended probability and score.
     """
-    cache = {}
+    memo = _PROBABILITY_LIMITS_MEMO.setdefault(float(eps), {})
     for t1, t2 in thresholds:
         key = (float(t1), float(t2))
-        if key in cache:
+        if key in memo:
             continue
         limits = []
         for sign in (-1., 1.):
@@ -238,8 +258,8 @@ def _probability_limits(thresholds, eps):
                 else:
                     hi = value
             limits.append(sign*lo)
-        cache[key] = limits
-    return np.asarray([cache[tuple(t)] for t in thresholds])
+        memo[key] = limits
+    return np.asarray([memo[(float(t1), float(t2))] for t1, t2 in thresholds])
 
 
 def _multi_criterion(values, thresholds, design, counts, rho_limits=None):
@@ -341,13 +361,17 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
     if not families:
         raise ValueError("fit_pairwise_multi needs at least one family")
     _assert_nonempty_families(families)
-    _check_unique_roles(families)
+    _check_unique_roles(families, check_pids=False)
     _assert_nonoverlapping_pids(families, "fit_pairwise_multi")
     p = np.asarray(families[0].members[0].lower).size
     if p < 2:
         raise ValueError("fit_pairwise_multi needs at least 2 traits")
     _validate_multitrait_bounds(families, p)
-    _assert_common_thresholds(families, p, context="fit_pairwise_multi")
+    # Stack the member bounds once for both threshold guards and the pair
+    # aggregation (three separate O(members x traits) scans otherwise).
+    member_bounds = _member_bounds(families, p)
+    _assert_common_thresholds(families, p, context="fit_pairwise_multi",
+                              member_bounds=member_bounds)
     names = [f"phenotype{i+1}" for i in range(p)] if phen_names is None else list(phen_names)
     if len(names) != p:
         raise ValueError("phen_names length must match number of traits")
@@ -358,10 +382,11 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
     if np.any(w == 0):
         raise ValueError("IPW weights span too wide a numerical range")
     _assert_population_case_rate(families, p, context="fit_pairwise_multi",
-                                 weights=None if weights is None else w)
+                                 weights=None if weights is None else w,
+                                 member_bounds=member_bounds)
     order, offset, basis = _covariance_basis(components, p)
     design, counts, thresholds, groups, n_pairs = _prepare_multi_pairs(
-        families, components, p, order, w)
+        families, components, p, order, w, member_bounds)
     probability_limits = _probability_limits(thresholds, eps)
     n, d = len(families), len(order)
     def matrices(x):

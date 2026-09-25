@@ -138,22 +138,25 @@ def estimate_liability_gibbs_chunked(roles: Sequence[str], lower: ArrayLike,
                                      ) -> tuple[np.ndarray, ...]:
     """Gibbs over row-chunks of one role-set.
 
-    Seeds come from `ltpred.estimate._base_seeds` on the full cohort and
-    are sliced per chunk, so the draws match
+    Seeds come from `ltpred.estimate._base_seeds` per chunk at the chunk's
+    global offset — the same values slicing a full-cohort seed array would
+    give, so the draws match
     `ltpred.estimate.estimate_liability_gibbs_arrays` at the same
-    ``seed``. Default ``chunk_size`` is 4096. Returns ``(est, se)``, or
+    ``seed`` without materialising the O(F) seed array (the one place the
+    module's bounded-memory promise did not hold; 400 MB at F = 50M).
+    Default ``chunk_size`` is 4096. Returns ``(est, se)``, or
     ``(est, se, var)`` with ``return_var=True``.
     """
     chunk_size = _validate_chunk_size(chunk_size)
     coord = _single_out(out)
     roles, lower, upper = _prepare_role_arrays(roles, lower, upper)
     F = lower.shape[0]
-    seeds = _base_seeds(seed, F, max_rounds)
     est, se = np.empty(F), np.empty(F)
     var = np.empty(F) if return_var else None
     for sl in _row_slices(F, chunk_size):
+        seeds = _base_seeds(seed, sl.stop - sl.start, max_rounds, start=sl.start)
         e, s, v = _gibbs_from_role_arrays(
-            roles, lower[sl], upper[sl], h2, [coord], seeds[sl],
+            roles, lower[sl], upper[sl], h2, [coord], seeds,
             tol, n_sim, burn_in, max_rounds, c2=c2, m2=m2)
         est[sl], se[sl] = e[:, 0], s[:, 0]
         if return_var:

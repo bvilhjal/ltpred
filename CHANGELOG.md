@@ -31,6 +31,17 @@ version is 0 the public API may still change between minor releases.
 - `construct_covmat_multi` builds one k×k shared-DNA fraction table instead
   of re-running the role regexes for every phenotype pair (T2-13); the matrix
   is reproduced element for element.
+- The fitters share one stacked member-bounds array across the threshold
+  guards and pair aggregation instead of three O(members × traits) scans
+  (T2-6), `fit_pairwise_multi` stops re-running the within-family pid pass its
+  overlap guard already covers (T2-5, one keyword matching the other fitters),
+  and `_probability_limits` memoises its bisection across calls keyed by
+  `(t1, t2, eps)` (T2-7) — the guard itself is unchanged; a `bootstrap_fit`
+  over multi-trait fits no longer repays it per replicate. Fits bit-identical.
+- `estimate_liability_gibbs_chunked` builds each chunk's seeds from its global
+  offset instead of materialising the full O(F) seed array (T3-13) — the one
+  place the chunking module's bounded-memory promise did not hold (400 MB at
+  F = 50M). Same seeds, so draws are bit-identical.
 - The PA object path stacks each structure group's members in one pass with
   per-family row assignment instead of 2·F·k scalar setitems and a per-family
   role dict (T1-4) — 1.22× end-to-end on a 20,000-family four-structure

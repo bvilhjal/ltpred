@@ -30,8 +30,8 @@ from scipy.special import ndtr
 from .estimate import _assert_nonempty_families, _check_unique_roles, _group_by_structure
 from .fit import (_validate_components, _component_matrix, _assert_common_thresholds,
                   _assert_nonoverlapping_pids, _assert_population_case_rate,
-                  _validate_population_sampling, _validate_weights,
-                  _validate_update_controls)
+                  _member_bounds, _validate_population_sampling,
+                  _validate_weights, _validate_update_controls)
 
 __all__ = ["PairwiseFitResult", "fit_pairwise"]
 
@@ -250,7 +250,9 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
     if not families:
         raise ValueError("fit_pairwise needs at least one family")
     _assert_nonoverlapping_pids(families, "fit_pairwise")
-    _assert_common_thresholds(families, 1, context="fit_pairwise")
+    member_bounds = _member_bounds(families, 1)
+    _assert_common_thresholds(families, 1, context="fit_pairwise",
+                              member_bounds=member_bounds)
     if weights is None:
         normalized_weights = np.ones(len(families))
     else:
@@ -259,7 +261,8 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
         if np.any(normalized_weights == 0):
             raise ValueError("IPW weights span too wide a numerical range to retain positive contributions")
     _assert_population_case_rate(families, 1, context="fit_pairwise",
-                                 weights=None if weights is None else normalized_weights)
+                                 weights=None if weights is None else normalized_weights,
+                                 member_bounds=member_bounds)
     threshold, design, counts, groups, n_pairs = _prepare_pairs(
         families, components, normalized_weights)
     n, p = len(families), len(components)

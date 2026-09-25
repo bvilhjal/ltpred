@@ -203,9 +203,13 @@ _CASE_RATE_Z_TOL = 6.0
 def _member_bounds(families, n_pheno):
     """Every member's bounds as ``(M, n_pheno)`` arrays, plus roles and family index.
 
-    Scalars broadcast across traits; the per-member fallback raises the same
-    shape error ``np.broadcast_to`` gives for a wrong-length bound."""
-    members = [(f, m) for f, family in enumerate(families) for m in family.members]
+    Rows are stacked family-major with members **sorted by role** within each
+    family, so consumers with the same per-family ordering (`fit_pairwise`'s
+    pair aggregation) can index their rows directly. Scalars broadcast across
+    traits; the per-member fallback raises the same shape error
+    ``np.broadcast_to`` gives for a wrong-length bound."""
+    members = [(f, m) for f, family in enumerate(families)
+               for m in sorted(family.members, key=lambda m: m.role)]
     shape = (len(members), n_pheno)
     try:
         lo = np.asarray([m.lower for _, m in members], dtype=float)
@@ -221,7 +225,8 @@ def _member_bounds(families, n_pheno):
             np.fromiter((f for f, _ in members), dtype=np.intp, count=len(members)))
 
 
-def _assert_population_case_rate(families, n_pheno, *, context, weights=None):
+def _assert_population_case_rate(families, n_pheno, *, context, weights=None,
+                                 member_bounds=None):
     """Check the observed case rate against the one the thresholds assert.
 
     ``sampling="population"`` was an honour system: it checked a string, not the
@@ -253,7 +258,8 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None):
     ``(sum w)^2 / sum w^2``, so heavy weights widen the tolerance instead of
     manufacturing significance.
     """
-    lo_all, hi_all, roles, fam_index = _member_bounds(families, n_pheno)
+    lo_all, hi_all, roles, fam_index = (member_bounds if member_bounds is not None
+                                        else _member_bounds(families, n_pheno))
     w = (np.ones(len(roles)) if weights is None
          else np.asarray(weights, dtype=float)[fam_index])
     # after _assert_common_thresholds: finite lower => case, finite upper =>
@@ -328,7 +334,7 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None):
         "is a real fix. See benchmarks/RESULTS.md, ascertainment section.")
 
 
-def _assert_common_thresholds(families, n_pheno, *, context):
+def _assert_common_thresholds(families, n_pheno, *, context, member_bounds=None):
     """Reject person-specific liability bounds in the pooled-moment fitters.
 
     The Haseman-Elston fixed point pools cross-products across families and reads
@@ -347,7 +353,8 @@ def _assert_common_thresholds(families, n_pheno, *, context):
     friends) are unaffected -- they *condition* on a supplied ``h2`` rather than
     fitting it, and personalised bounds are exactly what they are designed for.
     """
-    lo_all, hi_all, _roles, _fam_index = _member_bounds(families, n_pheno)
+    lo_all, hi_all, _roles, _fam_index = (member_bounds if member_bounds is not None
+                                          else _member_bounds(families, n_pheno))
     if not lo_all.size:
         return
     # Structural bounds validation runs first so a NaN or reversed interval gets
@@ -573,9 +580,11 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     _check_unique_roles(families, check_pids=False)
     _assert_nonempty_families(families)
     _assert_nonoverlapping_pids(families, "fit_heritability")
-    _assert_common_thresholds(families, 1, context="fit_heritability")
+    member_bounds = _member_bounds(families, 1)
+    _assert_common_thresholds(families, 1, context="fit_heritability",
+                              member_bounds=member_bounds)
     _assert_population_case_rate(families, 1, context="fit_heritability",
-                                 weights=weights)
+                                 weights=weights, member_bounds=member_bounds)
     trace, samples, est, se = _fit_component_engine(
         families, ("A",), np.array([h2_init]), n_iter=n_iter,
         burn_in=burn_in, inner_sweeps=inner_sweeps, damp=damp, seed=seed,
@@ -876,10 +885,12 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
     _check_unique_roles(families, check_pids=False)
     _assert_nonempty_families(families)
     _assert_nonoverlapping_pids(families, "fit_variance_components")
-    _assert_common_thresholds(families, 1, context="fit_variance_components")
+    member_bounds = _member_bounds(families, 1)
+    _assert_common_thresholds(families, 1, context="fit_variance_components",
+                              member_bounds=member_bounds)
     _assert_population_case_rate(families, 1,
                                  context="fit_variance_components",
-                                 weights=weights)
+                                 weights=weights, member_bounds=member_bounds)
     C = len(comps)
     _trace, samples, est, se = _fit_component_engine(
         families, comps, np.full(C, 0.5 / C), n_iter=n_iter,
