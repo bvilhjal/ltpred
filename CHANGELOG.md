@@ -6,6 +6,20 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+## 0.7.4 — 2026-09-25
+
+### Documentation
+
+- Consolidate onboarding into Getting started and the executable tutorial.
+  Move model/fitter selection into Scoring/Fitting; retain the vignette's tested
+  numerical examples as Numerical checks, with `examples/validation.py` and
+  the corresponding tests. Keep short notices at the old guide/vignette URLs.
+- Shorten the web model reference; keep full derivations in the methods PDF
+  and dated measurements in the benchmark ledger. Remove historical reviews
+  and project plans from site navigation/search while retaining their sources.
+- Correct stale genetic-correlation, personal-ID and report-version guidance;
+  use the standardised inbred target variance in the numerical-check caveat.
+
 ### Performance
 
 - Certify register kinship once instead of re-validating it per proband

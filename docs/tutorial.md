@@ -6,8 +6,10 @@ Copy the page into a script, or paste one block at a time.
 `tests/test_tutorial.py` re-runs the blocks and checks the printouts.
 
 Steps 1–4 are one disease. Step 5 is two traits. The
-[method guide](guide.md) is the decision table for a real table. Contracts
+[scoring reference](estimation.md#choose-a-scoring-model) is the decision table for a real table. Contracts
 this tutorial simplifies are at the end.
+
+**Table 1. The five steps and their numerical checks.**
 
 | step | question | the printout should show |
 |---|---|---|
@@ -300,13 +302,11 @@ below is a real decision, with the page that carries it.
   [Ascertainment](inference.md#ascertained-samples).
 - **The score is not a risk.** It is a posterior mean liability. A GWAS joins
   it on the returned proband ids and residualises the design covariates.
-  [Estimation](estimation.md), [vignette](vignette.md).
+  [Estimation](estimation.md), [analysis choices](quickstart.md#choose-the-analysis).
 
-## Where to go next
+## Continue with your data
 
-| you want to… | see |
-|---|---|
-| which function to call on your own table | [Choose a method](guide.md) |
-| six hand-typed rows | [Quickstart](quickstart.md) |
-| the full contract | [Vignette](vignette.md) |
-| the checklist before a real analysis | [Assumptions](assumptions.md) |
+Use [Data preparation](data-preparation.md) for your columns and thresholds,
+[Scoring](estimation.md) for model choice and outputs, and [Fitting](inference.md)
+for covariance estimation. The [analysis checklist](assumptions.md) covers the
+real-data assumptions simplified here.

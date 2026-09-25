@@ -6,7 +6,7 @@ change without notice. It is exercised by its own tests (`research/tests`, run
 by a CI job) and imported by five benchmark scripts, so it stays importable from
 a source checkout as `research.<module>` with the repository root on `sys.path`.
 The [`research/` README](https://github.com/bvilhjal/ltpred/blob/main/research/README.md)
-inventories the modules and the [roadmap](ROADMAP.md#graduation-rule) states
+inventories the modules and the [roadmap](https://github.com/bvilhjal/ltpred/blob/main/docs/ROADMAP.md#graduation-rule) states
 when a capability graduates into `ltpred` proper.
 
 This page documents the models behind those modules. The supported core is

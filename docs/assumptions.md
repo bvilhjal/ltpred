@@ -98,7 +98,7 @@ the assumed prevalence already inflates `h²` by +0.48
 
 ## Real-data checklist
 
-First pick a **use** ([vignette](vignette.md) Table 1): **I** family-history
+First pick a **use** ([Getting started](quickstart.md#choose-the-analysis), Table 1): **I** family-history
 risk prediction (own status out; optional PGS afterwards), **II** a
 quantitative GWAS phenotype (own status in), or **III** architecture /
 relationships / aetiology from `h²`, `r_g`, residual `r_e` and/or the CIP. Use III can skip

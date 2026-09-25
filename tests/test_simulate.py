@@ -24,7 +24,7 @@ def test_seeded_draws_use_a_canonical_factorisation():
     ``Generator.multivariate_normal`` factors the covariance with an SVD, and
     an SVD has no canonical sign: the same seed drew different families on
     different LAPACK builds, which silently invalidated every figure quoted
-    from a seeded run (docs/vignette.md). The draws must come from the unique
+    from a seeded run (docs/validation.md). The draws must come from the unique
     Cholesky factor instead -- pinned here so a refactor cannot quietly go
     back to the platform-dependent path.
     """

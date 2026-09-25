@@ -1,16 +1,8 @@
-"""Every figure quoted in docs/vignette.md comes from examples/vignette.py.
+"""Keep the simulation figures in docs/validation.md tied to the example.
 
-The page states numbers -- correlations, variance decompositions, calibration
-rates -- as if a reader could reproduce them by running the script. Nothing
-used to check that, and every one of them drifted: they had been produced on a
-machine whose LAPACK gave ``rng.multivariate_normal`` a different (equally
-valid) sign convention, so the same seed simulated different families. That is
-fixed in ``ltpred.simulate`` (see ``_stable_factor``); this module keeps the
-page and the script from separating again for any other reason.
-
-Each check names the page's own rounding, and passes when the page's literal is
-what the live value rounds to at that precision -- so a real drift fails while a
-last-digit difference in the page's formatting does not.
+The checks use the page's rounding, so numerical drift fails while harmless
+last-digit formatting differences do not. Seeded simulation uses a stable factor
+to avoid platform-dependent LAPACK sign choices changing these cohorts.
 """
 from __future__ import annotations
 
@@ -23,8 +15,8 @@ import re
 import pytest
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
-_VIGNETTE = _ROOT / "docs" / "vignette.md"
-_SCRIPT = _ROOT / "examples" / "vignette.py"
+_PAGE = _ROOT / "docs" / "validation.md"
+_SCRIPT = _ROOT / "examples" / "validation.py"
 
 # Cohorts the page names but the figures dict does not carry.
 TETRACHORIC_COHORT = 25_000
@@ -33,8 +25,8 @@ N_RISK_REPLICATES = 10
 
 @pytest.fixture(scope="module")
 def figures():
-    """Run examples/vignette.py once and return the figures it computed."""
-    spec = importlib.util.spec_from_file_location("_vignette_example", _SCRIPT)
+    """Run examples/validation.py once and return the figures it computed."""
+    spec = importlib.util.spec_from_file_location("_validation_example", _SCRIPT)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     with contextlib.redirect_stdout(io.StringIO()):
@@ -43,7 +35,7 @@ def figures():
 
 @pytest.fixture(scope="module")
 def page():
-    return _VIGNETTE.read_text(encoding="utf-8")
+    return _PAGE.read_text(encoding="utf-8")
 
 
 # (pattern, [(key, decimals, scale), ...]) -- one capture group per key.
@@ -122,7 +114,7 @@ CHECKS = [
 
 def _quoted_matches(page, pattern, keys, figures):
     match = re.search(pattern, page)
-    assert match is not None, f"docs/vignette.md no longer contains {pattern!r}"
+    assert match is not None, f"docs/validation.md no longer contains {pattern!r}"
     assert len(match.groups()) == len(keys), pattern
     for text, (key, decimals, scale) in zip(match.groups(), keys):
         live = figures[key] / scale
@@ -130,7 +122,7 @@ def _quoted_matches(page, pattern, keys, figures):
         # The page's literal must be what `live` rounds to at `decimals`.
         tolerance = 0.5 * 10.0 ** -decimals + 1e-9
         assert abs(live - quoted) <= tolerance, (
-            f"docs/vignette.md quotes {key} as {text}; examples/vignette.py "
+            f"docs/validation.md quotes {key} as {text}; examples/validation.py "
             f"now gives {live!r}. Re-run the script and update the page."
         )
 

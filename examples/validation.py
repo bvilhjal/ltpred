@@ -1,27 +1,11 @@
-"""Numbers quoted in docs/vignette.md (seed 1). How to run ltpred.
+"""Reproduce the numerical checks in docs/validation.md.
 
-Pipeline (same numbering as the vignette)::
+This script checks simulated scores, covariance fitting, risk calibration and
+calendar/pedigree leakage. It is not a production-analysis template; the runnable
+onboarding example is docs/tutorial.md. main() returns the figures checked by
+tests/test_validation_numbers.py, and also prints intermediate diagnostics.
 
-    0. heritability / covariances
-    1. pedigree
-    2. CIP or lifetime prevalence
-    3. family-history records
-    4. estimate_liability  (+ the "did it work?" checks)
-    5. prediction (I) and/or GWAS (II); aetiology (III) may stop at 0/2
-
-This script demonstrates the pipeline. It is not a production analysis. The opening block
-simulates a nuclear cohort so the later calls have input; on real data,
-skip it and start from your table. Swap the logistic CIP helpers for
-``thresholds_from_cip`` before a real GWAS.
-
-The figures docs/vignette.md quotes come from this script, and
-``tests/test_vignette_numbers.py`` fails if the two drift apart. ``main``
-returns them as a dict for that test (it also prints intermediate lines the
-page does not quote); if you change the script, re-run it and update the page.
-
-Run from the repository root::
-
-    python examples/vignette.py
+Run from the repository root: python examples/validation.py
 """
 from __future__ import annotations
 

@@ -1,10 +1,9 @@
 # Data preparation
 
-How to turn a registry-style status/age table into the inputs `estimate_liability`
-needs: families of members with liability bounds. This page is for uses I and II
-of the [vignette](vignette.md) (prediction and GWAS). Use III may stop at
-heritability / CIP and never build these families. For the end-to-end flow first,
-see the [quickstart](quickstart.md) or the [vignette](vignette.md).
+Turn status, age and relationship records into liability bounds and families.
+For a complete first run, use [Getting started](quickstart.md) or the
+[register tutorial](tutorial.md). Scoring requires these inputs; fitting
+heritability or estimating incidence can be a separate analysis.
 
 ## Inputs
 
@@ -476,6 +475,6 @@ fitter. Keep `phen_names` in column order and any IPW weights in family order
 independence remains a study-design requirement. Identification uses jointly
 observed pairs, so entirely missing relatives add no information. Dropping
 missing observations does not correct informative missingness. The
-[vignette example](vignette.md#joint-heritability-and-geneticenvironmental-correlation)
+[tutorial example](tutorial.md#step-5-two-traits-at-once)
 fits the resulting data; [Inference](inference.md#joint-heritability-and-cross-trait-correlations)
 states the sampling contract and uncertainty limits.

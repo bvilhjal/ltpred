@@ -35,34 +35,37 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
+# One entry point, one worked tutorial, and references organised by task.
+# Historical reviews and maintenance plans stay in the repository, outside search.
+exclude_docs: |
+  reviews/
+  ROADMAP.md
+  PAPER_PLAN.md
+  RELEASING.md
+not_in_nav: |
+  guide.md
+  vignette.md
+  report.md
+
 nav:
   - Overview: index.md
+  - Getting started: quickstart.md
   - Tutorial: tutorial.md
-  - Choose a method: guide.md
-  - Quickstart: quickstart.md
-  - Vignette: vignette.md
-  - Workflow:
+  - Work with data:
       - Data preparation: data-preparation.md
       - CIP estimation: cip-estimation.md
-      - Estimation: estimation.md
-      - Inference: inference.md
-      - Assumptions & checklist: assumptions.md
+      - Scoring: estimation.md
+      - Fitting: inference.md
+      - Analysis checklist: assumptions.md
   - Reference:
-      - Algorithm & model: algorithm.md
-      - Research extensions: research.md
-      - Technical report: report.md
+      - Model and algorithms: algorithm.md
       - API reference: api.md
-  - Project:
-      - Roadmap: ROADMAP.md
-      - Paper plan: PAPER_PLAN.md
-      - Releasing: RELEASING.md
-      - Past reviews (historical):
-          - v0.3.4 (2026-08): reviews/REVIEW_2026-08.md
-          - v0.4.2 (2026-08-28): reviews/REVIEW_2026-09.md
-          - v0.5.1 (2026-09-02): reviews/REVIEW_2026-09b.md
-          - v0.6.2 (2026-09-10): reviews/REVIEW_2026-09c.md
-          - v0.7.0 documentation: reviews/REVIEW_2026-09d.md
-          - v0.7.3 efficiency: reviews/REVIEW_2026-09e.md
+      - Numerical checks: validation.md
+      - Research extensions: research.md
+
+validation:
+  links:
+    anchors: warn
 
 markdown_extensions:
   - admonition

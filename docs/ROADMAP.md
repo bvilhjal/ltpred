@@ -19,7 +19,7 @@ covariances. Numerical, known-truth and replicated coverage checks are recorded
 in the [evidence ledger](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md).
 Broad calibration across rare traits, family structures and sampling designs,
 boundary inference and statistical-efficiency comparisons remain unfinished.
-See the [guide](guide.md),
+See the [analysis choices](quickstart.md#choose-the-analysis),
 [algorithm](algorithm.md), and [assumptions](assumptions.md) for the exact
 contracts.
 

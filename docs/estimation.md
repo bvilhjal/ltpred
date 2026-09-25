@@ -1,8 +1,36 @@
-# Estimation
+# Scoring genetic liabilities
 
 Running the estimator, reading the result, choosing an inference engine, and
 scaling up. Assumes you already have families with liability bounds — see
 [data preparation](data-preparation.md).
+
+## Choose a scoring model
+
+**Table 1. Scoring paths by observation model.**
+
+| use case | bounds and observed-person records | estimator | model |
+|---|---|---|---|
+| no age, with relatives | `prevalence_thresholds`; relatives + identified `o` (uninformative for prediction) | PA or Gibbs | classic LT-FH |
+| additive, noninbred nuclear family; no C/M or mixture | roles `o/m/f/s1/s2/…`, `0 <= h2 < 1` | quadrature, with refinement diagnostics | same no-mixture posterior as Gibbs, integrated numerically |
+| personalised CIP, with relatives | `thresholds_from_cip(…, case_mode="pin")`; relatives + identified `o` (uninformative for prediction) | PA (default); Gibbs reference | LT-FH++ |
+| personalised CIP, no relatives | same pinned bounds; include role `o` only | PA (default); Gibbs reference | ADuLT |
+| logistic demo ([quickstart](quickstart.md)) | `age_thresholds` with either row pattern above | PA or Gibbs | age-only demonstration, not full LT-FH++ |
+| population register (`ids`/`father`/`mother`) | `estimate_liabilities(…, use="gwas"` or `"prediction")` builds pinned CIP bounds itself | PA | LT-FH++ |
+| arbitrary pedigree kinship | `kinship_from_pedigree` + `estimate_liability_from_kinship` | PA or Gibbs | LT-FH / LT-FH++ |
+| published base PA-FGRS | role/object or kinship API; lifetime bounds from `prevalence_thresholds`; add control-specific `K_i`/`K_pop` from the CIP | PA with `use_mixture=True` | PA-FGRS |
+| age-dependent interval/mixture encoding | `pa_thresholds`, or `thresholds_from_cip(…, case_mode="interval")` | PA with `use_mixture=True` | PA-FGRS-style variant; neither base PA-FGRS nor exact PA-FGRS_ADT |
+| score multiple traits | vector `h2` + genetic and full-liability correlation matrices | Gibbs only | A+E covariance; C/M fitting does not extend this scorer |
+
+In base PA-FGRS, every observed case uses
+`[Φ⁻¹(1 − K_pop), ∞)`. Age-specific incidence enters through the mixture weights
+for censored controls, not through the case threshold. The current convenience
+helpers (`pa_thresholds`, `thresholds_from_cip(case_mode="interval")`) instead
+put cases above their age-of-onset threshold; use them only when
+that age-dependent variant is the intended observation model. Do not label this
+helper encoding PA-FGRS_ADT: it is not a faithful implementation of that published
+specification. The
+[data-preparation page](data-preparation.md#getting-lowerupper-from-status-and-age)
+shows the base recipe explicitly.
 
 ## Building families
 
@@ -19,13 +47,12 @@ families = families_from_columns(
 )
 ```
 
-Rows sharing a `fam_id` become one family; family order follows first appearance,
-and the results come back in that order. You can also build `Family`/`Member`
-objects directly if you prefer. Role `o` is optional: when absent, the estimator
-inserts an uninformative proband-status coordinate. Include `o` for **use II** (a diagnosis-derived GWAS phenotype); omit
-or unbind it for **use I** (predicting/classifying that same diagnosis),
-or the outcome leaks into the score. **Use III** may not call the
-estimator at all; see the [vignette](vignette.md).
+Rows sharing a `fam_id` become one family; output order follows first appearance.
+You can also build `Family`/`Member` objects directly. Include role `o` with its
+own diagnosis for a GWAS phenotype. For prediction, retain `o` and its personal
+`pid`, but give it `(-inf, inf)` bounds. If any relative has a personal ID,
+a missing or unidentified proband row raises rather than substituting `fam_id`.
+Only fully pid-free families may omit `o` and use `fam_id` as the result key.
 
 ## Running the estimator
 
@@ -59,7 +86,7 @@ res = estimate_liability(families, h2=0.5, out=("genetic",))
 
 ## Reading `LiabilityResult`
 
-**Table 1. Liability estimates and method-specific diagnostics.**
+**Table 2. Liability estimates and method-specific diagnostics.**
 
 | field | meaning |
 |---|---|
@@ -132,7 +159,7 @@ family-history analogue of a BLUP / selection-index breeding value (see
   the SNP predicts *inferred additive genetic liability*, not merely the
   observed 0/1 diagnosis — that is where the power gain comes from.
 - **Use III does not need this score.** Liability-scale `h²` / `r_g` and the CIP
-  can stand alone ([vignette](vignette.md) Table 1).
+  can stand alone ([Getting started](quickstart.md#choose-the-analysis), Table 1).
 
 Use II deliberately allows the proband's observed status into the
 phenotype construction. It is **not** a leakage-free disease predictor. When the
@@ -254,7 +281,7 @@ intervals. ltpred requires separate member intervals, so its PA–Gibbs benchmar
 test a different, no-mixture observation model
 ([Hujoel et al. 2020](https://doi.org/10.1038/s41588-020-0613-6)).
 
-**Table 2. Gibbs and PA in the benchmarked comparison.**
+**Table 3. Gibbs and PA in the benchmarked comparison.**
 
 | | Gibbs (`"gibbs"`) | Pearson–Aitken (`"pearson-aitken"`) |
 |---|---|---|
@@ -301,7 +328,7 @@ conditional moments are handled analytically. The ordinary single-trait
 
 For `Family` inputs, numerical controls are `quadrature_atol` and
 `quadrature_max_nodes`; the resulting `LiabilityResult` carries the dictionaries
-in Table 1. The explicit array API uses `atol` and `max_nodes` and returns a
+in Table 2. The explicit array API uses `atol` and `max_nodes` and returns a
 `QuadratureResult`:
 
 ```python
@@ -527,7 +554,7 @@ adjustment or guarantee calibration under other misspecification.
 
 ## Options reference
 
-**Table 3. High-level estimator options.**
+**Table 4. High-level estimator options.**
 
 | option | default | use |
 |---|---:|---|
@@ -553,3 +580,21 @@ Gaussian pedigree model, including inbreeding, using linear person-level storage
 and a bounded relationship cache. Deep, related pedigrees can still require
 substantial recursion work. The default `method="dense"` preserves historical
 seeded draws; the two methods agree in distribution, not draw by draw.
+
+## Coming from LTFHPlus or LTFGRS
+
+`estimate_liability` exists in all three packages with incompatible
+signatures. Role labels are unchanged; the input object and the
+uncertainty column are not.
+
+**Table 5. Equivalent calls and result columns when migrating from R.**
+
+| R | ltpred |
+|---|---|
+| `estimate_liability(.tbl = df, …)` | `families_from_columns(...)`, **then** `estimate_liability(families, h2=…)` |
+| `fam_id =` / `fid =`, `pid =`, `role =` column-name arguments | pass the columns themselves |
+| `$genetic_est` | `res.genetic` |
+| LTFGRS PA `$var` (and its square root) | `res.var["genetic"]` — **not** `res.se`, which is 0 under PA because PA is deterministic |
+| `future::plan(multisession, workers = n)` | `ltpred.set_num_threads(n)` |
+
+ltpred ships no igraph-style pedigree object and no plotting utilities.

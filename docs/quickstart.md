@@ -1,15 +1,26 @@
-# Quickstart
+# Getting started
 
-A runnable tour of the estimator — from a small status/age table to one
-genetic-liability score per proband — on a single page. This is **use II**
-of the [vignette](vignette.md) (a GWAS phenotype, own status in). The data
-below are for demonstration only, not a production analysis. Each step links
-to the deeper reference.
+LTpred estimates posterior mean genetic liability from disease records and family
+relationships. It returns a score per proband, not a SNP polygenic score or an
+absolute disease-risk probability. This page shows the input format and a complete
+six-row example; the [tutorial](tutorial.md) runs a simulated population register.
 
-The six rows below are typed by hand so the input *format* is visible. To run
-the same pipeline on a realistic simulated cohort where the true liabilities are
-known — and to go through CIP estimation, the register driver and the
-prospective use — go to the [tutorial](tutorial.md).
+## Choose the analysis
+
+Table 1 fixes whether the proband's own diagnosis belongs in the score.
+
+**Table 1. Analysis purpose determines the observation set.**
+
+| Purpose | Proband observation | Next step |
+|---|---|---|
+| I. Family-history prediction | Retain role `o` and its personal `pid`, with `(-inf, inf)` bounds; censor relatives at the prediction landmark | [Prospective tutorial](tutorial.md#step-4-score-prospectively-without-the-probands-own-diagnosis) |
+| II. GWAS phenotype | Include the proband's diagnosis | Example below, then [GWAS use](estimation.md#using-the-estimate-in-a-gwas) |
+| III. Estimate model parameters | A score is optional; fitting has its own sampling and identification requirements | [Fit h²/covariances](inference.md) or [estimate CIP](cip-estimation.md) |
+
+For either scoring use, supply disease-specific liability-scale `h2` and population
+prevalence or cumulative incidence. With relatives, common lifetime bounds give
+LT-FH and personalised CIP bounds give LT-FH++; personalised proband-only bounds
+give ADuLT. [Scoring](estimation.md#choose-a-scoring-model) covers engines and PA-FGRS.
 
 ## Install
 
@@ -138,15 +149,9 @@ records are censored at that landmark. The [register recipe](data-preparation.md
 shows a complete call. `result.to_dict()` exports aligned columns;
 `result.to_frame()` additionally requires pandas.
 
-## Where to go next
+## Continue with your data
 
-| you want to… | see |
-|---|---|
-| run the whole pipeline on a realistic **simulated** cohort, with the truth known | [Tutorial](tutorial.md) |
-| learn how to run the pipeline (three uses, then `h²`, pedigree, CIP, family history) | [Vignette](vignette.md) |
-| understand roles, pedigrees, CIPs, real-data prep | [Data preparation](data-preparation.md) |
-| choose Gibbs vs PA, scale to biobank size, multi-trait, GWAS export | [Estimation](estimation.md) |
-| fit `h²`, genetic/residual environmental correlations or A/C/M components | [Inference](inference.md) |
-| know the modelling assumptions & the real-data checklist | [Assumptions & checklist](assumptions.md) |
-| look up a function signature | [API reference](api.md) |
-| the model & estimator maths | [algorithm.md](algorithm.md) |
+[Data preparation](data-preparation.md) owns roles, pedigrees and threshold inputs;
+[Scoring](estimation.md) owns engines, output columns and scaling;
+[Fitting](inference.md) owns covariance estimation and sampling assumptions.
+Read the [analysis checklist](assumptions.md) before applying the example to a cohort.

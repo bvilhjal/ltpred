@@ -1,14 +1,9 @@
-# Inference
+# Fitting model parameters
 
-Beyond estimating each proband's liability, ltpred can **fit the model** from the
-family data: liability-scale heritability, genetic/residual environmental
-correlations and shared-environment covariance components. That is **use III**
-of the [vignette](vignette.md) (architecture),
-under a declared sampling contract — not a side effect of scoring families for
-prediction or a GWAS. It is optional: skip straight to
-[estimation](estimation.md) if you already have an `h²`.
-Unsupported experimental inferential machinery lives in the checkout-only
-`research/` package; see [Unsupported research prototypes](#unsupported-research-prototypes).
+Fit liability-scale heritability, genetic/residual correlations and
+shared-environment covariance from family data under the sampling contract below.
+If you already have these parameters, go to [Scoring](estimation.md).
+Unsupported methods stay in [research extensions](research.md).
 
 !!! danger "Supported sampling contract"
 
@@ -54,6 +49,28 @@ The opt-in [single-trait](#deterministic-pairwise-fitting) and
 conditional, asymptotic family-cluster sampling SEs for interior estimates.
 [`bootstrap_fit`](#family-cluster-uncertainty-bootstrap_fit) provides an
 approximate family-cluster sampling interval when families are independent.
+
+## Choose a fitter
+
+**Table 1. Fitters for independent families with common binary thresholds.**
+
+| fitter | use when | computation and uncertainty |
+|---|---|---|
+| `fit_heritability` | estimate additive h² with no shared-environment component | iterative stochastic moment fit; `bootstrap_fit` supplies family-resampling uncertainty |
+| `fit_variance_components` | distinguish additive, sibship and/or couple components using identifying relationships | iterative stochastic moment fit; family bootstrap for uncertainty |
+| `fit_pairwise` | deterministic A/C/M fitting from binary pair patterns is appropriate | composite likelihood; conditional cluster-sandwich covariance for identifiable interior fits |
+| `fit_pairwise_multi` | jointly estimate trait h², genetic/residual correlations and optional C/M covariance | multivariate pairwise composite likelihood; same identification, sampling and boundary caveats |
+
+All four require common case/control thresholds per trait, identifying observed
+relationship contrasts, and the sampling contract above. Personalised CIP/onset
+bounds are for scoring, not these fits. Use deterministic pairwise fitting when
+its composite-likelihood model answers the question. The stochastic moment
+fitters spend additional time on latent-liability sampling; their `h2_se` measures
+within-dataset Monte Carlo variation, while pairwise sandwich SEs describe
+conditional sampling uncertainty for identifiable interior fits. See the
+[benchmark ledger](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
+for measured recovery and computation; shorter Gibbs schedules need their own
+Monte Carlo precision checks.
 
 ## Fitting heritability from the family data
 
@@ -188,7 +205,7 @@ one explicit lower/upper bound per trait. Thresholds can differ **between
 traits**, but the current implementation requires one common threshold per
 trait across people. Unobserved phenotypes use `(-inf, inf)`.
 See the [input recipe](data-preparation.md#preparing-multiple-traits-for-covariance-fitting)
-and [runnable vignette example](vignette.md#joint-heritability-and-geneticenvironmental-correlation).
+and [tutorial example](tutorial.md#step-5-two-traits-at-once).
 
 ```python
 from ltpred import fit_pairwise_multi

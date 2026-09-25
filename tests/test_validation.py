@@ -1,15 +1,15 @@
-"""Keep the vignette's small public-register example executable."""
+"""Keep the numerical example's small public-register example executable."""
 
 import numpy as np
 
 from _helpers import load_script
 
 
-VIGNETTE = load_script("examples/vignette.py")
+EXAMPLE = load_script("examples/validation.py")
 
 
 def test_register_example_preserves_calendar_and_closure_contracts():
-    gwas, prediction, changed, risk, _ = VIGNETTE.register_example()
+    gwas, prediction, changed, risk, _ = EXAMPLE.register_example()
 
     assert prediction.probands == ["p"]
     np.testing.assert_array_equal(prediction.n_relatives, [3])
@@ -24,9 +24,9 @@ def test_register_example_preserves_calendar_and_closure_contracts():
 
 
 def test_incident_risk_prior_matches_cip_increment_given_survival():
-    risk = VIGNETTE._incident_risk(
-        np.array([0.0]), np.array([VIGNETTE.H2]), cip_at_index=0.02,
-        cip_at_horizon=0.05, h2=VIGNETTE.H2)
+    risk = EXAMPLE._incident_risk(
+        np.array([0.0]), np.array([EXAMPLE.H2]), cip_at_index=0.02,
+        cip_at_horizon=0.05, h2=EXAMPLE.H2)
 
     np.testing.assert_allclose(risk, [(0.05 - 0.02) / (1.0 - 0.02)],
                                rtol=1e-14, atol=0)
