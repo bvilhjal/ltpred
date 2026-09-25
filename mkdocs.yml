@@ -62,6 +62,7 @@ nav:
           - v0.5.1 (2026-09-02): reviews/REVIEW_2026-09b.md
           - v0.6.2 (2026-09-10): reviews/REVIEW_2026-09c.md
           - v0.7.0 documentation: reviews/REVIEW_2026-09d.md
+          - v0.7.3 efficiency: reviews/REVIEW_2026-09e.md
 
 markdown_extensions:
   - admonition
