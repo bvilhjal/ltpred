@@ -238,11 +238,12 @@ multipliers and v0.7.2 are not.
 
 The findings fall into three groups, and they have different characters.
 **T1-1, T1-2 and T2-1 → T2-3 are provenance findings**: the code is fine and the
-claims about it are not reachable. **T1-3, T1-4 and T2-4 → T2-9 are
-implementation findings**: measured avoidable cost in shipping code. **T3-6 →
-T3-11 are measured negatives** — changes that look attractive and are not worth
-making, recorded so the next pass does not repeat the work. All three groups are
-numbered in one sequence by severity, so the identifiers are not grouped.
+claims about it are not reachable. **T1-3, T1-4, T2-4 → T2-13 and T3-12 → T3-14
+are implementation findings**: measured avoidable cost in shipping code. **T3-6 →
+T3-11 and T3-15 are measured negatives** — changes that look attractive and are
+not worth making, recorded so the next pass does not repeat the work. All three
+groups are numbered in one sequence by severity, so the identifiers are not
+grouped.
 
 **T1-1. `docs/estimation.md` describes a v0.4.0 measurement as "current", omits
 that it was taken at four threads, and quotes a ratio whose denominator has
@@ -578,6 +579,102 @@ cases spanning d=6–40 with pins and intervals. The remaining ~30 µs is
 does **not** propose removing — correctly, since those are the checks that make
 the pinned conditioning safe. Numerics-preserving.
 
+**T2-10. The register path still pays three eigendecompositions per proband —
+the count the 2026-09-05 review recorded, unchanged — and 17.6% of degree-3 wall
+time is removable bit-identically.** This is the measurement the v0.7.3 capsule
+asked for when it retained the covariance checks and left the door open.
+
+Counting `np.linalg` calls through the driver gives exactly **3.000 `eigvalsh`
+per proband** (1200 calls over 400 probands). I verified the three sites: the
+relationship-PSD check on `A` at `covariance.py:681` — which also re-symmetrises
+an already-symmetrised matrix via `0.5 * (A + A.T)`, allocating a third n×n copy;
+the positive-definiteness repair gate in `correct_positive_definite`
+(`covariance.py:734`, with `:738` and `:742` on the repair path), invoked from
+`estimate.py:1077`; and the PA input gate at `pearson_aitken.py:570`, **on the
+same array the repair gate has just certified**.
+
+Cumulative ablation, 11 interleaved reps with a duplicate control arm at 0.998×,
+outputs hash-verified identical (`est` SHA-256 equal, `max|Δvar| = 0`): PA gate
+3.0%, plus relationship gate 8.8%, plus repair gate **17.6%** — 739.8 → 608.2 ms
+per 400 probands, 1849 → 1521 µs/proband, 1.216×. At degree 1 it is only ≈2%.
+
+The capsule's objection was that "merely removing these checks is not justified by
+the review's timing percentage", and that objection is fair — so this is not a
+proposal to remove them. It is a proposal to *certify once and trust internally*,
+with every public signature and default unchanged:
+
+1. a private `covariance._kinship_A(sire, dam, order)` taking integer indices,
+   which also removes T2-12;
+2. `construct_covmat_from_kinship(..., _certified_psd=<module-private sentinel>)`
+   skipping the O(n²) checks and `eigvalsh` when the caller produced `A` from a
+   pedigree, where it is PSD by construction;
+3. `pa_estimate_batched(..., _psd_certified=…)` — this one is safe
+   unconditionally and needs no proof, because `correct_positive_definite`
+   already returns min-eig > 1e-8, strictly stronger than the PA gate's
+   ≥ −1e-10·scale;
+4. skipping the repair gate only where the shipped `_covariance_reduction_is_safe(h2, m)`
+   proof — already computed at `pipeline.py:421` — gives min-eig > 1e-6, i.e. 100×
+   the 1e-8 repair threshold.
+
+Both constraints the 2026-09-05 review attached to any reduction hold: pedigree
+extraction/closure and the selected-submatrix reduction are untouched (only
+*certification* changes), and no repair is altered — it is skipped exactly where
+it provably returns its input unchanged, with the `h2`-boundary fallback still
+repairing. **One gap must be closed before landing step 4**: that bound is proved
+for the full pedigree covariance, so it has to be re-derived for the
+`g`-prepended (n+1)×(n+1) matrix; the sub-block follows by Cauchy interlacing,
+but that argument is not written down anywhere yet. Steps 1–3 need no new proof.
+Numerics-preserving.
+
+**T2-11. The dense-versus-selected kinship rule is calibrated in the wrong
+variable.** `pipeline.py:432-433` chooses dense when the selected pairs exceed
+`2m`, which is *linear* in pedigree size. The measured crossover is *quadratic*:
+dense costs ≈ c₁·m + c₂·m² (dominated by `_parent_links` plus the O(m²) fill)
+while warm-selected costs ≈0.6 µs per requested pair, so the true test is
+`pairs ≳ 0.02·m²`, i.e. `n_sel ≳ 0.25·m`. The shipped rule implies
+`n_sel ≈ 2√m`; the two agree only near m ≈ 156, so the driver switches to dense
+about 3.5× too early for small pedigrees and too late for large ones.
+
+On a 20-point (m, n_sel) grid with 5 warm reps and routes verified
+`array_equal`, **7 of 20 cells are mis-selected**, the worst costing **4.07× per
+proband** (m=765, n_sel=63: dense 10.63 ms against selected 2.61 ms). Replacing
+the constant 2 with `pairs > 0.03·m²` fits 18/20 cells; the two misses are within
+1.25× and cost under 1.5 ms.
+
+Two honest limits on this finding. The rule is right where it matters most — on
+the degree-3 register, forcing always-selected is 4.42× *slower*. And the
+end-to-end cost on the standard register is small (degree 1: always-selected
+323.9 ms against heuristic 331.7 ms, 1.024×; degrees 2 and 3 the heuristic is
+correct). So this is a calibration fix for deep-closure pedigrees, not a headline
+win. The 1500-member cap is **not** a defect: in the one cap-binding case built
+(m=1805, n_sel=203) the refused dense route is 2.05× slower than the selected
+route the cap forces. Numerics-preserving.
+
+**T2-12. `_parent_links` re-derives an id→index map that the parent graph
+already holds.** `covariance.py:534`, reached from `pipeline.py:434`, rebuilds
+the mapping per proband, while `extract_pedigree` has just converted indices to
+ids for it. Measured at **23.0% of `kinship_from_pedigree`** (120.2 of 522.0 µs
+per proband at m=121.4, 20 reps) and **5.70% of degree-3 driver wall time**
+(40.9 of 717 ms). The round trip — indices → ids → indices — is the whole cost,
+and step 1 of the T2-10 design removes it. Numerics-preserving.
+
+**T2-13. `construct_covmat_multi` fills the multi-trait covariance entry by
+entry.** `covariance.py:451-470` makes `n_pheno²·k²` calls to `get_relatedness`,
+each costing ~1.0–1.35 µs because it re-runs two `_VALID` fullmatches plus
+`_classify` regexes, and the same role pair is recomputed for every phenotype
+pair. One k×k relatedness table suffices: since
+`get_relatedness(ra, rb, h2) == frac(ra, rb) * h2` with `frac * 1.0` exact,
+building the fraction table once and scaling per phenotype pair reproduces the
+matrix **element-for-element** — verified with `np.array_equal`, not `allclose`.
+On the default family (k=9), 20 reps: 318.0/779.3/1671.3 µs become
+41.6/55.4/90.2 µs, i.e. **7.6× / 14.1× / 18.5×** at n_traits 2/3/5, and 33.6× at
+k=22 with n_traits=5.
+
+Severity is conditional and I want to be precise about why: `_estimate_liability_multi`
+builds this once per structure group (`estimate.py:738`), not once per family, so
+the win only reaches a caller sitting in a resampling loop — a bootstrap over
+multi-trait fits, say. Numerics-preserving.
+
 **T3-1. v0.7.1's headline multipliers have no committed artifact.**
 `CHANGELOG.md:148-159` claims `kinship_from_pedigree` is "25x faster on a
 2,683-person register", the register driver gains "4x throughput on the
@@ -714,6 +811,50 @@ cannot be hoisted without per-thread scratch. These are not comparable to the
 lean-review capsule's PA figures, whose arm was the single-role
 `_adult_full_moments` path rather than the general object path.
 
+**T3-12. `kinship_cache_size=0` is a documented public option with no guard, and
+it is 2,900–6,000× slower than either alternative.** `pipeline.py:158` exposes
+`kinship_cache_size: int = 100_000` and `:194` documents it as bounding "the
+number of ancestor-pair results reused". `_selected_kinship.py:19-21` rejects
+non-integers and negatives, so **zero is accepted** — and with the cache off, the
+continuation-stack recursion is O(depth) *per requested pair* with no reuse. One
+203-member request on a pedigree of m=1805 at depth 1600 took **79,409 ms cold**,
+against 13.2 ms warm and 27.0 ms for the dense route.
+
+The bounded cache is a genuine strength (T2-10's design depends on it), which is
+why the unguarded zero is worth a line: a user reading "set to 0 to save memory"
+gets a 6,000× slowdown rather than an error or a warning. Recommendation: either
+reject zero, or clamp it to a small positive floor with a warning, or document
+that zero disables reuse entirely and is not a memory-saving setting.
+
+**T3-13. `gibbs_chunked` materialises the full O(F) seed array, while its own
+sibling does not.** `chunked.py:151` calls `_base_seeds(seed, F, max_rounds)` on
+the whole cohort; `chunked.py:235`, in the `*_batches` sibling, calls
+`_base_seeds(seed, n, max_rounds, start=start)` per batch. I verified both call
+sites. The cost is 8.0 / 80.0 / 400.0 MB and 6.5 / 82.3 / 460.9 ms at
+F = 1M / 10M / 50M. This is the one place where the module's bounded-memory
+promise does not hold, and the fix is already written 84 lines below it.
+
+**T3-14. `_SelectedKinship.__init__` is eager and O(population) even when no
+proband uses it.** `pipeline.py:301` constructs it unconditionally; the
+constructor runs a full topological rank over every person in the population
+(`_selected_kinship.py:26-42`). Measured at 3.5 / 35.3 / 132.8 / 403.2 ms for
+populations of 12k / 100k / 297k / 744k (5 reps, linear at 0.54 µs/person) — and
+at degree 3 the measured cache occupancy is **0 entries**, because every proband
+takes the dense route. So on the workload the register driver is optimised for,
+this is pure setup cost. Lazy construction on first selected-route use would
+remove it. Numerics-preserving.
+
+**T3-15. The kinship cache is bounded and correctly sized, but not compact.**
+Confirming and quantifying §2's note: entries cost **186.8 / 276.4 / 298.9 bytes**
+at 10k / 100k / 1M entries, roughly 18× an array-backed store, and the cap holds
+exactly (10,000 → 10,000 entries; 100,000 → 100,000). On real registers actual
+occupancy is only 2,620–16,884 entries, i.e. **0.7–4.5 MiB**, so the 18× is
+immaterial in practice. The default cap of 100,000 is also near-optimal: on a
+saturating 300-generation, 3,000-proband workload, cap 10,000 is 1.16× slower and
+cap 1,000,000 is 1.14× slower while holding 553,422 entries and +100 MiB. No
+action recommended; recorded so the "compact storage" half of the 2026-09-05
+advice is answered with a number rather than left open.
+
 ## 5. Recommendations, in priority order
 
 1. **Fuse the three member walks in the PA object path (T1-4).** The largest
@@ -722,65 +863,92 @@ lean-review capsule's PA figures, whose arm was the single-role
    (`estimate.py:915`), whose fusion is already prototyped and verified; keep the
    `_scalar_member_bounds` fallback for non-`float` bounds so the error contract
    holds, and let the mixture path fall through unchanged.
-2. **Dispatch the family-free scalar path in the register driver (T1-3).** Add
+2. **Certify covariance once and trust it internally (T2-10).** 17.6% of degree-3
+   register wall time, bit-identical, and it is the measurement the v0.7.3 capsule
+   asked for. Land steps 1–3, which need no new mathematics — the PA gate is
+   already strictly weaker than what `correct_positive_definite` guarantees. Hold
+   step 4 until the `_covariance_reduction_is_safe` bound is re-derived for the
+   `g`-prepended matrix. Step 1 also removes T2-12 for free.
+3. **Dispatch the family-free scalar path in the register driver (T1-3).** Add
    the `n == 1`, no-mixture, scalar-`h2` branch to
    `estimate_liability_from_kinship`, mirroring `estimate.py:855`. The largest
    per-call ratio measured (~132× per family-free proband) and numerics-preserving
    — but confirm the one-ulp variance difference against the exact-equality tests
    before claiming bit-identity in a changelog.
-3. **Fix `docs/estimation.md:359` (T1-1).** Immediately: delete "current",
+4. **Fix `docs/estimation.md:359` (T1-1).** Immediately: delete "current",
    attribute the grid to v0.4.0, and state four threads. Properly: regenerate
    `bench_scaling.csv` at v0.7.3 through `run_benchmark.py` so it carries a
    manifest row, then requote. Correct `report/ltpred_methods.tex:652-654` and
    rebuild the PDF in the same pass.
-4. **Resolve v0.7.2's orphaned numbers (T1-2, T2-1).** Either promote
+5. **Resolve v0.7.2's orphaned numbers (T1-2, T2-1).** Either promote
    `tmp/lean-review/` into `benchmarks/results/` and link it, or strip the four
    numbers from `CHANGELOG.md:127-133` and keep the qualitative statements.
-5. **Take the three one-line fixes (T2-5, T2-7, T2-9).** `check_pids=False` at
-   `pairwise_multi.py:344`, matching the other three fitters; a cross-call memo on
-   `_probability_limits` keyed by `(float(t1), float(t2), eps)`; and an `F==1`
-   fast branch in the PA reduction. Together these are 43% of the pid prelude,
-   22.3% of a multi-trait fit and 1.19–1.24× on register-style single-family
-   calls, and none changes a number.
-6. **Share one stacked bounds array across the three scans (T2-6).** 45.7% of a
+6. **Take the four one-line fixes (T2-5, T2-7, T2-9, T3-13).** `check_pids=False`
+   at `pairwise_multi.py:344`, matching the other three fitters; a cross-call memo
+   on `_probability_limits` keyed by `(float(t1), float(t2), eps)`; an `F==1` fast
+   branch in the PA reduction; and `_base_seeds(..., start=start)` in
+   `gibbs_chunked`, where the correct call is already written 84 lines below in
+   its own sibling. Together these are 43% of the pid prelude, 22.3% of a
+   multi-trait fit, 1.19–1.24× on register-style single-family calls and 400 MB at
+   F=50M, and none changes a number.
+7. **Recalibrate the dense/selected rule and drop the id round trip (T2-11,
+   T2-12).** `pairs > 0.03·m²` fits 18 of 20 measured cells against the current
+   13; `_parent_links` is 23.0% of `kinship_from_pedigree`. Both are calibration
+   and plumbing rather than headline wins — T2-11 costs only 1.024× end-to-end on
+   the standard register — so schedule them with T2-10 rather than ahead of it.
+8. **Share one stacked bounds array across the three scans (T2-6).** 45.7% of a
    `fit_pairwise_multi` call. Numerics-preserving if call order, and therefore
    exception order, is unchanged.
-7. **Give the fitting guide a cost signal (T2-8).** State in `docs/guide.md:75`
-   that the sampling and deterministic routes differ by ~2 orders of magnitude on
-   a matched cohort, and that `n_iter=1500` is 3× the value the package's own
-   benchmarks use. Do not change the default estimator.
-8. **Generalise `check_evidence.py` past v0.6.1 (T2-2).** Iterate the
-   `benchmarks/results/` capsules instead of naming one; add
-   `pa_array_speedup`; then either police the doc prose or stop repeating ledger
-   numbers in it, so the docstring's invariant holds.
-9. **Restore the driver-capsule series (T2-3).** One `bench_time_memory.py` run
-   across v0.7.2 → v0.7.3, and a `benchmarks/README.md` entry for the 2026-09-24
-   capsule with its microbenchmark scope stated.
-10. **Parallelise `bootstrap_fit` (T2-4)** — but only after re-establishing
+9. **Build the multi-trait relatedness table once (T2-13).** 7.6–18.5× on
+   `construct_covmat_multi`, element-for-element identical. Worth doing when a
+   caller sits in a resampling loop; low priority otherwise, since the estimator
+   builds it once per structure group.
+10. **Give the fitting guide a cost signal (T2-8).** State in `docs/guide.md:75`
+    that the sampling and deterministic routes differ by ~2 orders of magnitude on
+    a matched cohort, and that `n_iter=1500` is 3× the value the package's own
+    benchmarks use. Do not change the default estimator.
+11. **Generalise `check_evidence.py` past v0.6.1 (T2-2).** Iterate the
+    `benchmarks/results/` capsules instead of naming one; add
+    `pa_array_speedup`; then either police the doc prose or stop repeating ledger
+    numbers in it, so the docstring's invariant holds.
+12. **Restore the driver-capsule series (T2-3).** One `bench_time_memory.py` run
+    across v0.7.2 → v0.7.3, and a `benchmarks/README.md` entry for the 2026-09-24
+    capsule with its microbenchmark scope stated.
+13. **Parallelise `bootstrap_fit` (T2-4)** — but only after re-establishing
     bit-identity on a quiet machine. The 3.9× was measured under contention and
     T1-3 is a reminder that an exact-equality claim needs verifying, not
     assuming.
-11. **Polish:** link the external review (T3-2), the `bench_tetrachoric.py:100`
-    label (T3-3), machine-readable thread and load fields in the review-capsule
-    JSONs (T3-4), and tags for v0.7.0 and v0.7.3 (T3-5).
+14. **Guards and polish:** reject or warn on `kinship_cache_size=0` (T3-12, a
+    documented option that is 6,000× slower), construct `_SelectedKinship` lazily
+    (T3-14, up to 403 ms of setup with measured zero occupancy), link the external
+    review (T3-2), the `bench_tetrachoric.py:100` label (T3-3), machine-readable
+    thread and load fields in the review-capsule JSONs (T3-4), and tags for v0.7.0
+    and v0.7.3 (T3-5).
 
-Items 1–2 and 5–6 are the ones that make the package faster; 3–4 and 8–9 make its
-numbers trustworthy; 7, 10 and 11 are disclosure and hygiene. **Only items 1, 2, 5
-and 6 touch code**, and each is numerics-preserving — item 2 through an algebraic
-identity for a 1×1 system rather than a relaxed check.
+Items 1–3 and 6–9 make the package faster; 4–5 and 11–12 make its numbers
+trustworthy; 10, 13 and 14 are disclosure, guards and hygiene. **Every code
+change recommended here is numerics-preserving** — item 3 through an algebraic
+identity for a 1×1 system, item 2 through certifying once rather than relaxing a
+check, and the rest through removing recomputation of values that do not change.
+Item 3 is the only one that is not bit-reproducible, and its one-ulp variance
+difference is stated rather than buried.
 
-Four changes this review explicitly recommends **against**, each measured and
-each rejected on the evidence rather than on principle: reusing the invariant
+Six changes this review explicitly recommends **against**, each measured and each
+rejected on the evidence rather than on principle: reusing the invariant
 eigenbasis inside `gibbs_params` (T3-6 — 9.30× on a stage that is 1.17% of the
 iteration, and not bit-reproducible); restructuring the pairwise criterion to
 skip the discarded Hessian (T3-7 — 0.4% of the fit); **deduplicating PA bound
 rows** (T3-9 — bit-identical but 9.9–15.8% *slower*, despite 20,000 families
 collapsing to 16 distinct rows, because `np.unique(axis=0)` costs more than the
-kernel it removes); and vectorising the per-family Gibbs convergence loop (T3-10 —
-noise at documented defaults, paying off only past ~50 sweeps per family). They
-are recorded so the next efficiency pass does not rediscover them, and T3-9 in
-particular because the analogy with the v0.7.3 quadrature dedup makes it look
-obvious.
+kernel it removes); vectorising the per-family Gibbs convergence loop (T3-10 —
+noise at documented defaults, paying off only past ~50 sweeps per family);
+compacting the kinship cache into an array-backed store (T3-15 — real occupancy
+is 0.7–4.5 MiB, and the current default cap is within 1.16× of optimal in both
+directions); and exploiting Kronecker structure in the multi-trait covariance,
+which cannot be done because **no Kronecker matrix is ever materialised at scale**
+— the only `np.kron` in the package is `simulate.py:860-861`, a 10×10 sigma of
+800 bytes costing 40.7 µs for all four terms. T3-9 is recorded most emphatically
+because the analogy with the v0.7.3 quadrature dedup makes it look obvious.
 
 The efficiency picture itself is good. Three releases of optimisation landed
 with bit-identical or explicitly-disclosed numerical changes, the two structural
@@ -797,16 +965,52 @@ Gibbs conditionals, the Pearson–Aitken recursion, the quadrature engine, the C
 estimators, the fitters, or the tetrachoric and liability-scale helpers; five
 audits in the preceding eight weeks did.
 
-It did not complete a full profiling pass. The **fitting layer** (T1-3, T2-4 →
-T2-8, T3-6, T3-7) and the **inference engines** (T1-4, T2-9, T3-8 → T3-11) are
-both covered, including likelihood-evaluation counts, the per-step covariance
-rebuild, sandwich and bootstrap cost, the absence of finite differences, the PA
-object-path split, single-family call overhead, thread scaling under the
-workqueue lock, and allocation per family. Instrumentation of
-`ltpred/chunked.py`'s memory bounds was still in progress when this report was
-written and is **not** reflected here; this review therefore does not verify that
-the chunked driver's memory is genuinely O(chunk), which is a real gap given the
-module is new since v0.7.0 and advertises bounded memory.
+It did not complete a full profiling pass, but the three arms it did complete
+cover most of the package: the **fitting layer** (T1-3, T2-4 → T2-8, T3-6, T3-7),
+the **inference engines** (T1-4, T2-9, T3-8 → T3-11) and the **covariance,
+kinship, register and chunking layers** (T2-10 → T2-13, T3-12 → T3-15), including
+likelihood-evaluation counts, the per-step covariance rebuild, sandwich and
+bootstrap cost, the absence of finite differences, the PA object-path split,
+single-family call overhead, thread scaling under the workqueue lock, allocation
+per family, eigendecomposition counts through the register driver, the
+dense/selected crossover, cache sizing and bounded-memory behaviour.
+
+`ltpred/chunked.py`'s bounded-memory claim **was** verified and it holds, which
+closes the gap an earlier draft of this report recorded as open. On PA at
+F=2,000,000 with four roles, working-set peak over inputs falls 269.1 MiB
+(`arrays`) → 78.3 (chunk 65,536) → 69.0 (4,096) → 67.9 (256); on Gibbs at
+F=200,000, 104.6 → 35.7 MiB at the default 4,096, with `est`/`se` SHA-256
+identical at every chunk size. The `*_batches` route with a lazy generator peaks
+at 210 MiB against 626 MiB for `arrays`, a 3× reduction, bit-identical when
+replaying the same data. The defaults are well chosen rather than merely safe: PA
+chunk 65,536 was the *fastest* arm measured (1550.5 ms against 1885.4 for
+`arrays`), and Gibbs at 4096 costs ≤5%. The chunk=256 cliff (5636 ms, 3.6×) is
+97% kernel batch inefficiency — the repeated per-chunk covariance build is only
+15.6 µs per chunk, ~3%. Two qualifications belong with that verdict: the one
+genuine O(n) accumulation is `np.concatenate` (`chunked.py:200`, `:251-253`),
+which transiently doubles outputs (a 108 MiB floor against 64 MiB of outputs) and
+is inherent to streaming without a known total; and `gibbs_chunked`'s seed array
+is O(F) outright (T3-13).
+
+Also recorded as measured and *not* defects: no Kronecker matrix is materialised
+at scale anywhere in the package; factorisation reuse in the array path is
+already right (`_condition_pins` runs 15 times for F=100,000, independent of mask
+count, and per-family PA cost amortises 84.8 µs at F=1 → 0.61 µs at F=100k, a
+139× spread — so the register path's waste is repeated *validation*, not repeated
+factorisation); `extract_pedigree` is linear in m with no cliff, and the `str()`
+in its sort key (`pedigree.py:198`) is unmeasurable at 0.95–1.07× between string
+and integer ids.
+
+One efficiency fact worth surfacing for users rather than as a finding:
+`simulate_register_liabilities(method="dense")` is quadratic-to-cubic — 0.41 s and
++287.6 MiB at n=2,983, 10.81 s and +1,533.4 MiB at n=9,100, and 7.1 GB for `A`
+alone at n=29,808 — while `method="mendelian"` is linear at 0.10 s and +14.6 MiB
+for n=9,100 and 0.41 s and +33.0 MiB for n=29,808. The v0.7.3 release notes
+describe `dense` as the default retained for historical seeded draws, which is a
+correct and sufficient reason; but the two-orders-of-magnitude memory difference
+at n≈10,000 is the kind of thing a user simulating a large register would want
+stated at the point of choice. The mendelian path's "bounded ancestor-pair cache"
+is the same `_SelectedKinship` cache (`simulate.py:566-590`), default cap 100,000.
 
 The register-scoring profile split *was* re-derived, and the result is worth
 stating because it is counter-intuitive. At v0.5.2 the 2026-09-05 review measured
