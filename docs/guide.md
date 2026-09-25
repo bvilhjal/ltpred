@@ -83,8 +83,16 @@ Worked rows for your own data start at the
 | `fit_pairwise` | deterministic A/C/M fitting from binary pair patterns is appropriate | composite likelihood; conditional cluster-sandwich covariance for identifiable interior fits |
 | `fit_pairwise_multi` | jointly estimate trait h², genetic/residual correlations and optional C/M covariance | multivariate pairwise composite likelihood; same identification, sampling and boundary caveats |
 
-All four need the sampling contract above. PA is the fast approximate scoring
-default. Quadrature is a deterministic cross-check for its restricted additive
+All four need the sampling contract above. Their cost differs by roughly two
+orders of magnitude: on one matched 3,000-family cohort the sampling route at
+its defaults (`fit_heritability` with `n_iter=1500`, `inner_sweeps=5`) ran
+~200× longer than `fit_pairwise`, and the defaults are 3× the iteration
+controls this package's own benchmarks use — h² has typically settled well
+before them, the extra iterations buy Monte-Carlo precision
+(`docs/reviews/REVIEW_2026-09e.md`, T2-8). The deterministic route is not a
+rough substitute: it returns a family-cluster sandwich SE where the sampling
+fitters' `h2_se` is a within-dataset diagnostic. PA is the fast approximate
+scoring default. Quadrature is a deterministic cross-check for its restricted additive
 nuclear-family model; Gibbs covers the wider and multi-trait scoring models.
 Set `seed` explicitly for reproducible Gibbs estimates; multi-trait requests
 with `method=None` select Gibbs. Non-default sampler controls warn when supplied

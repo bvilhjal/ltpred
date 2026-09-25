@@ -1,0 +1,424 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index edc7cb5..61f6377 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -6,8 +6,20 @@ version is 0 the public API may still change between minor releases.
+ 
+ ## Unreleased
+ 
++### Changed
++
++- Array and chunked estimators share their role/bounds validation; the two
++  pairwise fitters share their family-cluster sampling-covariance calculation.
++  Family grouping uses dictionary insertion order without a second order list.
++- Chunked scoring fills final output arrays directly, avoiding retention and
++  concatenation of every chunk's results. Gibbs retains posterior variances
++  only when `return_var=True`. Public signatures and seeded draws are unchanged.
++
+ ### Fixed
+ 
++- Duplicate-person checks normalize every non-missing `pid` before comparing:
++  `"sib"`, `" sib "` and `b"sib"` identify the same person, as in the fitters.
++  Previously the raw-id shortcut could count these as different relatives.
+ - The vignette's decile calibration picked its top/bottom 400 families with
+   numpy's unstable default sort, over risks with only 8 distinct values, so
+   the observed decile rates differed by platform and numpy version (CI
+diff --git a/ltpred/chunked.py b/ltpred/chunked.py
+index bbafada..fb17c03 100644
+--- a/ltpred/chunked.py
++++ b/ltpred/chunked.py
+@@ -16,10 +16,10 @@ from typing import Any
+ import numpy as np
+ from numpy.typing import ArrayLike
+ 
+-from ._validation import validate_bounds, validate_mixture_inputs
++from ._validation import validate_mixture_inputs
+ from .estimate import (_OUT_NAMES, _base_seeds, _check_unique_role_labels,
+                        _gibbs_from_role_arrays, _pa_from_role_arrays,
+-                       _single_out, _warn_unconverged)
++                       _prepare_role_arrays, _single_out, _warn_unconverged)
+ from .gibbs import as_bounds
+ 
+ __all__ = ["estimate_liability_pa_chunked", "estimate_liability_gibbs_chunked",
+@@ -39,20 +39,6 @@ def _validate_chunk_size(chunk_size):
+     return chunk_size
+ 
+ 
+-def _prepare_role_arrays(roles, lower, upper):
+-    """Validate roles and bound arrays once; return ``(roles, lower, upper)``."""
+-    roles = list(roles)
+-    _check_unique_role_labels(roles)
+-    lower = as_bounds(lower)
+-    upper = as_bounds(upper)
+-    if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
+-        raise ValueError(
+-            f"lower and upper must be (n_families, {len(roles)}) -- one "
+-            f"column per role {roles}; got {lower.shape} and {upper.shape}")
+-    validate_bounds(lower, upper, context="array estimator bounds")
+-    return roles, lower, upper
+-
+-
+ def _row_slices(n, chunk_size):
+     """Yield row slices covering ``n`` families, including a ``(0, 0)`` empty."""
+     if n == 0:
+@@ -62,12 +48,6 @@ def _row_slices(n, chunk_size):
+         yield slice(start, min(start + chunk_size, n))
+ 
+ 
+-def _concat(parts):
+-    if not parts:
+-        return np.empty(0)
+-    return np.concatenate(parts)
+-
+-
+ def _unpack_batch(item):
+     """Parse one stream item as ``(lower, upper, K_i, K_pop)``.
+ 
+@@ -133,7 +113,7 @@ def estimate_liability_pa_chunked(roles: Sequence[str], lower: ArrayLike,
+             K_i, K_pop, expected_shape=lower.shape, require_pair=True,
+             lower=lower, upper=upper,
+             context="array estimator mixture inputs")
+-    est_parts, var_parts = [], []
++    est, var = np.empty(lower.shape[0]), np.empty(lower.shape[0])
+     for sl in _row_slices(lower.shape[0], chunk_size):
+         e, v = _pa_from_role_arrays(
+             roles, lower[sl], upper[sl], h2, [coord],
+@@ -141,9 +121,8 @@ def estimate_liability_pa_chunked(roles: Sequence[str], lower: ArrayLike,
+             K_pop=None if K_pop is None else K_pop[sl],
+             use_mixture=use_mixture, c2=c2, m2=m2,
+             mixture_require_pair=False)
+-        est_parts.append(e[coord])
+-        var_parts.append(v[coord])
+-    return _concat(est_parts), _concat(var_parts)
++        est[sl], var[sl] = e[coord], v[coord]
++    return est, var
+ 
+ 
+ def estimate_liability_gibbs_chunked(roles: Sequence[str], lower: ArrayLike,
+@@ -170,15 +149,15 @@ def estimate_liability_gibbs_chunked(roles: Sequence[str], lower: ArrayLike,
+     roles, lower, upper = _prepare_role_arrays(roles, lower, upper)
+     F = lower.shape[0]
+     seeds = _base_seeds(seed, F, max_rounds)
+-    est_parts, se_parts, var_parts = [], [], []
++    est, se = np.empty(F), np.empty(F)
++    var = np.empty(F) if return_var else None
+     for sl in _row_slices(F, chunk_size):
+         e, s, v = _gibbs_from_role_arrays(
+             roles, lower[sl], upper[sl], h2, [coord], seeds[sl],
+             tol, n_sim, burn_in, max_rounds, c2=c2, m2=m2)
+-        est_parts.append(e[:, 0])
+-        se_parts.append(s[:, 0])
+-        var_parts.append(v[:, 0])
+-    est, se, var = _concat(est_parts), _concat(se_parts), _concat(var_parts)
++        est[sl], se[sl] = e[:, 0], s[:, 0]
++        if return_var:
++            var[sl] = v[:, 0]
+     name = _OUT_NAMES[coord]
+     _warn_unconverged({name: se}, [name], tol, max_rounds, F)
+     if return_var:
+diff --git a/ltpred/estimate.py b/ltpred/estimate.py
+index e8a8dca..767be34 100644
+--- a/ltpred/estimate.py
++++ b/ltpred/estimate.py
+@@ -402,12 +402,7 @@ def _check_unique_roles(families):
+                 f"family {fam.fam_id!r} has duplicate role(s) {dup}; each role "
+                 "names one individual — number repeated relatives (s1, s2, ...).")
+         pids = [m.pid for m in fam.members if m.pid is not None]
+-        try:
+-            clash = len(pids) != len(set(pids))
+-        except TypeError:                  # unhashable pids: compare keys
+-            clash = True
+-        # Normalise only on a raw clash: it can dismiss missing ids ("NA").
+-        keys = [k for k in map(_pid_key, pids) if k is not None] if clash else ()
++        keys = [key for key in map(_pid_key, pids) if key is not None]
+         if len(keys) != len(set(keys)):
+             dup = sorted({repr(k) for k in keys if keys.count(k) > 1})
+             raise ValueError(
+@@ -489,14 +484,12 @@ def _group_by_structure(families):
+     downstream, so order within a family does not matter. Yields
+     ``(role_tuple, [global_index, ...])``."""
+     groups = {}
+-    order = []
+     for i, fam in enumerate(families):
+         key = tuple(sorted(m.role for m in fam.members))
+         if key not in groups:
+             groups[key] = []
+-            order.append(key)
+         groups[key].append(i)
+-    return [(key, groups[key]) for key in order]
++    return list(groups.items())
+ 
+ 
+ def _base_seeds(seed, n, max_rounds, start=0):
+@@ -794,6 +787,20 @@ def _adult_full_moments(lower, upper):
+     return mean, variance
+ 
+ 
++def _prepare_role_arrays(roles, lower, upper):
++    """Validate role columns and bounds; return ``(roles, lower, upper)``."""
++    roles = list(roles)
++    _check_unique_role_labels(roles)
++    lower = as_bounds(lower)
++    upper = as_bounds(upper)
++    if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
++        raise ValueError(
++            f"lower and upper must be (n_families, {len(roles)}) -- one "
++            f"column per role {roles}; got {lower.shape} and {upper.shape}")
++    validate_bounds(lower, upper, context="array estimator bounds")
++    return roles, lower, upper
++
++
+ def _pa_from_role_arrays(roles, lower, upper, h2, out_coords, K_i=None,
+                          K_pop=None, use_mixture=False, c2=None, m2=None,
+                          mixture_require_pair=True):
+@@ -806,15 +813,7 @@ def _pa_from_role_arrays(roles, lower, upper, h2, out_coords, K_i=None,
+     group may legitimately contain no mixture pair of its own (e.g. every
+     family in the group is all-cases), so re-requiring one per group would
+     reject a call the global gate accepted."""
+-    roles = list(roles)
+-    _check_unique_role_labels(roles)
+-    lower = as_bounds(lower)
+-    upper = as_bounds(upper)
+-    if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
+-        raise ValueError(
+-            f"lower and upper must be (n_families, {len(roles)}) -- one "
+-            f"column per role {roles}; got {lower.shape} and {upper.shape}")
+-    validate_bounds(lower, upper, context="array estimator bounds")
++    roles, lower, upper = _prepare_role_arrays(roles, lower, upper)
+     # det(cov[g,o])/trace(cov[g,o]) bounds its smallest eigenvalue. Stay well
+     # above the legacy repair threshold; boundary requests retain that path.
+     if (roles == ["o"] and not use_mixture and c2 in (None, 0) and m2 in (None, 0)
+@@ -855,15 +854,7 @@ def _gibbs_from_role_arrays(roles, lower, upper, h2, out_coords, seeds,
+     """Gibbs estimates for one or more targets on same-structure role arrays.
+ 
+     Returns ``(est, se, var)`` exactly as :func:`_estimate_group` does."""
+-    roles = list(roles)
+-    _check_unique_role_labels(roles)
+-    lower = as_bounds(lower)
+-    upper = as_bounds(upper)
+-    if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
+-        raise ValueError(
+-            f"lower and upper must be (n_families, {len(roles)}) -- one "
+-            f"column per role {roles}; got {lower.shape} and {upper.shape}")
+-    validate_bounds(lower, upper, context="array estimator bounds")
++    roles, lower, upper = _prepare_role_arrays(roles, lower, upper)
+     cov_obj, cov = _single_trait_cov(roles, h2, c2, m2, "Gibbs sampling")
+     lo, hi = _align_to_cov(roles, cov_obj.roles, (lower, upper),
+                            (-np.inf, np.inf))
+diff --git a/ltpred/family.py b/ltpred/family.py
+index 0cd7c3b..8c9abb2 100644
+--- a/ltpred/family.py
++++ b/ltpred/family.py
+@@ -179,19 +179,17 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
+             "records and would silently fragment them into one-member "
+             "families")
+ 
+-    order = []
+     groups = {}
+     for i in range(n):
+         key = fam_id[i]
+         if key not in groups:
+             groups[key] = []
+-            order.append(key)
+         groups[key].append(i)
+ 
+     families = []
+-    for key in order:
++    for key, indices in groups.items():
+         members = []
+-        for i in groups[key]:
++        for i in indices:
+             members.append(Member(role=str(role[i]), lower=lower[i], upper=upper[i],
+                                    pid=(None if pid is None else pid[i]),
+                                    K_i=(None if K_i is None else K_i[i]),
+diff --git a/ltpred/pairwise.py b/ltpred/pairwise.py
+index 7c62684..aacc167 100644
+--- a/ltpred/pairwise.py
++++ b/ltpred/pairwise.py
+@@ -28,7 +28,7 @@ from scipy.optimize import minimize
+ from scipy.special import ndtr
+ 
+ from .estimate import _assert_nonempty_families, _check_unique_roles, _group_by_structure
+-from .fit import (_COMPONENT_OFFDIAG, _component_matrix, _assert_common_thresholds,
++from .fit import (_validate_components, _component_matrix, _assert_common_thresholds,
+                   _assert_nonoverlapping_pids, _assert_population_case_rate,
+                   _validate_population_sampling, _validate_weights,
+                   _validate_update_controls)
+@@ -172,6 +172,33 @@ def _family_scores(groups, cell_scores, weights):
+     return scores * weights[:, None]
+ 
+ 
++def _cluster_sandwich(hessian, groups, cell_scores, weights, at_boundary):
++    """Sampling covariance from independent family scores, or a reason to withhold it."""
++    n, p = len(weights), hessian.shape[0]
++    covariance = np.full((p, p), np.nan)
++    if at_boundary:
++        inference_status = "unavailable_boundary"
++    elif n <= p:
++        inference_status = "unavailable_clusters"
++    else:
++        score = _family_scores(groups, cell_scores, weights)
++        score -= score.mean(axis=0)
++        meat = (score.T @ score) * n / (n - 1)
++        if (not np.all(np.isfinite(hessian)) or np.linalg.eigvalsh(hessian).min() <= 0
++                or np.linalg.matrix_rank(hessian) < p or np.linalg.matrix_rank(meat) < p):
++            inference_status = "unavailable_information"
++        else:
++            left = np.linalg.solve(hessian, meat)
++            covariance = np.linalg.solve(hessian, left.T).T
++            covariance = (covariance + covariance.T) / 2
++            if not np.all(np.isfinite(covariance)) or np.any(np.diag(covariance) < 0):
++                covariance[:] = np.nan
++                inference_status = "unavailable_information"
++            else:
++                inference_status = "interior_cluster_sandwich"
++    return covariance, inference_status
++
++
+ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
+                  sampling: str | None = None, weights: ArrayLike | None = None,
+                  eps: float = 1e-6, maxiter: int = 200,
+@@ -200,16 +227,7 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
+     asymptotic, conditional on the supplied threshold/weights; no ordinary
+     chi-square likelihood-ratio calibration is claimed for this composite fit.
+     """
+-    try:
+-        components = tuple(components)
+-    except TypeError:
+-        raise TypeError("components must be a non-empty sequence") from None
+-    if not components:
+-        raise ValueError("components must contain at least one component")
+-    if any(c not in _COMPONENT_OFFDIAG for c in components):
+-        raise ValueError("unknown component: supported components are A, C, M")
+-    if len(set(components)) != len(components):
+-        raise ValueError("duplicate components")
++    components = tuple(_validate_components(components))
+     _, eps = _validate_update_controls(0.2, eps)
+     if isinstance(maxiter, (bool, np.bool_)):
+         raise TypeError("maxiter must be a positive integer")
+@@ -279,27 +297,8 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
+                     float(np.max(np.maximum(-reduced[~positive], 0))) if np.any(~positive) else 0.)
+     if not np.isfinite(value) or violation > max(1e-5, 10 * math.sqrt(tol)):
+         raise RuntimeError("pairwise optimization failed its constrained score check")
+-    covariance = np.full((p, p), np.nan)
+-    if at_boundary:
+-        inference_status = "unavailable_boundary"
+-    elif n <= p:
+-        inference_status = "unavailable_clusters"
+-    else:
+-        score = _family_scores(groups, cell_scores, normalized_weights)
+-        score -= score.mean(axis=0)
+-        meat = (score.T @ score) * n / (n - 1)
+-        if (not np.all(np.isfinite(hessian)) or np.linalg.eigvalsh(hessian).min() <= 0
+-                or np.linalg.matrix_rank(hessian) < p or np.linalg.matrix_rank(meat) < p):
+-            inference_status = "unavailable_information"
+-        else:
+-            left = np.linalg.solve(hessian, meat)
+-            covariance = np.linalg.solve(hessian, left.T).T
+-            covariance = (covariance + covariance.T) / 2
+-            if not np.all(np.isfinite(covariance)) or np.any(np.diag(covariance) < 0):
+-                covariance[:] = np.nan
+-                inference_status = "unavailable_information"
+-            else:
+-                inference_status = "interior_cluster_sandwich"
++    covariance, inference_status = _cluster_sandwich(
++        hessian, groups, cell_scores, normalized_weights, at_boundary)
+     if inference_status != "interior_cluster_sandwich":
+         warnings.warn("pairwise sampling SEs unavailable: " + inference_status
+                       + "; boundary-aware profile or design-appropriate bootstrap inference needs separate calibration",
+diff --git a/ltpred/pairwise_multi.py b/ltpred/pairwise_multi.py
+index aba7e68..2964d0b 100644
+--- a/ltpred/pairwise_multi.py
++++ b/ltpred/pairwise_multi.py
+@@ -30,7 +30,7 @@ from .fit import (_component_matrix, _assert_common_thresholds,
+                   _assert_nonoverlapping_pids, _assert_population_case_rate,
+                   _validate_population_sampling, _validate_weights,
+                   _validate_update_controls)
+-from .pairwise import _family_scores
++from .pairwise import _cluster_sandwich
+ 
+ __all__ = ["MultiTraitPairwiseResult", "fit_pairwise_multi"]
+ 
+@@ -407,26 +407,7 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
+     # square root when deciding whether an eigenvalue is numerically interior.
+     boundary_tol = max(1e-7, 10*math.sqrt(tol))
+     boundary = bool(np.min(cone(x)) <= boundary_tol)
+-    covariance = np.full((d, d), np.nan)
+-    if boundary:
+-        status = "unavailable_boundary"
+-    elif n <= d:
+-        status = "unavailable_clusters"
+-    else:
+-        scores = _family_scores(groups, cell_scores, w)
+-        scores -= scores.mean(axis=0)
+-        meat = scores.T @ scores * n/(n-1)
+-        if (not np.all(np.isfinite(hessian)) or np.linalg.eigvalsh(hessian).min() <= 0
+-                or np.linalg.matrix_rank(hessian) < d or np.linalg.matrix_rank(meat) < d):
+-            status = "unavailable_information"
+-        else:
+-            left = np.linalg.solve(hessian, meat)
+-            covariance = np.linalg.solve(hessian, left.T).T
+-            covariance = (covariance+covariance.T)/2
+-            status = "interior_cluster_sandwich"
+-            if not np.all(np.isfinite(covariance)) or np.any(np.diag(covariance) < 0):
+-                covariance[:] = np.nan
+-                status = "unavailable_information"
++    covariance, status = _cluster_sandwich(hessian, groups, cell_scores, w, boundary)
+     if status != "interior_cluster_sandwich":
+         warnings.warn("joint pairwise sampling SEs unavailable: " + status,
+                       RuntimeWarning, stacklevel=2)
+diff --git a/tests/test_chunked.py b/tests/test_chunked.py
+index 2e4cfd7..c00b1f4 100644
+--- a/tests/test_chunked.py
++++ b/tests/test_chunked.py
+@@ -40,20 +40,25 @@ def _mixture_bounds(n_control=20, n_case=10):
+ 
+ 
+ @pytest.mark.parametrize("chunk_size", [1, 7, 50, 10 ** 9])
+-def test_pa_chunked_matches_pa_arrays(chunk_size):
++@pytest.mark.parametrize("out", ["genetic", "full"])
++@pytest.mark.parametrize("components", [{}, {"c2": 0.1, "m2": 0.05}])
++def test_pa_chunked_matches_pa_arrays(chunk_size, out, components):
+     roles, lower, upper, _t = _nuclear_bounds(50)
+-    est_a, var_a = estimate_liability_pa_arrays(roles, lower, upper, h2=0.5)
++    est_a, var_a = estimate_liability_pa_arrays(
++        roles, lower, upper, h2=0.5, out=out, **components)
+     est_c, var_c = estimate_liability_pa_chunked(
+-        roles, lower, upper, h2=0.5, chunk_size=chunk_size)
++        roles, lower, upper, h2=0.5, out=out, chunk_size=chunk_size, **components)
+     np.testing.assert_array_equal(est_c, est_a)
+     np.testing.assert_array_equal(var_c, var_a)
+ 
+ 
+ @pytest.mark.jit_required
+ @pytest.mark.parametrize("chunk_size", [1, 7, 10 ** 9])
+-def test_gibbs_chunked_matches_gibbs_arrays(chunk_size):
++@pytest.mark.parametrize("out", ["genetic", "full"])
++def test_gibbs_chunked_matches_gibbs_arrays(chunk_size, out):
+     roles, lower, upper, _t = _nuclear_bounds(12, seed=2)
+-    kwargs = dict(h2=0.5, n_sim=20_000, burn_in=400, seed=3, tol=0.05)
++    kwargs = dict(h2=0.5, c2=0.1, m2=0.05, out=out,
++                  n_sim=20_000, burn_in=400, seed=3, tol=0.05)
+     est_a, se_a = estimate_liability_gibbs_arrays(roles, lower, upper, **kwargs)
+     est_c, se_c = estimate_liability_gibbs_chunked(
+         roles, lower, upper, chunk_size=chunk_size, **kwargs)
+diff --git a/tests/test_estimate.py b/tests/test_estimate.py
+index ac3a412..3d981a1 100644
+--- a/tests/test_estimate.py
++++ b/tests/test_estimate.py
+@@ -990,6 +990,15 @@ def test_same_pid_under_two_roles_is_rejected_but_shared_relatives_are_not():
+     assert estimate_liability(ok, h2=0.5).genetic.shape == (2,)
+ 
+ 
++@pytest.mark.parametrize("method", ["pa", "gibbs", "quadrature"])
++@pytest.mark.parametrize("pid", [" sib ", b"sib", np.bytes_("sib")])
++def test_duplicate_pid_check_uses_normalized_identity(method, pid):
++    family = Family("F", [Member("s1", 1.6, np.inf, pid="sib"),
++                          Member("s2", 1.6, np.inf, pid=pid)])
++    with pytest.raises(ValueError, match="more than once in family"):
++        estimate_liability([family], h2=0.5, method=method)
++
++
+ def test_families_from_columns_rejects_mismatched_bound_shapes():
+     with pytest.raises(ValueError, match="same shape"):
+         families_from_columns(fam_id=[1, 1], role=["o", "m"],

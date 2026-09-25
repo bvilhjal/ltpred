@@ -1,0 +1,75 @@
+{
+  "baseline_commit": "8926f2532c6d4f67c2089b4e68a7a8901977879a",
+  "patch_sha256": "d52dbbf9c411f8ae7398bfe5300cb0b60a4e5d7d65caa515ec6ceb4e1cb7c467",
+  "implementation_lines_removed_net": 52,
+  "scope": "Focused cleanup of scoring wrappers, family grouping, and pairwise uncertainty; normalize duplicate identities before comparing.",
+  "validation": {
+    "baseline_tests": "1149 passed, 1 skipped, 1 xfailed",
+    "candidate_tests": "1173 passed, 1 skipped, 1 xfailed",
+    "jit_disabled_focused_tests": 29,
+    "bit_identical_output_arrays": 39,
+    "large_probe_output_hashes": "identical for both cases",
+    "ruff": "passed",
+    "diff_whitespace": "passed",
+    "strict_docs": "passed",
+    "evidence_checker": "passed",
+    "wheel_and_sdist": "built with setuptools 79.0.1; package source matches checkout",
+    "installed_wheel_smoke": "analytic PA moments, exact-table pairwise fit, duplicate-ID rejection passed"
+  },
+  "measurement_conditions": "AC power, Low Power Mode off; one Numba/BLAS thread; five warm timing repeats after tests completed; memory measured in separate processes. Synthetic single-role allocation probes, not a statistical-accuracy benchmark.",
+  "measurements": {
+    "pa": {
+      "baseline": {
+        "n": 1000000,
+        "options": {
+          "chunk_size": 4096
+        },
+        "peak_allocation_mib": 30.590042114257812,
+        "peak_process_rss_mib": 193.5625,
+        "median_seconds": 0.04869150000740774
+      },
+      "candidate": {
+        "n": 1000000,
+        "options": {
+          "chunk_size": 4096
+        },
+        "peak_allocation_mib": 15.486061096191406,
+        "peak_process_rss_mib": 169.359375,
+        "median_seconds": 0.04692279201117344
+      }
+    },
+    "gibbs": {
+      "baseline": {
+        "n": 50000,
+        "options": {
+          "chunk_size": 512,
+          "n_sim": 20,
+          "burn_in": 0,
+          "seed": 53,
+          "tol": 1000000.0,
+          "max_rounds": 1,
+          "return_var": true
+        },
+        "peak_allocation_mib": 2.8526992797851562,
+        "peak_process_rss_mib": 137.84375,
+        "median_seconds": 0.8783543750178069
+      },
+      "candidate": {
+        "n": 50000,
+        "options": {
+          "chunk_size": 512,
+          "n_sim": 20,
+          "burn_in": 0,
+          "seed": 53,
+          "tol": 1000000.0,
+          "max_rounds": 1,
+          "return_var": true
+        },
+        "peak_allocation_mib": 1.6557788848876953,
+        "peak_process_rss_mib": 137.09375,
+        "median_seconds": 0.8468881669978146
+      }
+    }
+  },
+  "timing_interpretation": "Similar runtime in these short local probes; no general speedup claim."
+}

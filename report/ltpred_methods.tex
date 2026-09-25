@@ -651,7 +651,10 @@ speed-up of PA over grouped Gibbs at four threads.
 That includes Python-side assembly.
 The array path, on already-aligned inputs, ran at $2.02$--$6.29$
 million families per second in the same warmed run---another
-$13$--$29\times$ over the object path.
+$13$--$29\times$ over the object path as measured at v0.4.0
+on four threads. The grid has not been re-measured since, and
+v0.7.1 made the object-path denominator $1.69\times$ faster,
+so the ratio on the current tree is nearer $8$--$17\times$.
 Those array rates are a hot-kernel measurement, not end-to-end
 register ingestion.
 Neither set of timings establishes throughput for the per-proband

@@ -1,0 +1,50 @@
+{
+  "source": "/private/var/folders/06/ywn4v62s19334z9f6svdg599thwl04/T/ltpred-lean-bv42sbjq/baseline",
+  "mode": "memory",
+  "case": "gibbs",
+  "n": 50000,
+  "python": "3.14.6",
+  "numpy": "2.4.6",
+  "scipy": "1.18.0",
+  "numba": "0.66.0",
+  "options": {
+    "chunk_size": 512,
+    "n_sim": 20,
+    "burn_in": 0,
+    "seed": 53,
+    "tol": 1000000.0,
+    "max_rounds": 1,
+    "return_var": true
+  },
+  "source_sha256": {
+    "fit.py": "a9ebc0eea6df17885c18d2058aa08c3caa81ff54aacfc7e6a12a685f7bbef428",
+    "thresholds.py": "5481e76471bd2febb868e777d6ed784e9052452b4db62cbe5203efb0b90f0fe9",
+    "_numba.py": "d05a0f5f1711ec03d819d42200026e34bb424dd9f866ce201b17103f83035cbc",
+    "tetrachoric.py": "997c3fff04f472dae1ba2a5ed602874b391f2ddb325547a60bf1404cf475301d",
+    "quadrature.py": "c9934600ea029b678772063c83fa2adeaf8efe1b81239240eff7aa9eaf186256",
+    "liability_scale.py": "761387ea02287836ba3c95b34458126a3054c00a4af62789fabce80af3a34c28",
+    "simulate.py": "6e388ab49f288dca39e1021f3c9859de3aa656e176a8a1166ac0ed89729ee892",
+    "_mathfun.py": "68ac769608cad3d3cdb3590c47ee62e0d219748d28cfbf4bb478ac6df02bd3f1",
+    "covariance.py": "75ecda13cfe609452fb529e465669fa452cf9626592699d18d6ad6e49cce9fcd",
+    "chunked.py": "c585ff2c3a2508b61ee740086c125a75060158179e9ade3372d73eac86bb6eb1",
+    "pairwise_multi.py": "b3d51d1b6fc19ac5e7d6165260662996d91968a87dab040aed7d52ec519d2caf",
+    "pedigree.py": "9af5af93b215447b0de7656c7d5a1f1b4a7f0690f3e80ad507d4be21d83a9afb",
+    "__init__.py": "3731ef97bc4ed3e1bc1bf46e1384f36f5b7c8b417f3c4a32a71d1277ff55c041",
+    "_selected_kinship.py": "d330cd133973e0ece1ebed207c183277e40962bae0ca2690374bef7e78ecc23e",
+    "gibbs.py": "06f5a1725eb0de20d1ef76f2a233f76bccb27ae9926c2b4272c57b1a976cb78d",
+    "cip.py": "5a2890446d96223f9155c5c4b33dcf69a1f469e081c41e7397ace83aa0f7e8c6",
+    "pairwise.py": "f69da9524c9a0790f5fbcb7c9ceaa8943f96d556f8c01183746881fbc3dcc919",
+    "pearson_aitken.py": "fcf7aa74b568eb80c927eb509a439762e98228372a1fea7924e94063cb0a704d",
+    "_validation.py": "e30598be92eb924b2850188381ed21cb6da14894439a5641ee1dc171c2336ef9",
+    "pipeline.py": "0c14cf48cb9e77f9890adc746cc75ea0fe3ea19a3c2b1c2c5cfc260c5f1b66ea",
+    "estimate.py": "01030b4865e5c6ed4185e52ba64fc41c3980fbb0d76ccd5d3c764c481f275b9b",
+    "family.py": "8a8f3fec8295f2658ff00f65c82b794aad09f3b26634bf5a732a700829c9c7c6"
+  },
+  "peak_allocation_mib": 2.8526992797851562,
+  "peak_process_rss_mib": 137.84375,
+  "output_hashes": [
+    "4db530b742be15c93966cfcc0bc1a95147d4ba21cb0da90af0a45313e4bd7c65",
+    "f3bc4af5de0cbefb24613214b5e8606ff4b0804a825412c25a05582560e7bd44",
+    "66080e94d3fad1a29b5881bcc12f8ae886e31a23ee6d5e33a0efb60924456c5f"
+  ]
+}

@@ -4,7 +4,12 @@
 The evidence ledger (``benchmarks/RESULTS.md``), the static paper tables the
 methods report inputs, the report source and the tracked PDF must agree with
 the committed CSV and JSON artifacts. Prose elsewhere links to the ledger
-instead of repeating its numbers, so it is not pinned here.
+instead of repeating its numbers, so it is not pinned here -- with one
+exception: ``docs/estimation.md`` repeats the array-API speedup and
+throughput ranges, so those two numbers and their vintage attribution are
+pinned against the CSV by ``check_scaling_prose``. Every committed
+``results.json`` capsule additionally carries its own integrity check
+(``check_capsule_integrity``), not just the v0.6.1 rerun.
 """
 
 import csv
@@ -21,6 +26,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "benchmarks" / "RESULTS.md"
+DOCS_ESTIMATION = ROOT / "docs" / "estimation.md"
+SCALING_CSV = ROOT / "benchmarks" / "bench_scaling.csv"
 REPORT_TEX = ROOT / "report" / "ltpred_methods.tex"
 REPORT_PDF = REPORT_TEX.with_suffix(".pdf")
 
@@ -90,6 +97,62 @@ def check_scaling():
             f"{lo:.0f}--{hi:.0f}$\\times$")
     require(REPORT_TEX, f"${lo:.0f}$--${hi:.0f}\\times$")
     return speed_range, lo, hi
+
+
+def check_scaling_prose():
+    """Pin the array-API prose in docs/estimation.md to the scaling CSV.
+
+    The one doc that repeats ledger numbers rather than linking them, so its
+    rounded ranges, its thread count and its vintage attribution are asserted
+    here: a regenerated grid cannot silently strand the sentence (review
+    2026-09e, T1-1)."""
+    rows = csv_rows("bench_scaling.csv")
+    speed = [float(row["pa_array_speedup"]) for row in rows]
+    throughput = [float(row["fam_per_s_pa_array"]) for row in rows]
+    assert all(int(row["threads"]) == 4 for row in rows), "scaling grid is no longer a four-thread measurement"
+    require(DOCS_ESTIMATION,
+            f"{min(speed):.0f}–{max(speed):.0f}× faster than the object path at "
+            f"{min(throughput) / 1e6:.2f}–{max(throughput) / 1e6:.2f} million")
+    grid_commit = last_commit(SCALING_CSV)
+    tag_commit = subprocess.run(
+        ["git", "rev-parse", "v0.4.0^{commit}"], cwd=ROOT, check=True,
+        capture_output=True, text=True).stdout.strip()
+    if grid_commit != tag_commit:
+        raise AssertionError(
+            "bench_scaling.csv was regenerated after v0.4.0: re-quote "
+            "docs/estimation.md and report/ltpred_methods.tex from the new "
+            "grid (and update this pin)")
+    require(DOCS_ESTIMATION, "shipped with v0.4.0 (four threads")
+    require(REPORT_TEX, "as measured at v0.4.0", "on four threads")
+    return f"{min(speed):.1f}–{max(speed):.1f}× (v0.4.0 prose pinned)"
+
+
+def check_capsule_integrity():
+    """Every committed results.json capsule: internal hash and one thread.
+
+    Generalises the v0.6.1-only discipline (review 2026-09e, T2-2): each
+    capsule must carry its own SHA-256 in provenance.json when one exists,
+    and must record single-threaded measurement variables."""
+    capsules = sorted((ROOT / "benchmarks" / "results").glob("*/results.json"))
+    assert capsules, "no results.json capsules under benchmarks/results/"
+    for artifact_path in capsules:
+        provenance_path = artifact_path.parent / "provenance.json"
+        if provenance_path.exists():
+            provenance = json.loads(read(provenance_path))
+            digest = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+            assert digest == provenance["results_sha256"], (
+                f"{artifact_path.parent.name}: results.json does not match its "
+                "recorded SHA-256")
+        artifact = json.loads(read(artifact_path))
+        threads = artifact.get("thread_variables")
+        if threads:
+            assert set(threads.values()) == {"1"}, (
+                f"{artifact_path.parent.name}: not a one-thread measurement")
+        guard = artifact.get("power_guard")
+        if guard:
+            assert guard.get("status") == "passed", (
+                f"{artifact_path.parent.name}: power guard not passed")
+    return [path.parent.name for path in capsules]
 
 
 def check_pa_robustness():
@@ -431,6 +494,8 @@ def check_time_memory_rerun():
 def main():
     version, release_date = version_and_date()
     scaling = check_scaling()
+    scaling_prose = check_scaling_prose()
+    capsules = check_capsule_integrity()
     pa_robust = check_pa_robustness()
     cc, en, n_fam = check_ipw()
     r_lock = check_r_lock()
@@ -444,7 +509,9 @@ def main():
         f"IPW {cc}/{en} (N={n_fam:,}); "
         f"R locks {r_lock['details']['gibbs']} and {r_lock['details']['pa']}; "
         f"PGS {pgs['headline']}; {table_cells} paper-table cells; "
-        f"time/memory {len(time_memory)} matched cases; PDF v{version}."
+        f"time/memory {len(time_memory)} matched cases; array-API prose "
+        f"{scaling_prose}; {len(capsules)} integrity-checked capsules; "
+        f"PDF v{version}."
     )
 
 

@@ -51,6 +51,29 @@ version is 0 the public API may still change between minor releases.
 
 ### Fixed
 
+- `docs/estimation.md` and the methods report no longer describe the v0.4.0
+  array-API scaling grid as "current": the 13–29× / 2.02–6.29 M families/s
+  figures are now attributed to their tag and four-thread measurement, with
+  the object-path denominator's v0.7.1 speedup (1.69×) noted so the honest
+  current ratio (≈8–17×) is derivable. `scripts/check_evidence.py` pins those
+  two numbers and the attribution against `bench_scaling.csv` — the one doc
+  that repeats ledger numbers — and now integrity-checks every committed
+  `results.json` capsule (hash plus one-thread provenance) instead of only
+  the v0.6.1 rerun (T1-1, T2-2).
+- v0.7.2's Performance wall-clock figures had no committed artifact; the
+  bullets are restated qualitatively and the surviving development capsule
+  is promoted to `benchmarks/results/2026-09-23-lean-v072/` with its actual
+  (allocation) scope stated and linked from `benchmarks/README.md`, which
+  also now lists the 2026-09-24 v0.7.3 microbenchmark capsule, names the
+  external 2026-09-05 efficiency review as the design rationale for
+  `_selected_kinship`/`pairwise`/`quadrature`, and records that no driver
+  capsule yet spans v0.7.2 → v0.7.3 (one should be run before the next
+  release) (T1-2, T2-1, T2-3, T3-2).
+- The fitting guide states the ~two-orders-of-magnitude cost difference
+  between the sampling and deterministic routes and that the sampler's
+  default 1500 iterations is 3× the package's own benchmark controls (T2-8);
+  `bench_tetrachoric.py`'s console output says "the 4,000-family subset"
+  rather than "the same families" (T3-3).
 - `estimate_liabilities` warns that `kinship_cache_size=0` disables
   ancestor-pair reuse entirely (T3-12): it is thousands of times slower on
   deep pedigrees and saves no meaningful memory, so it is not the
@@ -176,11 +199,17 @@ version is 0 the public API may still change between minor releases.
 
 - `estimate_liabilities` validates each CIP curve once per call instead of
   once per proband, and computes GWAS-mode bounds once for all records
-  (scores bit-identical). With a 100,001-point curve, 1,000 probands took
-  1.32 s before and 0.90 s after, the same as with a 121-point curve.
-- `estimate_liability_gibbs_batches` builds only the current batch's seeds from
-  its global offset (same seeds). Seed bookkeeping for 1,000 batches of 1,000
-  families fell from 2.4 s and 23 MiB to 5 ms.
+  (scores bit-identical): a 100,001-point curve then costs the same as a
+  121-point curve.
+- `estimate_liability_gibbs_batches` builds only the current batch's seeds
+  from its global offset (same seeds), so seed setup no longer scales with
+  the virtual cohort.
+
+  The wall-clock figures originally quoted here had no committed artifact
+  (the development capsule that survives covers the chunked kernels'
+  *allocation* measurements instead —
+  `benchmarks/results/2026-09-23-lean-v072/README.md`), so they are restated
+  qualitatively.
 
 ## 0.7.1 — 2026-09-23
 

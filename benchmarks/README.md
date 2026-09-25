@@ -80,6 +80,21 @@ numerically identical, just slower). Each script takes CLI flags (`--reps`,
 The latest committed comparison is [v0.7.1 versus v0.7.0](results/2026-09-23-time-memory-v071/README.md),
 covering matched graph, PA and register-scoring workloads. These are
 historical source-bound measurements, not timings of the current tree.
+No driver capsule spans v0.7.2 → v0.7.3 yet; one should be run through
+`run_benchmark.py` before the next release so this series stays unbroken.
+
+[v0.7.3's microbenchmark capsule](results/2026-09-24-review/README.md)
+(quadrature moments, bound-row dedup, pid normalisation, Mendelian
+simulation) is workload-specific evidence for that release's changes on a
+shared host, not a host-isolated speed ranking and not an end-to-end
+register measurement. The [v0.7.2 lean-cleanup capsule](results/2026-09-23-lean-v072/README.md)
+measures the chunked kernels' allocation on synthetic probes and makes no
+general speedup claim.
+
+The design rationale and measured folds behind `_selected_kinship`,
+`pairwise.py` and `quadrature.py` come from the external efficiency review
+of 2026-09-05 (`../ltpred-efficiency-review-2026-09-05/REVIEW.md`, a sibling
+checkout outside this repository whose capsule is retained there, not here).
 
 The earlier [v0.6.1 rerun against v0.6.0](results/2026-09-09-time-memory-v061-rerun/README.md)
 covers two parent-graph sizes, four PA batches of 200,000 families, and a small

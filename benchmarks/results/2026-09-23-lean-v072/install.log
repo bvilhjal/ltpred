@@ -1,0 +1,4 @@
+WARNING: The directory '/Users/au507860/Library/Caches/pip' or its parent directory is not owned or is not writable by the current user. The cache has been disabled. Check the permissions and owner of that directory. If executing pip with sudo, you should use sudo's -H flag.
+Processing ./tmp/lean-review/dist/ltpred-0.7.1-py3-none-any.whl
+Installing collected packages: ltpred
+Successfully installed ltpred-0.7.1

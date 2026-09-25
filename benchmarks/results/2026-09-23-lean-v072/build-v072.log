@@ -1,0 +1,156 @@
+running bdist_wheel
+running build
+running build_py
+copying ltpred/fit.py -> build/lib/ltpred
+copying ltpred/thresholds.py -> build/lib/ltpred
+copying ltpred/_numba.py -> build/lib/ltpred
+copying ltpred/tetrachoric.py -> build/lib/ltpred
+copying ltpred/quadrature.py -> build/lib/ltpred
+copying ltpred/liability_scale.py -> build/lib/ltpred
+copying ltpred/simulate.py -> build/lib/ltpred
+copying ltpred/_mathfun.py -> build/lib/ltpred
+copying ltpred/covariance.py -> build/lib/ltpred
+copying ltpred/chunked.py -> build/lib/ltpred
+copying ltpred/pairwise_multi.py -> build/lib/ltpred
+copying ltpred/pedigree.py -> build/lib/ltpred
+copying ltpred/__init__.py -> build/lib/ltpred
+copying ltpred/_selected_kinship.py -> build/lib/ltpred
+copying ltpred/gibbs.py -> build/lib/ltpred
+copying ltpred/cip.py -> build/lib/ltpred
+copying ltpred/pairwise.py -> build/lib/ltpred
+copying ltpred/pearson_aitken.py -> build/lib/ltpred
+copying ltpred/_validation.py -> build/lib/ltpred
+copying ltpred/pipeline.py -> build/lib/ltpred
+copying ltpred/estimate.py -> build/lib/ltpred
+copying ltpred/family.py -> build/lib/ltpred
+running egg_info
+writing ltpred.egg-info/PKG-INFO
+writing dependency_links to ltpred.egg-info/dependency_links.txt
+writing requirements to ltpred.egg-info/requires.txt
+writing top-level names to ltpred.egg-info/top_level.txt
+reading manifest file 'ltpred.egg-info/SOURCES.txt'
+reading manifest template 'MANIFEST.in'
+no previously-included directories found matching 'benchmarks'
+no previously-included directories found matching 'report'
+adding license file 'LICENSE'
+writing manifest file 'ltpred.egg-info/SOURCES.txt'
+copying ltpred/py.typed -> build/lib/ltpred
+installing to build/bdist.macosx-11.0-arm64/wheel
+running install
+running install_lib
+creating build/bdist.macosx-11.0-arm64/wheel
+creating build/bdist.macosx-11.0-arm64/wheel/ltpred
+copying build/lib/ltpred/fit.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/thresholds.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/_numba.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/tetrachoric.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/quadrature.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/liability_scale.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/simulate.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/_mathfun.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/covariance.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/chunked.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/pairwise_multi.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/pedigree.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/__init__.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/_selected_kinship.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/gibbs.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/cip.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/pairwise.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/pearson_aitken.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/_validation.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/pipeline.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/estimate.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/family.py -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+copying build/lib/ltpred/py.typed -> build/bdist.macosx-11.0-arm64/wheel/./ltpred
+running install_egg_info
+Copying ltpred.egg-info to build/bdist.macosx-11.0-arm64/wheel/./ltpred-0.7.2-py3.10.egg-info
+running install_scripts
+creating build/bdist.macosx-11.0-arm64/wheel/ltpred-0.7.2.dist-info/WHEEL
+creating '/Users/au507860/REPOS/ltpred/tmp/lean-review/dist/.tmp-97za9xty/ltpred-0.7.2-py3-none-any.whl' and adding 'build/bdist.macosx-11.0-arm64/wheel' to it
+adding 'ltpred/__init__.py'
+adding 'ltpred/_mathfun.py'
+adding 'ltpred/_numba.py'
+adding 'ltpred/_selected_kinship.py'
+adding 'ltpred/_validation.py'
+adding 'ltpred/chunked.py'
+adding 'ltpred/cip.py'
+adding 'ltpred/covariance.py'
+adding 'ltpred/estimate.py'
+adding 'ltpred/family.py'
+adding 'ltpred/fit.py'
+adding 'ltpred/gibbs.py'
+adding 'ltpred/liability_scale.py'
+adding 'ltpred/pairwise.py'
+adding 'ltpred/pairwise_multi.py'
+adding 'ltpred/pearson_aitken.py'
+adding 'ltpred/pedigree.py'
+adding 'ltpred/pipeline.py'
+adding 'ltpred/py.typed'
+adding 'ltpred/quadrature.py'
+adding 'ltpred/simulate.py'
+adding 'ltpred/tetrachoric.py'
+adding 'ltpred/thresholds.py'
+adding 'ltpred-0.7.2.dist-info/licenses/LICENSE'
+adding 'ltpred-0.7.2.dist-info/METADATA'
+adding 'ltpred-0.7.2.dist-info/WHEEL'
+adding 'ltpred-0.7.2.dist-info/top_level.txt'
+adding 'ltpred-0.7.2.dist-info/RECORD'
+removing build/bdist.macosx-11.0-arm64/wheel
+ltpred-0.7.2-py3-none-any.whl
+running sdist
+running egg_info
+writing ltpred.egg-info/PKG-INFO
+writing dependency_links to ltpred.egg-info/dependency_links.txt
+writing requirements to ltpred.egg-info/requires.txt
+writing top-level names to ltpred.egg-info/top_level.txt
+reading manifest file 'ltpred.egg-info/SOURCES.txt'
+reading manifest template 'MANIFEST.in'
+no previously-included directories found matching 'benchmarks'
+no previously-included directories found matching 'report'
+adding license file 'LICENSE'
+writing manifest file 'ltpred.egg-info/SOURCES.txt'
+running check
+creating ltpred-0.7.2
+creating ltpred-0.7.2/ltpred
+creating ltpred-0.7.2/ltpred.egg-info
+copying files to ltpred-0.7.2...
+copying CHANGELOG.md -> ltpred-0.7.2
+copying CITATION.cff -> ltpred-0.7.2
+copying LICENSE -> ltpred-0.7.2
+copying MANIFEST.in -> ltpred-0.7.2
+copying README.md -> ltpred-0.7.2
+copying pyproject.toml -> ltpred-0.7.2
+copying ltpred/__init__.py -> ltpred-0.7.2/ltpred
+copying ltpred/_mathfun.py -> ltpred-0.7.2/ltpred
+copying ltpred/_numba.py -> ltpred-0.7.2/ltpred
+copying ltpred/_selected_kinship.py -> ltpred-0.7.2/ltpred
+copying ltpred/_validation.py -> ltpred-0.7.2/ltpred
+copying ltpred/chunked.py -> ltpred-0.7.2/ltpred
+copying ltpred/cip.py -> ltpred-0.7.2/ltpred
+copying ltpred/covariance.py -> ltpred-0.7.2/ltpred
+copying ltpred/estimate.py -> ltpred-0.7.2/ltpred
+copying ltpred/family.py -> ltpred-0.7.2/ltpred
+copying ltpred/fit.py -> ltpred-0.7.2/ltpred
+copying ltpred/gibbs.py -> ltpred-0.7.2/ltpred
+copying ltpred/liability_scale.py -> ltpred-0.7.2/ltpred
+copying ltpred/pairwise.py -> ltpred-0.7.2/ltpred
+copying ltpred/pairwise_multi.py -> ltpred-0.7.2/ltpred
+copying ltpred/pearson_aitken.py -> ltpred-0.7.2/ltpred
+copying ltpred/pedigree.py -> ltpred-0.7.2/ltpred
+copying ltpred/pipeline.py -> ltpred-0.7.2/ltpred
+copying ltpred/py.typed -> ltpred-0.7.2/ltpred
+copying ltpred/quadrature.py -> ltpred-0.7.2/ltpred
+copying ltpred/simulate.py -> ltpred-0.7.2/ltpred
+copying ltpred/tetrachoric.py -> ltpred-0.7.2/ltpred
+copying ltpred/thresholds.py -> ltpred-0.7.2/ltpred
+copying ltpred.egg-info/PKG-INFO -> ltpred-0.7.2/ltpred.egg-info
+copying ltpred.egg-info/SOURCES.txt -> ltpred-0.7.2/ltpred.egg-info
+copying ltpred.egg-info/dependency_links.txt -> ltpred-0.7.2/ltpred.egg-info
+copying ltpred.egg-info/requires.txt -> ltpred-0.7.2/ltpred.egg-info
+copying ltpred.egg-info/top_level.txt -> ltpred-0.7.2/ltpred.egg-info
+copying ltpred.egg-info/SOURCES.txt -> ltpred-0.7.2/ltpred.egg-info
+Writing ltpred-0.7.2/setup.cfg
+Creating tar archive
+removing 'ltpred-0.7.2' (and everything under it)
+ltpred-0.7.2.tar.gz

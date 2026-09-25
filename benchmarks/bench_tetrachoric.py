@@ -97,7 +97,7 @@ def main():
           f"{np.mean(h2_falconer):.4f} ± "
           f"{np.std(h2_falconer, ddof=1) / np.sqrt(REPS):.4f}"
           f"  (truth {H2})")
-    print(f"  fit_heritability on the same families, mean ± SE:      "
+    print(f"  fit_heritability on the 4,000-family subset, mean ± SE: "
           f"{np.mean(h2_fit):.4f} ± "
           f"{np.std(h2_fit, ddof=1) / np.sqrt(REPS):.4f}")
 

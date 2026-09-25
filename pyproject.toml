@@ -67,6 +67,9 @@ markers = [
 # Lint for real defects, not style: like ldpred3/bipred, the codebase uses compact
 # multi-statement lines (E702) and long lines, so enforce only pyflakes (F).
 target-version = "py39"
+# Archived measurement scripts inside evidence capsules are verbatim snapshots
+# of what ran; linting them would mean editing promoted evidence.
+extend-exclude = ["benchmarks/results"]
 
 [tool.ruff.lint]
 select = ["F"]
