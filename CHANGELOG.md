@@ -6,6 +6,39 @@ version is 0 the public API may still change between minor releases.
 
 ## Unreleased
 
+### Performance
+
+- Certify register kinship once instead of re-validating it per proband
+  (`docs/reviews/REVIEW_2026-09e.md` T2-10 steps 1–3, T2-12): the driver builds
+  each proband's dense A directly from the parent graph's integer indices
+  (no id→index round trip) and passes it to `construct_covmat_from_kinship`
+  with a module-private PSD sentinel, and the PA input gate now trusts what
+  `correct_positive_definite` has just certified on the same array. The
+  driver runs exactly one `eigvalsh` per proband, down from three — the count
+  the 2026-09-05 review recorded as unchanged since v0.5.2. Every output is
+  bit-identical; the repair gate itself is retained, and step 4 (skipping the
+  repair where `_covariance_reduction_is_safe` proves it a no-op) stays out
+  until that bound is re-derived for the g-prepended matrix.
+- A family-free, non-inbred proband on the kinship route dispatches to the
+  scalar ADuLT moments (T1-3), mirroring the existing role-path dispatch, and
+  single-family PA calls skip the batch routing masks and the unused
+  single-pin Cholesky (T2-9). Bit-identical, including the pinned-onset rows
+  that keep the matrix path.
+- The dense-versus-selected kinship rule is calibrated in the measured
+  variable (T2-11): requested pairs against `0.03·m²`, not a linear `2m`, so
+  deep-closure pedigrees stop switching to dense 4× too early. The two routes
+  are bit-identical, so only run time changes.
+- `construct_covmat_multi` builds one k×k shared-DNA fraction table instead
+  of re-running the role regexes for every phenotype pair (T2-13); the matrix
+  is reproduced element for element.
+
+### Fixed
+
+- `estimate_liabilities` warns that `kinship_cache_size=0` disables
+  ancestor-pair reuse entirely (T3-12): it is thousands of times slower on
+  deep pedigrees and saves no meaningful memory, so it is not the
+  memory-saving setting a reader might expect.
+
 ## 0.7.3 — 2026-09-24
 
 ### Review remediation

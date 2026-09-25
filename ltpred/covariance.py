@@ -448,16 +448,28 @@ def construct_covmat_multi(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm
     d = k * n_pheno
     cov = np.empty((d, d), dtype=np.float64)
 
+    # One shared-DNA fraction table serves every phenotype pair: cross-role
+    # relatedness is ``get_relatedness(ra, rb, h2) == frac(ra, rb) * h2`` with
+    # ``frac * 1.0`` exact, so each block entry is the table scaled by that
+    # pair's relatedness (``h2_vec[p1]`` within a trait, ``gcov`` across). The
+    # same-role variances (1, or ``h2`` for ``g``) are the one exception and
+    # keep going through ``get_relatedness`` directly.
+    frac = np.ones((k, k))
+    for a, ra in enumerate(fam_roles):
+        for b, rb in enumerate(fam_roles):
+            if a != b:
+                frac[a, b] = get_relatedness(ra, rb, h2=1.0)
+
     for p1 in range(n_pheno):
         for p2 in range(n_pheno):
             gcov = genetic_cov[p1, p2]
+            scale = h2_vec[p1] if p1 == p2 else gcov
             for a, ra in enumerate(fam_roles):
-                for b, rb in enumerate(fam_roles):
-                    if p1 == p2:
-                        val = get_relatedness(ra, rb, h2=h2_vec[p1])
-                    else:
-                        val = get_relatedness(ra, rb, h2=gcov)
+                cov[p1 * k + a, p2 * k + a] = get_relatedness(ra, ra, h2=scale)
+                for b in range(a + 1, k):
+                    val = frac[a, b] * scale
                     cov[p1 * k + a, p2 * k + b] = val
+                    cov[p1 * k + b, p2 * k + a] = val
             if p1 != p2:
                 # same individual across traits: genetic liab -> genetic cov,
                 # everything else (full liab / relatives) -> full correlation
@@ -510,30 +522,24 @@ def _parent_links(ids, father, mother):
     return ids, index, sire, dam, children, unresolved
 
 
-def kinship_from_pedigree(ids: Sequence, father: Sequence,
-                          mother: Sequence) -> tuple[list, np.ndarray]:
-    """Additive relationship matrix ``A`` (= 2×kinship) from a pedigree.
+def _kinship_A(sire, dam, children=None):
+    """Dense ``A`` from integer parent indices (``-1`` for unknown founders).
 
-    Generalises the fixed role grammar (`get_relatedness`) to **arbitrary
-    pedigrees**: instead of naming relatives ``m``/``f``/``s1``/``mgm``… you give the
-    parent of each individual and the relatedness is computed from the pedigree.
-
-    ``ids`` is a sequence of unique individual ids; ``father`` and ``mother`` are the
-    same-length sequences giving each individual's parents. A parent that is not
-    itself one of ``ids`` (``None``, ``0``, ``""``, ``nan``, or any unlisted value)
-    is treated as an unknown **founder**. Missing-id strings and pandas NA/NaT
-    are also unknown; zero/``"0"`` remains a valid parent when listed in ``ids``. Returns ``(ids, A)`` with ``A`` an
-    ``(n, n)`` matrix in the given ``ids`` order: ``A[i,i] = 1 + F_i`` (``F_i`` the
-    inbreeding coefficient) and ``A[i,j] = 2 × kinship(i, j)`` — e.g. 0.5 for
-    parent–offspring and full sibs, 0.25 for grandparent/half-sib, 0.125 for first
-    cousins. Computed by the recursive tabular method (Henderson 1976), which
-    handles inbreeding and any pedigree depth.
-
-    Feed ``A`` to `construct_covmat_from_kinship` to build the liability
-    covariance for these individuals."""
-    ids, _index, sire, dam, children, _unresolved = _parent_links(
-        ids, father, mother)
-    n = len(ids)
+    The arithmetic core of `kinship_from_pedigree` for callers that already
+    hold indexed parents (the register driver, whose extracted pedigree is a
+    slice of a validated parent graph): no id map is rebuilt, so the
+    ids -> indices -> ids round trip — measured at 23% of
+    `kinship_from_pedigree` on the register workload — disappears. Inputs are
+    trusted as `build_parent_graph` left them; a cycle still raises here.
+    """
+    n = len(sire)
+    if children is None:
+        children = [[] for _ in range(n)]
+        for i in range(n):
+            if sire[i] != -1:
+                children[sire[i]].append(i)
+            if dam[i] != -1:
+                children[dam[i]].append(i)
 
     # Topological order: an individual comes after both its (known) parents.
     # Kahn's algorithm, O(n + edges). Any valid topological order yields the
@@ -568,7 +574,33 @@ def kinship_from_pedigree(ids: Sequence, father: Sequence,
         A[k, :k] = row
         A[:k, k] = row
         A[k, k] = 1.0 + 0.5 * A[s[k], d[k]]
-    return ids, A[np.ix_(pos, pos)]
+    return A[np.ix_(pos, pos)]
+
+
+def kinship_from_pedigree(ids: Sequence, father: Sequence,
+                          mother: Sequence) -> tuple[list, np.ndarray]:
+    """Additive relationship matrix ``A`` (= 2×kinship) from a pedigree.
+
+    Generalises the fixed role grammar (`get_relatedness`) to **arbitrary
+    pedigrees**: instead of naming relatives ``m``/``f``/``s1``/``mgm``… you give the
+    parent of each individual and the relatedness is computed from the pedigree.
+
+    ``ids`` is a sequence of unique individual ids; ``father`` and ``mother`` are the
+    same-length sequences giving each individual's parents. A parent that is not
+    itself one of ``ids`` (``None``, ``0``, ``""``, ``nan``, or any unlisted value)
+    is treated as an unknown **founder**. Missing-id strings and pandas NA/NaT
+    are also unknown; zero/``"0"`` remains a valid parent when listed in ``ids``. Returns ``(ids, A)`` with ``A`` an
+    ``(n, n)`` matrix in the given ``ids`` order: ``A[i,i] = 1 + F_i`` (``F_i`` the
+    inbreeding coefficient) and ``A[i,j] = 2 × kinship(i, j)`` — e.g. 0.5 for
+    parent–offspring and full sibs, 0.25 for grandparent/half-sib, 0.125 for first
+    cousins. Computed by the recursive tabular method (Henderson 1976), which
+    handles inbreeding and any pedigree depth.
+
+    Feed ``A`` to `construct_covmat_from_kinship` to build the liability
+    covariance for these individuals."""
+    ids, _index, sire, dam, children, _unresolved = _parent_links(
+        ids, father, mother)
+    return ids, _kinship_A(sire, dam, children)
 
 
 def _validate_kinship_component(value, kernel, name, n):
@@ -619,12 +651,23 @@ def _validate_kinship_component(value, kernel, name, n):
     return value, K
 
 
+#: Module-private sentinel for ``construct_covmat_from_kinship(_certified_psd=...)``
+#: and ``pa_estimate_batched(_psd_certified=...)``: the caller asserts the array
+#: was built by pedigree construction (or by `correct_positive_definite`),
+#: which is exactly symmetric and positive semi-definite by construction, so
+#: the public validation pass — an O(n^2) symmetry scan plus an
+#: ``eigvalsh`` — is skipped. Certifying replaces the check; nothing downstream
+#: is relaxed: `correct_positive_definite` still runs on the assembled matrix.
+_PSD_CERTIFIED = object()
+
+
 def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0,
                                   add_ind: bool = True, *,
                                   c2: float | None = None,
                                   c_kernel: ArrayLike | None = None,
                                   m2: float | None = None,
-                                  m_kernel: ArrayLike | None = None) -> Covmat:
+                                  m_kernel: ArrayLike | None = None,
+                                  _certified_psd: object = None) -> Covmat:
     """Liability-scale covariance from an additive relationship matrix ``A``.
 
     The kinship-based counterpart of `construct_covmat_single`: given ``A``
@@ -671,17 +714,18 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
             "and no positive-definite correction can recover it")
     if not (0 <= target < n):
         raise ValueError(f"target {target} out of range for {n} individuals")
-    if not np.all(np.isfinite(A)):
-        raise ValueError("A must contain only finite values")
-    if not np.allclose(A, A.T, atol=1e-8, rtol=0.0):
-        raise ValueError("A must be symmetric")
-    # As for the optional component kernels, make the accepted tolerance
-    # compatible with stricter downstream symmetry checks.
-    A = 0.5 * (A + A.T)
-    min_a_eig = float(np.min(np.linalg.eigvalsh(0.5 * (A + A.T))))
-    if min_a_eig < -1e-8:
-        raise ValueError(
-            f"A must be positive semi-definite (minimum eigenvalue {min_a_eig:.3g})")
+    if _certified_psd is not _PSD_CERTIFIED:
+        if not np.all(np.isfinite(A)):
+            raise ValueError("A must contain only finite values")
+        if not np.allclose(A, A.T, atol=1e-8, rtol=0.0):
+            raise ValueError("A must be symmetric")
+        # As for the optional component kernels, make the accepted tolerance
+        # compatible with stricter downstream symmetry checks.
+        A = 0.5 * (A + A.T)
+        min_a_eig = float(np.min(np.linalg.eigvalsh(0.5 * (A + A.T))))
+        if min_a_eig < -1e-8:
+            raise ValueError(
+                f"A must be positive semi-definite (minimum eigenvalue {min_a_eig:.3g})")
 
     c2, C = _validate_kinship_component(c2, c_kernel, "c", n)
     m2, M = _validate_kinship_component(m2, m_kernel, "m", n)

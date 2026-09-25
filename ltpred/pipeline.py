@@ -30,7 +30,7 @@ from numpy.typing import ArrayLike
 
 from ._validation import validate_binary
 from ._selected_kinship import _SelectedKinship, _covariance_reduction_is_safe
-from .covariance import kinship_from_pedigree
+from .covariance import kinship_from_pedigree, _kinship_A, _PSD_CERTIFIED
 from .estimate import estimate_liability_from_kinship
 from .pedigree import build_parent_graph, extract_pedigree
 from .thresholds import _cip_bounds, _validate_cip_curve
@@ -43,11 +43,15 @@ __all__ = ["PopulationScores", "estimate_liabilities"]
 # register boundary stops being a plausible explanation on its own.
 _UNRESOLVED_PARENT_WARN_FRACTION = 0.5
 # A proband's relationships come from a dense A over its extracted pedigree
-# when many members are selected (cheaper than per-pair recursion), and from
-# bounded, memoized selected-pair recursion when few are or the pedigree is
-# too deep for a dense A (1,500 members is 18 MB).
+# when many members are selected, and from bounded, memoized selected-pair
+# recursion when few are or the pedigree is too deep for a dense A (1,500
+# members is 18 MB). The crossover is quadratic: dense costs ~c1*m + c2*m^2
+# (parent links plus the O(m^2) fill) while warm selected-pair recursion costs
+# ~0.6 us per requested pair, so the measured switch point is
+# pairs ~ 0.02*m^2; 0.03 stays clear of it. The two routes are bit-identical,
+# so a mis-select costs only time.
 _DENSE_KINSHIP_MAX_MEMBERS = 1500
-_DENSE_KINSHIP_COST_PER_MEMBER = 2
+_DENSE_KINSHIP_MIN_PAIR_FRACTION = 0.03
 
 
 @dataclass
@@ -100,6 +104,21 @@ class PopulationScores(_TableExport):
         columns["frac_records_with_unresolved_parents"] = np.full(
             len(self.probands), self.frac_records_with_unresolved_parents)
         return columns
+
+
+def _dense_relationships(ped):
+    """Dense A over one extracted pedigree, without the id round trip.
+
+    ``extract_pedigree`` already holds the member and parent indices, so
+    `_kinship_A` builds A directly (rebuilding the id→index map that
+    `kinship_from_pedigree` would reconstruct measured 23% of that call on
+    the register workload); a hand-assembled ``Pedigree`` without index fields
+    falls back to the ids route. Either way A is exactly symmetric and PSD by
+    construction, which is what the caller certifies downstream.
+    """
+    if ped.sire_index is None or ped.dam_index is None:
+        return kinship_from_pedigree(ped.ids, ped.father, ped.mother)[1]
+    return _kinship_A(ped.sire_index, ped.dam_index)
 
 
 def _validate_cip_inputs(n: int, *, cip_ages: ArrayLike | None,
@@ -192,7 +211,10 @@ def estimate_liabilities(
     come from a dense matrix over the extracted pedigree when most members
     are selected, otherwise from selected pair recursion, where
     ``kinship_cache_size`` bounds the number of ancestor-pair results reused
-    across probands (zero disables memoization). The parent graph is checked
+    across probands (zero disables memoization entirely — it saves no
+    meaningful memory, since a full cache holds only a few MiB on real
+    registers, and makes deep pedigrees orders of magnitude slower, so it
+    warns). The parent graph is checked
     for cycles once. Near covariance singularities the full extracted matrix
     is retained to preserve the existing positive-definite correction.
 
@@ -298,6 +320,18 @@ def estimate_liabilities(
             raise ValueError("birth_time + age must be finite")
 
     graph = build_parent_graph(ids, father, mother)
+    if kinship_cache_size == 0:
+        warnings.warn(
+            "kinship_cache_size=0 disables reuse of ancestor-pair results "
+            "entirely: every request recomputes its pair recursion from "
+            "scratch, which measured thousands of times slower on deep "
+            "pedigrees, and it saves no meaningful memory (a full cache holds "
+            "only a few MiB on real registers). This is not a memory-saving "
+            "setting; raise it if that was the intent.", UserWarning,
+            stacklevel=2)
+    # Constructed eagerly even though every degree-3 proband takes the dense
+    # route: its topological rank is also the whole-graph cycle check, which
+    # must reject cyclic components no proband's pedigree reaches.
     selected_kinship = _SelectedKinship(graph, kinship_cache_size)
     pos = graph.index
 
@@ -428,10 +462,11 @@ def estimate_liabilities(
             # Cached pair recursion costs about one lookup per selected pair
             # (ancestors are shared across probands); a dense A over the
             # extracted pedigree -- exact, since it holds every ancestor --
-            # costs about _DENSE_KINSHIP_COST_PER_MEMBER lookups per member.
+            # costs ~c1*m + c2*m^2. See _DENSE_KINSHIP_MIN_PAIR_FRACTION.
             if (m <= _DENSE_KINSHIP_MAX_MEMBERS
-                    and n_sel * (n_sel + 1) // 2 > _DENSE_KINSHIP_COST_PER_MEMBER * m):
-                _, full = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
+                    and n_sel * (n_sel + 1) // 2
+                    > _DENSE_KINSHIP_MIN_PAIR_FRACTION * m * m):
+                full = _dense_relationships(ped)
                 relationship = full[np.ix_(selected, selected)]
             else:
                 relationship = selected_kinship.matrix(member_index[selected])
@@ -440,11 +475,11 @@ def estimate_liabilities(
         else:
             # Repair depends on the full covariance, not only its selected
             # principal block. Preserve that behavior at h2=1 and nearby.
-            _, relationship = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
+            relationship = _dense_relationships(ped)
             inference_lower, inference_upper = lower, upper
         estimate, _, posterior_var = estimate_liability_from_kinship(
             relationship, inference_lower[None, :], inference_upper[None, :], h2=h2,
-            target=0, method="pearson-aitken")
+            target=0, method="pearson-aitken", _certified_psd=_PSD_CERTIFIED)
         est[k] = estimate[0]
         var[k] = posterior_var[0]
 

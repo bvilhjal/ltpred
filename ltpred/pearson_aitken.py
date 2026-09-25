@@ -43,6 +43,7 @@ from scipy.linalg import qr
 
 from ._numba import _jit, _jit_parallel, prange
 from ._mathfun import _norm_cdf, _norm_ppf
+from .covariance import _PSD_CERTIFIED
 from .gibbs import as_bounds
 from ._validation import validate_bounds, validate_mixture_inputs
 
@@ -393,27 +394,34 @@ def _condition_pins(cov, retained, pinned, values):
     block = cov[np.ix_(pinned, pinned)] / np.outer(scale, scale)
     np.fill_diagonal(block, 1.0)
     standardized = values / scale
-    try:
-        chol = np.linalg.cholesky(block)
-    except np.linalg.LinAlgError:
-        eigenvalues, vectors = np.linalg.eigh(block)
-        tolerance = 64 * np.finfo(float).eps * len(pinned) * max(1.0, np.max(eigenvalues))
-        active = eigenvalues > tolerance
-        basis = vectors[:, active]
-        projection = standardized @ basis @ basis.T
-        support_tolerance = 128 * np.finfo(float).eps * len(pinned) * np.maximum(
-            1.0, np.max(np.abs(standardized), axis=1))
-        if np.any(np.max(np.abs(standardized - projection), axis=1) > support_tolerance):
-            raise ValueError("pinned observations are incompatible with covariance support")
-        # Condition on independent original coordinates. Unlike subtracting
-        # a spectral pseudoinverse product, identical pins now cancel exactly.
-        _, _, pivot = qr(basis.T, mode="economic", pivoting=True)
-        chosen = pivot[:np.count_nonzero(active)]
-        pinned, scale = pinned[chosen], scale[chosen]
-        standardized = standardized[:, chosen]
-        block = block[np.ix_(chosen, chosen)]
-        chol = np.linalg.cholesky(block)
-    cross = cov[np.ix_(pinned, retained)] / scale[:, None]
+    if len(pinned) > 1:
+        # A single pin's block is exactly [[1.0]]: its Cholesky factor is 1 and
+        # the weights below never read it, so factor only multi-pin batches.
+        try:
+            chol = np.linalg.cholesky(block)
+        except np.linalg.LinAlgError:
+            eigenvalues, vectors = np.linalg.eigh(block)
+            tolerance = 64 * np.finfo(float).eps * len(pinned) * max(1.0, np.max(eigenvalues))
+            active = eigenvalues > tolerance
+            basis = vectors[:, active]
+            projection = standardized @ basis @ basis.T
+            support_tolerance = 128 * np.finfo(float).eps * len(pinned) * np.maximum(
+                1.0, np.max(np.abs(standardized), axis=1))
+            if np.any(np.max(np.abs(standardized - projection), axis=1) > support_tolerance):
+                raise ValueError("pinned observations are incompatible with covariance support")
+            # Condition on independent original coordinates. Unlike subtracting
+            # a spectral pseudoinverse product, identical pins now cancel exactly.
+            _, _, pivot = qr(basis.T, mode="economic", pivoting=True)
+            chosen = pivot[:np.count_nonzero(active)]
+            pinned, scale = pinned[chosen], scale[chosen]
+            standardized = standardized[:, chosen]
+            block = block[np.ix_(chosen, chosen)]
+            chol = np.linalg.cholesky(block)
+    if len(pinned) == 1:
+        # np.ix_ on one row costs more than the row fancy-index it builds.
+        cross = cov[pinned[0], retained][None, :] / scale[0]
+    else:
+        cross = cov[np.ix_(pinned, retained)] / scale[:, None]
     weights = (cross.T if len(pinned) == 1 else
                np.linalg.solve(chol.T, np.linalg.solve(chol, cross)).T)
     means = standardized @ weights.T
@@ -475,6 +483,16 @@ def _pa_reduced_nomix(cov, lowers, uppers):
     est, var = np.empty(F), np.empty(F)
     if F == 0:
         return est, var
+    if F == 1:
+        # Register-style single-family call: the shared routing below would
+        # allocate five (1, d) temporaries and a uint8 state row before
+        # reaching the same kernel. Only the routing decision is inlined; a
+        # pin or an absent relative falls through to the general machinery.
+        lo0, hi0 = lowers[0], uppers[0]
+        if not np.any(lo0 == hi0) and not np.any(
+                (lo0[1:] == -np.inf) & (hi0[1:] == np.inf)):
+            est[0], var[0] = _pa_family_nomix(cov.copy(), lo0, hi0)
+            return est, var
     pins = lowers == uppers
     absent = (lowers == -np.inf) & (uppers == np.inf)
     if not np.any(pins) and not np.any(absent[:, 1:]):
@@ -542,14 +560,20 @@ def _pa_reduced_nomix(cov, lowers, uppers):
     return est, var
 
 
-def _validate_pa_covmat(covmat):
+def _validate_pa_covmat(covmat, _psd_certified=None):
     """Return a supported positive-semidefinite covariance as float64.
 
     The PA counterpart of the Gibbs gate (`ltpred.gibbs._validate_covmat`),
     with the same scale-relative symmetry tolerance. PA does not require strict
     positive-definiteness; pin conditioning checks singular support and the
     interval fold uses rank-1 updates. It still requires a genuine covariance and positive
-    marginal variances for every coordinate that may be truncated."""
+    marginal variances for every coordinate that may be truncated.
+
+    ``_psd_certified`` (the module-private ``_PSD_CERTIFIED`` sentinel) skips
+    only the ``eigvalsh``: it is for callers whose array
+    `ltpred.covariance.correct_positive_definite` has just returned, which
+    guarantees a minimum eigenvalue above ``1e-8`` — strictly stronger than
+    this gate's ``-1e-10``-relative tolerance on the very same array."""
     cov = np.asarray(covmat, dtype=np.float64)
     if cov.ndim != 2 or cov.shape[0] != cov.shape[1]:
         raise ValueError("covmat must be square")
@@ -567,6 +591,8 @@ def _validate_pa_covmat(covmat):
     diag = np.diag(cov)
     if np.any(diag <= 0.0):
         raise ValueError("covmat diagonal variances must be strictly positive")
+    if _psd_certified is _PSD_CERTIFIED:
+        return cov
     min_eigenvalue = float(np.linalg.eigvalsh(cov)[0])
     psd_tolerance = 1e-10 * max(matrix_scale, 1.0)
     if min_eigenvalue < -psd_tolerance:
@@ -621,7 +647,8 @@ def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
 
 def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
                         target: int = 0, K_is: ArrayLike | None = None,
-                        K_pops: ArrayLike | None = None
+                        K_pops: ArrayLike | None = None, *,
+                        _psd_certified: object = None
                         ) -> tuple[np.ndarray, np.ndarray]:
     """Vectorised `pa_algorithm` over families sharing one covariance.
 
@@ -630,7 +657,7 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
     ``K_is``/``K_pops`` are given, dispatches to the no-mixture kernel, which never
     allocates the ``(F, d)`` mixture arrays. Returns the PA sequential-moment
     approximations ``(est, var)`` of length ``F``."""
-    cov = _validate_pa_covmat(covmat)
+    cov = _validate_pa_covmat(covmat, _psd_certified=_psd_certified)
     d = cov.shape[0]
     lowers = as_bounds(lowers)             # keeps float32 to halve memory
     uppers = as_bounds(uppers)

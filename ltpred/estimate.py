@@ -27,6 +27,7 @@ rule). ``_estimate_liability_single`` handles one trait,
 
 from __future__ import annotations
 
+import math
 import operator
 import warnings
 from collections.abc import Sequence
@@ -36,7 +37,8 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from .covariance import (construct_covmat_single, construct_covmat_multi,
-                         construct_covmat_from_kinship, correct_positive_definite)
+                         construct_covmat_from_kinship, correct_positive_definite,
+                         _PSD_CERTIFIED)
 from .gibbs import (gibbs_params, gibbs_estimate_batched, as_bounds, _MAX_SEED,
                     _validate_seed, _validate_burn_in)
 from .pearson_aitken import pa_estimate_batched, _tnorm_moments_loc
@@ -876,7 +878,7 @@ def _pa_from_role_arrays(roles, lower, upper, h2, out_coords, K_i=None,
     for coord in out_coords:
         e, v = pa_estimate_batched(
             cov, lo, hi, target=_target_index(cov_obj.roles, coord),
-            K_is=ki, K_pops=kp)
+            K_is=ki, K_pops=kp, _psd_certified=_PSD_CERTIFIED)
         est[coord] = e
         var[coord] = v
     return est, var
@@ -1011,7 +1013,8 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
                                     c2: float | None = None,
                                     c_kernel: ArrayLike | None = None,
                                     m2: float | None = None,
-                                    m_kernel: ArrayLike | None = None
+                                    m_kernel: ArrayLike | None = None,
+                                    _certified_psd: object = None
                                     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Estimate a target individual's liability from an **arbitrary pedigree**.
 
@@ -1048,7 +1051,17 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
     role-based estimator whenever the pedigree encodes the same relationships — but
     this also handles half-sibs of any degree, cousins, and inbred pedigrees.
     For Gibbs, ``seed`` must be a non-boolean integer in ``[0, 2**32 - 1]`` or
-    ``None``; the PA branch ignores it."""
+    ``None``; the PA branch ignores it.
+
+    ``_certified_psd`` is module-private (the ``covariance._PSD_CERTIFIED``
+    sentinel) for callers whose ``A`` a pedigree constructor just built —
+    exactly symmetric and PSD by construction — so `construct_covmat_from_kinship`
+    skips its O(n²) validation and eigendecomposition of ``A``. Certification
+    replaces, never relaxes: the assembled covariance still passes through
+    `correct_positive_definite` unchanged. A family-free non-inbred proband
+    (``A = [[1]]``, no pins) additionally dispatches to the scalar ADuLT
+    moments, mirroring `_pa_from_role_arrays`; both shortcuts are
+    bit-identical to the matrix path."""
     A = np.ascontiguousarray(A, dtype=np.float64)
     n = A.shape[0]
     if A.shape != (n, n):
@@ -1071,22 +1084,55 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
             "use_mixture=True is only supported by Pearson-Aitken; the Gibbs "
             "estimator does not implement the censored-control mixture")
 
+    F = lower.shape[0]
+    if (method_name == "pearson-aitken" and not use_mixture
+            and h2 is not None and np.ndim(h2) == 0 and 0 < h2 < 1
+            and h2 * (1 - h2) / (1 + h2) > 1e-6
+            and c2 is None and c_kernel is None and m2 is None and m_kernel is None
+            and n == 1 and A[0, 0] == 1.0
+            and not np.any(lower[:, 0] == upper[:, 0])):
+        # Family-free proband, non-inbred (A = [[1.]] exactly), no pins: the
+        # 2x2 covariance [[c, c], [c, 1]] with c = h2 / (h2 + 1 - h2) collapses
+        # the PA fold to the ADuLT scalar moments — the same identity
+        # `_pa_from_role_arrays` dispatches on for roles == ["o"]. The margin
+        # gate (as there) keeps the 2x2 matrix safely above the repair
+        # threshold. Each expression reproduces the matrix path's arithmetic
+        # in its exact operation order, so results are bit-identical.
+        residual = 1.0 - h2
+        scale = math.sqrt(h2 * A[0, 0] + residual)
+        c = h2 * A[0, 0] / (scale * scale)
+        mean, variance = _adult_full_moments(lower[:, 0], upper[:, 0])
+        if out_coord == 0:
+            # est: mu[0] = 0.0 + c * m*; var: cov[0,0] = c + (c * (v* - 1)) * c,
+            # returned as sd * sd by the kernel's final infinite-interval call.
+            est = 0.0 + c * mean
+            sd = np.sqrt(c + (c * (variance - 1.0)) * c)
+            var = sd * sd
+        else:   # out="full": the target row keeps its own truncated moments
+            est, var = mean, variance
+        # PA is deterministic: no Monte-Carlo error, so se is exactly zero.
+        return est, np.zeros_like(est), var
+
     cov_obj = construct_covmat_from_kinship(
         A, h2=h2, target=target, add_ind=True,
-        c2=c2, c_kernel=c_kernel, m2=m2, m_kernel=m_kernel)
+        c2=c2, c_kernel=c_kernel, m2=m2, m_kernel=m_kernel,
+        _certified_psd=_certified_psd)
     cov, n_corrections = correct_positive_definite(cov_obj.matrix)
     _warn_if_corrected(n_corrections, "liability estimation")
     # prepend the unbounded genetic-liability (g) coordinate
-    F = lower.shape[0]
     neg = np.full((F, 1), -np.inf, dtype=lower.dtype)
     pos = np.full((F, 1), np.inf, dtype=upper.dtype)
     lo = np.ascontiguousarray(np.concatenate([neg, lower], axis=1))
     hi = np.ascontiguousarray(np.concatenate([pos, upper], axis=1))
     tgt = 0 if out_coord == 0 else 1 + int(target)     # g row, or the target's o row
+    # correct_positive_definite just returned min-eig > 1e-8 on this exact
+    # array, which certifies the PA input gate's weaker PSD tolerance.
+    pa_gate = _PSD_CERTIFIED
 
     if method_name == "pearson-aitken":
         if not use_mixture:
-            est, var = pa_estimate_batched(cov, lo, hi, target=tgt)
+            est, var = pa_estimate_batched(cov, lo, hi, target=tgt,
+                                           _psd_certified=pa_gate)
         else:
             K_i, K_pop = validate_mixture_inputs(
                 K_i, K_pop, expected_shape=lower.shape, require_pair=True,
@@ -1098,7 +1144,8 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
                 [np.full((F, 1), np.nan, dtype=as_bounds(K_pop).dtype),
                  as_bounds(K_pop)], axis=1))
             est, var = pa_estimate_batched(cov, lo, hi, target=tgt,
-                                           K_is=ki, K_pops=kp)
+                                           K_is=ki, K_pops=kp,
+                                           _psd_certified=pa_gate)
         # PA is deterministic: no Monte-Carlo error, so se is exactly zero.
         return est, np.zeros_like(est), var
 

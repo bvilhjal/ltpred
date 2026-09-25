@@ -98,7 +98,7 @@ def test_selected_pipeline_preserves_rejection_of_unrepairable_covariance():
 def test_pipeline_selected_relationships_are_bounded_and_cache_size_independent(monkeypatch):
     import ltpred.pipeline as pipeline_module
 
-    monkeypatch.setattr(pipeline_module, "_DENSE_KINSHIP_COST_PER_MEMBER", 0)
+    monkeypatch.setattr(pipeline_module, "_DENSE_KINSHIP_MIN_PAIR_FRACTION", 0)
     reference = estimate_liabilities(**pipeline_kwargs(probands=["o", "m", "f"]))
 
     # Beyond the dense cap, or with few selected members, the safely-PD path
@@ -108,9 +108,10 @@ def test_pipeline_selected_relationships_are_bounded_and_cache_size_independent(
         raise AssertionError("selected-pair inference constructed full closure kinship")
 
     monkeypatch.setattr(pipeline_module, "kinship_from_pedigree", forbidden)
-    for cap, cost in [(0, 2), (10**6, 10**6)]:     # too deep; too few selected
+    for cap, fraction in [(0, 2), (10**6, 10**6)]:  # too deep; too few selected
         monkeypatch.setattr(pipeline_module, "_DENSE_KINSHIP_MAX_MEMBERS", cap)
-        monkeypatch.setattr(pipeline_module, "_DENSE_KINSHIP_COST_PER_MEMBER", cost)
+        monkeypatch.setattr(pipeline_module,
+                            "_DENSE_KINSHIP_MIN_PAIR_FRACTION", fraction)
         for size in [0, 1, 5]:
             result = estimate_liabilities(**pipeline_kwargs(
                 probands=["o", "m", "f"], kinship_cache_size=size))

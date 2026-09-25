@@ -173,3 +173,125 @@ def test_export_trait_names_do_not_collide_with_uncertainty_columns():
     assert len(columns) == 8
     assert columns['genetic_x_se'][0] == 2.
     assert columns['se_genetic_x'][0] == .1
+
+
+# --- 2026-09e efficiency-review remediation: bit-identity of the shortcuts ---
+
+def test_kinship_a_from_indices_matches_kinship_from_pedigree():
+    from ltpred.covariance import _kinship_A
+    from ltpred.pedigree import build_parent_graph, extract_pedigree
+    rng = np.random.default_rng(4)
+    ids = [f"p{i}" for i in range(90)]
+    father = [None if i < 8 or rng.random() < .25 else ids[int(rng.integers(0, i))]
+              for i in range(90)]
+    mother = [None if i < 8 or rng.random() < .25 else ids[int(rng.integers(0, i))]
+              for i in range(90)]
+    graph = build_parent_graph(ids, father, mother)
+    for proband in ("p50", "p89"):
+        ped = extract_pedigree(graph, proband, max_degree=2)
+        _, by_ids = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
+        by_indices = _kinship_A(ped.sire_index, ped.dam_index)
+        np.testing.assert_array_equal(by_ids, by_indices)
+
+
+def test_certified_psd_construct_covmat_is_bit_identical():
+    from ltpred.covariance import (construct_covmat_from_kinship,
+                                   kinship_from_pedigree, _PSD_CERTIFIED)
+    _, A = kinship_from_pedigree(
+        ["c", "f", "m", "mgm"], ["f", "mgm", None, None], ["m", None, "mgm", None])
+    plain = construct_covmat_from_kinship(A, h2=.5, target=0)
+    certified = construct_covmat_from_kinship(A, h2=.5, target=0,
+                                              _certified_psd=_PSD_CERTIFIED)
+    np.testing.assert_array_equal(plain.matrix, certified.matrix)
+    assert plain.roles == certified.roles
+    with pytest.raises(ValueError, match="positive semi-definite"):
+        construct_covmat_from_kinship([[1., 2.], [2., 1.]], h2=.5)
+    with pytest.raises(ValueError, match="positive semi-definite"):
+        construct_covmat_from_kinship([[1., 2.], [2., 1.]], h2=.5,
+                                      _certified_psd="not the sentinel")
+
+
+def test_family_free_kinship_scalar_branch_matches_matrix_path():
+    from ltpred import estimate_liability_from_kinship
+    from ltpred.covariance import (construct_covmat_from_kinship,
+                                   correct_positive_definite)
+    from ltpred.pearson_aitken import pa_estimate_batched
+    rng = np.random.default_rng(2026)
+    kinds = (["pin", "control", "uninformative", "interval"] * 40)
+    lower, upper = [], []
+    for kind in kinds:
+        if kind == "pin":
+            t = rng.normal(1.8, .4)
+            lower.append(t); upper.append(t)
+        elif kind == "control":
+            lower.append(-np.inf); upper.append(rng.normal(-.1, .3))
+        elif kind == "uninformative":
+            lower.append(-np.inf); upper.append(np.inf)
+        else:
+            a, b = np.sort(rng.normal(size=2) * .5)
+            lower.append(a); upper.append(b)
+    lower, upper = np.array(lower), np.array(upper)
+    for h2 in (.5, .05, .99):
+        for out in ("genetic", "full"):
+            est, _se, var = estimate_liability_from_kinship(
+                [[1.]], lower[:, None], upper[:, None], h2=h2, out=out)
+            # the literal matrix route: build the 2x2 covariance, prepend g,
+            # batch PA -- exactly what the branch must reproduce bit for bit
+            cov_obj = construct_covmat_from_kinship([[1.]], h2=h2, target=0)
+            cov, _ = correct_positive_definite(cov_obj.matrix)
+            g_lo = np.full((len(lower), 1), -np.inf)
+            g_hi = np.full((len(lower), 1), np.inf)
+            lo = np.concatenate([g_lo, lower[:, None]], axis=1)
+            hi = np.concatenate([g_hi, upper[:, None]], axis=1)
+            target = 0 if out == "genetic" else 1
+            ref_est, ref_var = pa_estimate_batched(cov, lo, hi, target=target)
+            np.testing.assert_array_equal(est, ref_est)
+            np.testing.assert_array_equal(var, ref_var)
+
+
+def test_register_cache_size_zero_warns_but_scores_identically():
+    kwargs = dict(
+        ids=["o", "m", "f"], father=["f", None, None], mother=["m", None, None],
+        probands=["o"], status=np.array([1, 0, 0]), age=np.array([45., 70., 68.]),
+        use="gwas", cip_ages=np.arange(0., 121.),
+        cip_values=.1 / (1 + np.exp((55 - np.arange(0., 121.)) / 8.)),
+        k_pop=.1, h2=.5, max_degree=1)
+    reference = estimate_liabilities(**kwargs)
+    with pytest.warns(UserWarning, match="kinship_cache_size=0"):
+        zero = estimate_liabilities(**dict(kwargs, kinship_cache_size=0))
+    np.testing.assert_array_equal(zero.est, reference.est)
+    np.testing.assert_array_equal(zero.var, reference.var)
+
+
+def test_covmat_multi_fraction_table_matches_direct_relatedness():
+    from ltpred.covariance import construct_covmat_multi, get_relatedness
+    rng = np.random.default_rng(8)
+    roles = ["m", "f", "s1", "mgm", "mgf", "mau1"]
+    h2_vec = np.array([.4, .25])
+    p = 2
+    X = rng.normal(size=(p, p + 3)); s = np.sqrt(np.diag(X @ X.T))
+    gc = (X @ X.T) / np.outer(s, s)
+    Y = rng.normal(size=(p, p + 3)); s = np.sqrt(np.diag(Y @ Y.T))
+    ec = (Y @ Y.T) / np.outer(s, s)
+    D = np.sqrt(np.outer(h2_vec, h2_vec))
+    full = gc * D + ec * np.sqrt(np.outer(1 - h2_vec, 1 - h2_vec))
+    built = construct_covmat_multi(fam_vec=roles, add_ind=True,
+                                   genetic_corrmat=gc, full_corrmat=full,
+                                   h2_vec=h2_vec).matrix
+    fam_roles = ["g", "o"] + roles
+    k = len(fam_roles)
+    genetic_cov = gc * D
+    expected = np.empty((k * p, k * p))
+    for p1 in range(p):
+        for p2 in range(p):
+            gcov = genetic_cov[p1, p2]
+            for a, ra in enumerate(fam_roles):
+                for b, rb in enumerate(fam_roles):
+                    val = (get_relatedness(ra, rb, h2=h2_vec[p1]) if p1 == p2
+                           else get_relatedness(ra, rb, h2=gcov))
+                    expected[p1 * k + a, p2 * k + b] = val
+            if p1 != p2:
+                for a in range(k):
+                    expected[p1 * k + a, p2 * k + a] = (gcov if fam_roles[a] == "g"
+                                                         else full[p1, p2])
+    np.testing.assert_array_equal(built, expected)

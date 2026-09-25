@@ -76,20 +76,29 @@ class Pedigree:
     """One proband's extracted pedigree.
 
     ``ids``/``father``/``mother`` feed
-    `ltpred.covariance.kinship_from_pedigree` directly (parents outside
-    the extracted set are founders). ``degree[i]`` is the relationship-degree
+    `ltpred.covariance.kinship_from_pedigree` directly (parents outside the
+    extracted set are founders). ``degree[i]`` is the relationship-degree
     distance of member ``i`` from the proband (0 = proband).
     ``closure_only[i]`` is true when the member was added only to preserve exact
     kinship, after the ``max_degree`` traversal; it is an explicit warning that
     the person's diagnosis is outside the requested observation set unless a
     caller deliberately opts in. Ordering is deterministic: proband first, then
-    by (degree, id)."""
+    by (degree, id).
+
+    ``member_index``/``sire_index``/``dam_index`` are the same pedigree as
+    integer indices into the parent graph (``-1`` for a parent outside the
+    extracted set), letting `ltpred.covariance._kinship_A` skip the id→index
+    round trip that ``kinship_from_pedigree`` would rebuild. They are
+    ``None`` only for a hand-assembled ``Pedigree``."""
     proband: object
     ids: list
     father: list
     mother: list
     degree: np.ndarray
     closure_only: np.ndarray
+    member_index: np.ndarray = None
+    sire_index: np.ndarray = None
+    dam_index: np.ndarray = None
 
 
 def build_parent_graph(ids: Sequence, father: Sequence,
@@ -213,4 +222,9 @@ def extract_pedigree(graph: ParentGraph, proband: object,
         mother=mother,
         degree=np.array([degree[j] for j in members]),
         closure_only=np.array([j not in traversed for j in members], dtype=bool),
+        member_index=np.array(members, dtype=np.intp),
+        sire_index=np.array([pos.get(graph.sire[j], -1) for j in members],
+                            dtype=np.intp),
+        dam_index=np.array([pos.get(graph.dam[j], -1) for j in members],
+                           dtype=np.intp),
     )
