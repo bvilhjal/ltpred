@@ -35,7 +35,9 @@ F3–F16 are T2 and F17–F37 are T3.
 | SUPERSEDED / WITHDRAWN | 1 | — | — | 1 | 1 | — | 3 |
 
 Checking the statuses found four further gaps (N1–N3, F2′); N1, N2 and F2′
-were closed at once, and N3 and one UNVERIFIED item remain in §1.
+were closed at once, and N3 and one UNVERIFIED item remain in §1. The
+algorithm-documentation pass that followed (docstrings verified against the
+code) added N4–N6.
 
 ## 1. Open findings
 
@@ -53,6 +55,9 @@ feeds `docs/ROADMAP.md`.
 | T2-4 | 09e | `bootstrap_fit` runs strictly serially, although its replicates are independent. A probe measured 3.9× at 10 threads with max\|diff\| 0, under contention. | T2 | `ltpred/fit.py:993` | Parallelise, after re-establishing bit-identity on a quiet machine. |
 | T3-4 | 09e | The v0.7.3 capsule JSONs record `threads: 1` but not the BLAS/OMP/MKL variables or a load average. Its README states them in prose only. | T3 | `benchmarks/results/2026-09-24-review/*.json` | Add machine-readable `thread_variables` and a `load_average` field to future probe capsules. |
 | N3 | new | v0.7.4 is released (`__version__`, CHANGELOG 2026-09-25) but untagged: 09e T3-5 again. | T3 | git tags; `docs/RELEASING.md:64` | Tag `v0.7.4` at the release commit and push the tag. |
+| N4 | new | Chunked Gibbs is not seed-reproducible against the array API: step G2 collapses the coordinates unbounded in every family *of the kernel call*, so a family's draws depend on which families share its call (round and chunk). Reproduced: `roles=["o","m"]`, `seed=1`, `chunk_size=1` moves one score from −0.0512 to −0.0541. Monte Carlo-level, not a bias. | T2 | `ltpred/gibbs.py` (collapse mask), `ltpred/chunked.py` | Decide the contract: compute the collapse set once per structure group (bit-reproducible across drivers) or document Monte Carlo-level agreement only, as the docstrings now do. |
+| N5 | new | On the PA-FGRS mixture path (Algorithm M) pins are folded sequentially without Algorithm P's joint-pin compatibility checks, so incompatible exact observations do not raise there, unlike the no-mixture path. | T2 | `ltpred/pearson_aitken.py` (`_pa_family`) | Add the same support/compatibility check before the sequential fold, with a test. |
+| N6 | new | The methods report is imprecise in places the docstrings now state exactly: P1 (only the object API sorts roles; array/kinship callers set fold order), G1 (P and sd are recomputed for the kept block each round), G4 (the far-tail draw is a leading-order approximation), G6 (fresh chains each round; stop at `se ≤ tol`), and Algorithm Q details (16-node start, last-two-changes acceptance, mode-search stop rules). | T3 | `report/ltpred_methods.tex`, `report/efficient_inference.tex` | Correct at the next PDF rebuild. |
 | 09d §7 | 09d | **UNVERIFIED.** At `2722a59`, `test_pairwise_multi.py::test_boundary_withholds_uncertainty_and_zero_variance_correlations` failed under CPython 3.10 / NumPy 1.26 / Numba 0.66 ("Emitted warnings: []"). It passes under 3.14/NumPy 2.4 (09e) and under 3.11/NumPy 2.4 (2026-09-27). No CI job runs NumPy 1.26 with Numba. | T2 | `tests/test_pairwise_multi.py` | Re-run on that stack. If it still fails, pin the warning path or add a CI leg. |
 
 ## 2. Declined, by design, or deliberate boundaries

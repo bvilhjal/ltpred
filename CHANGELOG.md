@@ -53,6 +53,14 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   merged `docs/PAPER_PLAN.md` into `docs/ROADMAP.md`, whose priorities now
   include the open review findings; dropped redundant files from the
   benchmark evidence capsules.
+- Every core algorithm is stated step by step in its module docstring, with
+  the methods report's step names: G (Gibbs), P (Pearson–Aitken with the
+  pin reduction), M (censoring mixture), Q (quadrature), K (kinship),
+  R (register driver), H (moment fit) and L (pairwise likelihood).
+  `docs/algorithm.md` gains a numbered summary of each. Docstring-only
+  changes; three docstrings that misstated the code are corrected (the
+  batched Gibbs SE denominator, `liability_r2_from_z(subtract_null=False)`,
+  and an unconditional claim that chunked Gibbs reproduces the array API).
 
 ## 0.7.4 — 2026-09-25
 

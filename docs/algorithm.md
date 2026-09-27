@@ -206,6 +206,108 @@ components; do not fold them into an A+E scorer. See the
 [joint-fitting contract](inference.md#joint-heritability-and-cross-trait-correlations).
 Unsupported alternatives remain in [research extensions](research.md).
 
+## Algorithms in brief
+
+Each algorithm is stated in full in the docstring of the module named with it;
+Algorithms G, P and M carry the step names of the [methods report](#methods-report).
+Steps are given as implemented.
+
+**Algorithm G (Gibbs; `ltpred.gibbs`, `ltpred.estimate`).** With $Q=\Sigma^{-1}$,
+coordinate $j$ is drawn from $N(\sum_{i\ne j}P_{ij}x_i,\ \mathrm{sd}_j^2)$ truncated
+to its bounds, where $P_{ij}=-Q_{ij}/Q_{jj}$ and $\mathrm{sd}_j^2=1/Q_{jj}$.
+**G1.** Group families by role set. **G2.** Integrate out coordinates that are
+unbounded in every family of the kernel call; the chain runs on the rest, $y$,
+and the target contributes $\mathbb E[g\mid y]$ with posterior variance
+$\operatorname{Var}(\mathbb E[g\mid y])+\operatorname{Var}(g\mid y)$. **G3.**
+Start each coordinate at its marginal truncated median; hold pins. **G4.** Sweep
+by inverse CDF (a log-scale tail construction beyond $|z|\approx38.5$). **G5.**
+After burn-in, stream sums, squares and batch means ($b=\max(\lfloor\sqrt{n}\rfloor,2)$);
+store no draws. **G6.** Repeat rounds of fresh chains for unconverged families,
+pooling sums, until every batch-means SE is at most `tol` or `max_rounds` is
+reached (then warn). Family seeds are fixed by the family's global index, so a
+result does not depend on thread scheduling. Because G2's collapse set is
+computed from the families in a call, chunked Gibbs can differ from the
+unchunked array call by Monte Carlo error; chunked PA agrees to rounding.
+
+**Algorithm P (Pearson–Aitken; `ltpred.pearson_aitken`).** Selecting coordinate
+$i$ from $N(m_i,v_i)$ to moments $(m^\star,v^\star)$ updates the others by
+$m_j\leftarrow m_j+\Sigma_{ji}(m^\star-m_i)/v_i$ and
+$\Sigma_{jk}\leftarrow\Sigma_{jk}+\Sigma_{ji}\Sigma_{ik}(v^\star-v_i)/v_i^2$.
+**P1.** Put the target first (the object API sorts the other roles by name; array
+and kinship callers keep their own order). **P2.** Drop absent rows and condition
+on all pins jointly, $m_X=\Sigma_{XP}\Sigma_{PP}^{-1}p$,
+$V_X=\Sigma_{XX}-\Sigma_{XP}\Sigma_{PP}^{-1}\Sigma_{PX}$, sharing $V_X$ between
+families with the same observation mask; incompatible exact observations raise.
+**P3.** Fold the remaining intervals last to first with their truncated-normal
+moments. **P4.** Apply the target's own interval. **P5.** Return its mean and
+variance. The result is exact for pins plus at most one interval (the target's own
+included) and otherwise a sequential two-moment approximation that can depend on
+fold order.
+
+**Algorithm M (censored-control mixture; PA only).** A control observed below
+its current-age threshold is a lifetime control or a not-yet-onset case. In P3
+its moments are those of the two-component mixture split at the lifetime
+threshold $T=\Phi^{-1}(1-K_{pop})$, with weight
+$\pi=\Phi_{\rm below}/\{\Phi_{\rm below}+(1-\Phi_{\rm below})(K_{pop}-K_i)/K_{pop}\}$.
+The factor $(K_{pop}-K_i)/K_{pop}$ assumes onset timing independent of liability
+among eventual cases. A call containing a mixture row skips P2: pins, absent rows
+and intervals are folded sequentially, without P2's compatibility checks.
+
+**Algorithm Q (nuclear-family quadrature; `ltpred.quadrature`).** For an
+additive, non-inbred nuclear family with unrelated parents and $h^2<1$, the
+parental genetic values $z=(a_m,a_f)\sim N(0,h^2I)$ make all observed liabilities
+conditionally independent. **Q1.** Use analytic shortcuts where they apply. **Q2.**
+Condition $z$ on the pins exactly; with at most one interval left, return the
+exact answer. **Q3.** Project onto the span of the interval rows' loadings (one or
+two dimensions). **Q4.** Find the posterior mode by Newton's method with an
+Armijo line search. **Q5.** Integrate on a Gauss–Hermite grid centred at the
+mode: $\mathbb E[\mu(z)]$ and $\mathbb E[V(z)]+\operatorname{Var}[\mu(z)]$. **Q6.**
+Double the nodes from 16 up to `quadrature_max_nodes` and accept when both of the
+last two changes are within `quadrature_atol`; otherwise raise. The reported
+error is a resolution change, not a certified bound.
+
+**Algorithm K (kinship; `ltpred.covariance`, `ltpred._selected_kinship`).** Over
+a parents-first order, $A_{ii}=1+\tfrac12A_{s_id_i}$ and
+$A_{ij}=\tfrac12(A_{s_ij}+A_{d_ij})$ for $i$ later than $j$; an unknown parent
+contributes zero. The dense route fills one row per person. The selected route
+evaluates only requested pairs and their dependencies with an explicit stack and a
+bounded cache; eviction changes the work, never the value. The entries are exact
+binary fractions, so both routes agree bit for bit at realistic pedigree depths.
+
+**Algorithm R (register driver; `ltpred.pipeline`).** **R1.** Validate the
+inputs and each CIP once. **R2.** Build the parent graph and check it for cycles;
+report unresolved parents. **R3.** For each proband, extract relatives within
+`max_degree` plus the ancestors needed for exact kinship (closure-only).
+**R4.** Form the observation set: under `use="prediction"` censor each relative
+at their own age at the proband's `index_time`, and leave the proband's and
+closure-only rows uninformative. **R5.** Convert records to pinned-onset bounds.
+**R6.** When the positive-definiteness bound allows, keep only the target and
+informative rows (exact marginalisation) and compute their kinship by the dense
+or selected route of Algorithm K; otherwise use the full matrix. **R7.** Score
+by PA (a family-free, non-inbred, unpinned proband uses the exact scalar ADuLT
+moments instead). **R8.** Report
+the per-proband observation counts and call-level diagnostics.
+
+**Algorithm H (moment fit; `ltpred.fit`).** For
+$\Sigma=\sum_c\theta_cK_c+(1-\sum\theta)I$: **H1.** Check non-overlapping IDs,
+common thresholds and the case-rate screen. **H2.** Form the within-family pair
+design and check its rank. **H3.** Initialise $\theta$ and the chains. **H4.**
+Advance each family's latent-liability chain by `inner_sweeps` Gibbs sweeps.
+**H5.** Update $\theta$ by the (weighted) Haseman–Elston regression of
+$\ell_i\ell_j$ on the kernel entries. **H6.** Clip to $[\epsilon,1-\epsilon]$ and
+damp. **H7.** After `n_iter` iterations, report the mean of the post-burn-in
+trace; `h2_se` is its batch-means Monte Carlo SE, not a sampling SE.
+
+**Algorithm L (pairwise likelihood; `ltpred.pairwise`, `ltpred.pairwise_multi`).**
+**L1.** Screen as in H1. **L2.** Tabulate jointly observed within-family pairs
+into weighted $2\times2$ tables keyed by their kernel row. **L3.** Evaluate the
+composite likelihood from bivariate-normal cell probabilities. **L4.** Maximise
+under the non-negativity and residual constraints and certify stationarity.
+**L5.** Report the family-cluster sandwich $H^{-1}JH^{-1}$, withheld at a
+boundary. The multi-trait fit parametrises $\Sigma=G\otimes A+S\otimes C+T\otimes M+E\otimes I$
+with PSD components and unit total variance per trait, and derives $h^2$, $r_g$,
+$r_e$ and their SEs by the delta method.
+
 ## Methods report
 
 The [methods PDF](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf)
