@@ -1,26 +1,24 @@
 # ltpred benchmarks
 
 Benchmarks for the two ltpred inference engines — the **Gibbs sampler** and
-deterministic **Pearson–Aitken (PA)** — across LT-FH, LT-FH++ and ADuLT inputs.
-The PA-FGRS censoring mixture has unit tests and a dedicated generative
-benchmark (`bench_pafgrs_mixture.py`).
-Bounds define the observation encoding; relative rows distinguish
-LT-FH++ from family-free ADuLT. Statistical benchmarks simulate
-their own data, so the true genetic liability is known; computational benchmarks
-use matched synthetic workloads. Both run locally with no downloads (real-LD genotypes are an opt-in
-[HAPNEST](hapnest/README.md) step).
+deterministic **Pearson–Aitken (PA)** — across LT-FH, LT-FH++ and ADuLT inputs,
+plus the fitters, the register pipeline and the PA-FGRS censoring mixture.
+Statistical benchmarks simulate their own data, so the true genetic liability
+is known; computational benchmarks use matched synthetic workloads. Both run
+locally with no downloads (real-LD genotypes are an opt-in
+[HAPNEST](hapnest/README.md) step). Results are in [RESULTS.md](RESULTS.md).
 
-Historical scaling and R-package comparisons use **four threads**; other
-campaigns record their own thread counts. The time/memory comparison below uses
-**one thread**. Pin the thread count explicitly rather than
-letting Numba take every core: a speed-up is only interpretable alongside the
-thread count it was measured at, because Gibbs is parallel while the PA object
-path is largely serial.
+Pin the thread count explicitly rather than letting Numba take every core: a
+speed-up is only interpretable alongside its thread count, because Gibbs is
+parallel while the PA object path is largely serial. The scaling and R-package
+comparisons use **four threads**, the time/memory driver **one**; other
+campaigns record their own.
 
 Use the provenance wrapper for retained CSV/PNG benchmark outputs. It
 appends one JSON object to `run_manifest.jsonl` with the clean source commit,
 exact command, runtime stack, thread settings, machine profile, exit status, and
-hashes of declared CSV/PNG artifacts:
+hashes of declared CSV/PNG artifacts; commit that row with the regenerated
+artifact:
 
 ```bash
 python benchmarks/run_benchmark.py --artifact bench_accuracy.csv \
@@ -28,9 +26,6 @@ python benchmarks/run_benchmark.py --artifact bench_accuracy.csv \
 NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=4 \
   python benchmarks/run_benchmark.py --artifact bench_scaling.csv \
     --artifact bench_scaling.png bench_scaling.py
-NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=4 \
-  python benchmarks/run_benchmark.py --artifact bench_gwas_power.csv \
-    --artifact bench_gwas_power.png bench_gwas_power.py
 ```
 
 The wrapper ignores existing benchmark outputs when checking source cleanliness,
@@ -43,99 +38,69 @@ rerun reproduces the existing bytes exactly.
 For external inputs, add repeatable `--input FILE` arguments; the wrapper hashes
 them before the run and rejects a run if they change while it is executing. A
 PLINK prefix therefore needs three declarations (`.bed`, `.bim`, and `.fam`).
+Timing runs also want an otherwise-quiet machine: record the load average
+beside the command before quoting a number.
 
-Timing runs also want an otherwise-quiet machine. Record the load average beside
-the command before quoting a number: `bench_scaling`'s current figures were
-taken while the 1-minute load moved from 2.56 to 5.86 on a 10-core box. The lean
-wrapper restores prospective provenance without the removed log/source archives.
-
-Most scripts write a `.csv` and, if matplotlib is present, a `.png`. The
-following scripts print focused diagnostics to stdout and also write a
-summary CSV: `bench_cip_estimation.py`, `bench_liability_scale.py`, and
-`bench_tetrachoric.py`. These still print only:
-`bench_inference_calibration.py` and
-`bench_misspecification.py`. `bench_pedigree_inference.py` and
-`bench_register_pipeline.py` print the same style of diagnostics but also
-write long-format `rep, metric, value` CSVs (`--reps` independent
-populations/registers; rep 0 marks single-run parts).
-
-Two gain metrics appear below. Independent-SNP marginal-association panels
-report **causal-SNP NCP ratios**, based on `mean chi² - 1`. Prediction-only panels report
-**squared-correlation effective-N proxies**. These answer related but different
-questions and their magnitudes should not be compared as if they were the same
-statistic. Every checked-in genotype-association result used independent SNPs,
-non-overlapping simulated families, and the lightweight marginal score statistic
-in `_common.py`; none is evidence from a real-LD, related-sample mixed-model GWAS.
-The HAPNEST input path is opt-in and has not been run for the committed results.
-
-**Runtime depends on your machine.** These reference numbers were taken on 10
-cores with Numba installed (`pip install -e ".[fast]"`); the first call in each
-script pays a one-off JIT compile. Expect substantially slower runs on fewer
-cores, on a cold JIT cache, or without Numba (the pure-Python fallback is
-numerically identical, just slower). Each script takes CLI flags (`--reps`,
-`--n-fam`, …) to trade runtime for precision.
+Most scripts write a `.csv` and, if matplotlib is present, a `.png`; the Output
+column of the [Scripts](#scripts) tables lists each one. The two gain metrics
+(causal-SNP NCP ratio versus squared-correlation eff-N proxy) and the
+independent-SNP scope of every association result are defined once, in the
+[RESULTS.md preamble](RESULTS.md).
 
 ## Time and memory between versions
 
-The latest committed comparison is [v0.7.1 versus v0.7.0](results/2026-09-23-time-memory-v071/README.md),
-covering matched graph, PA and register-scoring workloads. These are
-historical source-bound measurements, not timings of the current tree.
-No driver capsule spans v0.7.2 → v0.7.3 yet; one should be run through
-`run_benchmark.py` before the next release so this series stays unbroken.
+`bench_time_memory.py` compares two package versions on matched graph, PA and
+register-scoring workloads. Its capsules are historical source-bound
+measurements, not timings of the current tree. **Known gap:** no time/memory
+capsule spans v0.7.1 → v0.7.4.
 
-[v0.7.3's microbenchmark capsule](results/2026-09-24-review/README.md)
-(quadrature moments, bound-row dedup, pid normalisation, Mendelian
-simulation) is workload-specific evidence for that release's changes on a
-shared host, not a host-isolated speed ranking and not an end-to-end
-register measurement. The [v0.7.2 lean-cleanup capsule](results/2026-09-23-lean-v072/README.md)
-measures the chunked kernels' allocation on synthetic probes and makes no
-general speedup claim.
+**Table 1. Every committed capsule in [`results/`](results/)** (JSON
+campaigns, statistical ones included). Each README gives the design,
+environment, limits and reproduction command.
+
+| capsule | measures | retained files | cited in |
+|---|---|---|---|
+| [2026-09-09-time-memory-v061-rerun](results/2026-09-09-time-memory-v061-rerun/README.md) | driver: v0.6.1 `b516271` vs v0.6.0 `52dec52` | `results.json`, `provenance.json`, `run.log` | [RESULTS.md §31](RESULTS.md#31-time-and-memory-v061-versus-v060); pinned by `scripts/check_evidence.py` |
+| [2026-09-16-joint-pairwise](results/2026-09-16-joint-pairwise/README.md) and [-nulls](results/2026-09-16-joint-pairwise-nulls/README.md) | `bench_pairwise_multi.py` statistical evidence, development checkout (v0.7.0 `d4aa91e` sources) | `manifest.json`, `replicates.json`, `summary.json`; main run also `bench_pairwise_multi-vs-d4aa91e.diff` | RESULTS.md §33 |
+| [2026-09-23-lean-v072](results/2026-09-23-lean-v072/README.md) | chunked-kernel allocation on synthetic probes, v0.7.2 candidate vs v0.7.1 `8926f25`; no general speedup claim | `measure.py`, `change.patch`, `results.json`, `baseline.npz`, before/after time and memory JSONs | — |
+| [2026-09-23-time-memory-v071](results/2026-09-23-time-memory-v071/README.md) | driver: v0.7.1 `5b42b13` vs `ac78ba3` (v0.7.0 plus documentation) | `results.json`, `provenance.json`, `run.log` | RESULTS.md §31a |
+| [2026-09-24-review](results/2026-09-24-review/README.md) | v0.7.3 microbenchmarks (quadrature moments, bound-row dedup, pid normalisation, Mendelian simulation), `db2377f` vs `6686541` + patch; shared host, not a speed ranking or an end-to-end register measurement | `probe.py`, before/after JSONs, `comparison.json`, `mendelian-{400,8000}.json`, `after-vs-6686541.patch` | — |
 
 The design rationale and measured folds behind `_selected_kinship`,
-`pairwise.py` and `quadrature.py` come from the external efficiency review
-of 2026-09-05 (`../ltpred-efficiency-review-2026-09-05/REVIEW.md`, a sibling
-checkout outside this repository whose capsule is retained there, not here).
+`pairwise.py` and `quadrature.py` come from an external efficiency review of
+2026-09-05 whose capsule is not in this repository.
 
-The earlier [v0.6.1 rerun against v0.6.0](results/2026-09-09-time-memory-v061-rerun/README.md)
-covers two parent-graph sizes, four PA batches of 200,000 families, and a small
-register-scoring workload. Mixed-mask PA and million-record graph construction
-gained the most on warm calls, with lower RSS; the small register case barely
-moved. All measured outputs agree exactly. The figures and measurement limits
-are in [RESULTS.md §31](RESULTS.md#31-time-and-memory-v061-versus-v060).
-
-Run the standalone JSON driver from the source version to be measured, using
-a new output directory:
+Run the driver from the source version to be measured, with that version's
+interpreter (the v0.7.1 capsule used `ltpred314`) and a new output directory:
 
 ```bash
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 \
 VECLIB_MAXIMUM_THREADS=1 NUMEXPR_NUM_THREADS=1 NUMBA_NUM_THREADS=1 \
-.venv/bin/python benchmarks/bench_time_memory.py \
-  --baseline-ref 52dec5294c101d4730c86d3307091be75dc47a5e \
+python benchmarks/bench_time_memory.py \
+  --baseline-ref <baseline commit SHA> \
   --reps 5 --output /tmp/ltpred-time-memory
 ```
 
-The driver uses separate runtime/RSS and allocation processes for each case and
-version, archives both package sources, and checks output agreement and source
-stability. First-call times include reached JIT compilation; warm medians use
-five later calls. Allocation tracing runs separately after warmup, outside the
-timing process. The AC-power/Low-Power-Mode guard must pass. This JSON campaign
-does not use the CSV/PNG wrapper: retain its aggregate `results.json`, run log,
-and before/after source provenance together, as in the linked capsule. That
-capsule measured the clean v0.6.1 commit `b516271`; the documentation patch
-v0.6.2 leaves the numerical implementation unchanged.
+The driver uses separate runtime/RSS and allocation processes per case and
+version, saves both package sources, checks output agreement and source
+stability, and requires the AC-power/Low-Power-Mode guard to pass; the timing
+definitions are in each capsule README. It does not use the CSV/PNG wrapper:
+retain `results.json`, the provenance record and the run log together.
 
 ## Environments
 
-- **`ltpred314`** — the CSV/PNG campaigns, and package verification (pytest,
-  ruff, `mkdocs build --strict`). This is the free-threaded Python 3.14.6 build
-  with NumPy 2.4.6, SciPy 1.18.0, Numba 0.66.0 and matplotlib, which is the
-  environment [`RESULTS.md`](RESULTS.md) records for the stored artifacts.
-  Reruns meant to be comparable with them belong here.
-- **`.venv`** (the checkout's own) — the time/memory driver only, whose capsule
-  records Python 3.10.20, NumPy 2.2.6, SciPy 1.15.3 and Numba 0.67.0. Do not
-  use it for the statistical campaigns: it has no matplotlib, so every figure
-  is silently skipped, and its NumPy draws a different `multivariate_normal`
-  stream, which shifts sampling-based benchmarks in the third decimal.
+- **`ltpred314`** — the CSV/PNG campaigns, the time/memory driver since v0.7.1,
+  and package verification (pytest, ruff, `mkdocs build --strict`). This is the
+  free-threaded Python 3.14.6 build with NumPy 2.4.6, SciPy 1.18.0, Numba
+  0.66.0 and matplotlib, the environment [`RESULTS.md`](RESULTS.md) records for
+  the stored artifacts. Reruns meant to be comparable with them belong here.
+- **`.venv`** (the checkout's own) — measured the v0.6.1 time/memory capsule
+  (Python 3.10.20, NumPy 2.2.6, SciPy 1.15.3, Numba 0.67.0) but no longer
+  imports SciPy on the reference macOS host, so the v0.7.1 capsule used
+  `ltpred314`. Never use it for the statistical campaigns: it has no
+  matplotlib (every figure is silently skipped), and its NumPy draws a
+  different `multivariate_normal` stream, which shifts sampling-based
+  benchmarks in the third decimal.
 - **`ldpred3`** — the optional ldpred3 PGS backend used by the
   PGS-comparison arm.
 
@@ -145,7 +110,8 @@ Rows marked *research* import checkout-only APIs from `research/`; those APIs
 are not installed as part of `ltpred`. Each script's module docstring gives its
 design, arms and CLI flags. The tables group scripts by the question they
 answer; the RESULTS.md section order is historical and does not follow these
-groups.
+groups. Scripts whose Output is `stdout` archive no artifact.
+
 
 **Score accuracy, calibration and robustness**
 
@@ -212,51 +178,45 @@ HAPNEST path.
 
 ## How the data are simulated
 
-* **Family-only benchmarks** (accuracy, scaling, age-of-onset) draw genetic `g`,
-  full liability `o`, and relatives jointly from the liability-threshold family
-  covariance. The bounds and retained relative rows define classic LT-FH or an
-  LT-FH++ component ablation; none of these rows is ADuLT.
-  Because `g` is retained, accuracy is corr(estimate, `g`). The age-of-onset
-  script scores classic, interval, and pinned encodings on the same families.
-  The mixture script draws onset under threshold-crossing, stochastic, or
-  liability-dependent (`onset_rho=0.6`) models.
-* **Fitter benchmarks** draw unascertained, population-sampled simulated
-  families and pass `sampling="population"` explicitly. `bench_ascertainment.py`
-  is the exception and the complement: it measures what those fitters return
-  when the contract is violated, and what `sampling="ipw"` recovers.
-* **The classic independent-SNP association benchmark** uses parents plus one sibling and builds each proband's genetic liability from simulated
-  causal-SNP genotypes, then draws the relatives' liabilities *conditional on that
-  value* from the same covariance. This gives a genotype matrix to associate
-  against and a correctly correlated family history to estimate from. LD is not
-  needed for the power comparison (which turns on each phenotype's correlation to
-  the true genetic value); pass `--plink` for real-LD HAPNEST genotypes if you
-  want realistic multiple-testing structure. The association helper remains a
-  marginal score calculation, and the simulation does not represent overlapping
-  extracted pedigrees.
-* **The personalised LT-FH++ independent-SNP association benchmark** adds coherent age, onset,
-  competing mortality, birth-cohort effects, ascertainment, and stratified null
-  variants. Its matched ADuLT row retains the full proband CIP but removes family
-  history. The integrated panel measures the combined `++` design; its separate
-  sex-isolation panel removes cohort and mortality-sex effects before comparing
-  age-only with age+sex thresholds. The CSV identifies replicate, paired-contrast,
-  and CIP-curve rows and records the material simulation and Gibbs configuration.
+* **Family-only benchmarks** (accuracy, scaling, age-of-onset, PA-FGRS mixture)
+  draw genetic `g`, full liability `o` and relatives jointly from the
+  liability-threshold family covariance; because `g` is retained, accuracy is
+  corr(estimate, `g`). None of these rows is ADuLT.
+* **Fitter benchmarks** draw unascertained, population-sampled families and
+  pass `sampling="population"` explicitly; `bench_ascertainment.py` measures
+  what those fitters return when that contract is violated, and what
+  `sampling="ipw"` recovers.
+* **Association benchmarks** build each proband's genetic liability from
+  simulated independent causal-SNP genotypes and draw the relatives
+  *conditional on that value*, giving both a genotype matrix and a correctly
+  correlated family history. `--plink` substitutes real-LD HAPNEST genotypes;
+  the association helper remains a marginal score calculation, and the
+  simulation does not represent overlapping extracted pedigrees. The
+  personalised LT-FH++ benchmark adds coherent age, onset, competing mortality,
+  birth-cohort effects, ascertainment and stratified null variants.
 
 ## Caveats
 
 - These are **stochastic** benchmarks. Some cells are single simulated cohorts;
-  others report means across independent cohorts. Re-running shifts both by
-  sampling noise, so read the reported replicate counts and uncertainty where
-  available.
-- The Gibbs timings use the structure-grouped, Numba-parallel path. Set
-  `NUMBA_NUM_THREADS` to fix Numba's worker count; optionally set
-  `OMP_NUM_THREADS` too so linked numerical libraries use the same limit.
-- Checked-in CSVs and [`RESULTS.md`](RESULTS.md) are historical artifacts.
-  Their claims apply only to their recorded designs and provenance, not
-  automatically to the current source tree. `scripts/check_evidence.py`
-  reconciles the release-defining scaling, IPW, R-lock and PGS claims with their
-  stored artifacts; verify other numbers against their CSVs when quoting them.
-- CI never re-runs a benchmark, by design: they are minutes to hours of
-  stochastic work whose value is the recorded provenance. The `docs` job runs
-  `scripts/check_evidence.py`, which checks the committed artifacts against the
-  prose, not against the current code. Re-run a script locally before quoting
-  its number as current.
+  others report means across independent cohorts. Read the reported replicate
+  counts and uncertainty; a rerun shifts both by sampling noise.
+- **Runtime depends on the machine.** The reference numbers were taken on 10
+  cores with Numba installed (`pip install -e ".[fast]"`); the first call in
+  each script pays a one-off JIT compile. Expect slower runs on fewer cores, on
+  a cold JIT cache, or without Numba (the pure-Python fallback is numerically
+  identical). CLI flags (`--reps`, `--n-fam`, …) trade runtime for precision.
+- Gibbs timings use the structure-grouped, Numba-parallel path: set
+  `NUMBA_NUM_THREADS`, and `OMP_NUM_THREADS` for linked numerical libraries.
+- Checked-in CSVs and [`RESULTS.md`](RESULTS.md) are historical artifacts whose
+  claims apply to their recorded designs and provenance, not automatically to
+  the current source tree. CI never reruns a benchmark; the `docs` job runs
+  `scripts/check_evidence.py`, which checks committed artifacts against prose,
+  not against the current code. It pins the scaling tables (and the CSV's
+  content hash, plus the array-API prose in `docs/estimation.md`), the PA
+  robustness floor, the IPW recovery, the R-package lock and its thread
+  provenance, the PGS joint model, every cell of the `gwas_power`,
+  `confounding` and `fit_heritability` paper tables, the v0.6.1 time/memory
+  capsule (revisions, source hashes and its seven rows), the SHA-256,
+  one-thread and power-guard record of every `results.json` capsule, and the
+  tracked report PDF. Verify any other number against its CSV, and rerun the
+  script locally before quoting it as current.
