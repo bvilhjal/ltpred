@@ -45,8 +45,8 @@ __all__ = ["observed_to_liability_h2", "liability_to_observed_h2",
 def _z_density(pop_prev):
     """z = phi(Phi^-1(1 - K)), the normal density at the liability threshold."""
     pop_prev = np.asarray(pop_prev, dtype=float)
-    if np.any((pop_prev <= 0) | (pop_prev >= 1)):
-        raise ValueError("pop_prev must lie in (0, 1)")
+    if np.any(~np.isfinite(pop_prev) | (pop_prev <= 0) | (pop_prev >= 1)):
+        raise ValueError("pop_prev must be finite and lie in (0, 1)")
     t = -norm_ppf(pop_prev)        # -ppf(p) avoids the 1-p tail cancellation
     return pop_prev, np.exp(-0.5 * t * t) / np.sqrt(2.0 * np.pi)
 
@@ -57,8 +57,8 @@ def _ascertainment(pop_prev, prop_cases):
         return 1.0
     pop_prev = np.asarray(pop_prev, dtype=float)
     prop_cases = np.asarray(prop_cases, dtype=float)
-    if np.any((prop_cases <= 0) | (prop_cases >= 1)):
-        raise ValueError("prop_cases must lie in (0, 1)")
+    if np.any(~np.isfinite(prop_cases) | (prop_cases <= 0) | (prop_cases >= 1)):
+        raise ValueError("prop_cases must be finite and lie in (0, 1)")
     return pop_prev * (1.0 - pop_prev) / (prop_cases * (1.0 - prop_cases))
 
 
@@ -74,17 +74,24 @@ def observed_to_liability_h2(obs_h2: ArrayLike, pop_prev: ArrayLike,
                              prop_cases: ArrayLike | None = None) -> np.ndarray | np.floating:
     """Observed-scale h² -> liability scale (Lee et al. 2011).
 
-    Multiplies by ``K(1-K)/z²`` with ``z = phi(Phi^-1(1-K))``, plus the
-    ascertainment factor ``K(1-K)/(P(1-P))`` when the study over-samples cases.
-    Vectorised over the inputs.
+    Multiplies ``obs_h2`` by ``K(1-K)/z²`` with ``z = phi(Phi^-1(1-K))``, plus
+    the ascertainment factor ``K(1-K)/(P(1-P))`` when the study over-samples
+    cases. ``pop_prev`` is the population prevalence ``K`` and ``prop_cases``
+    the sample case fraction ``P`` (``None`` for an unascertained sample, which
+    drops the ascertainment factor); both must be finite and lie in (0, 1), or
+    ``ValueError`` is raised. Vectorised over the inputs.
     """
     return np.asarray(obs_h2, dtype=float) * _master_factor(pop_prev, prop_cases)
 
 
 def liability_to_observed_h2(liab_h2: ArrayLike, pop_prev: ArrayLike,
                              prop_cases: ArrayLike | None = None) -> np.ndarray | np.floating:
-    """Liability-scale h² -> observed scale (inverse of
-    `observed_to_liability_h2`)."""
+    """Liability-scale h² -> observed scale (Lee et al. 2011).
+
+    The inverse of `observed_to_liability_h2`: divides ``liab_h2`` by the same
+    factor, with ``pop_prev`` (``K``) and ``prop_cases`` (``P``, or ``None``)
+    under the same rules.
+    """
     pop_prev, z = _z_density(pop_prev)
     factor = (z * z) / (pop_prev * (1.0 - pop_prev))
     return np.asarray(liab_h2, dtype=float) * factor / _ascertainment(

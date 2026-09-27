@@ -9,7 +9,7 @@ parental breeding values ``z = (a_m, a_f) ~ N(0, h2 I)``, the observed
 liabilities are independent given ``z``: ``l_j | z ~ N(b_j' z, d_j)`` with
 ``b_j = (1, 0)``, ``(0, 1)``, ``(1/2, 1/2)`` and ``d_j = 1 - h2`` for parents,
 ``1 - h2/2`` for offspring. Siblings add likelihood factors, not integration
-dimensions. `_family` treats one family:
+dimensions. Each family is solved as follows:
 
 1. Analytic shortcuts: ``out="full"`` with a pinned proband; ``h2 = 0``; no
    informative offspring (independent parental liabilities).
@@ -18,11 +18,11 @@ dimensions. `_family` treats one family:
 3. Zero or one remaining interval: exact Gaussian or single-selection answer.
 4. Otherwise whiten ``z`` and project onto the span (rank 1 or 2) of the
    interval rows' loadings; orthogonal directions add only analytic variance.
-5. `_mode`: Newton's method on the log-concave negative log posterior with
+5. Mode: Newton's method on the log-concave negative log posterior with
    its exact gradient and Hessian and Armijo backtracking. It stops on a
    negligible step, a failed line search, or an accepted decrease at
    floating-point resolution (stationary objective); else 80 iterations raise.
-6. Integrate on a tensor Gauss-Hermite grid (`_grid`) centred at the mode and
+6. Integrate on a tensor Gauss-Hermite grid centred at the mode and
    scaled by the inverse-Hessian Cholesky factor, importance-reweighted in
    log space by prior times interval likelihoods over the proposal. Per node,
    the target's conditional moments ``mu(z)``, ``V(z)`` include its own
@@ -53,6 +53,7 @@ from numpy.typing import ArrayLike
 from scipy.special import log_ndtr, logsumexp, roots_hermitenorm, roots_legendre
 
 from ._validation import validate_bounds
+from .estimate import _OUT_NAMES, _single_out
 from .pearson_aitken import _tnorm_moments_loc
 from ._numba import _jit
 from ._results import _TableExport
@@ -363,7 +364,8 @@ def estimate_liability_quadrature_arrays(roles: Sequence[str], lower: ArrayLike,
     Shared environment, other pedigree roles and censoring mixtures are outside
     this model. Point pins are exact observations, not narrow intervals.
 
-    ``out`` selects ``"genetic"`` or ``"full"``. ``atol`` bounds successive
+    ``out`` selects ``"genetic"`` or ``"full"`` (or a length-1 sequence of
+    either, as in the other single-column array APIs). ``atol`` bounds successive
     changes in both posterior moments, not their unknown true numerical error.
     Two successive refinements must meet it; ``max_nodes`` (64 through 512)
     limits nodes per active factor dimension. The upper limit bounds the
@@ -380,8 +382,7 @@ def estimate_liability_quadrature_arrays(roles: Sequence[str], lower: ArrayLike,
         raise ValueError("quadrature roles must be unique")
     if h2 is None or isinstance(h2, (bool, np.bool_)) or np.ndim(h2) != 0 or not np.isfinite(h2) or not 0 <= h2 < 1:
         raise ValueError("quadrature requires scalar h2 in [0, 1)")
-    if out not in ("genetic", "full"):
-        raise ValueError("out must be 'genetic' or 'full'")
+    out = _OUT_NAMES[_single_out(out)]
     if isinstance(atol, (bool, np.bool_)) or np.ndim(atol) != 0 or not np.isfinite(atol) or atol <= 0:
         raise ValueError("atol must be finite and strictly positive")
     if isinstance(max_nodes, (bool, np.bool_)) or not isinstance(max_nodes, (int, np.integer)) or not 64 <= max_nodes <= 512:

@@ -500,6 +500,27 @@ def test_fit_heritability_validates_burn_in_and_h2_init():
     assert np.isfinite(res.h2)
 
 
+@pytest.mark.parametrize(("n_iter", "burn_in"), [(3, 0), (5, 2), (10, 7)])
+def test_fitters_require_four_retained_iterates_up_front(monkeypatch, n_iter,
+                                                         burn_in):
+    # batch_means needs 4 retained iterates; reject before running the fit
+    import importlib
+    fit_mod = importlib.import_module("ltpred.fit")
+
+    def never(*args, **kwargs):
+        raise AssertionError("fit ran before the iteration controls were checked")
+
+    monkeypatch.setattr(fit_mod, "_fit_component_engine", never)
+    sim = simulate_under_LTM_single(fam_vec=["m", "s1"], h2=0.5, n_sim=30,
+                                    pop_prev=0.1, seed=1)
+    with pytest.raises(ValueError, match=r"n_iter - burn_in .* must be >= 4"):
+        fit_heritability(sim.families, n_iter=n_iter, burn_in=burn_in,
+                         sampling="population")
+    with pytest.raises(ValueError, match=r"n_iter - burn_in .* must be >= 4"):
+        fit_variance_components(sim.families, ("A",), n_iter=n_iter,
+                                burn_in=burn_in, sampling="population")
+
+
 @pytest.mark.parametrize(
     ("name", "value", "error"),
     [

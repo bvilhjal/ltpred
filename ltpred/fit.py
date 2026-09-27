@@ -5,16 +5,15 @@ Everywhere else in ltpred the family covariance is *given*; here it is fitted.
 fits proportions ``theta_c`` for a subset of the kernels ``A`` (additive
 relationship, ``2 * kinship``), ``C`` (full-sib indicator) and ``M`` (mate-pair
 indicator), with ``Sigma = sum_c theta_c K_c + (1 - sum_c theta_c) I`` on the
-unit-variance liability scale (`_component_matrix`). The latent liabilities
+unit-variance liability scale. The latent liabilities
 are missing data; see the methods report, "Fitting h² is a different problem".
 
-**Algorithm H** (both fitters; `_fit_component_engine`).
+**Algorithm H** (both fitters).
 
 - **H1. Screen.** Families are assumed independent and must not share a
-  ``pid``; each trait must have one common one-sided threshold ``t`` -- no pins, intervals
-  or person-specific thresholds (`_assert_common_thresholds`) -- and each role's
-  (weighted) case rate must be consistent with ``K = 1 - Phi(t)``
-  (`_assert_population_case_rate`).
+  ``pid``; each trait must have one common one-sided threshold ``t`` -- no pins,
+  intervals or person-specific thresholds -- and each role's (weighted) case
+  rate must be consistent with ``K = 1 - Phi(t)``.
 - **H2. Design.** Group families by role set. Every within-family pair ``i < j``
   with a nonzero kernel row ``x_ij = (K_c[i, j])_c`` enters
   ``X'WX = sum_f w_f sum_(i,j) x_ij x_ij'`` (``w_f = 1`` without IPW). Raise
@@ -416,8 +415,12 @@ def _validate_components(components):
     return comps
 
 
-def _validate_iteration_controls(n_iter, burn_in, inner_sweeps):
-    """Return strict integer controls for the stochastic fixed point."""
+def _validate_iteration_controls(n_iter, burn_in, inner_sweeps, *,
+                                 min_retained=1):
+    """Return strict integer controls for the stochastic fixed point.
+
+    ``min_retained`` is the least ``n_iter - burn_in`` accepted; the public
+    fitters pass 4, the two batches `ltpred.estimate.batch_means` needs."""
     values = {}
     for name, value, minimum in (("n_iter", n_iter, 1),
                                  ("burn_in", burn_in, 0),
@@ -436,7 +439,16 @@ def _validate_iteration_controls(n_iter, burn_in, inner_sweeps):
         raise ValueError(
             f"burn_in ({values['burn_in']}) must be non-negative and "
             f"< n_iter ({values['n_iter']})")
+    if values["n_iter"] - values["burn_in"] < min_retained:
+        raise ValueError(
+            f"n_iter - burn_in ({values['n_iter']} - {values['burn_in']}) must "
+            f"be >= {min_retained}: the batch-means SE of the retained trace "
+            "needs at least two batches")
     return values["n_iter"], values["burn_in"], values["inner_sweeps"]
+
+
+#: Retained fixed-point iterates the batch-means SE needs (two batches of two).
+_MIN_RETAINED = 4
 
 
 def _validate_h2_init(h2_init):
@@ -467,7 +479,8 @@ class FitResult:
     sampling-uncertainty option when its assumptions hold. ``samples`` is the
     post-burn-in ``h2`` trace and ``trace`` the full one
     (for convergence diagnostics; despite the name they are fixed-point iterates,
-    not posterior draws)."""
+    not posterior draws). ``n_iter`` and ``burn_in`` are the controls the fit
+    ran with."""
     h2: float
     h2_se: float
     samples: np.ndarray
@@ -482,20 +495,23 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
                      seed: int | None = None, eps: float = 1e-4,
                      sampling: str | None = None,
                      weights: ArrayLike | None = None) -> FitResult:
-    """Estimate liability-scale ``h2`` from family case/control (+age) statuses.
+    """Estimate liability-scale ``h2`` from common-threshold family case/control statuses.
 
     **Sampling contract:** this moment fitter assumes independent,
     non-overlapping families under one of two designs. ``sampling="population"``
     is the unascertained case; ``sampling="ipw"`` with per-family ``weights``
     covers selection on observed status with a known, strictly positive
     inclusion probability (below). Omitting ``sampling`` emits a compatibility
-    warning; anything else raises. There is no ascertainment *likelihood* here,
+    warning; anything else raises. ``weights`` are accepted only with
+    ``sampling="ipw"``, which requires them: one finite, strictly positive value
+    per family. There is no ascertainment *likelihood* here,
     so a design that reweighting cannot reach -- because family-level selection
     probabilities are unknown or misspecified, or any joint stratum has
     probability zero -- still produces severe boundary bias.
 
-    That acknowledgement is **checked against the data**: the supplied thresholds assert a prevalence, and each role's case rate
-    is compared against it (`_assert_population_case_rate`). A gross
+    That acknowledgement is **checked against the data**: the supplied
+    thresholds assert a prevalence, and each role's (weighted) case rate is
+    compared against it with a binomial z-test. A gross
     mismatch raises, because the failure it guards is severe and silent -- on
     ascertained families with a true ``h2`` of 0, this fitter returns
     ``h2 = 1.0``. The check is deliberately conservative, so it catches the
@@ -544,20 +560,24 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
 
     Needs relatives (at least one related pair); a set of lone probands carries no
     information about ``h2`` and raises. ``seed`` must be a non-boolean integer in
-    ``[0, 2**32 - 1]`` or ``None``, ``h2_init`` must lie in [0, 1], and ``burn_in``
-    must be non-negative and smaller than ``n_iter``.
+    ``[0, 2**32 - 1]`` or ``None`` and ``h2_init`` must lie in [0, 1].
+    ``n_iter`` counts outer fixed-point iterations, of which the first
+    ``burn_in`` are dropped (a different unit from the estimators' Gibbs
+    ``burn_in`` sweeps); ``burn_in`` must be non-negative and
+    ``n_iter - burn_in >= 4``, since the batch-means SE needs two batches.
+    Invalid controls raise before any sampling.
 
     **Requires a common case/control threshold per trait.** The pooled
     Haseman-Elston fixed point assumes every augmented liability is drawn from
     the same ``N(0, 1)`` population, so personalised (age-/CIP-specific) or
     onset-pinned LT-FH++ bounds — even perfectly coherent ones — fall outside
-    that estimating contract. Those inputs are **rejected**, not silently fitted
-    (see `_assert_common_thresholds`). Fit from common-threshold bounds; the
+    that estimating contract. Those inputs are **rejected**, not silently
+    fitted. Fit from common-threshold bounds; the
     prediction path (`ltpred.estimate.estimate_liability`) is unaffected,
     since it conditions on ``h2`` rather than fitting it. Standard NaN and
     interval-order validation still applies."""
     n_iter, burn_in, inner_sweeps = _validate_iteration_controls(
-        n_iter, burn_in, inner_sweeps)
+        n_iter, burn_in, inner_sweeps, min_retained=_MIN_RETAINED)
     h2_init = _validate_h2_init(h2_init)
     damp, eps = _validate_update_controls(damp, eps)
     weights = _validate_weights(weights, len(families), "fit_heritability")
@@ -618,7 +638,8 @@ class VarCompResult:
     Monte-Carlo diagnostic (same caveat as `FitResult`), not
     across-dataset sampling uncertainty. Use an appropriately designed
     family-cluster bootstrap for sampling uncertainty. ``traces`` are the
-    post-burn-in proportion traces per component."""
+    post-burn-in proportion traces per component, and ``n_iter`` and
+    ``burn_in`` the controls the fit ran with."""
     components: dict
     residual: float
     se: dict
@@ -845,13 +866,15 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
 
     A component whose identifying pairs are absent (``C`` with no full-sib pairs,
     ``M`` with no mate pairs, or no related pairs at all) leaves the design singular
-    and this raises. (Dominance ``"D"`` is intentionally unsupported — see the note
-    by ``_COMPONENT_OFFDIAG``; it needs an explicit dominance kernel and an
-    independently informative relationship design.)
+    and this raises. (Dominance ``"D"`` is intentionally unsupported: it needs an
+    explicit dominance kernel and an independently informative relationship
+    design.)
 
     Runs a data-augmentation sweep of ``inner_sweeps`` truncated-MVN sweeps per
-    outer iteration; ``damp`` must lie in ``(0, 1]`` and ``eps`` in
-    ``[1e-8, 0.5)`` keeps a positive residual floor. Returns a
+    outer iteration, starting every proportion at ``0.5 / len(components)``;
+    ``damp`` must lie in ``(0, 1]`` and ``eps`` in ``[1e-8, 0.5)`` keeps a
+    positive residual floor. ``n_iter`` and ``burn_in`` follow
+    `fit_heritability` (outer iterations; ``n_iter - burn_in >= 4``). Returns a
     `VarCompResult`. Simulation benchmarks recover ``A`` and ``A+C`` with
     small bias relative to their across-dataset SD. ``se`` is only a within-fit
     Monte-Carlo diagnostic. Use family resampling for a sampling interval when
@@ -865,7 +888,7 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
     Standard NaN and interval-order validation still applies."""
     comps = _validate_components(components)
     n_iter, burn_in, inner_sweeps = _validate_iteration_controls(
-        n_iter, burn_in, inner_sweeps)
+        n_iter, burn_in, inner_sweeps, min_retained=_MIN_RETAINED)
     damp, eps = _validate_update_controls(damp, eps)
     weights = _validate_weights(weights, len(families),
                                 "fit_variance_components")
