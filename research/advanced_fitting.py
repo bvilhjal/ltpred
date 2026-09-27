@@ -25,7 +25,7 @@ Contents:
 - :func:`fit_nurture` — closed-form direct/indirect (genetic-nurture)
   moment fit (:class:`NurtureFit`).
 
-The module reuses the lean core's private helpers (``ltpred.fit._prepare_group_vc``,
+The module reuses the lean core's private helpers (``ltpred.fit._prepare_component_group``,
 ``ltpred.fit._component_matrix``, ``ltpred.gibbs._init_chain`` and the
 ``ltpred.estimate`` / ``ltpred.gibbs`` internals) — importing ``ltpred`` private
 names from research code is deliberate and accepted.
@@ -46,13 +46,15 @@ from ltpred.estimate import (_group_by_structure, _validate_multitrait_bounds,
                              batch_means)
 from ltpred.family import Family, Member
 from ltpred.fit import (fit_variance_components, _COMPONENT_OFFDIAG, _validate_components,
-                        _component_matrix, _prepare_group_vc,
+                        _component_matrix, _prepare_component_group,
                         _validate_population_sampling, _assert_common_thresholds,
                         _assert_population_case_rate, _assert_nonoverlapping_pids,
                         _validate_iteration_controls, _validate_update_controls,
                         _assert_observed_identification)
-from ltpred.gibbs import (gibbs_params, gibbs_advance, gibbs_advance_moment,
-                          _init_chain, _FIXED_TOL, _offset_seed, _seed_rng)
+from ltpred.gibbs import (gibbs_params, gibbs_advance, _advance_uniform_blocks,
+                          _gibbs_conditional_draw, _init_chain, _FIXED_TOL,
+                          _MAX_SEED, _seed_rng)
+from ltpred._numba import _jit_parallel, prange
 
 __all__ = ["MCEMVarCompResult", "fit_variance_components_mcem",
            "GenCorrResult", "fit_genetic_correlation",
@@ -60,6 +62,53 @@ __all__ = ["MCEMVarCompResult", "fit_variance_components_mcem",
            "FactorResult", "fit_genetic_factor",
            "SignificanceTest", "test_variance_component",
            "test_genetic_correlation", "NurtureFit", "fit_nurture"]
+
+
+def _offset_seed(seed, offset):
+    """Derive a deterministic uint32 seed without overflowing its public range."""
+    if seed is None:
+        return None
+    return (operator.index(seed) + int(offset)) % (_MAX_SEED + 1)
+
+
+@_jit_parallel
+def _gibbs_advance_m2(P, sd, lowers, uppers, fixed, x, uniforms, out_m):
+    """Advance chains in place like ``ltpred.gibbs._gibbs_advance`` and add each
+    full sweep's outer product ``x x'`` into ``out_m``."""
+    F = x.shape[0]
+    d = x.shape[1]
+    for f in prange(F):
+        xf = x[f]
+        for sweep in range(uniforms.shape[1]):
+            for j in range(d):
+                if not fixed[f, j]:
+                    xf[j] = _gibbs_conditional_draw(P, sd, xf, j, lowers[f, j],
+                                                    uppers[f, j],
+                                                    uniforms[f, sweep, j])
+            for a in range(d):
+                xa = xf[a]
+                for b in range(d):
+                    out_m[f, a, b] += xa * xf[b]
+
+
+def gibbs_advance_moment(P, sd, lowers, uppers, fixed, x, n_sweeps):
+    """Advance chains in place by ``n_sweeps`` and return the mean outer product.
+
+    Returns ``out_m[f] = (1/n_sweeps) * sum_sweep outer(x_f, x_f)``, the second
+    moment an EM variance-component M-step needs, in one kernel call per block
+    rather than one `gibbs_advance` call per draw. ``x`` is carried across calls
+    exactly as for `gibbs_advance`, from the same thread-local stream."""
+    n_sweeps = int(n_sweeps)
+    n_families, d = x.shape
+    out_m = np.zeros((n_families, d, d))
+    if n_sweeps <= 0 or n_families == 0 or d == 0:
+        return out_m
+    for start, stop, uniforms in _advance_uniform_blocks(n_families, d, n_sweeps):
+        _gibbs_advance_m2(P, sd, lowers[start:stop], uppers[start:stop],
+                          fixed[start:stop], x[start:stop], uniforms,
+                          out_m[start:stop])
+    out_m /= n_sweeps
+    return out_m
 
 
 @dataclass
@@ -256,7 +305,7 @@ def fit_variance_components_mcem(families, components=("A", "C"), *,
     _assert_population_case_rate(families, 1,
                                  context="fit_variance_components_mcem")
     C = len(comps)
-    groups = [_prepare_group_vc(families, idx, comps)
+    groups = [_prepare_component_group(families, idx, comps)
               for _key, idx in _group_by_structure(families)]
     _assert_observed_identification(groups, comps, context="MCEM fit")
     XtX = np.zeros((C, C))

@@ -23,20 +23,15 @@ standardised anyway). Truth ``g`` is known from the simulation, so it reports:
   (c) **decile curves under that misspecification** — the calibration curve tilting
       off the diagonal as the assumed h² moves.
 
-Each cell is replicated on ``--reps`` independent seeds (default 5); replicate
-``r`` uses ``--seed + r`` for the cohort simulation, so the historical
-single-seed configuration is replicate 0. Reported values are
-across-seed means with standard errors (sd/sqrt(reps)); the decile curves are
-averaged across seeds. Per-cell settings are unchanged (3,000 families), so
-the PA means are directly comparable to the former single-seed numbers.
+Each cell (3,000 families) is replicated on ``--reps`` independent seeds
+(default 5); replicate ``r`` uses ``--seed + r`` for the cohort simulation.
+Reported values are across-seed means with standard errors (sd/sqrt(reps));
+the decile curves are averaged across seeds.
 
     python benchmarks/bench_calibration.py
     python benchmarks/bench_calibration.py --n-fam 5000 --true-h2 0.5 --reps 3
 Writes bench_calibration.csv (+ .png if matplotlib is present). Metric columns
-are across-seed means with matching ``se_`` columns. The CSV keeps the
-historical ``*_gibbs`` columns so old and new files share a schema; with the
-Gibbs arm dropped they are NaN in the panel-``correct`` rows (and empty in the
-panel-``misspec`` rows, as before).
+are across-seed means with matching ``se_`` columns.
 """
 
 import os
@@ -94,8 +89,7 @@ def panel_correct(n_fam, h2, prevs, seed, reps):
     """(a) Calibration of the correctly-specified estimate (PA only).
 
     Gibbs is not run here — PA-vs-Gibbs agreement at these settings is covered
-    by bench_accuracy.py and bench_pa_robustness.py. The historical ``*_gibbs``
-    CSV columns are kept for schema compatibility and filled with NaN."""
+    by bench_accuracy.py and bench_pa_robustness.py."""
     print("== (a) calibration when correctly specified (PA, h2=%.2f, %d seeds)"
           " ==" % (h2, reps))
     acc = {(s, p): [] for s in STRUCTURES for p in prevs}
@@ -107,11 +101,9 @@ def panel_correct(n_fam, h2, prevs, seed, reps):
                 pa, _ = estimate(sim.families, h2, "pearson-aitken")
                 acc[(sname, prev)].append(calib(pa, sim.genetic))
     rows = []
-    nan = float("nan")
     for (sname, prev), calibs in acc.items():
         row = dict(panel="correct", structure=sname, prevalence=prev,
-                   assumed_h2=h2, true_h2=h2, reps=reps,
-                   **{f"{p}{k}_gibbs": nan for p in ("", "se_") for k in KEYS})
+                   assumed_h2=h2, true_h2=h2, reps=reps)
         _fill(row, "pa", calibs)
         print("  %-13s K=%.2f | slope PA=%.3f±%.3f | intercept=%+.3f±%.3f | "
               "corr=%.3f±%.3f | top-decile realised/pred=%.3f±%.3f"
@@ -145,11 +137,7 @@ def panel_misspec(n_fam, true_h2, assumed_grid, prev, seed, reps):
     rows = []
     for a_h2 in assumed_grid:
         row = dict(panel="misspec", structure="parents+sibs", prevalence=prev,
-                   assumed_h2=a_h2, true_h2=true_h2, reps=reps,
-                   slope_gibbs="", se_slope_gibbs="", intercept_gibbs="",
-                   se_intercept_gibbs="", corr_gibbs="", se_corr_gibbs="",
-                   cal_rmse_gibbs="", se_cal_rmse_gibbs="", top_ratio_gibbs="",
-                   se_top_ratio_gibbs="")
+                   assumed_h2=a_h2, true_h2=true_h2, reps=reps)
         for key in KEYS:
             row[f"{key}_pa"], row[f"se_{key}_pa"] = mean_se(
                 [c[key] for c in acc[a_h2]])
@@ -199,14 +187,8 @@ def main():
 
 def write_csv(rows):
     fields = ["panel", "structure", "prevalence", "assumed_h2", "true_h2",
-              "reps",
-              "slope_gibbs", "se_slope_gibbs", "slope_pa", "se_slope_pa",
-              "intercept_gibbs", "se_intercept_gibbs",
-              "intercept_pa", "se_intercept_pa",
-              "corr_gibbs", "se_corr_gibbs", "corr_pa", "se_corr_pa",
-              "cal_rmse_gibbs", "se_cal_rmse_gibbs",
-              "cal_rmse_pa", "se_cal_rmse_pa",
-              "top_ratio_gibbs", "se_top_ratio_gibbs",
+              "reps", "slope_pa", "se_slope_pa", "intercept_pa", "se_intercept_pa",
+              "corr_pa", "se_corr_pa", "cal_rmse_pa", "se_cal_rmse_pa",
               "top_ratio_pa", "se_top_ratio_pa"]
     return write_rows(os.path.join(HERE, "bench_calibration.csv"), rows, fields)
 

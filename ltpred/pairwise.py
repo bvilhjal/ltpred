@@ -247,8 +247,6 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
     _validate_population_sampling(sampling, "fit_pairwise", weights=weights)
     _check_unique_roles(families, check_pids=False)
     _assert_nonempty_families(families)
-    if not families:
-        raise ValueError("fit_pairwise needs at least one family")
     _assert_nonoverlapping_pids(families, "fit_pairwise")
     member_bounds = _member_bounds(families, 1)
     _assert_common_thresholds(families, 1, context="fit_pairwise",

@@ -594,12 +594,31 @@ def test_genetic_correlation_test_preserves_nuisance_genetics(monkeypatch):
 
 
 def test_offset_seed_wraps_within_uint32_range():
-    from ltpred.gibbs import _offset_seed
+    from research.advanced_fitting import _offset_seed
 
     maximum = (1 << 32) - 1
     assert _offset_seed(None, 1) is None
     assert _offset_seed(maximum, 1) == 0
     assert _offset_seed(np.uint32(maximum), 2) == 1
+
+
+def test_gibbs_advance_moment_accumulates_mean_outer_product():
+    # direct unit test of the E-step kernel (review 2026-08, F36)
+    import numpy as _np
+    from ltpred.gibbs import gibbs_params
+    from research.advanced_fitting import gibbs_advance_moment
+    P, sd = gibbs_params(_np.array([[1.0]]))
+    # an untruncated 1-d chain draws N(0, 1) each sweep: mean outer product -> 1
+    x = _np.zeros((1, 1))
+    out = gibbs_advance_moment(P, sd, _np.array([[-_np.inf]]),
+                               _np.array([[_np.inf]]), _np.array([[False]]),
+                               x, 50_000)
+    assert out[0, 0, 0] == pytest.approx(1.0, abs=0.05)
+    # a fixed coordinate never moves: the moment is exactly the pinned square
+    x = _np.full((1, 1), 1.3)
+    out = gibbs_advance_moment(P, sd, _np.array([[1.3]]), _np.array([[1.3]]),
+                               _np.array([[True]]), x, 100)
+    assert out[0, 0, 0] == pytest.approx(1.3 ** 2)
 
 
 def test_variance_components_mcem_matches_he_and_has_modelbased_se():

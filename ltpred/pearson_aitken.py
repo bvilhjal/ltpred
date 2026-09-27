@@ -225,8 +225,7 @@ def _tnorm_moments_loc(mu, sd, lower, upper):
     """Mean and variance of ``N(mu, sd^2)`` truncated to ``(lower, upper)``.
 
     Returns ``(mu, sd^2)`` for an infinite interval and ``(lower, 0)`` for a
-    point mass. One call into `_std_tnorm_moments` — the sweep used to
-    evaluate the mean and variance kernels separately on the same interval."""
+    point mass. One call into `_std_tnorm_moments` gives both moments."""
     if lower == -math.inf and upper == math.inf:
         return mu, sd * sd
     if lower == upper:

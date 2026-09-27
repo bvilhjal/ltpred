@@ -282,10 +282,10 @@ def batch_means(samples: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
 def _ordered_thresholds(family, cov_roles):
     """Align a family's member bounds to the covariance's role ordering.
 
-    Builds ``lower``/``upper`` (and pids) in ``cov_roles`` order, inserting the
+    Builds ``lower``/``upper`` in ``cov_roles`` order, inserting the
     missing genetic row ``g`` -- and ``o`` if the proband gave no own status -- as
     the uninformative interval ``(-inf, inf)``. Mirrors LTFHPlus's
-    ``add_missing_roles_for_proband``. Returns ``(lower, upper, pids)`` with
+    ``add_missing_roles_for_proband``. Returns ``(lower, upper)`` with
     per-phenotype columns when the inputs are vectors."""
     by_role = {m.role: m for m in family.members}
     n_pheno = 1
@@ -295,21 +295,14 @@ def _ordered_thresholds(family, cov_roles):
     def bounds(role):
         m = by_role.get(role)
         if m is None:  # g always missing; o missing when no proband status given
-            return (np.full(n_pheno, -np.inf), np.full(n_pheno, np.inf), None)
+            return np.full(n_pheno, -np.inf), np.full(n_pheno, np.inf)
         lo = np.broadcast_to(np.asarray(m.lower, dtype=float), (n_pheno,))
         hi = np.broadcast_to(np.asarray(m.upper, dtype=float), (n_pheno,))
-        return lo, hi, m.pid
+        return lo, hi
 
-    lower, upper, pids = [], [], []
-    for role in cov_roles:
-        lo, hi, pid = bounds(role)
-        lower.append(lo)
-        upper.append(hi)
-        pids.append(pid)
-    lower = np.array(lower)
-    upper = np.array(upper)
+    lower, upper = map(np.array, zip(*(bounds(role) for role in cov_roles)))
     validate_bounds(lower, upper, context=f"family {family.fam_id!r} bounds")
-    return lower, upper, pids
+    return lower, upper
 
 
 def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
@@ -396,8 +389,9 @@ def _assert_nonempty_families(families):
     Such a family has nothing to condition on, so every estimator would
     return the prior mean 0 — indistinguishable in the output from a genuine
     estimate that happens to land near zero. In practice it almost always means
-    a join dropped the rows rather than that the proband is truly unobserved.
-    A warning used to leave that zero in the GWAS phenotype if it was ignored.
+    a join dropped the rows rather than that the proband is truly unobserved,
+    so it raises rather than warns: an ignored warning would leave that zero in
+    a GWAS phenotype.
     """
     if len(families) == 0:
         raise ValueError("families must contain at least one family")
@@ -749,7 +743,7 @@ def _estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
 
         lowers, uppers, group_pids = [], [], []
         for f in idx:
-            lo, hi, mpids = _ordered_thresholds(families[f], fam_roles)  # (k_roles, n_pheno)
+            lo, hi = _ordered_thresholds(families[f], fam_roles)  # (k_roles, n_pheno)
             lowers.append(lo.T.reshape(-1))   # phenotype-major
             uppers.append(hi.T.reshape(-1))
             group_pids.append(_proband_pid(families[f]))

@@ -98,8 +98,7 @@ def test_estimate_recovers_true_genetic_liability():
     # posterior mean genetic liability should correlate with the simulated truth
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
                                     n_sim=400, pop_prev=0.1, seed=7)
-    res = estimate_liability(sim.families, h2=0.5, out=("genetic",),
-                             tol=0.05, n_sim=15_000, burn_in=400, seed=1)
+    res = estimate_liability(sim.families, h2=0.5, out=("genetic",))
     r = np.corrcoef(res.est["genetic"], sim.genetic)[0, 1]
     assert r > 0.4
 
@@ -109,8 +108,7 @@ def test_estimate_beats_raw_status():
     # well as the raw case/control label of the proband.
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
                                     n_sim=400, pop_prev=0.1, seed=9)
-    res = estimate_liability(sim.families, h2=0.5, out=("genetic",),
-                             tol=0.05, n_sim=15_000, burn_in=400, seed=2)
+    res = estimate_liability(sim.families, h2=0.5, out=("genetic",))
     r_ltfh = np.corrcoef(res.est["genetic"], sim.genetic)[0, 1]
     r_status = np.corrcoef(sim.status["o"].astype(float), sim.genetic)[0, 1]
     assert r_ltfh > r_status
@@ -119,8 +117,7 @@ def test_estimate_beats_raw_status():
 def test_cases_have_higher_estimates_than_controls():
     sim = simulate_under_LTM_single(fam_vec=["m", "f"], h2=0.5, n_sim=300,
                                     pop_prev=0.1, seed=11)
-    res = estimate_liability(sim.families, h2=0.5, out=("genetic",),
-                             tol=0.05, n_sim=15_000, burn_in=400, seed=3)
+    res = estimate_liability(sim.families, h2=0.5, out=("genetic",))
     g = res.est["genetic"]
     case = sim.status["o"]
     assert g[case].mean() > g[~case].mean() + 0.3
@@ -129,8 +126,7 @@ def test_cases_have_higher_estimates_than_controls():
 def test_age_flavour_runs_and_is_finite():
     sim = simulate_under_LTM_single(fam_vec=["m", "f"], h2=0.5, n_sim=50,
                                     pop_prev=0.1, use_age=True, seed=13)
-    res = estimate_liability(sim.families, h2=0.5, out=("genetic",),
-                             tol=0.1, n_sim=10_000, burn_in=300, seed=4)
+    res = estimate_liability(sim.families, h2=0.5, out=("genetic",))
     assert np.all(np.isfinite(res.est["genetic"]))
 
 
@@ -352,6 +348,8 @@ from ltpred.simulate import (pedigree_birth_times,  # noqa: E402
                              simulate_followup_records, simulate_pedigree,
                              simulate_register_liabilities,
                              simulate_under_LTM_multi)
+from ltpred.covariance import kinship_from_pedigree  # noqa: E402
+from ltpred.simulate import _mendelian_draw  # noqa: E402
 
 _CIP_AGES = np.arange(0, 121, 1.0)
 _CIP_K, _CIP_MID, _CIP_SLOPE = 0.10, 60.0, 1.0 / 8.0
@@ -541,3 +539,24 @@ def test_register_liabilities_rejects_a_non_invertible_cip():
         simulate_register_liabilities(np.random.default_rng(0), ids, father,
                                       mother, h2=0.5, cip_ages=[0.0, 1.0],
                                       cip_values=[0.1], eval_age=70.0)
+
+
+def test_mendelian_covariance_is_exact_with_inbreeding_missing_parents_and_shuffled_rows():
+    # Two siblings mate; their inbred child then has a child with one unknown parent.
+    ids = ['x', 'a', 'grandchild', 'b', 'gm', 'gf']
+    father = ['a', 'gf', 'x', 'gf', None, None]
+    mother = ['b', 'gm', None, 'gm', None, None]
+    _, relationship = kinship_from_pedigree(ids, father, mother)
+    factor = np.column_stack([_mendelian_draw(ids, father, mother, e)[0] for e in np.eye(len(ids))])
+    _, diagonal = _mendelian_draw(ids, father, mother, np.zeros(len(ids)))
+    np.testing.assert_allclose(factor @ factor.T, relationship, rtol=0, atol=3e-16)
+    np.testing.assert_array_equal(diagonal, np.diag(relationship))
+    assert diagonal[0] == 1.25
+    kwargs = dict(ids=ids, father=father, mother=mother, h2=.5,
+                  cip_ages=[0., 100.], cip_values=[.001, .1], eval_age=70.)
+    result = simulate_register_liabilities(np.random.default_rng(12), method='mendelian', **kwargs)
+    replay = simulate_register_liabilities(np.random.default_rng(12), method='mendelian', **kwargs)
+    np.testing.assert_array_equal(result.genetic, replay.genetic)
+    np.testing.assert_allclose(result.residual_var, .5 / (.5 * diagonal + .5))
+    with pytest.raises(ValueError, match='method must be'):
+        simulate_register_liabilities(np.random.default_rng(12), method='invalid', **kwargs)

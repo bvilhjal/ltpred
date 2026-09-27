@@ -161,7 +161,7 @@ def __dir__():
 # exports). Keep the function bound instead. The module itself stays importable
 # as ``ltpred.tetrachoric`` through ``from ltpred.tetrachoric import ...`` and
 # ``importlib.import_module``; only the attribute chain
-# ``ltpred.tetrachoric.<name>`` no longer reaches it.
+# ``ltpred.tetrachoric.<name>`` does not reach it.
 _FUNCTION_NAMED_MODULES = frozenset(
     name for name, mod in _NAME_TO_MODULE.items() if name == mod)
 
