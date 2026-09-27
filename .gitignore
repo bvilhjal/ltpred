@@ -22,6 +22,10 @@ site/
 venv/
 env/
 
+# Benchmark figures: scripts draw them when matplotlib is present, but the
+# committed CSV is the artifact (see benchmarks/README.md).
+benchmarks/*.png
+
 # Local benchmark data (for example HAPNEST PLINK files)
 /data/
 tmp/

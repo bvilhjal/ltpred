@@ -38,9 +38,8 @@ theme:
 # One entry point, one worked tutorial, and references organised by task.
 # Historical reviews and maintenance plans stay in the repository, outside search.
 exclude_docs: |
-  reviews/
+  REVIEWS.md
   ROADMAP.md
-  PAPER_PLAN.md
   RELEASING.md
 not_in_nav: |
   guide.md

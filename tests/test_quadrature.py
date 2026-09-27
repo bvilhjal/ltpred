@@ -11,6 +11,7 @@ from ltpred import (Family, Member, QuadratureResult, estimate_liability,
 from ltpred.covariance import construct_covmat_single
 from ltpred.quadrature import estimate_liability_quadrature_arrays as estimate
 from ltpred.quadrature import _grid
+from ltpred.quadrature import _moments, _moments_array, estimate_liability_quadrature_arrays
 
 
 def _dense_two_interval_oracle(cov, lo, hi, observed, target):
@@ -315,3 +316,36 @@ def test_quadrature_is_not_silently_used_as_gibbs_for_kinship():
     with pytest.raises(NotImplementedError, match='nuclear-family'):
         estimate_liability_from_kinship(np.eye(1), [[-np.inf]], [[1]], h2=.5,
                                         method='quadrature')
+
+
+@pytest.mark.parametrize('bounds', [(-np.inf, np.inf), (1.2, np.inf), (-np.inf, -8.),
+                                     (9., 10.), (1., 1.), (8., 8.000001),
+                                     (-8.000001, -8.), (0., 1e-12)])
+def test_compiled_moments_match_scalar_oracle_including_tail_guards(bounds):
+    means = np.array([-1e8, -20., -1., 0., 8., 20., 1e8])
+    lower, upper = bounds
+    expected = np.array([_moments(mean, .75, lower, upper) for mean in means])
+    actual = _moments_array(means, .75, lower, upper)
+    np.testing.assert_allclose(actual, expected, rtol=2e-13, atol=2e-14)
+    if hasattr(_moments_array, 'py_func'):
+        np.testing.assert_allclose(_moments_array.py_func(means, .75, lower, upper),
+                                   expected, rtol=2e-13, atol=2e-14)
+
+
+def test_quadrature_duplicate_scatter_preserves_order_and_diagnostics(monkeypatch):
+    import ltpred.quadrature as module
+    lo = np.array([[1., -np.inf], [-np.inf, 1.], [1., -np.inf], [-np.inf, 1.]])
+    hi = np.array([[np.inf, 1.], [1., np.inf], [np.inf, 1.], [1., np.inf]])
+    expected = [estimate_liability_quadrature_arrays(['o', 's1'], a[None], b[None], .5)
+                for a, b in zip(lo, hi)]
+    calls = []
+    original = module._family
+    def counted(*args):
+        calls.append(1)
+        return original(*args)
+    monkeypatch.setattr(module, '_family', counted)
+    actual = estimate_liability_quadrature_arrays(['o', 's1'], lo, hi, .5)
+    assert len(calls) == 2
+    for name in ['est', 'var', 'error', 'n_nodes']:
+        np.testing.assert_array_equal(getattr(actual, name),
+                                      np.concatenate([getattr(x, name) for x in expected]))

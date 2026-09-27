@@ -23,8 +23,8 @@ two-trait null (below) at the same R, n_fam, and fit settings.
           95% percentile CI) of the fit_heritability point estimate per
           dataset; report the coverage of the true h2 = 0.5, and the mean
           bootstrap SE vs the across-dataset SD of the point estimates (the
-          "bootstrap SE recovers the sampling SD" check; ROADMAP reports the
-          internal h2_se understates that SD by >20x).
+          "bootstrap SE recovers the sampling SD" check; FitResult warns the
+          internal h2_se can substantially understate that SD).
   Part 3  MCEM SEs: `fit_variance_components_mcem(("A","C"))` per
           dataset; compare the mean reported OPG SE with the across-dataset SD
           of the point estimates (ratio ~1 would mean the information SE is

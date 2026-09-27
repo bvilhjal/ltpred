@@ -65,7 +65,11 @@ All four require common case/control thresholds per trait, identifying observed
 relationship contrasts, and the sampling contract above. Personalised CIP/onset
 bounds are for scoring, not these fits. Use deterministic pairwise fitting when
 its composite-likelihood model answers the question. The stochastic moment
-fitters spend additional time on latent-liability sampling; their `h2_se` measures
+fitters are roughly two orders of magnitude slower: in one 3,000-family probe
+(2026-09 efficiency review; not a committed benchmark) `fit_heritability` at its
+defaults ran about 200× longer than `fit_pairwise`, and its default
+`n_iter=1500` is three times the 500 iterations `bench_fit_heritability.py`
+uses. Their `h2_se` measures
 within-dataset Monte Carlo variation, while pairwise sandwich SEs describe
 conditional sampling uncertainty for identifiable interior fits. See the
 [benchmark ledger](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)

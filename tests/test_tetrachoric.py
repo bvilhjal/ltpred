@@ -91,7 +91,7 @@ class MleRecoveryTests(unittest.TestCase):
 
     def test_fractional_counts_rejected(self):
         # counts are data; 10.5 cases is a transcription error, not an
-        # observation (review 2026-09, F1)
+        # observation (review 2026-09, T3-1)
         with self.assertRaisesRegex(ValueError, "integers"):
             tetrachoric_table(10.5, 5, 3, 4)
         # integral floats are the same numbers and stay accepted
@@ -100,7 +100,7 @@ class MleRecoveryTests(unittest.TestCase):
 
     def test_nonfinite_counts_rejected_as_value_errors(self):
         # the integer gate's math.floor would otherwise raise OverflowError
-        # (inf) or a bare-messaged ValueError (nan) (review 2026-09, F6)
+        # (inf) or a bare-messaged ValueError (nan) (review 2026-09, T3-6)
         for bad in (np.inf, np.nan):
             with self.assertRaisesRegex(ValueError, "finite"):
                 tetrachoric_table(bad, 5, 3, 4)

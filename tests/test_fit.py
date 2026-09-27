@@ -59,7 +59,7 @@ def test_fit_preparers_align_bounds_by_role():
         Family(1, [Member("f", 0.2, 1.2), Member("m", -0.8, 0.2)]),
     ]
     expected_scalar = np.array([[0.0, -1.0], [0.2, -0.8]])
-    group = fit_mod._prepare_group_vc(scalar, [0, 1], ["A"])
+    group = fit_mod._prepare_component_group(scalar, [0, 1], ["A"])
     assert group["roles"] == ["f", "m"]
     assert np.allclose(group["lowers"], expected_scalar)
 
@@ -71,7 +71,7 @@ def test_fit_preparers_reject_nan_and_reversed_bounds():
     scalar = [Family(0, [Member("m", np.nan, np.inf),
                          Member("f", -np.inf, np.inf)])]
     with pytest.raises(ValueError, match="NaN"):
-        fit_mod._prepare_group_vc(scalar, [0], ["A"])
+        fit_mod._prepare_component_group(scalar, [0], ["A"])
 
 
 def test_lone_probands_raise():
@@ -307,23 +307,6 @@ def test_bootstrap_fit_resamples_ipw_weights_with_families():
             families, aligned_mean, weights=weights[:-1], n_boot=2, seed=0)
 
 
-def _sim_ac(fam, a2, c2, n, seed, prev=0.1):
-    import numpy as np
-    from ltpred.covariance import correct_positive_definite
-    from ltpred.thresholds import liability_threshold
-    from ltpred.fit import _component_matrix
-    Sig = (1 - a2 - c2) * np.eye(len(fam)) + a2 * _component_matrix(fam, "A")
-    if c2 > 0:
-        Sig = Sig + c2 * _component_matrix(fam, "C")
-    Sig, _ = correct_positive_definite(Sig)
-    rng = np.random.default_rng(seed)
-    L = rng.multivariate_normal(np.zeros(len(fam)), Sig, size=n)
-    t = float(liability_threshold(prev))
-    return [Family(i, [Member(r, (t if L[i, c] > t else -np.inf),
-                              (np.inf if L[i, c] > t else t)) for c, r in enumerate(fam)])
-            for i in range(n)]
-
-
 def _sim_vc(fam, props, n, seed, prev=0.1):
     """Families under liab = sum_c sqrt(props[c]) * N(0, K_c) + e, thresholded at
     prevalence ``prev``. ``props`` maps a component ('A', 'C', 'M') to its variance
@@ -381,14 +364,14 @@ def test_variance_component_preparer_keeps_exact_singular_kernels():
     fit_mod = importlib.import_module("ltpred.fit")
     families = _sim_vc(["o", "s1", "m", "f"], {"A": 0.4, "C": 0.2},
                        10, seed=21)
-    group = fit_mod._prepare_group_vc(families, list(range(10)), ["A", "C"])
+    group = fit_mod._prepare_component_group(families, list(range(10)), ["A", "C"])
     roles = group["roles"]
     oi, si = roles.index("o"), roles.index("s1")
     assert group["K"]["C"][oi, si] == 1.0
     assert np.min(np.linalg.eigvalsh(group["K"]["C"])) > -1e-8
     mate_families = _sim_vc(["m", "f"], {"A": 0.4, "M": 0.2},
                             10, seed=23)
-    mate_group = fit_mod._prepare_group_vc(
+    mate_group = fit_mod._prepare_component_group(
         mate_families, list(range(10)), ["A", "M"])
     np.testing.assert_array_equal(
         mate_group["K"]["M"], np.ones((2, 2)))
@@ -399,7 +382,7 @@ def test_scalar_preparer_keeps_exact_additive_kernel():
 
     fit_mod = importlib.import_module("ltpred.fit")
     families = _sim_vc(["o", "s1", "m", "f"], {"A": 0.4}, 10, seed=22)
-    group = fit_mod._prepare_group_vc(families, list(range(10)), ["A"])
+    group = fit_mod._prepare_component_group(families, list(range(10)), ["A"])
     roles = group["roles"]
     expected = np.array([
         [fit_mod.get_relatedness(a, b, h2=1.0) for b in roles]
@@ -495,7 +478,7 @@ def test_prepare_group_starts_pinned_member_at_pin():
     import importlib
     fit_mod = importlib.import_module("ltpred.fit")
     fams = [Family(0, [Member("m", 9.0, 9.0), Member("f", -np.inf, 0.0)])]
-    group = fit_mod._prepare_group_vc(fams, [0], ["A"])
+    group = fit_mod._prepare_component_group(fams, [0], ["A"])
     assert group["x"][0, group["roles"].index("m")] == 9.0
 
 

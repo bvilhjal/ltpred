@@ -571,13 +571,6 @@ def _validate_burn_in(burn_in):
     return burn_in
 
 
-def _offset_seed(seed, offset):
-    """Derive a deterministic uint32 seed without overflowing its public range."""
-    if seed is None:
-        return None
-    return (operator.index(seed) + int(offset)) % (_MAX_SEED + 1)
-
-
 def _seed_rng(seed):
     """Seed serial and parallel sampler streams for reproducibility."""
     seed = _validate_seed(seed)
@@ -620,6 +613,17 @@ def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
     if n_sweeps <= 0 or n_families == 0 or d == 0:
         return
 
+    for start, stop, uniforms in _advance_uniform_blocks(n_families, d, n_sweeps):
+        _gibbs_advance(P, sd, lowers[start:stop], uppers[start:stop],
+                       fixed[start:stop], x[start:stop], uniforms)
+
+
+def _advance_uniform_blocks(n_families, d, n_sweeps):
+    """Yield ``(start, stop, uniforms)`` blocks for a persistent-chain advance.
+
+    Draws from this thread's generator in a fixed family-then-sweep order, with
+    at most ``_MAX_ADVANCE_UNIFORMS`` uniforms per block, so every advance kernel
+    that consumes these blocks sees the same stream."""
     generator = _advance_rng()
     family_chunk = max(1, min(n_families, _MAX_ADVANCE_UNIFORMS // d))
     for start in range(0, n_families, family_chunk):
@@ -628,64 +632,7 @@ def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
         sweep_chunk = max(1, _MAX_ADVANCE_UNIFORMS // (block_size * d))
         for first_sweep in range(0, n_sweeps, sweep_chunk):
             this_sweeps = min(sweep_chunk, n_sweeps - first_sweep)
-            uniforms = generator.random((block_size, this_sweeps, d))
-            _gibbs_advance(P, sd, lowers[start:stop], uppers[start:stop],
-                           fixed[start:stop], x[start:stop], uniforms)
-
-
-@_jit_parallel
-def _gibbs_advance_m2(P, sd, lowers, uppers, fixed, x, uniforms, out_m):
-    """Random-free kernel: advance and accumulate ``sum_sweep outer(x, x)``.
-
-    Same in-place advance as `_gibbs_advance`, but after each full sweep it
-    adds the current state's outer product into ``out_m`` (the caller divides by
-    the sweep count). Used by moment-accumulating variance-component fits that
-    need the average second moment ``E[x x']`` over the chain, not just draws."""
-    F = x.shape[0]
-    d = x.shape[1]
-    for f in prange(F):
-        xf = x[f]
-        for sweep in range(uniforms.shape[1]):
-            for j in range(d):
-                if not fixed[f, j]:
-                    xf[j] = _gibbs_conditional_draw(P, sd, xf, j, lowers[f, j],
-                                                    uppers[f, j],
-                                                    uniforms[f, sweep, j])
-            for a in range(d):
-                xa = xf[a]
-                for b in range(d):
-                    out_m[f, a, b] += xa * xf[b]
-
-
-def gibbs_advance_moment(P, sd, lowers, uppers, fixed, x, n_sweeps):
-    """Advance chains in place by ``n_sweeps`` and return the mean outer product.
-
-    Returns ``out_m[f] = (1/n_sweeps) * sum_sweep outer(x_f, x_f)`` -- the average
-    second moment over the chain, the sufficient statistic a moment/EM
-    variance-component M-step needs. Far cheaper than calling
-    `gibbs_advance` once per draw and accumulating in Python (one RNG /
-    dispatch instead of ``n_sweeps``). ``x`` is carried across calls exactly as
-    for `gibbs_advance`."""
-    n_sweeps = int(n_sweeps)
-    n_families, d = x.shape
-    out_m = np.zeros((n_families, d, d))
-    if n_sweeps <= 0 or n_families == 0 or d == 0:
-        return out_m
-
-    generator = _advance_rng()
-    family_chunk = max(1, min(n_families, _MAX_ADVANCE_UNIFORMS // d))
-    for start in range(0, n_families, family_chunk):
-        stop = min(start + family_chunk, n_families)
-        block_size = stop - start
-        sweep_chunk = max(1, _MAX_ADVANCE_UNIFORMS // (block_size * d))
-        for first_sweep in range(0, n_sweeps, sweep_chunk):
-            this_sweeps = min(sweep_chunk, n_sweeps - first_sweep)
-            uniforms = generator.random((block_size, this_sweeps, d))
-            _gibbs_advance_m2(P, sd, lowers[start:stop], uppers[start:stop],
-                              fixed[start:stop], x[start:stop], uniforms,
-                              out_m[start:stop])
-    out_m /= n_sweeps
-    return out_m
+            yield start, stop, generator.random((block_size, this_sweeps, d))
 
 
 def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,

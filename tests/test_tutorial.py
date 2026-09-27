@@ -6,7 +6,7 @@ than as a set of fragments, so it can be executed: this test extracts its
 each block's stdout with the ``text`` block that follows it. That makes two
 distinct failures visible -- code that no longer runs after a signature change,
 and prose that quotes numbers the code no longer produces -- which is the drift
-``docs/reviews/REVIEW_2026-09d.md`` (T1-2) found unguarded elsewhere in the docs.
+``docs/REVIEWS.md`` (09d T1-2) found unguarded elsewhere in the docs.
 """
 
 import contextlib
@@ -81,7 +81,7 @@ def test_tutorial_blocks_run_in_order_and_print_the_documented_output():
 def test_tutorial_only_uses_the_public_api():
     """The page is what an installed user can run, so no private or
     checkout-only imports: ``examples/`` and ``benchmarks/`` ship in neither the
-    wheel nor the sdist (REVIEW_2026-09d T2-2)."""
+    wheel nor the sdist (docs/REVIEWS.md, 09d T2-2)."""
     imported = set()
     for kind, body in _blocks():
         if kind != "python":

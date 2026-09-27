@@ -8,6 +8,8 @@ import pytest
 from ltpred import (build_parent_graph, estimate_liabilities,
                     estimate_liability_from_kinship, extract_pedigree,
                     kinship_from_pedigree, thresholds_from_cip)
+from ltpred import Family, Member, estimate_liability, families_from_columns
+from ltpred.quadrature import estimate_liability_quadrature_arrays
 
 
 IDS = ["o", "m", "f", "mgm", "mgf", "pgm", "pgf"]
@@ -113,8 +115,12 @@ def test_pipeline_selected_relationships_are_bounded_and_cache_size_independent(
         monkeypatch.setattr(pipeline_module,
                             "_DENSE_KINSHIP_MIN_PAIR_FRACTION", fraction)
         for size in [0, 1, 5]:
-            result = estimate_liabilities(**pipeline_kwargs(
-                probands=["o", "m", "f"], kinship_cache_size=size))
+            kwargs = pipeline_kwargs(probands=["o", "m", "f"], kinship_cache_size=size)
+            if size == 0:   # identical scores, but reuse is off: it warns
+                with pytest.warns(UserWarning, match="kinship_cache_size=0"):
+                    result = estimate_liabilities(**kwargs)
+            else:
+                result = estimate_liabilities(**kwargs)
             np.testing.assert_array_equal(result.est, reference.est)
             np.testing.assert_array_equal(result.var, reference.var)
 
@@ -254,6 +260,28 @@ def test_population_record_permutation_preserves_stratified_prediction():
         cip_by_stratum=curves, h2=0.5, max_degree=1)
     np.testing.assert_allclose(base.est, permuted.est, rtol=0, atol=0)
     np.testing.assert_allclose(base.var, permuted.var, rtol=0, atol=0)
+
+
+def test_stratified_cips_route_each_record_to_its_own_curve():
+    # A stratum carrying the single curve must reproduce the unstratified
+    # score, and a different curve on one stratum must move it: a driver that
+    # ignored cip_by_stratum would pass the first check and fail the second.
+    strata = np.array(["A", "B", "A", "B", "A", "B", "A"])
+    common = dict(ids=IDS, father=FATHER, mother=MOTHER, probands=["o"],
+                  status=STATUS, age=AGE, use="prediction", birth_time=BIRTH,
+                  index_time=[2020.0], h2=0.5, max_degree=1)
+    single = estimate_liabilities(cip_ages=CIP_AGES, cip_values=CIP_VALUES,
+                                  k_pop=K_POP, **common)
+    curve_a = (CIP_AGES, CIP_VALUES, K_POP)
+    same = estimate_liabilities(strata=strata, cip_by_stratum={
+        "A": curve_a, "B": curve_a}, **common)
+    np.testing.assert_array_equal(same.est, single.est)
+    np.testing.assert_array_equal(same.var, single.var)
+
+    curve_b = (CIP_AGES, 0.15 / (1.0 + np.exp((55.0 - CIP_AGES) / 9.0)), 0.15)
+    moved = estimate_liabilities(strata=strata, cip_by_stratum={
+        "A": curve_a, "B": curve_b}, **common)
+    assert np.all(np.abs(moved.est - single.est) > 1e-6)
 
 
 def test_each_cip_curve_is_validated_once_not_per_proband(monkeypatch):
@@ -439,3 +467,55 @@ def test_proband_state_aligns_to_probands():
             cip_values=CIP_VALUES, k_pop=K_POP, h2=0.5, max_degree=1)
     np.testing.assert_array_equal(
         out.proband_state, ["prevalent_case", "disease_free_and_followed"])
+
+
+def _register(**updates):
+    kwargs = dict(ids=['o', 'm'], father=['0', 'NA'], mother=['m', ''],
+                  probands=['o'], status=[1, 0], age=[40., 70.], h2=.5, use='gwas',
+                  cip_ages=[0., 100.], cip_values=[0., .1], k_pop=.1)
+    kwargs.update(updates)
+    return estimate_liabilities(**kwargs)
+
+
+def test_parent_markers_and_actual_zero_ids():
+    result = _register()
+    assert result.frac_records_with_unresolved_parents == 0.
+    for zero in [0, '0']:
+        _, relationship = kinship_from_pedigree([zero, 'child'], [None, zero], [None, None])
+        assert relationship[0, 1] == .5
+    with pytest.raises(ValueError, match='probands must be unique'):
+        _register(probands=['o', 'o'])
+
+
+def test_pandas_missing_ids_across_entry_points():
+    pd = pytest.importorskip('pandas')
+    for missing in [pd.NA, pd.NaT]:
+        with pytest.raises(ValueError, match='fam_id must not contain missing'):
+            families_from_columns([missing], ['o'], [1.], [np.inf])
+        with pytest.raises(ValueError, match='ids must not contain missing'):
+            kinship_from_pedigree([missing], [None], [None])
+        assert _register(father=[missing, missing]).frac_records_with_unresolved_parents == 0.
+        result = estimate_liability([Family('family', [Member('o', 1., np.inf, pid=missing)])], h2=.5)
+        assert result.pids.tolist() == ['family']
+
+
+def test_score_table_exports_copy_arrays_and_retain_repeated_pids():
+    families = [Family(i, [Member('o', 1., np.inf, pid='shared')]) for i in [2, 1]]
+    result = estimate_liability(families, h2=.5, method='quadrature')
+    columns = result.to_dict()
+    assert columns['pid'].tolist() == ['shared', 'shared']
+    assert columns['fam_id'].tolist() == [2, 1]
+    columns['genetic'][:] = -999
+    assert np.all(result.genetic > 0)
+    assert 'quadrature_error_genetic' in columns
+    for value in [result, _register(), estimate_liability_quadrature_arrays(
+            ['o'], np.array([[1.]]), np.array([[np.inf]]), .5)]:
+        exported = value.to_dict()
+        assert any(name == 'var' or name.startswith('var_') for name in exported)
+        assert any(name == 'se' or name.startswith('se_') for name in exported)
+        pd = pytest.importorskip('pandas')
+        table = value.to_frame()
+        assert isinstance(table, pd.DataFrame)
+        assert list(table.columns) == list(exported)
+        for key, array in exported.items():
+            np.testing.assert_array_equal(table[key], array)

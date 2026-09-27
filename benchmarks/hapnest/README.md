@@ -48,7 +48,6 @@ NUMBA_NUM_THREADS=10 OMP_NUM_THREADS=10 \
     --input data/output/synthetic.bim \
     --input data/output/synthetic.fam \
     --artifact bench_gwas_power.csv \
-    --artifact bench_gwas_power.png \
     bench_gwas_power.py -- --plink data/output/synthetic \
     --n-fam 10000 --n-causal 30 --h2 0.5 --prev 0.05
 ```

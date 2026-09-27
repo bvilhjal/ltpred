@@ -14,8 +14,11 @@ wall-clock figures the v0.7.2 changelog originally quoted; those numbers had
 no committed artifact and have been restated qualitatively there.
 
 Contents: `measure.py` (the probe driver), `change.patch` (the candidate
-delta, SHA-256 recorded in `results.json`), before/after time and memory
-JSONs and output `.npz` pairs, build/install/test logs (`tests.log` records
-1,149 → 1,173 passing as tests were added), and the report render checked in
-that pass. Baseline commit `8926f25` (v0.7.1). One thread, AC power, five
-warm repeats; memory measured in separate processes.
+delta, SHA-256 recorded in `results.json`; applied to `8926f25` it reproduces
+the code of `d57e1f9`), and before/after time and memory JSONs. `baseline.npz`
+holds the probe outputs; the candidate's were byte-identical (SHA-256
+`6b5db017…`), so only one copy is kept. `results.json` records the test counts
+(1,149 → 1,173 passing). Baseline commit `8926f25` (v0.7.1). One thread, AC
+power, five warm repeats; memory measured in separate processes. The build,
+install, docs and test logs and the report renders were dropped as
+reproducible tool output.

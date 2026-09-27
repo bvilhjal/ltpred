@@ -386,7 +386,7 @@ This runs the covariance construction once and the parallel PA kernel
 directly — 13–29× faster than the object path at 2.02–6.29 million
 already-aligned families/s, as measured on the warmed scaling grid that
 shipped with v0.4.0 (four threads; `benchmarks/bench_scaling.csv`, last
-regenerated at tag v0.4.0, 2026-08-20). The grid has not been re-measured
+regenerated at v0.4.0, commit `1684fc5`, 2026-08-20). The grid has not been re-measured
 since, and v0.7.1 made the object-path denominator 1.69× faster, so the ratio
 on the current tree is nearer 8–17× (and `estimate_liability_gibbs_arrays`
 does the same for Gibbs, returning `(est, se)`).

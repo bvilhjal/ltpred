@@ -169,33 +169,16 @@ def _assert_nonoverlapping_pids(families, context):
             seen[key] = family.fam_id
 
 
-#: Thresholds for the case-rate check, calibrated from BOTH sides.
-#:
-#: Sensitivity, from the dose-response in ``benchmarks/bench_ascertainment.py``
-#: (nuclear families, true h2 = 0.5, K = 0.05, N = 4000): a realised case share
-#: 1.27x the assumed prevalence inflates h2 by +0.230, 1.49x by +0.493, and by
-#: 2x the estimate is pinned at the clamp (arm H of that benchmark; the curve is
-#: steep through this region, so read the shape rather than any single cell).
-#:
-#: Specificity matters more, because a false positive here refuses a legitimate
-#: analysis. Two things push the null z above what a single clean test would
-#: give: the check runs once per role (so several correlated tests per fit), and
-#: `bootstrap_fit` re-runs the whole estimator on resamples that are
-#: centred on the *cohort's* rate rather than on K, so their z carries the
-#: cohort's own sampling error as a systematic offset. A legitimate 1500-family
-#: cohort (role rate 0.110 against K = 0.100, p = 0.20) produced a resample at
-#: z = 4.4 -- which is why the bar is 6.0 and not 4.0.
-#:
-#: At z >= 6 the per-test null probability is ~1e-9, so chance firing is
-#: negligible even across a 25-resample bootstrap, while every ascertainment
-#: scheme in the benchmark fires at z >= +67. The cost is power at small N.
-#: Detectable enrichment is the ratio at which |z| reaches the bar,
-#: ``max(1.15, 1 + 6*sqrt((1-K)/(K*n)))``, so it depends on BOTH n and the prevalence: at
-#: K = 0.05 it is ~1.67x at n = 1,500 and ~1.26x at n = 10,000; at K = 0.10,
-#: ~1.46x and ~1.18x. (Quoting one figure without its K mixes the two.) MILD
-#: enrichment on a small cohort therefore passes, and remains the caller's
-#: responsibility. This is a guard against the catastrophic case, not a
-#: certificate of population sampling.
+#: Thresholds for the case-rate check. Sensitivity: in the dose-response of
+#: ``benchmarks/bench_ascertainment.py`` (RESULTS §29) a case share 1.27x the
+#: assumed prevalence already inflates h2 by +0.23, and every ascertainment
+#: scheme fires at z >= +67. Specificity matters more, since a false positive
+#: refuses a legitimate analysis: the check runs once per role, and
+#: `bootstrap_fit` resamples centre on the cohort's rate rather than on K. A
+#: legitimate 1,500-family cohort produced a resample at z = 4.4, hence a bar of
+#: 6 (per-test null probability ~1e-9). The detectable enrichment this implies,
+#: stated in the `fit_heritability` docstring, makes it a guard against the
+#: catastrophic case, not a certificate of population sampling.
 _CASE_RATE_RATIO_TOL = 1.15
 _CASE_RATE_Z_TOL = 6.0
 
@@ -229,9 +212,8 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None,
                                  member_bounds=None):
     """Check the observed case rate against the one the thresholds assert.
 
-    ``sampling="population"`` was an honour system: it checked a string, not the
-    data, so an ascertained cohort passed straight through to a fixed point that
-    runs to the boundary. The data can be checked directly, because the supplied
+    ``sampling="population"`` alone is an assertion; an ascertained cohort would
+    run straight to a boundary fixed point. The data can be checked, because the supplied
     bounds already encode the assumed prevalence -- a common threshold ``t``
     means ``K = 1 - Phi(t)`` -- and under population sampling each role's case
     indicator is one ``Bernoulli(K)`` per family, independent across families.
@@ -509,8 +491,7 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     probabilities are unknown or misspecified, or any joint stratum has
     probability zero -- still produces severe boundary bias.
 
-    That acknowledgement is now **checked against the data**, not merely taken on
-    trust: the supplied thresholds assert a prevalence, and each role's case rate
+    That acknowledgement is **checked against the data**: the supplied thresholds assert a prevalence, and each role's case rate
     is compared against it (`_assert_population_case_rate`). A gross
     mismatch raises, because the failure it guards is severe and silent -- on
     ascertained families with a true ``h2`` of 0, this fitter returns
@@ -666,7 +647,8 @@ def _component_matrix(roles, comp):
     return K
 
 
-def _prepare_component_group(families, idx, comps, weights, *, context):
+def _prepare_component_group(families, idx, comps, weights=None, *,
+                             context="variance-component fit bounds"):
     """Precompute one shared-structure group for the component engine."""
     roles = sorted(m.role for m in families[idx[0]].members)
     k = len(roles)
@@ -701,12 +683,6 @@ def _prepare_component_group(families, idx, comps, weights, *, context):
                 uppers=np.ascontiguousarray(uppers), fixed=fixed,
                 w=np.ascontiguousarray(w),
                 x=np.ascontiguousarray(x))
-
-
-def _prepare_group_vc(families, idx, comps, weights=None):
-    """Compatibility wrapper around the shared component-group preparation."""
-    return _prepare_component_group(
-        families, idx, comps, weights, context="variance-component fit bounds")
 
 
 def _assert_observed_identification(groups, comps, n_pheno=1, *, context):

@@ -2,11 +2,13 @@
 
 The opt-in `fit_pairwise_multi` implementation was checked in 1,800 independent-cohort fits: 200 replicates per scenario, each generated from 3,000 nuclear families (`o, m, f, s1, s2`). The same seed indexes pair scenarios for comparison; cohorts within a scenario are independent. Trait prevalences are 0.10 and 0.20. There were **zero failed fits**, with every attempt retained.
 
-This is a development checkout based on `6a3c574`, with package version still 0.6.2; it is not a published release. The main and null campaigns used identical package source hashes. Each directory retains the source zip, individual source hashes, versions, command, configuration, all replicate estimates/SEs and summaries. The second campaign only extends the benchmark script with null scenarios. Both manifests confirm unchanged source during execution. The snapshots and current package hashes were checked after both runs.
+This is a development checkout based on `6a3c574`, with package version still 0.6.2; it is not a published release. The main and null campaigns used identical package source hashes. Each directory retains individual source hashes, versions, command, configuration, all replicate estimates/SEs and summaries. The second campaign only extends the benchmark script with null scenarios. Both manifests confirm unchanged source during execution. The snapshots and current package hashes were checked after both runs.
 
-The subsequent v0.7.0 commit changes only the version string in the archived
-package sources; the measured numerical implementation is unchanged. The
-manifests and source archives retain the original development version.
+The measured package sources are those of the v0.7.0 commit `d4aa91e` with
+`__version__ = "0.6.2"`; the null campaign's benchmark script is also that
+commit's, and the main campaign's lacks only the two null scenarios
+([`bench_pairwise_multi-vs-d4aa91e.diff`](bench_pairwise_multi-vs-d4aa91e.diff)).
+The per-file SHA-256s in each `manifest.json` verify a reconstruction.
 
 **Table 1. Bias and conditional 95% interval coverage for the two correlations.** Bias includes all finite point estimates. Parentheses give Monte Carlo SE of the bias. Coverage uses only fits with available interior SEs; the last column shows this denominator out of 200.
 
@@ -32,4 +34,4 @@ Boundary fits occurred in 20/200 shared-environment replicates and 44/200 missin
 
 The probability tests use independent conditional-normal integration and exact zero-threshold arcsine tables, including signed correlations and PSD boundaries. The statistical simulator constructs its nuclear-family relationship kernels independently of the fitter. Timings in replicate records are explicitly uncontrolled and must not be used for performance rankings.
 
-Artifacts: [main summary](summary.json), [main replicates](replicates.json), [main manifest](manifest.json), [main source](source.zip); [null summary](../2026-09-16-joint-pairwise-nulls/summary.json), [null replicates](../2026-09-16-joint-pairwise-nulls/replicates.json), [null manifest](../2026-09-16-joint-pairwise-nulls/manifest.json).
+Artifacts: [main summary](summary.json), [main replicates](replicates.json), [main manifest](manifest.json); [null summary](../2026-09-16-joint-pairwise-nulls/summary.json), [null replicates](../2026-09-16-joint-pairwise-nulls/replicates.json), [null manifest](../2026-09-16-joint-pairwise-nulls/manifest.json).

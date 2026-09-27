@@ -122,8 +122,7 @@ def test_family_history_raises_genetic_estimate():
         return Family(fid, members)
 
     res = estimate_liability([fam(True, "affected"), fam(False, "healthy")],
-                             h2=h2, out=("genetic",), tol=0.02,
-                             n_sim=40_000, burn_in=800, seed=2)
+                             h2=h2, out=("genetic",))
     g_affected, g_healthy = res.est["genetic"]
     assert g_affected > g_healthy + 0.1
 
@@ -195,8 +194,7 @@ def test_families_from_columns_groups_non_contiguous_rows_and_2d_bounds():
 
 def test_result_pids_default_to_o_member():
     fam = Family("f1", [Member("o", 1.6, np.inf, pid="proband1")])
-    res = estimate_liability([fam], h2=0.5, out=("genetic",),
-                             n_sim=10_000, burn_in=300, tol=0.1, seed=1)
+    res = estimate_liability([fam], h2=0.5, out=("genetic",))
     assert res.pids[0] == "proband1"
 
 
@@ -521,9 +519,9 @@ def test_public_estimators_reject_invalid_bounds(lower, upper, match):
                                  estimate_liability_pa_arrays)
 
     fam = Family("bad", [Member("o", lower, upper)])
-    for method in ("pa", "gibbs"):
+    for method, controls in (("pa", {}), ("gibbs", dict(n_sim=20, burn_in=0))):
         with pytest.raises(ValueError, match=match):
-            estimate_liability([fam], h2=0.5, method=method, n_sim=20, burn_in=0)
+            estimate_liability([fam], h2=0.5, method=method, **controls)
 
     lo = np.array([[lower]])
     hi = np.array([[upper]])
@@ -873,9 +871,9 @@ def test_member_role_g_is_rejected_on_object_and_array_paths():
                                  estimate_liability_pa_arrays)
     t = float(stats.norm.isf(0.05))
     fam = Family("f", [Member("g", t, np.inf), Member("o", -np.inf, t)])
-    for method in ("pa", "gibbs"):
+    for method, controls in (("pa", {}), ("gibbs", dict(n_sim=20, burn_in=0))):
         with pytest.raises(ValueError, match="role 'g'"):
-            estimate_liability([fam], h2=0.5, method=method, n_sim=20, burn_in=0)
+            estimate_liability([fam], h2=0.5, method=method, **controls)
     lo = np.array([[-9.0, t]])
     hi = np.array([[9.0, np.inf]])
     with pytest.raises(ValueError, match="must not contain 'g'"):
@@ -893,10 +891,10 @@ def test_family_without_members_raises_instead_of_a_silent_zero():
     t = float(stats.norm.isf(0.05))
     fams = [Family("empty", []),
             Family("ok", [Member("o", t, np.inf), Member("m", -np.inf, t)])]
-    for method in ("pa", "gibbs"):
+    for method, controls in (("pa", {}),
+                             ("gibbs", dict(n_sim=200, burn_in=0, seed=1))):
         with pytest.raises(ValueError, match="no members"):
-            estimate_liability(fams, h2=0.5, method=method,
-                               n_sim=200, burn_in=0, seed=1)
+            estimate_liability(fams, h2=0.5, method=method, **controls)
 
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -1150,3 +1148,100 @@ def test_pa_estimation_under_c2_matches_closed_form():
     est_g, var_g = estimate_liability_pa_arrays(["o", "s1"], lower, upper,
                                                 h2=h2, c2=c2, out="genetic")
     assert est_g[0] == pytest.approx(0.5 * h2 * v, abs=1e-12)
+
+
+@pytest.mark.parametrize('method', ['pa', 'gibbs', 'quadrature'])
+def test_prediction_preserves_personal_join_key(method):
+    relative = Member('m', 1., np.inf, pid='mother')
+    with pytest.raises(ValueError, match='no proband pid'):
+        estimate_liability([Family('family', [relative])], h2=.5, method=method)
+    family = Family('family', [Member('o', -np.inf, np.inf, pid='target'), relative])
+    kwargs = dict(seed=31, n_sim=100, tol=1.) if method == 'gibbs' else {}
+    result = estimate_liability([family], h2=.5, method=method, **kwargs)
+    assert result.pids.tolist() == ['target']
+    assert result.fam_ids.tolist() == ['family']
+    # Erasing the own-status interval preserves the relatives-only estimand.
+    reference = estimate_liability([Family('family', [Member('m', 1., np.inf)])],
+                                   h2=.5, method=method, **kwargs)
+    np.testing.assert_array_equal(result.genetic, reference.genetic)
+    assert reference.pids.tolist() == ['family']
+
+
+def test_multitrait_rejects_missing_proband_pid():
+    family = Family('family', [Member('m', [1., 1.], [np.inf, np.inf], pid='mother')])
+    with pytest.raises(ValueError, match='no proband pid'):
+        estimate_liability([family], h2=[.5, .5], genetic_corrmat=np.eye(2),
+                           full_corrmat=np.eye(2))
+
+
+@pytest.mark.parametrize('missing', [None, np.nan, '', 'NA', '<NA>', b'null'])
+def test_missing_id_does_not_become_a_proband_key(missing):
+    family = Family('family', [Member('o', 1., np.inf, pid=missing)])
+    assert estimate_liability([family], h2=.5).pids.tolist() == ['family']
+
+
+def test_clear_input_errors_and_sampler_warning():
+    from ltpred import prevalence_thresholds
+    family = Family('f', [Member('o', 1., np.inf)])
+    with pytest.raises(ValueError, match='h2 must be numeric'):
+        estimate_liability([family], h2=None)
+    for method in ['pa', 'gibbs', 'quadrature']:
+        with pytest.raises(ValueError, match='at least one family'):
+            estimate_liability([], h2=.5, method=method)
+    with pytest.raises(ValueError, match='fraction, not a percentage'):
+        prevalence_thresholds([True], pop_prev=5)
+    with pytest.warns(UserWarning, match='ignores Gibbs controls: n_sim, seed'):
+        estimate_liability([family], h2=.5, n_sim=10, seed=1)
+    with warnings.catch_warnings(record=True) as caught:
+        estimate_liability([family], h2=.5)
+    assert not caught
+
+
+def test_export_trait_names_do_not_collide_with_uncertainty_columns():
+    from ltpred import LiabilityResult
+    result = LiabilityResult(np.array(['f']), np.array(['p']),
+        est={'genetic_x': np.array([1.]), 'genetic_x_se': np.array([2.])},
+        se={'genetic_x': np.array([.1]), 'genetic_x_se': np.array([.2])},
+        var={'genetic_x': np.array([.3]), 'genetic_x_se': np.array([.4])})
+    columns = result.to_dict()
+    assert len(columns) == 8
+    assert columns['genetic_x_se'][0] == 2.
+    assert columns['se_genetic_x'][0] == .1
+
+
+def test_family_free_kinship_scalar_branch_matches_matrix_path():
+    from ltpred import estimate_liability_from_kinship
+    from ltpred.covariance import (construct_covmat_from_kinship,
+                                   correct_positive_definite)
+    from ltpred.pearson_aitken import pa_estimate_batched
+    rng = np.random.default_rng(2026)
+    kinds = (["pin", "control", "uninformative", "interval"] * 40)
+    lower, upper = [], []
+    for kind in kinds:
+        if kind == "pin":
+            t = rng.normal(1.8, .4)
+            lower.append(t); upper.append(t)
+        elif kind == "control":
+            lower.append(-np.inf); upper.append(rng.normal(-.1, .3))
+        elif kind == "uninformative":
+            lower.append(-np.inf); upper.append(np.inf)
+        else:
+            a, b = np.sort(rng.normal(size=2) * .5)
+            lower.append(a); upper.append(b)
+    lower, upper = np.array(lower), np.array(upper)
+    for h2 in (.5, .05, .99):
+        for out in ("genetic", "full"):
+            est, _se, var = estimate_liability_from_kinship(
+                [[1.]], lower[:, None], upper[:, None], h2=h2, out=out)
+            # the literal matrix route: build the 2x2 covariance, prepend g,
+            # batch PA -- exactly what the branch must reproduce bit for bit
+            cov_obj = construct_covmat_from_kinship([[1.]], h2=h2, target=0)
+            cov, _ = correct_positive_definite(cov_obj.matrix)
+            g_lo = np.full((len(lower), 1), -np.inf)
+            g_hi = np.full((len(lower), 1), np.inf)
+            lo = np.concatenate([g_lo, lower[:, None]], axis=1)
+            hi = np.concatenate([g_hi, upper[:, None]], axis=1)
+            target = 0 if out == "genetic" else 1
+            ref_est, ref_var = pa_estimate_batched(cov, lo, hi, target=target)
+            np.testing.assert_array_equal(est, ref_est)
+            np.testing.assert_array_equal(var, ref_var)

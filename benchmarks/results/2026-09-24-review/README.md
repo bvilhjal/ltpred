@@ -46,9 +46,13 @@ matrix, including shuffled rows, missing parents and inbreeding. Storage is
 linear in people plus a bounded ancestor-pair cache; runtime need not be linear
 for deep, highly related pedigrees.
 
-`probe.py` is the rerun driver. `sources.tar.gz` contains the exact measured
-`before/ltpred` and `after/ltpred` package sources (hash-verified). Extract it to a
-temporary directory and pass either parent directory as `--source`; run with
+`probe.py` is the rerun driver. The measured `before` package is commit
+`db2377f`; the `after` package is commit `6686541` plus
+[`after-vs-6686541.patch`](after-vs-6686541.patch) (version string, docstrings
+and score-export column names; the per-file hashes in each JSON verify the
+reconstruction). Export either tree (`git archive <commit> ltpred | tar -x -C
+<dir>`, then apply the patch for `after`) and pass its parent directory as
+`--source`; run with
 `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 VECLIB_MAXIMUM_THREADS=1 NUMBA_NUM_THREADS=1`. `--case` selects the workload;
 `--values` optionally saves numerical outputs for comparison. Later source edits clarify missing-parent docstrings/comments and use
