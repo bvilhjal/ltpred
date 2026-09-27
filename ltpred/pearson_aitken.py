@@ -47,8 +47,11 @@ two-component moments with weight
 ``Phi_below`` the current conditional mass below ``T_pop``; this replaces P3's
 moments. ``(K_pop - K_i)/K_pop`` assumes onset timing independent of liability
 among eventual cases. Age enters only through ``K_i``; the finite ``upper``
-merely flags censoring. P2 is skipped: pins, absent rows (no-op updates) and
-intervals are all folded sequentially in row order.
+merely flags censoring. P2's reduction is skipped: pins, absent rows (no-op
+updates) and intervals are all folded sequentially in row order, and a row
+whose conditional variance has collapsed is skipped as known. P2's
+compatibility checks still apply (`_check_pin_support`), so both paths accept
+and reject the same exact observations.
 
 Truncated moments never form ``1 - Phi``: `_std_tnorm_moments` reflects
 positive intervals into the lower tail and differences log CDFs with
@@ -346,7 +349,10 @@ def _pa_update(cov, mu, i, nm, nv):
 def _pa_family(cov, lower, upper, K_i, K_pop):
     """One family's PA sweep **with** the censored-control mixture; target row 0.
 
-    Algorithm M: no P2 reduction and no deterministic-row checks. Mutates
+    Algorithm M: no P2 reduction. Rows whose conditional variance has
+    collapsed below ``_COLLAPSED_VARIANCE`` times their prior variance are
+    skipped as known; `_check_pin_support` has already rejected incompatible
+    exact observations with P2's rules. Mutates
     ``cov`` in place, folding every row ``d-1, ..., 1`` (pins as point masses,
     absent rows as no-op updates) with `_tnorm_mixture`. Then
     applies the target's own interval to the updated ``N(mu[0], cov[0,0])``.
@@ -356,9 +362,20 @@ def _pa_family(cov, lower, upper, K_i, K_pop):
     mean and conditional variance."""
     d = cov.shape[0]
     mu = np.zeros(d)
+    # A row whose conditional variance has collapsed (for instance a second pin
+    # on a coordinate the earlier pins determine) is known: folding it would
+    # divide by ~0 and it carries no further information. Its compatibility
+    # with the bounds is checked before the kernel (`_check_pin_support`).
+    floor = np.empty(d)
+    for i in range(d):
+        floor[i] = _COLLAPSED_VARIANCE * cov[i, i]
     for i in range(d - 1, 0, -1):
+        if cov[i, i] <= floor[i]:
+            continue
         nm, nv = _tnorm_mixture(mu[i], cov[i, i], lower[i], upper[i], K_i[i], K_pop[i])
         _pa_update(cov, mu, i, nm, nv)
+    if cov[0, 0] <= floor[0]:
+        return mu[0], 0.0
     return _tnorm_mixture(mu[0], cov[0, 0], lower[0], upper[0], K_i[0], K_pop[0])
 
 
@@ -409,6 +426,47 @@ def _pa_batched_nomix(cov, lowers, uppers, est, var):
         e, v = _pa_family_nomix(c, lowers[f], uppers[f])
         est[f] = e
         var[f] = v
+
+
+#: Relative conditional variance below which the mixture kernel treats a row as
+#: known (its standard deviation is below 1e-6 of the prior one).
+_COLLAPSED_VARIANCE = 1e-12
+
+
+def _check_pin_support(cov, lowers, uppers, K_is):
+    """Apply Algorithm P's step-P2 compatibility checks on the mixture path.
+
+    Algorithm M folds pins sequentially instead of conditioning on them
+    jointly, so it would otherwise accept pins that contradict each other or
+    the bounds of a row they determine. Group families by pin mask, condition
+    on the pins with `_condition_pins` (which rejects pins outside the
+    covariance support) and require every row the pins determine to lie within
+    its bounds. A censored-control mixture row may exceed its ``upper`` (a
+    future case), so only its ``lower`` bound is checked."""
+    pins = lowers == uppers
+    if not np.any(pins):
+        return
+    mixture = ~np.isnan(np.asarray(K_is, dtype=np.float64)) & (uppers != np.inf)
+    effective_upper = np.where(mixture, np.inf, uppers)
+    keys = pins.view(np.dtype((np.void, pins.shape[1]))).ravel()
+    _, first, inverse = np.unique(keys, return_index=True, return_inverse=True)
+    for k, row in enumerate(first):
+        pinned = np.flatnonzero(pins[row])
+        if not len(pinned):
+            continue
+        rows = np.flatnonzero(inverse == k)
+        retained = np.flatnonzero(~pins[row])
+        means, conditional = _condition_pins(
+            cov, retained, pinned, lowers[np.ix_(rows, pinned)])
+        deterministic = np.diag(conditional) == 0.0
+        if not np.any(deterministic):
+            continue
+        values = means[:, deterministic]
+        columns = retained[deterministic]
+        tolerance = 128 * np.finfo(float).eps * len(cov) * np.maximum(1.0, np.abs(values))
+        if (np.any(values < lowers[np.ix_(rows, columns)] - tolerance)
+                or np.any(values > effective_upper[np.ix_(rows, columns)] + tolerance)):
+            raise ValueError("observation excludes a deterministic liability after pin conditioning")
 
 
 def _condition_pins(cov, retained, pinned, values):
@@ -680,6 +738,7 @@ def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
         context="pa_algorithm mixture inputs")
     K_i = as_bounds(K_i)
     K_pop = as_bounds(K_pop)
+    _check_pin_support(cov, lo[None, :], hi[None, :], K_i[order][None, :])
     return _pa_family(cov, lo, hi, K_i[order], K_pop[order])
 
 
@@ -731,5 +790,6 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
     K_pops = as_bounds(K_pops)
     ki = K_is if target == 0 else np.ascontiguousarray(K_is[:, order])
     kp = K_pops if target == 0 else np.ascontiguousarray(K_pops[:, order])
+    _check_pin_support(cov, lo, hi, ki)
     _pa_batched(cov, lo, hi, ki, kp, est, var)
     return est, var

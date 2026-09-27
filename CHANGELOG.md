@@ -24,6 +24,11 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   backs are restated qualitatively below.
 - A register-driver test now shows that `cip_by_stratum` routes each record
   to its own curve; before, only permutation invariance was tested.
+- The PA-FGRS mixture path applies the same pin checks as ordinary PA. A pin
+  on a coordinate that earlier pins already determine (for example one person
+  recorded twice) crashed with an opaque `SystemError`; it now scores as the
+  single pin does, and contradictory pins raise `ValueError`. Other mixture
+  scores are bit-identical.
 
 ### Removed
 

@@ -52,7 +52,6 @@ and onset-age-decay fitting, and factor models remain under `research/`
 | 09e T2-4 | `bootstrap_fit` is serial | Parallelise replicates after confirming bit-identity on a quiet machine. |
 | 09e T3-4 | Probe capsules lack machine-readable thread variables and load | Record `thread_variables` and `load_average` in future capsules. |
 | N4 | Chunked Gibbs differs from the array API at Monte Carlo level for the same seed | Collapse per structure group, or keep the documented weaker contract. |
-| N5 | Mixture path skips the pin-compatibility checks | Check support before the sequential fold; add a test. |
 | N6 | Methods report imprecise on P1, G1, G4, G6 and quadrature details | Correct at the next PDF rebuild. |
 | 09d §7 | Unverified boundary-test failure on NumPy 1.26 + Numba | Re-run on that stack; pin the warning path or add a CI leg. |
 

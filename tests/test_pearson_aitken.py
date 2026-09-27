@@ -328,6 +328,44 @@ def test_pa_algorithm_normalises_float16_mixture_inputs_for_numba():
     assert got == pytest.approx(ref)
 
 
+def test_mixture_path_applies_the_pin_checks_of_the_standard_path():
+    # Two pins on perfectly correlated coordinates (one person recorded twice).
+    # The mixture kernel folds pins sequentially; after the first, the second
+    # has zero conditional variance. Both paths must agree: equal pins score as
+    # one, unequal pins are rejected, and neither divides by zero.
+    h2 = 0.5
+    cov = np.array([[h2, h2, h2], [h2, 1.0, 1.0], [h2, 1.0, 1.0]])
+    no_k = np.full((1, 3), np.nan)
+    same = np.array([[-np.inf, 1.0, 1.0]])
+    upper = same.copy()
+    upper[0, 0] = np.inf
+    plain = pa_estimate_batched(cov, same, upper)
+    mixture = pa_estimate_batched(cov, same, upper, K_is=no_k, K_pops=no_k)
+    np.testing.assert_array_equal(mixture[0], plain[0])
+    np.testing.assert_array_equal(mixture[1], plain[1])
+    clash_lower = np.array([[-np.inf, 1.0, 2.0]])
+    clash_upper = clash_lower.copy()
+    clash_upper[0, 0] = np.inf
+    for kwargs in ({}, dict(K_is=no_k, K_pops=no_k)):
+        with pytest.raises(ValueError, match="incompatible"):
+            pa_estimate_batched(cov, clash_lower, clash_upper, **kwargs)
+
+    # With a genuine censored-control row, a duplicated pin changes nothing.
+    cov4 = np.array([[h2, h2, h2, h2 / 2], [h2, 1.0, 1.0, 0.25],
+                     [h2, 1.0, 1.0, 0.25], [h2 / 2, 0.25, 0.25, 1.0]])
+    lo = np.array([-np.inf, 1.2, 1.2, -np.inf])
+    hi = np.array([np.inf, 1.2, 1.2, 0.8])
+    K_i = np.array([np.nan, np.nan, np.nan, 0.03])
+    K_pop = np.array([np.nan, np.nan, np.nan, 0.1])
+    keep = [0, 1, 3]
+    assert pa_algorithm(cov4, lo, hi, K_i=K_i, K_pop=K_pop) == pytest.approx(
+        pa_algorithm(cov4[np.ix_(keep, keep)], lo[keep], hi[keep],
+                     K_i=K_i[keep], K_pop=K_pop[keep]), abs=1e-12)
+    lo[2] = hi[2] = 1.5
+    with pytest.raises(ValueError, match="incompatible"):
+        pa_algorithm(cov4, lo, hi, K_i=K_i, K_pop=K_pop)
+
+
 def test_mixture_changes_genetic_estimate():
     # a proband case with a single young control sibling: the mixture (accounting
     # for the sibling's residual risk) should not decrease the genetic estimate.

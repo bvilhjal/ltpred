@@ -250,8 +250,9 @@ its moments are those of the two-component mixture split at the lifetime
 threshold $T=\Phi^{-1}(1-K_{pop})$, with weight
 $\pi=\Phi_{\rm below}/\{\Phi_{\rm below}+(1-\Phi_{\rm below})(K_{pop}-K_i)/K_{pop}\}$.
 The factor $(K_{pop}-K_i)/K_{pop}$ assumes onset timing independent of liability
-among eventual cases. A call containing a mixture row skips P2: pins, absent rows
-and intervals are folded sequentially, without P2's compatibility checks.
+among eventual cases. A call containing a mixture row skips P2's reduction: pins,
+absent rows and intervals are folded sequentially, but P2's compatibility checks
+still apply, so both paths accept and reject the same exact observations.
 
 **Algorithm Q (nuclear-family quadrature; `ltpred.quadrature`).** For an
 additive, non-inbred nuclear family with unrelated parents and $h^2<1$, the
