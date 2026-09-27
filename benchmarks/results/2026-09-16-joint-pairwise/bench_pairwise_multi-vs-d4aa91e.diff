@@ -1,0 +1,21 @@
+--- a/benchmarks/bench_pairwise_multi.py
++++ b/benchmarks/bench_pairwise_multi.py
+@@ -35,15 +35,15 @@
+ from ltpred.family import Family, Member
+ from ltpred.pairwise_multi import fit_pairwise_multi
+ 
+-SCENARIOS = ("positive", "negative_g", "negative_e", "shared", "missing", "ipw", "omit_shared", "null_g", "null_e")
++SCENARIOS = ("positive", "negative_g", "negative_e", "shared", "missing", "ipw", "omit_shared")
+ ROLES = ("o", "m", "f", "s1", "s2")
+ 
+ 
+ def truth(scenario):
+     shared = scenario in ("shared", "missing", "omit_shared")
+     h = np.array([.35, .4]) if shared else np.array([.45, .35])
+-    rg = 0. if scenario == "null_g" else (-.45 if scenario == "negative_g" else .5)
+-    re = 0. if scenario == "null_e" else (-.4 if scenario == "negative_e" else (-.35 if shared else .35))
++    rg = -.45 if scenario == "negative_g" else .5
++    re = -.4 if scenario == "negative_e" else (-.35 if shared else .35)
+     matrices = {"A": np.diag(h)}
+     matrices["A"][0, 1] = matrices["A"][1, 0] = rg*np.sqrt(h.prod())
+     if shared:

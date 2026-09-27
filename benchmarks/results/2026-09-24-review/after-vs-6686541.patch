@@ -1,0 +1,83 @@
+--- a/ltpred/__init__.py
++++ b/ltpred/__init__.py
+@@ -27,7 +27,7 @@
+ import types
+ from typing import TYPE_CHECKING
+ 
+-__version__ = "0.7.3"
++__version__ = "0.7.2"
+ 
+ if TYPE_CHECKING:
+     # Static re-exports. At runtime ``__getattr__`` below imports these lazily,
+--- a/ltpred/covariance.py
++++ b/ltpred/covariance.py
+@@ -473,7 +473,7 @@
+ def _parent_links(ids, father, mother):
+     """Index a pedigree: ``(ids, index, sire, dam, children, n_unresolved)``.
+ 
+-    Missing-id markers map to -1, as does any value not
++    Unknown or founder markers (``None``/NaN) map to -1, as does any value not
+     among ``ids``; the latter are counted in ``n_unresolved``. Raises on a
+     length mismatch, duplicate ids, and a person recorded as their own parent.
+     """
+@@ -521,8 +521,7 @@
+     ``ids`` is a sequence of unique individual ids; ``father`` and ``mother`` are the
+     same-length sequences giving each individual's parents. A parent that is not
+     itself one of ``ids`` (``None``, ``0``, ``""``, ``nan``, or any unlisted value)
+-    is treated as an unknown **founder**. Missing-id strings and pandas NA/NaT
+-    are also unknown; zero/``"0"`` remains a valid parent when listed in ``ids``. Returns ``(ids, A)`` with ``A`` an
++    is treated as an unknown **founder**. Returns ``(ids, A)`` with ``A`` an
+     ``(n, n)`` matrix in the given ``ids`` order: ``A[i,i] = 1 + F_i`` (``F_i`` the
+     inbreeding coefficient) and ``A[i,j] = 2 × kinship(i, j)`` — e.g. 0.5 for
+     parent–offspring and full sibs, 0.25 for grandparent/half-sib, 0.125 for first
+--- a/ltpred/estimate.py
++++ b/ltpred/estimate.py
+@@ -156,19 +156,18 @@
+     quadrature_nodes: dict | None = None
+ 
+     def to_dict(self):
+-        """Copy columns: fam_id, pid, estimates and se_name/var_name diagnostics.
++        """Copy columns: fam_id, pid, estimates and name_se/name_var diagnostics.
+ 
+         A column mapping preserves row order and repeated pids without silently
+-        overwriting scores. Diagnostic prefixes avoid collisions between traits
+-        such as "height" and "height_se". Multi-trait suffixes are retained.
++        overwriting scores. Multi-trait suffixes are retained.
+         """
+         columns = {"fam_id": np.asarray(self.fam_ids, dtype=object).copy(),
+                    "pid": np.asarray(self.pids, dtype=object).copy()}
+-        for prefix, values in (("", self.est), ("se_", self.se), ("var_", self.var),
+-                               ("quadrature_error_", self.quadrature_error),
+-                               ("quadrature_nodes_", self.quadrature_nodes)):
++        for suffix, values in (("", self.est), ("_se", self.se), ("_var", self.var),
++                               ("_quadrature_error", self.quadrature_error),
++                               ("_quadrature_nodes", self.quadrature_nodes)):
+             if values is not None:
+-                columns.update({prefix + name: np.asarray(value).copy()
++                columns.update({name + suffix: np.asarray(value).copy()
+                                 for name, value in values.items()})
+         return columns
+ 
+--- a/ltpred/pedigree.py
++++ b/ltpred/pedigree.py
+@@ -60,8 +60,7 @@
+     parents) — the sib edges that make traversal distance equal the standard
+     relationship degree (Pedersen et al. 2025). ``n_unresolved_parents``
+     counts non-null father/mother values that matched no id; declared-unknown
+-    parents (``None``, NaN, pandas NA/NaT or empty/NA strings) are not counted.
+-    Zero/``"0"`` is unknown only when it is not an explicitly listed person id."""
++    parents (``None``/``nan``) are not counted."""
+     ids: list
+     sire: list
+     dam: list
+--- a/ltpred/pipeline.py
++++ b/ltpred/pipeline.py
+@@ -305,7 +305,7 @@
+     # register boundary. But the same rule absorbs an id-format mismatch or a
+     # failed join, which turns every family-history score into an
+     # own-status-only score, so the resolution rate is surfaced instead of
+-    # silent. Shared missing-id markers and unlisted zero markers never count.
++    # silent. Declared-unknown parents (None/nan) never count.
+     n_refs = 0
+     n_unresolved_records = 0
+     for fid, mid in zip(father, mother):
