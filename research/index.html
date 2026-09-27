@@ -993,10 +993,9 @@ described in <a href="../algorithm/">Algorithm &amp; model</a>; these sections w
 that page so that it describes only what the installed package does.</p>
 <h2 id="covariance-extensions-researchcovariance_extensionspy">Covariance extensions (<code>research/covariance_extensions.py</code>)<a class="headerlink" href="#covariance-extensions-researchcovariance_extensionspy" title="Permanent link">&para;</a></h2>
 <h3 id="direct-and-indirect-genetic-nurture-effects">Direct and indirect (genetic-nurture) effects<a class="headerlink" href="#direct-and-indirect-genetic-nurture-effects" title="Permanent link">&para;</a></h3>
-<p>Caution (i) in the algorithm page's
-<a href="../algorithm/#adding-environmental-covariance-to-improve-prediction">environmental-covariance section</a>
-says a symmetric shared-environment matrix is not a maternal
-effect, because that is a <em>directional</em> path. <code>construct_covmat_nurture</code> (in
+<p>The <a href="../assumptions/#modelling-assumptions">modelling assumptions</a> note that
+a symmetric shared-environment matrix is not a maternal effect, because that
+is a <em>directional</em> path. <code>construct_covmat_nurture</code> (in
 <code>research/covariance_extensions.py</code> — research code, not the supported core)
 builds
 the directional model instead, from the path structure rather than from
@@ -1092,8 +1091,8 @@ founders -- their liabilities would gain their own nurture terms from the
 grandparents. That recursion is not implemented, and silently treating a
 grandparent as a founder would understate the covariance, so those roles are
 rejected. Like the other covariance constructors, the result is an ordinary
-<code>Covmat</code> and feeds <code>pa_algorithm</code> / <code>rtmvnorm_gibbs</code> / <code>pa_estimate_batched</code>
-directly.</p>
+<code>Covmat</code>; pass its <code>.matrix</code> (rows in <code>.roles</code> order) to <code>pa_algorithm</code> /
+<code>rtmvnorm_gibbs</code> / <code>pa_estimate_batched</code>.</p>
 <h3 id="sex-limited-genetic-architecture">Sex-limited genetic architecture<a class="headerlink" href="#sex-limited-genetic-architecture" title="Permanent link">&para;</a></h3>
 <p>Everywhere else in ltpred, sex enters through the <strong>threshold</strong>: a sex-specific
 CIP gives each person their own <code>T</code>. That is where it belongs for calibration,
@@ -1125,11 +1124,12 @@ per-person heritabilities and <code>Rg</code> has <code>1</code> within a sex an
 both <code>A</code> and <code>Rg</code> are PSD, so their Schur product is PSD and the symmetric
 scaling preserves it.</p>
 <p>The role grammar fixes the sex of parents and grandparents (<code>m</code>, <code>f</code>, <code>mgm</code>,
-<code>mgf</code>, <code>pgm</code>, <code>pgf</code>). Siblings, children, half-sibs and aunts/uncles are
-ambiguous — <code>mau</code>/<code>pau</code> covers both aunts and uncles — and must be declared in
-<code>sex=</code>; the constructor raises rather than defaulting, since a silent default
-would impose one sex's heritability on the other. The genetic row <code>g</code> follows
-the proband <code>o</code>.</p>
+<code>mgf</code>, <code>pgm</code>, <code>pgf</code>). The proband <code>o</code>, siblings, children, half-sibs and
+aunts/uncles are ambiguous — <code>mau</code>/<code>pau</code> covers both aunts and uncles — and
+must be declared in <code>sex=</code> (the genetic row <code>g</code> takes <code>o</code>'s sex); the
+constructor raises rather than defaulting, since a silent default would impose
+one sex's heritability on the other. Because <code>o</code> is always present, every
+call needs <code>sex=</code>.</p>
 <p>Two cautions. <strong>(i)</strong> These are <em>inputs</em>, not fitted quantities: the constructor
 takes <code>h2_female</code>, <code>h2_male</code> and <code>rg_cross</code> and builds the covariance. Nothing
 here estimates them, and the identification requirements are real — separating
@@ -1140,9 +1140,10 @@ sparsely. <strong>(ii)</strong> A sex difference in <em>observed</em> prevalence
 evidence of sex-limited genetics; it is exactly what a sex-specific threshold
 already absorbs. Reach for this model when same- and opposite-sex relative
 correlations differ <strong>after</strong> the thresholds are personalised.</p>
-<p>Because the result is an ordinary <code>Covmat</code>, it feeds the covariance-level
-entry points (<code>pa_algorithm</code>, <code>rtmvnorm_gibbs</code>, <code>pa_estimate_batched</code>)
-directly, the same route documented for any user-supplied kernel. The
+<p>Because the result is an ordinary <code>Covmat</code>, its <code>.matrix</code> (rows in <code>.roles</code>
+order) feeds the covariance-level entry points (<code>pa_algorithm</code>,
+<code>rtmvnorm_gibbs</code>, <code>pa_estimate_batched</code>), the same route documented for any
+user-supplied kernel. The
 role-based <code>estimate_liability</code> still takes a scalar <code>h2</code>.</p>
 <h2 id="multi-trait-fitters-researchadvanced_fittingpy">Multi-trait fitters (<code>research/advanced_fitting.py</code>)<a class="headerlink" href="#multi-trait-fitters-researchadvanced_fittingpy" title="Permanent link">&para;</a></h2>
 <p>The supported <a href="../algorithm/#multiple-traits">multi-trait scorer</a> takes
@@ -1158,7 +1159,11 @@ multi-trait analogue of <code>fit_heritability</code>, a <strong>cross-trait</st
 regression. Each member carries one case/control interval per trait. Each sweep
 draws the members' <code>P</code>-trait liabilities from the full truncated-MVN under the
 current parameters, then regresses the sampled cross-products on the additive
-relationship <code>A</code>:</p>
+relationship <code>A</code>. Like the core moment fitters it requires
+<code>sampling="population"</code> (it warns when omitted and raises on any other value),
+non-overlapping families, one common threshold per trait (personalised or
+pinned bounds raise) and a population-consistent case rate; it raises with
+fewer than two traits or without related pairs.</p>
 <div class="highlight"><pre><span></span><code>same trait, diff relatives:  h2_p    = sum A_ij l_ip l_jp / sum A_ij^2
 diff trait, diff relatives:  G[p,q]  = sum A_ij (l_ip l_jq + l_iq l_jp) / (2 sum A_ij^2)
 same individual, diff trait: rp[p,q] = mean_i l_ip l_iq              (phenotypic corr)
@@ -1175,8 +1180,9 @@ positive semi-definite — especially with few families or a large <code>|rg|</c
 therefore projects both onto the convex set of correlation matrices (the PSD cone
 intersected with the unit-diagonal constraint) with the fitted variances held
 fixed (an eigenvalue projection, then a shrink towards the identity
-that leaves the diagonal alone), and the chain carries the two projected
-<em>covariance</em> states rather than ratios. The reported estimates are the post-burn-in
+that leaves the diagonal alone), and the chain carries damped (<code>damp=0.2</code> by
+default) convex combinations of the projected <em>covariance</em> states rather than
+ratios. The reported estimates are the post-burn-in
 averages of those states — averaging covariances is convex, so <code>G_est</code> and <code>E_est</code>
 are PSD too — with <code>rg</code>, <code>re</code> and <code>rp</code> all derived from that same pair. So the
 returned object is one coherent model: <code>rp == genetic_cov + env_cov</code> exactly, and
@@ -1258,8 +1264,8 @@ correlation is attributed to genetics -- inflating <code>h2</code> and thereby <
 with real household effects this is the binding limitation.</p>
 <p><strong>Options that address these limits.</strong> <code>shared_lambda</code> ties every block's decay
 rate to a single scalar -- fewer parameters, a guaranteed-PSD covariance, and less
-amplitude-decay ridge; it is the recommended default unless there is reason to let
-the rates differ. <code>shared_env</code> adds the shared-family environmental component <code>C</code>
+amplitude-decay ridge; it is the recommended setting (pass <code>shared_lambda=True</code>;
+the argument defaults to <code>False</code>) unless there is reason to let the rates differ. <code>shared_env</code> adds the shared-family environmental component <code>C</code>
 directly to the model (an onset-age <strong>ACE decomposition</strong>: genetics <code>A</code>, shared
 environment <code>C</code>, unique environment <code>E</code>), so household environment is estimated
 rather than absorbed into genetics -- it recovers <code>c2</code> and stops the <code>h2</code>

@@ -1083,8 +1083,9 @@ it automatically, and it is what you get back.</p>
 </tr>
 </tbody>
 </table>
-<p>A family can contain any subset of these. If <code>o</code> is absent, the estimator inserts
-it with uninformative <code>(-inf, inf)</code> bounds. Two relatives of the same kind must be
+<p>A family can contain any subset of these. If <code>o</code> is absent from a family with no
+personal IDs, the estimator inserts it with uninformative <code>(-inf, inf)</code> bounds; with
+pids, keep <code>o</code> and its pid (see below). Two relatives of the same kind must be
 numbered (<code>s1</code>, <code>s2</code>). Relatedness (and hence covariance) is derived from the role
 labels — see <code>get_relatedness</code>.</p>
 <p>One half-sib convention is worth knowing: following LTFHPlus, two <strong>same-side</strong>
@@ -1176,7 +1177,7 @@ no-mixture sampler. Shared-environment scoring is also supported, but the
 relationship classes must be explicit: pass <code>c2</code> with an aligned <code>c_kernel</code>
 and/or <code>m2</code> with <code>m_kernel</code>. They cannot be recovered from <code>A</code> alone.</p>
 <p>For a pedigree that <em>does</em> fit the role grammar the two paths use the identical
-covariance (except for same-side half-sibs, below); Gibbs agrees to Monte-Carlo
+covariance (except for same-side half-sibs, above); Gibbs agrees to Monte-Carlo
 error and PA up to its fold-order difference (about 0.1% of the score SD,
 RESULTS §14); the pedigree path additionally handles half-sibs of any
 degree, cousins, and inbred pedigrees (where a self-relationship can exceed 1).

@@ -1414,7 +1414,7 @@ the sampling design. The family bootstrap does not correct ascertainment bias.</
 (<a href="../algorithm/#the-estimand">algorithm.md</a>, equation (3)).
 Write Algorithm G for the truncated-MVN Gibbs sampler and
 Algorithm P for the Pearson–Aitken sequential-selection sweep
-(<a href="../algorithm/#inference-engine-1-gibbs-sampler">algorithm.md</a>).
+(<a href="../algorithm/#algorithms-in-brief">algorithms in brief</a>).
 G is exact in the limit of infinite draws. No-mixture P conditions pins jointly
 and marginalizes uninformative rows first. It is exact with zero or one remaining
 interval, and a two-moment approximation for multiple remaining intervals.</p>
@@ -1556,10 +1556,10 @@ Skip the objects with the <strong>array API</strong>, which takes already-aligne
 directly — 13–29× faster than the object path at 2.02–6.29 million
 already-aligned families/s, as measured on the warmed scaling grid that
 shipped with v0.4.0 (four threads; <code>benchmarks/bench_scaling.csv</code>, last
-regenerated at v0.4.0, commit <code>1684fc5</code>, 2026-08-20). The grid has not been re-measured
-since, and v0.7.1 made the object-path denominator 1.69× faster, so the ratio
-on the current tree is nearer 8–17× (and <code>estimate_liability_gibbs_arrays</code>
-does the same for Gibbs, returning <code>(est, se)</code>).
+regenerated at v0.4.0, commit <code>1684fc5</code>, 2026-08-20). The grid has not been
+re-measured since, and later releases sped up the object path, so the current
+ratio is smaller; no committed artifact measures it. (<code>estimate_liability_gibbs_arrays</code>
+does the same for Gibbs, returning <code>(est, se)</code>.)
 Control the thread count with <code>ltpred.set_num_threads(n)</code>, and warm up once (the
 first call JIT-compiles) before timing. Different family structures still need
 separate array calls (one covariance each); the object API groups them for you.</p>
@@ -1567,9 +1567,10 @@ separate array calls (one covariance each); the object API groups them for you.<
 streams homogeneous family batches through the same kernels so the working set
 is a few thousand (Gibbs) or tens of thousands (PA) rows at a time. Grouping
 stays deterministic — mixed pedigrees still need one call per role-set — and
-the summaries stay <code>O(F)</code>. Gibbs seeds are computed on the full cohort, then
-sliced per chunk, so the result agrees with <code>estimate_liability_gibbs_arrays</code>
-at the same <code>seed</code>:</p>
+the summaries stay <code>O(F)</code>. Each chunk receives the seeds its rows would get in
+the one-shot call, and each family's collapsed coordinates depend only on its own
+bounds, so the result is bit-identical to <code>estimate_liability_gibbs_arrays</code> at
+the same <code>seed</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="n">estimate_liability_pa_chunked</span><span class="p">,</span>
                     <span class="n">estimate_liability_gibbs_chunked</span><span class="p">)</span>
 
@@ -1596,9 +1597,9 @@ gate that once globally, so an all-cases chunk does not fail:</p>
 <span class="p">)</span>
 </code></pre></div>
 <p>Gibbs batches are consecutive blocks of a virtual concatenated cohort: a
-running family offset keeps <code>_base_seeds(seed, start + n, max_rounds)[start:]</code>
-aligned with one-shot <code>estimate_liability_gibbs_arrays</code> on the concatenated
-arrays at the same <code>seed</code>.</p>
+running family offset gives each batch the seeds of the corresponding rows, so
+the results are bit-identical to one-shot <code>estimate_liability_gibbs_arrays</code> on
+the concatenated arrays at the same <code>seed</code>.</p>
 <p><strong>Shape contract.</strong> <code>roles</code> is a length-<code>k</code> list (<code>"o"</code> + relatives; <code>g</code> is added
 internally); <code>lower</code> and <code>upper</code> are both <code>(n_families, k)</code>, column <code>j</code> aligned to
 <code>roles[j]</code>. A relative that is <strong>absent or uninformative</strong> for a given family is
@@ -1771,7 +1772,8 @@ adjustment or guarantee calibration under other misspecification.</p>
 </tbody>
 </table>
 <p><code>n_sim</code>/<code>tol</code> trade speed for Monte-Carlo precision; the defaults converge for
-typical families. PA ignores all Gibbs options.</p>
+typical families. PA ignores all Gibbs options and warns when one is set to a
+non-default value.</p>
 <p>For large simulated registers, <code>simulate_register_liabilities(method="mendelian")</code>
 avoids the dense relationship matrix and its factorization. It preserves the
 Gaussian pedigree model, including inbreeding, using linear person-level storage

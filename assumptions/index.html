@@ -985,8 +985,10 @@ pedigree scoring; where uses I and II part company is item 8 below.</p>
 <li><strong>Validate roles</strong>: valid abbreviations, no duplicate roles within a family
    (the estimator now raises on duplicates).</li>
 <li>Decide whether to <strong>condition on the proband's own status</strong>. Include <code>o</code> for
-   use II (a diagnosis-derived GWAS phenotype); omit it or make it uninformative
-   for use I (prospective prediction/classification of that diagnosis).</li>
+   use II (a diagnosis-derived GWAS phenotype); for use I (prospective
+   prediction/classification of that diagnosis) keep <code>o</code> and its <code>pid</code> with
+   uninformative <code>(-inf, inf)</code> bounds (omitting <code>o</code> is allowed only when no member
+   carries a <code>pid</code>).</li>
 <li>Decide <strong>case encoding</strong> — onset-pinned (<code>age_thresholds</code>), lifetime-interval
    (base PA-FGRS), or age-specific interval (<code>pa_thresholds</code>, an age-dependent
    PA-FGRS-style variant) — and record it. Pin only when you believe onset is
@@ -1028,8 +1030,9 @@ pedigree scoring; where uses I and II part company is item 8 below.</p>
 <li><strong>Number repeated relatives</strong> (<code>s1</code>, <code>s2</code>) — an unnumbered duplicate role
   collides.</li>
 <li><strong>The proband's optional observed-status role is <code>o</code></strong>, not <code>g</code>. <code>g</code> (what you
-  estimate) is added for you. If <code>o</code> is omitted, it is inserted unbounded; use that
-  path to avoid outcome leakage in disease prediction/classification.</li>
+  estimate) is added for you. For leakage-free prediction keep <code>o</code> with its <code>pid</code>
+  and <code>(-inf, inf)</code> bounds; a pid-free family may omit <code>o</code>, which is then inserted
+  unbounded.</li>
 <li><strong>Prevalence and CIPs should match the population</strong> the thresholds refer to;
   stratify by sex/birth-year if your incidence differs across strata (one CIP
   per stratum when building the bounds with <code>thresholds_from_cip</code>; the

@@ -802,6 +802,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#algorithms-in-brief" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithms in brief
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#methods-report" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1083,6 +1094,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#algorithms-in-brief" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithms in brief
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#methods-report" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1293,6 +1315,99 @@ residual E only. With C/M fitted, total non-genetic covariance also includes tho
 components; do not fold them into an A+E scorer. See the
 <a href="../inference/#joint-heritability-and-cross-trait-correlations">joint-fitting contract</a>.
 Unsupported alternatives remain in <a href="../research/">research extensions</a>.</p>
+<h2 id="algorithms-in-brief">Algorithms in brief<a class="headerlink" href="#algorithms-in-brief" title="Permanent link">&para;</a></h2>
+<p>Each algorithm is stated in full in the docstring of the module named with it;
+Algorithms G, P and M carry the step names of the <a href="#methods-report">methods report</a>.
+Steps are given as implemented.</p>
+<p><strong>Algorithm G (Gibbs; <code>ltpred.gibbs</code>, <code>ltpred.estimate</code>).</strong> With <span class="arithmatex">\(Q=\Sigma^{-1}\)</span>,
+coordinate <span class="arithmatex">\(j\)</span> is drawn from <span class="arithmatex">\(N(\sum_{i\ne j}P_{ij}x_i,\ \mathrm{sd}_j^2)\)</span> truncated
+to its bounds, where <span class="arithmatex">\(P_{ij}=-Q_{ij}/Q_{jj}\)</span> and <span class="arithmatex">\(\mathrm{sd}_j^2=1/Q_{jj}\)</span>.
+<strong>G1.</strong> Group families by role set. <strong>G2.</strong> Integrate out each family's own
+unbounded coordinates; the chain runs on the rest, <span class="arithmatex">\(y\)</span>,
+and the target contributes <span class="arithmatex">\(\mathbb E[g\mid y]\)</span> with posterior variance
+<span class="arithmatex">\(\operatorname{Var}(\mathbb E[g\mid y])+\operatorname{Var}(g\mid y)\)</span>. <strong>G3.</strong>
+Start each coordinate at its marginal truncated median; hold pins. <strong>G4.</strong> Sweep
+by inverse CDF (a log-scale tail construction beyond <span class="arithmatex">\(|z|\approx38.5\)</span>). <strong>G5.</strong>
+After burn-in, stream sums, squares and batch means (<span class="arithmatex">\(b=\max(\lfloor\sqrt{n}\rfloor,2)\)</span>);
+store no draws. <strong>G6.</strong> Repeat rounds of fresh chains for unconverged families,
+pooling sums, until every batch-means SE is at most <code>tol</code> or <code>max_rounds</code> is
+reached (then warn). Family seeds are fixed by the family's global index, so a
+result depends only on its own records and seed: thread scheduling, chunking
+and the other families in the cohort do not change it (chunked Gibbs is
+bit-identical to the array call; chunked PA agrees to rounding).</p>
+<p><strong>Algorithm P (Pearson–Aitken; <code>ltpred.pearson_aitken</code>).</strong> Selecting coordinate
+<span class="arithmatex">\(i\)</span> from <span class="arithmatex">\(N(m_i,v_i)\)</span> to moments <span class="arithmatex">\((m^\star,v^\star)\)</span> updates the others by
+<span class="arithmatex">\(m_j\leftarrow m_j+\Sigma_{ji}(m^\star-m_i)/v_i\)</span> and
+<span class="arithmatex">\(\Sigma_{jk}\leftarrow\Sigma_{jk}+\Sigma_{ji}\Sigma_{ik}(v^\star-v_i)/v_i^2\)</span>.
+<strong>P1.</strong> Put the target first (the object API sorts the other roles by name; array
+and kinship callers keep their own order). <strong>P2.</strong> Drop absent rows and condition
+on all pins jointly, <span class="arithmatex">\(m_X=\Sigma_{XP}\Sigma_{PP}^{-1}p\)</span>,
+<span class="arithmatex">\(V_X=\Sigma_{XX}-\Sigma_{XP}\Sigma_{PP}^{-1}\Sigma_{PX}\)</span>, sharing <span class="arithmatex">\(V_X\)</span> between
+families with the same observation mask; incompatible exact observations raise.
+<strong>P3.</strong> Fold the remaining intervals last to first with their truncated-normal
+moments. <strong>P4.</strong> Apply the target's own interval. <strong>P5.</strong> Return its mean and
+variance. The result is exact for pins plus at most one interval (the target's own
+included) and otherwise a sequential two-moment approximation that can depend on
+fold order.</p>
+<p><strong>Algorithm M (censored-control mixture; PA only).</strong> A control observed below
+its current-age threshold is a lifetime control or a not-yet-onset case. In P3
+its moments are those of the two-component mixture split at the lifetime
+threshold <span class="arithmatex">\(T=\Phi^{-1}(1-K_{pop})\)</span>, with weight
+<span class="arithmatex">\(\pi=\Phi_{\rm below}/\{\Phi_{\rm below}+(1-\Phi_{\rm below})(K_{pop}-K_i)/K_{pop}\}\)</span>.
+The factor <span class="arithmatex">\((K_{pop}-K_i)/K_{pop}\)</span> assumes onset timing independent of liability
+among eventual cases. A call containing a mixture row skips P2's reduction: pins,
+absent rows and intervals are folded sequentially, but P2's compatibility checks
+still apply, so both paths accept and reject the same exact observations.</p>
+<p><strong>Algorithm Q (nuclear-family quadrature; <code>ltpred.quadrature</code>).</strong> For an
+additive, non-inbred nuclear family with unrelated parents and <span class="arithmatex">\(h^2&lt;1\)</span>, the
+parental genetic values <span class="arithmatex">\(z=(a_m,a_f)\sim N(0,h^2I)\)</span> make all observed liabilities
+conditionally independent. <strong>Q1.</strong> Use analytic shortcuts where they apply. <strong>Q2.</strong>
+Condition <span class="arithmatex">\(z\)</span> on the pins exactly; with at most one interval left, return the
+exact answer. <strong>Q3.</strong> Project onto the span of the interval rows' loadings (one or
+two dimensions). <strong>Q4.</strong> Find the posterior mode by Newton's method with an
+Armijo line search. <strong>Q5.</strong> Integrate on a Gauss–Hermite grid centred at the
+mode: <span class="arithmatex">\(\mathbb E[\mu(z)]\)</span> and <span class="arithmatex">\(\mathbb E[V(z)]+\operatorname{Var}[\mu(z)]\)</span>. <strong>Q6.</strong>
+Double the nodes from 16 up to <code>quadrature_max_nodes</code> and accept when both of the
+last two changes are within <code>quadrature_atol</code>; otherwise raise. The reported
+error is a resolution change, not a certified bound.</p>
+<p><strong>Algorithm K (kinship; <code>ltpred.covariance</code>, <code>ltpred._selected_kinship</code>).</strong> Over
+a parents-first order, <span class="arithmatex">\(A_{ii}=1+\tfrac12A_{s_id_i}\)</span> and
+<span class="arithmatex">\(A_{ij}=\tfrac12(A_{s_ij}+A_{d_ij})\)</span> for <span class="arithmatex">\(i\)</span> later than <span class="arithmatex">\(j\)</span>; an unknown parent
+contributes zero. The dense route fills one row per person. The selected route
+evaluates only requested pairs and their dependencies with an explicit stack and a
+bounded cache; eviction changes the work, never the value. The entries are exact
+binary fractions, so both routes agree bit for bit at realistic pedigree depths.</p>
+<p><strong>Algorithm R (register driver; <code>ltpred.pipeline</code>).</strong> <strong>R1.</strong> Validate the
+inputs and each CIP once. <strong>R2.</strong> Build the parent graph and check it for cycles;
+report unresolved parents. <strong>R3.</strong> For each proband, extract relatives within
+<code>max_degree</code> plus the ancestors needed for exact kinship (closure-only).
+<strong>R4.</strong> Form the observation set: under <code>use="prediction"</code> censor each relative
+at their own age at the proband's <code>index_time</code>, and leave the proband's and
+closure-only rows uninformative. <strong>R5.</strong> Convert records to pinned-onset bounds.
+<strong>R6.</strong> When the positive-definiteness bound allows, keep only the target and
+informative rows (exact marginalisation) and compute their kinship by the dense
+or selected route of Algorithm K; otherwise use the full matrix. <strong>R7.</strong> Score
+by PA (a family-free, non-inbred, unpinned proband uses the exact scalar ADuLT
+moments instead). <strong>R8.</strong> Report
+the per-proband observation counts and call-level diagnostics.</p>
+<p><strong>Algorithm H (moment fit; <code>ltpred.fit</code>).</strong> For
+<span class="arithmatex">\(\Sigma=\sum_c\theta_cK_c+(1-\sum\theta)I\)</span>: <strong>H1.</strong> Check non-overlapping IDs,
+common thresholds and the case-rate screen. <strong>H2.</strong> Form the within-family pair
+design and check its rank. <strong>H3.</strong> Initialise <span class="arithmatex">\(\theta\)</span> and the chains. <strong>H4.</strong>
+Advance each family's latent-liability chain by <code>inner_sweeps</code> Gibbs sweeps.
+<strong>H5.</strong> Update <span class="arithmatex">\(\theta\)</span> by the (weighted) Haseman–Elston regression of
+<span class="arithmatex">\(\ell_i\ell_j\)</span> on the kernel entries. <strong>H6.</strong> Clip to <span class="arithmatex">\([\epsilon,1-\epsilon]\)</span> and
+damp. <strong>H7.</strong> After <code>n_iter</code> iterations, report the mean of the post-burn-in
+trace; <code>h2_se</code> is its batch-means Monte Carlo SE, not a sampling SE.</p>
+<p><strong>Algorithm L (pairwise likelihood; <code>ltpred.pairwise</code>, <code>ltpred.pairwise_multi</code>).</strong>
+<strong>L1.</strong> Screen as in H1. <strong>L2.</strong> Tabulate jointly observed within-family pairs
+into weighted <span class="arithmatex">\(2\times2\)</span> tables keyed by their kernel row. <strong>L3.</strong> Evaluate the
+composite likelihood from bivariate-normal cell probabilities. <strong>L4.</strong> Maximise
+under the non-negativity and residual constraints and certify stationarity.
+<strong>L5.</strong> Report the family-cluster sandwich <span class="arithmatex">\(H^{-1}JH^{-1}\)</span>, withheld at a
+boundary. The multi-trait fit parametrises <span class="arithmatex">\(\Sigma=G\otimes A+S\otimes C+T\otimes M+E\otimes I\)</span>
+with PSD components and unit total variance per trait, and derives <span class="arithmatex">\(h^2\)</span>, <span class="arithmatex">\(r_g\)</span>,
+<span class="arithmatex">\(r_e\)</span> and their SEs by the delta method.</p>
 <h2 id="methods-report">Methods report<a class="headerlink" href="#methods-report" title="Permanent link">&para;</a></h2>
 <p>The <a href="https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf">methods PDF</a>
 is the portable, detailed derivation and historical evidence snapshot, labelled
