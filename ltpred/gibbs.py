@@ -1,30 +1,52 @@
-"""Gibbs sampler for the truncated multivariate normal distribution.
+"""Gibbs sampler for the truncated multivariate normal (TMVN).
 
-This is the port of LTFHPlus's ``rtmvnorm.gibbs`` (R) plus its Rcpp inner loop
-(``rtmvnorm_gibbs_cpp``). Given a covariance matrix and per-coordinate lower/upper
-truncation bounds, it draws from the truncated MVN by sweeping one coordinate at
-a time: each coordinate is resampled from its *conditional* normal --
-mean ``P[:, j] . x`` and standard deviation ``sd[j]`` -- restricted to
-``(lower[j], upper[j])`` by inverse-CDF sampling
-(``x_j = mu_j + sd_j * Phi^-1(U(Phi(a), Phi(b)))``; Kotecha & Djuric 1999).
+Port of LTFHPlus's ``rtmvnorm.gibbs`` and its Rcpp inner loop. With
+``Q = Sigma^-1``, `gibbs_params` forms ``P[i, j] = -Q[i, j] / Q[j, j]``
+(``P[j, j] = 0``) and ``sd[j] = sqrt(1 / Q[j, j])``; the full conditional of
+coordinate ``j`` is ``N(P[:, j] . x, sd[j]^2)`` restricted to
+``(lower[j], upper[j])``. ``Sigma`` must be finite, symmetric and strictly
+positive definite. A coordinate whose interval spans less than ``1e-8`` is
+*fixed* (a pinned point mass, e.g. an onset-pinned case) and never resampled.
 
-``P`` and ``sd`` are the conditional-regression coefficients and residual SDs:
-``P[:, j] = Sigma[-j,-j]^-1 Sigma[-j, j]`` (with a 0 in slot ``j``) and
-``sd[j]^2 = Sigma[j,j] - P[:,j] . Sigma[:,j]``. They depend only on ``Sigma``, so
-they are precomputed once and reused across every sweep.
+Algorithm G (methods report, "Computing the truncated mean"), as implemented.
 
-In the family-model estimators the coordinates are ordered ``g`` (genetic
-liability), ``o`` (proband full liability), then one per relative; ``out`` picks
-which posterior samples to return (0 = genetic, 1 = full). Coordinates whose
-bounds coincide are ``fixed`` (for example an onset-pinned case in LT-FH++, or
-in family-free ADuLT) and are held constant rather than resampled.
+1. **G1 group.** Families with one role set share ``Sigma``;
+   `ltpred.estimate._group_by_structure` buckets them and
+   `ltpred.estimate._estimate_group` forms ``(P, sd)`` once per group.
+2. **G2 collapse.** `gibbs_estimate_batched` integrates out every coordinate
+   that is ``(-inf, inf)`` in *all* families passed to that call (always the
+   genetic rows on the public path; also ``o`` or a relative when
+   unobserved throughout). The chain runs on the kept block ``y`` with
+   ``(P, sd)`` of its marginal covariance, recomputed per call. A collapsed
+   output streams ``E[z | y] = W y`` and adds the constant ``Var(z | y)`` to
+   its sum of squares (`_blup_from_keep`), so the reported variance is
+   ``Var(E[z | y]) + Var(z | y)`` (Rao--Blackwell). With nothing kept the
+   prior (mean 0, variance ``Sigma[j, j]``, SE 0) is returned unsampled.
+   `rtmvnorm_gibbs` never collapses.
+3. **G3 initialise.** `_init_chain` starts each coordinate at the median of
+   its *marginal* truncated normal (SD ``sqrt(Sigma[j, j])``): a feasible
+   point of the rectangle. Fixed coordinates stay there.
+4. **G4 sweep.** Free coordinates are redrawn in covariance order by
+   `_gibbs_conditional_draw`, ``x_j = mu_j + sd_j * Phi^-1(U(Phi(a), Phi(b)))``
+   (Kotecha & Djuric 1999), one uniform each, on the survival scale when
+   ``a >= 0``. Where even that underflows (``|z|`` beyond about 38.5)
+   `_far_right_std_tnorm_quantile` inverts the leading-order Gaussian tail
+   ratio on the log scale (a Rayleigh construction).
+5. **G5 stream.** After ``burn_in`` sweeps, each of ``n_sim`` sweeps adds the
+   outputs to running sums and sums of squares; the first
+   ``n_batch * batch_size`` of them also form batch means, of which only the
+   sum and sum of squares are kept. No draw array: ``O(ncols)`` per family.
+6. **G6 stop.** `ltpred.estimate._estimate_group` reruns the unconverged
+   families in rounds, pooling those sums, until every requested batch-means
+   SE is ``<= tol``; converged families leave the active set.
 
-The batched estimator collapses coordinates that are untruncated in every
-family of a group (always ``g``, and every multi-trait genetic row). Those
-coordinates are integrated out of the chain; their posterior means are the
-Gaussian conditional means given the sampled truncated liabilities
-(Rao--Blackwell). ``rtmvnorm_gibbs`` still runs the full chain so retained
-draws stay a genuine truncated-MVN sample.
+Seeding. The batched kernels reseed the kernel RNG with ``seeds[f]`` at the
+top of family ``f``'s ``prange`` iteration (``-1``: unseeded), so a family's
+draws do not depend on thread scheduling; seed derivation is in
+`ltpred.estimate._base_seeds`. `gibbs_advance` (persistent chains for
+`ltpred.fit`) instead draws every uniform from a thread-local
+``numpy.random.Generator`` before entering ``prange``. `rtmvnorm_gibbs`
+seeds the process-global RNG.
 """
 
 from __future__ import annotations
@@ -43,9 +65,10 @@ from ._validation import validate_bounds
 __all__ = ["rtmvnorm_gibbs", "gibbs_params", "gibbs_estimate_batched"]
 
 # Numba's ``np.random`` state is tied to worker threads, so seeding the calling
-# thread cannot make a ``prange`` kernel scheduler-independent. Generate trusted
-# float64 uniforms here instead and pass them into a random-free kernel. The RNG
-# is thread-local so concurrent seeded fits cannot overwrite one another.
+# thread cannot make a ``prange`` kernel scheduler-independent. For
+# `gibbs_advance`, generate float64 uniforms here instead and pass them into a
+# random-free kernel (the estimator kernels reseed per family instead). The
+# RNG is thread-local so concurrent seeded fits cannot overwrite one another.
 _advance_rng_state = threading.local()
 _MAX_ADVANCE_UNIFORMS = 1 << 20       # 8 MiB of float64 temporary storage
 _MAX_SEED = (1 << 32) - 1
@@ -61,12 +84,16 @@ def _far_right_std_tnorm_quantile(a, b, u):
     Beyond ``a ~ 38.5`` the survival probability is below the smallest positive
     double, so *every* quantity on the probability scale is exactly 0 and the
     ordinary route returns ``+inf`` -- which then poisons the whole sweep with
-    NaN.  Work on the log scale instead, via the Gaussian tail ratio
-    ``S(a + t) / S(a) ~ exp(-a t - t^2 / 2)``.  That inverts in closed form,
+    NaN.  Work on the log scale instead, via the leading-order Gaussian tail
+    ratio ``S(a + t) / S(a) ~ exp(-a t - t^2 / 2)`` (it drops the factor
+    ``a / (a + t)``, so the draw is approximate, with error vanishing as ``a``
+    grows).  That inverts in closed form,
     ``t = -a + sqrt(a^2 - 2 log(1 - u'))``, which is the exponential/Rayleigh
     tail sampler underlying Devroye's and Robert's rejection schemes.  ``u'``
     rescales ``u`` by the interval's share of the tail so a finite ``b`` is
-    honoured.  This mirrors the PA engine's ``_far_right_std_tnorm_moments``.
+    honoured; the result is clamped to ``[a, b]``.  This mirrors the PA
+    engine's ``_far_right_std_tnorm_moments`` (methods report, Algorithm G,
+    step G4).
     """
     span = b - a
     if span <= 0.0:
@@ -158,12 +185,13 @@ def _gibbs_conditional_draw(P, sd, x, j, lower_j, upper_j, u):
 
 @_jit
 def _init_chain(lower, upper, sd0):
-    """Initial chain state: each coordinate's marginal truncated median.
+    """Initial chain state: each coordinate's marginal truncated median (step G3).
 
-    LTFHPlus's init -- the median of the *marginal* truncated normal (the bounds
-    standardised by the marginal SD ``sd0``), so fixed coordinates collapse to
-    their pinned value; a non-finite quantile falls back to 0. Works on one
-    chain's ``(d,)`` arrays, so the fit paths can share it with a unit ``sd0``."""
+    LTFHPlus's init -- the median of the *marginal* ``N(0, sd0[j]^2)`` truncated
+    to ``[lower[j], upper[j]]``. Each value lies in its own interval, so the
+    point is feasible for the rectangle and fixed coordinates start at their
+    pinned value; a non-finite quantile falls back to 0. Works on one chain's
+    ``(d,)`` arrays, so the fit paths can share it with a unit ``sd0``."""
     d = sd0.shape[0]
     x = np.empty(d, dtype=np.float64)
     for j in range(d):
@@ -230,7 +258,11 @@ def gibbs_params(covmat: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _group_unbounded_mask(lowers, uppers):
-    """Coordinates with ``(-inf, inf)`` bounds in every family of the group."""
+    """Coordinates with ``(-inf, inf)`` bounds in every family of the group.
+
+    The collapse set of step G2. It is a property of the families passed
+    together, so a different subset (a later round, a chunk) can collapse a
+    different set of coordinates."""
     lo = np.asarray(lowers)
     hi = np.asarray(uppers)
     return (~np.isfinite(lo)).all(axis=0) & (~np.isfinite(hi)).all(axis=0)
@@ -240,7 +272,9 @@ def _blup_from_keep(cov, keep_idx, coll_idx):
     """Conditional mean map and residual variance of collapsed coordinates.
 
     For jointly Gaussian ``(z, y)`` with ``y`` the kept (possibly truncated)
-    block, ``E[z | y] = W y`` and ``Var(z | y) = cond_var`` (constant).
+    block, ``E[z | y] = W y`` with ``W = Sigma_zy Sigma_yy^-1`` and
+    ``Var(z | y) = cond_var`` (diagonal of ``Sigma_zz - W Sigma_yz``, clipped
+    at 0; constant in ``y``). Truncating ``y`` does not change either map.
     """
     cov = np.ascontiguousarray(cov, dtype=np.float64)
     Syy = cov[np.ix_(keep_idx, keep_idx)]
@@ -278,23 +312,18 @@ def _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, n_sim, burn_in, res):
 def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                             batch_size, n_batch, seeds, total_sum, total_sumsq,
                             bm_sum, bm_sumsq):
-    """Sample many families, accumulating means online (no sample store).
+    """Sample many families, accumulating summaries online (steps G3--G5).
 
-    All families share the conditional-regression factorisation ``(P, sd)`` (they
-    have the same covariance structure); only their truncation bounds differ. Each
-    ``prange`` iteration runs one family's ``burn_in + n_sim`` sweeps and writes,
-    per output coordinate, the running sum ``total_sum[f]`` (for the mean), the
-    running sum of squares ``total_sumsq[f]`` (for the **posterior** variance of
-    the target -- the spread of the truncated-MVN itself, not the sampler's error)
-    and two
-    **batch-mean summaries** -- ``bm_sum[f]`` (sum of the ``n_batch`` batch means)
-    and ``bm_sumsq[f]`` (sum of their squares) -- from which the batch-means
-    Monte-Carlo SE is reconstructed without storing the batch means themselves.
-    Because each family seeds its own RNG (``seeds[f]``) at the top of the
-    iteration, results are deterministic regardless of how ``prange`` maps families
-    to threads. Streaming these summaries (instead of the ``(ncols, n_batch)`` array)
-    keeps the SE memory at ``O(ncols)`` per family. The family loop is parallel
-    when Numba is installed and serial in the pure-Python fallback."""
+    All families share ``(P, sd)``; only their bounds differ. Each ``prange``
+    iteration reseeds the kernel RNG with ``seeds[f]`` (unless ``-1``), starts a
+    fresh chain at `_init_chain`, runs ``burn_in + n_sim`` sweeps and writes per
+    output coordinate: ``total_sum[f]`` and ``total_sumsq[f]`` over the ``n_sim``
+    retained draws (posterior mean and variance of the TMVN itself), and
+    ``bm_sum[f]`` / ``bm_sumsq[f]``, the sum and sum of squares of the means of
+    the first ``n_batch`` consecutive batches of ``batch_size`` draws (the
+    batch-means Monte-Carlo SE). Draws past ``n_batch * batch_size`` enter the
+    totals only. State is ``O(ncols)`` per family; the family loop is parallel
+    under Numba and serial in the pure-Python fallback."""
     F = lowers.shape[0]
     d = sd.shape[0]
     ncols = out_idx.shape[0]
@@ -355,12 +384,14 @@ def _gibbs_estimate_batched_collapsed(
         P, sd, sd0, lowers, uppers, out_kind, out_local, W, cond_var,
         n_sim, burn_in, batch_size, n_batch, seeds,
         total_sum, total_sumsq, bm_sum, bm_sumsq):
-    """Like ``_gibbs_estimate_batched`` on the kept block; BLUP the rest.
+    """Like ``_gibbs_estimate_batched`` on the kept block; BLUP the rest (G2).
 
+    ``P``, ``sd``, ``sd0``, bounds and ``x`` cover only the kept coordinates.
     ``out_kind[c] == 0`` reads kept coordinate ``out_local[c]``.
-    ``out_kind[c] == 1`` accumulates ``W[out_local[c]] · x`` and adds
+    ``out_kind[c] == 1`` accumulates ``W[out_local[c]] . x`` and adds
     ``cond_var[out_local[c]]`` to the sum of squares so the streamed
-    posterior variance is ``Var(E[z|y]) + E[Var(z|y)]``.
+    posterior variance is ``Var(E[z|y]) + Var(z|y)``. Batch means are formed
+    from the streamed value, i.e. from ``E[z|y]`` for a collapsed output.
     """
     F = lowers.shape[0]
     d = sd.shape[0]
@@ -436,27 +467,31 @@ def as_bounds(a):
 
 def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                            batch_size, n_batch, seeds, cov=None, collapse=None):
-    """Thin wrapper over the batched kernel.
+    """Run one round of the batched sampler for same-covariance families.
 
-    Returns ``(total_sum, total_sumsq, bm_sum, bm_sumsq)``.
-    ``total_sum[f, c]`` is the sum of ``n_sim`` post-burn-in draws (divide by
-    ``n_sim`` for the posterior mean) and ``total_sumsq[f, c]`` the sum of their
-    squares, from which the **posterior variance** follows as
-    ``total_sumsq / N - (total_sum / N)^2``. ``bm_sum`` / ``bm_sumsq`` are the sum and
-    sum-of-squares of the ``n_batch`` batch means, from which the batch-means SE is
-    formed: with ``M`` batches of size ``b``, ``se = sqrt(b * (bm_sumsq - bm_sum^2/M)
-    / (M-1) / N)``. The two are different quantities: the posterior variance is a
-    property of the truncated MVN and does not shrink with more draws, while the
-    batch-means SE is the sampler's own error and does.
-    ``lowers``/``uppers`` may be float32 to halve their memory.
+    Returns ``(total_sum, total_sumsq, bm_sum, bm_sumsq)``, each ``(F, ncols)``.
+    ``total_sum[f, c]`` is the sum of ``N = n_sim`` post-burn-in values (divide
+    by ``N`` for the posterior mean) and ``total_sumsq[f, c]`` the sum of their
+    squares, so the **posterior variance** is
+    ``total_sumsq / N - (total_sum / N)^2``. ``bm_sum`` / ``bm_sumsq`` are the
+    sum and sum of squares of the ``M = n_batch`` batch means of size
+    ``b = batch_size`` (``M * b <= N``), giving the batch-means SE
+    ``se = sqrt(b * (bm_sumsq - bm_sum^2 / M) / (M - 1) / (M * b))``: the
+    denominator counts the batched draws only, as in R ``batchmeans``. The
+    posterior variance is a property of the TMVN and does not shrink with more
+    draws; the SE is the sampler's own error and does. ``seeds[f]`` seeds
+    family ``f`` (``-1``: unseeded). ``lowers``/``uppers`` may be float32.
 
     When ``collapse`` is true (the default whenever ``cov`` is supplied),
-    coordinates that are untruncated in every family are integrated out of
-    the sweep. Their streamed mean is the Gaussian conditional mean given the
-    sampled truncated coordinates; the streamed sum of squares includes the
-    constant residual variance so the reconstructed ``var`` is still
-    ``Var(target | C_F)``. Pass ``collapse=False`` to force the full chain.
-    ``rtmvnorm_gibbs`` is never collapsed.
+    coordinates that are ``(-inf, inf)`` in every family of this call are
+    integrated out of the sweep (methods report, Algorithm G, step G2). A
+    collapsed output streams ``E[z | y]`` and its sum of squares includes the
+    constant ``Var(z | y)``, so ``var`` is still ``Var(target | C_F)``, while
+    its SE is that of the Rao--Blackwellised mean. ``P``/``sd`` are then
+    unused: the kept block's are recomputed from ``cov``. If every coordinate
+    is collapsed, no sampling happens (sums 0, ``total_sumsq = N * cov[j, j]``).
+    Pass ``collapse=False`` to force the full chain. ``rtmvnorm_gibbs`` is
+    never collapsed.
     """
     out_idx = np.asarray(out_idx, dtype=np.int64)
     F = int(np.asarray(lowers).shape[0])
@@ -521,7 +556,11 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
 
 @_jit_parallel
 def _gibbs_advance(P, sd, lowers, uppers, fixed, x, uniforms):
-    """Random-free kernel for one bounded block (Numba-parallel when available)."""
+    """Advance ``x[f]`` by ``uniforms.shape[1]`` sweeps from supplied uniforms.
+
+    Random-free: ``uniforms[f, sweep, j]`` feeds coordinate ``j`` (unused when
+    ``fixed[f, j]``), so the result is independent of ``prange`` scheduling.
+    Numba-parallel when available."""
     F = x.shape[0]
     d = x.shape[1]
     for f in prange(F):

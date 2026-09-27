@@ -13,6 +13,13 @@ the proband is used (no family history). This module ports LTFHPlus's ``convert_
 helpers and provides convenience builders that produce the ``(lower, upper)``
 bounds consumed by either inference engine.
 
+Each row is one of three encodings: a **pin** ``lower == upper`` (finite; an
+exact liability, e.g. a case at its onset threshold), an **interval** with at
+least one finite end (a control ``(-inf, T)`` or a case ``(T, inf)``), or
+**absent** ``(-inf, inf)``. ``K_i``/``K_pop`` accompany censored controls
+for the PA mixture and are NaN elsewhere. Thresholds are ``T = -Phi^-1(K)``
+for a prevalence or cumulative incidence ``K``, avoiding ``1 - K``.
+
 Every public helper whose result depends on ``pop_prev`` requires that value
 explicitly. There is no disease-independent prevalence default: the ``0.05`` and
 ``0.10`` values in examples are properties of those examples, not package

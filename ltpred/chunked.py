@@ -1,10 +1,21 @@
 """Chunked and streaming drivers over the array liability kernels.
 
-The in-memory ``*_chunked`` entry points still take ``(F, k)`` bound arrays;
-they only bound the kernel's working set. The ``*_batches`` entry points
-consume an iterator of bound blocks so the caller need never hold every
-family's bounds at once. Both preserve deterministic grouping (one role-set
-per call) and the ``O(F)`` summary-memory contract of the array APIs.
+The ``*_chunked`` entry points take in-memory ``(F, k)`` bound arrays,
+validate them once and run the array kernel on row slices, bounding the
+kernel's working set. The ``*_batches`` entry points consume an iterator of
+bound blocks, so the caller never holds every family's bounds at once; outputs
+are concatenated in input order. All take one role set per call and keep the
+``O(F)`` summary-memory contract of the array APIs (no draw arrays).
+
+How results are preserved. PA is deterministic and per family, so chunking
+changes its values by floating-point rounding at most. For Gibbs, each slice or batch gets
+``_base_seeds(seed, n, max_rounds, start=offset)`` at its global row offset:
+the seeds that `ltpred.estimate.estimate_liability_gibbs_arrays` would give
+those rows, built without an ``O(F)`` seed array. Draws are then identical
+whenever each chunk collapses the same coordinates as the full call, i.e.
+the set of roles unbounded in *every* family is the same for the chunk and
+the cohort (methods report, Algorithm G, step G2). Otherwise the chains
+differ and the estimates agree only within Monte-Carlo error.
 """
 
 from __future__ import annotations
@@ -86,6 +97,7 @@ def _unpack_batch(item):
 
 
 def _empty_bounds(roles):
+    """``(0, len(roles))`` bounds, so an empty stream still goes through validation."""
     return np.empty((0, len(roles)))
 
 
@@ -140,10 +152,10 @@ def estimate_liability_gibbs_chunked(roles: Sequence[str], lower: ArrayLike,
 
     Seeds come from `ltpred.estimate._base_seeds` per chunk at the chunk's
     global offset — the same values slicing a full-cohort seed array would
-    give, so the draws match
-    `ltpred.estimate.estimate_liability_gibbs_arrays` at the same
-    ``seed`` without materialising the O(F) seed array (the one place the
-    module's bounded-memory promise did not hold; 400 MB at F = 50M).
+    give — so the draws match
+    `ltpred.estimate.estimate_liability_gibbs_arrays` at the same ``seed``
+    when every chunk collapses the same coordinates as the full cohort (see
+    the module docstring), without materialising an ``O(F)`` seed array.
     Default ``chunk_size`` is 4096. Returns ``(est, se)``, or
     ``(est, se, var)`` with ``return_var=True``.
     """
@@ -219,8 +231,9 @@ def estimate_liability_gibbs_batches(roles: Sequence[str],
     Batch ``n`` at offset ``start`` receives
     ``_base_seeds(seed, n, max_rounds, start=start)``, so concatenating the
     batches matches `ltpred.estimate.estimate_liability_gibbs_arrays`
-    at the same ``seed``. Returns ``(est, se)``, or ``(est, se, var)`` with
-    ``return_var=True``.
+    at the same ``seed``, under the same collapse-set condition as
+    `estimate_liability_gibbs_chunked`. Returns ``(est, se)``, or
+    ``(est, se, var)`` with ``return_var=True``.
     """
     coord = _single_out(out)
     roles = list(roles)

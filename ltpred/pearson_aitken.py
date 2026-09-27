@@ -1,36 +1,61 @@
-"""Pearson-Aitken selection formula -- deterministic liability inference.
+"""Pearson-Aitken (PA) selection -- deterministic liability inference.
 
-An analytical alternative to the Gibbs sampler. Pearson-Aitken is the inference
-engine: the supplied liability bounds and inclusion of relatives determine whether
-the fitted model is classic LT-FH, onset-pinned LT-FH++, family-free ADuLT, or
-base PA-FGRS or an age-dependent PA-FGRS-style interval variant. Following
-Dybdahl Krebs et al. 2024
-(*Am. J. Hum. Genet.*, "Genetic liability estimated from large-scale family
-data ..."), it
-folds each observed relative in one at a time using the classical Pearson-Aitken
-selection theorem: if a jointly-Gaussian vector's component ``i`` has its marginal
-moved from ``N(m_i, v_i)`` to a selected mean/variance ``(m*, v*)``, every other
-component ``j`` updates in closed form,
+The analytical alternative to the Gibbs sampler. The supplied bounds and
+relatives, not the engine, name the model (classic LT-FH, onset-pinned
+LT-FH++, ADuLT, base PA-FGRS or an age-dependent PA-FGRS-style interval
+variant). Reference: methods report, "Computing the truncated mean"
+(Algorithms P and M) and "Reducing the inference problem"; Dybdahl Krebs et
+al. 2024 (*Am. J. Hum. Genet.*). If coordinate ``i`` of a Gaussian vector is
+selected from ``N(m_i, v_i)`` to moments ``(m*, v*)``, all others update in
+closed form (`_pa_update`, applied to the leading block ``0..i-1`` only):
 
-    mean_j  += (Sigma_ji / v_i) (m* - m_i)
-    cov_jk  += (Sigma_ji Sigma_ik / v_i^2) (v* - v_i).
+    m_j      <- m_j      + (Sigma_ji / v_i) (m* - m_i)
+    Sigma_jk <- Sigma_jk + (Sigma_ji Sigma_ik / v_i^2) (v* - v_i)
 
-Processing the observed liabilities sequentially (each treated as a truncated
-normal, so ``(m*, v*)`` are its truncated moments) and reading off the target
-genetic-liability component gives a deterministic sequential-moment approximation
-to ``E[l_g | family]`` and its conditional variance, with **no Monte-Carlo
-error**. Zero Monte-Carlo error does not mean zero approximation error. For a
-single truncation the moments are exact; for several they are the standard
-sequential-selection approximation, which is orders of magnitude faster than Gibbs.
+**Algorithm P** (no ``K_i``/``K_pop``; `pa_algorithm`, `pa_estimate_batched`):
 
-The PA-FGRS component for **age-censored controls** (`_tnorm_mixture`)
-models an as-yet-unaffected relative as a mixture of a true control and a
-not-yet-onset future case, weighted by how far their individual cumulative
-incidence ``K_i`` lags the population lifetime prevalence ``K_pop``. Base PA-FGRS
-uses a lifetime-threshold interval for observed cases; the age-specific case
-intervals emitted by `ltpred.thresholds.pa_thresholds` are the LT-FH++
-interval encoding (LTFHPlus's default ``use_fixed_case_thr = FALSE``), so
-combining them with the mixture is an age-dependent PA-FGRS-style variant.
+- P1. Permute the target to row 0; other rows keep the caller's order
+  (`ltpred.estimate` sorts roles by name, so fold order is a property of
+  the role set).
+- P2. `_pa_reduced_nomix`: marginalise absent non-target rows ``(-inf, inf)``
+  (take the principal sub-block), condition all pins jointly
+  (`_condition_pins`: ``m_X = Sigma_XP Sigma_PP^-1 p``,
+  ``V_X = Sigma_XX - Sigma_XP Sigma_PP^-1 Sigma_PX``) and centre the remaining
+  bounds by ``m_X``. Families are grouped by the byte string of row states
+  (0 absent, 1 interval, 2 pin), so ``V_X`` is formed once per observation
+  mask. A singular pin block is reduced to independent pins after a support
+  check; a zero conditional variance marks a deterministic row whose bound
+  must contain its value. Incompatible observations raise ``ValueError``.
+- P3. `_pa_family_nomix`: fold the remaining intervals last-to-first (row
+  ``d-1`` down to 1, original relative order), replacing each marginal by its
+  truncated-normal moments and applying the update.
+- P4. Apply the target's own interval last: a no-op for an unbounded ``g``;
+  ``out="full"`` conditions on the proband's own status.
+- P5. Return the target's updated mean and variance ``(est, var)``.
+
+Pins followed by at most one interval (the target's own included) give exact
+posterior moments. With several intervals, each selected law is replaced by
+the Gaussian with its two moments: a sequential two-moment approximation that
+depends on fold order. Zero Monte-Carlo error is not zero approximation error.
+
+**Algorithm M** (censored-control mixture, `_pa_family` via `_tnorm_mixture`,
+PA-only): a control observed to its current age is a lifetime control on
+``(lower, T_pop)`` or a not-yet-onset case on ``(T_pop, inf)``, split at the
+lifetime threshold ``T_pop = -Phi^-1(K_pop)``. Its selected moments are the
+two-component moments with weight
+``pi = Phi_below / (Phi_below + (1 - Phi_below) (K_pop - K_i) / K_pop)``,
+``Phi_below`` the current conditional mass below ``T_pop``; this replaces P3's
+moments. ``(K_pop - K_i)/K_pop`` assumes onset timing independent of liability
+among eventual cases. Age enters only through ``K_i``; the finite ``upper``
+merely flags censoring. P2 is skipped: pins, absent rows (no-op updates) and
+intervals are all folded sequentially in row order.
+
+Truncated moments never form ``1 - Phi``: `_std_tnorm_moments` reflects
+positive intervals into the lower tail and differences log CDFs with
+``expm1`` (`_log_norm_cdf` uses an asymptotic series below -37). Intervals
+wholly beyond +-16 standard deviations, and finite ones narrower than
+``1e-3``, use Gauss-Legendre quadrature in a local coordinate, so a small
+variance is never recovered by cancelling order-``a**2`` terms.
 """
 
 from __future__ import annotations
@@ -240,13 +265,17 @@ def _tnorm_moments_loc(mu, sd, lower, upper):
 def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     """Selected moments of one observation, with the censored-control mixture.
 
-    Returns ``(mean, var)`` after conditioning. With ``K_i``/``K_pop`` NaN this is
-    just the truncated-normal moments on ``(lower, upper)`` (the plain PA / LT-FH
-    behaviour). When both are given and the individual is not a fully observed case
-    (finite ``upper`` or a point mass), the result is the PA-FGRS age-censoring
-    mixture (Dybdahl Krebs et al. 2024, supp. eqs. S3-S5): a genuine control on
-    ``(lower, thr_pop)`` with weight ``mixture_prob``, and a not-yet-onset future
-    case on ``(thr_pop, inf)`` with the complement.
+    Returns ``(mean, var)`` after conditioning ``N(mu, var)``. With ``K_i``/``K_pop``
+    NaN this is just the truncated-normal moments on ``(lower, upper)`` (the plain
+    PA / LT-FH behaviour). When both are given and the individual is not a fully
+    observed case (finite ``upper`` or a point mass), the result is Algorithm M,
+    the PA-FGRS age-censoring mixture (Dybdahl Krebs et al. 2024, supp. eqs.
+    S3-S5): a genuine control on ``(lower, thr_pop)`` with weight
+    ``mixture_prob = c / (c + (1 - c) (K_pop - K_i) / K_pop)``, where
+    ``c = Phi((thr_pop - mu) / sd)``, and a not-yet-onset future case on
+    ``(thr_pop, inf)`` with the complement. A zero denominator (``c`` underflows
+    and ``K_i == K_pop``) gives weight 1. The result is the two-component mean
+    and variance.
 
     The split point is the *lifetime* threshold ``thr_pop = Phi^-1(1 - K_pop)`` --
     the quantity the model defines the two components by -- **not** the passed
@@ -317,7 +346,9 @@ def _pa_update(cov, mu, i, nm, nv):
 def _pa_family(cov, lower, upper, K_i, K_pop):
     """One family's PA sweep **with** the censored-control mixture; target row 0.
 
-    Mutates ``cov`` in place, folding observations ``d-1, ..., 1``. Then
+    Algorithm M: no P2 reduction and no deterministic-row checks. Mutates
+    ``cov`` in place, folding every row ``d-1, ..., 1`` (pins as point masses,
+    absent rows as no-op updates) with `_tnorm_mixture`. Then
     applies the target's own interval to the updated ``N(mu[0], cov[0,0])``.
     Unbounded targets (``g``) are a no-op there; ``out="full"`` therefore
     conditions on the proband's own status, matching Gibbs. Returns
@@ -333,11 +364,13 @@ def _pa_family(cov, lower, upper, K_i, K_pop):
 
 @_jit
 def _pa_family_nomix(cov, lower, upper):
-    """PA sweep **without** the mixture -- plain truncated-normal moments.
+    """PA sweep **without** the mixture -- Algorithm P steps P3-P5.
 
-    The default fast path: skips all ``K_i``/``K_pop`` handling (no NaN arrays, no
-    per-coordinate mixture branch). Same active-block update as `_pa_family`,
-    including the final target-interval update."""
+    Normally receives the P2-reduced, centred problem. Skips absent rows and
+    all ``K_i``/``K_pop`` handling. A row with zero variance is deterministic:
+    it is skipped if its bounds contain its mean, otherwise ``ValueError``.
+    Same active-block update as `_pa_family`, including the final
+    target-interval update."""
     d = cov.shape[0]
     mu = np.zeros(d)
     for i in range(d - 1, 0, -1):
@@ -381,6 +414,9 @@ def _pa_batched_nomix(cov, lowers, uppers, est, var):
 def _condition_pins(cov, retained, pinned, values):
     """Gaussian reduction shared by a batch with one pin/observation mask.
 
+    ``values`` is ``(F, n_pins)``. Computes ``m_X = Sigma_XP Sigma_PP^-1 p`` per
+    family and the shared ``V_X = Sigma_XX - Sigma_XP Sigma_PP^-1 Sigma_PX`` for
+    the ``retained`` rows, by solves on the pin correlation block.
     Cholesky preserves small positive eigenvalues. A numerically singular
     pin correlation block uses its spectral support at a dimension-scaled
     machine-precision tolerance; incompatible pins are rejected.
@@ -471,12 +507,15 @@ def _condition_pins(cov, retained, pinned, values):
 
 
 def _pa_reduced_nomix(cov, lowers, uppers):
-    """Marginalize absent rows and condition pins before the interval PA fold.
+    """Algorithm P step P2, then P3-P5 on the reduced problem; target row 0.
 
-    The target is row zero. Families share reductions by their observation
-    mask, so different onset values reuse the same Gaussian algebra. Remaining
-    interval order is unchanged. Mixture calls deliberately keep their existing
-    sequential observation semantics and do not enter this reduction.
+    Marginalizes absent non-target rows and conditions pins jointly. Families
+    share reductions by their observation mask (row states 0 absent, 1
+    interval, 2 pin, compared as byte strings), so different onset values
+    reuse the same Gaussian algebra. Remaining interval order is unchanged.
+    A pinned or deterministic target returns its value with zero variance.
+    Batches with no pin and no absent non-target row go straight to the
+    kernel. Mixture calls keep the sequential semantics and do not enter here.
     """
     F, d = lowers.shape
     est, var = np.empty(F), np.empty(F)
@@ -613,7 +652,7 @@ def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
     jointly before intervals and unobserved non-target rows are marginalized. ``target``
     is the row to estimate (0 = the genetic liability ``g`` in the usual ordering).
     ``K_i``/``K_pop`` (per row, ``nan`` where unused) switch on the censored-control
-    mixture. Returns ``(est, var)`` -- sequential-moment approximations to the
+    mixture (Algorithm M, which skips the pin reduction). Returns ``(est, var)`` -- sequential-moment approximations to the
     target's posterior mean and conditional variance. Without a mixture the
     result is exact after pins when at most one interval remains."""
     cov = _validate_pa_covmat(covmat)
@@ -652,9 +691,10 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
     """Vectorised `pa_algorithm` over families sharing one covariance.
 
     ``lowers``/``uppers`` are ``(F, d)`` per-family bounds; ``covmat`` is shared.
-    Reorders once so the target is row 0, then runs the parallel kernel. When no
-    ``K_is``/``K_pops`` are given, dispatches to the no-mixture kernel, which never
-    allocates the ``(F, d)`` mixture arrays. Returns the PA sequential-moment
+    Reorders once so the target is row 0. Without ``K_is``/``K_pops`` it runs
+    Algorithm P, sharing the pin reduction by observation mask and never
+    allocating the ``(F, d)`` mixture arrays; otherwise the parallel Algorithm M
+    kernel. Returns the PA sequential-moment
     approximations ``(est, var)`` of length ``F``."""
     cov = _validate_pa_covmat(covmat, _psd_certified=_psd_certified)
     d = cov.shape[0]
