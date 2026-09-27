@@ -47,11 +47,10 @@ and onset-age-decay fitting, and factor models remain under `research/`
 |---|---|---|
 | 09e T1-4 | PA object path still walks members three times | Fuse `_check_unique_roles` and `_group_by_structure` into the stacking pass; keep the bit-identity test. |
 | 09e T2-10 | Covariance repair gate runs for every register proband | Prove the `_covariance_reduction_is_safe` bound for the g-prepended matrix, then skip the no-op repair. |
-| 09e T2-3 | No time/memory capsule spans v0.7.1 → v0.7.4 | Run `bench_time_memory.py` through `run_benchmark.py` before the next release. |
+| 09e T2-3 | No time/memory capsule spans v0.7.1 → v0.7.4 | Run `bench_time_memory.py` (it writes its own capsule; see `benchmarks/README.md`) before the next release. |
 | 09e T2-2 | `check_capsule_integrity` checks 3 of 6 capsules and passes a capsule with no thread record | Check each capsule schema; fail when thread provenance is missing. |
 | 09e T2-4 | `bootstrap_fit` is serial | Parallelise replicates after confirming bit-identity on a quiet machine. |
 | 09e T3-4 | Probe capsules lack machine-readable thread variables and load | Record `thread_variables` and `load_average` in future capsules. |
-| N6 | Methods report imprecise on P1, G1, G4, G6 and quadrature details | Correct at the next PDF rebuild. |
 | 09d §7 | Unverified boundary-test failure on NumPy 1.26 + Numba | Re-run on that stack; pin the warning path or add a CI leg. |
 
 ## 3. Deliberate boundaries

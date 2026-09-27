@@ -28,9 +28,10 @@ Optionally add the same as a trusted publisher on
 1. Bump `__version__` in `ltpred/__init__.py` (the sole source of truth for the
    distribution; `pyproject.toml` reads it dynamically) and move the
    `## Unreleased` section of `CHANGELOG.md` under the new `## X.Y.Z — <date>`
-   heading. Two files carry the version independently of that attribute and
-   drift silently when missed: `CITATION.cff` (`version` and `date-released`)
-   and `report/ltpred_methods.tex`.
+   heading. Three files carry the version independently of that attribute and
+   drift when missed: `CITATION.cff` (`version` and `date-released`),
+   `report/ltpred_methods.tex` (the `v` string and `\date{}`, both checked by
+   `scripts/check_evidence.py`) and `report/README.md` (not checked).
 2. Confirm CI is green on `main`: `test` (3.9–3.13 and 3.14t, plus macOS 3.12),
    `research-tests`, `lint` (`ruff`), `test-no-numba`, `oldest-deps` (3.9 at the
    minimum NumPy/SciPy), `examples`, `build` (wheel and sdist) and `docs` (strict

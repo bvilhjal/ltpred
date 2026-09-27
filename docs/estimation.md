@@ -258,7 +258,7 @@ Both engines return an estimate of the same target
 ([algorithm.md](algorithm.md#the-estimand), equation (3)).
 Write Algorithm G for the truncated-MVN Gibbs sampler and
 Algorithm P for the Pearson–Aitken sequential-selection sweep
-([algorithm.md](algorithm.md#inference-engine-1-gibbs-sampler)).
+([algorithms in brief](algorithm.md#algorithms-in-brief)).
 G is exact in the limit of infinite draws. No-mixture P conditions pins jointly
 and marginalizes uninformative rows first. It is exact with zero or one remaining
 interval, and a two-moment approximation for multiple remaining intervals.
@@ -386,10 +386,10 @@ This runs the covariance construction once and the parallel PA kernel
 directly — 13–29× faster than the object path at 2.02–6.29 million
 already-aligned families/s, as measured on the warmed scaling grid that
 shipped with v0.4.0 (four threads; `benchmarks/bench_scaling.csv`, last
-regenerated at v0.4.0, commit `1684fc5`, 2026-08-20). The grid has not been re-measured
-since, and v0.7.1 made the object-path denominator 1.69× faster, so the ratio
-on the current tree is nearer 8–17× (and `estimate_liability_gibbs_arrays`
-does the same for Gibbs, returning `(est, se)`).
+regenerated at v0.4.0, commit `1684fc5`, 2026-08-20). The grid has not been
+re-measured since, and later releases sped up the object path, so the current
+ratio is smaller; no committed artifact measures it. (`estimate_liability_gibbs_arrays`
+does the same for Gibbs, returning `(est, se)`.)
 Control the thread count with `ltpred.set_num_threads(n)`, and warm up once (the
 first call JIT-compiles) before timing. Different family structures still need
 separate array calls (one covariance each); the object API groups them for you.
@@ -398,9 +398,10 @@ The array APIs still hold every family's bounds in RAM. The **chunked driver**
 streams homogeneous family batches through the same kernels so the working set
 is a few thousand (Gibbs) or tens of thousands (PA) rows at a time. Grouping
 stays deterministic — mixed pedigrees still need one call per role-set — and
-the summaries stay `O(F)`. Gibbs seeds are computed on the full cohort, then
-sliced per chunk, so the result agrees with `estimate_liability_gibbs_arrays`
-at the same `seed`:
+the summaries stay `O(F)`. Each chunk receives the seeds its rows would get in
+the one-shot call, and each family's collapsed coordinates depend only on its own
+bounds, so the result is bit-identical to `estimate_liability_gibbs_arrays` at
+the same `seed`:
 
 ```python
 from ltpred import (estimate_liability_pa_chunked,
@@ -433,9 +434,9 @@ est, var = estimate_liability_pa_batches(
 ```
 
 Gibbs batches are consecutive blocks of a virtual concatenated cohort: a
-running family offset keeps `_base_seeds(seed, start + n, max_rounds)[start:]`
-aligned with one-shot `estimate_liability_gibbs_arrays` on the concatenated
-arrays at the same `seed`.
+running family offset gives each batch the seeds of the corresponding rows, so
+the results are bit-identical to one-shot `estimate_liability_gibbs_arrays` on
+the concatenated arrays at the same `seed`.
 
 **Shape contract.** `roles` is a length-`k` list (`"o"` + relatives; `g` is added
 internally); `lower` and `upper` are both `(n_families, k)`, column `j` aligned to
@@ -572,7 +573,8 @@ adjustment or guarantee calibration under other misspecification.
 | `genetic_corrmat`, `full_corrmat`, `phen_names` | `None` | multi-trait only |
 
 `n_sim`/`tol` trade speed for Monte-Carlo precision; the defaults converge for
-typical families. PA ignores all Gibbs options.
+typical families. PA ignores all Gibbs options and warns when one is set to a
+non-default value.
 
 For large simulated registers, `simulate_register_liabilities(method="mendelian")`
 avoids the dense relationship matrix and its factorization. It preserves the

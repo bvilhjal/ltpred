@@ -96,6 +96,12 @@ conditional factor precision and mean are
 Only unpinned interval factors remain. Integrating in a Gaussian coordinate
 system adapted to the posterior mode further prevents rare observations
 from placing most posterior mass beyond the original prior-centered nodes.
+The mode is found by Newton's method on the log-concave negative log
+posterior, with its exact gradient and Hessian and Armijo backtracking; it
+stops on a negligible step, a failed line search, or a decrease at
+floating-point resolution, and fails after $80$ iterations. The tensor
+Gauss--Hermite grid is centred there, scaled by the inverse-Hessian Cholesky
+factor and importance-reweighted by prior times interval likelihoods.
 Products and normalizing constants are evaluated in log space.
 
 To recover the proband, let $S=b_o^\mathsf{T}z$, $v_o=1-q/2$, and
@@ -116,9 +122,12 @@ The requested mean is $\E_{z\mid D}[\mu_a(z)]$. Its posterior variance is
 The first term must not be dropped. Full-liability moments follow by using
 $m_o(z),v_o(z)$ instead. With $Q$ nodes per factor and $s$ observations,
 the two-dimensional quadrature costs $O(sQ^2)$, with $O(Q^2)$ working storage
-when observations are processed one at a time. Increasing the resolution
-provides a convergence diagnostic for both moments; agreement of successive
-resolutions is not a certified error bound. The implementation rejects
+when observations are processed one at a time. Resolution starts at $Q=16$
+and doubles to a cap; each doubling records the larger change in the two
+moments, and a result is accepted only when both of the last two changes are
+within tolerance (so at least three resolutions). This is a convergence
+diagnostic for both moments; agreement of successive resolutions is not a
+certified error bound. The implementation rejects
 unresolved convergence rather than returning an apparently precise score.
 
 This is a factorization of the additive nuclear-family model, not a new

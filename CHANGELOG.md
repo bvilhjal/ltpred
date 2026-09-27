@@ -38,6 +38,14 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   recorded twice) crashed with an opaque `SystemError`; it now scores as the
   single pin does, and contradictory pins raise `ValueError`. Other mixture
   scores are bit-identical.
+- `fit_heritability` and `fit_variance_components` reject `n_iter - burn_in < 4`
+  before sampling; the whole fit used to run first and then fail inside the
+  batch-means SE.
+- `observed_to_liability_h2`, `liability_to_observed_h2` and
+  `liability_r2_from_z` raise on a NaN or infinite `pop_prev`/`prop_cases`
+  instead of returning NaN, as `ltpred.thresholds` already did.
+- `estimate_liability_quadrature_arrays` accepts a length-one `out` sequence
+  (`("genetic",)`), like the other single-column array APIs.
 
 ### Removed
 
@@ -75,6 +83,19 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   changes; three docstrings that misstated the code are corrected (the
   batched Gibbs SE denominator, `liability_r2_from_z(subtract_null=False)`,
   and an unconditional claim that chunked Gibbs reproduces the array API).
+- A second audit checked every public docstring, user guide, benchmark header
+  and the methods report against the code. Parameters, result fields, errors
+  and warnings that went undocumented are now stated (`fit_pairwise*`,
+  `tetrachoric`, the h² bridges, the thresholds, `estimate_liability`,
+  `families_from_columns`); the API pages parse NumPy-style sections; private
+  helper names are gone from user-facing text. Corrected claims include the
+  Gibbs seeding contract (Numba's thread RNG, not NumPy's global one), the
+  chunked-Gibbs equivalence, `Covmat.matrix` in the research examples,
+  benchmark arm counts, run commands and output names, and speedup ratios
+  that no committed artifact backs. The methods report now states P1's fold
+  order, per-family G2 collapse, the G4 far-tail approximation, G6 rounds,
+  Algorithm Q's refinement and mode rules, and the case-rate screen's exact
+  thresholds (PDF rebuilt).
 
 ## 0.7.4 — 2026-09-25
 

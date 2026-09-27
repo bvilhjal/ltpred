@@ -432,10 +432,14 @@ to $(a_j,b_j)$ \cite{kotecha1999}.
 $\Sigma$ must be strictly positive definite.
 
 \begin{enumerate}
-\item[G1.] Group families by ordered role set and form $P$,
-  $\mathrm{sd}$ once per group.
-\item[G2.] Integrate out coordinates that are untruncated in every
-  family of the group (the genetic rows on the public path).
+\item[G1.] Group families by ordered role set; each group shares
+  $\Sigma$.
+\item[G2.] Integrate out each family's own untruncated coordinates
+  (always the genetic rows on the public path; also an unobserved
+  relative). Families sharing an untruncated set run together, and
+  $P$, $\mathrm{sd}$ are formed from the marginal covariance of the
+  kept block, so a family's draws depend only on its own bounds and
+  seed, never on the other families in a call, round or chunk.
   The sweep is on the remaining truncated liabilities $y$;
   the genetic mean is $\E[g\mid y]$ and the reported posterior
   variance is $\Var(\E[g\mid y])+\Var(g\mid y)$.
@@ -444,11 +448,13 @@ $\Sigma$ must be strictly positive definite.
   rectangle. Hold pinned coordinates.
 \item[G4.] Sweep free coordinates by inverse-CDF.
   Far-tail intervals ($\Phi$ underflows near $|z|\approx 38.5$)
-  use a log-scale Rayleigh construction.
+  invert the leading-order Gaussian tail ratio on the log scale
+  (a Rayleigh construction), an approximation.
 \item[G5.] After burn-in, stream means, second moments, and
   batch-mean summaries. Do not store the draw array.
-\item[G6.] Stop when every requested batch-means SE
-  \cite{jones2006} is below $\mathrm{tol}$.
+\item[G6.] Rerun unconverged families in rounds, each a fresh
+  chain whose sums are pooled with earlier rounds, until every
+  requested batch-means SE \cite{jones2006} is $\le\mathrm{tol}$.
   Families that have met the tolerance are dropped from later
   rounds.
 \end{enumerate}
@@ -473,8 +479,12 @@ traits \cite{mendell1974}.
 
 \begin{enumerate}
 \setlength{\itemsep}{3pt}\setlength{\parsep}{0pt}
-\item[P1.] Place the target first; sort remaining roles by name for reproducibility.
+\item[P1.] Place the target first; other rows keep the caller's order.
+  The object API sorts roles by name, so its fold order is a property of the
+  pedigree shape; array and kinship callers set the fold order themselves.
 \item[P2.] Marginalize absent rows and condition all pins jointly (Section~\ref{sec:reduction}).
+  Incompatible pins, and an interval that excludes a liability the pins
+  determine, are refused on the standard and mixture paths alike.
 \item[P3.] Fold remaining intervals last-to-first: replace each marginal
   by its truncated-normal moments and apply \eqref{eq:pa}.
   One remaining interval requires one exact selection update.
@@ -623,26 +633,28 @@ risks. Other encodings, C/M, and Gibbs use the lower-level interfaces.
 \paragraph{Algorithm G.}
 The inner sweep is Numba-JIT'd and \texttt{prange}-parallel across
 families in a group.
-Untruncated coordinates that are free in every family of the
-group are integrated out of that sweep; genetic means are the
-Gaussian conditionals given the truncated draws.
+Each family's untruncated coordinates are integrated out of its
+sweep; genetic means are the Gaussian conditionals given the
+truncated draws.
 Batch-means summaries---running sums and sums of squares---are
 streamed, so Monte-Carlo-SE memory is $O(F)$ rather than
 $O(n_{\mathrm{sim}}F)$.
 The posterior variance is the streamed second moment of the
 target, plus the constant residual variance of any collapsed
 coordinate.
-Each family carries its own RNG seed: the draw does not depend on
-which worker picked it up.
+When seeded, each family carries its own RNG seed: the draw does
+not depend on which worker picked it up, nor on the chunk or batch
+it arrived in.
 Without Numba the identical code runs serially.
-Far-tail inverse-CDF draws switch to a log-scale Rayleigh
-construction once $\Phi$ underflows.
+Far-tail inverse-CDF draws switch to a leading-order log-scale
+Rayleigh approximation once $\Phi$ underflows.
 
 \paragraph{PA.}
 The same grouping applies.
-Fold order is canonicalised to a sorted role set so the result is a
-function of the pedigree shape, not of input row order---reproducibility,
-not a claim of smaller approximation error
+On the object path fold order is canonicalised to a sorted role set,
+so the result is a function of the pedigree shape, not of input row
+order---reproducibility, not a claim of smaller approximation error;
+array and kinship callers fix the order themselves
 (Section~\ref{sec:pa}).
 
 \paragraph{What the timings measure.}
@@ -652,9 +664,9 @@ That includes Python-side assembly.
 The array path, on already-aligned inputs, ran at $2.02$--$6.29$
 million families per second in the same warmed run---another
 $13$--$29\times$ over the object path as measured at v0.4.0
-on four threads. The grid has not been re-measured since, and
-v0.7.1 made the object-path denominator $1.69\times$ faster,
-so the ratio on the current tree is nearer $8$--$17\times$.
+on four threads. The grid has not been re-measured since;
+later releases sped up the object path, so the ratio on the
+current tree is smaller, and no committed artifact measures it.
 Those array rates are a hot-kernel measurement, not end-to-end
 register ingestion.
 Neither set of timings establishes throughput for the per-proband
@@ -778,8 +790,11 @@ asserted $5.0\%$ ($1.51\times$) already inflates $\h$ by $+0.484$
 The claim is therefore screened for marginal inconsistency rather
 than taken entirely on trust: the supplied
 $T$ implies $K=1-\Phi(T)$, under population sampling each role's
-case count is $\mathrm{Binomial}(n_{\mathrm{fam}},K)$, and a gross
-departure is refused. Passing this role-wise screen does not certify
+case count among the $n_r$ families in which that role is observed
+is $\mathrm{Binomial}(n_r,K)$ (Kish effective $n_r$ under IPW), and a
+cell with $n_r\ge 30$ is refused when $|z|\ge 6$ and the
+observed/expected case ratio lies outside $[1/1.15,\,1.15]$.
+Passing this role-wise screen does not certify
 the joint family-pattern distribution.
 The same remarks apply to the multiple HE fit of $(\h,c^{2},m^{2})$,
 where saturation shows up as an exhausted residual rather than a

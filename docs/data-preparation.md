@@ -35,8 +35,9 @@ Roles use the LTFHPlus abbreviations. Each is relative to the proband:
 | `mau1`…, `pau1`… | maternal/paternal aunts/uncles |
 | `c1.1`, `c1.2`, … | children (partner-group `.` child index) |
 
-A family can contain any subset of these. If `o` is absent, the estimator inserts
-it with uninformative `(-inf, inf)` bounds. Two relatives of the same kind must be
+A family can contain any subset of these. If `o` is absent from a family with no
+personal IDs, the estimator inserts it with uninformative `(-inf, inf)` bounds; with
+pids, keep `o` and its pid (see below). Two relatives of the same kind must be
 numbered (`s1`, `s2`). Relatedness (and hence covariance) is derived from the role
 labels — see `get_relatedness`.
 
@@ -142,7 +143,7 @@ relationship classes must be explicit: pass `c2` with an aligned `c_kernel`
 and/or `m2` with `m_kernel`. They cannot be recovered from `A` alone.
 
 For a pedigree that *does* fit the role grammar the two paths use the identical
-covariance (except for same-side half-sibs, below); Gibbs agrees to Monte-Carlo
+covariance (except for same-side half-sibs, above); Gibbs agrees to Monte-Carlo
 error and PA up to its fold-order difference (about 0.1% of the score SD,
 RESULTS §14); the pedigree path additionally handles half-sibs of any
 degree, cousins, and inbred pedigrees (where a self-relationship can exceed 1).

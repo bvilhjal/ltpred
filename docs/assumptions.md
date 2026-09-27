@@ -128,8 +128,10 @@ Then, before running a production analysis:
 7. **Validate roles**: valid abbreviations, no duplicate roles within a family
    (the estimator now raises on duplicates).
 8. Decide whether to **condition on the proband's own status**. Include `o` for
-   use II (a diagnosis-derived GWAS phenotype); omit it or make it uninformative
-   for use I (prospective prediction/classification of that diagnosis).
+   use II (a diagnosis-derived GWAS phenotype); for use I (prospective
+   prediction/classification of that diagnosis) keep `o` and its `pid` with
+   uninformative `(-inf, inf)` bounds (omitting `o` is allowed only when no member
+   carries a `pid`).
 9. Decide **case encoding** — onset-pinned (`age_thresholds`), lifetime-interval
    (base PA-FGRS), or age-specific interval (`pa_thresholds`, an age-dependent
    PA-FGRS-style variant) — and record it. Pin only when you believe onset is
@@ -171,8 +173,9 @@ Then, before running a production analysis:
 - **Number repeated relatives** (`s1`, `s2`) — an unnumbered duplicate role
   collides.
 - **The proband's optional observed-status role is `o`**, not `g`. `g` (what you
-  estimate) is added for you. If `o` is omitted, it is inserted unbounded; use that
-  path to avoid outcome leakage in disease prediction/classification.
+  estimate) is added for you. For leakage-free prediction keep `o` with its `pid`
+  and `(-inf, inf)` bounds; a pid-free family may omit `o`, which is then inserted
+  unbounded.
 - **Prevalence and CIPs should match the population** the thresholds refer to;
   stratify by sex/birth-year if your incidence differs across strata (one CIP
   per stratum when building the bounds with `thresholds_from_cip`; the
