@@ -39,7 +39,7 @@ Optionally add the same as a trusted publisher on
    the latest release.
 3. Rebuild the tracked methods PDF and check its release-defining claims against
    the committed CSVs. If a benchmark artifact must change, first commit its
-   source, then regenerate CSV/PNG outputs through `benchmarks/run_benchmark.py`
+   source, then regenerate CSV outputs through `benchmarks/run_benchmark.py`
    with each retained output named by `--artifact`; commit the resulting JSONL
    provenance row with the artifact. The standalone
    [time/memory JSON comparison](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/README.md#time-and-memory-between-versions)

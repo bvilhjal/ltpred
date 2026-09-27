@@ -226,6 +226,15 @@ def test_resolve_script_rejects_nonbenchmark_and_path_escape(tmp_path, monkeypat
             run_benchmark._resolve_script(invalid)
 
 
+def test_only_csv_outputs_are_retained_artifacts(tmp_path, monkeypatch):
+    # Figures are gitignored, so a manifest row must not hash one as retained.
+    monkeypatch.setattr(run_benchmark, "HERE", tmp_path)
+    assert run_benchmark._resolve_artifact("bench_ok.csv") == tmp_path / "bench_ok.csv"
+    for invalid in ("bench_ok.png", "../bench_ok.csv"):
+        with pytest.raises(ValueError, match="CSV files"):
+            run_benchmark._resolve_artifact(invalid)
+
+
 def test_runner_records_commit_environment_and_artifact_hash(tmp_path, monkeypatch):
     root = tmp_path / "repo"
     here = root / "benchmarks"

@@ -5,9 +5,10 @@ Example::
 
     python benchmarks/run_benchmark.py --artifact bench_accuracy.csv bench_accuracy.py -- --reps 5
 
-The wrapper requires a clean *source* tree. Existing benchmark CSV,
-PNG, and manifest changes are ignored by that gate so a full campaign can run
-before its artifacts are committed together.
+The wrapper requires a clean *source* tree. Existing benchmark CSV and
+manifest changes are ignored by that gate so a full campaign can run before its
+artifacts are committed together. Figures (PNG) are gitignored and are not
+artifacts.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ import time
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 DEFAULT_MANIFEST = HERE / "run_manifest.jsonl"
-ARTIFACT_SUFFIXES = {".csv", ".png"}
+ARTIFACT_SUFFIXES = {".csv"}
 THREAD_VARIABLES = (
     "NUMBA_NUM_THREADS", "OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS",
     "MKL_NUM_THREADS",
@@ -50,7 +51,6 @@ def _source_state(ignored_paths=()):
     commit = _git("rev-parse", "HEAD").strip()
     exclusions = [
         ":(exclude)benchmarks/bench_*.csv",
-        ":(exclude)benchmarks/bench_*.png",
         ":(exclude)benchmarks/run_manifest.jsonl",
     ]
     for path in ignored_paths:
@@ -107,7 +107,7 @@ def _changed_artifacts(before, after):
 def _resolve_artifact(name):
     path = (HERE / name).resolve()
     if path.parent != HERE or path.suffix not in ARTIFACT_SUFFIXES:
-        raise ValueError("artifacts must be CSV/PNG files directly under benchmarks/")
+        raise ValueError("artifacts must be CSV files directly under benchmarks/")
     return path
 
 
@@ -203,7 +203,7 @@ def _parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--artifact", action="append", required=True, metavar="FILE",
-        help="CSV/PNG output to hash after the run; repeat for multiple outputs",
+        help="CSV output to hash after the run; repeat for multiple outputs",
     )
     parser.add_argument(
         "--input", action="append", default=[], metavar="FILE",

@@ -14,18 +14,15 @@ parallel while the PA object path is largely serial. The scaling and R-package
 comparisons use **four threads**, the time/memory driver **one**; other
 campaigns record their own.
 
-Use the provenance wrapper for retained CSV/PNG benchmark outputs. It
-appends one JSON object to `run_manifest.jsonl` with the clean source commit,
-exact command, runtime stack, thread settings, machine profile, exit status, and
-hashes of declared CSV/PNG artifacts; commit that row with the regenerated
-artifact:
+Use the provenance wrapper for retained benchmark CSVs. It appends one JSON
+object to `run_manifest.jsonl` with the clean source commit, exact command,
+runtime stack, thread settings, machine profile, exit status, and hashes of the
+declared CSV artifacts; commit that row with the regenerated artifact:
 
 ```bash
-python benchmarks/run_benchmark.py --artifact bench_accuracy.csv \
-  --artifact bench_accuracy.png bench_accuracy.py
+python benchmarks/run_benchmark.py --artifact bench_accuracy.csv bench_accuracy.py
 NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=4 \
-  python benchmarks/run_benchmark.py --artifact bench_scaling.csv \
-    --artifact bench_scaling.png bench_scaling.py
+  python benchmarks/run_benchmark.py --artifact bench_scaling.csv bench_scaling.py
 ```
 
 The wrapper ignores existing benchmark outputs when checking source cleanliness,
@@ -41,8 +38,11 @@ PLINK prefix therefore needs three declarations (`.bed`, `.bim`, and `.fam`).
 Timing runs also want an otherwise-quiet machine: record the load average
 beside the command before quoting a number.
 
-Most scripts write a `.csv` and, if matplotlib is present, a `.png`; the Output
-column of the [Scripts](#scripts) tables lists each one. The two gain metrics
+Each script's committed artifact is the `.csv` in the Output column of the
+[Scripts](#scripts) tables. With matplotlib present most scripts also draw a
+`.png` figure; figures stay local (`benchmarks/*.png` is gitignored) and are
+regenerated from a rerun, so the older `run_manifest.jsonl` rows that hash a PNG
+describe files no longer in the repository. The two gain metrics
 (causal-SNP NCP ratio versus squared-correlation eff-N proxy) and the
 independent-SNP scope of every association result are defined once, in the
 [RESULTS.md preamble](RESULTS.md).
@@ -84,12 +84,12 @@ python benchmarks/bench_time_memory.py \
 The driver uses separate runtime/RSS and allocation processes per case and
 version, saves both package sources, checks output agreement and source
 stability, and requires the AC-power/Low-Power-Mode guard to pass; the timing
-definitions are in each capsule README. It does not use the CSV/PNG wrapper:
+definitions are in each capsule README. It does not use the CSV wrapper:
 retain `results.json`, the provenance record and the run log together.
 
 ## Environments
 
-- **`ltpred314`** — the CSV/PNG campaigns, the time/memory driver since v0.7.1,
+- **`ltpred314`** — the CSV campaigns, the time/memory driver since v0.7.1,
   and package verification (pytest, ruff, `mkdocs build --strict`). This is the
   free-threaded Python 3.14.6 build with NumPy 2.4.6, SciPy 1.18.0, Numba
   0.66.0 and matplotlib, the environment [`RESULTS.md`](RESULTS.md) records for
@@ -117,41 +117,41 @@ groups. Scripts whose Output is `stdout` archive no artifact.
 
 | Script | Measures | Output |
 |---|---|---|
-| `bench_accuracy.py` | Gibbs vs PA corr(estimate, true g), calibration slope, RMSE and effective-N proxy over h² × prevalence × structure | `bench_accuracy.{csv,png}` |
-| `bench_calibration.py` | calibration slope/intercept and decile curve; effect of a wrong assumed h² | `bench_calibration.{csv,png}` |
+| `bench_accuracy.py` | Gibbs vs PA corr(estimate, true g), calibration slope, RMSE and effective-N proxy over h² × prevalence × structure | `bench_accuracy.csv` |
+| `bench_calibration.py` | calibration slope/intercept and decile curve; effect of a wrong assumed h² | `bench_calibration.csv` |
 | `bench_misspecification.py` | calibration and ranking under heavy tails, assortative mating, unmodelled C, wrong prevalence | stdout |
-| `bench_pa_robustness.py` | PA–Gibbs agreement on stressful pedigrees and fold-order sensitivity, three seeds per cell | `bench_pa_robustness.{csv,png}` |
+| `bench_pa_robustness.py` | PA–Gibbs agreement on stressful pedigrees and fold-order sensitivity, three seeds per cell | `bench_pa_robustness.csv` |
 | `bench_pafgrs_mixture.py` | PA-FGRS mixture under threshold-crossing, stochastic and liability-dependent onset; paired contrasts | `bench_pafgrs_mixture.csv` |
 
 **GWAS association gains**
 
 | Script | Measures | Output |
 |---|---|---|
-| `bench_gwas_power.py` | classic LT-FH independent-SNP causal-NCP ratio, power and λ_GC vs case/control (`--plink` for HAPNEST real LD) | `bench_gwas_power.{csv,png}` |
-| `bench_ltfhpp_personalization.py` | integrated LT-FH++ association simulation (age/sex/cohort CIP, mortality, ascertainment) with a matched ADuLT arm and a sex-isolation panel | `bench_ltfhpp_personalization.{csv,png}` |
-| `bench_confounding.py` | λ_GC under a secular prevalence trend, cohort-blind vs cohort-aware thresholds | `bench_confounding.{csv,png}` |
-| `bench_pgs_comparison.py` | PGS baseline and the PGS + LT-FH joint model with a train/test split and cross-fitted OLS (`--pgs-backend ldpred3` optional) | `bench_pgs_comparison.{csv,png}` |
+| `bench_gwas_power.py` | classic LT-FH independent-SNP causal-NCP ratio, power and λ_GC vs case/control (`--plink` for HAPNEST real LD) | `bench_gwas_power.csv` |
+| `bench_ltfhpp_personalization.py` | integrated LT-FH++ association simulation (age/sex/cohort CIP, mortality, ascertainment) with a matched ADuLT arm and a sex-isolation panel | `bench_ltfhpp_personalization.csv` |
+| `bench_confounding.py` | λ_GC under a secular prevalence trend, cohort-blind vs cohort-aware thresholds | `bench_confounding.csv` |
+| `bench_pgs_comparison.py` | PGS baseline and the PGS + LT-FH joint model with a train/test split and cross-fitted OLS (`--pgs-backend ldpred3` optional) | `bench_pgs_comparison.csv` |
 
 **Fitting h² and variance components**
 
 | Script | Measures | Output |
 |---|---|---|
-| `bench_fit_heritability.py` | bias, precision and `h2_se` calibration of `fit_heritability` | `bench_fit_heritability.{csv,png}` |
-| `bench_variance_components.py` | recovery of A and C by `fit_variance_components`, boundary behaviour, precision vs N | `bench_variance_components.{csv,png}` |
+| `bench_fit_heritability.py` | bias, precision and `h2_se` calibration of `fit_heritability` | `bench_fit_heritability.csv` |
+| `bench_variance_components.py` | recovery of A and C by `fit_variance_components`, boundary behaviour, precision vs N | `bench_variance_components.csv` |
 | `bench_pairwise_multi.py` | joint h²/rg/re recovery, cluster-SE coverage, shared C/M, MCAR, IPW and correlation nulls; [development evidence](results/2026-09-16-joint-pairwise/README.md) | source snapshot + replicate/summary JSON in `--output` directory |
-| `bench_pairwise_recovery.py` | `fit_pairwise` recovery of A/C/M, sandwich-SE calibration, coverage, boundary pinning | `bench_pairwise_recovery.{csv,png}` |
-| `bench_shared_env.py` | value of modelling C (ignore-C vs fit A+C vs oracle); panel (c) end-to-end `c2`/`m2` wiring | `bench_shared_env.{csv,png}` |
-| `bench_couple_env.py` | recovery of A+M and the C-vs-M omission contrast | `bench_couple_env.{csv,png}` |
-| `bench_ascertainment.py` | what the moment fitters return on selected samples and what IPW recovers (`--h2 0 --tag _h2null --arms h2 mechanism --structures nuclear --n-fam 10000 --n-iter 1500 --burn-in 500` for the h² = 0 cell) | `bench_ascertainment*.{csv,png}` |
+| `bench_pairwise_recovery.py` | `fit_pairwise` recovery of A/C/M, sandwich-SE calibration, coverage, boundary pinning | `bench_pairwise_recovery.csv` |
+| `bench_shared_env.py` | value of modelling C (ignore-C vs fit A+C vs oracle); panel (c) end-to-end `c2`/`m2` wiring | `bench_shared_env.csv` |
+| `bench_couple_env.py` | recovery of A+M and the C-vs-M omission contrast | `bench_couple_env.csv` |
+| `bench_ascertainment.py` | what the moment fitters return on selected samples and what IPW recovers (`--h2 0 --tag _h2null --arms h2 mechanism --structures nuclear --n-fam 10000 --n-iter 1500 --burn-in 500` for the h² = 0 cell) | `bench_ascertainment*.csv` |
 | `bench_inference_calibration.py` | *research:* component-test Type-I error, bootstrap coverage, MCEM SEs, `test_genetic_correlation` null (`--parts`) | stdout |
 
 **Research-model fits**
 
 | Script | Measures | Output |
 |---|---|---|
-| `bench_genetic_correlation.py` | *research:* `fit_genetic_correlation` bias and SD including the null; panel (c) `fit_genetic_factor` loadings and `srmr` | `bench_genetic_correlation.{csv,png}` |
-| `bench_aod_decay.py` | *research:* onset-age-dependent r_g fitting; `--robustness` adds wrong kernels and unmodelled C | `bench_aod_decay.{csv,png}` |
-| `bench_covariance_extensions.py` | *research:* sex-limited covariance vs sex-specific thresholds (a); direct-effect scoring under genetic nurture (b) | `bench_sex_limitation.{csv,png}`, `bench_nurture.{csv,png}` |
+| `bench_genetic_correlation.py` | *research:* `fit_genetic_correlation` bias and SD including the null; panel (c) `fit_genetic_factor` loadings and `srmr` | `bench_genetic_correlation.csv` |
+| `bench_aod_decay.py` | *research:* onset-age-dependent r_g fitting; `--robustness` adds wrong kernels and unmodelled C | `bench_aod_decay.csv` |
+| `bench_covariance_extensions.py` | *research:* sex-limited covariance vs sex-specific thresholds (a); direct-effect scoring under genetic nurture (b) | `bench_sex_limitation.csv`, `bench_nurture.csv` |
 
 **End-to-end pipelines and input handling**
 
@@ -162,14 +162,14 @@ groups. Scripts whose Output is `stdout` archive no artifact.
 | `bench_liability_scale.py` | probit residual-scale variance and observed ↔ liability transformations | `bench_liability_scale.csv` |
 | `bench_pedigree_inference.py` | pedigree extraction fidelity, kinship vs role-grammar scoring, extraction throughput | `bench_pedigree_inference.csv` |
 | `bench_register_pipeline.py` | public trio-register pipeline: accuracy, CIP and calendar-prospective arms, AUC, calibration, throughput | `bench_register_pipeline.csv` |
-| `bench_fh_prediction.py` | registry simulation: classic vs personalised family bounds, family-free ADuLT cohort span, onset-encoding ablation (panel (e)) | `bench_fh_prediction.{csv,png}` |
+| `bench_fh_prediction.py` | registry simulation: classic vs personalised family bounds, family-free ADuLT cohort span, onset-encoding ablation (panel (e)) | `bench_fh_prediction.csv` |
 
 **Cross-package and computational**
 
 | Script | Measures | Output |
 |---|---|---|
 | `bench_ltfhplus_compare.py` | **opt-in** lock against LTFHPlus Gibbs and LTFGRS PA: scores, per-family time, fold times, isolated peak RSS (exits 2 without R) | `bench_ltfhplus_compare*.csv` |
-| `bench_scaling.py` | wall-clock scaling with #families and family size; families/s and speed-up | `bench_scaling.{csv,png}` |
+| `bench_scaling.py` | wall-clock scaling with #families and family size; families/s and speed-up | `bench_scaling.csv` |
 | `bench_time_memory.py` | matched package versions: first-call and warm runtime, process RSS and call-allocation peaks for graph construction, PA batching and register scoring, with exact output agreement | JSON capsule (`--output`) |
 
 `_common.py` holds the shared simulation, estimation, GWAS, replicate-summary,

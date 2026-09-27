@@ -32,6 +32,10 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   (outputs bit-identical). The private compatibility wrapper
   `fit._prepare_group_vc` and an unreachable branch in `fit_pairwise` are
   gone. `bench_calibration.csv` drops its ten all-NaN `*_gibbs` columns.
+- The 19 committed benchmark figures (2.2 MB of PNG). Nothing linked them and
+  the CSV beside each script is the evidence; scripts still draw the figures
+  locally, `benchmarks/*.png` is gitignored, and `run_benchmark.py` accepts
+  only CSV artifacts.
 
 ### Tests
 
