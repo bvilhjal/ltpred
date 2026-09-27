@@ -30,9 +30,8 @@ polygenic score or an absolute disease probability.
 
 Project maintenance lives in the repository:
 [changelog](https://github.com/bvilhjal/ltpred/blob/main/CHANGELOG.md),
-[roadmap](https://github.com/bvilhjal/ltpred/blob/main/docs/ROADMAP.md),
-[paper plan](https://github.com/bvilhjal/ltpred/blob/main/docs/PAPER_PLAN.md),
+[roadmap and paper plan](https://github.com/bvilhjal/ltpred/blob/main/docs/ROADMAP.md),
 [release instructions](https://github.com/bvilhjal/ltpred/blob/main/docs/RELEASING.md)
-and [historical reviews](https://github.com/bvilhjal/ltpred/tree/main/docs/reviews).
+and the [review ledger](https://github.com/bvilhjal/ltpred/blob/main/docs/REVIEWS.md).
 
 Developed with the support of [SMARTbiomed](https://smartbiomed.dk/).

@@ -344,7 +344,7 @@ def test_pin_encoding_warns_without_threshold_crossing():
 
 # ---------------------------------------------------------------------------
 # Promoted population-register, follow-up and multi-trait generators
-# (docs/reviews/REVIEW_2026-09d.md, T1-1/T2-2). These were benchmark-private;
+# (docs/REVIEWS.md, 09d T1-1/T2-2). These were benchmark-private;
 # the guards below are what make them safe to teach from.
 # ---------------------------------------------------------------------------
 

@@ -19,11 +19,20 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   of resolving a `v0.4.0` tag that was never pushed; the docs CI job had
   failed on `main` since v0.7.4.
 
+- `docs/inference.md` again states the cost difference between the sampling
+  and deterministic fitters (lost when the method guide was retired in
+  v0.7.4). Speedup figures for v0.7.1 and v0.7.4 that no committed artifact
+  backs are restated qualitatively below.
+- A register-driver test now shows that `cip_by_stratum` routes each record
+  to its own curve; before, only permutation invariance was tested.
+
 ### Documentation
 
-- Condensed this changelog, merged the six dated reviews into
-  `docs/REVIEWS.md`, merged `docs/PAPER_PLAN.md` into `docs/ROADMAP.md`,
-  and dropped redundant files from the benchmark evidence capsules.
+- Condensed this changelog; merged the six dated reviews into one
+  [review ledger](docs/REVIEWS.md) of open, declined and resolved findings;
+  merged `docs/PAPER_PLAN.md` into `docs/ROADMAP.md`, whose priorities now
+  include the open review findings; dropped redundant files from the
+  benchmark evidence capsules.
 
 ## 0.7.4 — 2026-09-25
 
@@ -39,7 +48,7 @@ All outputs are bit-identical.
 - Family-free, non-inbred probands on the kinship route use the scalar ADuLT
   moments; single-family PA calls skip batch routing.
 - The PA object path stacks each structure group's members in one pass
-  (1.22× end to end on a 20,000-family cohort).
+  instead of per-member scalar writes.
 - `construct_covmat_multi` builds one shared-DNA table instead of re-parsing
   roles per phenotype pair. The fitters share one stacked member-bounds array
   across their guards, and `_probability_limits` is memoised.
@@ -143,14 +152,15 @@ All outputs are bit-identical.
 
 ### Performance
 
-Outputs are unchanged.
+Outputs are unchanged. The speedups were measured during development; the
+committed v0.7.1 time/memory capsule covers graph construction, PA and
+register scoring, not these three changes.
 
-- `kinship_from_pedigree` fills one vectorised row per individual (25× on a
-  2,683-person register).
+- `kinship_from_pedigree` fills one vectorised row per individual.
 - `estimate_liabilities` uses a dense matrix over the extracted pedigree when
-  selected pairs are numerous (4× throughput on the degree-3 benchmark).
+  selected pairs are numerous.
 - `simulate_under_LTM_single(use_age=True)` computes control thresholds once
-  per role (4×); the fitters' guards are vectorised.
+  per role; the fitters' guards are vectorised.
 
 ### Removed
 

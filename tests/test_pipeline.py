@@ -256,6 +256,28 @@ def test_population_record_permutation_preserves_stratified_prediction():
     np.testing.assert_allclose(base.var, permuted.var, rtol=0, atol=0)
 
 
+def test_stratified_cips_route_each_record_to_its_own_curve():
+    # A stratum carrying the single curve must reproduce the unstratified
+    # score, and a different curve on one stratum must move it: a driver that
+    # ignored cip_by_stratum would pass the first check and fail the second.
+    strata = np.array(["A", "B", "A", "B", "A", "B", "A"])
+    common = dict(ids=IDS, father=FATHER, mother=MOTHER, probands=["o"],
+                  status=STATUS, age=AGE, use="prediction", birth_time=BIRTH,
+                  index_time=[2020.0], h2=0.5, max_degree=1)
+    single = estimate_liabilities(cip_ages=CIP_AGES, cip_values=CIP_VALUES,
+                                  k_pop=K_POP, **common)
+    curve_a = (CIP_AGES, CIP_VALUES, K_POP)
+    same = estimate_liabilities(strata=strata, cip_by_stratum={
+        "A": curve_a, "B": curve_a}, **common)
+    np.testing.assert_array_equal(same.est, single.est)
+    np.testing.assert_array_equal(same.var, single.var)
+
+    curve_b = (CIP_AGES, 0.15 / (1.0 + np.exp((55.0 - CIP_AGES) / 9.0)), 0.15)
+    moved = estimate_liabilities(strata=strata, cip_by_stratum={
+        "A": curve_a, "B": curve_b}, **common)
+    assert np.all(np.abs(moved.est - single.est) > 1e-6)
+
+
 def test_each_cip_curve_is_validated_once_not_per_proband(monkeypatch):
     import ltpred.pipeline as pipeline_module
     calls = []

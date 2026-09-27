@@ -188,7 +188,7 @@ def test_correct_positive_definite_is_strict():
 def test_correct_positive_definite_respects_the_limit():
     # correction_limit is the number of correction attempts allowed: a limit of
     # zero rejects an unrepaired matrix instead of correcting it once
-    # (review 2026-09, F2)
+    # (review 2026-09, T3-2)
     bad = np.array([[1.0, 1.0], [1.0, 1.0]])       # eigenvalues 2, 0
     with pytest.raises(ValueError, match="positive-definite"):
         correct_positive_definite(bad, correction_limit=0)

@@ -36,5 +36,5 @@ Layout:
   effects.
 - `tests/` — tests for the above.
 
-Graduation rule: a capability moves into `ltpred` proper only when it is
-wired into the core estimation path and benchmarked.
+A capability graduates into `ltpred` under the
+[roadmap's graduation rule](../docs/ROADMAP.md#4-graduation-rule).
