@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "benchmarks" / "RESULTS.md"
 DOCS_ESTIMATION = ROOT / "docs" / "estimation.md"
 SCALING_CSV = ROOT / "benchmarks" / "bench_scaling.csv"
+SCALING_CSV_V040_SHA256 = "86cb8bd08b20b0c95e4f6ac23460761290d56efd32fcf3dbdc25a70411e0e532"
 REPORT_TEX = ROOT / "report" / "ltpred_methods.tex"
 REPORT_PDF = REPORT_TEX.with_suffix(".pdf")
 
@@ -113,13 +114,13 @@ def check_scaling_prose():
     require(DOCS_ESTIMATION,
             f"{min(speed):.0f}–{max(speed):.0f}× faster than the object path at "
             f"{min(throughput) / 1e6:.2f}–{max(throughput) / 1e6:.2f} million")
-    grid_commit = last_commit(SCALING_CSV)
-    tag_commit = subprocess.run(
-        ["git", "rev-parse", "v0.4.0^{commit}"], cwd=ROOT, check=True,
-        capture_output=True, text=True).stdout.strip()
-    if grid_commit != tag_commit:
+    # Content pin, not a tag lookup: the grid is byte-identical to the one
+    # regenerated at v0.4.0 (commit 1684fc5), and a hash survives history
+    # rewrites and clones without tags.
+    digest = hashlib.sha256(SCALING_CSV.read_bytes()).hexdigest()
+    if digest != SCALING_CSV_V040_SHA256:
         raise AssertionError(
-            "bench_scaling.csv was regenerated after v0.4.0: re-quote "
+            "bench_scaling.csv changed since v0.4.0: re-quote "
             "docs/estimation.md and report/ltpred_methods.tex from the new "
             "grid (and update this pin)")
     require(DOCS_ESTIMATION, "shipped with v0.4.0 (four threads")
