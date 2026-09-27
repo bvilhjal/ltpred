@@ -5,7 +5,7 @@
 omitting ``S`` (full sibship) and/or ``T`` (couple) when not requested; see the
 efficient inference report, "Joint genetic and environmental covariance".
 
-**Parametrisation** (`_covariance_basis`). The free vector ``x`` holds the
+**Parametrisation.** The free vector ``x`` holds the
 upper-triangular entries, diagonal included, of each requested component matrix
 and the off-diagonal entries of ``E``; ``E_aa = 1 - sum_c Comp_c[a, a]``, so every
 trait has unit liability variance and every matrix is affine in ``x``. Trait
@@ -13,7 +13,7 @@ trait has unit liability variance and every matrix is affine in ``x``. Trait
 ``rho = sum_c K_c[i, j] Comp_c[a, b]`` (``K_E = I``), linear in ``x`` -- the
 design row; a same-person cross-trait pair loads on ``G + S + T + E``. ``h2`` is
 ``diag(G)``; ``rg``, ``re`` and ``correlations`` standardise ``G``, ``E`` or any
-component (`_correlation`).
+component.
 
 **Algorithm L, multi-trait.**
 
@@ -21,12 +21,11 @@ component (`_correlation`).
   one common threshold ``t_a`` per trait (traits may differ), ``(-inf, inf)`` for
   a missing phenotype, and the case-rate screen per role and trait.
 - **L2.** Tabulate every jointly observed coordinate pair with a nonzero row,
-  keyed by trait pair and row; raise unless the rows have full rank
-  (`_prepare_multi_pairs`). Missing phenotypes contribute no pairs.
-- **L3.** Criterion as in Algorithm L at unequal thresholds
-  (`_bivariate_probabilities`). Trial points beyond a precomputed safe ``rho``
-  range get a C1 quadratic extension (`_probability_limits`,
-  `_multi_criterion`); the returned fit is re-evaluated unextended.
+  keyed by trait pair and row; raise unless the rows have full rank. Missing
+  phenotypes contribute no pairs.
+- **L3.** Criterion as in Algorithm L at unequal thresholds. Trial points
+  beyond a precomputed safe ``rho`` range get a C1 quadratic extension; the
+  returned fit is re-evaluated unextended.
 - **L4.** SLSQP from diagonals ``0.5 / n_components`` and zero off-diagonals,
   subject to: every component PSD, ``eig(E) >= eps``, ``|rho| <= 1 - eps`` for
   every row, and box bounds. Stationarity is certified by projecting
@@ -35,7 +34,7 @@ component (`_correlation`).
 - **L5.** Sandwich covariance of ``x`` as in Algorithm L5, withheld when any
   component eigenvalue (for ``E``, eigenvalue minus ``eps``) is at most
   ``max(1e-7, 10 sqrt(tol))``. SEs of ``h2``, ``rg``, ``re`` and ``rp`` follow by
-  the delta method (`_derived_se`).
+  the delta method.
 
 Missingness must preserve the modelled pair distributions (e.g. MCAR). Only pair
 counts enter the optimizer; Boolean observations are kept for family scores.
@@ -96,6 +95,17 @@ class MultiTraitPairwiseResult:
     determined by unit total variance and are not free parameters. These are
     conditional asymptotic SEs; estimated thresholds/weights, informative
     missingness, overlapping clusters and boundary inference need other methods.
+
+    ``phen_names`` labels the traits. ``at_boundary`` is true when a component
+    eigenvalue (for ``E``, eigenvalue minus ``eps``) is at most
+    ``boundary_tolerance``, ``max(1e-7, 10 sqrt(tol))``; the same value is the
+    variance below which `correlations`, `rg` and `re` report NaN.
+    ``inference_status`` takes the values of
+    `ltpred.pairwise.PairwiseFitResult`. ``composite_loglik`` uses IPW weights
+    normalised to mean one and is not a full-data log likelihood. ``n_families``
+    counts input clusters, ``n_pairs`` the informative observed coordinate pairs
+    (including same-person cross-trait pairs), and ``n_iter`` the SLSQP
+    iterations.
     """
     components: dict[str, np.ndarray]
     parameter_order: tuple
@@ -402,9 +412,18 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
     specifically to E. M describes spousal resemblance, not a generative model
     of assortative mating. Relationship kernels follow the single-trait fitter.
 
+    ``families`` is a list of `ltpred.family.Family`; ``weights`` (with
+    ``sampling="ipw"`` only) holds one reciprocal inclusion probability per
+    family and is rescaled to mean one. ``phen_names`` (default ``phenotype1``,
+    ``phenotype2``, ...) must have one name per trait.
+
     The fit is the multi-trait Algorithm L of the module docstring: aggregated
-    pair counts, analytic scores and sensitivity.
-    Failed, infeasible or nonstationary solutions raise. Interior sampling SEs
+    pair counts, analytic scores and sensitivity. ``eps`` must lie in
+    ``[1e-8, 0.5)``. ``maxiter`` (a positive integer) caps the SLSQP iterations
+    and ``tol`` in ``(0, 1)`` is its ``ftol``, which also scales the
+    stationarity and boundary tolerances of L4-L5 (``10 sqrt(tol)``).
+    Failed, infeasible or nonstationary solutions raise ``RuntimeError``;
+    withheld SEs emit a ``RuntimeWarning``. Interior sampling SEs
     use family-cluster score variation and a delta method for correlations;
     any PSD/residual boundary withholds all normal SEs. A composite likelihood
     does not support ordinary likelihood-ratio tests. Broad finite-sample

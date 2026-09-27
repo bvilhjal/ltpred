@@ -34,8 +34,8 @@ risk at age ``t`` when ``age_entry_i < t <= age_exit_i``. Events and censorings
 occur at ``age_exit``; zero-length follow-ups (``exit == entry``) never enter a
 risk set. Ages may be continuous; ties are handled by grouping on unique exit
 ages. Stratification (e.g. by sex x birth-year bands) is done by calling an
-estimator once per stratum -- see the worked example in the docstring of each
-estimator and ``benchmarks/bench_cip_estimation.py``.
+estimator once per stratum -- see "Stratification" in ``docs/cip-estimation.md``
+and ``benchmarks/bench_cip_estimation.py``.
 
 The returned `CipCurve` carries ascending ``ages``, non-decreasing
 ``values`` in ``[0, 1]``, pointwise standard errors and event counts.

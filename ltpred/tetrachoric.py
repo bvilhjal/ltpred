@@ -113,7 +113,8 @@ def tetrachoric_table(a: float, b: float, c: float, d: float, *,
     nonnegative integers; fractional or non-finite counts are rejected. A
     zero cell gets a 0.5 continuity correction added to all four cells when
     ``continuity_correction`` (the standard handling; the estimate is then
-    boundary-avoiding rather than exactly +/-1). Monomorphic margins (one
+    boundary-avoiding rather than exactly +/-1); with
+    ``continuity_correction=False`` a zero cell raises. Monomorphic margins (one
     variable all-one-level) are rejected: there is no correlation information.
     ``se`` is NaN when the numeric curvature at the optimum is not positive.
     """
@@ -170,7 +171,14 @@ def tetrachoric_table(a: float, b: float, c: float, d: float, *,
 
 def tetrachoric(x: ArrayLike, y: ArrayLike, *,
                 continuity_correction: bool = True) -> TetrachoricResult:
-    """Tetrachoric MLE between two binary arrays of equal length."""
+    """Tetrachoric MLE between two binary arrays of equal length.
+
+    ``x`` and ``y`` are 1-D boolean or 0/1 arrays (NaN or other codes raise),
+    one entry per pair. They are tabulated with ``x`` as the first variable,
+    so ``x``-only cases form cell ``b``, and fitted by `tetrachoric_table`,
+    which sets the zero-cell handling (``continuity_correction``) and rejects a
+    monomorphic array.
+    """
     x = np.asarray(x)
     y = np.asarray(y)
     if x.shape != y.shape or x.ndim != 1:
@@ -191,8 +199,10 @@ def tetrachoric_matrix(X: ArrayLike, *, continuity_correction: bool = True,
                        check_psd: bool = True) -> np.ndarray:
     """Pairwise tetrachoric correlations among the columns of ``X``.
 
-    ``X`` is an ``(n_pairs, m)`` binary array; returns the symmetric ``(m, m)``
-    matrix of pairwise estimates with unit diagonal. Because the off-diagonal
+    ``X`` is an ``(n_pairs, m)`` boolean or 0/1 array; returns the symmetric
+    ``(m, m)`` matrix of pairwise estimates with unit diagonal. Each pair of
+    columns is fitted by `tetrachoric_table`, so ``continuity_correction`` and
+    the monomorphic-column error behave as there. Because the off-diagonal
     entries are fitted independently, the result is **not guaranteed to be a
     positive-semidefinite correlation matrix**. With ``check_psd=True`` (the
     default), a materially negative eigenvalue emits a warning; do not pass such

@@ -22,9 +22,8 @@ they share, so every covariance entry is ``shared_DNA * h2`` (methods report,
 
 `correct_positive_definite` is the LTFHPlus repair (shrink off-diagonals
 until strictly PD) that the covariance-based estimators in `ltpred.estimate`
-apply to the assembled matrix.
-``_PSD_CERTIFIED`` lets internal callers whose ``A`` comes from pedigree
-construction skip re-validating it; the repair still runs.
+apply to the assembled matrix. Internal callers whose ``A`` comes from
+pedigree construction may skip re-validating it; the repair still runs.
 """
 
 from __future__ import annotations
@@ -154,7 +153,9 @@ def get_relatedness(s1: str, s2: str, h2: float = 0.5) -> float:
 
     ``s1``/``s2`` are role strings (``g`` genetic liability, ``o`` full liability,
     ``m``/``f`` parents, ``s`` siblings, ``mgm``/``pgf`` grandparents, ``mhs``/``phs``
-    half-sibs, ``mau``/``pau`` aunts/uncles, ``c`` children). Returns e.g.
+    half-sibs, ``mau``/``pau`` aunts/uncles, ``c<group>.<idx>`` children, e.g.
+    ``c1.1``; children in one partner group are full sibs). Role strings are
+    matched case-insensitively. Returns e.g.
     ``0.5*h2`` for parent/offspring or full sibs, ``0.25*h2`` for grandparents and
     half-sibs. Pass ``h2=1`` to get the bare shared-DNA fraction.
 
@@ -162,7 +163,7 @@ def get_relatedness(s1: str, s2: str, h2: float = 0.5) -> float:
     roles on opposite sides (maternal ``m``/``mg*``/``mhs``/``mau`` versus
     paternal ``f``/``pg*``/``phs``/``pau``) return 0; two children share 0.5
     within a partner group ``c<group>.*`` and 0.25 across groups; any other
-    pair reads ``_SHARED_DNA`` by role kind (mates such as ``m``/``f`` or
+    pair reads a fixed shared-DNA table by role kind (mates such as ``m``/``f`` or
     ``mgm``/``mgf`` are unrelated; unknown kind pairs give 0).
 
     Two **same-side** half-sibs (``mhs1``/``mhs2`` or ``phs1``/``phs2``) are
@@ -374,9 +375,15 @@ def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mg
                             m2: float | None = None) -> Covmat:
     """Covariance matrix for one trait: proband ``g``/``o`` plus relatives.
 
-    Entry ``(i, j)`` is ``get_relatedness(role_i, role_j, h2)``. With the defaults
-    the matrix covers a proband and both parents, a sibling and all four
-    grandparents. Returns a `Covmat`; ``.roles`` gives the row ordering the
+    Entry ``(i, j)`` is ``get_relatedness(role_i, role_j, h2)``, with ``h2`` in
+    ``(0, 1]`` (at ``h2 = 1`` ``g`` and ``o`` coincide and the matrix is
+    singular). Relatives come from ``fam_vec``, a list of role strings, or
+    ``n_fam``, a mapping from role to count; supply at most one. In ``n_fam``
+    an unnumbered stem (``"s"``, ``"mhs"``, ``"phs"``, ``"mau"``, ``"pau"``)
+    expands to ``s1, s2, ...`` and any other role needs count 0 or 1. ``g``/``o``
+    in either input are dropped and, when ``add_ind``, put first; duplicate
+    roles raise. With the defaults the matrix covers a proband and both
+    parents, a sibling and all four grandparents. Returns a `Covmat`; ``.roles`` gives the row ordering the
     Gibbs sampler expects (``g``, ``o`` first when ``add_ind``). ``c2``/``m2`` add
     the sibship (``C``) and couple (``M``) shared-environment components of
     ``docs/algorithm.md`` to the relatives' covariance (off-diagonals only; the
@@ -412,6 +419,13 @@ def construct_covmat_multi(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm
                            full_corrmat: ArrayLike, h2_vec: ArrayLike,
                            phen_names: Sequence[str] | None = None) -> Covmat:
     """Covariance matrix for several correlated traits.
+
+    ``fam_vec``/``n_fam``/``add_ind`` are as in `construct_covmat_single`,
+    except that a family with no relatives always gives roles ``g``, ``o``.
+    ``h2_vec`` holds one heritability per trait, each in ``(0, 1]``;
+    ``genetic_corrmat`` and ``full_corrmat`` are ``n_pheno x n_pheno``, finite,
+    symmetric, unit-diagonal and positive semi-definite. ``phen_names``
+    (default ``phenotype1``, ``phenotype2``, ...) must have one name per trait.
 
     Same-trait blocks use ``get_relatedness(., ., h2_p)``. Cross-trait blocks
     scale relatedness by the genetic covariance
@@ -627,9 +641,12 @@ def kinship_from_pedigree(ids: Sequence, father: Sequence,
     inbreeding coefficient) and ``A[i,j] = 2 × kinship(i, j)`` — e.g. 0.5 for
     parent–offspring and full sibs, 0.25 for grandparent/half-sib, 0.125 for first
     cousins. Computed by the recursive tabular method (Henderson 1976) over a
-    topological order (`_kinship_A`): ``A_ii = 1 + A_sd / 2`` and ``A_ij =
+    topological order: ``A_ii = 1 + A_sd / 2`` and ``A_ij =
     (A_sj + A_dj) / 2`` for ``i`` after ``j``, which handles inbreeding and any
-    pedigree depth. Raises on duplicate ids, a self-parent, or a cycle.
+    pedigree depth. Raises ``ValueError`` when the three sequences differ in
+    length, when ``ids`` contains a missing value (``None``, NaN, pandas
+    NA/NaT or a missing-marker string), on duplicate ids, a self-parent, or a
+    cycle.
 
     Feed ``A`` to `construct_covmat_from_kinship` to build the liability
     covariance for these individuals."""
@@ -714,7 +731,8 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
     example, sibship and couple shared environments, but are deliberately not
     inferred from ``A``: additive relatedness alone cannot distinguish full sibs
     from parent--offspring pairs or mates from unrelated people. A nonzero
-    component requires its kernel, and ``h2 + c2 + m2 <= 1``.
+    component requires its kernel, ``h2`` must lie in ``(0, 1]`` and
+    ``h2 + c2 + m2 <= 1``.
 
     With no environmental kernels this reduces to
     ``V = h2 * A + (1 - h2) * I``. Standardisation keeps every **full liability**
@@ -731,8 +749,9 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
     ``o`` and the rest ``rel<i>``. Returns a `Covmat`.
 
     ``A`` is checked to be finite, symmetric (then symmetrized) and PSD by an
-    ``eigvalsh`` unless ``_certified_psd`` is the private ``_PSD_CERTIFIED``
-    sentinel; the standardized block's diagonal is set to exactly 1.
+    ``eigvalsh``; the standardized block's diagonal is set to exactly 1.
+    ``_certified_psd`` is an internal fast path that skips that check for
+    pedigree-built ``A``; do not pass it.
 
     This is exactly the matrix the Gibbs / PA samplers consume, so a kinship-derived
     covariance is a drop-in for the role-based one; for a standard pedigree the two

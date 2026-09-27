@@ -119,8 +119,11 @@ def convert_liability_to_aoo(liability: ArrayLike, pop_prev: ArrayLike,
                              slope: float = 1.0 / 8.0) -> np.ndarray | np.floating:
     """Age of onset implied by a case's true liability.
 
-    Higher liability -> earlier onset: `_convert_cir_to_age` applied to
-    the incidence ``1 - Phi(liability)``. Vectorised. Port of
+    Higher liability -> earlier onset: the logistic curve of
+    `convert_age_to_cir` inverted at the incidence ``1 - Phi(liability)``.
+    Returns ``nan`` where ``1 - Phi(liability) >= pop_prev`` (the liability
+    never reaches the lifetime threshold, a non-case) and 0 where the implied
+    age would be negative. Vectorised. Port of
     LTFHPlus::convert_liability_to_aoo (the logistic branch; the
     truncated-normal ``dist="normal"`` alternative is not ported)."""
     liability = np.asarray(liability, dtype=float)
@@ -135,9 +138,9 @@ def prevalence_thresholds(status: ArrayLike, pop_prev: ArrayLike
 
     Cases get ``(T, inf)`` and controls ``(-inf, T)`` with ``T = Phi^-1(1 - K)``.
     ``status`` must be a one-dimensional Boolean or exact numeric 0/1 array;
-    missing-value and other numeric codes are rejected. Returns ``(lower,
-    upper)`` arrays -- no age information, the special case ``LT-FH`` before
-    ``++``."""
+    missing-value and other numeric codes are rejected, and ``pop_prev`` must
+    be a scalar in (0, 1). Returns ``(lower, upper)`` arrays -- no age
+    information, the special case ``LT-FH`` before ``++``."""
     status = _validate_status(status)
     t = float(liability_threshold(pop_prev))
     lower = np.where(status, t, -np.inf)
@@ -154,8 +157,10 @@ def age_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
     a point mass); a control lies below the threshold for its current age
     (``lower = -inf``, ``upper = thresh(current_age)``). ``age`` is the age of
     onset for cases and the current/censoring age for controls. ``status`` must
-    be a one-dimensional Boolean or exact numeric 0/1 array. Returns ``(lower,
-    upper)`` arrays ready for `ltpred.estimate.estimate_liability`.
+    be a one-dimensional Boolean or exact numeric 0/1 array; ``pop_prev`` may be
+    a scalar or per-person array. Returns ``(lower, upper)`` arrays ready for
+    `ltpred.family.families_from_columns` (then
+    `ltpred.estimate.estimate_liability`) or the array estimators.
 
     This helper uses one logistic CIP curve and is mainly for simulation and
     tutorials. For full LT-FH++, use `thresholds_from_cip` with age-, birth-
@@ -196,8 +201,11 @@ def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
     case gets ``(thresh(age_of_onset), inf)`` and no mixture (``K_i = K_pop =
     nan``). An age-censored control gets ``(-inf, thresh(current_age))``
     together with its cumulative incidence ``K_i = cir(current_age)`` and the
-    lifetime prevalence ``K_pop = pop_prev``. Feed the result to
-    `ltpred.estimate.estimate_liability` with ``method="pearson-aitken"``.
+    lifetime prevalence ``K_pop = pop_prev``, which must be a scalar in (0, 1)
+    here. Build families with `ltpred.family.families_from_columns` (passing
+    ``K_i``/``K_pop``) and estimate with `ltpred.estimate.estimate_liability`
+    and ``method="pearson-aitken"``, or use
+    `ltpred.estimate.estimate_liability_pa_arrays`.
 
     The control ``upper`` is the *age-specific* threshold ``Phi^-1(1 - K_i)``, and
     how the estimator reads it depends on ``use_mixture``:
@@ -257,11 +265,18 @@ def thresholds_from_cip(status: ArrayLike, age: ArrayLike, cip_ages: ArrayLike,
     uses ``(thresh(age_of_onset), inf)``, LTFHPlus's default
     (``use_fixed_case_thr = FALSE``). Neither is base PA-FGRS, whose observed
     cases use the lifetime threshold. The two agree closely on ranking and
-    differ in calibration scale; see algorithm.md, "What pinning assumes".
+    differ in calibration scale; see algorithm.md, "Thresholds and observation
+    models", and ``benchmarks/RESULTS.md`` section 16.
     ``status`` must be a one-dimensional Boolean or exact numeric 0/1 array.
     Controls are always ``(-inf, thresh(current_age))`` and carry ``K_i`` /
     ``K_pop`` for the PA censored-control mixture. Returns
-    ``(lower, upper, K_i, K_pop)``."""
+    ``(lower, upper, K_i, K_pop)``: the scalar argument ``k_pop`` becomes the
+    per-row ``K_pop`` array (NaN for cases, like ``K_i``).
+
+    Raises ``ValueError`` when ``k_pop < max(cip_values)``, when
+    ``min_cip > k_pop``, or for a ``case_mode`` other than ``"pin"`` or
+    ``"interval"``, as well as for a malformed curve (non-finite, unsorted ages,
+    decreasing values or values outside ``[0, 1)``)."""
     status = _validate_status(status)
     age = np.asarray(age, dtype=float)
     if status.ndim != 1 or age.ndim != 1 or status.shape != age.shape:

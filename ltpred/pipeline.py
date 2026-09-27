@@ -23,8 +23,8 @@ Algorithm R (`estimate_liabilities`), in code order:
   unless ``condition_closure``.
 * R5. Pinned-onset bounds from each member's (stratum) CIP; computed once
   for the whole population under ``"gwas"``, per proband otherwise.
-* R6. Relationships. If `ltpred._selected_kinship._covariance_reduction_is_safe`
-  proves no PD repair can occur, keep only the target and the informative
+* R6. Relationships. If no PD repair can occur (a conservative check on
+  ``h2`` and ``m``), keep only the target and the informative
   rows, in pedigree order; their ``A`` block comes from a dense fill when
   ``m <= 1500`` and they request more than ``0.03 m**2`` pairs, else from
   selected-pair recursion (Algorithm K). Otherwise use the full dense ``A``
@@ -204,7 +204,10 @@ def estimate_liabilities(
 
     ``ids``/``father``/``mother`` are one population parent-pointer table.
     ``status`` and ``age`` are aligned to ``ids``: ``age`` is attained age at
-    diagnosis for a case and attained age at last follow-up/exit for a control.
+    diagnosis for a case and attained age at last follow-up/exit for a control,
+    finite and non-negative. ``probands`` are unique ids present in ``ids``.
+    ``max_degree`` (default 3, at least 1; `ltpred.pedigree.extract_pedigree`
+    defaults to 2) sets how far relatives are discovered.
     Supply either one empirical population CIP (``cip_ages``, ``cip_values``,
     optional ``k_pop``) or per-person ``strata`` plus ``cip_by_stratum``, a mapping from each label
     to ``(cip_ages, cip_values, k_pop)``.
@@ -226,8 +229,9 @@ def estimate_liabilities(
     diagnoses. Inference is pinned-onset LT-FH++ with deterministic
     Pearson--Aitken; use the lower-level APIs for interval/mixture models.
 
-    ``h2``: Liability-scale additive heritability for this disease. Required: there is no
-    disease-independent default, for the same reason ``pop_prev`` has none. See
+    ``h2``: Liability-scale additive heritability for this disease, in
+    ``(0, 1]``. Required: there is no disease-independent default, for the
+    same reason the threshold builders take no default prevalence. See
     the data-preparation guide, "Getting heritability on the liability scale", for choosing between pedigree/twin and
     SNP estimates and for the sensitivity analysis.
 

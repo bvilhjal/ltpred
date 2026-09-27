@@ -101,11 +101,11 @@ class Pedigree:
     caller deliberately opts in. Ordering is deterministic: proband first, then
     by ``(degree, str(id))``.
 
-    ``member_index``/``sire_index``/``dam_index`` are the same pedigree as
-    integer indices into the parent graph (``-1`` for a parent outside the
-    extracted set), letting `ltpred.covariance._kinship_A` skip the id→index
-    round trip that ``kinship_from_pedigree`` would rebuild. They are
-    ``None`` only for a hand-assembled ``Pedigree``."""
+    ``member_index`` maps each member to its index in the parent graph.
+    ``sire_index``/``dam_index`` give each member's father/mother as a
+    *position in this pedigree* (``-1`` when unrecorded), so relationships can
+    be computed without rebuilding an id-to-index map. All three are ``None``
+    only for a hand-assembled ``Pedigree``."""
     proband: object
     ids: list
     father: list
@@ -125,10 +125,13 @@ def build_parent_graph(ids: Sequence, father: Sequence,
     any unlisted value) is an unknown founder. Unlisted **non-null** values are
     counted in ``n_unresolved_parents``: a register boundary makes some of
     them inevitable, but the count is what lets a caller distinguish that
-    boundary from an id-format mismatch or a failed join. Raises on duplicate
-    ids and on a person recorded as their own parent. (Cycle detection -- a
-    person being their own ancestor -- happens in
-    `ltpred.covariance.kinship_from_pedigree`, which raises on it.)
+    boundary from an id-format mismatch or a failed join. Raises
+    ``ValueError`` when ``ids``/``father``/``mother`` differ in length, when
+    ``ids`` contains a missing value (``None``, NaN, pandas NA/NaT or a
+    missing-marker string such as ``""``/``"NA"``), on duplicate ids and on a
+    person recorded as their own parent. Longer cycles (a person being their
+    own ancestor) are not checked here;
+    `ltpred.covariance.kinship_from_pedigree` raises on them.
     """
     ids, index, sire, dam, children, n_unresolved = _parent_links(
         ids, father, mother)

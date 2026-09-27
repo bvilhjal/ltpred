@@ -16,15 +16,15 @@ outcome has one of four bivariate-normal cell probabilities ``p_ab(t, rho)``.
   with a nonzero row ``x_ij`` contributes the families in which both members are
   observed (a finite bound). Pairs sharing ``x_ij`` share one weighted 2x2 table
   ``n_ab = sum w_f`` (cells: both cases, first only, second only, neither).
-  Raise unless the distinct observed rows have full rank (`_prepare_pairs`).
+  Raise unless the distinct observed rows have full rank.
 - **L3. Criterion.** ``-ell_c(theta) = -sum_x sum_ab n_ab log p_ab(t, x' theta)``
-  with analytic gradient and exact Hessian (`_criterion`, `_pair_probabilities`).
+  with analytic gradient and exact Hessian.
 - **L4. Optimise.** SLSQP on ``-ell_c / n_families`` from
   ``theta_c = (1 - eps) / (2 p)`` with ``theta_c >= 0`` and
   ``sum theta <= 1 - eps``. Raise on solver failure, infeasibility, or a KKT
   violation (reduced gradient with the sum-constraint multiplier) above
   ``max(1e-5, 10 sqrt(tol))``.
-- **L5. Covariance.** ``V = H^-1 J H^-1`` (`_cluster_sandwich`): ``H`` is the
+- **L5. Covariance.** ``V = H^-1 J H^-1``: ``H`` is the
   Hessian of ``-ell_c`` (observed sensitivity), ``J = n/(n-1) sum_f (s_f -
   s_bar)(s_f - s_bar)'`` over all ``n`` input families, ``s_f`` the weighted sum
   of family ``f``'s pair scores. ``V`` and the SEs are NaN when some ``theta_c``
@@ -70,7 +70,12 @@ class PairwiseFitResult:
     ``components`` and ``residual`` are liability-variance fractions.
     ``covariance`` follows ``component_order``; ``se`` is its square-root
     diagonal. At a constraint boundary, or with insufficient observed
-    information, both are NaN and ``inference_status`` explains why. Normal
+    information, both are NaN and ``inference_status`` explains why: it is
+    ``"interior_cluster_sandwich"`` when they are available, otherwise
+    ``"unavailable_boundary"``, ``"unavailable_clusters"`` (no more families
+    than components) or ``"unavailable_information"``. ``at_boundary`` is true
+    when some fraction, or the residual margin ``1 - eps - sum``, lies within
+    the boundary tolerance (module docstring, L5). Normal
     intervals at such boundaries are inappropriate; a design-appropriate
     bootstrap or profile analysis needs its own boundary calibration.
 
@@ -78,6 +83,7 @@ class PairwiseFitResult:
     is not a full-data log likelihood and must not be used for ordinary
     likelihood-ratio tests. ``n_pairs`` counts informative observed pairs;
     ``n_families`` counts input clusters, including those contributing no pairs.
+    ``n_iter`` is the SLSQP iteration count.
     """
 
     components: dict[str, float]
@@ -265,9 +271,17 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
     The marginal case-rate screen can reject an inconsistent design but cannot
     establish joint positivity, independent clusters, or correct weights.
 
+    ``families`` is a list of `ltpred.family.Family`; ``weights`` (with
+    ``sampling="ipw"`` only) holds one reciprocal inclusion probability per
+    family and is rescaled to mean one. ``eps`` must lie in ``[1e-8, 0.5)``.
+
     The fit is Algorithm L of the module docstring: SLSQP with analytic scores
-    and a deterministic probability calculation. Failed, infeasible or
-    non-stationary optimizer results raise instead of being returned.
+    and a deterministic probability calculation. ``maxiter`` (a positive
+    integer) caps the SLSQP iterations and ``tol`` in ``(0, 1)`` is its
+    ``ftol`` -- not the Monte-Carlo ``tol`` of the estimators; it also scales
+    the KKT and boundary tolerances of L4-L5. Failed, infeasible or
+    non-stationary optimizer results raise ``RuntimeError`` instead of being
+    returned; withheld SEs emit a ``RuntimeWarning``.
     Interior sampling SEs use the observed sensitivity and centered, weighted
     family score outer products (finite-cluster factor n/(n-1)). They are
     asymptotic, conditional on the supplied threshold/weights; no ordinary

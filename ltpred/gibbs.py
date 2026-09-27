@@ -48,7 +48,7 @@ draws do not depend on thread scheduling; seed derivation is in
 `ltpred.estimate._base_seeds`. `gibbs_advance` (persistent chains for
 `ltpred.fit`) instead draws every uniform from a thread-local
 ``numpy.random.Generator`` before entering ``prange``. `rtmvnorm_gibbs`
-seeds the process-global RNG.
+reseeds the serial sweep's RNG (see its ``seed``).
 """
 
 from __future__ import annotations
@@ -530,6 +530,13 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                            batch_size, n_batch, seeds, cov=None, collapse=None):
     """Run one round of the batched sampler for same-covariance families.
 
+    An internal primitive of `ltpred.estimate`, which validates the arguments
+    (they are not checked here). ``P``/``sd`` are `gibbs_params` of ``cov``
+    and ``sd0 = sqrt(diag(cov))`` sets each chain's start; ``lowers``/
+    ``uppers`` are ``(F, d)`` bounds in ``cov`` row order; ``out_idx`` lists
+    the ``ncols`` coordinates to accumulate. Each family discards ``burn_in``
+    sweeps of a fresh chain, then keeps ``n_sim``.
+
     Returns ``(total_sum, total_sumsq, bm_sum, bm_sumsq)``, each ``(F, ncols)``.
     ``total_sum[f, c]`` is the sum of ``N = n_sim`` post-burn-in values (divide
     by ``N`` for the posterior mean) and ``total_sumsq[f, c]`` the sum of their
@@ -677,15 +684,16 @@ def _advance_rng():
 def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
     """Advance many families' truncated-MVN chains in place by ``n_sweeps`` sweeps.
 
+    An internal fitting primitive of `ltpred.fit`; arguments are not validated,
+    and public callers control reproducibility through the fitters' ``seed``.
     Unlike `gibbs_estimate_batched` (which runs independent short chains and
-    returns their means), this keeps a **persistent** state ``x`` (``F x d``) that
-    the caller carries across outer iterations — the data-augmentation step of a
-    variance-component fit (`ltpred.fit`), where the covariance (hence ``P`` /
-    ``sd``) changes between calls. ``fixed[f, j]`` coordinates (pinned cases) are
-    held. The family loop is parallel when Numba is installed and serial otherwise.
-    This is an internal fitting primitive; public callers should control
-    reproducibility through the ``seed`` argument of the fitters rather than the
-    private RNG helpers.
+    returns their means), this keeps a **persistent** state ``x`` (``F x d``,
+    updated in place) that the caller carries across outer iterations — the
+    data-augmentation step of a variance-component fit, where the covariance
+    (hence ``P``/``sd``, from `gibbs_params`) changes between calls.
+    ``lowers``/``uppers`` are the ``(F, d)`` bounds, and ``fixed[f, j]``
+    coordinates (pinned cases) are held. ``n_sweeps <= 0`` does nothing. The
+    family loop is parallel when Numba is installed and serial otherwise.
 
     Uniforms are generated before entering ``prange`` so a seeded fit is exact
     regardless of how Numba schedules families across worker threads. Generation
@@ -729,7 +737,9 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
     Parameters
     ----------
     covmat : (d, d) array
-        Symmetric covariance of the (untruncated) multivariate normal.
+        Finite, symmetric, strictly positive-definite covariance of the
+        (untruncated) multivariate normal; singular or indefinite input raises
+        `ValueError` (see `correct_positive_definite`).
     lower, upper : float or (d,) array
         Per-coordinate truncation bounds; scalars are broadcast. Every ``upper``
         must be greater than or equal to its corresponding ``lower``; reversed
@@ -744,15 +754,18 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
         liability in the family-model ordering). Indices must be integers in
         ``[0, d)``. Duplicates are dropped and the returned order is sorted.
     n_sim, burn_in : int
-        Post-burn-in draws to keep and sweeps to discard first. ``burn_in`` must
-        be a non-boolean non-negative integer.
+        Post-burn-in draws to keep (a positive integer; it is not validated)
+        and sweeps to discard first. ``burn_in`` must be a non-boolean
+        non-negative integer.
     seed : int, optional
         Non-boolean integer in ``[0, 2**32 - 1]`` for reproducibility, or ``None``.
-        Seeding mutates the process-global NumPy RNG (the serial sweep draws from
-        it), so two *concurrent* seeded calls to this low-level sampler from
-        different threads can interfere with one another. The high-level
-        estimators seed each family inside the parallel kernel and are safe for
-        concurrent seeded use.
+        Seeding reseeds the RNG the serial sweep draws from: the calling
+        thread's Numba RNG when Numba is installed, otherwise NumPy's legacy
+        global RNG, so in the pure-Python fallback concurrent seeded calls from
+        different threads can interfere. It also reseeds the calling thread's
+        persistent-chain stream used by `gibbs_advance`. The high-level
+        estimators seed each family inside the parallel kernel and are safe
+        for concurrent seeded use.
     params : (P, sd), optional
         Precomputed `gibbs_params` output; recomputed from ``covmat`` when
         omitted. The supplied ``covmat`` is still validated because it defines

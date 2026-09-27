@@ -40,8 +40,12 @@ class Member:
 
     ``K_i``/``K_pop`` are only used by the Pearson-Aitken estimator's censored
     -control mixture: ``K_i`` is the individual's (age/sex-stratified) cumulative
-    incidence and ``K_pop`` the lifetime population prevalence. Leave them ``None``
-    (the default) for cases and for the non-mixture model.
+    incidence and ``K_pop`` the lifetime population prevalence. Supply them only
+    for age-censored controls (finite ``upper``, not a pin), with
+    ``0 <= K_i <= K_pop < 1``, ``K_pop > 0`` and ``lower < Phi^-1(1 - K_pop)``;
+    leave them ``None`` (NaN in array inputs) on cases, pins and unbounded rows.
+    With ``use_mixture=True`` a pair on such a row raises and at least one valid
+    pair is required; otherwise they are ignored.
 
     ``aod`` is the member's age at diagnosis (cases) or age at last follow-up
     (controls) -- only used by the onset-age-structured genetic-correlation fit
@@ -148,12 +152,16 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
     ``upper`` and optionally ``pid``). Records sharing a ``fam_id`` become one
     `Family`; family order follows first appearance. For the multi-trait
     model pass ``lower``/``upper`` as 2-D (rows x phenotypes). ``K_i``/``K_pop`` are
-    optional per-row columns for the Pearson-Aitken censored-control mixture.
+    optional per-row columns for the Pearson-Aitken censored-control mixture
+    (``NaN`` on rows without a pair; see `Member` for the rules).
     ``pid`` supplies personal join keys and overlap checks; retain the proband
     as role ``o`` with its pid even when its bounds are uninformative. ``aod``
     records diagnosis/last-follow-up age for the research age-decay fitter.
-    Missing or non-finite numeric ``fam_id`` values are rejected: they cannot
-    group records and would otherwise fragment silently into one-member families.
+    Missing ``fam_id`` values are rejected: non-finite numbers, ``None`` and
+    textual markers such as ``""``, ``"NA"`` or ``"null"`` (case-insensitive)
+    cannot group records and would otherwise fragment or merge families
+    silently. A sequence mixing string and non-string ids (``1`` and ``"1"``)
+    also raises.
     """
     raw_fam_id = fam_id
     fam_id = np.asarray(fam_id)
