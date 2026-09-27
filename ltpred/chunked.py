@@ -11,11 +11,10 @@ How results are preserved. PA is deterministic and per family, so chunking
 changes its values by floating-point rounding at most. For Gibbs, each slice or batch gets
 ``_base_seeds(seed, n, max_rounds, start=offset)`` at its global row offset:
 the seeds that `ltpred.estimate.estimate_liability_gibbs_arrays` would give
-those rows, built without an ``O(F)`` seed array. Draws are then identical
-whenever each chunk collapses the same coordinates as the full call, i.e.
-the set of roles unbounded in *every* family is the same for the chunk and
-the cohort (methods report, Algorithm G, step G2). Otherwise the chains
-differ and the estimates agree only within Monte-Carlo error.
+those rows, built without an ``O(F)`` seed array. Because step G2 collapses
+each family's own unbounded coordinates (methods report, Algorithm G), the
+draws, and hence the estimates, are bit-identical to the unchunked call for
+any chunk size.
 """
 
 from __future__ import annotations

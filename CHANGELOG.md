@@ -24,6 +24,15 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   backs are restated qualitatively below.
 - A register-driver test now shows that `cip_by_stratum` routes each record
   to its own curve; before, only permutation invariance was tested.
+- A family's Gibbs score no longer depends on the other families it is
+  sampled with. The sampler integrates out each family's own unbounded
+  coordinates (Algorithm G, step G2) instead of those unbounded in every
+  family of a batch, so the chunked drivers reproduce the array functions bit
+  for bit and later convergence rounds cannot change a family's chain.
+  **Seeded Gibbs values change** for families whose unobserved relatives
+  differ from others in their structure group (the draws target the same
+  posterior); cohorts where every family has the same observed roles are
+  bit-identical.
 - The PA-FGRS mixture path applies the same pin checks as ordinary PA. A pin
   on a coordinate that earlier pins already determine (for example one person
   recorded twice) crashed with an opaque `SystemError`; it now scores as the

@@ -215,8 +215,8 @@ Steps are given as implemented.
 **Algorithm G (Gibbs; `ltpred.gibbs`, `ltpred.estimate`).** With $Q=\Sigma^{-1}$,
 coordinate $j$ is drawn from $N(\sum_{i\ne j}P_{ij}x_i,\ \mathrm{sd}_j^2)$ truncated
 to its bounds, where $P_{ij}=-Q_{ij}/Q_{jj}$ and $\mathrm{sd}_j^2=1/Q_{jj}$.
-**G1.** Group families by role set. **G2.** Integrate out coordinates that are
-unbounded in every family of the kernel call; the chain runs on the rest, $y$,
+**G1.** Group families by role set. **G2.** Integrate out each family's own
+unbounded coordinates; the chain runs on the rest, $y$,
 and the target contributes $\mathbb E[g\mid y]$ with posterior variance
 $\operatorname{Var}(\mathbb E[g\mid y])+\operatorname{Var}(g\mid y)$. **G3.**
 Start each coordinate at its marginal truncated median; hold pins. **G4.** Sweep
@@ -225,9 +225,9 @@ After burn-in, stream sums, squares and batch means ($b=\max(\lfloor\sqrt{n}\rfl
 store no draws. **G6.** Repeat rounds of fresh chains for unconverged families,
 pooling sums, until every batch-means SE is at most `tol` or `max_rounds` is
 reached (then warn). Family seeds are fixed by the family's global index, so a
-result does not depend on thread scheduling. Because G2's collapse set is
-computed from the families in a call, chunked Gibbs can differ from the
-unchunked array call by Monte Carlo error; chunked PA agrees to rounding.
+result depends only on its own records and seed: thread scheduling, chunking
+and the other families in the cohort do not change it (chunked Gibbs is
+bit-identical to the array call; chunked PA agrees to rounding).
 
 **Algorithm P (Pearson–Aitken; `ltpred.pearson_aitken`).** Selecting coordinate
 $i$ from $N(m_i,v_i)$ to moments $(m^\star,v^\star)$ updates the others by

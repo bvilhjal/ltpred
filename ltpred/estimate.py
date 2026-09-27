@@ -336,8 +336,8 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
     1. calls `gibbs_estimate_batched` on the active (unconverged) families,
        family ``f`` seeded with ``(base_seeds[f] + round) % 2**32`` (``-1``
        stays unseeded). Each call starts fresh chains with their own
-       ``burn_in`` and collapses the coordinates unbounded in every *active*
-       family (step G2), so that set can change between rounds;
+       ``burn_in`` and collapses each family's own unbounded coordinates
+       (step G2), so the other active families never affect its draws;
     2. pools the returned sums over rounds: ``est = sum / N`` and
        ``var = max(sumsq / N - est^2, 0)`` with ``N = rounds * n_sim``, and
        the batch-means ``se = sqrt(b * sum((Y_k - Ybar)^2) / (M - 1) / (M * b))``
@@ -560,7 +560,8 @@ def _base_seeds(seed, n, max_rounds, start=0):
     ``(base + r) % 2**32``, so each family owns a block of ``max_rounds``
     consecutive seeds. Its draws are then fixed by ``seed``, its global index
     ``i``, ``max_rounds``, the sampler settings, the covariance row order and
-    the step-G2 collapse set -- not by thread scheduling.
+    its own bounds -- not by thread scheduling, chunking or the other families
+    in the call.
 
     ``-1`` is the kernel's *unseeded* sentinel. It must stay reachable only from
     ``seed=None``: validating here keeps a user's negative seed from silently

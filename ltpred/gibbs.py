@@ -13,11 +13,13 @@ Algorithm G (methods report, "Computing the truncated mean"), as implemented.
 1. **G1 group.** Families with one role set share ``Sigma``;
    `ltpred.estimate._group_by_structure` buckets them and
    `ltpred.estimate._estimate_group` forms ``(P, sd)`` once per group.
-2. **G2 collapse.** `gibbs_estimate_batched` integrates out every coordinate
-   that is ``(-inf, inf)`` in *all* families passed to that call (always the
-   genetic rows on the public path; also ``o`` or a relative when
-   unobserved throughout). The chain runs on the kept block ``y`` with
-   ``(P, sd)`` of its marginal covariance, recomputed per call. A collapsed
+2. **G2 collapse.** `gibbs_estimate_batched` integrates out each family's
+   own ``(-inf, inf)`` coordinates (always the genetic rows on the public
+   path; also ``o`` or a relative left unobserved), running families that
+   share an unbounded set together (`_unbounded_patterns`). A family's draws
+   therefore depend only on its bounds and seed, never on the other families
+   in a call, a round or a chunk. The chain runs on the kept block ``y`` with
+   ``(P, sd)`` of its marginal covariance, recomputed per unbounded set. A collapsed
    output streams ``E[z | y] = W y`` and adds the constant ``Var(z | y)`` to
    its sum of squares (`_blup_from_keep`), so the reported variance is
    ``Var(E[z | y]) + Var(z | y)`` (Rao--Blackwell). With nothing kept the
@@ -257,15 +259,24 @@ def gibbs_params(covmat: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     return np.ascontiguousarray(P), np.ascontiguousarray(sd)
 
 
-def _group_unbounded_mask(lowers, uppers):
-    """Coordinates with ``(-inf, inf)`` bounds in every family of the group.
+def _unbounded_patterns(lowers, uppers):
+    """Group families by their own set of ``(-inf, inf)`` coordinates.
 
-    The collapse set of step G2. It is a property of the families passed
-    together, so a different subset (a later round, a chunk) can collapse a
-    different set of coordinates."""
+    The collapse set of step G2 is each family's own unbounded set, so a
+    family's draws depend only on its bounds and seed, never on which other
+    families share the call (a round, a chunk, the rest of the cohort).
+    Returns ``[(mask, rows), ...]`` with ``mask`` a ``(d,)`` boolean array and
+    ``rows`` the families that share it, in first-appearance order."""
     lo = np.asarray(lowers)
     hi = np.asarray(uppers)
-    return (~np.isfinite(lo)).all(axis=0) & (~np.isfinite(hi)).all(axis=0)
+    unbounded = np.ascontiguousarray(~np.isfinite(lo) & ~np.isfinite(hi))
+    if unbounded.shape[0] == 0 or (unbounded == unbounded[0]).all():
+        return [(unbounded[0] if unbounded.shape[0] else unbounded.any(axis=0),
+                 np.arange(unbounded.shape[0]))]
+    keys = unbounded.view(np.dtype((np.void, unbounded.shape[1]))).ravel()
+    _, first, inverse = np.unique(keys, return_index=True, return_inverse=True)
+    return [(unbounded[row], np.flatnonzero(inverse == k))
+            for k, row in sorted(enumerate(first), key=lambda item: item[1])]
 
 
 def _blup_from_keep(cov, keep_idx, coll_idx):
@@ -465,6 +476,56 @@ def as_bounds(a):
     return a if a.dtype == np.float32 else np.ascontiguousarray(a, dtype=np.float64)
 
 
+def _collapsed_round(P, sd, sd0, cov, unbounded, lowers, uppers, out_idx, n_sim,
+                     burn_in, batch_size, n_batch, seeds):
+    """One round of step G2 for families sharing the unbounded set ``unbounded``.
+
+    Samples only the kept block and streams ``E[z | y]`` for collapsed outputs
+    (see `gibbs_estimate_batched`); with nothing to collapse it runs the full
+    chain on ``P``/``sd``. Returns the four ``(F, ncols)`` sums."""
+    F = int(lowers.shape[0])
+    ncols = int(out_idx.shape[0])
+    total_sum = np.zeros((F, ncols), dtype=np.float64)
+    total_sumsq = np.zeros((F, ncols), dtype=np.float64)
+    bm_sum = np.zeros((F, ncols), dtype=np.float64)
+    bm_sumsq = np.zeros((F, ncols), dtype=np.float64)
+    keep_idx = np.flatnonzero(~unbounded)
+    coll_idx = np.flatnonzero(unbounded)
+    if keep_idx.size == 0:
+        for c, j in enumerate(out_idx):
+            total_sumsq[:, c] = n_sim * cov[int(j), int(j)]
+        return total_sum, total_sumsq, bm_sum, bm_sumsq
+    if coll_idx.size == 0:
+        _gibbs_estimate_batched(np.ascontiguousarray(P), np.ascontiguousarray(sd),
+                                np.ascontiguousarray(sd0), as_bounds(lowers),
+                                as_bounds(uppers), out_idx, n_sim, burn_in,
+                                batch_size, n_batch, np.ascontiguousarray(seeds),
+                                total_sum, total_sumsq, bm_sum, bm_sumsq)
+        return total_sum, total_sumsq, bm_sum, bm_sumsq
+    W, cond_var = _blup_from_keep(cov, keep_idx, coll_idx)
+    keep_pos = {int(j): i for i, j in enumerate(keep_idx)}
+    coll_pos = {int(j): i for i, j in enumerate(coll_idx)}
+    out_kind = np.empty(ncols, dtype=np.int64)
+    out_local = np.empty(ncols, dtype=np.int64)
+    for c, j in enumerate(out_idx):
+        j = int(j)
+        if unbounded[j]:
+            out_kind[c] = 1
+            out_local[c] = coll_pos[j]
+        else:
+            out_kind[c] = 0
+            out_local[c] = keep_pos[j]
+    lo_k = as_bounds(np.ascontiguousarray(lowers[:, keep_idx]))
+    hi_k = as_bounds(np.ascontiguousarray(uppers[:, keep_idx]))
+    P_k, sd_k = gibbs_params(cov[np.ix_(keep_idx, keep_idx)])
+    sd0_k = np.sqrt(np.diag(cov)[keep_idx])
+    _gibbs_estimate_batched_collapsed(
+        P_k, sd_k, np.ascontiguousarray(sd0_k), lo_k, hi_k, out_kind,
+        out_local, W, cond_var, n_sim, burn_in, batch_size, n_batch,
+        np.ascontiguousarray(seeds), total_sum, total_sumsq, bm_sum, bm_sumsq)
+    return total_sum, total_sumsq, bm_sum, bm_sumsq
+
+
 def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                            batch_size, n_batch, seeds, cov=None, collapse=None):
     """Run one round of the batched sampler for same-covariance families.
@@ -482,9 +543,11 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
     draws; the SE is the sampler's own error and does. ``seeds[f]`` seeds
     family ``f`` (``-1``: unseeded). ``lowers``/``uppers`` may be float32.
 
-    When ``collapse`` is true (the default whenever ``cov`` is supplied),
-    coordinates that are ``(-inf, inf)`` in every family of this call are
-    integrated out of the sweep (methods report, Algorithm G, step G2). A
+    When ``collapse`` is true (the default whenever ``cov`` is supplied), each
+    family's own ``(-inf, inf)`` coordinates are integrated out of its sweep
+    (methods report, Algorithm G, step G2); families sharing an unbounded set
+    run in one kernel call. A family's draws therefore depend only on its
+    bounds and seed, not on the other families in the call. A
     collapsed output streams ``E[z | y]`` and its sum of squares includes the
     constant ``Var(z | y)``, so ``var`` is still ``Var(target | C_F)``, while
     its SE is that of the Rao--Blackwellised mean. ``P``/``sd`` are then
@@ -512,38 +575,19 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
             raise ValueError(
                 "collapse=True requires the group covariance ``cov``")
         cov = np.ascontiguousarray(cov, dtype=np.float64)
-        unbounded = _group_unbounded_mask(lowers, uppers)
-        keep_idx = np.flatnonzero(~unbounded)
-        coll_idx = np.flatnonzero(unbounded)
-        if keep_idx.size == 0:
-            for c, j in enumerate(out_idx):
-                total_sumsq[:, c] = n_sim * cov[int(j), int(j)]
-            return total_sum, total_sumsq, bm_sum, bm_sumsq
-        if coll_idx.size > 0:
-            W, cond_var = _blup_from_keep(cov, keep_idx, coll_idx)
-            keep_pos = {int(j): i for i, j in enumerate(keep_idx)}
-            coll_pos = {int(j): i for i, j in enumerate(coll_idx)}
-            out_kind = np.empty(ncols, dtype=np.int64)
-            out_local = np.empty(ncols, dtype=np.int64)
-            for c, j in enumerate(out_idx):
-                j = int(j)
-                if unbounded[j]:
-                    out_kind[c] = 1
-                    out_local[c] = coll_pos[j]
-                else:
-                    out_kind[c] = 0
-                    out_local[c] = keep_pos[j]
-            lo_k = as_bounds(np.ascontiguousarray(
-                np.asarray(lowers)[:, keep_idx]))
-            hi_k = as_bounds(np.ascontiguousarray(
-                np.asarray(uppers)[:, keep_idx]))
-            P_k, sd_k = gibbs_params(cov[np.ix_(keep_idx, keep_idx)])
-            sd0_k = np.sqrt(np.diag(cov)[keep_idx])
-            _gibbs_estimate_batched_collapsed(
-                P_k, sd_k, np.ascontiguousarray(sd0_k),
-                lo_k, hi_k, out_kind, out_local, W, cond_var,
-                n_sim, burn_in, batch_size, n_batch, seeds,
-                total_sum, total_sumsq, bm_sum, bm_sumsq)
+        lowers = np.asarray(lowers)
+        uppers = np.asarray(uppers)
+        patterns = _unbounded_patterns(lowers, uppers)
+        if len(patterns) == 1 and not patterns[0][0].any():
+            use_collapse = False                 # nothing to collapse: full chain
+        else:
+            for unbounded, rows in patterns:
+                sums = _collapsed_round(
+                    P, sd, sd0, cov, unbounded, lowers[rows], uppers[rows],
+                    out_idx, n_sim, burn_in, batch_size, n_batch, seeds[rows])
+                for target, value in zip(
+                        (total_sum, total_sumsq, bm_sum, bm_sumsq), sums):
+                    target[rows] = value
             return total_sum, total_sumsq, bm_sum, bm_sumsq
 
     _gibbs_estimate_batched(np.ascontiguousarray(P), np.ascontiguousarray(sd),
