@@ -3,14 +3,28 @@
 Under the liability-threshold model a person's liability splits into a genetic
 part ``l_g ~ N(0, h2)`` and an environmental part, summing to a full liability
 ``l_o ~ N(0, 1)``. Two relatives' genetic parts correlate by the fraction of DNA
-they share, so every covariance entry is ``shared_DNA * h2`` (`get_relatedness`).
-`construct_covmat_single` assembles the matrix for a proband's genetic
-liability ``g``, full liability ``o`` and any relatives; `construct_covmat_multi`
-extends it to several genetically/environmentally correlated traits.
+they share, so every covariance entry is ``shared_DNA * h2`` (methods report,
+"Covariance"). Two routes build the matrix that `ltpred.gibbs` and
+`ltpred.estimate` consume; row 0 is always the target's genetic ``g``.
 
-These are ports of LTFHPlus's ``get_relatedness`` / ``construct_covmat*`` and the
-matrix they build is exactly what `ltpred.gibbs` and `ltpred.estimate`
-sample from.
+* **Role grammar** (ports of LTFHPlus ``get_relatedness`` /
+  ``construct_covmat*``). `get_relatedness` looks up a fixed shared-DNA table
+  by role kind and side; `construct_covmat_single` fills ``(g, o,
+  relatives)`` entry by entry and optionally adds sibship ``C`` and couple
+  ``M`` off-diagonals; `construct_covmat_multi` extends it to correlated
+  traits. The grammar cannot express every pedigree (see the same-side
+  half-sib convention in `get_relatedness`).
+* **Arbitrary pedigrees**. `kinship_from_pedigree` computes ``A = 2 *
+  kinship`` exactly by the tabular method, in O(n + edges) ordering plus an
+  O(n**2) dense fill; `construct_covmat_from_kinship` forms ``V = h2 A +
+  c2 C + m2 M + e2 I``, standardizes every full liability to unit variance
+  and prepends the target's genetic row on the same scale.
+
+`correct_positive_definite` is the LTFHPlus repair (shrink off-diagonals
+until strictly PD) that the covariance-based estimators in `ltpred.estimate`
+apply to the assembled matrix.
+``_PSD_CERTIFIED`` lets internal callers whose ``A`` comes from pedigree
+construction skip re-validating it; the repair still runs.
 """
 
 from __future__ import annotations
@@ -51,6 +65,7 @@ class Covmat:
 
 
 def _validate_relative(s):
+    """Raise unless ``s`` fully matches the LTFHPlus role grammar ``_VALID``."""
     if not _VALID.fullmatch(s):
         raise ValueError(
             f"{s!r} is not a valid relative abbreviation. Use g, o, m, f, "
@@ -142,6 +157,13 @@ def get_relatedness(s1: str, s2: str, h2: float = 0.5) -> float:
     half-sibs, ``mau``/``pau`` aunts/uncles, ``c`` children). Returns e.g.
     ``0.5*h2`` for parent/offspring or full sibs, ``0.25*h2`` for grandparents and
     half-sibs. Pass ``h2=1`` to get the bare shared-DNA fraction.
+
+    Lookup: a role with itself returns its variance (``h2`` for ``g``, else 1);
+    roles on opposite sides (maternal ``m``/``mg*``/``mhs``/``mau`` versus
+    paternal ``f``/``pg*``/``phs``/``pau``) return 0; two children share 0.5
+    within a partner group ``c<group>.*`` and 0.25 across groups; any other
+    pair reads ``_SHARED_DNA`` by role kind (mates such as ``m``/``f`` or
+    ``mgm``/``mgf`` are unrelated; unknown kind pairs give 0).
 
     Two **same-side** half-sibs (``mhs1``/``mhs2`` or ``phs1``/``phs2``) are
     related ``0.5*h2`` *to each other* — the role grammar cannot name their second
@@ -281,6 +303,7 @@ def _is_full_sib(a, b):
         return False
 
     def full(p, x):
+        """Whether pattern ``p`` matches all of role ``x``."""
         return p.fullmatch(x) is not None
 
     both_sibship = full(_SIBSHIP, a) and full(_SIBSHIP, b)
@@ -502,6 +525,7 @@ def _parent_links(ids, father, mother):
     unresolved = 0
 
     def _idx(p):
+        """Index of parent ``p``, ``-1`` if missing or unlisted (counted)."""
         nonlocal unresolved
         if _is_missing_parent(p, index):
             return -1
@@ -531,6 +555,15 @@ def _kinship_A(sire, dam, children=None):
     ids -> indices -> ids round trip — measured at 23% of
     `kinship_from_pedigree` on the register workload — disappears. Inputs are
     trusted as `build_parent_graph` left them; a cycle still raises here.
+
+    Dense form of Algorithm K (`ltpred._selected_kinship`): order members by
+    Kahn's algorithm (parents first, O(n + edges)), then for each member ``k``
+    in that order fill row ``k`` against all earlier members at once,
+    ``A[k, :k] = (A[s_k, :k] + A[d_k, :k]) / 2``, mirror it, and set
+    ``A[k, k] = 1 + A[s_k, d_k] / 2``. An all-zero sentinel row stands in for
+    an unknown parent, so founders get ``A_kk = 1`` and zero covariance with
+    earlier members. O(n**2) time and memory; the result is permuted back to
+    input order and is exactly symmetric.
     """
     n = len(sire)
     if children is None:
@@ -593,8 +626,10 @@ def kinship_from_pedigree(ids: Sequence, father: Sequence,
     ``(n, n)`` matrix in the given ``ids`` order: ``A[i,i] = 1 + F_i`` (``F_i`` the
     inbreeding coefficient) and ``A[i,j] = 2 × kinship(i, j)`` — e.g. 0.5 for
     parent–offspring and full sibs, 0.25 for grandparent/half-sib, 0.125 for first
-    cousins. Computed by the recursive tabular method (Henderson 1976), which
-    handles inbreeding and any pedigree depth.
+    cousins. Computed by the recursive tabular method (Henderson 1976) over a
+    topological order (`_kinship_A`): ``A_ii = 1 + A_sd / 2`` and ``A_ij =
+    (A_sj + A_dj) / 2`` for ``i`` after ``j``, which handles inbreeding and any
+    pedigree depth. Raises on duplicate ids, a self-parent, or a cycle.
 
     Feed ``A`` to `construct_covmat_from_kinship` to build the liability
     covariance for these individuals."""
@@ -695,6 +730,10 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
     is ``[g, o_0, …, o_{n-1}]``; the ``target``'s own full-liability row is labelled
     ``o`` and the rest ``rel<i>``. Returns a `Covmat`.
 
+    ``A`` is checked to be finite, symmetric (then symmetrized) and PSD by an
+    ``eigvalsh`` unless ``_certified_psd`` is the private ``_PSD_CERTIFIED``
+    sentinel; the standardized block's diagonal is set to exactly 1.
+
     This is exactly the matrix the Gibbs / PA samplers consume, so a kinship-derived
     covariance is a drop-in for the role-based one; for a standard pedigree the two
     agree entry for entry. One qualification: the role grammar's inherited
@@ -772,8 +811,12 @@ def correct_positive_definite(covmat: ArrayLike, correction_val: float = 0.99,
     `ltpred.gibbs.gibbs_params`. Following LTFHPlus, this repeatedly shrinks
     the off-diagonal (multiply the whole matrix by ``correction_val``, then restore
     the diagonal) until the smallest eigenvalue exceeds ``eps`` (strictly PD, not
-    merely PSD) or ``correction_limit`` is hit. Returns ``(corrected, n_iter)`` and
-    leaves already-PD matrices untouched; raises if it cannot reach strict PD."""
+    merely PSD) or ``correction_limit`` is hit. After ``n`` iterations every
+    off-diagonal equals ``correction_val**n`` times its input value, i.e. all
+    correlations are attenuated uniformly, which changes the model rather than
+    only the numerics. Each check is an O(d**3) ``eigvalsh``. Returns
+    ``(corrected, n_iter)`` and leaves already-PD matrices untouched (a copy,
+    ``n_iter = 0``); raises ``ValueError`` if it cannot reach strict PD."""
     cov = np.array(covmat, dtype=np.float64, copy=True)
     if np.min(np.linalg.eigvalsh(cov)) > eps:
         return cov, 0

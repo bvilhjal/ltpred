@@ -1,9 +1,13 @@
 """Simulate families under the liability-threshold model.
 
-Draws each family's liabilities from the liability-threshold family covariance (genetic ``g``, full
-``o``, and relatives jointly multivariate normal), assigns case/control status by
-thresholding the full liabilities, and packages the per-member truncation bounds
-as ready-to-estimate `ltpred.family.Family` objects. Two flavours:
+Every simulator keeps the generating values so estimates can be scored
+against the truth. Multivariate normal draws use ``z @ L.T`` with the
+Cholesky factor from `_stable_factor`, so a seed gives the same draws on any
+LAPACK build.
+
+`simulate_under_LTM_single` (port of LTFHPlus::simulate_under_LTM_single)
+draws ``(g, o, relatives)`` from the role-grammar covariance, thresholds the
+full liabilities and packages bounds as `ltpred.family.Family` objects:
 
 * ``use_age=False`` -- classic LT-FH: a single prevalence threshold ``T``, cases
   ``(T, inf)`` and controls ``(-inf, T)``. Self-consistent, handy for validating
@@ -11,11 +15,22 @@ as ready-to-estimate `ltpred.family.Family` objects. Two flavours:
 * ``use_age=True`` -- age-aware simulation with generation-consistent current
   ages. Status is ``onset <= current age`` (a young person with high liability
   is a censored control, not a case). ``onset_model`` chooses how onset is
-  generated; ``case_encoding`` chooses the bound written for observed cases.
+  generated (`_onset_times`); ``case_encoding`` chooses the bound written for
+  observed cases.
 
-The returned `Simulation` also keeps the true liabilities so downstream
-tests can check that the estimated genetic liability tracks the simulated one.
-Port of LTFHPlus::simulate_under_LTM(_single), with coherent follow-up.
+Register simulation: `simulate_pedigree` builds trio columns,
+`pedigree_birth_times` assigns generation birth years, and
+`simulate_register_liabilities` draws **one** population field. Raw genetic
+values have covariance ``h2 A`` for the whole pedigree, either from a dense
+``A`` and its factor or by the exact Mendelian recursion `_mendelian_draw`
+(linear storage). Both genetic and full liabilities are divided by
+``sqrt(h2 A_ii + 1 - h2)``, keeping inbred people on the unit-variance
+threshold scale, and onset is the threshold crossing of the supplied CIP.
+
+`simulate_followup_records` draws entry/exit/event records from a logistic
+CIP with optional Gompertz competing death; `simulate_under_LTM_multi` draws
+two traits from ``kron(G, A) + kron(S, C) + kron(T, M) + kron(E, I)``, with
+trait-by-trait genetic, sibship, couple and residual matrices ``G, S, T, E``.
 """
 
 from __future__ import annotations
@@ -58,6 +73,7 @@ _DEFAULT_ONSET_RHO = 0.6
 
 
 def _role_stem(role):
+    """Role without its numbering: ``"s2"`` -> ``"s"``, ``"c1.2"`` -> ``"c"``."""
     # Strip the numbering to get the role stem. Children carry a two-part index
     # (``c1.2``), so the dot has to go too -- ``"c1.2".rstrip("0123456789")``
     # stops at the dot and yields ``"c1."``, which never matched the ``"c"`` key
@@ -66,7 +82,11 @@ def _role_stem(role):
 
 
 def _draw_ages(roles, n, rng):
-    """Generation-consistent current ages: parents older than the proband."""
+    """Generation-consistent current ages: parents older than the proband.
+
+    Proband age ~ U(20, 55); role ``r`` gets that plus ``_AGE_GAP[stem]``
+    (0 if unknown) plus N(0, sd) noise, sd 0 for ``o``, 4 for gaps of 20+
+    years, else 3; clipped to [1, 110]."""
     age_o = rng.uniform(20.0, 55.0, size=n)
     ages = {}
     for role in roles:
@@ -101,10 +121,12 @@ class Simulation:
 
     @property
     def genetic(self):
+        """True genetic liabilities, the ``g`` column."""
         return self.liabilities[:, self.roles.index("g")]
 
     @property
     def full(self):
+        """True full liabilities of the proband, the ``o`` column."""
         return self.liabilities[:, self.roles.index("o")]
 
 
@@ -159,6 +181,7 @@ def _threshold_crossing_case_bounds(aoo, current_age, onset_resolution,
 
 
 def _validate_onset_resolution(onset_resolution):
+    """Return ``None`` or a finite positive float; reject bools."""
     if onset_resolution is None:
         return None
     if isinstance(onset_resolution, (bool, np.bool_)):
@@ -175,6 +198,7 @@ def _validate_onset_resolution(onset_resolution):
 
 
 def _validate_onset_rho(onset_rho, default=_DEFAULT_ONSET_RHO):
+    """Return ``onset_rho`` (``default`` when ``None``) as a float in [0, 1]."""
     if onset_rho is None:
         return float(default)
     if isinstance(onset_rho, (bool, np.bool_)):
@@ -189,6 +213,11 @@ def _validate_onset_rho(onset_rho, default=_DEFAULT_ONSET_RHO):
 
 
 def _resolve_age_options(use_age, onset_model, case_encoding, onset_rho=None):
+    """Validate and default ``(onset_model, case_encoding, onset_rho)``.
+
+    All ``None`` without ages. Defaults: onset ``threshold_crossing``;
+    encoding ``pin`` for it, else ``lifetime``; rho only for
+    ``liability_dependent``. Warns when ``pin`` meets a stochastic onset."""
     if not use_age:
         if (onset_model is not None or case_encoding is not None
                 or onset_rho is not None):
@@ -277,6 +306,11 @@ def _stable_factor(cov):
     instead and keep the unique factor. Eigen*values* are basis-independent, so
     the lift is itself stable; it is ~1e-12 of the mean variance, orders of
     magnitude below the Monte-Carlo error of anything drawn from the result.
+
+    Precisely: try ``cholesky(cov)``; otherwise raise if the smallest
+    eigenvalue is below ``-1e-8 * scale`` (``scale = max(mean diagonal, 1)``),
+    else factor ``cov + (max(0, -lambda_min) + t * scale) I`` for the first
+    ``t`` in 1e-12, 1e-10, ..., 1e-4 that succeeds, raising if none does.
     """
     cov = np.asarray(cov, dtype=float)
     try:
@@ -438,6 +472,7 @@ def simulate_pedigree(rng: np.random.Generator, n_founder_pairs: int = 150,
     ids, father, mother = [], [], []
 
     def add(f, m):
+        """Append person ``p<k>`` with father ``f``, mother ``m``; return the id."""
         pid = f"p{len(ids)}"
         ids.append(pid)
         father.append(f)
@@ -492,12 +527,14 @@ def pedigree_birth_times(ids: Sequence, father: Sequence, mother: Sequence, *,
     representative = list(range(n))
 
     def find(i):
+        """Union-find root of ``i``, halving the path."""
         while representative[i] != i:
             representative[i] = representative[representative[i]]
             i = representative[i]
         return i
 
     def union(i, j):
+        """Merge the co-parent classes of ``i`` and ``j``."""
         left, right = find(i), find(j)
         if left != right:
             representative[right] = left
@@ -566,11 +603,15 @@ class RegisterSimulation:
 def _mendelian_draw(ids, father, mother, innovations):
     """Draw with covariance A, without materializing A; retain exact inbreeding.
 
-    Each child inherits half of each known parent's value. Its independent
-    innovation has variance 1 minus one quarter of each known parent's A_ii.
-    Unknown parents contribute neither a value nor a variance subtraction.
-    Selected-pair recursion supplies diagonals with bounded memoization; its
-    runtime depends on pedigree depth and relatedness, not just person count.
+    Visit people parents-first (the `ltpred._selected_kinship` rank) and set
+    ``a_i = sum_{known p} a_p / 2 + sqrt(w_i) * z_i`` with ``z = innovations``
+    and ``w_i = 1 - sum_{known p} A_pp / 4``. With both parents known this is
+    the Mendelian sampling variance ``(1 - (F_s + F_d) / 2) / 2``; a founder
+    has ``w_i = 1``, one known parent ``(3 - F_p) / 4``. Then ``Cov(a_i, a_j)
+    = (A_sj + A_dj) / 2`` and ``Var(a_i) = 1 + A_sd / 2``, so ``a ~ N(0, A)``
+    exactly. Diagonals ``A_ii`` come from selected-pair recursion with its
+    default bounded cache; returns ``(a, diag(A))``. Storage is O(n) plus the
+    cache; runtime depends on pedigree depth and relatedness.
     """
     ids, _, sire, dam, children, _ = _parent_links(ids, father, mother)
     graph = SimpleNamespace(ids=ids, sire=sire, dam=dam, children=children)

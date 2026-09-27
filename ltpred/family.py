@@ -88,7 +88,9 @@ def _is_missing_id(x: object) -> bool:
 
 
 def _is_missing_parent(pid, index):
-    """Unknown-parent markers; zero remains a valid explicitly listed id."""
+    """True for a missing-id marker, or for ``0``/``"0"`` absent from ``index``.
+
+    Zero is a valid parent when it is an explicitly listed id."""
     return _is_missing_id(pid) or (pid in (0, "0") and pid not in index)
 
 

@@ -1,22 +1,46 @@
 """Supported population-register scoring from trio records and empirical CIPs.
 
-The low-level pieces live in `ltpred.pedigree`, `ltpred.thresholds`
-and `ltpred.estimate`. This module supplies the small but consequential
-glue between them: row alignment, the distinction between pedigree closure and
-the observation set, and calendar-time censoring for prospective prediction.
+The low-level pieces live in `ltpred.pedigree`, `ltpred.thresholds` and
+`ltpred.estimate`; this module is the glue between them (methods report,
+"Implementation"). The driver is intentionally narrow: additive-only,
+pinned-onset LT-FH++ bounds and deterministic Pearson--Aitken (PA). Interval
+cases, C/M kernels and the PA-FGRS mixture use the lower-level APIs.
 
-The first public driver is intentionally narrow. It uses pinned-onset LT-FH++
-bounds and deterministic Pearson--Aitken inference. Interval-case encodings and
-the PA-FGRS censored-control mixture remain available through the lower-level
-APIs, but are separate observation models rather than switches hidden in this
-register workflow.
+Algorithm R (`estimate_liabilities`), in code order:
 
-The driver also reports on the two input problems that most often make a
-register analysis wrong without making any single score wrong: parent
-references that failed to resolve (counted per table; an implausibly high
-unresolved share warns, and zero resolved references raises), and probands
-who were not at risk at their prediction landmark (a per-proband state, with
-a warning on prevalent cases).
+* R1. Validate inputs and each (stratum) CIP curve, once per call.
+* R2. Build the parent graph and rank it topologically (a whole-graph cycle
+  check). Count unresolved parent references: raise if none resolves, warn
+  above 50% of records. Under ``"prediction"`` classify each proband at
+  ``index_time`` (``proband_state``) and warn on prevalent cases.
+* R3. Per proband, extract the ``max_degree`` pedigree with its ancestral
+  closure (`ltpred.pedigree.extract_pedigree`); ``m`` members.
+* R4. Observation set. ``"gwas"``: every member's record as given.
+  ``"prediction"``: member ``j`` is censored at their own attained age
+  ``c_j = index_time - birth_time[j]``; ``c_j <= 0`` is uninformative, a
+  record ending after the landmark becomes a control at ``c_j``, and the
+  proband's row is uninformative. Closure-only rows are uninformative
+  unless ``condition_closure``.
+* R5. Pinned-onset bounds from each member's (stratum) CIP; computed once
+  for the whole population under ``"gwas"``, per proband otherwise.
+* R6. Relationships. If `ltpred._selected_kinship._covariance_reduction_is_safe`
+  proves no PD repair can occur, keep only the target and the informative
+  rows, in pedigree order; their ``A`` block comes from a dense fill when
+  ``m <= 1500`` and they request more than ``0.03 m**2`` pairs, else from
+  selected-pair recursion (Algorithm K). Otherwise use the full dense ``A``
+  and all rows.
+* R7. Score by `ltpred.estimate.estimate_liability_from_kinship` (PA,
+  target 0, ``A`` certified PSD so it is not re-validated): standardized
+  covariance, one `ltpred.covariance.correct_positive_definite` check, PA.
+  A target with no informative relatives, ``A_tt = 1``, unpinned bounds and
+  ``h2`` inside (0, 1) takes the bit-identical scalar ADuLT moments instead.
+* R8. Record ``n_relatives``, ``n_conditioned``, ``n_closure_only`` and
+  ``degree_max``.
+
+Dropping unbounded rows in R6 is exact: Gaussian marginalization selects a
+principal block and PA skips such rows. Cost per proband is linear in the
+extracted pedigree plus the ``A`` route: O(m**2) dense, or one evaluation per
+uncached ancestor pair.
 """
 from __future__ import annotations
 
@@ -286,6 +310,7 @@ def estimate_liabilities(
             curves[label] = _validate_cip_curve(curve_ages, curve_values, curve_k_pop)
 
     def bounds(member_status, member_age, member_strata):
+        """Pinned-onset ``(lower, upper)`` from each row's validated CIP."""
         if member_strata is None:
             return _cip_bounds(member_status, member_age, curves[None])[:2]
         lower = np.empty(member_status.shape[0])

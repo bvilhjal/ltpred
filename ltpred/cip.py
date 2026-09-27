@@ -81,6 +81,7 @@ class CipCurve:
 
 
 def _validate_followup(age_entry, age_exit):
+    """Float 1-D follow-up arrays: finite, ``0 <= entry <= exit``, non-empty."""
     age_entry = np.asarray(age_entry, dtype=float)
     age_exit = np.asarray(age_exit, dtype=float)
     if age_entry.ndim != 1 or age_exit.ndim != 1 or age_entry.shape != age_exit.shape:
