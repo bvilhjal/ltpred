@@ -27,7 +27,7 @@
     
     
       
-        <title>Estimation - ltpred</title>
+        <title>Scoring - ltpred</title>
       
     
     
@@ -84,7 +84,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#estimation" class="md-skip">
+        <a href="#scoring-genetic-liabilities" class="md-skip">
           Skip to content
         </a>
       
@@ -119,7 +119,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Estimation
+              Scoring
             
           </span>
         </div>
@@ -291,6 +291,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../tutorial/" class="md-nav__link">
         
   
@@ -299,87 +326,6 @@
     
   
     Tutorial
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../guide/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Choose a method
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../quickstart/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Quickstart
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../vignette/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Vignette
   
 
     
@@ -414,17 +360,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-    Workflow
+    Work with data
   
 
     
@@ -435,12 +381,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Workflow
+    Work with data
   
 
           </label>
@@ -525,7 +471,7 @@
   <span class="md-ellipsis">
     
   
-    Estimation
+    Scoring
   
 
     
@@ -543,7 +489,7 @@
   <span class="md-ellipsis">
     
   
-    Estimation
+    Scoring
   
 
     
@@ -567,6 +513,17 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#choose-a-scoring-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choose a scoring model
+      
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#building-families" class="md-nav__link">
@@ -695,6 +652,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#coming-from-ltfhplus-or-ltfgrs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coming from LTFHPlus or LTFGRS
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -718,7 +686,7 @@
   <span class="md-ellipsis">
     
   
-    Inference
+    Fitting
   
 
     
@@ -746,7 +714,7 @@
   <span class="md-ellipsis">
     
   
-    Assumptions & checklist
+    Analysis checklist
   
 
     
@@ -787,10 +755,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   
@@ -808,8 +776,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -833,63 +801,7 @@
   <span class="md-ellipsis">
     
   
-    Algorithm & model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../research/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Research extensions
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../report/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Technical report
+    Model and algorithms
   
 
     
@@ -931,65 +843,6 @@
 
               
             
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-        
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
-        
-          
-          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Project
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_8">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Project
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
               
                 
   
@@ -997,14 +850,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../ROADMAP/" class="md-nav__link">
+      <a href="../validation/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Roadmap
+    Numerical checks
   
 
     
@@ -1025,14 +878,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../PAPER_PLAN/" class="md-nav__link">
+      <a href="../research/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Paper plan
+    Research extensions
   
 
     
@@ -1041,231 +894,6 @@
   
 
       </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../RELEASING/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Releasing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
-        
-          
-          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Past reviews (historical)
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_8_4">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Past reviews (historical)
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reviews/REVIEW_2026-08/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    v0.3.4 (2026-08)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reviews/REVIEW_2026-09/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    v0.4.2 (2026-08-28)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reviews/REVIEW_2026-09b/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    v0.5.1 (2026-09-02)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reviews/REVIEW_2026-09c/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    v0.6.2 (2026-09-10)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reviews/REVIEW_2026-09d/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    v0.7.0 documentation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
     </li>
   
 
@@ -1303,6 +931,17 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#choose-a-scoring-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choose a scoring model
+      
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#building-families" class="md-nav__link">
@@ -1431,6 +1070,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#coming-from-ltfhplus-or-ltfgrs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coming from LTFHPlus or LTFGRS
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1451,10 +1101,94 @@
   
 
 
-<h1 id="estimation">Estimation<a class="headerlink" href="#estimation" title="Permanent link">&para;</a></h1>
+<h1 id="scoring-genetic-liabilities">Scoring genetic liabilities<a class="headerlink" href="#scoring-genetic-liabilities" title="Permanent link">&para;</a></h1>
 <p>Running the estimator, reading the result, choosing an inference engine, and
 scaling up. Assumes you already have families with liability bounds — see
 <a href="../data-preparation/">data preparation</a>.</p>
+<h2 id="choose-a-scoring-model">Choose a scoring model<a class="headerlink" href="#choose-a-scoring-model" title="Permanent link">&para;</a></h2>
+<p><strong>Table 1. Scoring paths by observation model.</strong></p>
+<table>
+<thead>
+<tr>
+<th>use case</th>
+<th>bounds and observed-person records</th>
+<th>estimator</th>
+<th>model</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>no age, with relatives</td>
+<td><code>prevalence_thresholds</code>; relatives + identified <code>o</code> (uninformative for prediction)</td>
+<td>PA or Gibbs</td>
+<td>classic LT-FH</td>
+</tr>
+<tr>
+<td>additive, noninbred nuclear family; no C/M or mixture</td>
+<td>roles <code>o/m/f/s1/s2/…</code>, <code>0 &lt;= h2 &lt; 1</code></td>
+<td>quadrature, with refinement diagnostics</td>
+<td>same no-mixture posterior as Gibbs, integrated numerically</td>
+</tr>
+<tr>
+<td>personalised CIP, with relatives</td>
+<td><code>thresholds_from_cip(…, case_mode="pin")</code>; relatives + identified <code>o</code> (uninformative for prediction)</td>
+<td>PA (default); Gibbs reference</td>
+<td>LT-FH++</td>
+</tr>
+<tr>
+<td>personalised CIP, no relatives</td>
+<td>same pinned bounds; include role <code>o</code> only</td>
+<td>PA (default); Gibbs reference</td>
+<td>ADuLT</td>
+</tr>
+<tr>
+<td>logistic demo (<a href="../quickstart/">quickstart</a>)</td>
+<td><code>age_thresholds</code> with either row pattern above</td>
+<td>PA or Gibbs</td>
+<td>age-only demonstration, not full LT-FH++</td>
+</tr>
+<tr>
+<td>population register (<code>ids</code>/<code>father</code>/<code>mother</code>)</td>
+<td><code>estimate_liabilities(…, use="gwas"</code> or <code>"prediction")</code> builds pinned CIP bounds itself</td>
+<td>PA</td>
+<td>LT-FH++</td>
+</tr>
+<tr>
+<td>arbitrary pedigree kinship</td>
+<td><code>kinship_from_pedigree</code> + <code>estimate_liability_from_kinship</code></td>
+<td>PA or Gibbs</td>
+<td>LT-FH / LT-FH++</td>
+</tr>
+<tr>
+<td>published base PA-FGRS</td>
+<td>role/object or kinship API; lifetime bounds from <code>prevalence_thresholds</code>; add control-specific <code>K_i</code>/<code>K_pop</code> from the CIP</td>
+<td>PA with <code>use_mixture=True</code></td>
+<td>PA-FGRS</td>
+</tr>
+<tr>
+<td>age-dependent interval/mixture encoding</td>
+<td><code>pa_thresholds</code>, or <code>thresholds_from_cip(…, case_mode="interval")</code></td>
+<td>PA with <code>use_mixture=True</code></td>
+<td>PA-FGRS-style variant; neither base PA-FGRS nor exact PA-FGRS_ADT</td>
+</tr>
+<tr>
+<td>score multiple traits</td>
+<td>vector <code>h2</code> + genetic and full-liability correlation matrices</td>
+<td>Gibbs only</td>
+<td>A+E covariance; C/M fitting does not extend this scorer</td>
+</tr>
+</tbody>
+</table>
+<p>In base PA-FGRS, every observed case uses
+<code>[Φ⁻¹(1 − K_pop), ∞)</code>. Age-specific incidence enters through the mixture weights
+for censored controls, not through the case threshold. The current convenience
+helpers (<code>pa_thresholds</code>, <code>thresholds_from_cip(case_mode="interval")</code>) instead
+put cases above their age-of-onset threshold; use them only when
+that age-dependent variant is the intended observation model. Do not label this
+helper encoding PA-FGRS_ADT: it is not a faithful implementation of that published
+specification. The
+<a href="../data-preparation/#getting-lowerupper-from-status-and-age">data-preparation page</a>
+shows the base recipe explicitly.</p>
 <h2 id="building-families">Building families<a class="headerlink" href="#building-families" title="Permanent link">&para;</a></h2>
 <p>From flat columns (the common path):</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">families_from_columns</span>
@@ -1466,13 +1200,12 @@ scaling up. Assumes you already have families with liability bounds — see
     <span class="c1"># K_i=K_i, K_pop=K_pop, # only for the PA mixture</span>
 <span class="p">)</span>
 </code></pre></div>
-<p>Rows sharing a <code>fam_id</code> become one family; family order follows first appearance,
-and the results come back in that order. You can also build <code>Family</code>/<code>Member</code>
-objects directly if you prefer. Role <code>o</code> is optional: when absent, the estimator
-inserts an uninformative proband-status coordinate. Include <code>o</code> for <strong>use II</strong> (a diagnosis-derived GWAS phenotype); omit
-or unbind it for <strong>use I</strong> (predicting/classifying that same diagnosis),
-or the outcome leaks into the score. <strong>Use III</strong> may not call the
-estimator at all; see the <a href="../vignette/">vignette</a>.</p>
+<p>Rows sharing a <code>fam_id</code> become one family; output order follows first appearance.
+You can also build <code>Family</code>/<code>Member</code> objects directly. Include role <code>o</code> with its
+own diagnosis for a GWAS phenotype. For prediction, retain <code>o</code> and its personal
+<code>pid</code>, but give it <code>(-inf, inf)</code> bounds. If any relative has a personal ID,
+a missing or unidentified proband row raises rather than substituting <code>fam_id</code>.
+Only fully pid-free families may omit <code>o</code> and use <code>fam_id</code> as the result key.</p>
 <h2 id="running-the-estimator">Running the estimator<a class="headerlink" href="#running-the-estimator" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability</span>
 <span class="n">res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="p">(</span><span class="s2">"genetic"</span><span class="p">,))</span>
@@ -1502,7 +1235,7 @@ estimator at all; see the <a href="../vignette/">vignette</a>.</p>
   variance components; see below.</li>
 </ul>
 <h2 id="reading-liabilityresult">Reading <code>LiabilityResult</code><a class="headerlink" href="#reading-liabilityresult" title="Permanent link">&para;</a></h2>
-<p><strong>Table 1. Liability estimates and method-specific diagnostics.</strong></p>
+<p><strong>Table 2. Liability estimates and method-specific diagnostics.</strong></p>
 <table>
 <thead>
 <tr>
@@ -1598,7 +1331,7 @@ family-history analogue of a BLUP / selection-index breeding value (see
   the SNP predicts <em>inferred additive genetic liability</em>, not merely the
   observed 0/1 diagnosis — that is where the power gain comes from.</li>
 <li><strong>Use III does not need this score.</strong> Liability-scale <code>h²</code> / <code>r_g</code> and the CIP
-  can stand alone (<a href="../vignette/">vignette</a> Table 1).</li>
+  can stand alone (<a href="../quickstart/#choose-the-analysis">Getting started</a>, Table 1).</li>
 </ul>
 <p>Use II deliberately allows the proband's observed status into the
 phenotype construction. It is <strong>not</strong> a leakage-free disease predictor. When the
@@ -1701,7 +1434,7 @@ affected). That union event is not equivalent to separately observed per-sibling
 intervals. ltpred requires separate member intervals, so its PA–Gibbs benchmarks
 test a different, no-mixture observation model
 (<a href="https://doi.org/10.1038/s41588-020-0613-6">Hujoel et al. 2020</a>).</p>
-<p><strong>Table 2. Gibbs and PA in the benchmarked comparison.</strong></p>
+<p><strong>Table 3. Gibbs and PA in the benchmarked comparison.</strong></p>
 <table>
 <thead>
 <tr>
@@ -1774,7 +1507,7 @@ conditional moments are handled analytically. The ordinary single-trait
 <code>estimate_liability</code> default remains PA.</p>
 <p>For <code>Family</code> inputs, numerical controls are <code>quadrature_atol</code> and
 <code>quadrature_max_nodes</code>; the resulting <code>LiabilityResult</code> carries the dictionaries
-in Table 1. The explicit array API uses <code>atol</code> and <code>max_nodes</code> and returns a
+in Table 2. The explicit array API uses <code>atol</code> and <code>max_nodes</code> and returns a
 <code>QuadratureResult</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability_quadrature_arrays</span>
@@ -1819,10 +1552,14 @@ Skip the objects with the <strong>array API</strong>, which takes already-aligne
     <span class="n">out</span><span class="o">=</span><span class="s2">"genetic"</span><span class="p">,</span>                       <span class="c1"># or use_mixture=True with K_i=, K_pop=</span>
 <span class="p">)</span>
 </code></pre></div>
-<p>This runs the covariance construction once and the parallel PA kernel directly —
-13–29× faster than the object path in the current warmed timing grid, at
-2.02–6.29 million already-aligned families/s (and
-<code>estimate_liability_gibbs_arrays</code> does the same for Gibbs, returning <code>(est, se)</code>).
+<p>This runs the covariance construction once and the parallel PA kernel
+directly — 13–29× faster than the object path at 2.02–6.29 million
+already-aligned families/s, as measured on the warmed scaling grid that
+shipped with v0.4.0 (four threads; <code>benchmarks/bench_scaling.csv</code>, last
+regenerated at v0.4.0, commit <code>1684fc5</code>, 2026-08-20). The grid has not been re-measured
+since, and v0.7.1 made the object-path denominator 1.69× faster, so the ratio
+on the current tree is nearer 8–17× (and <code>estimate_liability_gibbs_arrays</code>
+does the same for Gibbs, returning <code>(est, se)</code>).
 Control the thread count with <code>ltpred.set_num_threads(n)</code>, and warm up once (the
 first call JIT-compiles) before timing. Different family structures still need
 separate array calls (one covariance each); the object API groups them for you.</p>
@@ -1961,7 +1698,7 @@ genomic-control inflation caused by the deliberately misspecified
 single-threshold analysis; this does not replace ordinary GWAS covariate
 adjustment or guarantee calibration under other misspecification.</p>
 <h2 id="options-reference">Options reference<a class="headerlink" href="#options-reference" title="Permanent link">&para;</a></h2>
-<p><strong>Table 3. High-level estimator options.</strong></p>
+<p><strong>Table 4. High-level estimator options.</strong></p>
 <table>
 <thead>
 <tr>
@@ -2041,6 +1778,42 @@ Gaussian pedigree model, including inbreeding, using linear person-level storage
 and a bounded relationship cache. Deep, related pedigrees can still require
 substantial recursion work. The default <code>method="dense"</code> preserves historical
 seeded draws; the two methods agree in distribution, not draw by draw.</p>
+<h2 id="coming-from-ltfhplus-or-ltfgrs">Coming from LTFHPlus or LTFGRS<a class="headerlink" href="#coming-from-ltfhplus-or-ltfgrs" title="Permanent link">&para;</a></h2>
+<p><code>estimate_liability</code> exists in all three packages with incompatible
+signatures. Role labels are unchanged; the input object and the
+uncertainty column are not.</p>
+<p><strong>Table 5. Equivalent calls and result columns when migrating from R.</strong></p>
+<table>
+<thead>
+<tr>
+<th>R</th>
+<th>ltpred</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>estimate_liability(.tbl = df, …)</code></td>
+<td><code>families_from_columns(...)</code>, <strong>then</strong> <code>estimate_liability(families, h2=…)</code></td>
+</tr>
+<tr>
+<td><code>fam_id =</code> / <code>fid =</code>, <code>pid =</code>, <code>role =</code> column-name arguments</td>
+<td>pass the columns themselves</td>
+</tr>
+<tr>
+<td><code>$genetic_est</code></td>
+<td><code>res.genetic</code></td>
+</tr>
+<tr>
+<td>LTFGRS PA <code>$var</code> (and its square root)</td>
+<td><code>res.var["genetic"]</code> — <strong>not</strong> <code>res.se</code>, which is 0 under PA because PA is deterministic</td>
+</tr>
+<tr>
+<td><code>future::plan(multisession, workers = n)</code></td>
+<td><code>ltpred.set_num_threads(n)</code></td>
+</tr>
+</tbody>
+</table>
+<p>ltpred ships no igraph-style pedigree object and no plotting utilities.</p>
 
 
 
