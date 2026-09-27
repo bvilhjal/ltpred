@@ -1,13 +1,45 @@
-"""Joint liability covariance from observed binary pairs.
+"""Joint liability covariance for ``P >= 2`` binary traits from observed pairs.
 
-Write Sigma = G (x) A + S (x) C + T (x) M + E (x) I, omitting
-unrequested shared components. Each trait has unit marginal variance. The
-free parameters are covariance entries, so every pair correlation is linear
-and the observed-pair design exposes nonidentification before optimization.
-Positive-semidefinite component constraints keep the decomposition coherent.
+`fit_pairwise_multi` extends Algorithm L (`ltpred.pairwise`) to the model
+``Sigma = G (x) A + S (x) C + T (x) M + E (x) I`` in trait-major coordinates,
+omitting ``S`` (full sibship) and/or ``T`` (couple) when not requested; see the
+efficient inference report, "Joint genetic and environmental covariance".
 
-Only pair counts enter the optimizer. Boolean observations are retained for
-family-cluster scores; no latent liabilities or Monte-Carlo traces are stored.
+**Parametrisation** (`_covariance_basis`). The free vector ``x`` holds the
+upper-triangular entries, diagonal included, of each requested component matrix
+and the off-diagonal entries of ``E``; ``E_aa = 1 - sum_c Comp_c[a, a]``, so every
+trait has unit liability variance and every matrix is affine in ``x``. Trait
+``a`` of member ``i`` and trait ``b`` of member ``j`` then have correlation
+``rho = sum_c K_c[i, j] Comp_c[a, b]`` (``K_E = I``), linear in ``x`` -- the
+design row; a same-person cross-trait pair loads on ``G + S + T + E``. ``h2`` is
+``diag(G)``; ``rg``, ``re`` and ``correlations`` standardise ``G``, ``E`` or any
+component (`_correlation`).
+
+**Algorithm L, multi-trait.**
+
+- **L1.** Screen as Algorithm H1, per trait: length-``P`` bounds on every member,
+  one common threshold ``t_a`` per trait (traits may differ), ``(-inf, inf)`` for
+  a missing phenotype, and the case-rate screen per role and trait.
+- **L2.** Tabulate every jointly observed coordinate pair with a nonzero row,
+  keyed by trait pair and row; raise unless the rows have full rank
+  (`_prepare_multi_pairs`). Missing phenotypes contribute no pairs.
+- **L3.** Criterion as in Algorithm L at unequal thresholds
+  (`_bivariate_probabilities`). Trial points beyond a precomputed safe ``rho``
+  range get a C1 quadratic extension (`_probability_limits`,
+  `_multi_criterion`); the returned fit is re-evaluated unextended.
+- **L4.** SLSQP from diagonals ``0.5 / n_components`` and zero off-diagonals,
+  subject to: every component PSD, ``eig(E) >= eps``, ``|rho| <= 1 - eps`` for
+  every row, and box bounds. Stationarity is certified by projecting
+  ``x - grad / n`` onto the feasible set; it must return within
+  ``max(1e-5, 10 sqrt(tol))`` of ``x``.
+- **L5.** Sandwich covariance of ``x`` as in Algorithm L5, withheld when any
+  component eigenvalue (for ``E``, eigenvalue minus ``eps``) is at most
+  ``max(1e-7, 10 sqrt(tol))``. SEs of ``h2``, ``rg``, ``re`` and ``rp`` follow by
+  the delta method (`_derived_se`).
+
+Missingness must preserve the modelled pair distributions (e.g. MCAR). Only pair
+counts enter the optimizer; Boolean observations are kept for family scores.
+Thresholds and weights are held fixed, as in `ltpred.pairwise`.
 """
 
 from __future__ import annotations
@@ -36,6 +68,9 @@ __all__ = ["MultiTraitPairwiseResult", "fit_pairwise_multi"]
 
 
 def _correlation(cov, variance_tol=1e-8):
+    """``cov_ab / sqrt(cov_aa cov_bb)``, NaN where either variance is at most ``variance_tol``.
+
+    Clipped to ``[-1, 1]`` to remove solver roundoff."""
     sd = np.sqrt(np.maximum(np.diag(cov), 0))
     active = np.diag(cov) > variance_tol
     denom = np.outer(sd, sd)
@@ -77,39 +112,51 @@ class MultiTraitPairwiseResult:
 
     @property
     def h2(self):
+        """Per-trait liability-scale heritability, ``diag(G)``."""
         return np.diag(self.components["A"]).copy()
 
     @property
     def genetic_cov(self):
+        """Additive genetic trait covariance ``G``."""
         return self.components["A"]
 
     @property
     def env_cov(self):
+        """Within-person residual trait covariance ``E`` (excludes ``C``/``M``)."""
         return self.components["E"]
 
     @property
     def correlations(self):
+        """Each component matrix standardised to a correlation (NaN for negligible variance)."""
         return {name: _correlation(cov, self.boundary_tolerance) for name, cov in self.components.items()}
 
     @property
     def rg(self):
+        """Genetic correlation matrix, ``G`` standardised."""
         return _correlation(self.genetic_cov, self.boundary_tolerance)
 
     @property
     def re(self):
+        """Residual environmental correlation matrix, ``E`` standardised."""
         return _correlation(self.env_cov, self.boundary_tolerance)
 
     @property
     def rp(self):
+        """Within-person liability correlation: the sum of all component matrices."""
         return sum(self.components.values())
 
 
 def _bivariate_probabilities(t1, t2, rho):
     """Four binary cells and two rho derivatives, with unequal thresholds.
 
-    Plackett integration from independence is fast away from cancellation.
-    Small cells are recomputed as positive integrals from the Frechet endpoints.
-    The angle transform removes the density's square-root singularity.
+    Cell order is both cases, first only, second only, neither. Plackett
+    integration from independence (``p11 = K1 K2 + I(0, asin rho)``, and so on,
+    with ``I`` the integral of ``phi2(t1, t2; sin u) cos u``) is fast away from
+    cancellation. If a cell falls below ``1e-8``, all cells are recomputed as
+    positive integrals from the Frechet endpoints ``rho = -1`` (concordant) and
+    ``rho = +1`` (discordant). The angle transform removes the density's
+    square-root singularity. Derivatives are ``+-phi2(t1, t2; rho)`` and its
+    ``rho`` derivative; requires ``-1 < rho < 1``.
     """
     if not np.all(np.isfinite([t1, t2, rho])) or not -1 < rho < 1:
         raise ValueError("pair probabilities need finite thresholds and -1 < rho < 1")
@@ -118,6 +165,7 @@ def _bivariate_probabilities(t1, t2, rho):
     angle = math.asin(rho)
 
     def integrand(theta):
+        """``phi2(t1, t2; r) dr / d theta`` with ``r = sin(theta)``."""
         r = math.sin(theta)
         exponent = ((t1 + t2)**2 / (4 * (1 + r))
                     + (t1 - t2)**2 / (4 * (1 - r)))
@@ -147,6 +195,11 @@ def _bivariate_probabilities(t1, t2, rho):
 
 
 def _covariance_basis(components, p):
+    """Affine map ``x -> (Comp_c)_c`` for the components plus ``E``.
+
+    Returns ``(order, offset, basis)`` with ``matrices = offset + basis @ x``:
+    ``order`` lists ``(component, a, b)`` for each free entry, ``offset`` puts
+    ``I`` in ``E``, and each diagonal parameter also enters ``E_aa`` with sign -1."""
     order = tuple((c, i, j) for c in components for i in range(p) for j in range(i, p))
     order += tuple(("E", i, j) for i in range(p) for j in range(i+1, p))
     basis = np.zeros((len(components)+1, p, p, len(order)))
@@ -263,6 +316,11 @@ def _probability_limits(thresholds, eps):
 
 
 def _multi_criterion(values, thresholds, design, counts, rho_limits=None):
+    """Negative composite log likelihood, gradient, sensitivity and cell scores.
+
+    As `ltpred.pairwise._criterion` with per-row thresholds. With ``rho_limits``,
+    a ``rho`` outside the limits is clipped and the loss extended by a C1
+    quadratic with curvature ``max(|curvature|, 1)``; use none at the final fit."""
     value = 0.
     gradient = np.zeros(len(values))
     hessian = np.zeros((len(values), len(values)))
@@ -291,15 +349,21 @@ def _multi_criterion(values, thresholds, design, counts, rho_limits=None):
 
 
 def _derived_se(matrices, basis, covariance, ai):
+    """Delta-method SEs ``sqrt(g' V g)`` of ``h2``, ``rg``, ``re`` and ``rp``.
+
+    ``g`` is the gradient in ``x`` of each derived entry; all NaN if ``V`` is not
+    finite (withheld)."""
     p = matrices.shape[1]
     if not np.all(np.isfinite(covariance)):
         return {name: np.full(shape, np.nan) for name, shape in
                 (("h2", (p,)), ("rg", (p, p)), ("re", (p, p)), ("rp", (p, p)))}
     def propagate(derivative):
+        """``sqrt(g' V g)`` over the trailing parameter axis."""
         return np.sqrt(np.maximum(np.einsum('...i,ij,...j->...', derivative,
                                             covariance, derivative), 0.))
 
     def corr_gradient(ci):
+        """Gradient of ``M_ab / sqrt(M_aa M_bb)`` for component ``ci``."""
         matrix, deriv = matrices[ci], basis[ci]
         diagonal = np.diag(matrix)
         with np.errstate(divide="ignore", invalid="ignore"):
@@ -338,7 +402,8 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
     specifically to E. M describes spousal resemblance, not a generative model
     of assortative mating. Relationship kernels follow the single-trait fitter.
 
-    The optimizer uses aggregated pair counts, analytic scores and sensitivity.
+    The fit is the multi-trait Algorithm L of the module docstring: aggregated
+    pair counts, analytic scores and sensitivity.
     Failed, infeasible or nonstationary solutions raise. Interior sampling SEs
     use family-cluster score variation and a delta method for correlations;
     any PSD/residual boundary withholds all normal SEs. A composite likelihood
@@ -390,14 +455,17 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
     probability_limits = _probability_limits(thresholds, eps)
     n, d = len(families), len(order)
     def matrices(x):
+        """Component matrices (requested, then ``E``) at ``x``."""
         return offset + np.einsum('cpqt,t->cpq', basis, x)
 
     def cone(x):
+        """Eigenvalues of every component (``E`` shifted by ``-eps``); feasible when >= 0."""
         values = np.linalg.eigvalsh(matrices(x))
         values[-1] -= eps
         return values.ravel()
 
     def cone_jac(x):
+        """Eigenvalue derivatives ``v_k' B_t v_k`` of `cone`."""
         _, vectors = np.linalg.eigh(matrices(x))
         return np.einsum('cik,cijt,cjk->ckt', vectors, basis, vectors).reshape(-1, d)
 
@@ -405,6 +473,7 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
                    dict(type="ineq", fun=lambda x: np.r_[1-eps-design@x, 1-eps+design@x],
                         jac=lambda x: np.r_[-design, design])]
     def objective(x):
+        """Per-family extended criterion and gradient for SLSQP."""
         value, gradient, _, _ = _multi_criterion(x, thresholds, design, counts, probability_limits)
         return value/n, gradient/n
 
@@ -421,6 +490,7 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
     # Projected score check for the PSD cone, including repeated zero eigenvalues.
     target = x - gradient/n
     def projection(z):
+        """Squared distance to ``x - grad / n``, for the projected-score check."""
         delta = z-target
         return .5*float(delta@delta), delta
     projected = minimize(projection, x, jac=True, method="SLSQP", constraints=constraints, bounds=bounds,

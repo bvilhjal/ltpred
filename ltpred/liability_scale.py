@@ -8,11 +8,12 @@ by the prevalence. Everything in this module follows from that identity.
 residual variance to one. For a SNP with minor-allele frequency ``f`` and effect
 ``beta``, ``2 f (1-f) beta^2`` is genetic variance in those residual-variance
 units. It is not yet a fraction of total latent variance; for a single predictor
-that fraction is ``q / (1 + q)``. `probit_liability_r2` retains its
-historical name but documents this distinction explicitly.
+that fraction is ``q / (1 + q)``. `probit_liability_r2` returns ``q`` by
+default despite its name; ``fraction=True`` gives ``q / (1 + q)``.
 
 A squared GWAS z-statistic contains one unit of expected null sampling noise.
-`liability_r2_from_z` subtracts that null contribution by default; set
+`liability_r2_from_z` subtracts that null contribution by default,
+``((z^2 - 1) / N) * c`` with ``c`` the Lee factor below; set
 ``subtract_null=False`` only when the raw second moment is deliberately wanted.
 
 **The Lee transformation is a bridge to the observed scale.** When
@@ -134,10 +135,11 @@ def liability_r2_from_z(z: ArrayLike, n: ArrayLike, pop_prev: ArrayLike,
     ascertainment factor drops out (population samples). ``n`` is the per-SNP
     sample size (scalar or per-SNP array). Null subtraction is unbiased in
     expectation but permits negative per-SNP estimates; aggregate before
-    interpreting. Marginal per-SNP signals may be summed only across independent
+    interpreting; it assumes a calibrated null (``E[z²] = 1``, no residual
+    inflation). Marginal per-SNP signals may be summed only across independent
     or suitably LD-pruned variants; otherwise use an LD-aware aggregation to
-    avoid counting tagged signal repeatedly. Set ``subtract_null=False`` to
-    recover the historical raw second-moment calculation ``z² / N``.
+    avoid counting tagged signal repeatedly. Set ``subtract_null=False`` for
+    the raw second-moment calculation ``(z² / N) * c``.
     """
     z = np.asarray(z, dtype=float)
     n = np.asarray(n, dtype=float)

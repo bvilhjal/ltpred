@@ -1,51 +1,49 @@
-"""Fit liability-scale variance components from family data (data-augmentation fixed point).
+"""Fit liability-scale variance components from family data (stochastic moment fixed point).
 
-Everywhere else in ltpred the family covariance is *given* — you supply ``h2`` and
-the estimator conditions on it. This module instead **fits** it: it estimates the
-liability-scale heritability ``h2`` from the pattern of case/control (and
-age-of-onset) statuses across relatives, by treating the latent liabilities as
-missing data.
+Everywhere else in ltpred the family covariance is *given*; here it is fitted.
+`fit_heritability` fits the additive proportion ``h2``; `fit_variance_components`
+fits proportions ``theta_c`` for a subset of the kernels ``A`` (additive
+relationship, ``2 * kinship``), ``C`` (full-sib indicator) and ``M`` (mate-pair
+indicator), with ``Sigma = sum_c theta_c K_c + (1 - sum_c theta_c) I`` on the
+unit-variance liability scale (`_component_matrix`). The latent liabilities
+are missing data; see the methods report, "Fitting h² is a different problem".
 
-The sampler is inspired by bipred's joint effect/parameter Gibbs: each sweep it
-(1) **augments** the latent liabilities — one persistent truncated-MVN draw per
-family under the current covariance — and (2) **updates** the covariance parameter
-from those draws with a damped moment step. The update is a Haseman–Elston-style
-regression of the sampled liability cross-products on the additive relationship,
+**Algorithm H** (both fitters; `_fit_component_engine`).
 
-    h2_hat = sum_pairs A_ij * l_i l_j  /  sum_pairs A_ij^2 ,
+- **H1. Screen.** Families are assumed independent and must not share a
+  ``pid``; each trait must have one common one-sided threshold ``t`` -- no pins, intervals
+  or person-specific thresholds (`_assert_common_thresholds`) -- and each role's
+  (weighted) case rate must be consistent with ``K = 1 - Phi(t)``
+  (`_assert_population_case_rate`).
+- **H2. Design.** Group families by role set. Every within-family pair ``i < j``
+  with a nonzero kernel row ``x_ij = (K_c[i, j])_c`` enters
+  ``X'WX = sum_f w_f sum_(i,j) x_ij x_ij'`` (``w_f = 1`` without IPW). Raise
+  unless ``X'WX`` and the rows of jointly observed pairs have full rank.
+- **H3. Initialise.** ``theta = h2_init`` (or ``0.5 / n_components`` each); each
+  family's chain starts at its members' marginal truncated medians.
+- **H4. Augment.** Advance every family's persistent truncated-MVN chain
+  ``l_f | bounds, Sigma(theta)`` by ``inner_sweeps`` Gibbs sweeps
+  (`ltpred.gibbs.gibbs_advance`).
+- **H5. Regress.** ``theta_hat = (X'WX)^-1 sum_f w_f sum_(i,j) x_ij l_fi l_fj``:
+  the Haseman-Elston moment equation ``E[l_i l_j] = x_ij' theta``. One component
+  is exact division; several add a ``1e-10`` ridge.
+- **H6. Clamp and damp.** Clip each ``theta_hat_c`` to ``[eps, 1 - eps]``, scale
+  the vector down to sum ``1 - eps`` if it exceeds that, then
+  ``theta <- (1 - damp) theta + damp theta_hat``. The residual is positive
+  after the first update, so ``Sigma`` stays positive definite.
+- **H7. Summarise.** Repeat H4-H6 ``n_iter`` times and drop ``burn_in`` iterates.
+  The estimate is the mean of the retained trace; its SE is the batch-means
+  Monte-Carlo SE of that mean (`ltpred.estimate.batch_means`).
 
-pooled over all related pairs in all families, then damped
-``h2 <- (1 - damp) h2 + damp h2_hat`` for cross-sweep stability. Conditional
-cross-products reconstruct population moments directly for independent,
-unascertained population-sampled families. Known, strictly positive family-level
-selection probabilities can instead be handled by inverse-probability weighting;
-unknown probabilities, zero-probability strata, and overlapping pedigrees require
-an estimator that models the sampling process.
-
-`fit_heritability` fits the single additive component. `fit_variance_components`
-generalises the same data-augmentation to several components via a **multiple**
-Haseman-Elston regression (regressing the sampled cross-products on more than one
-relationship matrix at once), fitting additive ``A`` alongside a **bank of
-relationship-specific shared-environment components** — ``C`` (full-sib / sibship
-environment) and ``M`` (couple / spousal environment) — chosen from
-``_COMPONENT_OFFDIAG``. The shipped environment components are equivalence-class
-partitions of the pedigree (groups that fully share one environmental deviation),
-so their relationship matrices are positive-semidefinite by construction;
-different components load on **different relationship contrasts** (``C`` on the
-full-sib excess, ``M`` on the resemblance between genetically-unrelated mates), so
-a multi-generational pedigree can identify several at once when those contrasts are
-linearly independent. All reuse the collapsed truncated-MVN draw. Repository
-benchmarks found small bias relative to across-dataset variability in the tested
-designs. A dominance component would require an explicit dominance kernel and a
-richer relationship design; it is not offered.
-
-This module is the lean fitting core that feeds back into prediction. The
-inferential machinery built on top of it — the Monte-Carlo EM likelihood
-variance-component fit, the multi-trait genetic-correlation and onset-age-decay
-fits, the common-factor model, the parametric-bootstrap significance tests, and
-the genetic-nurture moment fit — lives in ``research/advanced_fitting.py`` as
-unsupported research code. `bootstrap_fit` here is the family-cluster
-resampling helper shared by those fits and these.
+By total expectation the pooled products recover ``x_ij' theta`` only when every
+liability comes from one ``N(0, 1)`` population cut at one threshold and the
+family mix is the population mix. IPW with ``w_f = 1 / P(family sampled)``
+(in both ``X'WX`` and the products) restores the mix, but not a stratum that
+had zero inclusion probability. The SE therefore measures only this run's
+Monte-Carlo noise on this dataset, not sampling uncertainty; `bootstrap_fit`
+resamples whole families and refits for that. Traces are fixed-point iterates,
+not posterior draws. Likelihood-based and multi-trait fits built on this core
+live in ``research/advanced_fitting.py`` as unsupported research code.
 """
 
 from __future__ import annotations
@@ -187,7 +185,7 @@ def _member_bounds(families, n_pheno):
     """Every member's bounds as ``(M, n_pheno)`` arrays, plus roles and family index.
 
     Rows are stacked family-major with members **sorted by role** within each
-    family, so consumers with the same per-family ordering (`fit_pairwise`'s
+    family, so consumers with the same per-family ordering (`fit_pairwise_multi`'s
     pair aggregation) can index their rows directly. Scalars broadcast across
     traits; the per-member fallback raises the same shape error
     ``np.broadcast_to`` gives for a wrong-length bound."""
@@ -239,6 +237,11 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None,
     distribution. The binomial SE uses Kish's effective sample size
     ``(sum w)^2 / sum w^2``, so heavy weights widen the tolerance instead of
     manufacturing significance.
+
+    Rule, per (role, trait) over informative members only: skip when the
+    effective ``n < 30``; otherwise raise, naming the worst cell, when
+    ``|z| >= 6`` *and* the observed/expected ratio lies outside
+    ``[1/1.15, 1.15]``.
     """
     lo_all, hi_all, roles, fam_index = (member_bounds if member_bounds is not None
                                         else _member_bounds(families, n_pheno))
@@ -529,14 +532,15 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     dose-response shows that is not harmless.
 
     ``families`` is a list of `ltpred.family.Family` whose members carry
-    liability bounds (from a threshold builder). Alternates a Gibbs augmentation of
-    the latent liabilities with a damped Haseman–Elston update of ``h2`` — a
-    **stochastic-approximation fixed point** (not posterior sampling of ``h2``) that
-    settles at the value consistent with the familial resemblance (see the module
-    docstring). ``inner_sweeps`` truncated-MVN sweeps are taken per outer
-    iteration; ``damp`` in ``(0, 1]`` controls the moment-update stability and
-    ``eps`` in ``[1e-8, 0.5)`` keeps the covariance away from a singular boundary.
-    Returns a `FitResult`.
+    liability bounds (from a threshold builder). The fit is Algorithm H of the
+    module docstring with the single kernel ``A``: Gibbs augmentation of the
+    latent liabilities alternating with a damped Haseman–Elston update
+    ``h2_hat = sum w_f A_ij l_i l_j / sum w_f A_ij^2`` -- a
+    **stochastic-approximation fixed point**, not posterior sampling of ``h2``.
+    ``inner_sweeps`` truncated-MVN sweeps are taken per outer iteration; ``damp``
+    in ``(0, 1]`` is the update step and ``eps`` in ``[1e-8, 0.5)`` clamps each
+    update to ``[eps, 1 - eps]``. Returns a `FitResult`; its ``h2_se`` is the
+    batch-means Monte-Carlo SE of the post-burn-in trace mean.
 
     Needs relatives (at least one related pair); a set of lone probands carries no
     information about ``h2`` and raises. ``seed`` must be a non-boolean integer in
@@ -626,6 +630,10 @@ class VarCompResult:
 def _component_matrix(roles, comp):
     """Relationship matrix ``K`` for one variance component (diagonal 1).
 
+    Off-diagonals over the sorted ``roles``: ``A`` is the additive relationship
+    (``get_relatedness(a, b, 1.0)``), ``C`` is 1 for full sibs, ``M`` is 1 for a
+    mate pair (`_COMPONENT_OFFDIAG`).
+
     A valid variance component has a positive-semidefinite ``K`` (the additive
     relationship is PSD for any consistent pedigree; an equivalence-class partition
     is one sufficient construction for a shared-environment kernel). A non-PSD ``K`` — e.g. a
@@ -649,13 +657,16 @@ def _component_matrix(roles, comp):
 
 def _prepare_component_group(families, idx, comps, weights=None, *,
                              context="variance-component fit bounds"):
-    """Precompute one shared-structure group for the component engine."""
+    """Precompute one role-set group for Algorithm H.
+
+    Returns kernels, the nonzero-kernel pairs with their design rows, role-sorted
+    bounds, IPW weights and the initial chain state (marginal truncated medians)."""
     roles = sorted(m.role for m in families[idx[0]].members)
     k = len(roles)
     F = len(idx)
     # A component kernel may legitimately be singular: an exact shared-class
     # block is rank one. Keep it exact so fitting and prediction use the same
-    # kernel; the assembled liability covariance is made strictly PD below.
+    # kernel; the assembled covariance is strictly PD once the residual is positive.
     K = {c: _component_matrix(roles, c) for c in comps}
     pairs = []                                    # (i, j, predictor row of K_c[i,j])
     for i in range(k):
@@ -720,7 +731,10 @@ def _assert_observed_identification(groups, comps, n_pheno=1, *, context):
 def _fit_component_engine(families, comps, initial, *, n_iter, burn_in,
                           inner_sweeps, damp, seed, eps, weights, context,
                           identification_error=None):
-    """Run the common collapsed-Gibbs/multiple-HE fixed-point engine."""
+    """Run Algorithm H steps H2-H7 (module docstring) for components ``comps``.
+
+    Returns ``(trace, post-burn-in samples, estimate, batch-means SE)``; the
+    engine behind both `fit_heritability` and `fit_variance_components`."""
     C = len(comps)
     groups = [
         _prepare_component_group(families, idx, comps, weights, context=context)
@@ -800,16 +814,15 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
     saturate, exhausting the residual variance rather than sitting at the
     elementwise clamp.
 
-    Generalises `fit_heritability` from one component to several. Each sweep
-    it (1) draws the latent liabilities from the **full family truncated-MVN**
-    ``N(0, sum_c h2_c K_c + e2 I)`` (the well-mixing collapsed data-augmentation
-    step, shared with `fit_heritability`), then (2) updates all proportions
-    at once by regressing the sampled cross-products on the component relationship
-    matrices over every related pair,
+    Generalises `fit_heritability` from one component to several (Algorithm H
+    of the module docstring). Each sweep it (1) advances the latent liabilities
+    under the **full family truncated-MVN** ``N(0, sum_c h2_c K_c + e2 I)``, then
+    (2) updates all proportions at once by regressing the sampled cross-products
+    on the component relationship matrices over every related pair,
 
-        [h2_c] = (X'X)^-1 X'y ,   X[p, c] = K_c[i, j] ,   y[p] = l_i l_j ,
+        [h2_c] = (X'WX)^-1 X'Wy ,   X[p, c] = K_c[i, j] ,   y[p] = l_i l_j ,
 
-    damped across sweeps for stability. Unlike a single-``h2`` fit this separates
+    clamped and damped across sweeps (``W`` holds the IPW family weights). Unlike a single-``h2`` fit this separates
     relative *kinds* when the supplied pedigrees yield linearly independent
     relationship contrasts: ``A`` by the parent-offspring /
     grandparent / avuncular relatednesses, ``C`` by the full-sib excess, ``M`` by
@@ -885,7 +898,7 @@ class BootstrapResult:
     """Result of `bootstrap_fit`.
 
     ``estimate`` is the point estimate from the full data; ``se`` the bootstrap
-    standard error (SD of the resampled estimates); ``ci_low`` / ``ci_high`` the
+    standard error (SD, ``ddof=1``, of the resampled estimates); ``ci_low`` / ``ci_high`` the
     percentile confidence interval at ``ci_level``; ``samples`` the ``(n_boot, …)``
     array of per-resample estimates. Shapes follow whatever the estimator returns
     (scalar → 0-d arrays; vector/matrix → that shape)."""
@@ -908,7 +921,9 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *,
     `fit_variance_components` is a
     *within-dataset* Monte-Carlo diagnostic and can substantially understate
     sampling variability. This helper resamples families with replacement
-    ``n_boot`` times and reports the refit SD and percentile interval. Its sampling
+    ``n_boot`` times (whole `ltpred.family.Family` objects, so a duplicate keeps
+    its ``fam_id`` and passes the fitters' ``pid`` overlap check) and reports the
+    refit SD and percentile interval around the full-data estimate. Its sampling
     interpretation assumes independent, non-overlapping family clusters and
     either representative sampling or valid aligned IPW; it is not
     bias-corrected, studentized, or automatically calibrated at boundaries.

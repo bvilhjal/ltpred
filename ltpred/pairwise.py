@@ -1,16 +1,43 @@
 """Deterministic variance components from binary relative-pair likelihoods.
 
-The family score answers a different question from this fitter. Here the target
-is the covariance parameter, so there is no need to impute every liability:
-each observed pair contributes one of four bivariate-normal probabilities.
-Common thresholds let us collect those counts by relationship pattern once.
+`fit_pairwise` estimates the proportions ``theta_c`` of `ltpred.fit` -- same
+``A``/``C``/``M`` kernels, same input and sampling contract -- by maximising a
+composite likelihood instead of augmenting liabilities (see the efficient
+inference report, "Fit covariance parameters by pairwise likelihood"). A pair
+of relatives has liability correlation ``rho_ij = x_ij' theta`` with
+``x_ij = (K_c[i, j])_c``, and at the common threshold ``t`` its binary
+outcome has one of four bivariate-normal cell probabilities ``p_ab(t, rho)``.
 
-This is a composite likelihood, not the full family likelihood. Its Hessian
-alone does not measure sampling uncertainty: several pairs can share a family.
-The reported interior covariance sandwiches family-level score variability
-between inverse observed sensitivities. Thresholds and any IPW weights are
-treated as supplied constants. These are asymptotic conditional uncertainties,
-not a claim of finite-sample calibration or an ascertainment likelihood.
+**Algorithm L.**
+
+- **L1. Screen.** As Algorithm H1 (`ltpred.fit`). IPW weights are rescaled to
+  mean one; the case-rate screen uses the rescaled weights.
+- **L2. Tabulate.** In each role-set group, every within-family pair ``i < j``
+  with a nonzero row ``x_ij`` contributes the families in which both members are
+  observed (a finite bound). Pairs sharing ``x_ij`` share one weighted 2x2 table
+  ``n_ab = sum w_f`` (cells: both cases, first only, second only, neither).
+  Raise unless the distinct observed rows have full rank (`_prepare_pairs`).
+- **L3. Criterion.** ``-ell_c(theta) = -sum_x sum_ab n_ab log p_ab(t, x' theta)``
+  with analytic gradient and exact Hessian (`_criterion`, `_pair_probabilities`).
+- **L4. Optimise.** SLSQP on ``-ell_c / n_families`` from
+  ``theta_c = (1 - eps) / (2 p)`` with ``theta_c >= 0`` and
+  ``sum theta <= 1 - eps``. Raise on solver failure, infeasibility, or a KKT
+  violation (reduced gradient with the sum-constraint multiplier) above
+  ``max(1e-5, 10 sqrt(tol))``.
+- **L5. Covariance.** ``V = H^-1 J H^-1`` (`_cluster_sandwich`): ``H`` is the
+  Hessian of ``-ell_c`` (observed sensitivity), ``J = n/(n-1) sum_f (s_f -
+  s_bar)(s_f - s_bar)'`` over all ``n`` input families, ``s_f`` the weighted sum
+  of family ``f``'s pair scores. ``V`` and the SEs are NaN when some ``theta_c``
+  or ``1 - eps - sum theta`` is within ``max(1e-7, 10 tol)`` of zero, when
+  ``n <= p``, or when ``H`` is not positive definite or ``H``/``J`` lack full rank.
+
+Pair tables compress the composite objective only; they are not sufficient for
+the full family likelihood. Pairs within a family share members, so the inverse
+Hessian alone understates sampling variance; the sandwich treats families as
+the independent units. Thresholds and weights are held fixed, so ``V`` is an
+asymptotic covariance conditional on them -- not a finite-sample calibration
+claim, an ascertainment likelihood, or a basis for ordinary likelihood-ratio
+tests.
 """
 
 from __future__ import annotations
@@ -69,11 +96,14 @@ class PairwiseFitResult:
 def _pair_probabilities(threshold, rho):
     """Same-threshold probabilities and first two correlation derivatives.
 
-    Cell order is both cases, first only, second only, neither. Plackett's
-    identity integrates the bivariate density from zero correlation. With
-    rho=sin(angle), the endpoint singularity disappears. Discordant cells are
-    integrated *from rho to one*, avoiding subtraction of nearly equal tails.
-    No probability flooring silently changes the likelihood.
+    Cell order is both cases, first only, second only, neither. With
+    ``I(a, b) = int_a^b exp(-t^2 / (1 + sin u)) / (2 pi) du`` (Plackett's
+    identity with ``rho = sin u``, which removes the endpoint singularity),
+    ``p11 = K^2 + I(0, asin rho)``, ``p00 = (1-K)^2 + I(0, asin rho)`` and
+    ``p10 = p01 = I(asin rho, pi/2)``: discordant cells are integrated *from rho
+    to one*, avoiding subtraction of nearly equal tails. Derivatives are
+    ``+-phi2(t, t; rho)`` and its ``rho`` derivative. Requires ``0 <= rho < 1``;
+    no probability flooring silently changes the likelihood.
     """
     if not np.isfinite(threshold) or not np.isfinite(rho) or not 0 <= rho < 1:
         raise ValueError("pair probabilities require a finite threshold and 0 <= rho < 1")
@@ -87,6 +117,7 @@ def _pair_probabilities(threshold, rho):
         t2 = threshold * threshold
 
         def integrand(theta):
+            """``phi2(t, t; rho) d rho / d theta`` with ``rho = sin(theta)``."""
             return math.exp(-t2 / (1 + math.sin(theta))) / (2 * math.pi)
 
         extra = quad(integrand, 0, angle, epsabs=0, epsrel=5e-12)[0]
@@ -103,7 +134,11 @@ def _pair_probabilities(threshold, rho):
 
 
 def _prepare_pairs(families, components, weights):
-    """Aggregate likelihood counts, retaining only Boolean observations for SEs."""
+    """Algorithm L2: aggregate weighted 2x2 pair tables by kernel row.
+
+    Returns ``(threshold, design rows, counts, groups, n_pairs)``; ``groups``
+    keeps each role-set's Boolean case/observed masks and pair-to-row map for
+    the family scores, and ``n_pairs`` counts unweighted observed pairs."""
     patterns, counts, groups = [], [], []
     lookup = {}
     threshold = None
@@ -147,7 +182,10 @@ def _prepare_pairs(families, components, weights):
 
 
 def _criterion(values, threshold, design, counts):
-    """Negative composite log likelihood, gradient and observed sensitivity."""
+    """Negative composite log likelihood, gradient and observed sensitivity.
+
+    The sensitivity is the exact Hessian ``sum n_ab (s^2 - p''/p) x x'`` with
+    ``s = p'/p``; ``cell_scores[k, ab] = s_ab x_k`` is ``d log p_ab / d theta``."""
     value = 0.
     gradient = np.zeros(len(values))
     hessian = np.zeros((len(values), len(values)))
@@ -163,6 +201,9 @@ def _criterion(values, threshold, design, counts):
 
 
 def _family_scores(groups, cell_scores, weights):
+    """Per-family composite scores ``w_f sum_(pairs in f) d log p / d theta``.
+
+    One row per input family; families without observed pairs score zero."""
     scores = np.zeros((len(weights), cell_scores.shape[-1]))
     for indices, cases, observed, pairs in groups:
         for i, j, k in pairs:
@@ -173,7 +214,11 @@ def _family_scores(groups, cell_scores, weights):
 
 
 def _cluster_sandwich(hessian, groups, cell_scores, weights, at_boundary):
-    """Sampling covariance from independent family scores, or a reason to withhold it."""
+    """Sampling covariance from independent family scores, or a reason to withhold it.
+
+    Algorithm L5: ``H^-1 J H^-1`` with centred family scores and factor
+    ``n/(n-1)``. Returns ``(covariance, inference_status)``; the status is
+    ``interior_cluster_sandwich`` or ``unavailable_boundary``/``_clusters``/``_information``."""
     n, p = len(weights), hessian.shape[0]
     covariance = np.full((p, p), np.nan)
     if at_boundary:
@@ -220,8 +265,9 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
     The marginal case-rate screen can reject an inconsistent design but cannot
     establish joint positivity, independent clusters, or correct weights.
 
-    SLSQP uses analytic scores and a deterministic probability calculation.
-    Failed or infeasible optimizer results raise instead of being returned.
+    The fit is Algorithm L of the module docstring: SLSQP with analytic scores
+    and a deterministic probability calculation. Failed, infeasible or
+    non-stationary optimizer results raise instead of being returned.
     Interior sampling SEs use the observed sensitivity and centered, weighted
     family score outer products (finite-cluster factor n/(n-1)). They are
     asymptotic, conditional on the supplied threshold/weights; no ordinary
@@ -267,6 +313,7 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
     cap = 1 - eps
 
     def objective(values):
+        """Per-family criterion and gradient for SLSQP."""
         value, gradient, _hessian, _scores = _criterion(values, threshold, design, counts)
         return value / n, gradient / n
 
