@@ -23,7 +23,6 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 - Condensed this changelog, merged the six dated reviews into
   `docs/REVIEWS.md`, merged `docs/PAPER_PLAN.md` into `docs/ROADMAP.md`,
-  removed the redirect stubs for the retired guide, vignette and report pages,
   and dropped redundant files from the benchmark evidence capsules.
 
 ## 0.7.4 — 2026-09-25
