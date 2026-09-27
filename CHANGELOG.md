@@ -18,7 +18,6 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 - `scripts/check_evidence.py` pins `bench_scaling.csv` by its SHA-256 instead
   of resolving a `v0.4.0` tag that was never pushed; the docs CI job had
   failed on `main` since v0.7.4.
-
 - `docs/inference.md` again states the cost difference between the sampling
   and deterministic fitters (lost when the method guide was retired in
   v0.7.4). Speedup figures for v0.7.1 and v0.7.4 that no committed artifact
@@ -26,9 +25,26 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 - A register-driver test now shows that `cip_by_stratum` routes each record
   to its own curve; before, only permutation invariance was tested.
 
+### Removed
+
+- `ltpred.gibbs.gibbs_advance_moment` and `_offset_seed`, used only by the
+  checkout-only `research/` fitters, moved to `research/advanced_fitting.py`
+  (outputs bit-identical). The private compatibility wrapper
+  `fit._prepare_group_vc` and an unreachable branch in `fit_pairwise` are
+  gone. `bench_calibration.csv` drops its ten all-NaN `*_gibbs` columns.
+
+### Tests
+
+- `test_review_regressions.py` is split into the module test files; the three
+  benchmark test files are one `test_benchmarks.py`; `test_validation.py`
+  merged into `test_validation_numbers.py`. Two duplicate tests are removed,
+  and tests no longer pass Gibbs controls to the PA default (suite warnings
+  12 → 1).
+
 ### Documentation
 
-- Condensed this changelog; merged the six dated reviews into one
+- Condensed this changelog and the benchmark ledger (`RESULTS.md` 1,904 →
+  1,462 lines, no result changed); merged the six dated reviews into one
   [review ledger](docs/REVIEWS.md) of open, declined and resolved findings;
   merged `docs/PAPER_PLAN.md` into `docs/ROADMAP.md`, whose priorities now
   include the open review findings; dropped redundant files from the
