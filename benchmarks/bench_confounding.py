@@ -159,7 +159,9 @@ def main():
 
     write_csv(rows)
     plot(rows)
-    print("\nwrote bench_confounding.csv and bench_confounding.png")
+    print("\nwrote bench_confounding.csv")
+    if get_plt() is not None:
+        print("wrote bench_confounding.png")
 
 
 def write_csv(rows):

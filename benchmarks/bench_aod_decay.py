@@ -8,10 +8,11 @@ decays with the onset-age difference between relatives,
 
 by a Monte-Carlo EM (a likelihood M-step, *not* a Haseman-Elston moment step --
 the latter is confounded by age-dependent ascertainment truncation, see
-docs/algorithm.md). The properties that matter are (i) whether the headline
-**genetic correlation** rho_g is recovered, (ii) whether the **decay rate**
-lambda is identified at all, and (iii) how much **data** that takes -- the model
-has an amplitude-decay ridge that makes it data-hungry. This benchmark fits many
+docs/research.md, "Onset-age-structured genetic correlation"). The properties
+that matter are (i) whether the headline **genetic correlation** rho_g is
+recovered, (ii) whether the **decay rate** lambda is identified at all, and
+(iii) how much **data** that takes -- the model has an amplitude-decay ridge
+that makes it data-hungry. This benchmark fits many
 independent simulated two-trait cohorts and reports:
 
   (a) **recovery vs true lambda** (incl. the scalar null lam=0, which must not
@@ -222,7 +223,9 @@ def main():
 
     write_csv(rows)
     plot(panel_a, panel_b, panel_d, lam_max)
-    print("\nwrote bench_aod_decay.csv and bench_aod_decay.png")
+    print("\nwrote bench_aod_decay.csv")
+    if get_plt() is not None:
+        print("wrote bench_aod_decay.png")
 
 
 def write_csv(rows):

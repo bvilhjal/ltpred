@@ -9,14 +9,15 @@ families under the model (h2 = 0.5, prevalence 0.1) and checks, over 5
 replicates of 20,000 families:
 
   1. Pairwise tetrachoric correlations from STATUSES recover h2 * A for
-     proband-parent, proband-sib, sib-sib, proband-grandmother,
+     proband-parent (mother and father), proband-sib, a second
+     parent-offspring pair (mother-sib), proband-grandmother,
      proband-uncle, and the mate pair (expected 0).
   2. They agree with the Pearson correlation computed on the LATENT
      liabilities themselves (the estimand the binary table approximates).
   3. The Falconer heritability estimate h2 ~ 2 * tetrachoric(first-degree)
      recovers the true h2, and agrees with the package's fit_heritability.
 
-Run:  conda run -n ltpred python benchmarks/bench_tetrachoric.py
+Run:  conda run -n ltpred314 python benchmarks/bench_tetrachoric.py
 """
 
 from __future__ import annotations

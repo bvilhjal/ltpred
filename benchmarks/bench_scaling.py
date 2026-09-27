@@ -207,7 +207,9 @@ def main():
 
     path = write_csv(nfam_rows + size_rows)
     plot(nfam_rows, size_rows)
-    print(f"\nwrote {os.path.basename(path)} and bench_scaling.png")
+    print(f"\nwrote {os.path.basename(path)}")
+    if get_plt() is not None:
+        print("wrote bench_scaling.png")
 
 
 if __name__ == "__main__":

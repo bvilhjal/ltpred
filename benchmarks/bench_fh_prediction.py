@@ -488,7 +488,9 @@ def main():
 
     write_csv(rows)
     plot(rows, args)
-    print("\nwrote bench_fh_prediction.csv and bench_fh_prediction.png")
+    print("\nwrote bench_fh_prediction.csv")
+    if get_plt() is not None:
+        print("wrote bench_fh_prediction.png")
 
 
 def write_csv(rows):

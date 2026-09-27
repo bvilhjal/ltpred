@@ -18,7 +18,7 @@ delayed entry (register starts mid-life). It then asks:
          oracle-CIP arm (both should sit near 1; cf. the wrong-CIP effect in
          bench_misspecification.py).
 
-Run:  conda run -n ltpred python benchmarks/bench_cip_estimation.py
+Run:  conda run -n ltpred314 python benchmarks/bench_cip_estimation.py
 """
 
 from __future__ import annotations

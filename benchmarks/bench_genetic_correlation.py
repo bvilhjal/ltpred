@@ -207,7 +207,9 @@ def main():
               srmr_true1f=(srmr_1f.mean(), srmr_1f.std(ddof=1)),
               srmr_1f=(s1.mean(), s1.std(ddof=1)),
               srmr_2f=(s2.mean(), s2.std(ddof=1))))
-    print("\nwrote bench_genetic_correlation.csv and bench_genetic_correlation.png")
+    print("\nwrote bench_genetic_correlation.csv")
+    if get_plt() is not None:
+        print("wrote bench_genetic_correlation.png")
 
 
 def write_csv(rows):

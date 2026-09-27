@@ -31,7 +31,7 @@ Pre-registered reads: control matches the repo's other no-mixture benchmarks
 (bias in slope/corr), with assortative mating expected to inflate the score's
 dispersion (slope < 1) and sibship-env to inflate the additive estimate.
 
-Run:  conda run -n ltpred python benchmarks/bench_misspecification.py
+Run:  conda run -n ltpred314 python benchmarks/bench_misspecification.py
 """
 
 from __future__ import annotations
@@ -121,7 +121,8 @@ def estimate(true_g, L, status, prev_assumed):
 def main():
     # This benchmark takes no options. Parse anyway, so that `--help`
     # prints the docstring and a stray argument is refused instead of
-    # silently ignored while the run overwrites the committed CSV.
+    # silently ignored while the run reports numbers for a configuration it
+    # did not use.
     argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()

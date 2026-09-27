@@ -32,7 +32,7 @@ t-based 95% CIs (section 15 convention):
 Writes `benchmarks/bench_register_pipeline.csv` in long format
 (rep, metric, value; rep 0 marks the single-run part).
 
-Run:  conda run -n ltpred python benchmarks/bench_register_pipeline.py
+Run:  conda run -n ltpred314 python benchmarks/bench_register_pipeline.py
 """
 
 from __future__ import annotations

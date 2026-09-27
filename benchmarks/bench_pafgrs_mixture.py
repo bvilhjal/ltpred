@@ -9,7 +9,7 @@ precedes the current age; otherwise it is a censored control carrying its
 individual cumulative incidence K_i), then ask whether the mixture recovers the
 posterior mean genetic liability better than the naive no-mixture encoding.
 
-Two observation models, because the mixture's value depends on how onset works:
+Three observation models, because the mixture's value depends on how onset works:
 
   * CROSSING (the LT-FH++ convention, used by `simulate_under_LTM_single`):
     liability is fixed at birth and onset occurs when the age-specific

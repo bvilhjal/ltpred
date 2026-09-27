@@ -25,7 +25,7 @@ children, remarriages, cousins), then checks:
 Writes `benchmarks/bench_pedigree_inference.csv` in long format
 (rep, metric, value; rep 0 marks the single-run parts).
 
-Run:  conda run -n ltpred python benchmarks/bench_pedigree_inference.py
+Run:  conda run -n ltpred314 python benchmarks/bench_pedigree_inference.py
 """
 
 from __future__ import annotations

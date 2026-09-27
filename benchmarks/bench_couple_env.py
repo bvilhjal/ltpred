@@ -28,7 +28,7 @@ from `a2 A + s2 K + e2 I`, thresholded, so ground truth is known):
       variance `s2` in once as `C` (sibship) and once as `M` (couple), then fit the
       **additive-only** model `("A",)`. The `C` version inflates `A`; the `M`
       version is much less biased. This is the identifiability contrast the theory
-      predicts (algorithm.md, *Relationship-specific environments and identifiability*).
+      predicts (methods report, section "Covariance": the C/M identification contrast).
 
     python benchmarks/bench_couple_env.py
     python benchmarks/bench_couple_env.py --reps 40 --n-fam 4000
@@ -138,7 +138,9 @@ def main():
 
     write_csv(rows)
     plot(panel_a, panel_b, a2)
-    print("\nwrote bench_couple_env.csv and bench_couple_env.png")
+    print("\nwrote bench_couple_env.csv")
+    if get_plt() is not None:
+        print("wrote bench_couple_env.png")
 
 
 def write_csv(rows):
