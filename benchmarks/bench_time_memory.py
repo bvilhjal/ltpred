@@ -1,7 +1,11 @@
 """Matched runtime/allocation pilot against a Git revision; synthetic inputs.
 
-Run from the checkout: .venv/bin/python benchmarks/bench_time_memory.py
+Run from the checkout with the measured version's interpreter (ltpred314
+since v0.7.1): python benchmarks/bench_time_memory.py
     --output /tmp/ltpred-time-memory --baseline-ref HEAD
+
+On macOS it refuses to time on battery or in Low Power Mode; elsewhere the
+power guard records `not_applicable`.
 
 Each source/case gets separate timing and allocation processes. Timing reports
 first call (including reached JIT compilation) and warm calls; whole-process

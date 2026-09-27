@@ -24,6 +24,28 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   backs are restated qualitatively below.
 - A register-driver test now shows that `cip_by_stratum` routes each record
   to its own curve; before, only permutation invariance was tested.
+- A family's Gibbs score no longer depends on the other families it is
+  sampled with. The sampler integrates out each family's own unbounded
+  coordinates (Algorithm G, step G2) instead of those unbounded in every
+  family of a batch, so the chunked drivers reproduce the array functions bit
+  for bit and later convergence rounds cannot change a family's chain.
+  **Seeded Gibbs values change** for families whose unobserved relatives
+  differ from others in their structure group (the draws target the same
+  posterior); cohorts where every family has the same observed roles are
+  bit-identical.
+- The PA-FGRS mixture path applies the same pin checks as ordinary PA. A pin
+  on a coordinate that earlier pins already determine (for example one person
+  recorded twice) crashed with an opaque `SystemError`; it now scores as the
+  single pin does, and contradictory pins raise `ValueError`. Other mixture
+  scores are bit-identical.
+- `fit_heritability` and `fit_variance_components` reject `n_iter - burn_in < 4`
+  before sampling; the whole fit used to run first and then fail inside the
+  batch-means SE.
+- `observed_to_liability_h2`, `liability_to_observed_h2` and
+  `liability_r2_from_z` raise on a NaN or infinite `pop_prev`/`prop_cases`
+  instead of returning NaN, as `ltpred.thresholds` already did.
+- `estimate_liability_quadrature_arrays` accepts a length-one `out` sequence
+  (`("genetic",)`), like the other single-column array APIs.
 
 ### Removed
 
@@ -53,6 +75,27 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   merged `docs/PAPER_PLAN.md` into `docs/ROADMAP.md`, whose priorities now
   include the open review findings; dropped redundant files from the
   benchmark evidence capsules.
+- Every core algorithm is stated step by step in its module docstring, with
+  the methods report's step names: G (Gibbs), P (Pearson–Aitken with the
+  pin reduction), M (censoring mixture), Q (quadrature), K (kinship),
+  R (register driver), H (moment fit) and L (pairwise likelihood).
+  `docs/algorithm.md` gains a numbered summary of each. Docstring-only
+  changes; three docstrings that misstated the code are corrected (the
+  batched Gibbs SE denominator, `liability_r2_from_z(subtract_null=False)`,
+  and an unconditional claim that chunked Gibbs reproduces the array API).
+- A second audit checked every public docstring, user guide, benchmark header
+  and the methods report against the code. Parameters, result fields, errors
+  and warnings that went undocumented are now stated (`fit_pairwise*`,
+  `tetrachoric`, the h² bridges, the thresholds, `estimate_liability`,
+  `families_from_columns`); the API pages parse NumPy-style sections; private
+  helper names are gone from user-facing text. Corrected claims include the
+  Gibbs seeding contract (Numba's thread RNG, not NumPy's global one), the
+  chunked-Gibbs equivalence, `Covmat.matrix` in the research examples,
+  benchmark arm counts, run commands and output names, and speedup ratios
+  that no committed artifact backs. The methods report now states P1's fold
+  order, per-family G2 collapse, the G4 far-tail approximation, G6 rounds,
+  Algorithm Q's refinement and mode rules, and the case-rate screen's exact
+  thresholds (PDF rebuilt).
 
 ## 0.7.4 — 2026-09-25
 

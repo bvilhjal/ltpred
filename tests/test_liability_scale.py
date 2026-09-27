@@ -36,6 +36,17 @@ class TestH2Bridges:
         with pytest.raises(ValueError, match="prop_cases"):
             observed_to_liability_h2(0.1, 0.05, 0.0)
 
+    @pytest.mark.parametrize("bad", [np.nan, np.inf, [0.1, np.nan]])
+    def test_non_finite_inputs_raise(self, bad):
+        # consistent with ltpred.thresholds: NaN must not pass through silently
+        for fn in (observed_to_liability_h2, liability_to_observed_h2):
+            with pytest.raises(ValueError, match="pop_prev"):
+                fn(0.2, bad)
+            with pytest.raises(ValueError, match="prop_cases"):
+                fn(0.2, 0.1, bad)
+        with pytest.raises(ValueError, match="pop_prev"):
+            liability_r2_from_z(3.0, 1000, bad)
+
 
 class TestProbitLiabilityR2:
     def test_identity_values(self):

@@ -15,6 +15,10 @@ Two flavours live here because they serve two callers:
 
 Keeping the kernel on the scalar pair (rather than SciPy) is what lets the
 sampler run inside ``numba.njit`` at all.
+
+Upper-tail thresholds are computed by callers as ``-ppf(p)``, using the exact
+symmetry ``Phi^-1(1 - p) = -Phi^-1(p)``: forming ``1 - p`` in floating point
+discards the tail of a small ``p`` and gives ``+inf`` for ``p <~ 1.1e-16``.
 """
 
 from __future__ import annotations

@@ -23,6 +23,8 @@ attributable to ascertainment alone.
 Schemes (selection is on the proband `o` unless stated):
 
   population          every family, no selection        -- the supported contract
+  random_50           half the population, independent of phenotype -- the
+                      negative control for the selection machinery
   proband_case        affected proband                  -- classic family study
   case_control        50/50 affected/unaffected probands -- standard GWAS cohort
   enriched_20         20% affected probands             -- registry/biobank enrichment
@@ -32,7 +34,7 @@ Schemes (selection is on the proband `o` unless stated):
                       contrast that isolates family-history selection, and the
                       design ltpred's own prediction path targets
 
-Six arms:
+Ten arms (`--arms`):
 
   A. h2 recovery under every scheme (`fit_heritability`);
   B. A+C recovery under every scheme (`fit_variance_components`);
@@ -44,16 +46,21 @@ Six arms:
      sampling-noise problem shrinks as 1/sqrt(N), a bias does not.
   E. the same cohort re-fitted at increasing n_iter AND from several starting
      values, to establish that a displaced estimate is a fixed point rather
-     than an unfinished run. n_iter=1500 is amply sufficient at every N
-     tested; the multi-start is the decisive half, because an ascertained fit
-     reaches the ceiling even when started at h2_init=0.05 -- it climbs there
-     from below rather than failing to leave.
+     than an unfinished run. The `--full` campaign's n_iter=1500 is amply
+     sufficient at every N tested (the default run uses --n-iter 800); the
+     multi-start is the decisive half, because an ascertained fit reaches the
+     ceiling even when started at h2_init=0.05 -- it climbs there from below
+     rather than failing to leave.
   F. the Haseman-Elston moment evaluated directly on the selected families'
      TRUE liabilities, centered and uncentered. Arms A-D can only report
      "pinned at the clamp", which is one bit; this arm gives the uncensored
      magnitude of the selected sample's own moment and splits off the
      mean-shift term. It is a decomposition, NOT the cause -- see `_he_moment`
      for the true-h2=0 cell that refutes the causal reading.
+  G. IPW refit with known inclusion probabilities (`sampling="ipw"`);
+  H. dose-response of the fitted h2 to the realised case enrichment;
+  I. specificity of the case-rate guard on legitimate population cohorts;
+  J. whether a Lee observed-to-liability factor can rescue the fit.
 
 Prevalence defaults to 0.05 rather than the 0.10 the other fitter benchmarks
 use, because selection intensity -- and therefore the distortion -- grows as the
@@ -76,7 +83,7 @@ contrast against that arm rather than against zero.
 
     python benchmarks/bench_ascertainment.py --quick
     python benchmarks/bench_ascertainment.py --reps 10 --n-fam 10000
-Writes bench_ascertainment.csv (+ .png if matplotlib is present).
+Writes bench_ascertainment{--tag}.csv (+ .png if matplotlib is present).
 """
 
 import os

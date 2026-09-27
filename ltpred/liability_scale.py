@@ -8,11 +8,12 @@ by the prevalence. Everything in this module follows from that identity.
 residual variance to one. For a SNP with minor-allele frequency ``f`` and effect
 ``beta``, ``2 f (1-f) beta^2`` is genetic variance in those residual-variance
 units. It is not yet a fraction of total latent variance; for a single predictor
-that fraction is ``q / (1 + q)``. `probit_liability_r2` retains its
-historical name but documents this distinction explicitly.
+that fraction is ``q / (1 + q)``. `probit_liability_r2` returns ``q`` by
+default despite its name; ``fraction=True`` gives ``q / (1 + q)``.
 
 A squared GWAS z-statistic contains one unit of expected null sampling noise.
-`liability_r2_from_z` subtracts that null contribution by default; set
+`liability_r2_from_z` subtracts that null contribution by default,
+``((z^2 - 1) / N) * c`` with ``c`` the Lee factor below; set
 ``subtract_null=False`` only when the raw second moment is deliberately wanted.
 
 **The Lee transformation is a bridge to the observed scale.** When
@@ -44,8 +45,8 @@ __all__ = ["observed_to_liability_h2", "liability_to_observed_h2",
 def _z_density(pop_prev):
     """z = phi(Phi^-1(1 - K)), the normal density at the liability threshold."""
     pop_prev = np.asarray(pop_prev, dtype=float)
-    if np.any((pop_prev <= 0) | (pop_prev >= 1)):
-        raise ValueError("pop_prev must lie in (0, 1)")
+    if np.any(~np.isfinite(pop_prev) | (pop_prev <= 0) | (pop_prev >= 1)):
+        raise ValueError("pop_prev must be finite and lie in (0, 1)")
     t = -norm_ppf(pop_prev)        # -ppf(p) avoids the 1-p tail cancellation
     return pop_prev, np.exp(-0.5 * t * t) / np.sqrt(2.0 * np.pi)
 
@@ -56,8 +57,8 @@ def _ascertainment(pop_prev, prop_cases):
         return 1.0
     pop_prev = np.asarray(pop_prev, dtype=float)
     prop_cases = np.asarray(prop_cases, dtype=float)
-    if np.any((prop_cases <= 0) | (prop_cases >= 1)):
-        raise ValueError("prop_cases must lie in (0, 1)")
+    if np.any(~np.isfinite(prop_cases) | (prop_cases <= 0) | (prop_cases >= 1)):
+        raise ValueError("prop_cases must be finite and lie in (0, 1)")
     return pop_prev * (1.0 - pop_prev) / (prop_cases * (1.0 - prop_cases))
 
 
@@ -73,17 +74,24 @@ def observed_to_liability_h2(obs_h2: ArrayLike, pop_prev: ArrayLike,
                              prop_cases: ArrayLike | None = None) -> np.ndarray | np.floating:
     """Observed-scale h² -> liability scale (Lee et al. 2011).
 
-    Multiplies by ``K(1-K)/z²`` with ``z = phi(Phi^-1(1-K))``, plus the
-    ascertainment factor ``K(1-K)/(P(1-P))`` when the study over-samples cases.
-    Vectorised over the inputs.
+    Multiplies ``obs_h2`` by ``K(1-K)/z²`` with ``z = phi(Phi^-1(1-K))``, plus
+    the ascertainment factor ``K(1-K)/(P(1-P))`` when the study over-samples
+    cases. ``pop_prev`` is the population prevalence ``K`` and ``prop_cases``
+    the sample case fraction ``P`` (``None`` for an unascertained sample, which
+    drops the ascertainment factor); both must be finite and lie in (0, 1), or
+    ``ValueError`` is raised. Vectorised over the inputs.
     """
     return np.asarray(obs_h2, dtype=float) * _master_factor(pop_prev, prop_cases)
 
 
 def liability_to_observed_h2(liab_h2: ArrayLike, pop_prev: ArrayLike,
                              prop_cases: ArrayLike | None = None) -> np.ndarray | np.floating:
-    """Liability-scale h² -> observed scale (inverse of
-    `observed_to_liability_h2`)."""
+    """Liability-scale h² -> observed scale (Lee et al. 2011).
+
+    The inverse of `observed_to_liability_h2`: divides ``liab_h2`` by the same
+    factor, with ``pop_prev`` (``K``) and ``prop_cases`` (``P``, or ``None``)
+    under the same rules.
+    """
     pop_prev, z = _z_density(pop_prev)
     factor = (z * z) / (pop_prev * (1.0 - pop_prev))
     return np.asarray(liab_h2, dtype=float) * factor / _ascertainment(
@@ -134,10 +142,11 @@ def liability_r2_from_z(z: ArrayLike, n: ArrayLike, pop_prev: ArrayLike,
     ascertainment factor drops out (population samples). ``n`` is the per-SNP
     sample size (scalar or per-SNP array). Null subtraction is unbiased in
     expectation but permits negative per-SNP estimates; aggregate before
-    interpreting. Marginal per-SNP signals may be summed only across independent
+    interpreting; it assumes a calibrated null (``E[z²] = 1``, no residual
+    inflation). Marginal per-SNP signals may be summed only across independent
     or suitably LD-pruned variants; otherwise use an LD-aware aggregation to
-    avoid counting tagged signal repeatedly. Set ``subtract_null=False`` to
-    recover the historical raw second-moment calculation ``z² / N``.
+    avoid counting tagged signal repeatedly. Set ``subtract_null=False`` for
+    the raw second-moment calculation ``(z² / N) * c``.
     """
     z = np.asarray(z, dtype=float)
     n = np.asarray(n, dtype=float)

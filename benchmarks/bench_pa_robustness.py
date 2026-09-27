@@ -204,7 +204,9 @@ def main():
 
     write_csv(reg, fo)
     plot(agg_reg, agg_fo)
-    print("\nwrote bench_pa_robustness.csv and bench_pa_robustness.png")
+    print("\nwrote bench_pa_robustness.csv")
+    if get_plt() is not None:
+        print("wrote bench_pa_robustness.png")
 
 
 def write_csv(reg, fo):

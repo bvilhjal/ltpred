@@ -103,13 +103,15 @@ def test_multi_round_pooling_matches_offline_batch_means():
     # rounds. With n_sim = 4 the per-round batching (b = 2, nb = 2) tiles the
     # concatenated draws exactly, so two tol-forced rounds must reproduce the
     # offline batch_means of the same-seeded rtmvnorm_gibbs draws to machine
-    # precision.
+    # precision. Every coordinate carries a finite bound (+-8 is no truncation
+    # in practice), so no family collapses a coordinate (step G2) and the
+    # uncollapsed rtmvnorm_gibbs draws are the right reference.
     from ltpred.estimate import _estimate_group, _base_seeds, batch_means
     from ltpred.gibbs import rtmvnorm_gibbs
     cov = np.array([[0.5, 0.5], [0.5, 1.0]])
     t = float(stats.norm.isf(0.05))
-    lowers = np.array([[-np.inf, t], [t, -np.inf], [-np.inf, -np.inf]])
-    uppers = np.array([[np.inf, np.inf], [np.inf, t], [t, t]])
+    lowers = np.array([[-8.0, t], [t, -np.inf], [-8.0, -np.inf]])
+    uppers = np.array([[8.0, np.inf], [np.inf, t], [8.0, t]])
     seed, max_rounds = 11, 2
     base = _base_seeds(seed, 3, max_rounds)
     est, se, var = _estimate_group(cov, [0, 1], lowers, uppers, base,
@@ -124,6 +126,32 @@ def test_multi_round_pooling_matches_offline_batch_means():
         est_off, se_off = batch_means(draws)
         np.testing.assert_allclose(est[f], est_off, atol=1e-12)
         np.testing.assert_allclose(se[f], se_off, atol=1e-12)
+
+
+@pytest.mark.jit_required
+@pytest.mark.filterwarnings("ignore:.*did not reach tol")   # several rounds on purpose
+def test_gibbs_family_result_does_not_depend_on_its_batch():
+    # Step G2 collapses each family's own unbounded coordinates, so chunking,
+    # later rounds and the rest of the cohort cannot change a family's draws:
+    # chunked and unchunked calls agree bit for bit even with mixed missingness.
+    from ltpred.chunked import estimate_liability_gibbs_chunked
+    from ltpred.estimate import estimate_liability_gibbs_arrays
+    rng = np.random.default_rng(5)
+    roles = ["o", "m", "f", "s1"]
+    t = 1.4
+    lower = np.where(rng.random((60, 4)) < 0.2, t, -np.inf)
+    upper = np.where(np.isfinite(lower), np.inf, t)
+    missing = rng.random((60, 4)) < 0.3
+    missing[:, 0] = False
+    lower[missing], upper[missing] = -np.inf, np.inf
+    controls = dict(n_sim=200, burn_in=20, seed=11, tol=0.02, max_rounds=3,
+                    return_var=True)
+    whole = estimate_liability_gibbs_arrays(roles, lower, upper, 0.5, **controls)
+    for chunk_size in (1, 7):
+        chunked = estimate_liability_gibbs_chunked(
+            roles, lower, upper, 0.5, chunk_size=chunk_size, **controls)
+        for a, b in zip(whole, chunked):
+            np.testing.assert_array_equal(a, b)
 
 
 def test_pa_arrays_match_object_api():

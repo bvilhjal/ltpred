@@ -217,7 +217,9 @@ def main():
               f"{row['lambda_gc']:6.3f}±{row['se_lambda_gc']:.3f}")
     path = write_csv(rows)
     plot(rows, representative[0], representative[1])
-    print(f"\nwrote {os.path.basename(path)} and bench_gwas_power.png")
+    print(f"\nwrote {os.path.basename(path)}")
+    if get_plt() is not None:
+        print("wrote bench_gwas_power.png")
 
 
 if __name__ == "__main__":

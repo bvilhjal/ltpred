@@ -67,8 +67,9 @@ measurements. Retained benchmark artifacts substantiate those measurements.
 Scoring supports role families, arbitrary pedigree kinship and a population-trio
 register driver. Multi-trait scoring uses Gibbs with A+E covariance; fitting C/M
 components does not extend that scorer. Fitters require independent,
-non-overlapping families with common case/control thresholds and an explicit
-population or positive-IPW sampling design. LTpred constructs phenotypes; it does
+non-overlapping families with common case/control thresholds and a population
+or positive-IPW sampling design (omitting `sampling` warns and assumes population
+sampling). LTpred constructs phenotypes; it does
 not build LD or run the downstream GWAS.
 
 Unsupported prototypes remain in the checkout-only [research package](research/README.md).

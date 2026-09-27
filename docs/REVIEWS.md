@@ -35,7 +35,9 @@ F3–F16 are T2 and F17–F37 are T3.
 | SUPERSEDED / WITHDRAWN | 1 | — | — | 1 | 1 | — | 3 |
 
 Checking the statuses found four further gaps (N1–N3, F2′); N1, N2 and F2′
-were closed at once, and N3 and one UNVERIFIED item remain in §1.
+were closed at once, and N3 and one UNVERIFIED item remain in §1. The
+algorithm-documentation pass that followed (docstrings verified against the
+code) added N4–N6.
 
 ## 1. Open findings
 
@@ -48,7 +50,7 @@ feeds `docs/ROADMAP.md`.
 |---|---|---|---|---|---|
 | T1-4 (residual) | 09e | The PA object path still walks every member three times. `83dfd3a` fused only `_stack_object_members`. `_check_unique_roles` and `_group_by_structure` still run as separate passes. | T1 | `ltpred/estimate.py:561/575/581`, `618/648/653`, `674/684/686`, `722/738` | Fuse the other two walks. Let the mixture path fall through unchanged, and keep the bit-identity test. |
 | T2-10 step 4 | 09e | The repair gate still runs for every proband. It could be skipped where `_covariance_reduction_is_safe` proves it a no-op. That bound is proved only for the full pedigree covariance, not for the g-prepended (n+1)×(n+1) matrix. The interlacing argument is not written down. | T2 | `ltpred/_selected_kinship.py:106`, `ltpred/pipeline.py:457` | Write the proof in the methods report, then land the change with a bit-identity test. |
-| T2-3 (residual) | 09e | No driver capsule (`bench_time_memory.py`) spans v0.7.1 → v0.7.4, so the v0.7.2–v0.7.4 performance changes have no end-to-end time/memory measurement. | T2 | `benchmarks/README.md` | Run one capsule from v0.7.2 to v0.7.4 through `run_benchmark.py`. |
+| T2-3 (residual) | 09e | No driver capsule (`bench_time_memory.py`) spans v0.7.1 → v0.7.4, so the v0.7.2–v0.7.4 performance changes have no end-to-end time/memory measurement. | T2 | `benchmarks/README.md` | Run one `bench_time_memory.py` capsule from v0.7.1 to the current release (the driver writes its own capsule; it does not use `run_benchmark.py`). |
 | T2-2 (residual) | 09e | `check_capsule_integrity` checks only capsules that contain a `results.json`. That is 3 of the 6 under `benchmarks/results/`. The 2026-09-24 v0.7.3 capsule and both 2026-09-16 capsules are never checked. A capsule without `thread_variables` passes silently (`if threads:`), and lean-v072 is one such capsule. | T2 | `scripts/check_evidence.py:131-156` (`:149`) | Check each capsule's own schema. Fail when thread provenance is missing. |
 | T2-4 | 09e | `bootstrap_fit` runs strictly serially, although its replicates are independent. A probe measured 3.9× at 10 threads with max\|diff\| 0, under contention. | T2 | `ltpred/fit.py:993` | Parallelise, after re-establishing bit-identity on a quiet machine. |
 | T3-4 | 09e | The v0.7.3 capsule JSONs record `threads: 1` but not the BLAS/OMP/MKL variables or a load average. Its README states them in prose only. | T3 | `benchmarks/results/2026-09-24-review/*.json` | Add machine-readable `thread_variables` and a `load_average` field to future probe capsules. |
@@ -200,6 +202,9 @@ outputs are bit-identical. Partial fixes have their residuals in §1.
 | N1 | 0.7.4's "1.22×" PA object-path figure had no artifact | Unreleased (restated qualitatively) |
 | N2 | `docs/estimation.md` cited a `v0.4.0` tag that was never pushed | Unreleased (cites commit `1684fc5`; `check_evidence` pins the CSV by SHA-256) |
 | F2′ | No test showed that `cip_by_stratum` changes a register score | Unreleased (`test_stratified_cips_route_each_record_to_its_own_curve`) |
+| N4 | Chunked Gibbs was not seed-reproducible against the array API: the G2 collapse set was the coordinates unbounded in every family of a kernel call, so a family's draws depended on its batch | Unreleased (each family collapses its own unbounded set; chunked = array output bit for bit, `test_gibbs_family_result_does_not_depend_on_its_batch`) |
+| N5 | The mixture path folded pins without P2's compatibility checks: a duplicated compatible pin crashed with an opaque `SystemError` (division by zero in the parallel kernel) and incompatible pins did not raise `ValueError` | Unreleased (`_check_pin_support` plus a collapsed-variance guard; ordinary mixture outputs bit-identical; `test_mixture_path_applies_the_pin_checks_of_the_standard_path`) |
+| N6 | The methods report was imprecise on P1 (only the object API sorts roles), G1/G2 (P and sd are formed per kept block), G4 (the far-tail draw is a leading-order approximation), G6 (fresh chains each round; stop at `se ≤ tol`), Algorithm Q (16-node start, last-two-changes acceptance, mode-search stop rules) and the case-rate screen | Unreleased (report text corrected, PDF rebuilt) |
 
 ## 4. Durable lessons
 

@@ -111,4 +111,5 @@ plugins:
             heading_level: 3
             members_order: source
             separate_signature: true
+            docstring_style: numpy     # three docstrings use numpy sections; prose ones are unaffected
             docstring_section_style: list

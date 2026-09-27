@@ -351,7 +351,9 @@ def main():
 
     write_csv(rows_c2 + rows_sib + rows_wire)
     plot(rows_c2, rows_sib, h2)
-    print("\nwrote bench_shared_env.csv and bench_shared_env.png")
+    print("\nwrote bench_shared_env.csv")
+    if get_plt() is not None:
+        print("wrote bench_shared_env.png")
 
 
 def write_csv(rows):

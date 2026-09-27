@@ -181,7 +181,9 @@ def main():
 
     write_csv(rows)
     plot(rows, args.true_h2, curves)
-    print("\nwrote bench_calibration.csv and bench_calibration.png")
+    print("\nwrote bench_calibration.csv")
+    if get_plt() is not None:
+        print("wrote bench_calibration.png")
     print("total runtime: %.1f min" % ((time.perf_counter() - t_start) / 60))
 
 

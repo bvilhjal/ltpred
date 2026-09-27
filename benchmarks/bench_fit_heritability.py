@@ -124,7 +124,9 @@ def main():
 
     write_csv(rows)
     plot(panel_a, panel_b, panel_s)
-    print("\nwrote bench_fit_heritability.csv and bench_fit_heritability.png")
+    print("\nwrote bench_fit_heritability.csv")
+    if get_plt() is not None:
+        print("wrote bench_fit_heritability.png")
 
 
 def write_csv(rows):

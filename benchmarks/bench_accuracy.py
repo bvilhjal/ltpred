@@ -187,7 +187,9 @@ def main():
     rows = run(args.n_fam, args.h2, args.prev, args.n_sim, args.seed, args.reps)
     path = write_csv(rows)
     plot(rows)
-    print(f"\nwrote {os.path.basename(path)} and bench_accuracy.png")
+    print(f"\nwrote {os.path.basename(path)}")
+    if get_plt() is not None:
+        print("wrote bench_accuracy.png")
     print(f"total runtime: {(time.perf_counter() - t_start) / 60:.1f} min")
 
 

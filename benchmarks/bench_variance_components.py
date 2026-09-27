@@ -119,7 +119,9 @@ def main():
 
     write_csv(rows)
     plot(panel_a, fp, panel_c)
-    print("\nwrote bench_variance_components.csv and bench_variance_components.png")
+    print("\nwrote bench_variance_components.csv")
+    if get_plt() is not None:
+        print("wrote bench_variance_components.png")
 
 
 def write_csv(rows):

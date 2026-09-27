@@ -151,7 +151,9 @@ def check_capsule_integrity():
                 f"{artifact_path.parent.name}: not a one-thread measurement")
         guard = artifact.get("power_guard")
         if guard:
-            assert guard.get("status") == "passed", (
+            # bench_time_memory.py applies the AC-power guard on macOS only and
+            # records "not_applicable" elsewhere; any other status is a failure.
+            assert guard.get("status") in ("passed", "not_applicable"), (
                 f"{artifact_path.parent.name}: power guard not passed")
     return [path.parent.name for path in capsules]
 

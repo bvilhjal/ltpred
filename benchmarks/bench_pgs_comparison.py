@@ -41,8 +41,8 @@ Arms (all evaluated on TEST unless noted):
      test folds; reports squared-correlation R^2, the incremental R^2 of each
      score over the other, and corr(PGS, LT-FH).
 
-Theory check.  docs/algorithm.md ("Expected correlation between a PGS and the
-family-history score") gives, under a conditionally-independent measurement
+Theory check.  The methods report (report/ltpred_methods.tex, paragraph "PGS
+and mu_i", eq. pgs-fh) gives, under a conditionally-independent measurement
 model, ``Corr(PGS, FH) = a * b * sqrt(p)`` with ``a = Corr(PGS, s)`` (the PGS
 accuracy against the SNP-captured part), ``b = Corr(FH, g)``, and
 ``p = h2_SNP / h2_total``.  In this design the true genetic value is built
@@ -312,7 +312,7 @@ def run_rep(args, rep):
     r["incr_r2_pgs_over_fh"] = r2_joint - r2_fh
     r["incr_r2_fh_over_pgs"] = r2_joint - r2_pgs
     r["corr_pgs_fh"] = safe_corr(pgs, fh_te, fill=np.nan)
-    # docs/algorithm.md: Corr(PGS, FH) = a * b * sqrt(p); p = h2_SNP/h2_total
+    # methods report eq. pgs-fh: Corr(PGS, FH) = a * b * sqrt(p); p = h2_SNP/h2_total
     # is exactly 1 in this design (g is fully SNP-captured), so a * b.
     r["theory_corr_pgs_fh"] = a * b
     order = (CC, LTFH, PGS, JOINT, ORACLE)
@@ -512,7 +512,9 @@ def main():
     summarize(agg, contrasts)
     path = write_csv(list(replicate_rows) + contrasts, args)
     plot(agg, replicate_rows)
-    print(f"\nwrote {os.path.basename(path)} and bench_pgs_comparison.png")
+    print(f"\nwrote {os.path.basename(path)}")
+    if get_plt() is not None:
+        print("wrote bench_pgs_comparison.png")
 
 
 if __name__ == "__main__":

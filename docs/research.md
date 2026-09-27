@@ -17,10 +17,9 @@ that page so that it describes only what the installed package does.
 
 ### Direct and indirect (genetic-nurture) effects
 
-Caution (i) in the algorithm page's
-[environmental-covariance section](algorithm.md#adding-environmental-covariance-to-improve-prediction)
-says a symmetric shared-environment matrix is not a maternal
-effect, because that is a *directional* path. `construct_covmat_nurture` (in
+The [modelling assumptions](assumptions.md#modelling-assumptions) note that
+a symmetric shared-environment matrix is not a maternal effect, because that
+is a *directional* path. `construct_covmat_nurture` (in
 `research/covariance_extensions.py` — research code, not the supported core)
 builds
 the directional model instead, from the path structure rather than from
@@ -103,8 +102,8 @@ founders -- their liabilities would gain their own nurture terms from the
 grandparents. That recursion is not implemented, and silently treating a
 grandparent as a founder would understate the covariance, so those roles are
 rejected. Like the other covariance constructors, the result is an ordinary
-`Covmat` and feeds `pa_algorithm` / `rtmvnorm_gibbs` / `pa_estimate_batched`
-directly.
+`Covmat`; pass its `.matrix` (rows in `.roles` order) to `pa_algorithm` /
+`rtmvnorm_gibbs` / `pa_estimate_batched`.
 
 ### Sex-limited genetic architecture
 
@@ -144,11 +143,12 @@ both `A` and `Rg` are PSD, so their Schur product is PSD and the symmetric
 scaling preserves it.
 
 The role grammar fixes the sex of parents and grandparents (`m`, `f`, `mgm`,
-`mgf`, `pgm`, `pgf`). Siblings, children, half-sibs and aunts/uncles are
-ambiguous — `mau`/`pau` covers both aunts and uncles — and must be declared in
-`sex=`; the constructor raises rather than defaulting, since a silent default
-would impose one sex's heritability on the other. The genetic row `g` follows
-the proband `o`.
+`mgf`, `pgm`, `pgf`). The proband `o`, siblings, children, half-sibs and
+aunts/uncles are ambiguous — `mau`/`pau` covers both aunts and uncles — and
+must be declared in `sex=` (the genetic row `g` takes `o`'s sex); the
+constructor raises rather than defaulting, since a silent default would impose
+one sex's heritability on the other. Because `o` is always present, every
+call needs `sex=`.
 
 Two cautions. **(i)** These are *inputs*, not fitted quantities: the constructor
 takes `h2_female`, `h2_male` and `rg_cross` and builds the covariance. Nothing
@@ -161,9 +161,10 @@ evidence of sex-limited genetics; it is exactly what a sex-specific threshold
 already absorbs. Reach for this model when same- and opposite-sex relative
 correlations differ **after** the thresholds are personalised.
 
-Because the result is an ordinary `Covmat`, it feeds the covariance-level
-entry points (`pa_algorithm`, `rtmvnorm_gibbs`, `pa_estimate_batched`)
-directly, the same route documented for any user-supplied kernel. The
+Because the result is an ordinary `Covmat`, its `.matrix` (rows in `.roles`
+order) feeds the covariance-level entry points (`pa_algorithm`,
+`rtmvnorm_gibbs`, `pa_estimate_batched`), the same route documented for any
+user-supplied kernel. The
 role-based `estimate_liability` still takes a scalar `h2`.
 
 ## Multi-trait fitters (`research/advanced_fitting.py`)
@@ -183,7 +184,11 @@ multi-trait analogue of `fit_heritability`, a **cross-trait** Haseman–Elston
 regression. Each member carries one case/control interval per trait. Each sweep
 draws the members' `P`-trait liabilities from the full truncated-MVN under the
 current parameters, then regresses the sampled cross-products on the additive
-relationship `A`:
+relationship `A`. Like the core moment fitters it requires
+`sampling="population"` (it warns when omitted and raises on any other value),
+non-overlapping families, one common threshold per trait (personalised or
+pinned bounds raise) and a population-consistent case rate; it raises with
+fewer than two traits or without related pairs.
 
 ```text
 same trait, diff relatives:  h2_p    = sum A_ij l_ip l_jp / sum A_ij^2
@@ -204,8 +209,9 @@ positive semi-definite — especially with few families or a large `|rg|`. Each 
 therefore projects both onto the convex set of correlation matrices (the PSD cone
 intersected with the unit-diagonal constraint) with the fitted variances held
 fixed (an eigenvalue projection, then a shrink towards the identity
-that leaves the diagonal alone), and the chain carries the two projected
-*covariance* states rather than ratios. The reported estimates are the post-burn-in
+that leaves the diagonal alone), and the chain carries damped (`damp=0.2` by
+default) convex combinations of the projected *covariance* states rather than
+ratios. The reported estimates are the post-burn-in
 averages of those states — averaging covariances is convex, so `G_est` and `E_est`
 are PSD too — with `rg`, `re` and `rp` all derived from that same pair. So the
 returned object is one coherent model: `rp == genetic_cov + env_cov` exactly, and
@@ -296,8 +302,8 @@ with real household effects this is the binding limitation.
 
 **Options that address these limits.** `shared_lambda` ties every block's decay
 rate to a single scalar -- fewer parameters, a guaranteed-PSD covariance, and less
-amplitude-decay ridge; it is the recommended default unless there is reason to let
-the rates differ. `shared_env` adds the shared-family environmental component `C`
+amplitude-decay ridge; it is the recommended setting (pass `shared_lambda=True`;
+the argument defaults to `False`) unless there is reason to let the rates differ. `shared_env` adds the shared-family environmental component `C`
 directly to the model (an onset-age **ACE decomposition**: genetics `A`, shared
 environment `C`, unique environment `E`), so household environment is estimated
 rather than absorbed into genetics -- it recovers `c2` and stops the `h2`

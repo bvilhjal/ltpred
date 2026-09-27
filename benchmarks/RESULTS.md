@@ -651,9 +651,10 @@ with a 1995 register start). Artifact: `bench_cip_estimation.csv`.
 
 Grid containment is single-dataset, not repeated-sample coverage (a
 person-level bootstrap would give that), and repeated-run uncertainty of the
-end-to-end scores was not retained. Estimand choice is the user's call; for
-LT-FH++ thresholds the crude curve is the right one (the dead cannot be
-diagnosed).
+end-to-end scores was not retained. Estimand choice is the user's call
+(`docs/cip-estimation.md`): the crude curve is the published LT-FH++ convention,
+while the net curve is the one the threshold-crossing model implies when death is
+independent of liability.
 
 ## 20. Pedigree inference from trio records (`bench_pedigree_inference.py`)
 

@@ -43,7 +43,7 @@ this catches only gross anti-conservatism); Part 2's coverage should be near
 95% (same coarse resolution); Part 3 reports the SE/SD ratio as-is (no gate --
 the docs do not claim calibration).
 
-Run:  conda run -n ltpred python benchmarks/bench_inference_calibration.py
+Run:  conda run -n ltpred314 python benchmarks/bench_inference_calibration.py
       python benchmarks/bench_inference_calibration.py --parts 4   (one part)
 """
 

@@ -181,6 +181,19 @@ def test_invalid_controls(kwargs):
         estimate(["o"], [[0.0]], [[np.inf]], **kwargs)
 
 
+@pytest.mark.parametrize("out", ["genetic", "full"])
+def test_out_accepts_length_one_sequence(out):
+    lo, hi = [[0.0, -np.inf, 0.5]], [[np.inf, 1.0, np.inf]]
+    expected = estimate(["o", "m", "s1"], lo, hi, h2=0.5, out=out)
+    for spelling in ((out,), [out]):
+        result = estimate(["o", "m", "s1"], lo, hi, h2=0.5, out=spelling)
+        assert result.est[0] == expected.est[0] and result.var[0] == expected.var[0]
+    with pytest.raises(ValueError):
+        estimate(["o"], [[0.0]], [[np.inf]], h2=0.5, out=("genetic", "full"))
+    with pytest.raises(ValueError):
+        estimate(["o"], [[0.0]], [[np.inf]], h2=0.5, out=())
+
+
 @pytest.mark.parametrize("roles", [["mgm"], ["s0"], ["m", "m"], ["g"], [1]])
 def test_unsupported_or_duplicate_roles(roles):
     with pytest.raises(ValueError):

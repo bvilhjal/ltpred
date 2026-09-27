@@ -83,7 +83,8 @@ python benchmarks/bench_time_memory.py \
 
 The driver uses separate runtime/RSS and allocation processes per case and
 version, saves both package sources, checks output agreement and source
-stability, and requires the AC-power/Low-Power-Mode guard to pass; the timing
+stability, and on macOS requires the AC-power/Low-Power-Mode guard to pass
+(elsewhere it records `not_applicable`); the timing
 definitions are in each capsule README. It does not use the CSV wrapper:
 retain `results.json`, the provenance record and the run log together.
 
@@ -142,7 +143,7 @@ groups. Scripts whose Output is `stdout` archive no artifact.
 | `bench_pairwise_recovery.py` | `fit_pairwise` recovery of A/C/M, sandwich-SE calibration, coverage, boundary pinning | `bench_pairwise_recovery.csv` |
 | `bench_shared_env.py` | value of modelling C (ignore-C vs fit A+C vs oracle); panel (c) end-to-end `c2`/`m2` wiring | `bench_shared_env.csv` |
 | `bench_couple_env.py` | recovery of A+M and the C-vs-M omission contrast | `bench_couple_env.csv` |
-| `bench_ascertainment.py` | what the moment fitters return on selected samples and what IPW recovers (`--h2 0 --tag _h2null --arms h2 mechanism --structures nuclear --n-fam 10000 --n-iter 1500 --burn-in 500` for the h² = 0 cell) | `bench_ascertainment*.csv` |
+| `bench_ascertainment.py` | *research (arm C):* what the moment fitters return on selected samples and what IPW recovers (`--h2 0 --tag _h2null --arms h2 mechanism --structures nuclear --n-fam 10000 --n-iter 1500 --burn-in 500` for the h² = 0 cell) | `bench_ascertainment*.csv` |
 | `bench_inference_calibration.py` | *research:* component-test Type-I error, bootstrap coverage, MCEM SEs, `test_genetic_correlation` null (`--parts`) | stdout |
 
 **Research-model fits**
@@ -150,7 +151,7 @@ groups. Scripts whose Output is `stdout` archive no artifact.
 | Script | Measures | Output |
 |---|---|---|
 | `bench_genetic_correlation.py` | *research:* `fit_genetic_correlation` bias and SD including the null; panel (c) `fit_genetic_factor` loadings and `srmr` | `bench_genetic_correlation.csv` |
-| `bench_aod_decay.py` | *research:* onset-age-dependent r_g fitting; `--robustness` adds wrong kernels and unmodelled C | `bench_aod_decay.csv` |
+| `bench_aod_decay.py` | *research:* onset-age-dependent r_g fitting; panel (d), on by default (`--no-robustness` skips it), adds a wrong-kernel arm and unmodelled C | `bench_aod_decay.csv` |
 | `bench_covariance_extensions.py` | *research:* sex-limited covariance vs sex-specific thresholds (a); direct-effect scoring under genetic nurture (b) | `bench_sex_limitation.csv`, `bench_nurture.csv` |
 
 **End-to-end pipelines and input handling**
@@ -168,7 +169,7 @@ groups. Scripts whose Output is `stdout` archive no artifact.
 
 | Script | Measures | Output |
 |---|---|---|
-| `bench_ltfhplus_compare.py` | **opt-in** lock against LTFHPlus Gibbs and LTFGRS PA: scores, per-family time, fold times, isolated peak RSS (exits 2 without R) | `bench_ltfhplus_compare*.csv` |
+| `bench_ltfhplus_compare.py` | **opt-in** lock against LTFHPlus Gibbs and LTFGRS PA: scores, per-family time, fold times, isolated peak RSS (exits 2 without R or LTFHPlus) | `bench_ltfhplus_compare*.csv` |
 | `bench_scaling.py` | wall-clock scaling with #families and family size; families/s and speed-up | `bench_scaling.csv` |
 | `bench_time_memory.py` | matched package versions: first-call and warm runtime, process RSS and call-allocation peaks for graph construction, PA batching and register scoring, with exact output agreement | JSON capsule (`--output`) |
 
@@ -178,7 +179,8 @@ HAPNEST path.
 
 ## How the data are simulated
 
-* **Family-only benchmarks** (accuracy, scaling, age-of-onset, PA-FGRS mixture)
+* **Family-only benchmarks** (accuracy, scaling, the `bench_fh_prediction.py`
+  onset-encoding panel (e), PA-FGRS mixture)
   draw genetic `g`, full liability `o` and relatives jointly from the
   liability-threshold family covariance; because `g` is retained, accuracy is
   corr(estimate, `g`). None of these rows is ADuLT.
@@ -217,6 +219,8 @@ HAPNEST path.
   provenance, the PGS joint model, every cell of the `gwas_power`,
   `confounding` and `fit_heritability` paper tables, the v0.6.1 time/memory
   capsule (revisions, source hashes and its seven rows), the SHA-256,
-  one-thread and power-guard record of every `results.json` capsule, and the
+  one-thread and power-guard records of every `results.json` capsule that
+  carries them (the two time/memory driver capsules; `2026-09-23-lean-v072`
+  records none), and the
   tracked report PDF. Verify any other number against its CSV, and rerun the
   script locally before quoting it as current.

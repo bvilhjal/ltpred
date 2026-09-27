@@ -1,12 +1,43 @@
 """Numerical posterior moments for additive, noninbred nuclear families.
 
-Offspring are independent conditional on the two parental breeding values.
-Thus the number of siblings changes the number of likelihood factors, not the
-dimension of integration. Point observations are conditioned analytically;
-uninformative factor directions and zero/one-interval cases are integrated out.
-The remaining one- or two-dimensional integral uses Gaussian quadrature centred
-at its posterior mode. This is a numerical approximation to the same no-mixture
-liability-threshold posterior as Gibbs, with a resolution-change diagnostic.
+Algorithm Q of the methods report, "Nuclear families have at most two
+parental factors". Model: one trait, additive genetics plus independent
+residuals (no C/M), unrelated noninbred parents, roles ``o``, ``m``, ``f``,
+``s1``, ``s2``, ..., ``0 <= h2 < 1``, no censoring mixture. The target is the
+proband's genetic (``out="genetic"``) or full (``"full"``) liability. With
+parental breeding values ``z = (a_m, a_f) ~ N(0, h2 I)``, the observed
+liabilities are independent given ``z``: ``l_j | z ~ N(b_j' z, d_j)`` with
+``b_j = (1, 0)``, ``(0, 1)``, ``(1/2, 1/2)`` and ``d_j = 1 - h2`` for parents,
+``1 - h2/2`` for offspring. Siblings add likelihood factors, not integration
+dimensions. Each family is solved as follows:
+
+1. Analytic shortcuts: ``out="full"`` with a pinned proband; ``h2 = 0``; no
+   informative offspring (independent parental liabilities).
+2. Condition ``z`` on every pin exactly (sequential Gaussian updates); a
+   pinned proband also enters the target's law given ``z``. Absent rows drop.
+3. Zero or one remaining interval: exact Gaussian or single-selection answer.
+4. Otherwise whiten ``z`` and project onto the span (rank 1 or 2) of the
+   interval rows' loadings; orthogonal directions add only analytic variance.
+5. Mode: Newton's method on the log-concave negative log posterior with
+   its exact gradient and Hessian and Armijo backtracking. It stops on a
+   negligible step, a failed line search, or an accepted decrease at
+   floating-point resolution (stationary objective); else 80 iterations raise.
+6. Integrate on a tensor Gauss-Hermite grid centred at the mode and
+   scaled by the inverse-Hessian Cholesky factor, importance-reweighted in
+   log space by prior times interval likelihoods over the proposal. Per node,
+   the target's conditional moments ``mu(z)``, ``V(z)`` include its own
+   observation; ``est = E[mu]`` and ``var = E[V] + Var[mu]``.
+7. Refine ``n = 16, 32, 64, ...`` nodes per dimension, doubling up to
+   ``max_nodes``, recording each change ``max(|d est|, |d var|)``. Accept
+   when both of the last two changes are ``<= atol`` (at least three
+   resolutions), reporting that maximum and the final ``n``.
+
+Nonconvergence at ``max_nodes``, non-finite log weights and mode failure
+raise ``RuntimeError``. Analytic answers report ``error = 0``,
+``n_nodes = 0``. `estimate_liability_quadrature_arrays` solves each distinct
+``(lower, upper)`` row once and names the first matching family in errors.
+``estimate_liability`` exposes the diagnostics as ``quadrature_error`` and
+``quadrature_nodes``; they measure resolution change, not certified error.
 """
 
 from __future__ import annotations
@@ -22,6 +53,7 @@ from numpy.typing import ArrayLike
 from scipy.special import log_ndtr, logsumexp, roots_hermitenorm, roots_legendre
 
 from ._validation import validate_bounds
+from .estimate import _OUT_NAMES, _single_out
 from .pearson_aitken import _tnorm_moments_loc
 from ._numba import _jit
 from ._results import _TableExport
@@ -129,6 +161,10 @@ def _moments_array(means, variance, lower, upper):
 
 @lru_cache(maxsize=16)
 def _grid(n, dimension):
+    """Probabilists' Gauss-Hermite nodes and log weights, ``n`` per dimension.
+
+    ``dimension == 2`` gives the ``n**2`` tensor grid. Underflowed SciPy
+    weights are replaced by logs from the normalised Hermite recurrence."""
     nodes, weight = roots_hermitenorm(n)
     if np.all(weight > 0.0):
         logweight = np.log(weight)
@@ -148,10 +184,14 @@ def _grid(n, dimension):
 
 
 def _mode(offset, load, noise, lower, upper):
-    """Newton iterations for a log-concave, whitened factor posterior."""
+    """Newton iterations for a log-concave, whitened factor posterior.
+
+    Minimises ``|x|^2/2 - sum log P(lower < offset + load x + e < upper)``,
+    ``e ~ N(0, noise)``. Returns the mode and the Hessian there."""
     dimension = load.shape[1]
 
     def evaluate(x, derivatives=True):
+        """Objective at ``x``; exact gradient and Hessian from interval moments."""
         means = offset + load @ x
         value = 0.5 * float(x @ x)
         gradient = x.copy()
@@ -194,6 +234,9 @@ def _mode(offset, load, noise, lower, upper):
 
 
 def _family(roles, lower, upper, h2, out, atol, max_nodes):
+    """Algorithm Q for one bound row; returns ``(est, var, error, n_nodes)``.
+
+    Raises ``RuntimeError`` when the mode search or refinement fails."""
     own = roles.index("o") if "o" in roles else None
     own_lo, own_hi = (-np.inf, np.inf) if own is None else (lower[own], upper[own])
     if out == "full" and own_lo == own_hi:
@@ -321,14 +364,16 @@ def estimate_liability_quadrature_arrays(roles: Sequence[str], lower: ArrayLike,
     Shared environment, other pedigree roles and censoring mixtures are outside
     this model. Point pins are exact observations, not narrow intervals.
 
-    ``out`` selects ``"genetic"`` or ``"full"``. ``atol`` bounds successive
+    ``out`` selects ``"genetic"`` or ``"full"`` (or a length-1 sequence of
+    either, as in the other single-column array APIs). ``atol`` bounds successive
     changes in both posterior moments, not their unknown true numerical error.
     Two successive refinements must meet it; ``max_nodes`` (64 through 512)
     limits nodes per active factor dimension. The upper limit bounds the
     largest tensor grid to 262144 points. Failure raises ``RuntimeError`` with the
     family index, rather than returning an unchecked estimate. Analytic zero/
     one-interval cases and families with only parental observations require no
-    nodes. No Monte-Carlo SE is defined.
+    nodes. Rows with identical bounds are solved once. No Monte-Carlo SE is
+    defined.
     """
     roles = list(roles)
     if any(not isinstance(r, str) or re.fullmatch(r"o|m|f|s[1-9][0-9]*", r) is None for r in roles):
@@ -337,8 +382,7 @@ def estimate_liability_quadrature_arrays(roles: Sequence[str], lower: ArrayLike,
         raise ValueError("quadrature roles must be unique")
     if h2 is None or isinstance(h2, (bool, np.bool_)) or np.ndim(h2) != 0 or not np.isfinite(h2) or not 0 <= h2 < 1:
         raise ValueError("quadrature requires scalar h2 in [0, 1)")
-    if out not in ("genetic", "full"):
-        raise ValueError("out must be 'genetic' or 'full'")
+    out = _OUT_NAMES[_single_out(out)]
     if isinstance(atol, (bool, np.bool_)) or np.ndim(atol) != 0 or not np.isfinite(atol) or atol <= 0:
         raise ValueError("atol must be finite and strictly positive")
     if isinstance(max_nodes, (bool, np.bool_)) or not isinstance(max_nodes, (int, np.integer)) or not 64 <= max_nodes <= 512:

@@ -189,7 +189,8 @@ observed likelihood sensitivity with **family-level** score variability, so
 shared members within a family are not treated as independent pairs. It is
 conditional on supplied thresholds and weights and excludes uncertainty from
 estimating them. These are asymptotic SEs, not finite-sample calibration claims.
-At a component or residual constraint boundary, `pw.at_boundary` is true and
+At a component or residual constraint boundary (a component or the residual
+margin within `max(1e-7, 10*tol)` of zero), `pw.at_boundary` is true and
 the covariance and SEs are `NaN`; `pw.inference_status` also distinguishes
 insufficient clusters or information. Ordinary normal intervals are then
 inappropriate, and the composite log likelihood does not justify ordinary

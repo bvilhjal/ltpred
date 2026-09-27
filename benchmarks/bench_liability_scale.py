@@ -28,7 +28,7 @@ fraction of total liability variance:
        total (1/3), NOT the probit residual-scale total (0.5) -- the
        convention difference made explicit.
 
-Run:  conda run -n ltpred python benchmarks/bench_liability_scale.py
+Run:  conda run -n ltpred314 python benchmarks/bench_liability_scale.py
 """
 
 from __future__ import annotations

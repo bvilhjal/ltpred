@@ -10,12 +10,15 @@ tetrachoric correlation is ``h2 * A`` (Falconer's classic route: parent-
 offspring and full sibs give ``h2 / 2``, so ``h2 ~ 2 * tetrachoric``).
 
 The estimator is the maximum-likelihood tetrachoric (Kirk 1973; Tallis 1962):
-thresholds from the marginals, then a bounded 1-D search over the correlation
-maximising the 2x2 multinomial log-likelihood, with the bivariate-normal CDF
-from SciPy (``multivariate_normal``, with explicit ``1e-10`` requested
-integration tolerances). The pointwise standard error comes
-from the observed information (a numeric Hessian of the log-likelihood). The
-quick cosine approximation
+thresholds ``t = Phi^-1(1 - p)`` from the marginal case proportions, then a
+bounded 1-D search over ``rho`` in ``(-1 + 1e-9, 1 - 1e-9)`` maximising the 2x2
+multinomial log-likelihood, with the bivariate-normal CDF from SciPy
+(``multivariate_normal``, with explicit ``1e-10`` requested integration
+tolerances). The 2x2 model is saturated, so at an interior optimum these
+plug-in thresholds coincide with the joint MLE. The standard error is a Wald
+SE from the observed information for ``rho`` alone (a central second
+difference, step ``1e-4``, of the log-likelihood), conditional on the
+thresholds. The quick cosine approximation
 (``cos(pi / (1 + sqrt(a*d / (b*c))))``-style estimators) is not used -- the
 MLE is cheap enough.
 
@@ -86,7 +89,9 @@ def _bvn_cdf(a, b, rho):
 
 
 def _neg_loglik(rho, t1, t2, a, b, c, d):
-    """2x2 log-likelihood; a case lies ABOVE its threshold."""
+    """Negative 2x2 log-likelihood; a case lies ABOVE its threshold.
+
+    Cell probabilities are floored at ``1e-300`` inside the log only."""
     below = _bvn_cdf(t1, t2, rho)           # P(X < t1, Y < t2) = neither
     p_neither = below
     p_x_only = float(ndtr(t2)) - below      # X > t1, Y < t2
@@ -108,8 +113,10 @@ def tetrachoric_table(a: float, b: float, c: float, d: float, *,
     nonnegative integers; fractional or non-finite counts are rejected. A
     zero cell gets a 0.5 continuity correction added to all four cells when
     ``continuity_correction`` (the standard handling; the estimate is then
-    boundary-avoiding rather than exactly +/-1). Monomorphic margins (one
+    boundary-avoiding rather than exactly +/-1); with
+    ``continuity_correction=False`` a zero cell raises. Monomorphic margins (one
     variable all-one-level) are rejected: there is no correlation information.
+    ``se`` is NaN when the numeric curvature at the optimum is not positive.
     """
     a, b, c, d = float(a), float(b), float(c), float(d)
     if min(a, b, c, d) < 0:
@@ -164,7 +171,14 @@ def tetrachoric_table(a: float, b: float, c: float, d: float, *,
 
 def tetrachoric(x: ArrayLike, y: ArrayLike, *,
                 continuity_correction: bool = True) -> TetrachoricResult:
-    """Tetrachoric MLE between two binary arrays of equal length."""
+    """Tetrachoric MLE between two binary arrays of equal length.
+
+    ``x`` and ``y`` are 1-D boolean or 0/1 arrays (NaN or other codes raise),
+    one entry per pair. They are tabulated with ``x`` as the first variable,
+    so ``x``-only cases form cell ``b``, and fitted by `tetrachoric_table`,
+    which sets the zero-cell handling (``continuity_correction``) and rejects a
+    monomorphic array.
+    """
     x = np.asarray(x)
     y = np.asarray(y)
     if x.shape != y.shape or x.ndim != 1:
@@ -185,8 +199,10 @@ def tetrachoric_matrix(X: ArrayLike, *, continuity_correction: bool = True,
                        check_psd: bool = True) -> np.ndarray:
     """Pairwise tetrachoric correlations among the columns of ``X``.
 
-    ``X`` is an ``(n_pairs, m)`` binary array; returns the symmetric ``(m, m)``
-    matrix of pairwise estimates with unit diagonal. Because the off-diagonal
+    ``X`` is an ``(n_pairs, m)`` boolean or 0/1 array; returns the symmetric
+    ``(m, m)`` matrix of pairwise estimates with unit diagonal. Each pair of
+    columns is fitted by `tetrachoric_table`, so ``continuity_correction`` and
+    the monomorphic-column error behave as there. Because the off-diagonal
     entries are fitted independently, the result is **not guaranteed to be a
     positive-semidefinite correlation matrix**. With ``check_psd=True`` (the
     default), a materially negative eigenvalue emits a warning; do not pass such
