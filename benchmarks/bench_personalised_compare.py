@@ -54,7 +54,7 @@ from scipy.stats import norm
 from _common import estimate, simulate_families, write_rows
 from bench_ltfhplus_compare import (R_LTFGRS, R_LTFHPLUS, NUMBA_VERSION,
                                     _check_r_pkg, align, bytes_to_mib,
-                                    families_from_tbl, metrics, read_scores,
+                                    metrics, read_scores,
                                     run_peak, run_r_helper)
 from ltpred.thresholds import thresholds_from_cip
 
