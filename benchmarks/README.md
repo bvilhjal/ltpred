@@ -170,6 +170,7 @@ groups. Scripts whose Output is `stdout` archive no artifact.
 | Script | Measures | Output |
 |---|---|---|
 | `bench_ltfhplus_compare.py` | **opt-in** lock against LTFHPlus Gibbs and LTFGRS PA: scores, per-family time, fold times, isolated peak RSS (exits 2 without R or LTFHPlus) | `bench_ltfhplus_compare*.csv` |
+| `bench_personalised_compare.py` | **opt-in** lock on the LT-FH++ features beyond the classic bounds: age-CIP personalised intervals/pins vs LTFHPlus Gibbs, and the PA-FGRS censoring mixture vs LTFGRS `useMixture=TRUE` under each package's own input encoding (exits 2 without R) | `bench_personalised_compare.csv` |
 | `bench_scaling.py` | wall-clock scaling with #families and family size; families/s and speed-up | `bench_scaling.csv` |
 | `bench_time_memory.py` | matched package versions: first-call and warm runtime, process RSS and call-allocation peaks for graph construction, PA batching and register scoring, with exact output agreement | JSON capsule (`--output`) |
 

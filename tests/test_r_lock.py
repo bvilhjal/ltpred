@@ -144,3 +144,82 @@ def test_gibbs_matches_locked_ltfhplus_scores_with_age_of_onset(encoding):
     # 0.99994 / 3.5e-3 (interval); same Monte-Carlo bands as the classic lock
     assert corr > 0.999
     assert rmse < 0.01
+
+
+# Censored-cohort fixtures: the same 48 families simulated with ages
+# (seed 20260928, K = 0.10) and encoded the LT-FH++ way -- cases pinned at
+# their onset-age CIP threshold, controls censored with a finite age-specific
+# upper and a K_i/K_pop mixture pair. This is the input regime the classic
+# and age-of-onset fixtures never exercise (every control there is a one-sided
+# unbounded upper). The LTFGRS reference runs on the contract encoding
+# (lifetime uppers, K filled): ltpred's mixture ignores the exact upper, but
+# LTFGRS consumes it and double-corrects an age-specific bound.
+
+
+def _fixture_families_censored(name="input_tbl_censored.csv"):
+    from ltpred import families_from_columns
+    with open(FIXTURES / name, newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    return families_from_columns(
+        [r["fam_ID"] for r in rows],
+        [r["role"] for r in rows],
+        [_parse_bound(r["lower"]) for r in rows],
+        [_parse_bound(r["upper"]) for r in rows],
+        pid=[r["indiv_ID"] for r in rows],
+        K_i=[_parse_bound(r["K_i"]) for r in rows],
+        K_pop=[_parse_bound(r["K_pop"]) for r in rows],
+    )
+
+
+def test_censored_fixtures_pair_native_and_ltfgrs_encodings():
+    native = _fixture_families_censored()
+    contract = _fixture_families_censored("input_tbl_censored_ltfgrs.csv")
+    n_mixture = 0
+    for fn, fc in zip(native, contract):
+        for mn, mc in zip(fn.members, fc.members):
+            assert (mn.role, mn.lower) == (mc.role, mc.lower)
+            if np.isfinite(mn.K_i):
+                # a censored control: same pair, upper moved to the lifetime
+                # threshold, which sits below the age-specific bound because
+                # thresholds decrease with cumulative incidence
+                assert (mn.K_i, mn.K_pop) == (mc.K_i, mc.K_pop)
+                assert mn.upper > mc.upper
+                n_mixture += 1
+            else:
+                # every other row keeps its bounds; LTFGRS's validator
+                # rejects NA, so the contract fills K with K_pop ("no future
+                # case remains"), inert on pins and one-sided cases
+                assert np.isnan(mc.K_i) is False or mc.K_i == mc.K_pop
+                assert mn.upper == mc.upper
+    assert n_mixture == 188                        # one per censored control
+
+
+def test_pa_mixture_matches_locked_ltfgrs_scores():
+    from ltpred import estimate_liability
+    families = _fixture_families_censored()
+    r_est = _aligned(families, _r_scores("ltfgrs_pa_mixture.csv"))
+    ours = estimate_liability(families, h2=0.5, use_mixture=True).est["genetic"]
+    corr, rmse = _corr_rmse(ours, r_est)
+    # measured at generation: corr 0.9999999998 / RMSE 3.7e-6 (max 2.6e-5).
+    # Both engines fold pins sequentially and split the mixture at the
+    # lifetime threshold, so -- unlike the no-mixture pin lock above -- there
+    # is no design difference to absorb; the band only leaves room for
+    # platform float noise.
+    assert corr > 0.99999
+    assert rmse < 5e-4
+
+
+@pytest.mark.jit_required
+def test_gibbs_matches_locked_ltfhplus_scores_censored():
+    from ltpred import estimate_liability
+    families = _fixture_families_censored()
+    r_est = _aligned(families, _r_scores("ltfhplus_gibbs_censored.csv"))
+    ours = estimate_liability(families, h2=0.5, method="gibbs",
+                              n_sim=100_000, burn_in=1000, tol=0.01,
+                              seed=20260928).est["genetic"]
+    corr, rmse = _corr_rmse(ours, r_est)
+    # measured at generation: corr 0.99965 / RMSE 4.0e-3; the 200-family
+    # benchmark lock (RESULTS, personalised panel) is corr 0.9997 / RMSE
+    # 4.6e-3. Same Monte-Carlo bands as the classic lock.
+    assert corr > 0.999
+    assert rmse < 0.01

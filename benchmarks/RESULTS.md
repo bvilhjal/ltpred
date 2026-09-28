@@ -1432,6 +1432,56 @@ the correctly specified A+C+M fit reduced the residual-correlation bias to
 independent nuclear families; not boundary intervals, personalised bounds,
 overlapping pedigrees or informative missingness.
 
+## 34. Locked personalised LT-FH++ and censoring mixture
+(`bench_personalised_compare.py`)
+
+The classic lock (§30) covers one-threshold LT-FH bounds. This campaign locks
+the two features beyond it, on 200 three-relative families per replicate
+(3 replicates, h² = 0.5, K = 0.10) whose bounds come from an age-dependent
+CIP: cases pinned at their onset-age threshold, controls censored with a
+finite age-specific upper and a `K_i`/`K_pop` mixture pair (seed 20260928;
+about 25 pinned cases and 785 censored controls per replicate).
+
+*Table 34.1. Score locks (mean ± SE over 3 replicates).*
+
+| Lock | corr | RMSE | max abs |
+|---|---|---|---|
+| ltpred Gibbs vs LTFHPlus 2.2.0 Gibbs (personalised bounds) | 0.99969 ± 0.00010 | 0.00457 ± 0.00002 | — |
+| ltpred PA mixture vs LTFGRS 1.0.1 PA mixture | 1.00000 ± 0.00000 | 0.00001 ± 0.00001 | — |
+| ltpred PA vs LTFGRS PA (no mixture anchor) | 0.99999 ± 0.00000 | 0.0016 ± 0.0007 | — |
+
+The no-mixture anchor's residual is the known joint-versus-sequential pin-fold
+difference (§30's fixtures document it); the mixture lock has no such design
+difference — both engines fold pins sequentially and split at the lifetime
+threshold — which is why it agrees to 1e-5.
+
+**Input-contract finding.** The two packages encode a censored control
+differently. ltpred's mixture ignores the exact `upper` (the split is the
+lifetime threshold `Phi^-1(1 - K_pop)`); LTFGRS consumes the passed `upper`.
+Feeding LTFGRS ltpred's age-specific bound double-corrects the censoring:
+measured corr 0.71 / RMSE 0.29 against the contract encoding. The campaign
+therefore writes each package its own table (age-specific uppers with NaN `K`
+off censored rows for ltpred; lifetime uppers with `K` filled for LTFGRS,
+whose validator also rejects NA `K_i` even at `useMixture = FALSE`). The
+censored-cohort fixtures in `tests/fixtures/r_lock/` record both encodings.
+
+*Table 34.2. Wall-time and isolated peak RSS (4 Numba threads vs 1 R worker,
+load average ~8 while running — treat the times as ordinal, not
+hardware-independent).*
+
+| Estimator | ms / family | peak RSS (MiB) |
+|---|---|---|
+| LTFHPlus Gibbs | 51.1 | 422 |
+| ltpred Gibbs | 7.8 | 180 |
+| LTFGRS PA mixture | 10.2 | 254 |
+| ltpred PA mixture | 0.13 | 179 |
+| ltpred PA | 0.13 | 179 |
+
+The mixture rows mix algorithms across packages (R sequential fold vs ltpred's
+batched kernel); as in §30 they are not "the same method, faster". The pytest
+mirror of this lock is `tests/test_r_lock.py` (censored-cohort fixtures), so a
+port regression fails CI without R.
+
 ## Historical report changes
 
 The dated record of reruns, corrections and re-derivations of this ledger is in
@@ -1448,9 +1498,9 @@ Table 0.1 gives the provenance of the values now shown.
 - Component-test Type-I error, bootstrap coverage and MCEM SEs (§17) are
   calibrated only at R = 25 resolution ("no gross miscalibration"), and §17 and
   §18 have no archived artifact.
-- The LTFHPlus / LTFGRS lock (§30) is classic no-mixture bounds only, 200 equal
-  nuclear families, LTFHPlus 2.2.0 and LTFGRS 1.0.1: no PA-FGRS mixture,
-  personalised CIP or pedigree-size sweep.
+- The LTFHPlus / LTFGRS classic lock (§30) and the personalised/mixture lock
+  (§34) are 200 equal nuclear families each: no pedigree-size sweep, no
+  ADuLT arm, no multi-trait table.
 - The HAPNEST real-LD path was not run for any artifact: it needs an external
   multi-GB dataset and stays opt-in ([`hapnest/README.md`](hapnest/README.md)).
 - The lightweight GWAS helper uses the large-sample `n * r²` score statistic.

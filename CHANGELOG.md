@@ -78,6 +78,17 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 - `estimate_liability_quadrature_arrays` accepts a length-one `out` sequence
   (`("genetic",)`), like the other single-column array APIs.
 
+### Added
+
+- `bench_personalised_compare.py` locks the LT-FH++ features the classic
+  R-package lock does not cover: age-CIP personalised bounds (pinned cases,
+  censored controls) against LTFHPlus Gibbs, and the PA-FGRS censoring
+  mixture against LTFGRS `useMixture=TRUE` (RESULTS section 34). Building it
+  found an input-contract difference: LTFGRS consumes the censored control's
+  passed `upper` and double-corrects an age-specific bound (corr 0.71), so
+  the lock writes each package its own encoding. Censored-cohort fixtures
+  extend `tests/test_r_lock.py`, so both locks run in CI without R.
+
 ### Removed
 
 - `ltpred.gibbs.gibbs_advance_moment` and `_offset_seed`, used only by the
