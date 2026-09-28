@@ -5,7 +5,7 @@
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 5) {
-  stop("usage: ltfgrs_compare.R IN.csv OUT.csv h2 tol workers [method]")
+  stop("usage: ltfgrs_compare.R IN.csv OUT.csv h2 tol workers [method] [use_mixture]")
 }
 in_csv <- args[[1]]
 out_csv <- args[[2]]
@@ -13,6 +13,7 @@ h2 <- as.numeric(args[[3]])
 tol <- as.numeric(args[[4]])
 workers <- as.integer(args[[5]])
 method <- if (length(args) >= 6L) args[[6]] else "PA"
+use_mixture <- if (length(args) >= 7L) toupper(args[[7]]) == "TRUE" else FALSE
 
 if (!requireNamespace("LTFGRS", quietly = TRUE)) {
   stop("LTFGRS is not installed. From R: install.packages('LTFGRS')")
@@ -43,7 +44,7 @@ est <- estimate_liability(
   out = c("genetic"),
   tol = tol,
   method = method,
-  useMixture = FALSE
+  useMixture = use_mixture
 )
 elapsed <- proc.time()[["elapsed"]] - t0
 
@@ -64,8 +65,10 @@ out <- data.frame(
   workers = future::nbrOfWorkers(),
   ltfgrs_version = as.character(utils::packageVersion("LTFGRS")),
   method = method,
+  use_mixture = use_mixture,
   stringsAsFactors = FALSE
 )
 write.csv(out, out_csv, row.names = FALSE)
-cat(sprintf("LTFGRS %s  method=%s  workers=%s  families=%d  seconds=%.4f\n",
-            out$ltfgrs_version[1], method, out$workers[1], nrow(out), elapsed))
+cat(sprintf("LTFGRS %s  method=%s useMixture=%s workers=%s families=%d seconds=%.4f\n",
+            out$ltfgrs_version[1], method, use_mixture, out$workers[1],
+            nrow(out), elapsed))
