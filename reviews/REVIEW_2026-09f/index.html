@@ -1,0 +1,1630 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+      
+      
+      
+        <link rel="canonical" href="https://bvilhjal.github.io/ltpred/reviews/REVIEW_2026-09f/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/logo.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Review 2026-09f: computational efficiency and benchmark design - ltpred</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+3:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Source Sans 3";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/smartbiomed.css">
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#review-2026-09f-computational-efficiency-and-benchmark-design" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ltpred" class="md-header__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ltpred
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Review 2026-09f: computational efficiency and benchmark design
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ltpred" class="md-nav__button md-logo" aria-label="ltpred" data-md-component="logo">
+      
+  <img src="../../assets/logo.svg" alt="logo">
+
+    </a>
+    ltpred
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/bvilhjal/ltpred" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    bvilhjal/ltpred
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Work with data
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Work with data
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data-preparation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data preparation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cip-estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CIP estimation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../inference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fitting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../assumptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../algorithm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model and algorithms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Numerical checks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#0-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0. Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-what-was-measured" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. What was measured
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-efficiency-findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Efficiency findings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-the-benchmark-suite-today-and-its-gaps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. The benchmark suite today, and its gaps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-published-methods-to-compare-against" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Published methods to compare against
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-proposed-benchmark-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Proposed benchmark work
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-scope-and-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Scope and limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-postscript-what-was-implemented-on-2026-09-28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Postscript: what was implemented on 2026-09-28
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="review-2026-09f-computational-efficiency-and-benchmark-design">Review 2026-09f: computational efficiency and benchmark design<a class="headerlink" href="#review-2026-09f-computational-efficiency-and-benchmark-design" title="Permanent link">&para;</a></h1>
+<p>Date: 2026-09-28. Version reviewed: v0.7.4 (<code>5b33429</code>), working tree clean.
+Focus: (1) where compute time goes and how to reduce it; (2) how to strengthen
+the benchmark suite, including head-to-head comparisons with published
+methods. This is a read-only review: nothing in the repository was changed
+except this document.</p>
+<h2 id="0-summary">0. Summary<a class="headerlink" href="#0-summary" title="Permanent link">&para;</a></h2>
+<p>Three conclusions carry the review.</p>
+<ol>
+<li><strong>The inference kernels are in good shape; the orchestration around them is
+   where the time goes.</strong> At family sizes of roughly 5–20 coordinates the
+   compiled PA and Gibbs kernels are a minority of end-to-end wall-time. The
+   object API spends the large majority of a warm call in Python ingestion
+   (per-member pid normalization and stacking), and the register pipeline
+   spends essentially all of its time in a serial per-proband loop that pays
+   full per-call setup for one family at a time. Batching and caching outside
+   the kernels is worth more than any kernel micro-optimization.</li>
+<li><strong>The flagship feature — personalised LT-FH++ — has no external lock.</strong>
+   <code>bench_ltfhplus_compare.py</code> locks classic LT-FH bounds only (single
+   threshold, no personalisation, no mixture). The age/sex/cohort CIP path, the
+   censoring mixture and ADuLT are only ever compared against internal variants
+   and simulated truth. The R packages that implement the published methods
+   (LTFHPlus, LTFGRS) cover exactly those features, so extending the lock is
+   mostly harness work.</li>
+<li><strong>The suite's metric vocabulary is stronger than the field's but not
+   comparable to it.</strong> Published papers quote mean χ² at causal SNPs, power at
+   5×10⁻⁸, Z-based effective sample size, genome-wide-significant locus counts
+   with block-jackknife s.e., and liability-scale R² with jackknife s.e. Two of
+   these appear in no current benchmark, and the ones that do use differently
+   defined proxies. A small metric-alignment addition would make every gain
+   number directly quotable against Hujoel 2020, Pedersen 2022 and Dybdahl
+   Krebs 2024.</li>
+</ol>
+<p>Findings F1–F11 are the efficiency review (Table 2 ranks the resulting
+recommendations R1–R8); §2 explains what was measured. Sections 3–5 give the
+benchmark plan (B1–B8, Tables 3 and 4). Assumptions stated up front: family
+sizes in the 2–20 coordinate range, role-grammar workloads dominant, thread
+counts pinned as in <code>benchmarks/README.md</code>, PA as the default single-trait
+engine. All measurements are relative shares on one machine; treat them as
+ordering evidence, not portable constants.</p>
+<h2 id="1-what-was-measured">1. What was measured<a class="headerlink" href="#1-what-was-measured" title="Permanent link">&para;</a></h2>
+<p>All timings below were taken on the reference macOS host in the <code>ltpred314</code>
+environment (CPython 3.14.6 free-threaded, NumPy 2.4.6, SciPy 1.18.0, Numba
+0.66.0) with <code>NUMBA_NUM_THREADS=4</code> and BLAS threads pinned to 1, after a JIT
+warm-up call. Profiles are cProfile; counter figures come from instrumenting
+<code>ltpred.gibbs</code> entry points. The workloads are synthetic but sized to sit in
+the package's documented operating range.</p>
+<p><strong>Methodological caveat found while acting on this review (2026-09-28).</strong>
+cProfile on the free-threaded build inflates wall-times of code paths that
+enter Numba parallel kernels — the wrapper <code>launch</code> showed 2.3 ms where
+profiler-free <code>timeit</code> measures a 30 µs dispatch, and whole workloads
+inflated roughly 2–3× (workload F: 1.40 s profiled, 0.75 s timed). The
+<em>relative</em> shares of pure-Python code are usable, and every number this
+review acted on was re-measured with <code>timeit</code> before implementation; the
+table below keeps the profiled shares as structure evidence with
+profiler-free corrections where they were taken.</p>
+<p><em>Table 1. Measured wall-time shares per workload. "Share" is the fraction of
+each call's wall-time spent in the named code, so the rows are directly
+comparable despite different absolute sizes.</em></p>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th>Wall-time</th>
+<th>Where the time went</th>
+<th>Reading</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A. Object API <code>estimate_liability</code>, 4 000 five-member families (PA)</td>
+<td>52 ms profiled / 15.3 ms timed warm</td>
+<td>Ingestion-dominated: <code>_check_unique_roles</code> 5.3 ms timed (20 000 <code>_pid_key</code> string normalizations), stacking a similar share; PA fold a small minority</td>
+<td>F1</td>
+</tr>
+<tr>
+<td>B1. <code>estimate_liability_pa_chunked</code>, 65 536 rows, pin/absent-rich bounds, chunk 65 536 vs 256</td>
+<td>31 ms vs 637 ms timed (≈20×)</td>
+<td>≈2.4 ms fixed setup per chunk: per-mask-group parallel kernel launches (≈30 µs each, dozens per chunk) and <code>_condition_pins</code> per distinct mask; the covariance build itself is 21 µs</td>
+<td>F2</td>
+</tr>
+<tr>
+<td>B2. Gibbs chunked, 2 048 families × 25 000 sweeps</td>
+<td>2.57 s</td>
+<td>98.6% in the compiled sweep (<code>launch</code>); <code>gibbs_params</code>/<code>_blup_from_keep</code> recomputed 8× (once per convergence round); chunking 2% overhead</td>
+<td>F4, F11</td>
+</tr>
+<tr>
+<td>C. <code>fit_heritability</code>, 120 iterations × 2 500 families</td>
+<td>0.79 s</td>
+<td>85% in the <code>gibbs_advance</code> kernel (0.60 s of that is first-call JIT); <code>_validate_covmat</code> (an <code>eigvalsh</code> each) called 192×</td>
+<td>F4</td>
+</tr>
+<tr>
+<td>D. <code>fit_pairwise</code> A+C, 2 500 families</td>
+<td>85 ms</td>
+<td>61% in <code>_prepare_pairs</code> (per-family Python scan, 12 500 <code>_pid_key</code> calls); SLSQP + <code>quad</code> ≈ 2% at 2–3 design rows</td>
+<td>F7</td>
+</tr>
+<tr>
+<td>E. <code>tetrachoric_matrix</code>, 6 traits / 8 000 pairs</td>
+<td>37 ms</td>
+<td>89% in <code>scipy.stats.multivariate_normal.cdf</code>; 299 CDF calls for 15 pairs (≈20 per pair incl. numeric Hessian), ≈52 µs per call</td>
+<td>F8</td>
+</tr>
+<tr>
+<td>F. <code>estimate_liabilities</code> register run, 12 210 people, 2 500 probands, <code>max_degree=2</code></td>
+<td>1.40 s profiled / 0.75 s timed (301 µs/proband)</td>
+<td>46% per-proband F=1 <code>estimate_liability_from_kinship</code> (incl. <code>validate_bounds</code> 80 ms, <code>construct_covmat_from_kinship</code> 80 ms, <code>_condition_pins</code> 96 ms), 23% dense <code>_kinship_A</code>, 13% <code>extract_pedigree</code>, 5% one-time <code>build_parent_graph</code></td>
+<td>F3</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-efficiency-findings">2. Efficiency findings<a class="headerlink" href="#2-efficiency-findings" title="Permanent link">&para;</a></h2>
+<p><strong>F1 — The object API is ingestion-bound.</strong> In workload A the PA fold is a
+small minority of a warm call (timed: <code>_check_unique_roles</code> alone is 5.3 ms of
+15.3 ms). The rest is per-member Python work: <code>_check_unique_roles</code>
+(<code>ltpred/estimate.py:444</code>) normalizes every member's <code>pid</code> through
+<code>_pid_key</code> (<code>ltpred/family.py:101</code>, a <code>.lower().strip()</code> per id) on every
+call, <code>_stack_object_members</code> (<code>ltpred/estimate.py:958</code>) rebuilds row arrays,
+and <code>_group_by_structure</code> re-derives role keys. At 4 000 families ingestion
+costs several microseconds per family against roughly one microsecond of
+kernel, so bulk users pay a multiple that grows with family count, not family
+size. The same pattern reappears in the fitters' ingestion (F7). Suggested
+fix: normalize pids once at construction (<code>families_from_columns</code> / <code>Member</code>)
+or memoize <code>_pid_key</code> results per <code>Member</code>; pass precomputed role-index arrays
+into stacking; document the columnar array API as the recommended bulk path.</p>
+<p><strong>F2 — Per-call setup is inside the chunk/batch loops.</strong> Every chunk of
+<code>estimate_liability_{pa,gibbs}_chunked</code> (<code>ltpred/chunked.py:130-137</code>,
+<code>:166-170</code>) re-enters <code>_pa_from_role_arrays</code> / <code>_gibbs_from_role_arrays</code>
+(<code>ltpred/estimate.py:878</code>, <code>:926</code>). The originally suspected constant — the
+covariance build plus its PD check — times at only 21 µs and is not the
+problem. On pin- and censor-rich bounds (the realistic LT-FH++ case, where
+cases are pinned, controls censored and unobserved relatives absent) the cost
+is the per-chunk <strong>mask machinery</strong>: <code>_pa_reduced_nomix</code> groups families by
+observation mask and launches one parallel kernel per group (~30 µs dispatch
+each, dozens of groups per chunk) plus one <code>_condition_pins</code> reduction per
+distinct mask, together ≈2.4 ms of fixed cost per 256-row chunk (≈20× wall
+over one whole-array call). The defaults (65 536 / 4 096 rows) hide this, but
+the streaming <code>batches</code> API invites small batches, and F3 pays the same setup
+per proband. Suggested fixes: dispatch small groups to a serial kernel (the
+crossover was measured near 128 families; values identical), and share
+pin-conditioning reductions across chunks of one call. Chunk results are
+seed-derived from global row offsets, so neither can affect values.</p>
+<p><strong>F3 — The register pipeline is a serial per-proband loop with F=1 calls.</strong>
+<code>pipeline.py:445-520</code> handles one proband at a time, and each proband calls
+<code>estimate_liability_from_kinship</code> with a single row (<code>pipeline.py:509-511</code>).
+Consequences visible in workload F (560 µs/proband):</p>
+<ol>
+<li>PA's mask-shared pin conditioning (<code>pearson_aitken.py:472-564</code>, grouped at
+   <code>:600-613</code>) is recomputed per call instead of shared across probands with
+   the same observation mask — the design's main amortization never fires
+   outside <code>bench_scaling.py</code>.</li>
+<li>Per-call validation and covariance construction (<code>validate_bounds</code>
+   <code>ltpred/_validation.py:24</code>, <code>construct_covmat_from_kinship</code>
+   <code>covariance.py:716</code>) are paid 2 500 times for one-row inputs.</li>
+<li>Dense kinship is refilled per proband (<code>_kinship_A</code>, <code>covariance.py:563</code>;
+   23% of the call) even though overlapping pedigrees share most ancestor
+   pairs (only the selected-pair route has a cache, <code>_selected_kinship.py:39</code>).</li>
+<li>The loop is single-threaded, and <code>pipeline.py:448</code> rebuilds <code>member_index</code>
+   via per-id dict lookups although <code>Pedigree.member_index</code> already holds it
+   (<code>pedigree.py:246</code>).</li>
+</ol>
+<p>Suggested fix, in order of value: batch probands by (structure, observation
+mask) and issue one <code>pa_estimate_batched</code> call per batch; parallelize the loop
+across probands (PA is deterministic and seed-free, so this is safe); cache
+kinship sub-blocks across overlapping extractions. Expected win 3–10× on the
+register path — this is also the path the R-package fold-times are built on,
+so any claim of the form "LT-FH++ at population scale" is bounded by it. This
+finding is the workload-F counterpart of the ledger's open T1-4 ("PA object
+path still walks members three times") and T2-10 ("covariance-repair gate runs
+per register proband").</p>
+<p><strong>F4 — Redundant factorizations and validations in inner loops.</strong> Three
+instances, all cheap at d ≤ 6 and all O(d³) as d grows (multi-trait d is
+traits × members):</p>
+<ol>
+<li><code>_validate_covmat</code> runs <code>eigvalsh</code> on every <code>gibbs_params</code> call
+   (<code>gibbs.py:221</code>), including internal ones (192 calls inside one
+   <code>fit_heritability</code> run, workload C), immediately followed by <code>np.linalg.inv</code>.
+   A Cholesky attempt would test positive-definiteness at O(d³/3), fail fast,
+   and supply the factor the inverse needs anyway.</li>
+<li><code>_collapsed_round</code> recomputes <code>gibbs_params(cov[keep])</code> and
+   <code>_blup_from_keep</code> on every convergence round (<code>gibbs.py:505</code>, <code>:520</code>) even
+   though the covariance, bounds and unbounded patterns are constant across
+   rounds (counters: 8 recomputes over 8 rounds in B2; 64 in C).</li>
+<li><code>correct_positive_definite</code> tests with <code>eigvalsh</code> per shrink iteration
+   (<code>covariance.py:840-848</code>) and is re-entered per chunk/proband even for
+   matrices the caller just built.</li>
+</ol>
+<p>Suggested fix: memoize the kept-block parameters and BLUP map per
+(group, unbounded-pattern); thread a "certified" flag (the mechanism already
+exists as <code>_PSD_CERTIFIED</code>, <code>covariance.py:706-713</code>) through internal call
+paths so validation runs once at public boundaries; use Cholesky for the PD
+test. Keep the full check for user-supplied matrices — the error messages are
+a documented safety contract.</p>
+<p><strong>F5 — <code>out=("genetic", "full")</code> repeats the entire PA fold.</strong>
+<code>estimate.py:917-922</code> loops over requested coordinates and calls
+<code>pa_estimate_batched</code> once per target, each call re-copying and re-folding Σ
+(<code>pearson_aitken.py:776</code>). Benchmarks routinely ask for both outputs, so they
+pay 2× on the fold. Fix: a multi-target fold that reports the target-0 moments
+and the final updated first-row moments from one sweep. The two outputs
+currently come from differently ordered folds, so agreement must be checked
+against both existing results before switching.</p>
+<p><strong>F6 — The mixture path folds uninformative rows.</strong> <code>_pa_family</code>
+(<code>pearson_aitken.py:372-376</code>) folds every row of Algorithm M, including absent
+<code>(−∞, +∞)</code> rows, whose <code>_tnorm_mixture</code> returns the unchanged moments while
+<code>_pa_update</code> still executes its O(i²) update with a zero factor. The
+no-mixture kernel skips such rows (<code>pearson_aitken.py:394</code>). Algorithm M
+deliberately has no P2 reduction, so deep pedigrees — where most rows are
+closure-only or uninformative — pay full O(d³/6) per family for no information.
+Fix: skip absent rows in <code>_pa_family</code> as <code>_pa_family_nomix</code> does. This is exact
+(an absent row carries no bounds and no <code>K</code> contribution) and matters precisely
+for the <code>max_degree=3</code> register case.</p>
+<p><strong>F7 — The pairwise fitters are ingestion-bound, not quadrature-bound.</strong>
+<code>_prepare_pairs</code> (<code>pairwise.py:142-187</code>) is 61% of <code>fit_pairwise</code> in workload
+D (per-family <code>sorted</code> of members, 12 500 <code>_pid_key</code> calls). The two adaptive
+<code>quad</code> calls per design row per criterion evaluation
+(<code>pairwise.py:129-130</code>) are real but minor at 2–3 design rows (~2% of the
+call); the cost grows with the row count in <code>pairwise_multi</code>, whose objective
+also runs PSD-eigenvalue constraints per SLSQP step
+(<code>pairwise_multi.py:480-489</code>). Fix F1's ingestion pattern here first; then
+consider fixed-order Plackett quadrature or a <code>(t, ρ)</code> memo along the lines of
+<code>pairwise_multi._PROBABILITY_LIMITS_MEMO</code> (<code>pairwise_multi.py:289-325</code>, itself
+unbounded — worth a size cap).</p>
+<p><strong>F8 — <code>tetrachoric</code> uses heavyweight CDF machinery per likelihood
+evaluation.</strong> Each objective evaluation calls
+<code>scipy.stats.multivariate_normal.cdf</code> with <code>maxpts=10⁶</code>, <code>abseps=releps=10⁻¹⁰</code>
+(<code>tetrachoric.py:86-88</code>), ≈52 µs per call, about 20 calls per pair including
+the numeric Hessian (<code>tetrachoric.py:160-166</code>). Measured determinism is good
+(eight repeat calls bit-identical under SciPy 1.18), so the issue is cost and
+duplication rather than reproducibility: the deterministic Plackett-identity
+bivariate probability the fitter already uses (<code>pairwise.py:102-139</code>, unequal
+thresholds would be a small generalization) computes the same quantity at a
+fraction of the cost, and one implementation would serve both modules. At
+m = 100 traits (4 950 pairs) the current cost is roughly 11 s per matrix
+versus an estimated ~1 s after unification. A lock against R <code>polycor</code> (prior
+art in <code>docs/REVIEWS.md:257</code>) should gate the change.</p>
+<p><strong>F9 — Per-round Python bookkeeping in <code>_estimate_group</code> (minor).</strong> The
+accumulator updates at <code>estimate.py:374-417</code> are a Python loop over active
+families per round. Invisible at the sizes measured (kernel-dominated), worth
+vectorizing only if profiles at tiny d and large F show it.</p>
+<p><strong>F10 — Indexing and allocation churn (minor).</strong> <code>np.ix_</code> appears 15 415 times
+in workload F (100 ms cumulative) around kinship subsetting; <code>_pa_batched</code>
+copies the d×d working matrix per family (<code>pearson_aitken.py:414</code>, inherent to
+the mutation semantics); <code>simulate.py:427-453</code> builds <code>Family</code>/<code>Member</code>
+objects in nested loops, which slows benchmark data generation but not users.</p>
+<p><strong>F11 — What is already near-optimal, and should not be touched lightly.</strong>
+The Gibbs sweep spends 98.6% of its call inside the compiled kernel with
+streaming O(ncols) summaries; its cost is the algorithmic
+F × (burn-in + n_sim) × d² term, and the levers there are statistical (the
+batch-means convergence rounds, the G2 unbounded-set collapse, <code>tol</code>/<code>n_sim</code>
+defaults), not micro-optimization. PA's active-block rank-1 fold, mask-shared
+pin conditioning and structure grouping are the right shapes. Every change in
+F1–F8 must preserve four contracts: the numerically identical pure-Python
+fallback (<code>gibbs.py:303-310</code>), per-family reseeding so parallel results are
+scheduler-independent (<code>gibbs.py:345-346</code>), chunk bit-identity from global row
+offsets (<code>chunked.py:153-158</code>), and the <code>bench_time_memory</code> exact
+output-agreement gate. That driver is the correctness net for this whole
+section: each recommendation below should land with a before/after capsule
+under its existing rules.</p>
+<p><em>Table 2. Recommendations ranked by expected value over effort. "Verify in"
+names the evidence that must accompany the change under the repository's own
+rule that a number in prose needs an artifact (<code>docs/REVIEWS.md</code>, lesson 1).</em></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Recommendation</th>
+<th>Expected win</th>
+<th>Effort</th>
+<th>Risk</th>
+<th>Verify in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td>Batch and parallelize the register loop (F3)</td>
+<td>3–10× on <code>estimate_liabilities</code></td>
+<td>High</td>
+<td>Medium (must stay bit-identical)</td>
+<td>New <code>bench_time_memory</code> case at 200k probands; <code>bench_register_pipeline</code> part 4</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>Serial dispatch for small PA batches/groups; share pin reductions across chunks (F2)</td>
+<td>measured 1.5–1.6× chunked PA at chunk 64–1024 after the serial half alone</td>
+<td>Low (done) / medium (pin sharing)</td>
+<td>Low</td>
+<td><code>bench_time_memory</code> <code>pa_*</code> cases; <code>bench_scaling</code></td>
+</tr>
+<tr>
+<td>R3</td>
+<td>Cache pid/role normalization; vectorize object ingestion (F1, F7)</td>
+<td>measured −17% on warm re-validation of 4 000 families; stacking still open</td>
+<td>Low (pid half done)</td>
+<td>Low (error messages pinned by tests)</td>
+<td><code>bench_scaling</code> object path; a new ingestion case</td>
+</tr>
+<tr>
+<td>R4</td>
+<td>Cholesky PD test, certified-flag threading, memoize round invariants (F4)</td>
+<td>small at d ≤ 6, material for multi-trait and large pedigrees</td>
+<td>Low–medium (memo done)</td>
+<td>Medium (validation contract)</td>
+<td><code>bench_time_memory</code> + the fitter benchmarks at multi-trait d</td>
+</tr>
+<tr>
+<td>R5</td>
+<td>Skip absent rows in the mixture fold (F6)</td>
+<td>proportional to uninformative-row share at depth 3</td>
+<td>Low (done)</td>
+<td>Low</td>
+<td><code>bench_pafgrs_mixture</code> (paired before/after)</td>
+</tr>
+<tr>
+<td>R6</td>
+<td>Multi-target PA fold (F5)</td>
+<td>2× whenever <code>out=("genetic","full")</code></td>
+<td>Medium</td>
+<td>Medium (two orderings to reconcile)</td>
+<td><code>bench_accuracy</code> rows requesting both outputs</td>
+</tr>
+<tr>
+<td>R7</td>
+<td>Unify bivariate CDF on the deterministic Plackett quadrature (F8)</td>
+<td>5–20× per tetrachoric pair</td>
+<td>Low</td>
+<td>Low</td>
+<td><code>bench_tetrachoric</code> + R <code>polycor</code> lock</td>
+</tr>
+<tr>
+<td>R8</td>
+<td>Minor churn (F9, F10)</td>
+<td>a few percent in orchestration</td>
+<td>Low</td>
+<td>Low</td>
+<td>existing driver cases</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-the-benchmark-suite-today-and-its-gaps">3. The benchmark suite today, and its gaps<a class="headerlink" href="#3-the-benchmark-suite-today-and-its-gaps" title="Permanent link">&para;</a></h2>
+<p>The suite is unusually disciplined (provenance wrapper, evidence checker,
+capsule archives). Its shape is also consistent: of 29 scripts, exactly two
+touch external software — <code>bench_ltfhplus_compare.py</code> (LTFHPlus Gibbs, LTFGRS
+PA, classic LT-FH bounds, 200 nuclear families) and the optional <code>ldpred3</code> arm
+of <code>bench_pgs_comparison.py</code>. Everything else compares internal variants to
+simulated truth. Three gaps follow directly, and they line up with gaps the
+documents already admit:</p>
+<ol>
+<li><strong>No external lock on the personalised path.</strong> The LT-FH++/ADuLT
+   personalisation (age/sex/cohort CIPs, censoring mixture, onset encodings)
+   is the package's raison d'être and is benchmarked only against itself
+   (<code>bench_ltfhpp_personalization</code>, <code>bench_pafgrs_mixture</code>, <code>bench_fh_prediction</code>).</li>
+<li><strong>No benchmark at all for two advertised engines/features.</strong> The
+   quadrature engine (README's third engine) appears in no benchmark, and
+   multi-trait <em>scoring</em> has none (<code>docs/ROADMAP.md:41</code> states the promotion
+   gate is exactly such a benchmark). The time/memory driver covers neither
+   Gibbs, quadrature nor the fitters in its seven cases.</li>
+<li><strong>Gain metrics are not the field's metrics.</strong> The strict causal-NCP ratio
+   and squared-correlation eff-N proxy (defined in the <code>benchmarks/RESULTS.md</code>
+   preamble, with the caveat that they are not interchangeable) are
+   defensible, but papers in this literature quote a specific set of
+   quantities (Table 4). Without them, "1.47× NCP" cannot be placed beside
+   Hujoel 2020's "+22% mean χ² vs GWAX, +55% power" or Pedersen 2022's
+   effective-sample-size increase.</li>
+</ol>
+<p>Two further gaps worth naming because the roadmap already tracks them: the
+pairwise/moment fitters have never been compared with published heritability
+estimators on equal cohorts (<code>docs/ROADMAP.md:58-62</code>), and the HAPNEST real-LD
+path "was not run for any artifact" (<code>benchmarks/RESULTS.md</code>), leaving every
+association claim resting on independent SNPs.</p>
+<h2 id="4-published-methods-to-compare-against">4. Published methods to compare against<a class="headerlink" href="#4-published-methods-to-compare-against" title="Permanent link">&para;</a></h2>
+<p><em>Table 3. Comparator landscape. Citations verified against Crossref/Europe
+PMC/CRAN in a 2026-09-28 literature scan; unverified items are flagged rather
+than guessed. "Priority" is how much a lock against it adds beyond the current
+suite.</em></p>
+<table>
+<thead>
+<tr>
+<th>Method / software</th>
+<th>Citation</th>
+<th>Implements</th>
+<th>How to invoke</th>
+<th>Compare on</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LTFHPlus 2.2.0 (CRAN, GPL-3)</td>
+<td>Reference implementation of Pedersen EM et al., <em>AJHG</em> 109:417–432 (2022), DOI 10.1016/j.ajhg.2022.01.009; CRAN DOI 10.32614/CRAN.package.LTFHPlus</td>
+<td>LT-FH, LT-FH++ (age/sex/cohort thresholds), ADuLT, arbitrary pedigrees; Rcpp Gibbs; register/pedigree utilities since 2.2</td>
+<td><code>estimate_liability(.tbl, family_graphs, h2, tol=0.01, ...)</code> via <code>Rscript</code></td>
+<td><strong>Personalised LT-FH++ and ADuLT score locks</strong> (missing today), scores vs seeds/tolerance, per-family time, throughput at 350k scale</td>
+<td><strong>1</strong></td>
+</tr>
+<tr>
+<td>LTFGRS 1.0.1 (CRAN, GPL≥3)</td>
+<td>Reference implementation of Dybdahl Krebs M et al., <em>AJHG</em> 111:2494–2509 (2024), DOI 10.1016/j.ajhg.2024.09.009; CRAN DOI 10.32614/CRAN.package.LTFGRS</td>
+<td>PA engine, <strong>censoring/onset mixture</strong> (<code>useMixture=TRUE</code>), classic LT-FH, Kendler FGRS, censoring utilities</td>
+<td><code>estimate_liability(..., method="PA", useMixture=...)</code>, <code>kendler_simplified(...)</code></td>
+<td>Mixture lock (current lock sets <code>useMixture=FALSE</code>), PA-FGRS mixture panels, Kendler comparison</td>
+<td><strong>1</strong></td>
+</tr>
+<tr>
+<td>Original LT-FH scripts</td>
+<td>Hujoel MLA et al., <em>Nat Genet</em> 52:541–547 (2020), DOI 10.1038/s41588-020-0613-6</td>
+<td>Monte-Carlo LT-FH over 377 configurations</td>
+<td>Scripts at data.broadinstitute.org/alkesgroup/UKBB/LTFH/ (language unverified)</td>
+<td>One-off compatibility lock of the classic-LT-FH mode; documents the MC-vs-analytic gap</td>
+<td>2</td>
+</tr>
+<tr>
+<td>GWAX</td>
+<td>Liu, Erlich &amp; Pickrell, <em>Nat Genet</em> (2017), DOI 10.1038/ng.3766</td>
+<td>Proxy-case binary phenotype</td>
+<td>~20 lines in <code>_common.py</code></td>
+<td>Baseline arm for every association benchmark (both key papers beat it); quote the proxy-GWAS bias caveats (Wu et al. 2024, DOI 10.1038/s41588-024-01963-9; rebuttal DOI 10.1038/s41588-024-02023-y)</td>
+<td>2</td>
+</tr>
+<tr>
+<td>PRS-FH</td>
+<td>Hujoel MLA et al., <em>Cell Genomics</em> (2022), DOI 10.1016/j.xgen.2022.100152</td>
+<td>Combined PGS + family history with relative-class pseudo-heritabilities</td>
+<td>Equations reimplementable (code statement unverified)</td>
+<td><code>bench_pgs_comparison</code> arm; liability-scale R² with jackknife</td>
+<td>3</td>
+</tr>
+<tr>
+<td>PCGC regression</td>
+<td>Golan, Lander &amp; Rosset, <em>PNAS</em> (2014), DOI 10.1073/pnas.1419064111</td>
+<td>Moment (pair) h² under ascertainment — the closest published analogue to <code>fit_pairwise</code></td>
+<td>Short reimplementation, no canonical package</td>
+<td>Fitter comparisons: bias/SD/coverage/runtime on equal cohorts</td>
+<td>2</td>
+</tr>
+<tr>
+<td>GCTA-GREML (+ Lee 2011 correction, DOI 10.1016/j.ajhg.2011.02.002; Hayeck 2015, DOI 10.1016/j.ajhg.2015.03.004)</td>
+<td>GCTA: Yang et al., <em>AJHG</em> (2011), DOI 10.1016/j.ajhg.2010.11.011</td>
+<td>SNP-based h² with ascertainment handling</td>
+<td>CLI</td>
+<td>Fitter comparison arm (genotype-based, so interpret differences in estimand)</td>
+<td>2</td>
+</tr>
+<tr>
+<td>OpenMx / MCMCglmm</td>
+<td>Boker et al., <em>Psychometrika</em> (2011), DOI 10.1007/s11336-010-9200-6; Hadfield, <em>JSS</em> 33:2 (2010), DOI 10.18637/jss.v033.i02</td>
+<td>Pedigree/twin threshold FIML; Bayesian animal model</td>
+<td>CRAN</td>
+<td><code>fit_variance_components</code> / tetrachoric locks (OpenMx is also an oracle for <code>polycor</code>-free tetrachorics)</td>
+<td>2</td>
+</tr>
+<tr>
+<td>FamEvent</td>
+<td>Choi et al., <em>JSS</em> 97(7):1–30 (2021), DOI 10.18637/jss.v097.i07</td>
+<td>Ascertained age-at-onset family simulation + penetrance models</td>
+<td>CRAN</td>
+<td><strong>Independent simulator</strong> for mixture/ADuLT arms (B6)</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Kim–Kwak–Won LTM</td>
+<td><em>Genet Epidemiol</em>, DOI 10.1002/gepi.22244 (year discrepancy 2019/2022)</td>
+<td>Heritability of dichotomous traits on ascertained pedigrees</td>
+<td>Software unverified</td>
+<td>Only if an implementation surfaces</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Kendler FGRS</td>
+<td>Kendler et al., <em>JAMA Psychiatry</em> (2021), DOI 10.1001/jamapsychiatry.2021.0336</td>
+<td>Kinship-weighted family scores (pragmatic incumbent)</td>
+<td><code>LTFGRS::kendler_simplified</code></td>
+<td>Practical baseline in the PA-FGRS panels (as its own paper does)</td>
+<td>3</td>
+</tr>
+<tr>
+<td>LT-FGRS preprint</td>
+<td>Pedersen et al., medRxiv (2026), DOI 10.64898/2026.06.15.731517 (abstract verified; full text blocked)</td>
+<td>Unifying R package; itself a benchmark-of-implementations paper</td>
+<td>—</td>
+<td>The closest existing template for this whole plan; read before finalizing B1/B2 designs</td>
+<td>1 (as a template)</td>
+</tr>
+</tbody>
+</table>
+<p>Not found / not usable: "famPRS", "LTML", "solium" (no such methods located;
+search terms recorded in the scan), So et al. 2011 PA software, Fam-meta code,
+FHAT code, SPACox citation. A "brute-force quadrature vs LT-FH++" runtime
+comparison does not appear to exist in any of these papers — the published
+speed contrast is Gibbs vs the original Monte Carlo (Pedersen 2022's
+"32 cores, 350 000 individuals in &lt;25 min" scaling claim being the headline to
+reproduce-style against).</p>
+<h2 id="5-proposed-benchmark-work">5. Proposed benchmark work<a class="headerlink" href="#5-proposed-benchmark-work" title="Permanent link">&para;</a></h2>
+<p>Each item states its question, its design and where it belongs (a new script or
+an arm of an existing one). All of them inherit the provenance wrapper,
+<code>check_evidence.py</code> pinning for any release-defining number, and the quoting
+rules already learned: report thread counts with every fold, keep mixed
+algorithm rows clearly labelled (the 8086× row of RESULTS §30 is
+"LTFHPlus-Gibbs vs ltpred-PA", not "the same method, faster"), and separate
+first-call JIT from warm timings.</p>
+<p><strong>B1 — Turn the R lock into a published-methods suite.</strong> Extend
+<code>bench_ltfhplus_compare.py</code> (and <code>ltfhplus_compare.R</code> / <code>ltfgrs_compare.R</code>)
+along four arms: (a) personalised LT-FH++ — age/sex/cohort thresholds and
+interval/pinned bounds — against <code>LTFHPlus::estimate_liability</code>, which is the
+missing flagship lock; (b) ADuLT (no proband phenotype) against the same;
+(c) censoring mixture against <code>LTFGRS</code> <code>useMixture=TRUE</code>, on the exact
+generative panels <code>bench_pafgrs_mixture.py</code> already simulates (threshold
+crossing, stochastic onset, liability-dependent onset × MID/OLD censoring);
+(d) classic LT-FH against the original Broad scripts as a one-off. Keep the
+score-lock metrics (corr/RMSE/max-abs), fold-times with thread provenance and
+isolated peak RSS, and extend the <code>tests/test_r_lock.py</code> committed-fixture
+pattern to the new arms so port regressions fail CI without R. The current
+lock's workload (200 equal nuclear families, LTFHPlus's own Gibbs settings)
+should remain the constant cell so historical RESULTS §30 rows stay
+comparable.</p>
+<p><strong>B2 — A workload matrix and a population-scale throughput curve.</strong> The lock
+should cross: family size (2–11 members), depth (<code>max_degree</code> 1–3), trait
+rarity (K ∈ {0.005, 0.05, 0.3}), personalisation on/off, mixture on/off, and
+ascertainment (1× and the Pedersen 2022 design of downsampling controls to
+50%; optionally the ADuLT 5× oversampling × two generative models). Report
+ms/family and probands/s with explicit thread counts, plus peak RSS. The
+headline cell is a 350 000-proband register-style run — directly comparable to
+the published "350k in &lt;25 min on 32 cores" claim — reported for ltpred PA,
+ltpred Gibbs and LTFHPlus Gibbs on matched inputs. This is also the natural
+home for R1's before/after evidence.</p>
+<p><strong>B3 — Fitter comparisons on equal cohorts (the roadmap's own ask).</strong> On the
+same simulated cohorts, compare <code>fit_heritability</code> / <code>fit_variance_components</code>
+/ <code>fit_pairwise</code> / <code>fit_pairwise_multi</code> against: PCGC regression
+(reimplemented; the closest published analogue to the pairwise moment fit),
+GCTA-GREML with the Lee/Hayeck ascertainment corrections where genotypes
+exist, OpenMx threshold FIML (the gold standard for pedigree binary traits)
+and MCMCglmm. Metrics: bias, across-replicate SD, reported-s.e. calibration,
+95% coverage, boundary behaviour and wall-time — the columns
+<code>bench_pairwise_recovery.py</code> and <code>bench_fit_heritability.py</code> already produce,
+plus the external estimator columns. Include the ascertainment cells
+(<code>bench_ascertainment.py</code>'s schemes) since ascertainment is exactly where the
+published methods disagree (Golan 2014 shows REML underestimates). Add a
+<code>polycor</code> lock for <code>tetrachoric</code> alongside (R7).</p>
+<p><strong>B4 — Metric alignment to the field.</strong> <em>Table 4</em> lists the mapping. The
+additions are mechanical given the existing association helper: the Z-based
+effective-sample-size comparison of Pedersen 2022 (mean χ²-based N_eff ratio
+across matched analyses), the genome-wide-significant-locus count with a
+200-block genomic jackknife s.e. (Hujoel 2020's real-data metric; needs the
+HAPNEST LD arm of B7 to mean anything), liability-scale R² with jackknife s.e.
+under the Lee conversion (PRS-FH's metric, for <code>bench_pgs_comparison</code>), and
+the S-LDSC attenuation ratio as a confounding diagnostic. Keep the strict
+causal-NCP ratio beside them — it is a cleaner estimand than the field's mean
+χ² — but publish both so results are quotable in either vocabulary.</p>
+<p><em>Table 4. Metric alignment: what the comparators' papers quote, and what the
+suite reports today.</em></p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Definition</th>
+<th>Quoted by</th>
+<th>In the suite today</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mean χ² at causal SNPs</td>
+<td>NCP proxy</td>
+<td>Hujoel 2020, ADuLT 2023</td>
+<td>Yes (<code>bench_gwas_power</code>)</td>
+</tr>
+<tr>
+<td>Power at 5×10⁻⁸</td>
+<td>fraction of causal SNPs passing</td>
+<td>Hujoel 2020, Pedersen 2022</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Z-based effective sample size</td>
+<td>N_eff from matched Z-scores</td>
+<td>Pedersen 2022, Hujoel 2020 (real data), Guan 2025</td>
+<td>No (squared-correlation eff-N proxy only)</td>
+</tr>
+<tr>
+<td>GWS-locus count + 200-block jackknife s.e.</td>
+<td>replication-scale discovery</td>
+<td>Hujoel 2020, Pedersen 2022, ADuLT 2023</td>
+<td>No (needs real LD)</td>
+</tr>
+<tr>
+<td>Liability-scale R² + jackknife s.e.</td>
+<td>Lee conversion of prediction R²</td>
+<td>Hujoel 2022 (PRS-FH)</td>
+<td>Partial (test R² only)</td>
+</tr>
+<tr>
+<td>λ_GC and S-LDSC attenuation ratio</td>
+<td>null calibration / confounding</td>
+<td>Hujoel 2020</td>
+<td>λ_GC yes; attenuation ratio no</td>
+</tr>
+<tr>
+<td>AUC and joint-model incremental value</td>
+<td>classification</td>
+<td>Dybdahl Krebs 2024</td>
+<td>Yes (<code>bench_register_pipeline</code>, <code>bench_pgs_comparison</code>)</td>
+</tr>
+<tr>
+<td>Calibration slope / decile curve</td>
+<td>posterior-mean self-calibration</td>
+<td>— (not used in these papers)</td>
+<td>Yes — a differentiator; keep</td>
+</tr>
+<tr>
+<td>Causal-SNP NCP ratio</td>
+<td>strict NCP ratio</td>
+<td>— (stricter than the field)</td>
+<td>Yes — keep beside the field metrics</td>
+</tr>
+</tbody>
+</table>
+<p><strong>B5 — Evidence for the two unbenchmarked capabilities.</strong> (a) The quadrature
+engine: accuracy against PA and Gibbs on nuclear families (its documented
+scope), a cost curve over family size and bound patterns, and the stress cells
+the roadmap already lists (rare traits, discordant large sibships). (b)
+Multi-trait scoring: the accuracy benchmark whose non-existence currently
+blocks promoting multi-trait PA (<code>docs/ROADMAP.md:41</code>) — rare traits,
+asymmetric truncation, larger pedigrees, with Gibbs as the reference arm. Both
+also become <code>bench_time_memory</code> cases (B8), satisfying the graduation rule
+that new capabilities ship with representative runtime evidence.</p>
+<p><strong>B6 — Independent-simulator triangulation.</strong> All statistical benchmarks draw
+from ltpred's own liability-threshold simulator; a shared misunderstanding of
+the observation model would be invisible. FamEvent (CRAN) generates ascertained
+age-at-onset pedigrees with censoring and competing risks independently; feed
+its output through the PA-FGRS mixture and ADuLT arms (B1c) and the
+<code>bench_cip_estimation</code> cells. This also imports ADuLT 2023's evaluation grid
+(two generative models × ascertainment severity), which is the most
+transferable design in the literature.</p>
+<p><strong>B7 — Run the real-LD arm once.</strong> The HAPNEST opt-in of
+<code>bench_gwas_power.py</code> / <code>bench_pgs_comparison.py</code> has never backed an
+artifact. One committed run converts "results assume independent SNPs" from a
+standing caveat into a bounded statement, and is a prerequisite for B4's
+locus-count metric.</p>
+<p><strong>B8 — Close the performance-regression gaps.</strong> Three concrete items: (1) run
+the <code>bench_time_memory</code> driver across v0.7.1 → v0.7.4 now, closing the
+acknowledged capsule gap before the next release; (2) extend its seven-case
+list with Gibbs, quadrature, a fitter and a large (≥200k proband) pipeline
+case — the current cases cover none of the first three and only a 300-proband
+pipeline; (3) adopt the driver's exact output-agreement gate as the
+correctness net for R1–R8, each landing with a before/after capsule in the
+<code>benchmarks/results/</code> format. For F3/R1 specifically, an allocation-profile
+capsule (the <code>2026-09-23-lean-v072</code> pattern) is the right first evidence if
+wall-clock on a shared host would be untrustworthy.</p>
+<h2 id="6-scope-and-limitations">6. Scope and limitations<a class="headerlink" href="#6-scope-and-limitations" title="Permanent link">&para;</a></h2>
+<p>This review read the full core (<code>ltpred/*.py</code>, ~10k lines), all 29 benchmark
+scripts' designs, the results/roadmap/review documents, and profiled six
+workloads at small-to-moderate scale on one machine. It did not: rerun any
+statistical benchmark; exercise the R comparators (whether LTFHPlus/LTFGRS
+install and run on this host is untested here); measure multi-trait d beyond
+noting its scaling shape; or verify the literature scan's flagged unverified
+citations. Profile shares at d ≤ 6 will shift with scale — in particular F4
+grows with d and F2 shrinks in relative terms as the kernel grows — so the
+ranked table is a statement about the documented operating range, and R1–R8
+each carry their own verification plan for exactly that reason.</p>
+<h2 id="7-postscript-what-was-implemented-on-2026-09-28">7. Postscript: what was implemented on 2026-09-28<a class="headerlink" href="#7-postscript-what-was-implemented-on-2026-09-28" title="Permanent link">&para;</a></h2>
+<p>Acting on this review, five changes landed in the working tree (uncommitted;
+1024-test fast suite, ruff and bit-identity goldens all green, two new
+regression tests in <code>tests/test_pearson_aitken.py</code>):</p>
+<ol>
+<li><strong>R5 (F6):</strong> the PA-FGRS mixture fold skips absent rows exactly as the
+   no-mixture kernel does. A family with extra absent relatives now scores
+   bit-identically to the same family with those rows deleted; previously the
+   posterior variance moved in the last ulp (golden check across PA, mixture,
+   Gibbs, chunked, object, fitter and register paths: every output
+   bit-identical except mixture variances, worst diff 4.4e-16).</li>
+<li><strong>R2, serial half (F2):</strong> batches and mask groups below 128 families run
+   on serial kernel twins (<code>_PARALLEL_MIN_FAMILIES</code>); the crossover was
+   measured, not assumed. Chunked PA on pin/absent-rich bounds, timed
+   before → after: chunk 1024 154.9 → 102.7 ms, chunk 256 386.1 → 253.3 ms,
+   chunk 64 900.0 → 557.4 ms (<strong>1.5–1.6×</strong>); whole-array calls unchanged.</li>
+<li><strong>R3, pid half (F1):</strong> <code>_member_pid_key</code> caches the normalization on the
+   Member, invalidated on pid reassignment (a pattern the test suite itself
+   uses). Warm re-validation of 4 000 families: 5.3 → 4.4 ms. Object-API
+   first-pass wall-time is unchanged — the remaining ingestion cost is
+   <code>_stack_object_members</code>, deliberately left alone here.</li>
+<li><strong>R4, memo half (F4):</strong> the Gibbs convergence loop computes each group's
+   collapse invariants once across rounds (<code>_collapse_cache</code> through
+   <code>gibbs_estimate_batched</code>); counters previously showed one recompute per
+   round. Draws are bit-identical.</li>
+<li><strong>R1, item 4 (F3):</strong> the register driver reuses <code>Pedigree.member_index</code>
+   instead of rebuilding it per proband. Pipeline timing moved 301 → 294
+   µs/proband (≈2%); the structural levers of R1 (mask-batched probands,
+   parallel loop, shared kinship blocks) remain open and are still the
+   largest single win available.</li>
+</ol>
+<p>Two corrections to this review's own first draft are recorded above: the
+per-chunk tax is the mask machinery, not the covariance factorization (21 µs),
+and cProfile on the free-threaded build inflates Numba-parallel paths 2–3× —
+both found by re-measuring with <code>timeit</code> before implementing. The remaining
+open items, in value order: R1's batching/parallelism, cross-chunk sharing of
+<code>_condition_pins</code> reductions (the other ~half of the chunk tax; touches the
+most numerically sensitive code in the PA path, so it wants its own careful
+pass), R6, R7, and the Cholesky-based PD test of R4.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Developed with the support of <a href="https://smartbiomed.dk/">SMARTbiomed</a>.
+
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://smartbiomed.dk/" target="_blank" rel="noopener" title="SMARTbiomed" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://github.com/bvilhjal/ltpred" target="_blank" rel="noopener" title="ltpred on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "content.code.copy", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+      
+        <script src="../../javascripts/katex.js"></script>
+      
+    
+  </body>
+</html>

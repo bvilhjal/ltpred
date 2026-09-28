@@ -8212,7 +8212,7 @@ unaffected.</p>
 
 
 <a href="#ltpred.gibbs.gibbs_estimate_batched" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">gibbs_estimate_batched</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">sd</span><span class="p">,</span> <span class="n">sd0</span><span class="p">,</span> <span class="n">lowers</span><span class="p">,</span> <span class="n">uppers</span><span class="p">,</span> <span class="n">out_idx</span><span class="p">,</span> <span class="n">n_sim</span><span class="p">,</span> <span class="n">burn_in</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">n_batch</span><span class="p">,</span> <span class="n">seeds</span><span class="p">,</span> <span class="n">cov</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">collapse</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">gibbs_estimate_batched</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">sd</span><span class="p">,</span> <span class="n">sd0</span><span class="p">,</span> <span class="n">lowers</span><span class="p">,</span> <span class="n">uppers</span><span class="p">,</span> <span class="n">out_idx</span><span class="p">,</span> <span class="n">n_sim</span><span class="p">,</span> <span class="n">burn_in</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">n_batch</span><span class="p">,</span> <span class="n">seeds</span><span class="p">,</span> <span class="n">cov</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">collapse</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">_collapse_cache</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -8246,7 +8246,10 @@ constant <code>Var(z | y)</code>, so <code>var</code> is still <code>Var(target 
 its SE is that of the Rao--Blackwellised mean. <code>P</code>/<code>sd</code> are then
 unused: the kept block's are recomputed from <code>cov</code>. If every coordinate
 is collapsed, no sampling happens (sums 0, <code>total_sumsq = N * cov[j, j]</code>).
-Pass <code>collapse=False</code> to force the full chain. <code>rtmvnorm_gibbs</code> is
+Pass <code>collapse=False</code> to force the full chain. A caller looping rounds
+on one <code>cov</code> (the convergence loop) may pass a dict as
+<code>_collapse_cache</code> so those kept-block factors are computed once instead
+of per round; the sums are identical. <code>rtmvnorm_gibbs</code> is
 never collapsed.</p>
 
 
