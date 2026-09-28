@@ -478,3 +478,23 @@ open items, in value order: R1's batching/parallelism, cross-chunk sharing of
 `_condition_pins` reductions (the other ~half of the chunk tax; touches the
 most numerically sensitive code in the PA path, so it wants its own careful
 pass), R6, R7, and the Cholesky-based PD test of R4.
+
+**Benchmark plan follow-through (2026-09-28, same day).** B1 landed as
+`bench_personalised_compare.py` (RESULTS §34): ltpred Gibbs vs LTFHPlus on
+age-CIP bounds corr 0.99969 / RMSE 0.00457; the PA-FGRS mixtures vs LTFGRS
+`useMixture=TRUE` corr 1.00000 / RMSE 1e-5 — with a contract finding worth
+keeping: LTFGRS consumes the censored control's passed `upper` and
+double-corrects an age-specific bound (corr 0.71 / RMSE 0.29 when both
+packages are fed the same table), so the lock writes each package its own
+encoding, and the censored-cohort fixtures extend `tests/test_r_lock.py`.
+B5 landed as `bench_quadrature.py` (§35: PA matches the near-exact
+quadrature to RMSE 1.5e-3 at ~25x its cost). B2 landed as
+`bench_population_scale.py` (§36: register ~7 000 probands/s linear to
+200 000; array PA ~2.3M rows/s). Still open from the plan: B1's ADuLT arm and
+the Broad LT-FH scripts, B3 (PCGC/OpenMx fitter comparisons), B4 (field-metric
+alignment), B6 (FamEvent triangulation), B7 (the real-LD run) and B8 (the
+time/memory driver capsule, which wants a quiet host — load was ~8 while
+these campaigns ran). Building B2 also found a new F10 item:
+`simulate_pedigree`'s mating loop is quadratic in the pool (`ids.index`
+inside the loop), dominating register simulation beyond a few hundred
+thousand residents.

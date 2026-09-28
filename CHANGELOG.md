@@ -89,6 +89,14 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   the lock writes each package its own encoding. Censored-cohort fixtures
   extend `tests/test_r_lock.py`, so both locks run in CI without R.
 
+- `bench_quadrature.py` gives the quadrature engine — previously in no
+  benchmark — its accuracy reference role: PA matches it to RMSE 1.5e-3 on
+  the engine's documented scope at ~25x its cost, and it costs ~4% of Gibbs
+  (RESULTS section 35). `bench_population_scale.py` records cohort-scale
+  throughput of the register pipeline and the array PA (section 36); its
+  register construction is vectorised because `simulate_pedigree`'s mating
+  loop is quadratic in the pool.
+
 ### Removed
 
 - `ltpred.gibbs.gibbs_advance_moment` and `_offset_seed`, used only by the

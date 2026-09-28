@@ -1482,6 +1482,71 @@ batched kernel); as in §30 they are not "the same method, faster". The pytest
 mirror of this lock is `tests/test_r_lock.py` (censored-cohort fixtures), so a
 port regression fails CI without R.
 
+## 35. The quadrature engine versus PA and Gibbs on its own scope
+(`bench_quadrature.py`)
+
+The third inference engine — additive nuclear-family posterior moments by
+Gauss--Hermite factor quadrature — appeared in no benchmark before this one
+(review 2026-09f, gap 2). This campaign measures it on exactly the scope its
+docstring claims (unique `o`/`m`/`f`/`s*` roles, unrelated noninbred parents,
+no mixture, h² < 1): 3 structures x 3 prevalences (0.01/0.05/0.20) x 2
+encodings (classic one-sided; onset-pinned cases) x 3 seeds, 200 families per
+cell, h² = 0.5.
+
+*Table 35.1. Engine agreement and cost (mean ± SE over the 54 cells; the
+Gibbs arm runs n_sim = 25 000, tol = 0.03).*
+
+| Quantity | Value |
+|---|---|
+| RMSE(PA, quadrature) | 0.00147 ± 0.00013 |
+| RMSE(Gibbs, quadrature) | 0.00327 ± 0.00010 |
+| corr(PA, truth) − corr(quadrature, truth) | 0.00001 (0.43053 vs 0.43052) |
+| quadrature | 0.082 ± 0.009 ms/family |
+| PA | 0.003 ms/family |
+| Gibbs | 1.863 ± 0.055 ms/family |
+
+Reading: on this scope quadrature is the near-exact reference, and PA — the
+deterministic moment approximation — matches it to 1.5e-3 in posterior mean
+with ranking correlation indistinguishable to four decimals. Quadrature costs
+~25x PA and ~4% of Gibbs; its role is the exactness reference and the
+cross-check for encodings where PA's sequential fold accumulates error, not
+throughput. Cells whose simulated cohort draws no case at all (possible at
+K = 0.01) have constant estimates; their NaN correlations are retained in the
+CSV and skipped by the summary.
+
+## 36. Population-scale throughput (`bench_population_scale.py`)
+
+The published comparison point for this problem class is LTFHPlus's scaling
+claim (Pedersen et al. 2022, AJHG: "350 000 individuals in under 25 minutes
+on 32 cores"). This campaign gives ltpred's two production paths a
+same-shape number at cohort scale, on a laptop-class host (reference macOS
+machine, 4 Numba threads, BLAS pinned to 1, load average ~8 — quote with
+both):
+
+*Table 36.1. Throughput of the register pipeline (pinned-onset LT-FH++,
+deterministic PA, `max_degree=2`, two-generation trio registers) and the
+array PA (350 000 rows, LT-FH++-style bounds: 10% cases, censored controls,
+12% absent relatives).*
+
+| Arm | n | wall | per second | ms/proband | peak RSS |
+|---|---|---|---|---|---|
+| register | 10 000 | 1.4 s | 7 031 | 0.142 | 191 MiB |
+| register | 50 000 | 7.0 s | 7 162 | 0.140 | 238 MiB |
+| register | 200 000 | 28.4 s | 7 043 | 0.142 | 457 MiB |
+| array PA | 350 000 rows | 0.15 s | 2 280 773 | 0.0004 | 501 MiB |
+
+The register path is linear in probands over this range (the serial
+per-proband loop of review 2026-09f F3: ~0.14 ms/proband on two-generation
+pedigrees, ~0.30 ms on the three-generation pedigrees of the §F workload).
+The array path is memory-bandwidth-bound. These are ltpred-vs-ltpred numbers;
+the cross-package fold-times live in §30/§34 on their 200-family workloads.
+
+A construction note for reruns: `simulate_pedigree`'s multi-generation mating
+loop is quadratic in the pool (an `ids.index` call inside the loop), which
+dominates beyond a few hundred thousand residents; this benchmark builds its
+trio registers vectorised instead (review 2026-09f F10 records the simulator
+bottleneck).
+
 ## Historical report changes
 
 The dated record of reruns, corrections and re-derivations of this ledger is in

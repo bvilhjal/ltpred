@@ -172,6 +172,8 @@ groups. Scripts whose Output is `stdout` archive no artifact.
 | `bench_ltfhplus_compare.py` | **opt-in** lock against LTFHPlus Gibbs and LTFGRS PA: scores, per-family time, fold times, isolated peak RSS (exits 2 without R or LTFHPlus) | `bench_ltfhplus_compare*.csv` |
 | `bench_personalised_compare.py` | **opt-in** lock on the LT-FH++ features beyond the classic bounds: age-CIP personalised intervals/pins vs LTFHPlus Gibbs, and the PA-FGRS censoring mixture vs LTFGRS `useMixture=TRUE` under each package's own input encoding (exits 2 without R) | `bench_personalised_compare.csv` |
 | `bench_scaling.py` | wall-clock scaling with #families and family size; families/s and speed-up | `bench_scaling.csv` |
+| `bench_quadrature.py` | the quadrature engine on its own scope: accuracy vs PA/Gibbs (quadrature as the near-exact reference) and per-family cost | `bench_quadrature.csv` |
+| `bench_population_scale.py` | cohort-scale throughput of the register pipeline (10k/50k/200k probands) and array PA (350k rows), the same-shape number as published scaling claims | `bench_population_scale.csv` |
 | `bench_time_memory.py` | matched package versions: first-call and warm runtime, process RSS and call-allocation peaks for graph construction, PA batching and register scoring, with exact output agreement | JSON capsule (`--output`) |
 
 `_common.py` holds the shared simulation, estimation, GWAS, replicate-summary,
