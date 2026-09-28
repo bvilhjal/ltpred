@@ -31,13 +31,20 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   for bit and later convergence rounds cannot change a family's chain.
   **Seeded Gibbs values change** for families whose unobserved relatives
   differ from others in their structure group (the draws target the same
-  posterior); cohorts where every family has the same observed roles are
-  bit-identical.
+  posterior, but stored seeded results for such cohorts -- regression
+  snapshots, recorded draws -- no longer reproduce); cohorts where every
+  family has the same observed roles are bit-identical.
 - The PA-FGRS mixture path applies the same pin checks as ordinary PA. A pin
   on a coordinate that earlier pins already determine (for example one person
   recorded twice) crashed with an opaque `SystemError`; it now scores as the
   single pin does, and contradictory pins raise `ValueError`. Other mixture
   scores are bit-identical.
+- The PA pin-compatibility checks absorb storage rounding at the bounds'
+  stored precision. A coherent configuration whose pin and the bound it
+  determines round to opposite sides at float32 (the batched APIs'
+  memory-saving dtype) was rejected as a contradiction by both PA paths; it
+  is now accepted, while pin-versus-pin contradictions keep the tight
+  float64 tolerance.
 - `fit_heritability` and `fit_variance_components` reject `n_iter - burn_in < 4`
   before sampling; the whole fit used to run first and then fail inside the
   batch-means SE.

@@ -366,6 +366,63 @@ def test_mixture_path_applies_the_pin_checks_of_the_standard_path():
         pa_algorithm(cov4, lo, hi, K_i=K_i, K_pop=K_pop)
 
 
+def test_target_determined_by_a_pin_reports_that_value_on_both_paths():
+    # Perfect correlation between the target and a pinned relative: after the
+    # pin's fold the target's conditional variance has collapsed, so the
+    # mixture kernel returns early. It must report the value the pin
+    # determines (not 0, and not the target's own bound), with zero variance,
+    # and agree with Algorithm P in every case.
+    cov = np.array([[1.0, 1.0], [1.0, 1.0]])
+    no_k = np.full(2, np.nan)
+    hi = np.array([np.inf, 2.0])
+    for lo in (np.array([-np.inf, 2.0]),   # unbounded target
+               np.array([1.5, 2.0])):      # bounded below; 2.0 satisfies it
+        assert pa_algorithm(cov, lo, hi) == (pytest.approx(2.0), 0.0)
+        assert pa_algorithm(cov, lo, hi, K_i=no_k, K_pop=no_k) == (
+            pytest.approx(2.0), 0.0)
+    e, v = pa_estimate_batched(cov, np.array([[1.5, 2.0]]),
+                               np.array([[np.inf, 2.0]]),
+                               K_is=np.full((1, 2), np.nan),
+                               K_pops=np.full((1, 2), np.nan))
+    assert e[0] == pytest.approx(2.0) and v[0] == 0.0
+    # a bound the determined value violates is rejected on both paths
+    lo = np.array([2.5, 2.0])
+    for kwargs in ({}, dict(K_i=no_k, K_pop=no_k)):
+        with pytest.raises(ValueError, match="excludes"):
+            pa_algorithm(cov, lo, hi, **kwargs)
+    # both rows pinned compatibly: the target is its own pin
+    lo = np.array([2.0, 2.0])
+    assert pa_algorithm(cov, lo, lo) == (pytest.approx(2.0), 0.0)
+    assert pa_algorithm(cov, lo, lo, K_i=no_k, K_pop=no_k) == (
+        pytest.approx(2.0), 0.0)
+
+
+def test_pin_compatibility_absorbs_float32_storage_rounding():
+    # A pin on row 2 determines row 1 exactly (weight 1.5; every product is
+    # exact in float64), and the float64 bounds touch: 1.5 * p == l. Storing
+    # both at float32 rounds the pin down (2.0) and the bound up, so the value
+    # the pin determines lands 2.4e-7 below the stored bound. That is storage
+    # rounding, not a contradiction: the batched APIs accept it, while a
+    # genuine float32 violation still raises on both paths.
+    a = 1.5
+    cov = np.array([[1.0, 0.0, 0.0], [0.0, a * a, a], [0.0, a, 1.0]])
+    p = 2.0000001                       # rounds down to 2.0 at float32
+    l = a * p                           # the value the pin determines
+    lowers = np.array([[-np.inf, l, p]])
+    uppers = np.array([[np.inf, np.inf, p]])
+    assert a * np.float32(p) < np.float32(l)      # rounding flipped the pair
+    no_k = np.full((1, 3), np.nan)
+    lo32, hi32 = lowers.astype(np.float32), uppers.astype(np.float32)
+    for kwargs in ({}, dict(K_is=no_k, K_pops=no_k)):
+        pa_estimate_batched(cov, lowers, uppers, **kwargs)   # float64: touching
+        pa_estimate_batched(cov, lo32, hi32, **kwargs)       # float32: rounding
+    bad_lo = np.array([[-np.inf, 3.01, 2.0000001]], dtype=np.float32)
+    bad_hi = np.array([[np.inf, np.inf, 2.0000001]], dtype=np.float32)
+    for kwargs in ({}, dict(K_is=no_k, K_pops=no_k)):
+        with pytest.raises(ValueError, match="excludes"):
+            pa_estimate_batched(cov, bad_lo, bad_hi, **kwargs)
+
+
 def test_mixture_changes_genetic_estimate():
     # a proband case with a single young control sibling: the mixture (accounting
     # for the sibling's residual risk) should not decrease the genetic estimate.
