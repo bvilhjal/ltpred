@@ -445,8 +445,9 @@ def estimate_liabilities(
     for k, proband in enumerate(probands):
         ped = extract_pedigree(graph, proband, max_degree=max_degree)
         m = len(ped.ids)
-        member_index = np.fromiter((pos[pid] for pid in ped.ids), dtype=np.intp,
-                                   count=m)
+        member_index = (ped.member_index if ped.member_index is not None
+                        else np.fromiter((pos[pid] for pid in ped.ids),
+                                         dtype=np.intp, count=m))
         member_status = status_array[member_index].copy()
         member_age = age_array[member_index].copy()
         not_born = np.zeros(m, dtype=bool)

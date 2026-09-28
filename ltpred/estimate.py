@@ -60,7 +60,7 @@ from .gibbs import (gibbs_params, gibbs_estimate_batched, as_bounds, _MAX_SEED,
 from .pearson_aitken import pa_estimate_batched, _tnorm_moments_loc
 from ._numba import _jit
 from ._validation import validate_bounds, validate_mixture_inputs
-from .family import _pid_key, _proband_pid
+from .family import _member_pid_key, _proband_pid
 from ._results import _TableExport
 
 __all__ = ["LiabilityResult", "batch_means", "estimate_liability",
@@ -384,13 +384,18 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
 
     active = np.arange(F)
     rnd = 0
+    # Collapse invariants (BLUP map, kept-block factors) depend only on the
+    # covariance and each family's unbounded mask, never on the round, so one
+    # dict serves every round of this group.
+    collapse_cache = {}
     while active.size and rnd < max_rounds:
         # wrap again: the per-round offset can carry a base seed past uint32
         seeds = np.where(base_seeds[active] < 0, -1,
                          (base_seeds[active] + rnd) % (_MAX_SEED + 1))
         ts, tsq, s1, s2 = gibbs_estimate_batched(
             P, sd, sd0, lowers[active], uppers[active],
-            out_idx, n_sim, burn_in, b, nb, seeds, cov=cov)
+            out_idx, n_sim, burn_in, b, nb, seeds, cov=cov,
+            _collapse_cache=collapse_cache)
         still = []
         for ai, f in enumerate(active):
             tot[f] += ts[ai]
@@ -467,8 +472,8 @@ def _check_unique_roles(families, *, check_pids=True):
                 "names one individual — number repeated relatives (s1, s2, ...).")
         if not check_pids:  # the fitters validate both within/across families once
             continue
-        pids = [m.pid for m in fam.members if m.pid is not None]
-        keys = [key for key in map(_pid_key, pids) if key is not None]
+        keys = [key for key in map(_member_pid_key, fam.members)
+                if key is not None]
         if len(keys) != len(set(keys)):
             dup = sorted({repr(k) for k in keys if keys.count(k) > 1})
             raise ValueError(

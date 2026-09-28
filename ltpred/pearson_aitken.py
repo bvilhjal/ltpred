@@ -353,8 +353,9 @@ def _pa_family(cov, lower, upper, K_i, K_pop):
     collapsed below ``_COLLAPSED_VARIANCE`` times their prior variance are
     skipped as known; `_check_pin_support` has already rejected incompatible
     exact observations with P2's rules. Mutates
-    ``cov`` in place, folding every row ``d-1, ..., 1`` (pins as point masses,
-    absent rows as no-op updates) with `_tnorm_mixture`. Then
+    ``cov`` in place, folding every row ``d-1, ..., 1`` (pins as point masses;
+    absent rows are skipped exactly as in `_pa_family_nomix`) with
+    `_tnorm_mixture`. Then
     applies the target's own interval to the updated ``N(mu[0], cov[0,0])``.
     Unbounded targets (``g``) are a no-op there; ``out="full"`` therefore
     conditions on the proband's own status, matching Gibbs. Returns
@@ -370,6 +371,11 @@ def _pa_family(cov, lower, upper, K_i, K_pop):
     for i in range(d):
         floor[i] = _COLLAPSED_VARIANCE * cov[i, i]
     for i in range(d - 1, 0, -1):
+        if lower[i] == -math.inf and upper[i] == math.inf:
+            # An absent row carries no bound and no mixture pair, so its
+            # update is the identity (mixture_prob is plain-mode 1 on an
+            # infinite interval); folding it would only add rounding noise.
+            continue
         if cov[i, i] <= floor[i]:
             continue
         nm, nv = _tnorm_mixture(mu[i], cov[i, i], lower[i], upper[i], K_i[i], K_pop[i])
@@ -428,9 +434,73 @@ def _pa_batched_nomix(cov, lowers, uppers, est, var):
         var[f] = v
 
 
+@_jit
+def _pa_batched_nomix_serial(cov, lowers, uppers, est, var):
+    """Serial twin of `_pa_batched_nomix` for small batches (see
+    `_PARALLEL_MIN_FAMILIES`). Same loop, no ``prange``: each family folds its
+    own copy of ``cov``, so the two kernels give identical results."""
+    F = lowers.shape[0]
+    for f in range(F):
+        c = cov.copy()
+        e, v = _pa_family_nomix(c, lowers[f], uppers[f])
+        est[f] = e
+        var[f] = v
+
+
+@_jit
+def _pa_batched_serial(cov, lowers, uppers, K_is, K_pops, est, var):
+    """Serial twin of `_pa_batched` for small batches (see
+    `_PARALLEL_MIN_FAMILIES`)."""
+    F = lowers.shape[0]
+    for f in range(F):
+        c = cov.copy()
+        e, v = _pa_family(c, lowers[f], uppers[f], K_is[f], K_pops[f])
+        est[f] = e
+        var[f] = v
+
+
+#: Batches below this many families run the serial kernel twins. Launching a
+#: parallel kernel costs tens of microseconds that a small batch never repays,
+#: and a mask-grouped call launches one kernel per observation-mask group, so
+#: chunks and register-size batches otherwise pay it dozens of times over.
+#: The crossover was measured near 128 families (2026-09-28, ltpred314,
+#: four Numba threads); both kernels return identical values.
+_PARALLEL_MIN_FAMILIES = 128
+
+
+def _pa_kernel_nomix(cov, lowers, uppers, est, var):
+    """`_pa_batched_nomix`, serial below `_PARALLEL_MIN_FAMILIES` families."""
+    if lowers.shape[0] < _PARALLEL_MIN_FAMILIES:
+        _pa_batched_nomix_serial(cov, lowers, uppers, est, var)
+    else:
+        _pa_batched_nomix(cov, lowers, uppers, est, var)
+
+
+def _pa_kernel_mixture(cov, lowers, uppers, K_is, K_pops, est, var):
+    """`_pa_batched`, serial below `_PARALLEL_MIN_FAMILIES` families."""
+    if lowers.shape[0] < _PARALLEL_MIN_FAMILIES:
+        _pa_batched_serial(cov, lowers, uppers, K_is, K_pops, est, var)
+    else:
+        _pa_batched(cov, lowers, uppers, K_is, K_pops, est, var)
+
+
 #: Relative conditional variance below which the mixture kernel treats a row as
 #: known (its standard deviation is below 1e-6 of the prior one).
 _COLLAPSED_VARIANCE = 1e-12
+
+
+def _pin_tolerance(lowers, values, n):
+    """Compatibility tolerance for a pin-determined value against its bounds.
+
+    ``128 * eps * n * max(1, |values|)`` with ``eps`` taken from the bounds'
+    stored dtype: float32 bounds (the batched APIs' memory-saving dtype) carry
+    their own storage rounding, and a coherent float64 configuration whose
+    pin and bound round to opposite sides must not read as a contradiction.
+    Pin-versus-pin contradictions use distinct user-supplied values and keep
+    the tight float64 tolerance inside `_condition_pins`."""
+    eps = (np.finfo(lowers.dtype).eps if lowers.dtype == np.float32
+           else np.finfo(float).eps)
+    return 128 * eps * n * np.maximum(1.0, np.abs(values))
 
 
 def _check_pin_support(cov, lowers, uppers, K_is):
@@ -442,7 +512,9 @@ def _check_pin_support(cov, lowers, uppers, K_is):
     on the pins with `_condition_pins` (which rejects pins outside the
     covariance support) and require every row the pins determine to lie within
     its bounds. A censored-control mixture row may exceed its ``upper`` (a
-    future case), so only its ``lower`` bound is checked."""
+    future case), so only its ``lower`` bound is checked. The bounds are
+    compared at their stored precision (`_pin_tolerance`): storage rounding at
+    float32 is absorbed, not read as a contradiction."""
     pins = lowers == uppers
     if not np.any(pins):
         return
@@ -463,7 +535,7 @@ def _check_pin_support(cov, lowers, uppers, K_is):
             continue
         values = means[:, deterministic]
         columns = retained[deterministic]
-        tolerance = 128 * np.finfo(float).eps * len(cov) * np.maximum(1.0, np.abs(values))
+        tolerance = _pin_tolerance(lowers, values, len(cov))
         if (np.any(values < lowers[np.ix_(rows, columns)] - tolerance)
                 or np.any(values > effective_upper[np.ix_(rows, columns)] + tolerance)):
             raise ValueError("observation excludes a deterministic liability after pin conditioning")
@@ -595,7 +667,7 @@ def _pa_reduced_nomix(cov, lowers, uppers):
         if F == 1:
             est[0], var[0] = _pa_family_nomix(cov.copy(), lowers[0], uppers[0])
         else:
-            _pa_batched_nomix(cov, lowers, uppers, est, var)
+            _pa_kernel_nomix(cov, lowers, uppers, est, var)
         return est, var
     state = (~absent).astype(np.uint8) + pins.astype(np.uint8)
     if np.all(state == state[0]):
@@ -629,7 +701,7 @@ def _pa_reduced_nomix(cov, lowers, uppers):
         deterministic = np.diag(conditional) == 0.0
         if np.any(deterministic):
             values = means[:, deterministic]
-            tolerance = 128 * np.finfo(float).eps * d * np.maximum(1.0, np.abs(values))
+            tolerance = _pin_tolerance(lowers, values, d)
             if (np.any(values < lo[:, deterministic] - tolerance)
                     or np.any(values > hi[:, deterministic] + tolerance)):
                 raise ValueError("observation excludes a deterministic liability after pin conditioning")
@@ -651,7 +723,7 @@ def _pa_reduced_nomix(cov, lowers, uppers):
         if len(rows) == 1:
             e[0], v[0] = _pa_family_nomix(subcov, lo[0], hi[0])
         else:
-            _pa_batched_nomix(subcov, lo, hi, e, v)
+            _pa_kernel_nomix(subcov, lo, hi, e, v)
         est[rows], var[rows] = (e if means is None else means[:, 0] + e), v
     return est, var
 
@@ -791,5 +863,5 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
     ki = K_is if target == 0 else np.ascontiguousarray(K_is[:, order])
     kp = K_pops if target == 0 else np.ascontiguousarray(K_pops[:, order])
     _check_pin_support(cov, lo, hi, ki)
-    _pa_batched(cov, lo, hi, ki, kp, est, var)
+    _pa_kernel_mixture(cov, lo, hi, ki, kp, est, var)
     return est, var

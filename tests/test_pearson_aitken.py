@@ -859,3 +859,59 @@ def test_readonly_unreduced_batch_matches_scalar_calls(mixture, dtype):
                                      K_pop=kp[f] if mixture else None)
                          for f in range(len(lower))]).T
     np.testing.assert_allclose(batch, separate, rtol=0, atol=1e-14)
+
+
+def test_mixture_path_skips_absent_rows_like_deleted_rows(monkeypatch):
+    # An absent row carries no bound and no mixture pair, so folding it must
+    # be the identity: a family scores exactly what the same family scores
+    # with those rows deleted from the input, not a last-ulp variation.
+    import ltpred.pearson_aitken as pa
+    monkeypatch.setattr(pa, "_PARALLEL_MIN_FAMILIES", 10 ** 9)
+    cov = construct_covmat_single(fam_vec=["m", "f"], add_ind=True,
+                                  h2=0.5).matrix        # g, o, m, f
+    # family 0: case proband, both relatives absent; family 1: censored-control
+    # proband (the K pair the mixture gate requires), both relatives absent
+    lo4 = np.array([[-np.inf, 1.5, -np.inf, -np.inf],
+                    [-np.inf, -np.inf, -np.inf, -np.inf]])
+    hi4 = np.array([[np.inf, np.inf, np.inf, np.inf],
+                    [np.inf, 2.0, np.inf, np.inf]])
+    ki4 = np.array([[np.nan] * 4, [np.nan, .1, np.nan, np.nan]])
+    kp4 = np.array([[np.nan] * 4, [np.nan, .25, np.nan, np.nan]])
+    e4, v4 = pa_estimate_batched(cov, lo4, hi4, K_is=ki4, K_pops=kp4)
+    # the same two families on the g/o principal block, relatives deleted
+    cov2 = cov[np.ix_([0, 1], [0, 1])]
+    lo2 = lo4[:, :2]
+    hi2 = hi4[:, :2]
+    ki2 = np.column_stack([ki4[:, 0], ki4[:, 1]])
+    kp2 = np.column_stack([kp4[:, 0], kp4[:, 1]])
+    e2, v2 = pa_estimate_batched(cov2, lo2, hi2, K_is=ki2, K_pops=kp2)
+    np.testing.assert_array_equal(e4, e2)
+    np.testing.assert_array_equal(v4, v2)
+
+
+def test_pa_batched_serial_and_parallel_kernels_agree(monkeypatch):
+    # Batches below _PARALLEL_MIN_FAMILIES run on serial kernel twins; the
+    # two dispatch routes must return identical values, with and without the
+    # censoring mixture (each family folds its own copy of the covariance).
+    import ltpred.pearson_aitken as pa
+    rng = np.random.default_rng(4)
+    cov_obj = construct_covmat_single(fam_vec=["m", "f", "s1"], add_ind=True,
+                                      h2=0.5)
+    cov = cov_obj.matrix                       # g, o, m, f, s1
+    case = rng.random((300, 5)) < .3
+    lower = np.where(case, 1.5, -np.inf)
+    upper = np.where(case, np.inf, 1.5)
+    lower[:, 0], upper[:, 0] = -np.inf, np.inf     # target g unbounded
+    lower[:, 1], upper[:, 1] = 1.5, np.inf         # proband always a case
+    ki = np.where((~case) & (upper != np.inf), .02, np.nan)
+    kp = np.where((~case) & (upper != np.inf), .1, np.nan)
+    monkeypatch.setattr(pa, "_PARALLEL_MIN_FAMILIES", 10 ** 9)
+    serial = pa_estimate_batched(cov, lower, upper)
+    serial_mix = pa_estimate_batched(cov, lower, upper, K_is=ki, K_pops=kp)
+    monkeypatch.setattr(pa, "_PARALLEL_MIN_FAMILIES", 1)
+    parallel = pa_estimate_batched(cov, lower, upper)
+    parallel_mix = pa_estimate_batched(cov, lower, upper, K_is=ki, K_pops=kp)
+    np.testing.assert_array_equal(serial[0], parallel[0])
+    np.testing.assert_array_equal(serial[1], parallel[1])
+    np.testing.assert_array_equal(serial_mix[0], parallel_mix[0])
+    np.testing.assert_array_equal(serial_mix[1], parallel_mix[1])

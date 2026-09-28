@@ -477,12 +477,19 @@ def as_bounds(a):
 
 
 def _collapsed_round(P, sd, sd0, cov, unbounded, lowers, uppers, out_idx, n_sim,
-                     burn_in, batch_size, n_batch, seeds):
+                     burn_in, batch_size, n_batch, seeds, _cache=None):
     """One round of step G2 for families sharing the unbounded set ``unbounded``.
 
     Samples only the kept block and streams ``E[z | y]`` for collapsed outputs
     (see `gibbs_estimate_batched`); with nothing to collapse it runs the full
-    chain on ``P``/``sd``. Returns the four ``(F, ncols)`` sums."""
+    chain on ``P``/``sd``. Returns the four ``(F, ncols)`` sums.
+
+    Everything derived from ``(cov, unbounded, out_idx)`` -- the BLUP map, the
+    kept-block conditional-regression factors and the output column mapping --
+    is constant across a convergence loop's rounds. A caller re-entering with
+    the same covariance (as `_estimate_group` does each round) may pass a dict
+    as ``_cache`` to compute those once, keyed on the unbounded mask; the sums
+    are unchanged. ``None`` (the default) recomputes them every call."""
     F = int(lowers.shape[0])
     ncols = int(out_idx.shape[0])
     total_sum = np.zeros((F, ncols), dtype=np.float64)
@@ -502,23 +509,29 @@ def _collapsed_round(P, sd, sd0, cov, unbounded, lowers, uppers, out_idx, n_sim,
                                 batch_size, n_batch, np.ascontiguousarray(seeds),
                                 total_sum, total_sumsq, bm_sum, bm_sumsq)
         return total_sum, total_sumsq, bm_sum, bm_sumsq
-    W, cond_var = _blup_from_keep(cov, keep_idx, coll_idx)
-    keep_pos = {int(j): i for i, j in enumerate(keep_idx)}
-    coll_pos = {int(j): i for i, j in enumerate(coll_idx)}
-    out_kind = np.empty(ncols, dtype=np.int64)
-    out_local = np.empty(ncols, dtype=np.int64)
-    for c, j in enumerate(out_idx):
-        j = int(j)
-        if unbounded[j]:
-            out_kind[c] = 1
-            out_local[c] = coll_pos[j]
-        else:
-            out_kind[c] = 0
-            out_local[c] = keep_pos[j]
+    prepared = None if _cache is None else _cache.get(unbounded.tobytes())
+    if prepared is None:
+        W, cond_var = _blup_from_keep(cov, keep_idx, coll_idx)
+        keep_pos = {int(j): i for i, j in enumerate(keep_idx)}
+        coll_pos = {int(j): i for i, j in enumerate(coll_idx)}
+        out_kind = np.empty(ncols, dtype=np.int64)
+        out_local = np.empty(ncols, dtype=np.int64)
+        for c, j in enumerate(out_idx):
+            j = int(j)
+            if unbounded[j]:
+                out_kind[c] = 1
+                out_local[c] = coll_pos[j]
+            else:
+                out_kind[c] = 0
+                out_local[c] = keep_pos[j]
+        P_k, sd_k = gibbs_params(cov[np.ix_(keep_idx, keep_idx)])
+        sd0_k = np.sqrt(np.diag(cov)[keep_idx])
+        prepared = (W, cond_var, out_kind, out_local, P_k, sd_k, sd0_k)
+        if _cache is not None:
+            _cache[unbounded.tobytes()] = prepared
+    W, cond_var, out_kind, out_local, P_k, sd_k, sd0_k = prepared
     lo_k = as_bounds(np.ascontiguousarray(lowers[:, keep_idx]))
     hi_k = as_bounds(np.ascontiguousarray(uppers[:, keep_idx]))
-    P_k, sd_k = gibbs_params(cov[np.ix_(keep_idx, keep_idx)])
-    sd0_k = np.sqrt(np.diag(cov)[keep_idx])
     _gibbs_estimate_batched_collapsed(
         P_k, sd_k, np.ascontiguousarray(sd0_k), lo_k, hi_k, out_kind,
         out_local, W, cond_var, n_sim, burn_in, batch_size, n_batch,
@@ -527,7 +540,8 @@ def _collapsed_round(P, sd, sd0, cov, unbounded, lowers, uppers, out_idx, n_sim,
 
 
 def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
-                           batch_size, n_batch, seeds, cov=None, collapse=None):
+                           batch_size, n_batch, seeds, cov=None, collapse=None,
+                           _collapse_cache=None):
     """Run one round of the batched sampler for same-covariance families.
 
     An internal primitive of `ltpred.estimate`, which validates the arguments
@@ -560,7 +574,10 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
     its SE is that of the Rao--Blackwellised mean. ``P``/``sd`` are then
     unused: the kept block's are recomputed from ``cov``. If every coordinate
     is collapsed, no sampling happens (sums 0, ``total_sumsq = N * cov[j, j]``).
-    Pass ``collapse=False`` to force the full chain. ``rtmvnorm_gibbs`` is
+    Pass ``collapse=False`` to force the full chain. A caller looping rounds
+    on one ``cov`` (the convergence loop) may pass a dict as
+    ``_collapse_cache`` so those kept-block factors are computed once instead
+    of per round; the sums are identical. ``rtmvnorm_gibbs`` is
     never collapsed.
     """
     out_idx = np.asarray(out_idx, dtype=np.int64)
@@ -591,7 +608,8 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
             for unbounded, rows in patterns:
                 sums = _collapsed_round(
                     P, sd, sd0, cov, unbounded, lowers[rows], uppers[rows],
-                    out_idx, n_sim, burn_in, batch_size, n_batch, seeds[rows])
+                    out_idx, n_sim, burn_in, batch_size, n_batch, seeds[rows],
+                    _cache=_collapse_cache)
                 for target, value in zip(
                         (total_sum, total_sumsq, bm_sum, bm_sumsq), sums):
                     target[rows] = value

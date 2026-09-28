@@ -62,7 +62,7 @@ from ._validation import validate_bounds
 from .covariance import get_relatedness, _is_full_sib, _is_mates
 from .gibbs import (gibbs_params, gibbs_advance,
                     _init_chain, _FIXED_TOL, _seed_rng)
-from .family import _pid_key
+from .family import _member_pid_key
 from .estimate import (_assert_nonempty_families, _check_unique_roles,
                        _group_by_structure, batch_means)
 
@@ -148,7 +148,7 @@ def _assert_nonoverlapping_pids(families, context):
     for family in families:
         local = set()
         for member in family.members:
-            key = _pid_key(member.pid)
+            key = _member_pid_key(member)
             if key is None:
                 continue
             if key in local:

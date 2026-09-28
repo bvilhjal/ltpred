@@ -128,6 +128,21 @@ def _pid_key(pid):
     return pid
 
 
+def _member_pid_key(member):
+    """`_pid_key` of ``member.pid`, computed once per assigned pid.
+
+    The object estimators and the moment fitters re-validate the same family
+    objects call after call (a bootstrap resample revisits every member), so
+    the normalization is cached on the instance together with the pid object
+    it was computed from; reassigning ``member.pid`` invalidates it."""
+    cached = member.__dict__.get("_pid_key_cache")
+    if cached is not None and cached[0] is member.pid:
+        return cached[1]
+    key = _pid_key(member.pid)
+    member._pid_key_cache = (member.pid, key)
+    return key
+
+
 def _proband_pid(family):
     """Preserve personal join keys; family ids are only a pid-free fallback."""
     own = next((m for m in family.members if m.role == "o"), None)

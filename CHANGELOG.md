@@ -13,6 +13,30 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 ## Unreleased
 
+### Changed
+
+- Small PA batches run on serial kernels. Below 128 families per batch (or
+  per observation-mask group), the Pearson–Aitken fold skips the
+  parallel-kernel launch, whose fixed cost a small batch never repays; values
+  are identical either way. This removes most of the per-chunk overhead of
+  the chunked/streaming drivers on pin- and censor-rich bounds, where each
+  chunk otherwise launched one parallel kernel per mask group.
+- The Gibbs convergence loop computes each structure group's collapse
+  invariants (BLUP map, kept-block conditional-regression factors) once
+  instead of per round; `gibbs_estimate_batched` accepts a caller-owned cache
+  dict for the same purpose. Draws and summaries are bit-identical.
+- PA-FGRS mixture folds skip absent relatives, exactly as the no-mixture
+  kernel already did: an absent row carries no bound and no mixture pair, so
+  folding it was a no-op that injected last-ulp rounding into the posterior
+  variance. A family with extra absent relatives now scores bit-identically
+  to the same family with those rows deleted; other mixture scores are
+  unchanged (variances move at most one ulp).
+- Member pid normalization is cached on the instance (invalidated when
+  `pid` is reassigned), so repeated validation of the same family objects —
+  every bootstrap resample revisit — no longer re-normalizes every pid.
+- The register driver reuses the extracted pedigree's member indices instead
+  of rebuilding them per proband. Scores are bit-identical.
+
 ### Fixed
 
 - `scripts/check_evidence.py` pins `bench_scaling.csv` by its SHA-256 instead
