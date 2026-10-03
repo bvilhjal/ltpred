@@ -36,6 +36,15 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   every bootstrap resample revisit — no longer re-normalizes every pid.
 - The register driver reuses the extracted pedigree's member indices instead
   of rebuilding them per proband. Scores are bit-identical.
+- `simulate_pedigree` keeps an id→row index, so the check that stops recorded
+  siblings from mating is O(1) instead of rescanning the id list four times per
+  candidate pair. That loop was quadratic in the mating pool and dominated
+  register simulation at population scale: 4.9 s to build 45,048 people against
+  0.04 s now, 8–116× across 150–2,500 founder pairs. Pedigrees are
+  bit-identical — the index consumes no randomness and reorders nothing — so no
+  committed register benchmark moves; checked over 24 configurations and
+  317,068 people, comparing the id and both parent columns, birth times, and
+  the Mendelian draw with its inbreeding diagonal.
 
 ### Fixed
 
