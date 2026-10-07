@@ -93,7 +93,9 @@ def test_selected_pipeline_preserves_inbreeding_and_legacy_covariance_repair(h2)
 
 
 def test_selected_pipeline_preserves_rejection_of_unrepairable_covariance():
-    with pytest.raises(ValueError, match="unable to enforce"):
+    # since review 2026-10-07 the h2=1e-10 case is rejected by name at the
+    # constructors' strict-PD floor instead of reaching correct_positive_definite
+    with pytest.raises(ValueError, match="must exceed 1e-08"):
         estimate_liabilities(**pipeline_kwargs(h2=1e-10))
 
 

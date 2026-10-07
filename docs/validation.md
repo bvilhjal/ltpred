@@ -219,7 +219,7 @@ with no relatives and a single lifetime $T$ it is a monotone relabelling
 of the 0/1 status, so any correlation is identical by construction.
 
 Three identity checks. PA against Gibbs on 80 families:
-$\mathrm{Corr}=0.9997$, at a median Gibbs Monte-Carlo SE of $0.0066$.
+$\mathrm{Corr}=0.9997$, at a median Gibbs Monte-Carlo SE of $0.0065$.
 The same families rebuilt from columns reproduce the role-grammar PA
 scores exactly (maximum difference 0). Scored through
 `kinship_from_pedigree` they agree to $1.1\times10^{-3}$ — PA's

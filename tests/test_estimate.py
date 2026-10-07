@@ -749,8 +749,16 @@ def test_estimator_seed_rejects_values_outside_uint32(seed):
         _seed_probe(seed)
 
 
-def test_base_seeds_sentinel_only_from_none():
-    assert np.array_equal(_base_seeds(None, 3, 100), [-1, -1, -1])
+def test_base_seeds_none_gives_valid_seeds_and_negatives_raise():
+    # Since review 2026-10-07, seed=None draws fresh per-family entropy seeds;
+    # the kernel's -1 unseeded sentinel is no longer produced by the estimator
+    # path (an unseeded family replayed the leftover Numba RNG state of a
+    # previous seeded call). A negative user seed still raises instead of
+    # landing on the sentinel.
+    seeds = _base_seeds(None, 3, 100)
+    assert (seeds >= 0).all() and (seeds <= (1 << 32) - 1).all()
+    with pytest.raises(ValueError, match="seed must be in"):
+        _base_seeds(-1, 3, 100)
     assert (_base_seeds(0, 3, 100) >= 0).all()
 
 
@@ -1271,3 +1279,46 @@ def test_singleton_shortcut_validates_target(bad):
     with pytest.raises(Exception):
         estimate_liability_from_kinship(np.array([[1.0]]), np.array([[0.5]]),
                                         np.array([[np.inf]]), 0.5, target=bad)
+
+
+def test_neighbouring_seeds_do_not_share_family_streams():
+    # review 2026-10-07: with the raw seed, row i of seed s and row i-1 of
+    # seed s+1 named the same stream, so replicate loops over consecutive
+    # seeds resampled each other's draws -- with identical rows and
+    # max_rounds=1 bit for bit. The stride mixing breaks the coincidence.
+    lo = np.full((4, 1), 1.0)
+    hi = np.full((4, 1), np.inf)
+    kw = dict(roles=["o"], lower=lo, upper=hi, h2=0.5, n_sim=4000,
+              burn_in=50, max_rounds=1)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        e5, _ = estimate_liability_gibbs_arrays(seed=5, **kw)
+        e6, _ = estimate_liability_gibbs_arrays(seed=6, **kw)
+        e5b, _ = estimate_liability_gibbs_arrays(seed=5, **kw)
+    assert not np.array_equal(e5[1:], e6[:-1])
+    assert np.array_equal(e5, e5b)          # a seeded call stays reproducible
+
+
+def test_base_seeds_none_draws_fresh_entropy():
+    from ltpred.estimate import _base_seeds
+    first = _base_seeds(None, 4, 100)
+    second = _base_seeds(None, 4, 100)
+    assert np.all(first >= 0)              # the -1 unseeded sentinel is gone
+    assert not np.array_equal(first, second)
+
+
+def test_base_seed_blocks_of_neighbouring_seeds_are_disjoint():
+    from ltpred.estimate import _base_seeds
+    a = set(_base_seeds(5, 4, 100).tolist())
+    b = set(_base_seeds(6, 4, 100).tolist())
+    assert not (a & b)
+
+
+def test_estimator_rejects_h2_below_the_strict_pd_floor():
+    lo = np.full((2, 1), 1.0)
+    hi = np.full((2, 1), np.inf)
+    with pytest.raises(ValueError, match="must exceed 1e-08"):
+        estimate_liability_gibbs_arrays(roles=["o"], lower=lo, upper=hi,
+                                        h2=1e-9, n_sim=100, burn_in=5)
+    with pytest.raises(ValueError, match="must exceed 1e-08"):
+        estimate_liability_pa_arrays(roles=["o"], lower=lo, upper=hi, h2=1e-9)

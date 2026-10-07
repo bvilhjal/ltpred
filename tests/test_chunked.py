@@ -189,7 +189,9 @@ def test_pa_batches_concat_matches_arrays():
 @pytest.mark.jit_required
 def test_batch_seeds_use_global_offsets_not_the_whole_prefix():
     from ltpred.estimate import _base_seeds
-    for seed in (None, 11, 2**32 - 5):
+    # seed=None draws fresh entropy per call (review 2026-10-07), so only a
+    # seeded stream has offsets to match.
+    for seed in (11, 2**32 - 5):
         full = _base_seeds(seed, 5_000, 100)
         for start, n in ((0, 7), (1_234, 777), (4_990, 10)):
             np.testing.assert_array_equal(

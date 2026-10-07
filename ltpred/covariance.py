@@ -367,6 +367,14 @@ def _apply_env_components(cov, fam_roles, c2, m2, h2):
     return cov
 
 
+#: Heritabilities at or below this make the ``g``-``o`` block's smallest
+#: eigenvalue (about ``h2``) fall under `correct_positive_definite`'s strict-PD
+#: floor (``eps = 1e-8``), so no off-diagonal shrinking can repair the matrix.
+#: Rejected here with a message naming ``h2`` rather than by that opaque
+#: downstream failure.
+_H2_FLOOR = 1e-8
+
+
 def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
                                                             "mgf", "pgm", "pgf"),
                             n_fam: Mapping[str, int] | None = None,
@@ -376,7 +384,9 @@ def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mg
     """Covariance matrix for one trait: proband ``g``/``o`` plus relatives.
 
     Entry ``(i, j)`` is ``get_relatedness(role_i, role_j, h2)``, with ``h2`` in
-    ``(0, 1]`` (at ``h2 = 1`` ``g`` and ``o`` coincide and the matrix is
+    ``(1e-8, 1]`` (below the floor the smallest eigenvalue, about ``h2``, is
+    under the strict positive-definiteness threshold and no correction can
+    recover it; at ``h2 = 1`` ``g`` and ``o`` coincide and the matrix is
     singular). Relatives come from ``fam_vec``, a list of role strings, or
     ``n_fam``, a mapping from role to count; supply at most one. In ``n_fam``
     an unnumbered stem (``"s"``, ``"mhs"``, ``"phs"``, ``"mau"``, ``"pau"``)
@@ -395,6 +405,13 @@ def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mg
             "h2 must be in (0, 1] -- a zero h2 makes the genetic liability "
             "identically zero, so its row of the covariance is degenerate "
             "and no positive-definite correction can recover it")
+    if h2 <= _H2_FLOOR:
+        raise ValueError(
+            f"h2 must exceed {_H2_FLOOR:g}: the smallest eigenvalue of the "
+            "g-o covariance is about h2, below the strict "
+            "positive-definiteness floor the samplers require, so no "
+            "correction can make the matrix usable -- supply a realistic "
+            "liability-scale heritability")
     roles = _expand_family(list(fam_vec) if fam_vec is not None else None,
                            n_fam, add_ind)
     if not roles:
@@ -422,7 +439,7 @@ def construct_covmat_multi(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm
 
     ``fam_vec``/``n_fam``/``add_ind`` are as in `construct_covmat_single`,
     except that a family with no relatives always gives roles ``g``, ``o``.
-    ``h2_vec`` holds one heritability per trait, each in ``(0, 1]``;
+    ``h2_vec`` holds one heritability per trait, each in ``(1e-8, 1]``;
     ``genetic_corrmat`` and ``full_corrmat`` are ``n_pheno x n_pheno``, finite,
     symmetric, unit-diagonal and positive semi-definite. ``phen_names``
     (default ``phenotype1``, ``phenotype2``, ...) must have one name per trait.
@@ -443,11 +460,12 @@ def construct_covmat_multi(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm
     if h2_vec.ndim != 1 or h2_vec.size == 0 or not np.all(np.isfinite(h2_vec)):
         raise ValueError("h2_vec must be a non-empty finite one-dimensional array")
     n_pheno = len(h2_vec)
-    if np.any((h2_vec <= 0) | (h2_vec > 1)):
+    if np.any((h2_vec <= _H2_FLOOR) | (h2_vec > 1)):
         raise ValueError(
-            "all h2 must be in (0, 1] -- a zero h2 makes the genetic liability "
-            "identically zero, so its row of the covariance is degenerate "
-            "and no positive-definite correction can recover it")
+            f"all h2 must be in ({_H2_FLOOR:g}, 1] -- a zero h2 makes the "
+            "genetic liability identically zero, and any h2 at or below the "
+            "floor leaves the covariance under the strict "
+            "positive-definiteness threshold, so no correction can recover it")
     for name, m in (("genetic_corrmat", genetic_corrmat),
                     ("full_corrmat", full_corrmat)):
         if m.shape != (n_pheno, n_pheno):
@@ -731,7 +749,7 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
     example, sibship and couple shared environments, but are deliberately not
     inferred from ``A``: additive relatedness alone cannot distinguish full sibs
     from parent--offspring pairs or mates from unrelated people. A nonzero
-    component requires its kernel, ``h2`` must lie in ``(0, 1]`` and
+    component requires its kernel, ``h2`` must lie in ``(1e-8, 1]`` and
     ``h2 + c2 + m2 <= 1``.
 
     With no environmental kernels this reduces to
@@ -770,6 +788,13 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
             "h2 must be in (0, 1] -- a zero h2 makes the genetic liability "
             "identically zero, so its row of the covariance is degenerate "
             "and no positive-definite correction can recover it")
+    if h2 <= _H2_FLOOR:
+        raise ValueError(
+            f"h2 must exceed {_H2_FLOOR:g}: the smallest eigenvalue of the "
+            "g-o covariance is about h2, below the strict "
+            "positive-definiteness floor the samplers require, so no "
+            "correction can make the matrix usable -- supply a realistic "
+            "liability-scale heritability")
     if not (0 <= target < n):
         raise ValueError(f"target {target} out of range for {n} individuals")
     if _certified_psd is not _PSD_CERTIFIED:
@@ -846,5 +871,9 @@ def correct_positive_definite(covmat: ArrayLike, correction_val: float = 0.99,
         np.fill_diagonal(cov, diag)
         n += 1
     if np.min(np.linalg.eigvalsh(cov)) <= eps:
-        raise ValueError("unable to enforce a positive-definite covariance matrix")
+        raise ValueError(
+            "unable to enforce a positive-definite covariance matrix: after "
+            f"{correction_limit} shrink steps the smallest eigenvalue is still "
+            "<= eps (a tiny h2 at or below 1e-8, exactly collinear rows such "
+            "as h2=1, or near-singular relatedness are the usual causes)")
     return cov, n

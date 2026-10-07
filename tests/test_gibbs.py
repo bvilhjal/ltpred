@@ -406,3 +406,69 @@ def test_rtmvnorm_gibbs_rejects_coincident_infinite_bounds():
     with pytest.raises(ValueError, match="point pin"):
         _rtm(_np.eye(1), lower=[-_np.inf], upper=[-_np.inf], seed=1)
 
+
+
+def test_params_shape_mismatch_raises_instead_of_reading_out_of_bounds():
+    # review 2026-10-07: params built from a different-size covmat reached the
+    # jitted sweep, which indexed the bounds with its own length -- an abort or
+    # segfault, not an exception. Both mismatch directions must raise.
+    cov3 = np.eye(3)
+    for other in (np.eye(2), np.eye(5)):
+        pre = gibbs_params(other)
+        with pytest.raises(ValueError, match="params must match covmat"):
+            rtmvnorm_gibbs(cov3, params=pre, n_sim=10)
+    with pytest.raises(ValueError, match=r"\(P, sd\) pair"):
+        rtmvnorm_gibbs(cov3, params=(np.eye(3),), n_sim=10)
+
+
+def test_far_tail_narrow_band_draws_spread_over_the_interval():
+    # review 2026-10-07: on [38.45, 38.46] the survival probabilities reach the
+    # subnormal range, the interpolated quantile had ~20 representable values
+    # and 20000 draws came out identical. The tail-ratio route now takes over.
+    from ltpred.pearson_aitken import _std_tnorm_moments
+    draws = rtmvnorm_gibbs([[1.0]], lower=38.45, upper=38.46, out=(0,),
+                           n_sim=20_000, burn_in=200, seed=1)
+    assert np.all((draws >= 38.45) & (draws <= 38.46))
+    assert len(np.unique(draws)) > 1000
+    np.testing.assert_allclose(draws.mean(),
+                               _std_tnorm_moments(38.45, 38.46)[0], rtol=1e-2)
+    left = rtmvnorm_gibbs([[1.0]], lower=-38.46, upper=-38.45, out=(0,),
+                          n_sim=20_000, burn_in=200, seed=1)
+    assert np.all((left >= -38.46) & (left <= -38.45))
+    assert len(np.unique(left)) > 1000
+    np.testing.assert_allclose(left.mean(),
+                               _std_tnorm_moments(-38.46, -38.45)[0], rtol=1e-2)
+
+
+def test_unseeded_sampler_is_fresh_after_a_seeded_call():
+    # review 2026-10-07: an unseeded call replayed the RNG state a previous
+    # seeded call left in this thread, so the same script printed identical
+    # "unseeded" numbers in every process. Every call now reseeds (seed=None
+    # from OS entropy), so two fresh processes must disagree.
+    import subprocess
+    import sys
+
+    source = ("import numpy as np\n"
+              "from ltpred.gibbs import rtmvnorm_gibbs\n"
+              "rtmvnorm_gibbs(np.eye(1), n_sim=30, burn_in=3, seed=5)\n"
+              "print(rtmvnorm_gibbs(np.eye(1), n_sim=30, burn_in=3).sum())\n")
+    outs = [subprocess.run([sys.executable, "-c", source],
+                           capture_output=True, text=True, check=True).stdout
+            for _ in range(2)]
+    assert outs[0] != outs[1], outs
+
+
+def test_seed_rng_none_reseeds_both_streams_from_entropy():
+    _seed_rng(5)
+    seeded = gibbs_mod._advance_rng()
+    _seed_rng(None)
+    fresh = gibbs_mod._advance_rng()
+    assert fresh is not seeded
+    assert (fresh.bit_generator.state["state"]
+            != seeded.bit_generator.state["state"])
+    # and the serial stream it will draw from is not the seeded one either
+    _seed_rng(5)
+    replay = rtmvnorm_gibbs(np.eye(1), n_sim=30, burn_in=3, seed=5)
+    _seed_rng(None)
+    unseeded = rtmvnorm_gibbs(np.eye(1), n_sim=30, burn_in=3)
+    assert not np.array_equal(unseeded, replay)

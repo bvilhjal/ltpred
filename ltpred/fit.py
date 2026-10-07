@@ -796,8 +796,10 @@ def _fit_component_engine(families, comps, initial, *, n_iter, burn_in,
     # update. The tiny ridge stabilises only an identified multicomponent design.
     XtX_reg = XtX if C == 1 else XtX + 1e-10 * np.eye(C)
 
-    if seed is not None:
-        _seed_rng(seed)
+    # Unconditional: seed=None reseeds from entropy (see gibbs._seed_rng), so
+    # an unseeded fit never replays the generator a previous seeded call left
+    # in this thread's persistent-chain stream.
+    _seed_rng(seed)
 
     values = np.asarray(initial, dtype=float).copy()
     trace = np.empty((n_iter, C))

@@ -940,3 +940,19 @@ def test_wholly_unobserved_families_do_not_change_the_fit():
     base = fit_variance_components(fams, ("A",), **kw)
     more = fit_variance_components(fams + empty, ("A",), **kw)
     assert more.components["A"] == pytest.approx(base.components["A"], abs=1e-12)
+
+
+def test_unseeded_fit_reseeds_the_persistent_chain_stream():
+    # review 2026-10-07: a seeded fit replaced the thread-local advance
+    # generator and a later seed=None fit reused it, replaying its stream
+    # exactly in every fresh process. The engine now reseeds unconditionally
+    # (seed=None from OS entropy), so the generator a fit starts from is never
+    # the one a previous seeded call left behind.
+    from ltpred.gibbs import _advance_rng, _seed_rng
+    _seed_rng(5)
+    seeded = _advance_rng()
+    _seed_rng(None)                     # what fit_heritability(seed=None) does
+    fresh = _advance_rng()
+    assert fresh is not seeded
+    assert (fresh.bit_generator.state["state"]
+            != seeded.bit_generator.state["state"])

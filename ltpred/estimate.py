@@ -341,10 +341,12 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
     round (methods report, Algorithm G, step G6):
 
     1. calls `gibbs_estimate_batched` on the active (unconverged) families,
-       family ``f`` seeded with ``(base_seeds[f] + round) % 2**32`` (``-1``
-       stays unseeded). Each call starts fresh chains with their own
-       ``burn_in`` and collapses each family's own unbounded coordinates
-       (step G2), so the other active families never affect its draws;
+       family ``f`` seeded with ``(base_seeds[f] + round) % 2**32``
+       (`_base_seeds` never emits the kernel's ``-1`` unseeded sentinel;
+       unseeded calls get fresh entropy seeds). Each call starts fresh chains
+       with their own ``burn_in`` and collapses each family's own unbounded
+       coordinates (step G2), so the other active families never affect its
+       draws;
     2. pools the returned sums over rounds: ``est = sum / N`` and
        ``var = max(sumsq / N - est^2, 0)`` with ``N = rounds * n_sim``, and
        the batch-means ``se = sqrt(b * sum((Y_k - Ybar)^2) / (M - 1) / (M * b))``
@@ -572,8 +574,14 @@ def _group_by_structure(families):
     return list(groups.items())
 
 
+#: Odd multiplier of Knuth's multiplicative hash: a bijection on uint32, so
+#: distinct user seeds map to distinct seed blocks (see `_base_seeds`).
+_SEED_STRIDE = 2654435761
+
+
 def _base_seeds(seed, n, max_rounds, start=0):
-    """Per-family base seeds: family ``i`` owns ``(seed + i*max_rounds) % 2**32``.
+    """Per-family base seeds: family ``i`` owns the ``max_rounds`` consecutive
+    seeds from ``(seed * _SEED_STRIDE + i*max_rounds) % 2**32``.
 
     `_estimate_group` seeds round ``r`` of that family with
     ``(base + r) % 2**32``, so each family owns a block of ``max_rounds``
@@ -582,19 +590,33 @@ def _base_seeds(seed, n, max_rounds, start=0):
     its own bounds -- not by thread scheduling, chunking or the other families
     in the call.
 
-    ``-1`` is the kernel's *unseeded* sentinel. It must stay reachable only from
-    ``seed=None``: validating here keeps a user's negative seed from silently
-    landing on it (which would leave family 0 non-reproducible), and wrapping keeps
-    the derived block inside the uint32 range the kernel's RNG accepts. The
-    block wrap can collide two families'
-    streams when ``n * max_rounds`` exceeds 2**32 (at the default
-    ``max_rounds=100`` that is beyond ~43M families per call). ``start`` is the
-    first family's global index, so a streamed batch builds only its own seeds."""
+    The user seed is multiplied by ``_SEED_STRIDE`` before the block layout:
+    with the raw value, seed ``s`` family ``i`` round ``r`` and seed ``s + 1``
+    family ``i`` round ``r - 1`` name the *same* stream, so replicate loops
+    over consecutive seeds (``for rep in range(R): ... seed=rep``) resample
+    each other's draws family by family -- with identical rows and
+    ``max_rounds=1`` bit for bit. The stride is odd, hence injective on
+    uint32; a wrap can still collide two families' streams when
+    ``n * max_rounds`` exceeds 2**32 (at the default ``max_rounds=100`` that
+    is beyond ~43M families per call), and even then only for specific seed
+    pairs, not every neighbour.
+
+    ``seed=None`` returns fresh per-family entropy seeds instead of the
+    kernel's ``-1`` unseeded sentinel. The sentinel draws from the Numba
+    worker-thread RNG, which a previous seeded call in this process leaves in
+    a deterministic state -- making later unseeded calls replay it exactly --
+    and which advances differently under different thread schedules. Fresh
+    seeds keep an unseeded run nondeterministic call to call, exactly like
+    the seeded path, and scheduling-independent within a call. ``start`` is
+    the first family's global index, so a streamed batch builds only its own
+    seeds."""
     if seed is None:
-        return np.full(n, -1, dtype=np.int64)
+        return np.random.default_rng().integers(0, _MAX_SEED + 1, size=n,
+                                                dtype=np.int64)
     seed = _validate_seed(seed)
     families = np.arange(start, start + n, dtype=np.int64)   # global indices
-    return (seed + families * int(max_rounds)) % (_MAX_SEED + 1)
+    mixed = (seed * _SEED_STRIDE) % (_MAX_SEED + 1)
+    return (mixed + families * int(max_rounds)) % (_MAX_SEED + 1)
 
 
 def _estimate_liability_single(families, h2, out=("genetic",), tol=0.01, n_sim=100_000, burn_in=1000, seed=None, max_rounds=100, dtype=np.float64, c2=None, m2=None):
@@ -1028,7 +1050,8 @@ def estimate_liability_pa_arrays(roles: Sequence[str], lower: ArrayLike,
     / ``upper`` are ``(n_families, len(roles))`` bounds aligned to ``roles`` (build
     them straight from your columns, e.g. with a threshold helper). The covariance
     is built once (with the ``c2``/``m2`` sibship and couple shared-environment
-    components, ``h2 + c2 + m2 <= 1``). ``h2`` must lie in ``(0, 1]``; ``h2 = 1``
+    components, ``h2 + c2 + m2 <= 1``). ``h2`` must lie in ``(1e-8, 1]``
+    (the samplers' strict-PD floor); ``h2 = 1``
     makes ``g`` and ``o`` collinear, so the covariance is nudged with a warning.
     ``out`` is ``"genetic"`` (target ``g``) or ``"full"``
     (``E[l_o | own interval and relatives]``), or a length-1 sequence of either.
@@ -1072,9 +1095,12 @@ def estimate_liability_gibbs_arrays(roles: Sequence[str], lower: ArrayLike,
     run; families still above ``tol`` keep their pooled values and a warning
     is issued. ``seed`` must be a non-boolean integer in ``[0, 2**32 - 1]`` or
     ``None``; round ``r`` of row ``i`` is seeded with
-    ``(seed + i*max_rounds + r) % 2**32``, so results depend on row order and
+    ``(mix(seed) + i*max_rounds + r) % 2**32`` for an integer mixing ``mix``
+    of ``seed`` (see `_base_seeds`), so results depend on row order and
     ``max_rounds`` as well as ``seed`` (see the `ltpred.gibbs` module
-    docstring for Algorithm G)."""
+    docstring for Algorithm G). ``seed=None`` draws fresh per-family seeds
+    from OS entropy, so unseeded runs differ call to call -- also after a
+    seeded call in the same process."""
     coord = _single_out(out)
     lower = as_bounds(lower)
     seeds = _base_seeds(seed, np.asarray(lower).shape[0], max_rounds)
@@ -1111,7 +1137,7 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
     are ``(n_families, n)`` (one column per pedigree member, in ``A`` order; a
     1-D ``(n,)`` pair is one family); the genetic-liability row for ``target``
     (an index into ``A``) is added internally and left unbounded. ``h2`` must
-    lie in ``(0, 1]``.
+    lie in ``(1e-8, 1]``.
     Inbred members are standardised to unit marginal full-liability variance, and
     the target's genetic contribution is scaled by its raw liability SD. Thus the
     supplied standard-normal bounds retain their prevalence interpretation when
@@ -1305,7 +1331,9 @@ def estimate_liability(families: Sequence, h2: ArrayLike, *,
     ``phenotype1``, ``phenotype2``, ...; names must be distinct).
 
     ``h2``: Liability-scale additive heritability for this disease, in
-    ``(0, 1]`` for PA and Gibbs (each entry, for multi-trait). Required: there is no
+    ``(1e-8, 1]`` for PA and Gibbs (each entry, for multi-trait; the
+    lower bound is the samplers' strict positive-definiteness floor).
+    Required: there is no
     disease-independent default, for the same reason the threshold builders
     take no default prevalence. See
     the data-preparation guide, "Getting heritability on the liability scale", for choosing between pedigree/twin and

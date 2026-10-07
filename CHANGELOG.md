@@ -27,9 +27,45 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 - The kinship singleton shortcut validates `target` (integer 0) before use.
 - `bench_quadrature.py` and RESULTS 35 state that the timings use one pinned
   lifetime threshold, not personalised onset bounds.
+- `rtmvnorm_gibbs` validates `params` against `covmat`: a `(P, sd)` pair
+  computed from a different-size covariance reached the jitted sweep, which
+  indexes the bounds with its own length — an abort or segfault (observed both),
+  not an exception — and now raises `ValueError` naming the expected shapes.
+- Gibbs draws on far-tail intervals that reach the subnormal survival range
+  (bounds near ±38 or beyond, e.g. `[38.45, 38.46]`) hand off to the
+  tail-ratio quantile earlier: the inverse-CDF interpolation had only a
+  handful of representable probabilities there, and 20000 draws came out as a
+  single repeated value. The route now takes over below 2^-1050 survival
+  probability, where fewer than ~2^24 distinct draws remain.
+- Unseeded samplers draw fresh entropy instead of continuing whatever RNG
+  state a previous seeded call left: the Gibbs estimators (`seed=None`
+  families drew from the Numba worker-thread RNG), `rtmvnorm_gibbs` (the
+  serial sweep) and the fitters (the persistent-chain generator) all reseed
+  on every call, `seed=None` from OS entropy. Previously the same script
+  produced bit-identical "unseeded" results in every fresh process once any
+  seeded call had run. Unseeded estimator families also become
+  scheduling-independent, like seeded ones.
+- The covariance constructors reject `h2 <= 1e-8` by name (single-trait,
+  multi-trait and kinship): the smallest eigenvalue of the `g`-`o` block is
+  about `h2`, under `correct_positive_definite`'s strict-PD floor, so such
+  values used to pass the documented `(0, 1]` domain check and die
+  downstream with the opaque "unable to enforce a positive-definite
+  covariance matrix" error. That error now names tiny `h2`, `h2 = 1`
+  collinearity and near-singular relatedness as the usual causes, and the
+  `h2` docstrings state the `(1e-8, 1]` domain.
 
 ### Changed
 
+- Gibbs per-family seed derivation mixes the user seed through an odd-
+  multiplier bijection on uint32 before laying out the per-family blocks.
+  With the raw value, seed `s` family `i` round `r` and seed `s + 1` family
+  `i` round `r - 1` named the same stream, so replicate loops over
+  consecutive seeds (`for rep in range(R): ... seed=rep`) resampled each
+  other's draws — with identical rows and `max_rounds = 1` bit for bit.
+  Seeded results change (every seed maps to a new block); reproducibility
+  given `(seed, row order, max_rounds)` is unchanged. The
+  `docs/validation.md` Gibbs-SE quote was re-derived for the new streams
+  (0.0066 → 0.0065, within Monte-Carlo error of the old value).
 - Small PA batches run on serial kernels. Below 128 families per batch (or
   per observation-mask group), the Pearson–Aitken fold skips the
   parallel-kernel launch, whose fixed cost a small batch never repays; values

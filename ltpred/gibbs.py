@@ -77,6 +77,11 @@ _MAX_SEED = (1 << 32) - 1
 # Coordinates whose bounds span less than this are held fixed (a pinned point
 # mass, e.g. an onset-pinned case in LT-FH++) rather than resampled.
 _FIXED_TOL = 1e-8
+# A survival probability below this leaves fewer than 2**24 representable
+# doubles between the bounds, so inverse-CDF interpolation of the two survival
+# values collapses to a handful of distinct draws (bounds [38.45, 38.46] drew
+# 20000 identical values). Hand such intervals to the tail-ratio route instead.
+_TAIL_QUANT_FLOOR = 2.0 ** -1050
 
 
 @_jit
@@ -127,14 +132,16 @@ def _std_tnorm_quantile(a, b, u):
     guards the last-bit error of the inverse approximation; it never moves a
     draw across a truncation boundary.
 
-    Past ``|z| ~ 38.5`` even the survival scale underflows to exactly 0 and the
-    inverse returns an infinity that no clamp can catch (the opposite bound is
-    typically infinite too).  Those intervals hand off to
+    Past ``|z| ~ 38`` the survival values reach the subnormal range, where the
+    interpolated probability ``q`` has too few representable values to spread
+    the draws (and past ``~ 38.5`` it underflows to exactly 0, making the
+    inverse return an infinity no clamp can catch; the opposite bound is
+    typically infinite too).  Both cases hand off to
     `_far_right_std_tnorm_quantile`, mirrored for the left tail.
     """
     if a >= 0.0:
         sa = _norm_cdf(-a)
-        if sa <= 0.0:                       # right tail underflowed to zero
+        if sa < _TAIL_QUANT_FLOOR:          # too few representable survivals
             return _far_right_std_tnorm_quantile(a, b, u)
         sb = _norm_cdf(-b)
         q = (1.0 - u) * sa + u * sb
@@ -143,7 +150,7 @@ def _std_tnorm_quantile(a, b, u):
             return _far_right_std_tnorm_quantile(a, b, u)
     else:
         fb = _norm_cdf(b)
-        if fb <= 0.0:                       # far left tail: reflect to the right
+        if fb < _TAIL_QUANT_FLOOR:          # far left tail: reflect to the right
             return -_far_right_std_tnorm_quantile(-b, -a, 1.0 - u)
         fa = _norm_cdf(a)
         p = (1.0 - u) * fa + u * fb
@@ -257,6 +264,31 @@ def gibbs_params(covmat: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     np.fill_diagonal(P, 0.0)
     sd = np.sqrt(1.0 / qdiag)
     return np.ascontiguousarray(P), np.ascontiguousarray(sd)
+
+
+def _validate_params(params, d):
+    """Return precomputed ``(P, sd)`` from `gibbs_params`, checked against ``d``.
+
+    ``params`` is documented as the output of `gibbs_params` for *this*
+    covariance, and nothing else constrains it: a pair built from a
+    different-size matrix reaches the jitted sweep, which indexes the bounds
+    and the initial chain with the arrays' own length and reads out of bounds
+    -- a crash (observed as aborts/segfaults), not an exception.
+    """
+    try:
+        P, sd = params
+    except (TypeError, ValueError):
+        raise ValueError(
+            "params must be a (P, sd) pair from gibbs_params") from None
+    P = np.asarray(P)
+    sd = np.asarray(sd)
+    if P.ndim != 2 or P.shape != (d, d) or sd.ndim != 1 or sd.shape != (d,):
+        raise ValueError(
+            f"params must match covmat: P of shape ({d}, {d}) and sd of shape "
+            f"({d},); got shapes {P.shape} and {sd.shape}. params must be the "
+            "gibbs_params output of this same covmat")
+    return (np.ascontiguousarray(P, dtype=np.float64),
+            np.ascontiguousarray(sd, dtype=np.float64))
 
 
 def _unbounded_patterns(lowers, uppers):
@@ -680,12 +712,23 @@ def _validate_burn_in(burn_in):
 
 
 def _seed_rng(seed):
-    """Seed serial and parallel sampler streams for reproducibility."""
-    seed = _validate_seed(seed)
+    """Seed serial and parallel sampler streams; ``None`` reseeds from entropy.
 
-    # Construct first, then mutate the serial and parallel states only after all
-    # validation has succeeded.
-    generator = np.random.default_rng(seed)
+    ``None`` (an unseeded call) draws a fresh OS-entropy seed and a fresh
+    generator for both streams. Without it, a later unseeded call would replay
+    whatever stream the previous seeded call left in this thread's Numba RNG
+    and persistent-chain generator, making ``seed=None`` results deterministic
+    after any seeded call in the same process.
+    """
+    if seed is None:
+        generator = np.random.default_rng()
+        seed = int(generator.integers(0, _MAX_SEED + 1))
+    else:
+        seed = _validate_seed(seed)
+        generator = np.random.default_rng(seed)
+
+    # Mutate the serial and parallel states only after all validation has
+    # succeeded.
     _seed_numba_rng(seed)
     _advance_rng_state.generator = generator
 
@@ -777,18 +820,23 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
         non-negative integer.
     seed : int, optional
         Non-boolean integer in ``[0, 2**32 - 1]`` for reproducibility, or ``None``.
-        Seeding reseeds the RNG the serial sweep draws from: the calling
+        Every call reseeds the RNG the serial sweep draws from: the calling
         thread's Numba RNG when Numba is installed, otherwise NumPy's legacy
         global RNG, so in the pure-Python fallback concurrent seeded calls from
-        different threads can interfere. It also reseeds the calling thread's
-        persistent-chain stream used by `gibbs_advance`. The high-level
-        estimators seed each family inside the parallel kernel and are safe
-        for concurrent seeded use.
+        different threads can interfere. ``seed=None`` draws fresh entropy for
+        that reseed -- without it, an unseeded call following a seeded one
+        would replay the stream the seeded call left behind, making
+        ``seed=None`` results deterministic after any seeded call. The reseed
+        also resets the calling thread's persistent-chain stream used by
+        `gibbs_advance`. The high-level estimators seed each family inside the
+        parallel kernel and are safe for concurrent seeded use.
     params : (P, sd), optional
         Precomputed `gibbs_params` output; recomputed from ``covmat`` when
         omitted. The supplied ``covmat`` is still validated because it defines
         the marginal initialisation; ``params`` must have been computed from
-        that same matrix.
+        that same matrix -- a pair whose shapes do not match ``covmat`` raises
+        `ValueError` (the jitted sweep would otherwise index past the bounds
+        and crash the process).
 
     Returns
     -------
@@ -800,6 +848,8 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
     if params is None:
         # ``gibbs_params`` performs the covariance validation in this path.
         params = gibbs_params(cov)
+    else:
+        params = _validate_params(params, cov.shape[0])
     d = cov.shape[0]
     burn_in = _validate_burn_in(burn_in)
 
@@ -840,9 +890,9 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
     sd0 = np.sqrt(np.diag(cov))
     x = _init_chain(lower, upper, sd0)
 
-    if seed is not None:
-        _seed_rng(seed)
-
+    # Unconditional: seed=None reseeds from entropy (see _seed_rng), so an
+    # unseeded call never replays a previous seeded call's leftover stream.
+    _seed_rng(seed)
     res = np.empty((int(n_sim), len(out)), dtype=np.float64)
     _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, int(n_sim),
                  burn_in, res)

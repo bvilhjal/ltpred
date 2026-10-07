@@ -422,7 +422,7 @@ def test_zero_h2_is_rejected_with_an_explanation():
     from ltpred.covariance import construct_covmat_from_kinship
     with pytest.raises(ValueError, match=r"h2 must be in \(0, 1\]"):
         construct_covmat_single(fam_vec=["m", "f"], h2=0.0)
-    with pytest.raises(ValueError, match=r"all h2 must be in \(0, 1\]"):
+    with pytest.raises(ValueError, match=r"all h2 must be in \(1e-08, 1\]"):
         construct_covmat_multi(fam_vec=["m"], h2_vec=[0.5, 0.0],
                                genetic_corrmat=np.eye(2),
                                full_corrmat=np.eye(2))
@@ -610,3 +610,26 @@ def test_covmat_multi_fraction_table_matches_direct_relatedness():
                     expected[p1 * k + a, p2 * k + a] = (gcov if fam_roles[a] == "g"
                                                          else full[p1, p2])
     np.testing.assert_array_equal(built, expected)
+
+
+@pytest.mark.parametrize("h2", [1e-9, 1e-8])
+def test_constructors_reject_h2_below_the_strict_pd_floor(h2):
+    # review 2026-10-07: h2 <= 1e-8 used to pass the (0, 1] domain check and
+    # die downstream in correct_positive_definite with an opaque "unable to
+    # enforce" message, although the docs promised (0, 1] was valid. The
+    # smallest eigenvalue of the g-o block is about h2, under that repair's
+    # eps floor, so the constructors now reject it by name.
+    with pytest.raises(ValueError, match="must exceed 1e-08"):
+        construct_covmat_single(fam_vec=["m", "f"], h2=h2)
+    with pytest.raises(ValueError, match="must exceed 1e-08"):
+        construct_covmat_from_kinship(np.array([[1.0]]), h2=h2, target=0)
+    with pytest.raises(ValueError, match="1e-08"):
+        construct_covmat_multi(fam_vec=["m"], genetic_corrmat=[[1.0]],
+                               full_corrmat=[[1.0]], h2_vec=[0.5, h2])
+
+
+def test_h2_just_above_the_floor_still_builds():
+    cov = construct_covmat_single(fam_vec=["m", "f"], h2=2e-8)
+    corrected, n_iter = correct_positive_definite(cov.matrix)
+    assert np.min(np.linalg.eigvalsh(corrected)) > 1e-8
+    assert n_iter == 0
