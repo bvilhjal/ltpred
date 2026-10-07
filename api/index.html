@@ -4603,7 +4603,8 @@ shared list of member roles (<code>o</code> and relatives; <code>g</code> is add
 / <code>upper</code> are <code>(n_families, len(roles))</code> bounds aligned to <code>roles</code> (build
 them straight from your columns, e.g. with a threshold helper). The covariance
 is built once (with the <code>c2</code>/<code>m2</code> sibship and couple shared-environment
-components, <code>h2 + c2 + m2 &lt;= 1</code>). <code>h2</code> must lie in <code>(0, 1]</code>; <code>h2 = 1</code>
+components, <code>h2 + c2 + m2 &lt;= 1</code>). <code>h2</code> must lie in <code>(1e-8, 1]</code>
+(the samplers' strict-PD floor); <code>h2 = 1</code>
 makes <code>g</code> and <code>o</code> collinear, so the covariance is nudged with a warning.
 <code>out</code> is <code>"genetic"</code> (target <code>g</code>) or <code>"full"</code>
 (<code>E[l_o | own interval and relatives]</code>), or a length-1 sequence of either.
@@ -4647,9 +4648,12 @@ output is <code>&lt;= tol</code> (finite, &gt; 0) or <code>max_rounds</code> (&g
 run; families still above <code>tol</code> keep their pooled values and a warning
 is issued. <code>seed</code> must be a non-boolean integer in <code>[0, 2**32 - 1]</code> or
 <code>None</code>; round <code>r</code> of row <code>i</code> is seeded with
-<code>(seed + i*max_rounds + r) % 2**32</code>, so results depend on row order and
+<code>(mix(seed) + i*max_rounds + r) % 2**32</code> for an integer mixing <code>mix</code>
+of <code>seed</code> (see <code>_base_seeds</code>), so results depend on row order and
 <code>max_rounds</code> as well as <code>seed</code> (see the <code>ltpred.gibbs</code> module
-docstring for Algorithm G).</p>
+docstring for Algorithm G). <code>seed=None</code> draws fresh per-family seeds
+from OS entropy, so unseeded runs differ call to call -- also after a
+seeded call in the same process.</p>
 
 
     </div>
@@ -4677,7 +4681,7 @@ batch of families, and the per-individual truncation bounds. <code>lower</code>/
 are <code>(n_families, n)</code> (one column per pedigree member, in <code>A</code> order; a
 1-D <code>(n,)</code> pair is one family); the genetic-liability row for <code>target</code>
 (an index into <code>A</code>) is added internally and left unbounded. <code>h2</code> must
-lie in <code>(0, 1]</code>.
+lie in <code>(1e-8, 1]</code>.
 Inbred members are standardised to unit marginal full-liability variance, and
 the target's genetic contribution is scaled by its raw liability SD. Thus the
 supplied standard-normal bounds retain their prevalence interpretation when
@@ -4773,7 +4777,9 @@ Single-trait columns are named <code>"genetic"</code>/<code>"full"</code>; multi
 <code>"&lt;out&gt;_&lt;phen&gt;"</code>, with <code>phen_names</code> naming the traits (default
 <code>phenotype1</code>, <code>phenotype2</code>, ...; names must be distinct).</p>
 <p><code>h2</code>: Liability-scale additive heritability for this disease, in
-<code>(0, 1]</code> for PA and Gibbs (each entry, for multi-trait). Required: there is no
+<code>(1e-8, 1]</code> for PA and Gibbs (each entry, for multi-trait; the
+lower bound is the samplers' strict positive-definiteness floor).
+Required: there is no
 disease-independent default, for the same reason the threshold builders
 take no default prevalence. See
 the data-preparation guide, "Getting heritability on the liability scale", for choosing between pedigree/twin and
@@ -6976,7 +6982,9 @@ for those.</p>
 
         <p>Covariance matrix for one trait: proband <code>g</code>/<code>o</code> plus relatives.</p>
 <p>Entry <code>(i, j)</code> is <code>get_relatedness(role_i, role_j, h2)</code>, with <code>h2</code> in
-<code>(0, 1]</code> (at <code>h2 = 1</code> <code>g</code> and <code>o</code> coincide and the matrix is
+<code>(1e-8, 1]</code> (below the floor the smallest eigenvalue, about <code>h2</code>, is
+under the strict positive-definiteness threshold and no correction can
+recover it; at <code>h2 = 1</code> <code>g</code> and <code>o</code> coincide and the matrix is
 singular). Relatives come from <code>fam_vec</code>, a list of role strings, or
 <code>n_fam</code>, a mapping from role to count; supply at most one. In <code>n_fam</code>
 an unnumbered stem (<code>"s"</code>, <code>"mhs"</code>, <code>"phs"</code>, <code>"mau"</code>, <code>"pau"</code>)
@@ -7012,7 +7020,7 @@ Requires <code>h2 + c2 + m2 &lt;= 1</code>.</p>
         <p>Covariance matrix for several correlated traits.</p>
 <p><code>fam_vec</code>/<code>n_fam</code>/<code>add_ind</code> are as in <code>construct_covmat_single</code>,
 except that a family with no relatives always gives roles <code>g</code>, <code>o</code>.
-<code>h2_vec</code> holds one heritability per trait, each in <code>(0, 1]</code>;
+<code>h2_vec</code> holds one heritability per trait, each in <code>(1e-8, 1]</code>;
 <code>genetic_corrmat</code> and <code>full_corrmat</code> are <code>n_pheno x n_pheno</code>, finite,
 symmetric, unit-diagonal and positive semi-definite. <code>phen_names</code>
 (default <code>phenotype1</code>, <code>phenotype2</code>, ...) must have one name per trait.</p>
@@ -7095,7 +7103,7 @@ covariance <code>V = h2 * A + c2 * C + m2 * M + e2 * I</code>, where
 example, sibship and couple shared environments, but are deliberately not
 inferred from <code>A</code>: additive relatedness alone cannot distinguish full sibs
 from parent--offspring pairs or mates from unrelated people. A nonzero
-component requires its kernel, <code>h2</code> must lie in <code>(0, 1]</code> and
+component requires its kernel, <code>h2</code> must lie in <code>(1e-8, 1]</code> and
 <code>h2 + c2 + m2 &lt;= 1</code>.</p>
 <p>With no environmental kernels this reduces to
 <code>V = h2 * A + (1 - h2) * I</code>. Standardisation keeps every <strong>full liability</strong>
@@ -8399,13 +8407,16 @@ non-negative integer.</p>
           –
           <div class="doc-md-description">
             <p>Non-boolean integer in <code>[0, 2**32 - 1]</code> for reproducibility, or <code>None</code>.
-Seeding reseeds the RNG the serial sweep draws from: the calling
+Every call reseeds the RNG the serial sweep draws from: the calling
 thread's Numba RNG when Numba is installed, otherwise NumPy's legacy
 global RNG, so in the pure-Python fallback concurrent seeded calls from
-different threads can interfere. It also reseeds the calling thread's
-persistent-chain stream used by <code>gibbs_advance</code>. The high-level
-estimators seed each family inside the parallel kernel and are safe
-for concurrent seeded use.</p>
+different threads can interfere. <code>seed=None</code> draws fresh entropy for
+that reseed -- without it, an unseeded call following a seeded one
+would replay the stream the seeded call left behind, making
+<code>seed=None</code> results deterministic after any seeded call. The reseed
+also resets the calling thread's persistent-chain stream used by
+<code>gibbs_advance</code>. The high-level estimators seed each family inside the
+parallel kernel and are safe for concurrent seeded use.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -8418,7 +8429,9 @@ for concurrent seeded use.</p>
             <p>Precomputed <code>gibbs_params</code> output; recomputed from <code>covmat</code> when
 omitted. The supplied <code>covmat</code> is still validated because it defines
 the marginal initialisation; <code>params</code> must have been computed from
-that same matrix.</p>
+that same matrix -- a pair whose shapes do not match <code>covmat</code> raises
+<code>ValueError</code> (the jitted sweep would otherwise index past the bounds
+and crash the process).</p>
           </div>
         </li>
     </ul>
