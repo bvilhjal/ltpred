@@ -141,11 +141,15 @@ def _assert_nonoverlapping_pids(families, context):
     that places the same parent in many probands' families is the intended
     *prediction* design and an invalid *fitting* design. Members without a
     ``pid`` cannot be checked, so a pid-less input is unchanged. Two copies of
-    the same ``fam_id`` (bootstrap resampling with replacement) are one
-    cluster, not two overlapping pedigrees.
+    the same ``fam_id`` and members (bootstrap resampling with replacement)
+    are one cluster, not two overlapping pedigrees.
     """
     seen = {}
     for family in families:
+        # A repeated cluster is the same fam_id *and* the same people; a reused
+        # label over different pedigrees that share a person still overlaps.
+        signature = frozenset(k for k in map(_member_pid_key, family.members)
+                              if k is not None)
         local = set()
         for member in family.members:
             key = _member_pid_key(member)
@@ -157,13 +161,14 @@ def _assert_nonoverlapping_pids(families, context):
                     f"family {family.fam_id!r}")
             local.add(key)
             previous = seen.get(key)
-            if previous is not None and previous != family.fam_id:
+            if previous is not None and previous != (family.fam_id, signature):
+                previous = previous[0]
                 raise ValueError(
                     f"{context}: pid {member.pid!r} appears in families "
                     f"{previous!r} and {family.fam_id!r}; the moment fitters "
                     "require non-overlapping families. Use estimate_liability "
                     "for per-proband scores on overlapping register pedigrees.")
-            seen[key] = family.fam_id
+            seen[key] = (family.fam_id, signature)
 
 
 #: Thresholds for the case-rate check. Sensitivity: in the dose-response of
@@ -764,6 +769,16 @@ def _fit_component_engine(families, comps, initial, *, n_iter, burn_in,
 
     # X'X is fixed across sweeps. With weights == 1 this is the ordinary
     # unweighted pair design; IPW changes only each family's contribution.
+    # Wholly unobserved families (every member (-inf, inf)) carry no data: their
+    # latent draws are prior draws, so they would only pull each update back to
+    # the current values and slow convergence in proportion to their number.
+    for group in groups:
+        keep = (np.isfinite(group["lowers"]) | np.isfinite(group["uppers"])).any(axis=1)
+        if not keep.all():
+            for key in ("lowers", "uppers", "fixed", "w", "x"):
+                group[key] = np.ascontiguousarray(group[key][keep])
+            group["F"] = int(keep.sum())
+    groups = [g for g in groups if g["F"] > 0]
     XtX = np.zeros((C, C))
     for group in groups:
         family_weight = float(group["w"].sum())

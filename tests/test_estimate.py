@@ -1245,3 +1245,29 @@ def test_family_free_kinship_scalar_branch_matches_matrix_path():
             ref_est, ref_var = pa_estimate_batched(cov, lo, hi, target=target)
             np.testing.assert_array_equal(est, ref_est)
             np.testing.assert_array_equal(var, ref_var)
+
+
+def test_gibbs_array_and_kinship_warn_when_unconverged():
+    import numpy as np
+    import pytest
+    from ltpred import (estimate_liability_gibbs_arrays,
+                        estimate_liability_from_kinship)
+    lo = np.array([[0.5, -np.inf]])
+    hi = np.array([[np.inf, np.inf]])
+    with pytest.warns(UserWarning, match="did not reach tol"):
+        estimate_liability_gibbs_arrays(["o", "m"], lo, hi, 0.5, tol=1e-12,
+                                        n_sim=50, burn_in=10, max_rounds=2, seed=1)
+    A = np.array([[1.0, 0.5], [0.5, 1.0]])
+    with pytest.warns(UserWarning, match="did not reach tol"):
+        estimate_liability_from_kinship(A, lo, hi, 0.5, method="gibbs", tol=1e-12,
+                                        n_sim=50, burn_in=10, max_rounds=2, seed=1)
+
+
+@__import__("pytest").mark.parametrize("bad", [999, "bad", None, True, 0.5])
+def test_singleton_shortcut_validates_target(bad):
+    import numpy as np
+    import pytest
+    from ltpred import estimate_liability_from_kinship
+    with pytest.raises(Exception):
+        estimate_liability_from_kinship(np.array([[1.0]]), np.array([[0.5]]),
+                                        np.array([[np.inf]]), 0.5, target=bad)

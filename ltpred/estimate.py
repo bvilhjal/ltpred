@@ -532,6 +532,13 @@ def _warn_unconverged(se, names, tol, max_rounds, n):
             "increase max_rounds or n_sim, or inspect res.se.", stacklevel=3)
 
 
+def _warn_unconverged_array(se, tol, max_rounds):
+    """`_warn_unconverged` for the ``(F, ncols)`` SE array the array entry points hold."""
+    se = np.asarray(se)
+    _warn_unconverged({"se": np.atleast_2d(se.T).T.max(axis=1)}, ["se"], tol,
+                      max_rounds, se.shape[0])
+
+
 def _warn_if_corrected(n_corrections, engine):
     """Warn when the family covariance needed nudging to strict PD.
 
@@ -1074,6 +1081,7 @@ def estimate_liability_gibbs_arrays(roles: Sequence[str], lower: ArrayLike,
     est, se, var = _gibbs_from_role_arrays(
         roles, lower, upper, h2, [coord], seeds, tol, n_sim, burn_in,
         max_rounds, c2=c2, m2=m2)
+    _warn_unconverged_array(se, tol, max_rounds)
     if return_var:
         return est[:, 0], se[:, 0], var[:, 0]
     return est[:, 0], se[:, 0]
@@ -1172,6 +1180,8 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
             and h2 * (1 - h2) / (1 + h2) > 1e-6
             and c2 is None and c_kernel is None and m2 is None and m_kernel is None
             and n == 1 and A[0, 0] == 1.0
+            and isinstance(target, (int, np.integer)) and not isinstance(target, bool)
+            and target == 0
             and not np.any(lower[:, 0] == upper[:, 0])):
         # Family-free proband, non-inbred (A = [[1.]] exactly), no pins: the
         # 2x2 covariance [[c, c], [c, 1]] with c = h2 / (h2 + 1 - h2) collapses
@@ -1234,6 +1244,7 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
     seeds = _base_seeds(seed, F, max_rounds)
     est, se, var = _estimate_group(cov, [tgt], lo, hi, seeds, tol, n_sim,
                                    burn_in, max_rounds)
+    _warn_unconverged_array(se, tol, max_rounds)
     return est[:, 0], se[:, 0], var[:, 0]
 
 

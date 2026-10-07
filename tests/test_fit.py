@@ -917,3 +917,26 @@ def test_case_rate_guard_ignores_uninformative_members():
     res = fit_heritability(sim.families, n_iter=120, burn_in=40, seed=1,
                            sampling="population")
     assert 0.0 < res.h2 < 1.0
+
+
+def test_reused_fam_id_over_different_people_still_overlaps():
+    t = 1.64
+    fams = [Family(0, [Member("o", -np.inf, t, pid="p0"), Member("m", t, np.inf, pid="mom")]),
+            Family(0, [Member("o", t, np.inf, pid="p1"), Member("m", -np.inf, t, pid="mom")])]
+    with pytest.raises(ValueError, match="appears in families"):
+        fit_heritability(fams, n_iter=10, burn_in=4, sampling="population")
+    dup = [fams[0], fams[0]]      # a bootstrap duplicate is one cluster, not an overlap
+    from ltpred.fit import _assert_nonoverlapping_pids
+    _assert_nonoverlapping_pids(dup, "test")
+
+
+def test_wholly_unobserved_families_do_not_change_the_fit():
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5, n_sim=400,
+                                    pop_prev=0.1, seed=5)
+    fams = list(sim.families)
+    empty = [Family(10_000 + i, [Member("o", -np.inf, np.inf), Member("m", -np.inf, np.inf),
+                                 Member("s1", -np.inf, np.inf)]) for i in range(2000)]
+    kw = dict(n_iter=60, burn_in=20, seed=1, sampling="population")
+    base = fit_variance_components(fams, ("A",), **kw)
+    more = fit_variance_components(fams + empty, ("A",), **kw)
+    assert more.components["A"] == pytest.approx(base.components["A"], abs=1e-12)

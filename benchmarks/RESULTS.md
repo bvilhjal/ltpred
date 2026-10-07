@@ -1510,7 +1510,10 @@ deterministic moment approximation — matches it to 1.5e-3 in posterior mean
 with ranking correlation indistinguishable to four decimals. Quadrature costs
 ~25x PA and ~4% of Gibbs; its role is the exactness reference and the
 cross-check for encodings where PA's sequential fold accumulates error, not
-throughput. Cells whose simulated cohort draws no case at all (possible at
+throughput. Every case here is pinned at one lifetime threshold, so a cell
+holds few distinct bound rows (8, against ~200 with personalised age-specific
+bounds) and quadrature reuses duplicates; the timings do not establish
+throughput on personalised-onset data. Cells whose simulated cohort draws no case at all (possible at
 K = 0.01) have constant estimates; their NaN correlations are retained in the
 CSV and skipped by the summary.
 

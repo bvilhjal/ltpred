@@ -296,27 +296,40 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     if use_mix:
         split = -_norm_ppf(K_pop)               # lifetime threshold thr_pop
         cdf_pop = _norm_cdf((split - mu) / sd)
-        # denom = P(control) + P(eventual case not yet onset); both terms >= 0, so
-        # denom == 0 requires cdf_pop underflowing to 0 (extreme conditional mean)
-        # *and* K_i == K_pop (a legal input: no future cases remain). That 0/0 has a
-        # defensible limit -- with no future cases a censored control is certainly a
-        # genuine lifetime control -- so pin mixture_prob to 1.0 instead of NaN.
-        denom = cdf_pop + (1.0 - cdf_pop) * (K_pop - K_i) / K_pop
-        mixture_prob = cdf_pop / denom if denom > 0.0 else 1.0
+        # Weights are the masses that survive the lower bound: the control mass
+        # on (lower, split) and the future-case mass on (split, inf). With
+        # lower == -inf this is cdf_pop vs (1 - cdf_pop) (K_pop - K_i) / K_pop.
+        # A point mass (lower == upper) keeps the unbounded control weight.
+        cdf_lo = 0.0
+        if lower != -math.inf and lower != upper:
+            cdf_lo = _norm_cdf((lower - mu) / sd)
+        control = max(cdf_pop - cdf_lo, 0.0)
+        future = (1.0 - cdf_pop) * (K_pop - K_i) / K_pop
+        # denom == 0 needs no control mass left and K_i == K_pop (no future cases);
+        # with no future cases a censored control is certainly a lifetime control,
+        # so pin the weight to 1 instead of NaN. A lower bound at or above the
+        # split leaves only the future-case component (weight 0, below).
+        denom = control + future
+        mixture_prob = control / denom if denom > 0.0 else 1.0
+        if lower != upper and lower >= split:
+            mixture_prob = 0.0
     else:
         split = upper                            # plain truncated normal on (lower, upper)
         mixture_prob = 1.0
 
-    m0, v0 = _tnorm_moments_loc(mu, sd, lower, split)
-    # ``split == inf``: plain-mode observed case (split = upper = +inf).
-    # ``lower == split``: the lower bound coincides with the split point
-    # (lifetime threshold for mixture mode, upper bound for plain mode) —
-    # the lower component has zero width, so nothing to mix.
-    if split == math.inf or lower == split:
-        m1 = 0.0
-        v1 = 0.0
+    if mixture_prob == 0.0 and use_mix and lower != upper:
+        # Only the not-yet-onset case component survives, on (max(lower, split), inf).
+        m0, v0 = 0.0, 0.0
+        m1, v1 = _tnorm_moments_loc(mu, sd, max(lower, split), math.inf)
     else:
-        m1, v1 = _tnorm_moments_loc(mu, sd, split, math.inf)
+        m0, v0 = _tnorm_moments_loc(mu, sd, lower, split)
+        # ``split == inf``: plain-mode observed case (split = upper = +inf).
+        # ``lower == split``: zero-width lower component, nothing to mix.
+        if split == math.inf or lower == split:
+            m1 = 0.0
+            v1 = 0.0
+        else:
+            m1, v1 = _tnorm_moments_loc(mu, sd, split, math.inf)
 
     new_mean = mixture_prob * m0 + (1.0 - mixture_prob) * m1
     new_var = mixture_prob * (m0 * m0 + v0) + (1.0 - mixture_prob) * (m1 * m1 + v1) \

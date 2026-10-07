@@ -13,6 +13,21 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 ## Unreleased
 
+### Fixed
+
+- Heritability and variance-component fits drop wholly unobserved families, which
+  only slowed convergence and pulled estimates toward the starting values.
+- The pid-overlap check treats a repeated `fam_id` as one cluster only when the
+  members match; a reused label over different pedigrees sharing a person now raises.
+- The PA-FGRS censored-control mixture weights the control and future-case
+  components by the mass left above a finite `lower`; a `lower` at or above the
+  lifetime threshold leaves only the future-case component.
+- `estimate_liability_gibbs_arrays` and Gibbs `estimate_liability_from_kinship`
+  warn when `max_rounds` is exhausted above `tol`.
+- The kinship singleton shortcut validates `target` (integer 0) before use.
+- `bench_quadrature.py` and RESULTS 35 state that the timings use one pinned
+  lifetime threshold, not personalised onset bounds.
+
 ### Changed
 
 - Small PA batches run on serial kernels. Below 128 families per batch (or

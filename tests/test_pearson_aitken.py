@@ -915,3 +915,21 @@ def test_pa_batched_serial_and_parallel_kernels_agree(monkeypatch):
     np.testing.assert_array_equal(serial[1], parallel[1])
     np.testing.assert_array_equal(serial_mix[0], parallel_mix[0])
     np.testing.assert_array_equal(serial_mix[1], parallel_mix[1])
+
+
+def test_mixture_weight_respects_finite_lower_bound():
+    from scipy import integrate, stats
+    mu, var, lower, K_i, K_pop = 0.3, 1.0, -0.4, 0.02, 0.1
+    thr = -stats.norm.ppf(K_pop)
+    mean, v = _tnorm_mixture(mu, var, lower, 5.0, K_i, K_pop)
+    # independent integration of the two-component mixture on (lower, inf)
+    pdf = lambda x: stats.norm.pdf(x, mu)
+    ctrl = stats.norm.cdf(thr - mu) - stats.norm.cdf(lower - mu)
+    fut = stats.norm.sf(thr - mu) * (K_pop - K_i) / K_pop
+    w = ctrl / (ctrl + fut)
+    m0 = integrate.quad(lambda x: x * pdf(x), lower, thr)[0] / ctrl
+    m1 = integrate.quad(lambda x: x * pdf(x), thr, np.inf)[0] / stats.norm.sf(thr - mu)
+    np.testing.assert_allclose(mean, w * m0 + (1 - w) * m1, rtol=1e-8)
+    # a lower bound above the split leaves only the future-case component
+    m, _ = _tnorm_mixture(mu, var, thr + 0.5, 5.0, K_i, K_pop)
+    assert m > thr + 0.5
