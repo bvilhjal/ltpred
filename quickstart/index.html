@@ -1045,7 +1045,11 @@ the supported path:</p>
 pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[fast]"</span><span class="w">     </span><span class="c1"># [fast] adds the Numba JIT — recommended for real runs</span>
 </code></pre></div>
 <p><code>numpy</code> and <code>scipy</code> are the only hard dependencies; <code>numba</code> (the <code>[fast]</code> extra) is
-optional but strongly recommended at scale.</p>
+optional but strongly recommended at scale. Register simulation
+(<code>simulate_pedigree</code>, <code>simulate_register_liabilities(method="mendelian")</code>) also
+needs <a href="https://github.com/bvilhjal/phensim">phensim</a> (the <code>[sim]</code> extra), which is
+on GitHub, not PyPI:
+<code>pip install "phensim @ git+https://github.com/bvilhjal/phensim.git"</code>.</p>
 <p>With Numba installed, the first run may print
 <code>OMP: Info #276: omp_set_nested routine deprecated…</code> to stderr. That notice comes
 from the OpenMP runtime Numba links against, not from ltpred, and is harmless.</p>

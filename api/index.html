@@ -8653,6 +8653,9 @@ full liabilities and packages bounds as <code>ltpred.family.Family</code> object
 <code>simulate_register_liabilities</code> draws <strong>one</strong> population field. Raw genetic
 values have covariance <code>h2 A</code> for the whole pedigree, either from a dense
 <code>A</code> and its factor or by an exact Mendelian recursion (linear storage).
+The pedigree and the Mendelian recursion are phensim's (<code>phensim.pedigree</code>,
+the <code>[sim]</code> extra), which took them from this module; seeded draws are
+unchanged.
 Both genetic and full liabilities are divided by <code>sqrt(h2 A_ii + 1 - h2)</code>,
 keeping inbred people on the unit-variance threshold scale, and onset is the
 threshold crossing of the supplied CIP.</p>
@@ -9040,8 +9043,13 @@ generations in all). Each couple has 2–4 children, and with probability
 <code>remarry</code> the father has one further child with a new founder partner,
 which is what produces half-siblings. People sharing any recorded parent
 are never paired.</p>
-<p><code>rng</code> is a <code>numpy.random.Generator</code>; pass
-<code>np.random.default_rng(seed)</code> for a reproducible pedigree.</p>
+<p><code>rng</code> is a <code>numpy.random.Generator</code> (or anything
+<code>numpy.random.default_rng</code> accepts, such as an integer seed); pass
+<code>np.random.default_rng(seed)</code> for a reproducible pedigree. The draw is
+<code>phensim.simulate_pedigree</code> with <code>seed=rng</code> (the <code>[sim]</code> extra): the
+same pedigrees this function drew before it moved there.</p>
+<p>Raises <code>ValueError</code> unless <code>n_founder_pairs</code> is an integer &gt;= 1,
+<code>gens</code> an integer &gt;= 0 and <code>remarry</code> in [0, 1].</p>
 
 
     </div>
@@ -9063,11 +9071,15 @@ are never paired.</p>
 
         <p>Assign generation-coherent calendar birth times to a pedigree.</p>
 <p>Co-parents are placed in the same generation (a union-find over couples) and
-every child one generation later than its recorded parents, so birth times
-are <code>base_birth_year + generation_years * generation</code>. Use this to obtain
-the <code>birth_time</code> column <code>ltpred.pipeline.estimate_liabilities</code>
+every child at least one generation later than its recorded parents --
+exactly one unless a mating skips generations, as with an uncle and his
+niece, where the uncle moves down to his partner's generation -- so birth
+times are <code>base_birth_year + generation_years * generation</code>. Use this to
+obtain the <code>birth_time</code> column <code>ltpred.pipeline.estimate_liabilities</code>
 needs for <code>use="prediction"</code> calendar-time censoring when the pedigree
-itself carries no dates.</p>
+itself carries no dates. (<code>phensim.pedigree_birth_times</code> gives the same
+years on simulated pedigrees but refuses generation-skipping matings, so
+this permissive placement for real pedigrees stays here.)</p>
 <p>Raises <code>ValueError</code> on a generational cycle. Unlike
 <code>simulate_pedigree</code> this consumes no randomness, so it is deterministic
 for a given pedigree.</p>
@@ -9112,7 +9124,8 @@ and <code>eval_age</code> otherwise.</p>
 <p><code>method="dense"</code> preserves historical seeded draws. For large pedigrees,
 <code>method="mendelian"</code> draws the same Gaussian model using independent
 parent-to-child innovations and exact inbreeding variances, without a dense
-relationship matrix or factor. Storage is linear in person count plus a
+relationship matrix or factor (<code>phensim.mendelian_draw</code>, the <code>[sim]</code>
+extra). Storage is linear in person count plus a
 bounded relationship cache; runtime depends on pedigree structure. The two
 methods have the same distribution but different draws for the same seed.</p>
 <p><code>cip_ages</code>/<code>cip_values</code> are a cumulative-incidence curve (see
