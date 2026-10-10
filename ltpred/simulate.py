@@ -24,6 +24,9 @@ Register simulation: `simulate_pedigree` builds trio columns,
 `simulate_register_liabilities` draws **one** population field. Raw genetic
 values have covariance ``h2 A`` for the whole pedigree, either from a dense
 ``A`` and its factor or by an exact Mendelian recursion (linear storage).
+The pedigree and the Mendelian recursion are phensim's (`phensim.pedigree`,
+the ``[sim]`` extra), which took them from this module; seeded draws are
+unchanged.
 Both genetic and full liabilities are divided by ``sqrt(h2 A_ii + 1 - h2)``,
 keeping inbred people on the unit-variance threshold scale, and onset is the
 threshold crossing of the supplied CIP.
@@ -39,13 +42,11 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 import warnings
-from types import SimpleNamespace
 
 import numpy as np
 from numpy.typing import ArrayLike
 
 from .covariance import construct_covmat_single, kinship_from_pedigree, _parent_links
-from ._selected_kinship import _SelectedKinship
 from .family import Family, Member, families_from_columns
 from .fit import _component_matrix
 from ._mathfun import norm_cdf, norm_ppf
@@ -465,6 +466,18 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
 # Population-register simulation (use I / use III input, with known truth)
 # ---------------------------------------------------------------------------
 
+def _phensim():
+    """phensim (the ``[sim]`` extra), which draws pedigrees and Mendelian values."""
+    try:
+        import phensim
+    except ImportError as exc:
+        raise ImportError(
+            "simulate_pedigree and method='mendelian' need phensim, which is on "
+            "GitHub, not PyPI: pip install "
+            "\"phensim @ git+https://github.com/bvilhjal/phensim.git\"") from exc
+    return phensim
+
+
 def simulate_pedigree(rng: np.random.Generator, n_founder_pairs: int = 150,
                       gens: int = 3,
                       remarry: float = 0.10) -> tuple[list, list, list]:
@@ -481,52 +494,15 @@ def simulate_pedigree(rng: np.random.Generator, n_founder_pairs: int = 150,
     which is what produces half-siblings. People sharing any recorded parent
     are never paired.
 
-    ``rng`` is a `numpy.random.Generator`; pass
-    ``np.random.default_rng(seed)`` for a reproducible pedigree."""
-    ids, father, mother = [], [], []
-    # id -> row, so the sibling check below is O(1) instead of rescanning the
-    # id list per candidate mating. The dict consumes no randomness and
-    # reorders nothing, so seeded pedigrees are byte-for-byte what the linear
-    # scan produced and the draws behind every committed register benchmark are
-    # unchanged. The scan was quadratic in the pool: 4.9 s to build 45,048
-    # people, 0.04 s now.
-    index = {}
+    ``rng`` is a `numpy.random.Generator` (or anything
+    `numpy.random.default_rng` accepts, such as an integer seed); pass
+    ``np.random.default_rng(seed)`` for a reproducible pedigree. The draw is
+    `phensim.simulate_pedigree` with ``seed=rng`` (the ``[sim]`` extra): the
+    same pedigrees this function drew before it moved there.
 
-    def add(f, m):
-        """Append person ``p<k>`` with father ``f``, mother ``m``; return the id."""
-        pid = f"p{len(ids)}"
-        index[pid] = len(ids)
-        ids.append(pid)
-        father.append(f)
-        mother.append(m)
-        return pid
-
-    couples = [(add(None, None), add(None, None)) for _ in range(n_founder_pairs)]
-    prev_children = []
-    for g in range(gens):
-        if g > 0:
-            pool = list(prev_children)
-            rng.shuffle(pool)
-            couples = []
-            i = 0
-            while i + 1 < len(pool):
-                a, b = pool[i], pool[i + 1]
-                i += 2
-                # avoid mating recorded siblings (same recorded parent)
-                fa, ma = father[index[a]], mother[index[a]]
-                fb, mb = father[index[b]], mother[index[b]]
-                if fa is not None and (fa in (fb, mb) or ma in (fb, mb)):
-                    continue
-                couples.append((a, b))
-        next_children = []
-        for fa, mo in couples:
-            for _ in range(int(rng.integers(2, 5))):
-                next_children.append(add(fa, mo))
-            if rng.uniform() < remarry:           # second union -> half-sibs
-                mate = add(None, None)
-                next_children.append(add(fa, mate))
-        prev_children = next_children
-    return ids, father, mother
+    Raises ``ValueError`` unless ``n_founder_pairs`` is an integer >= 1,
+    ``gens`` an integer >= 0 and ``remarry`` in [0, 1]."""
+    return _phensim().simulate_pedigree(n_founder_pairs, gens, remarry, seed=rng)
 
 
 def pedigree_birth_times(ids: Sequence, father: Sequence, mother: Sequence, *,
@@ -535,11 +511,15 @@ def pedigree_birth_times(ids: Sequence, father: Sequence, mother: Sequence, *,
     """Assign generation-coherent calendar birth times to a pedigree.
 
     Co-parents are placed in the same generation (a union-find over couples) and
-    every child one generation later than its recorded parents, so birth times
-    are ``base_birth_year + generation_years * generation``. Use this to obtain
-    the ``birth_time`` column `ltpred.pipeline.estimate_liabilities`
+    every child at least one generation later than its recorded parents --
+    exactly one unless a mating skips generations, as with an uncle and his
+    niece, where the uncle moves down to his partner's generation -- so birth
+    times are ``base_birth_year + generation_years * generation``. Use this to
+    obtain the ``birth_time`` column `ltpred.pipeline.estimate_liabilities`
     needs for ``use="prediction"`` calendar-time censoring when the pedigree
-    itself carries no dates.
+    itself carries no dates. (`phensim.pedigree_birth_times` gives the same
+    years on simulated pedigrees but refuses generation-skipping matings, so
+    this permissive placement for real pedigrees stays here.)
 
     Raises ``ValueError`` on a generational cycle. Unlike
     `simulate_pedigree` this consumes no randomness, so it is deterministic
@@ -622,38 +602,6 @@ class RegisterSimulation:
     residual_var: np.ndarray
 
 
-def _mendelian_draw(ids, father, mother, innovations):
-    """Draw with covariance A, without materializing A; retain exact inbreeding.
-
-    Visit people parents-first (the `ltpred._selected_kinship` rank) and set
-    ``a_i = sum_{known p} a_p / 2 + sqrt(w_i) * z_i`` with ``z = innovations``
-    and ``w_i = 1 - sum_{known p} A_pp / 4``. With both parents known this is
-    the Mendelian sampling variance ``(1 - (F_s + F_d) / 2) / 2``; a founder
-    has ``w_i = 1``, one known parent ``(3 - F_p) / 4``. Then ``Cov(a_i, a_j)
-    = (A_sj + A_dj) / 2`` and ``Var(a_i) = 1 + A_sd / 2``, so ``a ~ N(0, A)``
-    exactly. Diagonals ``A_ii`` come from selected-pair recursion with its
-    default bounded cache; returns ``(a, diag(A))``. Storage is O(n) plus the
-    cache; runtime depends on pedigree depth and relatedness.
-    """
-    ids, _, sire, dam, children, _ = _parent_links(ids, father, mother)
-    graph = SimpleNamespace(ids=ids, sire=sire, dam=dam, children=children)
-    kinship = _SelectedKinship(graph)
-    n = len(ids)
-    order = np.empty(n, dtype=np.intp)
-    order[kinship._rank] = np.arange(n)
-    diagonal = np.empty(n)
-    genetic = np.empty(n)
-    for i in order:
-        diagonal[i] = kinship._pair(int(i), int(i))
-        inherited, variance = 0.0, 1.0
-        for parent in (sire[i], dam[i]):
-            if parent != -1:
-                inherited += 0.5 * genetic[parent]
-                variance -= 0.25 * diagonal[parent]
-        genetic[i] = inherited + np.sqrt(max(0.0, variance)) * innovations[i]
-    return genetic, diagonal
-
-
 def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
                                   father: Sequence, mother: Sequence, *,
                                   h2: float, cip_ages: ArrayLike,
@@ -686,7 +634,8 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
     ``method="dense"`` preserves historical seeded draws. For large pedigrees,
     ``method="mendelian"`` draws the same Gaussian model using independent
     parent-to-child innovations and exact inbreeding variances, without a dense
-    relationship matrix or factor. Storage is linear in person count plus a
+    relationship matrix or factor (`phensim.mendelian_draw`, the ``[sim]``
+    extra). Storage is linear in person count plus a
     bounded relationship cache; runtime depends on pedigree structure. The two
     methods have the same distribution but different draws for the same seed.
 
@@ -713,8 +662,13 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
         raw_genetic = rng.standard_normal(n) @ _stable_factor(h2 * A_full).T
         diagonal = np.diag(A_full)
     elif method == "mendelian":
-        raw_genetic, diagonal = _mendelian_draw(
-            ids, father, mother, rng.standard_normal(n))
+        innovations = rng.standard_normal(n)
+        # ltpred's parser (its missing-id set, pandas NA included, and id
+        # checks) resolves the parents; phensim draws on the clean columns
+        people, _, sire, dam, _, _ = _parent_links(ids, father, mother)
+        raw_genetic, diagonal = _phensim().mendelian_draw(
+            people, [people[s] if s != -1 else None for s in sire],
+            [people[d] if d != -1 else None for d in dam], innovations=innovations)
         raw_genetic *= np.sqrt(h2)
     else:
         raise ValueError("method must be 'dense' or 'mendelian'")

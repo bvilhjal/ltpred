@@ -18,7 +18,8 @@ Typical use (single-trait inference defaults to Pearson-Aitken)::
     res.est["genetic"]
 
 numpy and scipy are required; an optional Numba JIT (the ``[fast]`` extra)
-compiles and parallelises the Gibbs and Pearson-Aitken kernels. Names are
+compiles and parallelises the Gibbs and Pearson-Aitken kernels, and register
+pedigree simulation needs phensim (the ``[sim]`` extra, from GitHub). Names are
 imported lazily (PEP 562) so ``import ltpred`` stays cheap.
 """
 

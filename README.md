@@ -25,6 +25,11 @@ cd ltpred
 pip install -e ".[fast]"
 ```
 
+Register simulation (`simulate_pedigree`, `simulate_register_liabilities` with
+`method="mendelian"`) also needs [phensim](https://github.com/bvilhjal/phensim),
+which is on GitHub, not PyPI:
+`pip install "phensim @ git+https://github.com/bvilhjal/phensim.git"`.
+
 ```python
 from ltpred import simulate_under_LTM_single, estimate_liability
 

@@ -1,5 +1,6 @@
 """Simulation under the LTM, and the estimate-recovers-truth end-to-end check."""
 
+import hashlib
 import warnings
 
 import numpy as np
@@ -349,7 +350,6 @@ from ltpred.simulate import (pedigree_birth_times,  # noqa: E402
                              simulate_register_liabilities,
                              simulate_under_LTM_multi)
 from ltpred.covariance import kinship_from_pedigree  # noqa: E402
-from ltpred.simulate import _mendelian_draw  # noqa: E402
 
 _CIP_AGES = np.arange(0, 121, 1.0)
 _CIP_K, _CIP_MID, _CIP_SLOPE = 0.10, 60.0, 1.0 / 8.0
@@ -367,6 +367,19 @@ def test_simulate_pedigree_is_a_valid_trio_table():
             "a recorded parent must be a person in the pedigree"
     assert any(p is None for p in father), "founders must remain"
     assert any(p is not None for p in father), "and so must their descendants"
+
+
+def test_register_draws_are_frozen_across_the_phensim_move():
+    # Digests of the original in-module code's draws: a phensim change to the
+    # pedigree RNG order or the Mendelian visiting order must fail here.
+    ped = simulate_pedigree(np.random.default_rng(11), 25, 3, 0.15)
+    assert len(ped[0]) == 500
+    assert hashlib.sha256(repr(ped).encode()).hexdigest()[:16] == "27390326dc87ff51"
+    sim = simulate_register_liabilities(
+        np.random.default_rng(11), *ped, h2=0.5, cip_ages=_CIP_AGES,
+        cip_values=_CIP_VALUES, eval_age=70.0, method="mendelian")
+    digest = hashlib.sha256(sim.genetic.tobytes() + sim.onset.tobytes()).hexdigest()
+    assert digest[:16] == "d3cb80de0578bded"
 
 
 def test_pedigree_birth_times_put_coparents_together_and_children_later():
@@ -547,8 +560,11 @@ def test_mendelian_covariance_is_exact_with_inbreeding_missing_parents_and_shuff
     father = ['a', 'gf', 'x', 'gf', None, None]
     mother = ['b', 'gm', None, 'gm', None, None]
     _, relationship = kinship_from_pedigree(ids, father, mother)
-    factor = np.column_stack([_mendelian_draw(ids, father, mother, e)[0] for e in np.eye(len(ids))])
-    _, diagonal = _mendelian_draw(ids, father, mother, np.zeros(len(ids)))
+    # phensim's recursion against ltpred's own relationship matrix
+    from phensim import mendelian_draw
+    factor = np.column_stack([mendelian_draw(ids, father, mother, innovations=e)[0]
+                              for e in np.eye(len(ids))])
+    _, diagonal = mendelian_draw(ids, father, mother, innovations=np.zeros(len(ids)))
     np.testing.assert_allclose(factor @ factor.T, relationship, rtol=0, atol=3e-16)
     np.testing.assert_array_equal(diagonal, np.diag(relationship))
     assert diagonal[0] == 1.25

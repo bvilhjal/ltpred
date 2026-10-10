@@ -56,6 +56,19 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 ### Changed
 
+- `simulate_pedigree` and `simulate_register_liabilities(method="mendelian")`
+  draw through [phensim](https://github.com/bvilhjal/phensim)'s
+  `simulate_pedigree` and `mendelian_draw`, which were extracted from this
+  module, and need the new `[sim]` extra (`phensim>=1.0.0.dev6`; numpy-only, on
+  GitHub, not PyPI -- see the README). Seeded output is byte-identical, and
+  ltpred still parses the pedigree (its missing-id set, pandas NA included).
+  `simulate_pedigree` now validates its arguments: `n_founder_pairs` must be
+  an integer >= 1, `gens` an integer >= 0 and `remarry` in [0, 1] (zero
+  counts used to return an empty pedigree and an out-of-range `remarry` acted
+  as never/always), and `rng` may also be an integer seed or anything
+  `numpy.random.default_rng` accepts. `pedigree_birth_times` stays here:
+  phensim's copy refuses generation-skipping matings, which this one places
+  for real pedigrees.
 - Gibbs per-family seed derivation mixes the user seed through an odd-
   multiplier bijection on uint32 before laying out the per-family blocks.
   With the raw value, seed `s` family `i` round `r` and seed `s + 1` family

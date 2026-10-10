@@ -130,7 +130,7 @@ def _display_path(path):
 
 def _package_versions():
     versions = {}
-    for name in ("numpy", "scipy", "numba", "matplotlib"):
+    for name in ("numpy", "scipy", "numba", "matplotlib", "phensim"):
         try:
             versions[name] = metadata.version(name)
         except metadata.PackageNotFoundError:

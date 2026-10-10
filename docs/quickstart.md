@@ -34,7 +34,11 @@ pip install -e ".[fast]"     # [fast] adds the Numba JIT — recommended for rea
 ```
 
 `numpy` and `scipy` are the only hard dependencies; `numba` (the `[fast]` extra) is
-optional but strongly recommended at scale.
+optional but strongly recommended at scale. Register simulation
+(`simulate_pedigree`, `simulate_register_liabilities(method="mendelian")`) also
+needs [phensim](https://github.com/bvilhjal/phensim) (the `[sim]` extra), which is
+on GitHub, not PyPI:
+`pip install "phensim @ git+https://github.com/bvilhjal/phensim.git"`.
 
 With Numba installed, the first run may print
 `OMP: Info #276: omp_set_nested routine deprecated…` to stderr. That notice comes

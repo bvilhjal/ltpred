@@ -14,6 +14,10 @@ env:
   OPENBLAS_NUM_THREADS: 1
   OMP_NUM_THREADS: 1
   MKL_NUM_THREADS: 1
+  # phensim (the [sim] extra) draws register pedigrees and Mendelian genetic
+  # values. It is a public GitHub repository, not on PyPI, so every job that
+  # runs ltpred's code installs this exact revision.
+  PHENSIM: "phensim @ git+https://github.com/bvilhjal/phensim.git@f05e30c122d0939d151efb5e29c177c95ad2ba52"
   # The kernel-exercising files that the two pure-Python-fallback jobs run.
   KERNEL_TESTS: >-
     tests/test_mathfun.py tests/test_thresholds.py tests/test_covariance.py
@@ -46,7 +50,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install (with the JIT + test extras)
-        run: pip install -e ".[fast,test]"
+        run: pip install "$PHENSIM" -e ".[fast,test]"
       - name: Core tests
         run: pytest -q tests
 
@@ -62,7 +66,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install (with the JIT + test extras)
-        run: pip install -e ".[fast,test]"
+        run: pip install "$PHENSIM" -e ".[fast,test]"
       - name: Research tests
         run: pytest -q research/tests
 
@@ -96,7 +100,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install WITHOUT the fast extra
-        run: pip install -e ".[test]"
+        run: pip install "$PHENSIM" -e ".[test]"
       - name: Assert the fallback is really in use
         run: python -c "from ltpred._numba import HAVE_NUMBA; assert not HAVE_NUMBA, 'numba leaked into the no-JIT job'"
       - name: Kernel tests on the pure-Python fallback
@@ -131,7 +135,7 @@ jobs:
           cache: pip
       - name: Install at the declared dependency floor
         run: |
-          pip install -e ".[test]"
+          pip install "$PHENSIM" -e ".[test]"
           pip install --force-reinstall "numpy==1.20.*" "scipy==1.6.*"
           python -c "import numpy, scipy; print(numpy.__version__, scipy.__version__)"
       - name: Assert the fallback is really in use
@@ -156,7 +160,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install (with the JIT extra)
-        run: pip install -e ".[fast]"
+        run: pip install "$PHENSIM" -e ".[fast]"
       - name: Run every example end to end
         run: |
           for f in examples/*.py; do
@@ -183,8 +187,9 @@ jobs:
           python -m twine check dist/*
       - name: Install from the wheel and smoke-import away from the source tree
         run: |
-          python -m pip install dist/*.whl
+          python -m pip install "$PHENSIM" dist/*.whl
           cd "$RUNNER_TEMP" && python -c "from ltpred import PopulationScores, estimate_liabilities; print(PopulationScores.__module__, callable(estimate_liabilities))"
+          cd "$RUNNER_TEMP" && python -c "import numpy as np; from ltpred import simulate_pedigree; print(len(simulate_pedigree(np.random.default_rng(0), 3, 1)[0]), 'people via phensim')"
 
   docs:
     runs-on: ubuntu-latest
