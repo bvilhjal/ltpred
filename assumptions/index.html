@@ -916,9 +916,18 @@ descendants. A directional maternal effect is likewise not generally represented
 by a symmetric shared-environment matrix. When omitted processes contribute to
 familial aggregation, read the output as the <strong>additive-model projection of the
 family history</strong>, not a pure causal genetic value.</p>
-<p>PA can operate on a symmetric positive-semidefinite covariance, but
+<p>PA can operate on a symmetric positive-semidefinite covariance when its
+non-deterministic interval coordinates are linearly independent after pin
+conditioning. Dependent intervals on singular support are rejected, including
+compatible ones: sequential moment projection cannot enforce that support.
+Singular target or unobserved rows alone are permitted. In contrast,
 <code>gibbs_params</code> and <code>rtmvnorm_gibbs</code> require a <strong>strictly positive-definite</strong>
-covariance so their conditional variances exist. The high-level estimators nudge
+covariance so their conditional variances exist. Gibbs scoring supplements
+coordinate sweeps with joint Gaussian moves for strongly coupled blocks.
+Its batch-means SE still measures estimated sampling precision, not proof
+of stationarity; check difficult problems with independent seeds, longer
+burn-in/chains and a deterministic reference where available.
+The high-level estimators nudge
 a numerically singular assembled covariance to strict positive-definiteness and
 warn when they do so. The fitters ship descriptive sibship <code>C</code> and mate/couple
 <code>M</code> kernels, and the single-trait high-level predictor accepts them as <code>c2</code>/<code>m2</code>

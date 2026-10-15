@@ -1150,12 +1150,16 @@ familial resemblance (see
 <a href="../algorithm/#fitting-the-covariance-heritability">algorithm.md</a>). This is a
 <strong>stochastic-approximation fixed point</strong>, not posterior sampling of <code>h²</code>: the trace
 is not a posterior draw and its mean is not a posterior mean.</p>
-<p>The pooled Haseman–Elston fixed point requires <strong>one case/control threshold
+<p>The implemented Haseman–Elston fitter requires <strong>one case/control threshold
 per trait</strong>. Personalised (age-/CIP-specific) or onset-pinned LT-FH++ bounds —
 including the Quickstart's <code>age_thresholds</code> output, even when they are
-internally coherent — are <strong>rejected</strong>. This is an identification contract,
-motivated by exploratory failures outside the common-threshold design, not a
-current quantitative benchmark for personalised fitting. Fit from
+internally coherent — are <strong>rejected</strong>. This is a validation and implementation
+restriction, including the prevalence screen. With known person-specific
+thresholds and a correct conditional model, total expectation still recovers
+the population covariance at the true parameters. That identity alone does
+not establish identification, convergence or finite-sample performance of this
+fitter. Exploratory failures motivated the restriction; they do not show that
+heterogeneous thresholds inherently bias the moments. Fit from
 common-threshold bounds (<code>prevalence_thresholds</code>), or bring an external
 liability-scale <code>h²</code>. Personalised bounds remain the intended input for
 <code>estimate_liability</code>, which conditions on <code>h²</code> rather than fitting it. For

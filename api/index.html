@@ -7222,9 +7222,11 @@ are missing data; see the methods report, "Fitting h² is a different problem".<
   The estimate is the mean of the retained trace; its SE is the batch-means
   Monte-Carlo SE of that mean (<code>ltpred.estimate.batch_means</code>).</li>
 </ul>
-<p>By total expectation the pooled products recover <code>x_ij' theta</code> only when every
-liability comes from one <code>N(0, 1)</code> population cut at one threshold and the
-family mix is the population mix. IPW with <code>w_f = 1 / P(family sampled)</code>
+<p>At the true parameters, total expectation recovers <code>x_ij' theta</code> from
+correctly specified conditional draws and the population family mix, even
+with known person-specific thresholds. Common binary thresholds are this
+implementation's validated scope, not a requirement of that identity.
+IPW with <code>w_f = 1 / P(family sampled)</code>
 (in both <code>X'WX</code> and the products) restores the mix, but not a stratum that
 had zero inclusion probability. The SE therefore measures only this run's
 Monte-Carlo noise on this dataset, not sampling uncertainty; <code>bootstrap_fit</code>
@@ -7505,11 +7507,11 @@ information about <code>h2</code> and raises. <code>seed</code> must be a non-bo
 <code>burn_in</code> sweeps); <code>burn_in</code> must be non-negative and
 <code>n_iter - burn_in &gt;= 4</code>, since the batch-means SE needs two batches.
 Invalid controls raise before any sampling.</p>
-<p><strong>Requires a common case/control threshold per trait.</strong> The pooled
-Haseman-Elston fixed point assumes every augmented liability is drawn from
-the same <code>N(0, 1)</code> population, so personalised (age-/CIP-specific) or
-onset-pinned LT-FH++ bounds — even perfectly coherent ones — fall outside
-that estimating contract. Those inputs are <strong>rejected</strong>, not silently
+<p><strong>Requires a common case/control threshold per trait.</strong> This is the
+implementation's validated scope, including its prevalence screen. It is
+not a mathematical necessity of the augmented moment identity. Personalised
+(age-/CIP-specific) or onset-pinned LT-FH++ bounds remain outside that
+supported scope. Those inputs are <strong>rejected</strong>, not silently
 fitted. Fit from common-threshold bounds; the
 prediction path (<code>ltpred.estimate.estimate_liability</code>) is unaffected,
 since it conditions on <code>h2</code> rather than fitting it. Standard NaN and
@@ -8117,14 +8119,23 @@ positive definite. A coordinate whose interval spans less than <code>1e-8</code>
    (Kotecha &amp; Djuric 1999), one uniform each, on the survival scale when
    <code>a &gt;= 0</code>. Where even that underflows (<code>|z|</code> beyond about 38.5)
    <code>_far_right_std_tnorm_quantile</code> inverts the leading-order Gaussian tail
-   ratio on the log scale (a Rayleigh construction).</li>
+   ratio on the log scale (a Rayleigh construction). Strongly coupled free
+   coordinates also receive joint Gaussian conditional moves along whitened
+   eigenvectors of their precision block (<code>_mixing_directions</code>). These moves
+   preserve the same truncated law and keep pins fixed. They activate when
+   any conditional-on-pins variance exceeds its coordinate-conditional
+   variance by a factor of 16; ordinary blocks keep their coordinate sweeps.</li>
 <li><strong>G5 stream.</strong> After <code>burn_in</code> sweeps, each of <code>n_sim</code> sweeps adds the
    outputs to running sums and sums of squares; the first
    <code>n_batch * batch_size</code> of them also form batch means, of which only the
-   sum and sum of squares are kept. No draw array: <code>O(ncols)</code> per family.</li>
+   sum and sum of squares are kept. No draw array; strongly coupled blocks
+   additionally store <code>O(d**2)</code> direction coefficients per active family.</li>
 <li><strong>G6 stop.</strong> <code>ltpred.estimate._estimate_group</code> reruns the unconverged
    families in rounds, pooling those sums, until every requested batch-means
-   SE is <code>&lt;= tol</code>; converged families leave the active set.</li>
+   SE is <code>&lt;= tol</code>; converged families leave the active set.
+   This estimates Monte Carlo precision, not convergence to stationarity;
+   batch means can miss slow modes. Difficult bounds still need independent
+   seeds, longer burn-in/chains and, where available, a quadrature reference.</li>
 </ol>
 <p>Seeding. The batched kernels reseed the kernel RNG with <code>seeds[f]</code> at the
 top of family <code>f</code>'s <code>prange</code> iteration (<code>-1</code>: unseeded), so a family's
@@ -8575,7 +8586,9 @@ is the row to estimate (0 = the genetic liability <code>g</code> in the usual or
 <code>K_i</code>/<code>K_pop</code> (per row, <code>nan</code> where unused) switch on the censored-control
 mixture (Algorithm M, which skips the pin reduction). Returns <code>(est, var)</code> -- sequential-moment approximations to the
 target's posterior mean and conditional variance. Without a mixture the
-result is exact after pins when at most one interval remains.</p>
+result is exact after pins when at most one interval remains. Singular
+covariance is supported only when the remaining non-deterministic interval
+coordinates are linearly independent; otherwise raise <code>ValueError</code>.</p>
 
 
     </div>
