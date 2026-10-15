@@ -286,7 +286,7 @@ _PAT_AVUNC = re.compile(r"pau\d*")         # father's full sibs
 
 def _is_full_sib(a, b):
     """Whether roles ``a`` and ``b`` are **full siblings** — the pairs the common-
-    environment component ``C`` loads on. Four cases: both in one sib-ship (proband
+    environment component ``C`` loads on. Five cases: both in one sib-ship (proband
     ``o`` and its sibs ``s1``, ``s2``, …); a parent and their own sib (an
     aunt/uncle); two aunts/uncles on the **same** side (``mau1``/``mau2`` or
     ``pau1``/``pau2``), who are full sibs of that parent and of each other; or two
@@ -295,9 +295,12 @@ def _is_full_sib(a, b):
     ``C`` form a complete sibship block ``{m, mau1, mau2, …}`` (a valid PSD
     component) rather than a non-PSD chain; the child case keeps ``C``'s structure
     the same whether a family is described from the parents' or the children's
-    side. Cross-group children are only half sibs (``c1.1``/``c2.1``), so like
-    ``mhs``/``phs`` they stay out of ``C``, and every block remains a disjoint
-    equivalence class. The relatedness guard rejects unrelated look-alikes (e.g. a
+    side. Finally, same-side half-sibs of the proband (``mhs1``/``mhs2`` or
+    ``phs1``/``phs2``) are full sibs of each other under the role grammar's
+    shared-other-parent convention. They form their own C blocks; they share
+    no C with the proband, or with the opposite-side half-sibs. Cross-group
+    children are only half sibs (``c1.1``/``c2.1``) and share no C either.
+    Every block remains a disjoint equivalence class. The relatedness guard rejects unrelated look-alikes (e.g. a
     mother and a *paternal* aunt/uncle), which would otherwise match the
     parent/avuncular test."""
     if get_relatedness(a, b, 1.0) <= 0:
@@ -314,8 +317,10 @@ def _is_full_sib(a, b):
                        or (full(_PAT_AVUNC, a) and full(_PAT_AVUNC, b)))
     same_group_children = (full(_CHILD, a) and full(_CHILD, b)
                            and _child_group(a) == _child_group(b))
+    same_side_half_sibs = (full(_ROLE_HS, a) and full(_ROLE_HS, b)
+                          and a[0] == b[0])
     return (both_sibship or parent_and_their_sib or same_side_avunc
-            or same_group_children)
+            or same_group_children or same_side_half_sibs)
 
 
 # genetically-unrelated cohabiting couples in the role grammar; each is a mate

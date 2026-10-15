@@ -1,8 +1,10 @@
 # Technical report
 
-`ltpred_methods.pdf` is the detailed derivation and historical evidence snapshot (v0.7.4,
-25 September 2026) for colleagues who already know GWAS, pedigree `h²` and
-Falconer's threshold model. `ltpred_methods.tex`
+`ltpred_methods.pdf` gives the detailed derivation for v0.7.5 (15 October 2026)
+for colleagues who already know GWAS, pedigree `h²` and Falconer's threshold model.
+The benchmark tables retain the historical v0.7.4 evidence snapshot and have
+not been rerun for the methods corrections.
+`ltpred_methods.tex`
 and `efficient_inference.tex` are its source; the six tables it `\input`s from
 `paper/tables/` are static LaTeX snapshots of committed benchmark CSVs. What
 the note covers, and how it relates to the user documentation, is on the

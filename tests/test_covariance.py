@@ -633,3 +633,27 @@ def test_h2_just_above_the_floor_still_builds():
     corrected, n_iter = correct_positive_definite(cov.matrix)
     assert np.min(np.linalg.eigvalsh(corrected)) > 1e-8
     assert n_iter == 0
+
+
+@pytest.mark.parametrize("side", ["m", "p"])
+def test_same_side_half_sib_environment_matches_explicit_pedigree(side):
+    from ltpred import estimate_liability_pa_arrays, estimate_liability_from_kinship
+    from ltpred.fit import _component_matrix
+    from ltpred.covariance import construct_covmat_from_kinship
+
+    roles = ["o", f"{side}hs1", f"{side}hs2"]
+    # These relatives share the proband's parent AND their other parent.
+    A = np.array([[1., .25, .25], [.25, 1., .5], [.25, .5, 1.]])
+    C = np.eye(3)
+    C[1, 2] = C[2, 1] = 1.
+    np.testing.assert_array_equal(_component_matrix(roles, "C"), C)
+    actual = construct_covmat_single(roles, h2=.4, c2=.3)
+    expected = construct_covmat_from_kinship(A, h2=.4, c2=.3, c_kernel=C)
+    np.testing.assert_allclose(actual.matrix, expected.matrix, rtol=0, atol=1e-15)
+    lo, hi = [[-np.inf, 2., 2.]], [[np.inf, 2., 2.]]
+    mean, var = estimate_liability_pa_arrays(roles, lo, hi, h2=.4, c2=.3)
+    kin_mean, _, kin_var = estimate_liability_from_kinship(
+        A, lo, hi, h2=.4, c2=.3, c_kernel=C)
+    assert mean[0] == pytest.approx(.4 / 1.5)
+    np.testing.assert_allclose(mean, kin_mean, atol=1e-15)
+    np.testing.assert_allclose(var, kin_var, atol=1e-15)

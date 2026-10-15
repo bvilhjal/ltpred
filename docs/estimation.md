@@ -564,7 +564,7 @@ adjustment or guarantee calibration under other misspecification.
 | `out` | `("genetic",)` | `"genetic"`, `"full"`, or both |
 | `use_mixture` | `False` | PA age-censored-control mixture (needs `K_i`/`K_pop`) |
 | `c2`, `m2` | `None` (0) | single-trait only: sibship (`C`) / couple (`M`) shared-environment components; `h2 + c2 + m2 <= 1` |
-| `tol` | `0.01` | Gibbs: batch-means SE convergence target |
+| `tol` | `0.01` | Gibbs: batch-means Monte Carlo SE target; does not certify mixing |
 | `n_sim`, `burn_in` | `100_000`, `1000` | Gibbs: draws kept / discarded per round |
 | `max_rounds` | `100` | Gibbs: cap on convergence rounds |
 | `quadrature_atol` | `1e-8` | quadrature: successive mean/variance refinement tolerance, not a certified error bound |
@@ -572,9 +572,11 @@ adjustment or guarantee calibration under other misspecification.
 | `seed` | `None` | Gibbs: integer RNG seed in `[0, 2**32 - 1]` (booleans rejected; per-family, deterministic) |
 | `genetic_corrmat`, `full_corrmat`, `phen_names` | `None` | multi-trait only |
 
-`n_sim`/`tol` trade speed for Monte-Carlo precision; the defaults converge for
-typical families. PA ignores all Gibbs options and warns when one is set to a
-non-default value.
+`n_sim`/`tol` trade speed for estimated Monte-Carlo precision. Joint Gaussian
+moves improve exploration of strongly correlated liabilities, but batch means
+can still miss slow modes. For difficult bounds, compare independent seeds,
+longer burn-in/chains and a deterministic reference where available. PA ignores
+all Gibbs options and warns when one is set to a non-default value.
 
 For large simulated registers, `simulate_register_liabilities(method="mendelian")`
 avoids the dense relationship matrix and its factorization. It preserves the

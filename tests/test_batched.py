@@ -386,3 +386,51 @@ def test_family_without_proband_own_status_estimates(method):
     both_controls = est([Member("m", -np.inf, t), Member("f", -np.inf, t)])
     assert both_controls < 0.0 < mixed < both_cases
     assert both_cases - both_controls > 0.5
+
+
+@pytest.mark.jit_required
+@pytest.mark.parametrize("sign", [-1., 1.])
+def test_near_collinear_multitrait_mc_error_matches_independent_oracle(sign):
+    from scipy.integrate import quad
+    from scipy.stats import norm
+    from ltpred import Family, Member, estimate_liability
+
+    rho = .9999995
+    threshold = norm.isf(.05)
+    # Independent coordinates S=(L1+L2)/sqrt(2), D=(L1-L2)/sqrt(2).
+    # Both cases iff S > sqrt(2)*threshold + abs(D).
+    s, d = np.sqrt(1 + rho), np.sqrt(1 - rho)
+    def cut(u):
+        return (np.sqrt(2)*threshold + d*u) / s
+    mass = quad(lambda u: 2*norm.pdf(u)*norm.sf(cut(u)), 0, np.inf)[0]
+    first = quad(lambda u: 2*norm.pdf(u)*s*norm.pdf(cut(u))/np.sqrt(2),
+                 0, np.inf)[0]
+    truth = .5*first/mass
+    lower = [threshold, threshold if sign > 0 else -np.inf]
+    upper = [np.inf, np.inf if sign > 0 else -threshold]
+    families = [Family(i, [Member("o", lower, upper)])
+                for i in range(64)]
+    corr = np.array([[1., sign*rho], [sign*rho, 1.]])
+    res = estimate_liability(families, h2=[.5, .5], genetic_corrmat=corr,
+                            full_corrmat=corr, n_sim=20_000, seed=391)
+    means, se = res.est["genetic_phenotype1"], res.se["genetic_phenotype1"]
+    spread = means.std(ddof=1)
+    assert abs(means.mean() - truth) < 4*spread/np.sqrt(len(means))
+    assert .65 < se.mean()/spread < 1.5
+    assert np.mean(np.abs(means-truth) <= 1.96*se) >= .85
+
+
+def test_joint_move_streams_do_not_depend_on_other_families():
+    cov = np.array([[1., .9999], [.9999, 1.]])
+    P, sd = gibbs_params(cov)
+    lo = np.array([[1., 1.], [-np.inf, -np.inf], [.7, -np.inf]])
+    hi = np.array([[np.inf, np.inf], [-1., -1.], [.7, .8]])
+    seeds = np.array([91, 37, 58])
+    def run(rows):
+        return gibbs_estimate_batched(P, sd, np.ones(2), lo[rows], hi[rows],
+                                     np.array([0, 1]), 96, 10, 8, 12,
+                                     seeds[rows], collapse=False)
+    whole = run(np.arange(3))
+    separate = [run(np.array([i])) for i in range(3)]
+    for k in range(4):
+        np.testing.assert_array_equal(whole[k], np.concatenate([x[k] for x in separate]))

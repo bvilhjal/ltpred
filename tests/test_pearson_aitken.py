@@ -933,3 +933,55 @@ def test_mixture_weight_respects_finite_lower_bound():
     # a lower bound above the split leaves only the future-case component
     m, _ = _tnorm_mixture(mu, var, thr + 0.5, 5.0, K_i, K_pop)
     assert m > thr + 0.5
+
+
+@pytest.mark.parametrize("batched", [False, True])
+@pytest.mark.parametrize("mixture", [False, True])
+@pytest.mark.parametrize("sign", [1., -1.])
+def test_singular_interval_support_is_rejected(batched, mixture, sign):
+    # X1 = +/-X0, so X0 >= 1 and +/-X1 <= 0 cannot both hold.
+    cov = np.array([[1., sign], [sign, 1.]])
+    lo = np.array([1., -np.inf if sign > 0 else 0.])
+    hi = np.array([np.inf, 0. if sign > 0 else np.inf])
+    if mixture:
+        # Ki=Kpop: no future-case mass may relax the control's bound.
+        cov = np.pad(cov, ((0, 1), (0, 1)))
+        cov[-1, -1] = 1.
+        lo = np.r_[lo, -np.inf]
+        hi = np.r_[hi, 0.]
+        ki = np.array([np.nan, np.nan, .5])
+        kp = ki.copy()
+    kwargs = ({"K_is": ki[None, :], "K_pops": kp[None, :]} if batched else
+              {"K_i": ki, "K_pop": kp}) if mixture else {}
+    with pytest.raises(ValueError, match="dependent interval"):
+        if batched:
+            pa_estimate_batched(cov, lo[None, :], hi[None, :], **kwargs)
+        else:
+            pa_algorithm(cov, lo, hi, **kwargs)
+
+
+@pytest.mark.parametrize("batched", [False, True])
+@pytest.mark.parametrize("upper", [0., 3.])
+def test_dependent_intervals_after_pins_are_outside_pa_domain(batched, upper):
+    # X2 = X0 + X1. After X0=1, the two interval coordinates remain dependent.
+    # upper=0 is impossible and upper=3 is feasible; neither is supported.
+    cov = np.array([[1., 0., 1.], [0., 1., 1.], [1., 1., 2.]])
+    lo, hi = np.array([1., 1., -np.inf]), np.array([1., np.inf, upper])
+    with pytest.raises(ValueError, match="dependent interval"):
+        if batched:
+            pa_estimate_batched(cov, lo[None], hi[None])
+        else:
+            pa_algorithm(cov, lo, hi)
+
+
+@pytest.mark.parametrize("batched", [False, True])
+def test_singular_interval_rank_uses_tolerance_not_cholesky(batched):
+    # X2=X0+X1 exactly, with Var(X0)=1 and Var(X1)=6. Cholesky can succeed
+    # on the rounded correlation matrix even though these bounds are impossible.
+    cov = np.array([[1., 0., 1.], [0., 6., 6.], [1., 6., 7.]])
+    lo, hi = np.array([1., 1., -np.inf]), np.array([np.inf, np.inf, 0.])
+    with pytest.raises(ValueError, match="dependent interval"):
+        if batched:
+            pa_estimate_batched(cov, lo[None], hi[None])
+        else:
+            pa_algorithm(cov, lo, hi)

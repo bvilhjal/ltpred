@@ -220,11 +220,17 @@ unbounded coordinates; the chain runs on the rest, $y$,
 and the target contributes $\mathbb E[g\mid y]$ with posterior variance
 $\operatorname{Var}(\mathbb E[g\mid y])+\operatorname{Var}(g\mid y)$. **G3.**
 Start each coordinate at its marginal truncated median; hold pins. **G4.** Sweep
-by inverse CDF (a log-scale tail construction beyond $|z|\approx38.5$). **G5.**
+by inverse CDF (a log-scale tail construction beyond $|z|\approx38.5$).
+When any free-coordinate variance conditional on pins is more than 16 times
+its variance conditional on all other coordinates, also sweep along whitened
+eigenvectors of the free precision block. Each joint move draws its scalar
+displacement from the Gaussian conditional restricted by every original bound;
+it preserves the same target law and holds pins fixed. **G5.**
 After burn-in, stream sums, squares and batch means ($b=\max(\lfloor\sqrt{n}\rfloor,2)$);
 store no draws. **G6.** Repeat rounds of fresh chains for unconverged families,
 pooling sums, until every batch-means SE is at most `tol` or `max_rounds` is
-reached (then warn). Family seeds are fixed by the family's global index, so a
+reached (then warn). This is a Monte Carlo precision criterion, not a mixing
+certificate: batch means can miss slow exploration. Family seeds are fixed by the family's global index, so a
 result depends only on its own records and seed: thread scheduling, chunking
 and the other families in the cohort do not change it (chunked Gibbs is
 bit-identical to the array call; chunked PA agrees to rounding).
@@ -312,8 +318,8 @@ $r_e$ and their SEs by the delta method.
 ## Methods report
 
 The [methods PDF](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf)
-is the portable, detailed derivation and historical evidence snapshot, labelled
-v0.7.4 (25 September 2026). It is not an additional onboarding guide or a timing
+is the portable, detailed derivation for v0.7.5 (15 October 2026), retaining the
+historical v0.7.4 benchmark evidence. It is not an additional onboarding guide or a timing
 report for today's checkout. [Report sources and rebuild instructions](https://github.com/bvilhjal/ltpred/blob/main/report/README.md)
 live with the PDF; [the benchmark ledger](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
 owns the dated measurements and links to retained data and provenance.

@@ -33,14 +33,23 @@ Algorithm G (methods report, "Computing the truncated mean"), as implemented.
    (Kotecha & Djuric 1999), one uniform each, on the survival scale when
    ``a >= 0``. Where even that underflows (``|z|`` beyond about 38.5)
    `_far_right_std_tnorm_quantile` inverts the leading-order Gaussian tail
-   ratio on the log scale (a Rayleigh construction).
+   ratio on the log scale (a Rayleigh construction). Strongly coupled free
+   coordinates also receive joint Gaussian conditional moves along whitened
+   eigenvectors of their precision block (`_mixing_directions`). These moves
+   preserve the same truncated law and keep pins fixed. They activate when
+   any conditional-on-pins variance exceeds its coordinate-conditional
+   variance by a factor of 16; ordinary blocks keep their coordinate sweeps.
 5. **G5 stream.** After ``burn_in`` sweeps, each of ``n_sim`` sweeps adds the
    outputs to running sums and sums of squares; the first
    ``n_batch * batch_size`` of them also form batch means, of which only the
-   sum and sum of squares are kept. No draw array: ``O(ncols)`` per family.
+   sum and sum of squares are kept. No draw array; strongly coupled blocks
+   additionally store ``O(d**2)`` direction coefficients per active family.
 6. **G6 stop.** `ltpred.estimate._estimate_group` reruns the unconverged
    families in rounds, pooling those sums, until every requested batch-means
    SE is ``<= tol``; converged families leave the active set.
+   This estimates Monte Carlo precision, not convergence to stationarity;
+   batch means can miss slow modes. Difficult bounds still need independent
+   seeds, longer burn-in/chains and, where available, a quadrature reference.
 
 Seeding. The batched kernels reseed the kernel RNG with ``seeds[f]`` at the
 top of family ``f``'s ``prange`` iteration (``-1``: unseeded), so a family's
@@ -82,6 +91,10 @@ _FIXED_TOL = 1e-8
 # values collapses to a handful of distinct draws (bounds [38.45, 38.46] drew
 # 20000 identical values). Hand such intervals to the tail-ratio route instead.
 _TAIL_QUANT_FLOOR = 2.0 ** -1050
+# A coordinate conditional SD less than one quarter of its marginal SD signals
+# a narrow Gaussian direction. Supplement coordinate Gibbs in this regime;
+# this is a sampler choice, not a convergence certificate.
+_DIRECTIONAL_VARIANCE_RATIO = 16.0
 
 
 @_jit
@@ -331,7 +344,86 @@ def _blup_from_keep(cov, keep_idx, coll_idx):
 
 
 @_jit
-def _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, n_sim, burn_in, res):
+def _mixing_directions(P, sd, sd0, fixed):
+    """Whitened directions on the free coordinates, only for strong coupling.
+
+    Given precision Q and fixed coordinates p, diagonalize Q_ff = U D U'.
+    Columns v = U / sqrt(D), padded with zeros on p, obey v'Qv = 1.
+    Along x + t*v the conditional law is N(-v'Qx, 1), truncated by the
+    rectangle. Store v and Qv as rows. Exact pins therefore never move, and
+    their nonzero values enter the conditional mean through (Qv)_p.
+    Ordinary covariance blocks return before any matrix factorization.
+    """
+    d = len(sd)
+    empty = np.empty((0, d))
+    ratio = 0.0
+    for j in range(d):
+        ratio = max(ratio, (sd0[j] / sd[j])**2)
+    if ratio <= _DIRECTIONAL_VARIANCE_RATIO:
+        return empty, empty
+    free = np.flatnonzero(~fixed)
+    n = len(free)
+    if n < 2:
+        return empty, empty
+    precision = np.empty((n, n))
+    for i in range(n):
+        for j in range(n):
+            a, b = free[i], free[j]
+            precision[i, j] = (1.0 if a == b else -P[a, b]) / sd[b]**2
+    precision = (precision + precision.T) * .5
+    eigenvalues, vectors = np.linalg.eigh(precision)
+    if eigenvalues[0] <= 0.0:
+        raise ValueError("Gibbs joint-update precision must be positive definite")
+    # Conditioning on pins can remove the original coupling entirely.
+    ratio = 0.0
+    for i in range(n):
+        variance = 0.0
+        for j in range(n):
+            variance += vectors[i, j]**2 / eigenvalues[j]
+        ratio = max(ratio, precision[i, i] * variance)
+    if ratio <= _DIRECTIONAL_VARIANCE_RATIO:
+        return empty, empty
+    directions = np.zeros((n, d))
+    dual = np.zeros((n, d))
+    for k in range(n):
+        root = np.sqrt(eigenvalues[k])
+        for i in range(n):
+            directions[k, free[i]] = vectors[i, k] / root
+            dual[k, free[i]] = vectors[i, k] * root
+        for j in range(d):
+            if fixed[j]:
+                for i in range(n):
+                    dual[k, j] -= P[j, free[i]] / sd[free[i]]**2 * directions[k, free[i]]
+    return directions, dual
+
+
+@_jit
+def _directional_sweep(directions, dual, lower, upper, x):
+    """Additional Gaussian conditional updates along joint free directions.
+
+    Each move preserves the same TMVN law as a coordinate update. Intersect
+    every original bound on the line before drawing its scalar displacement.
+    """
+    for k in range(len(directions)):
+        lo, hi, mean = -np.inf, np.inf, 0.0
+        for j in range(len(x)):
+            v = directions[k, j]
+            mean -= dual[k, j] * x[j]
+            if v > 0.0:
+                lo = max(lo, (lower[j] - x[j]) / v)
+                hi = min(hi, (upper[j] - x[j]) / v)
+            elif v < 0.0:
+                lo = max(lo, (upper[j] - x[j]) / v)
+                hi = min(hi, (lower[j] - x[j]) / v)
+        step = mean + _std_tnorm_quantile(lo - mean, hi - mean, np.random.random())
+        for j in range(len(x)):
+            if directions[k, j] != 0.0:
+                x[j] = min(upper[j], max(lower[j], x[j] + directions[k, j] * step))
+
+
+@_jit
+def _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, n_sim, burn_in, res,
+                 directions, dual):
     """Inner Gibbs loop (the Rcpp ``rtmvnorm_gibbs_cpp`` port).
 
     Runs ``burn_in + n_sim`` sweeps, writing the post-burn-in draws of the
@@ -346,6 +438,9 @@ def _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, n_sim, burn_in, res):
             if not fixed[j]:
                 x[j] = _gibbs_conditional_draw(P, sd, x, j, lower[j], upper[j],
                                                np.random.random())
+        if len(directions):
+            _directional_sweep(directions, dual, lower, upper, x)
+        for j in range(d):
             if k >= 0 and to_return[j] >= 0:
                 res[k, to_return[j]] = x[j]
     return res
@@ -365,7 +460,8 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
     ``bm_sum[f]`` / ``bm_sumsq[f]``, the sum and sum of squares of the means of
     the first ``n_batch`` consecutive batches of ``batch_size`` draws (the
     batch-means Monte-Carlo SE). Draws past ``n_batch * batch_size`` enter the
-    totals only. State is ``O(ncols)`` per family; the family loop is parallel
+    totals only. State is ``O(d + ncols)`` per family, plus ``O(d**2)`` for
+    strongly coupled direction coefficients; the family loop is parallel
     under Numba and serial in the pure-Python fallback."""
     F = lowers.shape[0]
     d = sd.shape[0]
@@ -382,6 +478,7 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
         for j in range(d):
             fixed[j] = (upper[j] - lower[j]) < _FIXED_TOL
         x = _init_chain(lower, upper, sd0)
+        directions, dual = _mixing_directions(P, sd, sd0, fixed)
 
         tot = np.zeros(ncols)
         tot_sq = np.zeros(ncols)      # sum of x^2 -> posterior variance
@@ -397,6 +494,8 @@ def _gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                     x[j] = _gibbs_conditional_draw(P, sd, x, j, lower[j],
                                                    upper[j],
                                                    np.random.random())
+            if len(directions):
+                _directional_sweep(directions, dual, lower, upper, x)
             if k >= 0:
                 for c in range(ncols):
                     v = x[out_idx[c]]
@@ -450,6 +549,7 @@ def _gibbs_estimate_batched_collapsed(
         for j in range(d):
             fixed[j] = (upper[j] - lower[j]) < _FIXED_TOL
         x = _init_chain(lower, upper, sd0)
+        directions, dual = _mixing_directions(P, sd, sd0, fixed)
 
         tot = np.zeros(ncols)
         tot_sq = np.zeros(ncols)
@@ -465,6 +565,8 @@ def _gibbs_estimate_batched_collapsed(
                     x[j] = _gibbs_conditional_draw(P, sd, x, j, lower[j],
                                                    upper[j],
                                                    np.random.random())
+            if len(directions):
+                _directional_sweep(directions, dual, lower, upper, x)
             if k >= 0:
                 for c in range(ncols):
                     loc = out_local[c]
@@ -889,11 +991,12 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
     # (LTFHPlus's init); fixed coords collapse to their pinned value.
     sd0 = np.sqrt(np.diag(cov))
     x = _init_chain(lower, upper, sd0)
+    directions, dual = _mixing_directions(P, sd, sd0, fixed)
 
     # Unconditional: seed=None reseeds from entropy (see _seed_rng), so an
     # unseeded call never replays a previous seeded call's leftover stream.
     _seed_rng(seed)
     res = np.empty((int(n_sim), len(out)), dtype=np.float64)
     _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, int(n_sim),
-                 burn_in, res)
+                 burn_in, res, directions, dual)
     return res

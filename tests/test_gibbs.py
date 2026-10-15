@@ -128,6 +128,24 @@ def test_fixed_coordinate_is_held_constant():
     assert s[:, 0].mean() == pytest.approx(h2 * pin, abs=0.01)
 
 
+@pytest.mark.jit_required
+@pytest.mark.parametrize("rho", [-.9999995, .9999995])
+def test_joint_moves_preserve_nonzero_pin_and_conditional_gaussian(rho):
+    # X0 = Z, X1 = .4*Z + E1, X2 = -.3*Z + E2, with Z independent of E.
+    # Conditioning on Z=1.7 leaves a nearly collinear Gaussian of known law.
+    slope = np.array([.4, -.3])
+    residual = np.array([[1., rho], [rho, 1.]])
+    cov = np.empty((3, 3))
+    cov[0, 0], cov[0, 1:], cov[1:, 0] = 1., slope, slope
+    cov[1:, 1:] = residual + np.outer(slope, slope)
+    draws = rtmvnorm_gibbs(cov, [1.7, -np.inf, -np.inf],
+                          [1.7, np.inf, np.inf], out=(0, 1, 2),
+                          n_sim=20_000, burn_in=100, seed=83)
+    np.testing.assert_array_equal(draws[:, 0], 1.7)
+    np.testing.assert_allclose(draws[:, 1:].mean(axis=0), 1.7*slope, atol=.03)
+    np.testing.assert_allclose(np.cov(draws[:, 1:].T), residual, atol=.04)
+
+
 def test_out_selection_and_ordering():
     cov = np.array([[0.5, 0.5], [0.5, 1.0]])
     one = rtmvnorm_gibbs(cov, lower=[-np.inf, 1.0], upper=[np.inf, np.inf],

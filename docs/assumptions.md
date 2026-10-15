@@ -53,9 +53,18 @@ by a symmetric shared-environment matrix. When omitted processes contribute to
 familial aggregation, read the output as the **additive-model projection of the
 family history**, not a pure causal genetic value.
 
-PA can operate on a symmetric positive-semidefinite covariance, but
+PA can operate on a symmetric positive-semidefinite covariance when its
+non-deterministic interval coordinates are linearly independent after pin
+conditioning. Dependent intervals on singular support are rejected, including
+compatible ones: sequential moment projection cannot enforce that support.
+Singular target or unobserved rows alone are permitted. In contrast,
 `gibbs_params` and `rtmvnorm_gibbs` require a **strictly positive-definite**
-covariance so their conditional variances exist. The high-level estimators nudge
+covariance so their conditional variances exist. Gibbs scoring supplements
+coordinate sweeps with joint Gaussian moves for strongly coupled blocks.
+Its batch-means SE still measures estimated sampling precision, not proof
+of stationarity; check difficult problems with independent seeds, longer
+burn-in/chains and a deterministic reference where available.
+The high-level estimators nudge
 a numerically singular assembled covariance to strict positive-definiteness and
 warn when they do so. The fitters ship descriptive sibship `C` and mate/couple
 `M` kernels, and the single-trait high-level predictor accepts them as `c2`/`m2`

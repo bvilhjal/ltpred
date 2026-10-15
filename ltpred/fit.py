@@ -34,9 +34,11 @@ are missing data; see the methods report, "Fitting h² is a different problem".
   The estimate is the mean of the retained trace; its SE is the batch-means
   Monte-Carlo SE of that mean (`ltpred.estimate.batch_means`).
 
-By total expectation the pooled products recover ``x_ij' theta`` only when every
-liability comes from one ``N(0, 1)`` population cut at one threshold and the
-family mix is the population mix. IPW with ``w_f = 1 / P(family sampled)``
+At the true parameters, total expectation recovers ``x_ij' theta`` from
+correctly specified conditional draws and the population family mix, even
+with known person-specific thresholds. Common binary thresholds are this
+implementation's validated scope, not a requirement of that identity.
+IPW with ``w_f = 1 / P(family sampled)``
 (in both ``X'WX`` and the products) restores the mix, but not a stratum that
 had zero inclusion probability. The SE therefore measures only this run's
 Monte-Carlo noise on this dataset, not sampling uncertainty; `bootstrap_fit`
@@ -326,17 +328,13 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None,
 def _assert_common_thresholds(families, n_pheno, *, context, member_bounds=None):
     """Reject person-specific liability bounds in the pooled-moment fitters.
 
-    The Haseman-Elston fixed point pools cross-products across families and reads
-    them as estimates of ``h2 * A_ij``, which holds only when every augmented
-    liability is a draw from the *same* ``N(0, 1)`` population -- i.e. when one
-    threshold per trait separates cases from controls. **Personalised LT-FH++
-    bounds fall outside that estimating contract**: an age-/CIP-specific
-    threshold per person (and an onset pin for cases) gives each augmented draw
-    its own conditional mean, so the pooled cross-products no longer have the
-    supported common-threshold interpretation. Exploratory failures motivated
-    this guard, but they do not establish a universal direction or magnitude of
-    bias for every personalised observation model. This implementation therefore
-    refuses the unsupported geometry rather than returning an uncertified fit.
+    Common binary thresholds are the validated fitting scope and are required
+    by the current prevalence screen. Total expectation also holds for known
+    person-specific thresholds under a correctly specified observation and
+    covariance model; it does not establish identification or convergence of
+    this stochastic fixed point. Exploratory failures motivated the restriction,
+    but do not prove that heterogeneous thresholds inherently bias pooled
+    moments. Personalised bounds and onset pins remain unsupported for fitting.
 
     The prediction estimators (`ltpred.estimate.estimate_liability` and
     friends) are unaffected -- they *condition* on a supplied ``h2`` rather than
@@ -572,11 +570,11 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     ``n_iter - burn_in >= 4``, since the batch-means SE needs two batches.
     Invalid controls raise before any sampling.
 
-    **Requires a common case/control threshold per trait.** The pooled
-    Haseman-Elston fixed point assumes every augmented liability is drawn from
-    the same ``N(0, 1)`` population, so personalised (age-/CIP-specific) or
-    onset-pinned LT-FH++ bounds — even perfectly coherent ones — fall outside
-    that estimating contract. Those inputs are **rejected**, not silently
+    **Requires a common case/control threshold per trait.** This is the
+    implementation's validated scope, including its prevalence screen. It is
+    not a mathematical necessity of the augmented moment identity. Personalised
+    (age-/CIP-specific) or onset-pinned LT-FH++ bounds remain outside that
+    supported scope. Those inputs are **rejected**, not silently
     fitted. Fit from common-threshold bounds; the
     prediction path (`ltpred.estimate.estimate_liability`) is unaffected,
     since it conditions on ``h2`` rather than fitting it. Standard NaN and

@@ -35,12 +35,15 @@
   {\large Model, efficient inference, and evidence in \texttt{ltpred}}}
 \author{Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
   {\small Aarhus University and SMARTbiomed}\\[0.35em]
-  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.7.4}}
-\date{25 September 2026}
+  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.7.5}}
+\date{15 October 2026}
 
 \begin{document}
 \maketitle
 \thispagestyle{plain}
+\begin{center}\small
+Benchmark tables retain the historical v0.7.4 evidence snapshot.
+\end{center}
 
 \begin{abstract}
 \noindent
@@ -330,7 +333,7 @@ twins and $A+C+D$ is not.
 One inherited LTFHPlus convention is worth knowing before comparing
 constructors: two same-side half-sibs in the role grammar are
 related $\tfrac12\h$ \emph{to each other} (implied shared second
-parent).
+parent), and therefore also share the $C$ environment with each other.
 A pedigree in which they have distinct other parents must be built
 from $A$, not from those role labels.
 
@@ -458,8 +461,29 @@ $\Sigma$ must be strictly positive definite.
   Families that have met the tolerance are dropped from later
   rounds.
 \end{enumerate}
-This is the sampling-based reference for every no-mixture claim
-below.
+For strongly coupled free coordinates, step G4 additionally sweeps along
+whitened eigenvectors of their precision block. If $Q_{ff}=UDU^\top$,
+pad the columns of $UD^{-1/2}$ with zeros on pinned coordinates to form
+directions $v_k$. Each has $v_k^\top Qv_k=1$, so its displacement has law
+\begin{equation}
+  t\mid x\ \sim\ \mathcal{N}(-v_k^\top Qx,1)
+  \quad\text{restricted to}\quad
+  \{t:a_j\le x_j+t v_{kj}\le b_j\ \text{for all }j\}.
+  \label{eq:joint-gibbs}
+\end{equation}
+Every such move preserves the same truncated law, including conditioning on
+nonzero pins. The supplement activates when
+$\max_j Q_{jj}(Q_{ff}^{-1})_{jj}>16$ among free coordinates;
+ordinary blocks retain their coordinate sweeps. It costs a precision-block
+eigendecomposition per family and $O(d^2)$ extra work per sweep and storage
+per active family, without retaining draws. The persistent chains used by
+the moment fitters retain their coordinate-only sweeps.
+
+The stopping rule estimates Monte Carlo precision; it does not establish
+stationarity. Batch means can miss slow modes even with joint moves.
+Check difficult bounds with independent seeds, longer burn-in and chains,
+and a deterministic reference where available. The historical no-mixture
+benchmarks below used the coordinate sampler before this supplement.
 
 \subsection{Algorithm P (Pearson--Aitken)}
 \label{sec:pa}
@@ -498,6 +522,11 @@ Algorithm~P keeps the first two moments and proceeds as if it
 were.
 Hence: exact for pins followed by at most one interval; a sequential
 two-moment approximation for multiple remaining intervals.
+On singular covariance support, low-level PA requires the remaining
+non-deterministic interval coordinates to be linearly independent.
+Dependent intervals are rejected even when feasible: moment projection
+does not preserve their support and can otherwise return moments for an
+impossible event. Singular target or unobserved rows alone are allowed.
 
 On the historically tested no-mixture structures, average agreement
 was high for the posterior \emph{mean}
@@ -772,15 +801,21 @@ Carlo noise.
 Across-cohort SD is $20$--$30\times$ larger
 (Table~\ref{tab:h2}).
 
-Law of total expectation recovers
-$\E[\ell_i\ell_j]=\h A_{ij}$ from the augmented products only for
-independent, non-overlapping families under the declared sampling
-contract and a \emph{common} $T$ per trait.
-Personalised or onset-pinned rectangles---even the internally
-coherent ones that prediction wants---are outside that identified
-moment design and are refused. This is an explicit contract,
-motivated by exploratory failures, not a current quantitative
-benchmark for personalised fitting.
+At the true parameter $\theta_0$, let $Z$ include known person-specific
+thresholds and observed covariates. A correctly specified observation and
+covariance model gives, by total expectation,
+\begin{equation}
+ \E_{\theta_0}\!\left[\E_{\theta_0}[\ell_i\ell_j\mid D_F,Z,A]
+                  \mid Z,A\right]=\h_0 A_{ij}.
+ \label{eq:augmented-moment}
+\end{equation}
+Known heterogeneous thresholds do not invalidate this identity. They do not,
+by themselves, establish identification or convergence of the implemented
+fixed point either. The shipped fitter and its prevalence screen are validated
+only for a common binary threshold per trait and independent families under
+the declared sampling contract. Personalised bounds and onset pins remain
+outside that supported scope and are refused. Exploratory failures motivated
+this restriction; it is not a necessity of total expectation.
 Ascertainment is not cured by more sweeps.
 The damage is severe and silent: on families selected through an
 affected proband with a \emph{true} $\h$ of zero, \eqref{eq:he}

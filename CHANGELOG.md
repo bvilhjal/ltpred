@@ -13,8 +13,22 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 ## Unreleased
 
+## 0.7.5 — 2026-10-15
+
 ### Fixed
 
+- Gibbs scoring and raw draws supplement coordinate sweeps with joint Gaussian
+  moves in strongly coupled blocks, correcting slow exploration and understated
+  Monte Carlo errors for nearly collinear traits. Seeded draws change in those
+  blocks; ordinary blocks and the moment fitters retain their coordinate sweeps.
+- Same-side half-siblings share the `C` environment with each other, consistent
+  with the role grammar's implied shared second parent and additive covariance.
+- Low-level PA rejects linearly dependent interval observations on singular
+  covariance support instead of returning moments for impossible events.
+  Singular target rows and exact pin conditioning remain supported.
+- The methods explain the common-threshold moment-fitting restriction as a
+  validation boundary; heterogeneous known thresholds do not invalidate total
+  expectation under a correctly specified conditional model.
 - Heritability and variance-component fits drop wholly unobserved families, which
   only slowed convergence and pulled estimates toward the starting values.
 - The pid-overlap check treats a repeated `fam_id` as one cluster only when the

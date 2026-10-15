@@ -783,6 +783,52 @@ def _validate_pa_covmat(covmat, _psd_certified=None):
     return cov
 
 
+def _check_interval_rank(cov, lowers, uppers):
+    """Refuse unsupported dependent intervals on singular Gaussian support.
+
+    Pins are handled by exact conditioning. After that, positive-variance
+    interval coordinates must have a nonsingular joint covariance. A sequence
+    of Gaussian moment projections cannot preserve their linear support: it
+    could otherwise return a posterior even when their bounds are incompatible.
+    Singular targets or unobserved rows alone impose no such restriction.
+    High-level callers with a certified strictly-PD covariance skip this gate.
+    """
+    if not len(lowers):
+        return
+    scale = np.sqrt(np.diag(cov))
+    correlation = cov / np.outer(scale, scale)
+    rank_tol = 64 * np.finfo(float).eps
+    eigenvalues = np.linalg.eigvalsh(correlation)
+    # Cholesky can succeed on exactly dependent rows after floating-point
+    # scaling; numerical rank must use the same relative gate as the blocks.
+    if eigenvalues[0] > rank_tol * len(cov) * eigenvalues[-1]:
+        return
+    pins = lowers == uppers
+    intervals = ~pins & (np.isfinite(lowers) | np.isfinite(uppers))
+    states = pins.astype(np.uint8) + 2 * intervals.astype(np.uint8)
+    for state in np.unique(states, axis=0):
+        observed = np.flatnonzero(state == 2)
+        if len(observed) < 2:
+            continue
+        pinned = np.flatnonzero(state == 1)
+        if len(pinned):
+            _, block = _condition_pins(cov, observed, pinned,
+                                       np.zeros((1, len(pinned))))
+        else:
+            block = cov[np.ix_(observed, observed)]
+        positive = np.diag(block) > 0
+        block = block[np.ix_(positive, positive)]
+        if len(block) < 2:
+            continue
+        sd = np.sqrt(np.diag(block))
+        eigenvalues = np.linalg.eigvalsh(block / np.outer(sd, sd))
+        if eigenvalues[0] <= rank_tol * len(block) * eigenvalues[-1]:
+            raise ValueError(
+                "PA does not support linearly dependent interval observations "
+                "on singular covariance support; combine redundant bounds or "
+                "supply an independently specified nonsingular observation model")
+
+
 def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
                  target: int = 0, K_i: ArrayLike | None = None,
                  K_pop: ArrayLike | None = None) -> tuple[float, float]:
@@ -797,7 +843,9 @@ def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
     ``K_i``/``K_pop`` (per row, ``nan`` where unused) switch on the censored-control
     mixture (Algorithm M, which skips the pin reduction). Returns ``(est, var)`` -- sequential-moment approximations to the
     target's posterior mean and conditional variance. Without a mixture the
-    result is exact after pins when at most one interval remains."""
+    result is exact after pins when at most one interval remains. Singular
+    covariance is supported only when the remaining non-deterministic interval
+    coordinates are linearly independent; otherwise raise ``ValueError``."""
     cov = _validate_pa_covmat(covmat)
     d = cov.shape[0]
     lower = np.asarray(lower, dtype=np.float64)
@@ -815,6 +863,7 @@ def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
     cov = np.ascontiguousarray(cov[np.ix_(order, order)])
     lo, hi = lower[order], upper[order]
     validate_bounds(lo, hi, context="pa_algorithm bounds")
+    _check_interval_rank(cov, lo[None, :], hi[None, :])
     if K_i is None and K_pop is None:
         est, var = _pa_reduced_nomix(cov, lo[None, :], hi[None, :])
         return float(est[0]), float(var[0])
@@ -864,6 +913,8 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
     lo = lowers if target == 0 else np.ascontiguousarray(lowers[:, order])
     hi = uppers if target == 0 else np.ascontiguousarray(uppers[:, order])
     validate_bounds(lo, hi, context="pa_estimate_batched bounds")
+    if _psd_certified is not _PSD_CERTIFIED:
+        _check_interval_rank(cov, lo, hi)
     if K_is is None and K_pops is None:        # no-mixture fast path (no K arrays)
         return _pa_reduced_nomix(cov, lo, hi)
     est = np.empty(F)

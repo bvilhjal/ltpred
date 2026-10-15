@@ -88,12 +88,16 @@ familial resemblance (see
 **stochastic-approximation fixed point**, not posterior sampling of `h²`: the trace
 is not a posterior draw and its mean is not a posterior mean.
 
-The pooled Haseman–Elston fixed point requires **one case/control threshold
+The implemented Haseman–Elston fitter requires **one case/control threshold
 per trait**. Personalised (age-/CIP-specific) or onset-pinned LT-FH++ bounds —
 including the Quickstart's `age_thresholds` output, even when they are
-internally coherent — are **rejected**. This is an identification contract,
-motivated by exploratory failures outside the common-threshold design, not a
-current quantitative benchmark for personalised fitting. Fit from
+internally coherent — are **rejected**. This is a validation and implementation
+restriction, including the prevalence screen. With known person-specific
+thresholds and a correct conditional model, total expectation still recovers
+the population covariance at the true parameters. That identity alone does
+not establish identification, convergence or finite-sample performance of this
+fitter. Exploratory failures motivated the restriction; they do not show that
+heterogeneous thresholds inherently bias the moments. Fit from
 common-threshold bounds (`prevalence_thresholds`), or bring an external
 liability-scale `h²`. Personalised bounds remain the intended input for
 `estimate_liability`, which conditions on `h²` rather than fitting it. For
