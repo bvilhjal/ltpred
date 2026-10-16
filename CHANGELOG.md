@@ -13,6 +13,10 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 ## Unreleased
 
+## 0.7.6 — 2026-10-16
+
+- Cross-check core and indexed pedigree kinship directly against phensim on shuffled, inbred pedigrees with unknown parents; retain the optional simulation dependency and align its CI pin.
+
 ## 0.7.5 — 2026-10-15
 
 ### Fixed

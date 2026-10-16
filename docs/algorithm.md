@@ -318,7 +318,7 @@ $r_e$ and their SEs by the delta method.
 ## Methods report
 
 The [methods PDF](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf)
-is the portable, detailed derivation for v0.7.5 (15 October 2026), retaining the
+is the portable, detailed derivation for v0.7.6 (16 October 2026), retaining the
 historical v0.7.4 benchmark evidence. It is not an additional onboarding guide or a timing
 report for today's checkout. [Report sources and rebuild instructions](https://github.com/bvilhjal/ltpred/blob/main/report/README.md)
 live with the PDF; [the benchmark ledger](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)

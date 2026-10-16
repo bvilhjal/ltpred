@@ -593,6 +593,10 @@ def _kinship_A(sire, dam, children=None):
     `kinship_from_pedigree` on the register workload — disappears. Inputs are
     trusted as `build_parent_graph` left them; a cycle still raises here.
 
+    This core also exists in phensim. Keep it here so estimation does not
+    require the optional simulation dependency; direct parity tests guard
+    both the indexed fast path and the public pedigree-to-matrix path.
+
     Dense form of Algorithm K (`ltpred._selected_kinship`): order members by
     Kahn's algorithm (parents first, O(n + edges)), then for each member ``k``
     in that order fill row ``k`` against all earlier members at once,

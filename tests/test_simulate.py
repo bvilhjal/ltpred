@@ -554,6 +554,24 @@ def test_register_liabilities_rejects_a_non_invertible_cip():
                                       cip_values=[0.1], eval_age=70.0)
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_kinship_core_matches_phensim_with_inbreeding_and_unknown_parents(reverse):
+    from ltpred.covariance import _kinship_A, _parent_links
+    from phensim import kinship_from_pedigree as sim_kinship
+    ids = ['x', 'a', 'grandchild', 'b', 'gm', 'gf']
+    father = ['a', 'gf', 'x', 'gf', None, None]
+    mother = ['b', 'gm', None, 'gm', None, None]
+    if reverse:
+        ids, father, mother = ids[::-1], father[::-1], mother[::-1]
+    _, expected = kinship_from_pedigree(ids, father, mother)
+    actual = sim_kinship(ids, father, mother)
+    np.testing.assert_array_equal(actual, expected)
+    _, _, sire, dam, children, _ = _parent_links(ids, father, mother)
+    np.testing.assert_array_equal(_kinship_A(sire, dam), expected)
+    np.testing.assert_array_equal(_kinship_A(sire, dam, children), expected)
+    assert expected[ids.index('x'), ids.index('x')] == 1.25
+
+
 def test_mendelian_covariance_is_exact_with_inbreeding_missing_parents_and_shuffled_rows():
     # Two siblings mate; their inbred child then has a child with one unknown parent.
     ids = ['x', 'a', 'grandchild', 'b', 'gm', 'gf']

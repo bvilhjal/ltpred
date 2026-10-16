@@ -17,7 +17,7 @@ env:
   # phensim (the [sim] extra) draws register pedigrees and Mendelian genetic
   # values. It is a public GitHub repository, not on PyPI, so every job that
   # runs ltpred's code installs this exact revision.
-  PHENSIM: "phensim @ git+https://github.com/bvilhjal/phensim.git@f05e30c122d0939d151efb5e29c177c95ad2ba52"
+  PHENSIM: "phensim @ git+https://github.com/bvilhjal/phensim.git@04d7c2479d8071e57510138784e6be73e36118de"
   # The kernel-exercising files that the two pure-Python-fallback jobs run.
   KERNEL_TESTS: >-
     tests/test_mathfun.py tests/test_thresholds.py tests/test_covariance.py
