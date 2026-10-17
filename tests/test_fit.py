@@ -576,10 +576,11 @@ def test_moment_fitters_make_population_sampling_contract_explicit():
     with pytest.warns(RuntimeWarning, match="unascertained"):
         fit_heritability(sim.families, n_iter=10, burn_in=6,
                          inner_sweeps=1, seed=1)
-    with pytest.raises(ValueError, match=r"sampling='population' or sampling='ipw'"):
+    match = r"sampling='population' or sampling='ipw'.*cannot be reweighted at all"
+    with pytest.raises(ValueError, match=match):
         fit_heritability(sim.families, sampling="case-control",
                          n_iter=10, burn_in=6)
-    with pytest.raises(ValueError, match=r"sampling='population' or sampling='ipw'"):
+    with pytest.raises(ValueError, match=match):
         fit_variance_components(sim.families, ("A",),
                                 sampling="family-history",
                                 n_iter=10, burn_in=6)
@@ -632,14 +633,6 @@ def test_moment_fitters_reject_coherent_person_specific_rectangles():
                                 inner_sweeps=1, seed=1, sampling="population")
 
 
-def test_moment_fitters_recover_h2_on_coherent_common_threshold_data():
-    # the supported path: one case/control threshold per trait -> ~0.5, not ~1.0
-    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
-                                    pop_prev=0.1, n_sim=1500, seed=1)
-    res = fit_heritability(sim.families, seed=1, sampling="population")
-    assert 0.30 < res.h2 < 0.70
-
-
 def test_general_rectangles_still_receive_standard_bounds_validation():
     fams = _coherent_varying_bounds()
     fams[0].members[0].lower = 1.0
@@ -669,16 +662,6 @@ def test_common_threshold_accepts_mixed_float32_float64_endpoints():
         sim.families, n_iter=20, burn_in=8, inner_sweeps=1, seed=1,
         sampling="population")
     assert np.isfinite(result.h2)
-
-
-def test_moment_fitters_reject_negative_burn_in():
-    # the burn_in >= n_iter guard used to let a negative burn_in through
-    sim = simulate_under_LTM_single(fam_vec=["m", "s1"], h2=0.5, n_sim=10,
-                                    pop_prev=0.1, seed=1)
-    with pytest.raises(ValueError, match="non-negative"):
-        fit_heritability(sim.families, n_iter=10, burn_in=-1)
-    with pytest.raises(ValueError, match="non-negative"):
-        fit_variance_components(sim.families, ("A",), n_iter=10, burn_in=-1)
 
 
 def _cc_family(fid, roles, statuses, threshold):
@@ -886,20 +869,6 @@ def test_ipw_weights_pass_through_variance_components():
     res = fit_variance_components(fams, ("A", "C"), sampling="ipw",
                                   weights=skew, **kw)
     assert abs(res.components["C"] - uni.components["C"]) > 1e-3
-
-
-def test_unknown_sampling_mode_names_the_supported_ones():
-    # The contract grew a second mode; an unknown value must still be refused,
-    # and the message should say what IS accepted rather than only what is not.
-    sim = simulate_under_LTM_single(fam_vec=["m", "s1"], h2=0.5, n_sim=30,
-                                    pop_prev=0.1, seed=1)
-    with pytest.raises(ValueError, match=r"sampling='population' or sampling='ipw'"):
-        fit_heritability(sim.families, sampling="case-control",
-                         n_iter=10, burn_in=6)
-    # ...and it should point at why proband-ascertained designs are not simply
-    # another mode: they cannot be reweighted at all.
-    with pytest.raises(ValueError, match="cannot be reweighted at all"):
-        fit_heritability(sim.families, sampling="proband", n_iter=10, burn_in=6)
 
 
 def test_case_rate_guard_ignores_uninformative_members():

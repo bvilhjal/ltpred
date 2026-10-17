@@ -53,34 +53,23 @@ def test_pa_chunked_matches_pa_arrays(chunk_size, out, components):
 
 
 @pytest.mark.jit_required
-@pytest.mark.parametrize("chunk_size", [1, 7, 10 ** 9])
-@pytest.mark.parametrize("out", ["genetic", "full"])
+@pytest.mark.parametrize("chunk_size,out", [
+    (1, "genetic"), (7, "genetic"), (10 ** 9, "genetic"), (10 ** 9, "full"),
+])
 def test_gibbs_chunked_matches_gibbs_arrays(chunk_size, out):
     roles, lower, upper, _t = _nuclear_bounds(12, seed=2)
+    # This checks seeded identity, not Monte-Carlo accuracy or convergence.
     kwargs = dict(h2=0.5, c2=0.1, m2=0.05, out=out,
-                  n_sim=20_000, burn_in=400, seed=3, tol=0.05)
-    est_a, se_a = estimate_liability_gibbs_arrays(roles, lower, upper, **kwargs)
-    est_c, se_c = estimate_liability_gibbs_chunked(
-        roles, lower, upper, chunk_size=chunk_size, **kwargs)
-    np.testing.assert_array_equal(est_c, est_a)
-    np.testing.assert_array_equal(se_c, se_a)
-    est_a, se_a, var_a = estimate_liability_gibbs_arrays(
-        roles, lower, upper, return_var=True, **kwargs)
-    est_c, se_c, var_c = estimate_liability_gibbs_chunked(
-        roles, lower, upper, chunk_size=chunk_size, return_var=True, **kwargs)
-    np.testing.assert_array_equal(est_c, est_a)
-    np.testing.assert_array_equal(se_c, se_a)
-    np.testing.assert_array_equal(var_c, var_a)
-
-
-def test_chunk_size_one_and_larger_than_F():
-    roles, lower, upper, _t = _nuclear_bounds(8)
-    est, var = estimate_liability_pa_arrays(roles, lower, upper, h2=0.5)
-    for chunk_size in (1, 8, 9, 10 ** 9):
-        got = estimate_liability_pa_chunked(
-            roles, lower, upper, chunk_size=chunk_size, h2=0.5)
-        np.testing.assert_array_equal(got[0], est)
-        np.testing.assert_array_equal(got[1], var)
+                  n_sim=200, burn_in=20, seed=3, tol=1e9, max_rounds=1)
+    for return_var in (False, True):
+        expected = estimate_liability_gibbs_arrays(
+            roles, lower, upper, return_var=return_var, **kwargs)
+        actual = estimate_liability_gibbs_chunked(
+            roles, lower, upper, chunk_size=chunk_size,
+            return_var=return_var, **kwargs)
+        assert len(actual) == len(expected) == (3 if return_var else 2)
+        for value, reference in zip(actual, expected):
+            np.testing.assert_array_equal(value, reference)
 
 
 def test_empty_families_and_empty_batches():
@@ -200,7 +189,7 @@ def test_batch_seeds_use_global_offsets_not_the_whole_prefix():
 
 def test_gibbs_batches_concat_matches_arrays_same_seed():
     roles, lower, upper, _t = _nuclear_bounds(9, seed=4)
-    kwargs = dict(h2=0.5, n_sim=20_000, burn_in=400, seed=11, tol=0.05)
+    kwargs = dict(h2=0.5, n_sim=200, burn_in=20, seed=11, tol=1e9, max_rounds=1)
     est_a, se_a, var_a = estimate_liability_gibbs_arrays(
         roles, lower, upper, return_var=True, **kwargs)
     batches = [

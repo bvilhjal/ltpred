@@ -677,10 +677,7 @@ def _pa_reduced_nomix(cov, lowers, uppers):
     pins = lowers == uppers
     absent = (lowers == -np.inf) & (uppers == np.inf)
     if not np.any(pins) and not np.any(absent[:, 1:]):
-        if F == 1:
-            est[0], var[0] = _pa_family_nomix(cov.copy(), lowers[0], uppers[0])
-        else:
-            _pa_kernel_nomix(cov, lowers, uppers, est, var)
+        _pa_kernel_nomix(cov, lowers, uppers, est, var)
         return est, var
     state = (~absent).astype(np.uint8) + pins.astype(np.uint8)
     if np.all(state == state[0]):

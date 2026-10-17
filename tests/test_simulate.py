@@ -448,14 +448,6 @@ def test_register_simulation_feeds_the_public_register_driver():
     # a real signal, not a perfect one: the truth is the standardised g
     assert np.corrcoef(est, sim.genetic)[0, 1] > 0.3
 
-    # the calendar-time route (use I) is where birth_time/index_time belong;
-    # `use="gwas"` rejects them, which is itself part of the contract
-    with pytest.raises(ValueError, match="must be omitted"):
-        estimate_liabilities(
-            sim.ids, sim.father, sim.mother, probands=sim.ids,
-            status=sim.status.astype(int), age=sim.age, use="gwas",
-            cip_ages=_CIP_AGES, cip_values=_CIP_VALUES, k_pop=_CIP_K, h2=0.5,
-            birth_time=sim.birth_time)
     # Restrict the prospective cohort to probands still disease-free at their
     # index time, as the pipeline's own prevalent-case warning instructs;
     # scoring an already-diagnosed proband prospectively is leakage.

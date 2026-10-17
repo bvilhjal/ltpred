@@ -113,7 +113,7 @@ jobs:
       - name: Public workflow smokes on the pure-Python fallback
         run: |
           pytest -q \
-            tests/test_estimate.py::test_pa_full_matches_gibbs_estimand_on_a_lone_case \
+            tests/test_estimate.py::test_adult_public_scalar_dispatch_matches_analytic_posterior \
             tests/test_estimate.py::test_high_level_gibbs_handles_nine_sigma_case_bound \
             tests/test_fit.py::test_fit_preparers_align_bounds_by_role \
             tests/test_fit.py::test_overlapping_pids_raise_and_unique_or_missing_pids_pass \

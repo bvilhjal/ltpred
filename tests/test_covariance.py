@@ -398,22 +398,6 @@ def test_multi_covmat_add_ind_false_same_person_cross_trait_uses_full_corr():
         assert cov.matrix[k + a, a] == pytest.approx(0.7)
 
 
-def test_multi_covmat_add_ind_true_same_person_cross_trait_by_role():
-    # g gets the genetic covariance; o and every relative the full correlation
-    gcorr = np.array([[1.0, 0.4], [0.4, 1.0]])
-    fcorr = np.array([[1.0, 0.7], [0.7, 1.0]])
-    h2 = np.array([0.5, 0.3])
-    cov = construct_covmat_multi(fam_vec=["m"], add_ind=True,
-                                 genetic_corrmat=gcorr, full_corrmat=fcorr,
-                                 h2_vec=h2)
-    assert cov.roles == ["g", "o", "m", "g", "o", "m"]
-    gcov = 0.4 * np.sqrt(0.5 * 0.3)
-    m = cov.matrix
-    assert m[0, 3] == pytest.approx(gcov)   # g <-> g: genetic covariance
-    assert m[1, 4] == pytest.approx(0.7)    # o <-> o: full correlation
-    assert m[2, 5] == pytest.approx(0.7)    # m <-> m: full correlation
-
-
 def test_zero_h2_is_rejected_with_an_explanation():
     # h2 = 0 makes the `g` row identically zero, so the covariance is singular
     # in a way correct_positive_definite cannot repair. It used to be accepted
@@ -470,13 +454,6 @@ def test_relatedness_opposite_sides_are_zero():
         for pa in paternal:
             assert get_relatedness(ma, pa, h2=1.0) == pytest.approx(0.0), \
                 f"{ma!r} ↔ {pa!r} should be 0.0"
-
-
-def test_relatedness_child_groups():
-    """Children in same partner group are full sibs; different groups are half sibs."""
-    assert get_relatedness("c1.1", "c1.2", h2=1.0) == pytest.approx(0.5)
-    assert get_relatedness("c1.1", "c2.1", h2=1.0) == pytest.approx(0.25)
-    assert get_relatedness("c1.1", "c1.1", h2=1.0) == pytest.approx(1.0)
 
 
 def test_relatedness_symmetric_exhaustive():

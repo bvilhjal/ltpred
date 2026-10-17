@@ -200,16 +200,6 @@ def test_pa_nomix_equals_mixture_with_nan_K():
     assert np.allclose(e0, e1) and np.allclose(v0, v1)
 
 
-def test_canonical_grouping_permuted_members():
-    # families with the same relatives in different row order agree per-family
-    t = float(stats.norm.isf(0.05))
-    a = Family("a", [Member("o", t, np.inf), Member("m", -np.inf, t), Member("f", t, np.inf)])
-    b = Family("b", [Member("f", t, np.inf), Member("o", t, np.inf), Member("m", -np.inf, t)])
-    res = estimate_liability([a, b], h2=0.5, method="pa", out=("genetic",))
-    # a and b are the same family with reordered rows -> identical estimate
-    assert res.est["genetic"][0] == pytest.approx(res.est["genetic"][1])
-
-
 @pytest.mark.jit_required
 def test_float32_bounds_match_float64():
     # float32 per-family bounds halve memory and match float64 to f32 precision

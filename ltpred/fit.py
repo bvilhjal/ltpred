@@ -382,6 +382,18 @@ def _assert_common_thresholds(families, n_pheno, *, context, member_bounds=None)
         "for estimate_liability, which conditions on h2 rather than fitting it.")
 
 
+def _validate_moment_families(families, *, weights, context):
+    """Validate the shared single-trait moment-fitting observation contract."""
+    _check_unique_roles(families, check_pids=False)
+    _assert_nonempty_families(families)
+    _assert_nonoverlapping_pids(families, context)
+    member_bounds = _member_bounds(families, 1)
+    _assert_common_thresholds(families, 1, context=context,
+                              member_bounds=member_bounds)
+    _assert_population_case_rate(families, 1, context=context,
+                                 weights=weights, member_bounds=member_bounds)
+
+
 def _validate_update_controls(damp, eps):
     """Validate and normalise the stochastic fixed-point controls."""
     if isinstance(damp, (bool, np.bool_)):
@@ -585,14 +597,7 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     damp, eps = _validate_update_controls(damp, eps)
     weights = _validate_weights(weights, len(families), "fit_heritability")
     _validate_population_sampling(sampling, "fit_heritability", weights=weights)
-    _check_unique_roles(families, check_pids=False)
-    _assert_nonempty_families(families)
-    _assert_nonoverlapping_pids(families, "fit_heritability")
-    member_bounds = _member_bounds(families, 1)
-    _assert_common_thresholds(families, 1, context="fit_heritability",
-                              member_bounds=member_bounds)
-    _assert_population_case_rate(families, 1, context="fit_heritability",
-                                 weights=weights, member_bounds=member_bounds)
+    _validate_moment_families(families, weights=weights, context="fit_heritability")
     trace, samples, est, se = _fit_component_engine(
         families, ("A",), np.array([h2_init]), n_iter=n_iter,
         burn_in=burn_in, inner_sweeps=inner_sweeps, damp=damp, seed=seed,
@@ -909,15 +914,8 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
                                 "fit_variance_components")
     _validate_population_sampling(sampling, "fit_variance_components",
                                   weights=weights)
-    _check_unique_roles(families, check_pids=False)
-    _assert_nonempty_families(families)
-    _assert_nonoverlapping_pids(families, "fit_variance_components")
-    member_bounds = _member_bounds(families, 1)
-    _assert_common_thresholds(families, 1, context="fit_variance_components",
-                              member_bounds=member_bounds)
-    _assert_population_case_rate(families, 1,
-                                 context="fit_variance_components",
-                                 weights=weights, member_bounds=member_bounds)
+    _validate_moment_families(families, weights=weights,
+                              context="fit_variance_components")
     C = len(comps)
     _trace, samples, est, se = _fit_component_engine(
         families, comps, np.full(C, 0.5 / C), n_iter=n_iter,

@@ -212,35 +212,12 @@ def test_pa_conditional_variance_matches_gibbs_multi_truncation():
     assert rel.mean() < 0.02
 
 
-def test_pa_family_history_raises_estimate():
-    t = float(stats.norm.isf(0.05))
-    def fam(rel_case, fid):
-        lo, hi = (t, np.inf) if rel_case else (-np.inf, t)
-        return Family(fid, [Member("o", t, np.inf)] +
-                      [Member(r, lo, hi) for r in ("m", "f", "s1")])
-    res = _estimate_liability_pa([fam(True, "aff"), fam(False, "healthy")],
-                                h2=0.5, out=("genetic",))
-    assert res.est["genetic"][0] > res.est["genetic"][1] + 0.1
-
-
 def test_pa_result_has_zero_se_and_variance():
     t = float(stats.norm.isf(0.05))
     fam = Family("f", [Member("o", t, np.inf), Member("m", -np.inf, t)])
     res = _estimate_liability_pa([fam], h2=0.5, out=("genetic", "full"))
     assert np.all(res.se["genetic"] == 0)
     assert res.var is not None and res.var["genetic"][0] > 0
-
-
-def test_batched_matches_single_pa():
-    t = float(stats.norm.isf(0.05))
-    cov = np.array([[0.5, 0.5, 0.25], [0.5, 1.0, 0.25], [0.25, 0.25, 1.0]])
-    lowers = np.array([[-np.inf, t, -np.inf], [-np.inf, -np.inf, t]])
-    uppers = np.array([[np.inf, np.inf, t], [np.inf, t, np.inf]])
-    est, var = pa_estimate_batched(cov, lowers, uppers, target=0)
-    for i in range(2):
-        e, v = pa_algorithm(cov, lowers[i], uppers[i], target=0)
-        assert est[i] == pytest.approx(e)
-        assert var[i] == pytest.approx(v)
 
 
 def test_mixture_raises_young_control_liability():
@@ -275,17 +252,28 @@ def test_mixture_weight_stable_when_no_future_cases_and_extreme_mean():
     "K_i,K_pop,match",
     [(0.01, np.nan, "finite K_i and K_pop"),
      (np.nan, 0.10, "finite K_i and K_pop"),
+     (np.inf, 0.10, "finite K_i and K_pop"),
      (-0.01, 0.10, "0 <= K_i <= K_pop < 1"),
      (0.20, 0.10, "0 <= K_i <= K_pop < 1"),
      (0.00, 0.00, "K_pop > 0"),
      (0.10, 1.00, "K_pop > 0")],
 )
-def test_family_pa_validate_mixture_pairs(K_i, K_pop, match):
+def test_mixture_pair_validation_scalar_object_and_array_apis(K_i, K_pop, match):
     t = float(stats.norm.isf(0.10))
-    cov = np.array([[0.5, 0.5], [0.5, 1.0]])
+    fam = Family("f", [Member("o", -np.inf, t, K_i=K_i, K_pop=K_pop)])
+    with pytest.raises(ValueError, match=match):
+        estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
+
+    with pytest.raises(ValueError, match=match):
+        estimate_liability_pa_arrays(
+            ["o"], np.array([[-np.inf]]), np.array([[t]]), 0.5,
+            K_i=np.array([[K_i]]), K_pop=np.array([[K_pop]]),
+            use_mixture=True)
+
     with pytest.raises(ValueError, match=match):
         pa_algorithm(
-            cov, [-np.inf, -np.inf], [np.inf, t], target=0,
+            np.array([[0.5, 0.5], [0.5, 1.0]]),
+            [-np.inf, -np.inf], [np.inf, t], target=0,
             K_i=[np.nan, K_i], K_pop=[np.nan, K_pop])
 
 

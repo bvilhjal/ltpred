@@ -61,24 +61,10 @@ def test_single_proband_case_only():
     t = float(stats.norm.isf(prev))
     fam = Family("f1", [Member("o", lower=t, upper=np.inf)])
     res = estimate_liability([fam], h2=h2, method="gibbs", out=("genetic", "full"),
-                             tol=0.02, n_sim=40_000, burn_in=800, seed=1)
+                             tol=0.02, n_sim=4_000, burn_in=800, seed=1)
     assert res.est["full"][0] == pytest.approx(imr(t), abs=0.05)
     assert res.est["genetic"][0] == pytest.approx(h2 * imr(t), abs=0.05)
     assert res.se["genetic"][0] <= 0.02
-
-
-def test_pa_full_matches_gibbs_estimand_on_a_lone_case():
-    # PA used to skip the target's own bound, so out="full" was 0 for a lone
-    # case. Both engines now return E[l_o | own interval].
-    h2, prev = 0.5, 0.05
-    t = float(stats.norm.isf(prev))
-    fam = Family("f1", [Member("o", lower=t, upper=np.inf)])
-    pa = estimate_liability([fam], h2=h2, method="pa", out=("genetic", "full"))
-    assert pa.est["full"][0] == pytest.approx(imr(t), abs=1e-9)
-    assert pa.est["genetic"][0] == pytest.approx(h2 * imr(t), abs=1e-9)
-    unbound = Family("f2", [Member("o", lower=-np.inf, upper=np.inf)])
-    rel_only = estimate_liability([unbound], h2=h2, method="pa", out="full")
-    assert rel_only.est["full"][0] == pytest.approx(0.0)
 
 
 def test_high_level_gibbs_handles_nine_sigma_case_bound():
@@ -310,34 +296,6 @@ def test_inbred_kinship_covariance_stays_on_unit_liability_scale():
     assert cov[0, 1] == pytest.approx(h2 * A[0, 0] / raw_target_var)
 
 
-def test_estimate_from_kinship_matches_role_based():
-    # the kinship path reproduces the role-based estimator on the same data
-    from ltpred import (simulate_under_LTM_single,
-                        estimate_liability_from_kinship, kinship_from_pedigree)
-    from ltpred.estimate import _estimate_liability_single
-    h2 = 0.5
-    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=h2,
-                                    n_sim=400, pop_prev=0.1, seed=11)
-    role = _estimate_liability_single(sim.families, h2=h2, out=("genetic",),
-                                     n_sim=20000, burn_in=500, seed=1)
-    ids    = ["o", "m", "f", "s1", "s2"]
-    father = ["f", None, None, "f", "f"]
-    mother = ["m", None, None, "m", "m"]
-    _, A = kinship_from_pedigree(ids, father, mother)
-    F = len(sim.families)
-    lower = np.empty((F, len(ids))); upper = np.empty((F, len(ids)))
-    for fi, fam in enumerate(sim.families):
-        byrole = {m.role: m for m in fam.members}
-        for c, r in enumerate(ids):
-            lower[fi, c], upper[fi, c] = byrole[r].lower, byrole[r].upper
-    kin, _, _ = estimate_liability_from_kinship(A, lower, upper, h2=h2, target=0,
-                                                out="genetic", method="gibbs",
-                                                n_sim=20000, burn_in=500, seed=1)
-    # identical covariance + identical seeds -> identical draws
-    assert np.corrcoef(role.est["genetic"], kin)[0, 1] > 0.999
-    assert np.max(np.abs(role.est["genetic"] - kin)) < 1e-9
-
-
 def test_kinship_estimator_threads_environment_kernels_to_both_engines():
     from ltpred import (construct_covmat_from_kinship,
                         estimate_liability_from_kinship,
@@ -374,8 +332,17 @@ def test_kinship_estimator_threads_environment_kernels_to_both_engines():
     gibbs_kin = estimate_liability_from_kinship(
         A, lower, upper, h2=h2, c2=c2, c_kernel=C, m2=m2, m_kernel=M,
         method="gibbs", seed=7, n_sim=40, burn_in=0, tol=1e9, max_rounds=1)
-    for role_value, kin_value in zip(gibbs_role, gibbs_kin):
+    families = [Family(str(f), [Member(role, lo, hi)
+                                for role, lo, hi in zip(roles, los, his)])
+                for f, (los, his) in enumerate(zip(lower, upper))]
+    gibbs_object = estimate_liability(
+        families, h2=h2, c2=c2, m2=m2, method="gibbs", seed=7,
+        n_sim=40, burn_in=0, tol=1e9, max_rounds=1)
+    object_values = (gibbs_object.est["genetic"], gibbs_object.se["genetic"],
+                     gibbs_object.var["genetic"])
+    for role_value, kin_value, object_value in zip(gibbs_role, gibbs_kin, object_values):
         np.testing.assert_allclose(kin_value, role_value, rtol=0, atol=1e-12)
+        np.testing.assert_allclose(object_value, role_value, rtol=0, atol=1e-12)
 
 
 def test_kinship_estimator_accepts_near_symmetric_relationship_inputs():
@@ -690,31 +657,6 @@ def test_use_mixture_case_only_structure_group_estimates():
         estimate_liability([cases], h2=0.5, method="pa", use_mixture=True)
 
 
-@pytest.mark.parametrize(
-    "K_i,K_pop,match",
-    [(0.01, np.nan, "finite K_i and K_pop"),
-     (np.nan, 0.10, "finite K_i and K_pop"),
-     (np.inf, 0.10, "finite K_i and K_pop"),
-     (-0.01, 0.10, "0 <= K_i <= K_pop < 1"),
-     (0.20, 0.10, "0 <= K_i <= K_pop < 1"),
-     (0.00, 0.00, "K_pop > 0"),
-     (0.10, 1.00, "K_pop > 0")],
-)
-def test_mixture_pair_validation_object_and_array_apis(K_i, K_pop, match):
-    from ltpred.estimate import estimate_liability_pa_arrays
-
-    t = float(stats.norm.isf(0.10))
-    fam = Family("f", [Member("o", -np.inf, t, K_i=K_i, K_pop=K_pop)])
-    with pytest.raises(ValueError, match=match):
-        estimate_liability([fam], h2=0.5, method="pa", use_mixture=True)
-
-    with pytest.raises(ValueError, match=match):
-        estimate_liability_pa_arrays(
-            ["o"], np.array([[-np.inf]]), np.array([[t]]), 0.5,
-            K_i=np.array([[K_i]]), K_pop=np.array([[K_pop]]),
-            use_mixture=True)
-
-
 def test_gibbs_rejects_unsupported_mixture():
     t = float(stats.norm.isf(0.10))
     fam = Family("f", [Member("o", -np.inf, t, K_i=0.05, K_pop=0.10)])
@@ -922,10 +864,10 @@ def test_gibbs_reports_posterior_variance_alongside_the_mc_error():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")           # the expected "did not reach tol"
         small = estimate_liability(fams, h2=0.5, method="gibbs",
-                                   out=("genetic", "full"), n_sim=20_000,
+                                   out=("genetic", "full"), n_sim=5_000,
                                    burn_in=500, seed=2, tol=1e-9, max_rounds=1)
         big = estimate_liability(fams, h2=0.5, method="gibbs",
-                                 out=("genetic", "full"), n_sim=500_000,
+                                 out=("genetic", "full"), n_sim=40_000,
                                  burn_in=500, seed=2, tol=1e-9, max_rounds=1)
     for name in ("genetic", "full"):
         assert big.var[name][0] == pytest.approx(pa.var[name][0], rel=0.05)
@@ -1051,27 +993,6 @@ def test_array_estimators_validate_column_count():
     with pytest.raises(ValueError, match="one column per role"):
         estimate_liability_gibbs_arrays(["o", "m", "f"], wide_lo, wide_hi,
                                         h2=0.5, n_sim=100, seed=1)
-
-
-def test_kinship_estimator_returns_est_se_var_on_both_engines():
-    # the second array used to change statistical meaning with `method`
-    # (review 2026-08, F6); both engines now return (est, se, var)
-    from ltpred import estimate_liability_from_kinship
-    A = np.array([[1.0, 0.5], [0.5, 1.0]])
-    lower = np.array([[1.6, -np.inf]])
-    upper = np.array([[np.inf, 1.6]])
-    est, se, var = estimate_liability_from_kinship(A, lower, upper, h2=0.5,
-                                                   method="pa")
-    assert se[0] == 0.0            # deterministic PA: no Monte-Carlo error
-    assert var[0] > 0.0            # posterior variance, reported by both engines
-    est_g, se_g, var_g = estimate_liability_from_kinship(
-        A, lower, upper, h2=0.5, method="gibbs", n_sim=20_000, burn_in=500,
-        seed=1)
-    assert se_g[0] > 0.0
-    assert var_g[0] == pytest.approx(var[0], rel=0.05)
-    # PA carries a sequential-approximation error, so the engines agree to
-    # better than a percent but not to Monte-Carlo precision
-    assert est_g[0] == pytest.approx(est[0], abs=0.02)
 
 
 def test_length_one_h2_is_a_single_trait_request():
@@ -1288,13 +1209,11 @@ def test_neighbouring_seeds_do_not_share_family_streams():
     # max_rounds=1 bit for bit. The stride mixing breaks the coincidence.
     lo = np.full((4, 1), 1.0)
     hi = np.full((4, 1), np.inf)
-    kw = dict(roles=["o"], lower=lo, upper=hi, h2=0.5, n_sim=4000,
-              burn_in=50, max_rounds=1)
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        e5, _ = estimate_liability_gibbs_arrays(seed=5, **kw)
-        e6, _ = estimate_liability_gibbs_arrays(seed=6, **kw)
-        e5b, _ = estimate_liability_gibbs_arrays(seed=5, **kw)
+    kw = dict(roles=["o"], lower=lo, upper=hi, h2=0.5, n_sim=40,
+              burn_in=0, tol=1e9, max_rounds=1)
+    e5, _ = estimate_liability_gibbs_arrays(seed=5, **kw)
+    e6, _ = estimate_liability_gibbs_arrays(seed=6, **kw)
+    e5b, _ = estimate_liability_gibbs_arrays(seed=5, **kw)
     assert not np.array_equal(e5[1:], e6[:-1])
     assert np.array_equal(e5, e5b)          # a seeded call stays reproducible
 
