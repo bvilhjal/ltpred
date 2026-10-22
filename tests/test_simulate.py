@@ -378,8 +378,13 @@ def test_register_draws_are_frozen_across_the_phensim_move():
     sim = simulate_register_liabilities(
         np.random.default_rng(11), *ped, h2=0.5, cip_ages=_CIP_AGES,
         cip_values=_CIP_VALUES, eval_age=70.0, method="mendelian")
-    digest = hashlib.sha256(sim.genetic.tobytes() + sim.onset.tobytes()).hexdigest()
-    assert digest[:16] == "d3cb80de0578bded"
+    # genetic is exact IEEE arithmetic on the RNG stream, so its bytes are
+    # portable. onset goes through SciPy's ndtr, whose last bits differ by
+    # platform and SciPy build, so hash it at 1e-6 years: an RNG-order or
+    # visiting-order change moves onsets by years, not ulps.
+    onset = np.where(np.isfinite(sim.onset), np.round(sim.onset, 6), -1.0)
+    digest = hashlib.sha256(sim.genetic.tobytes() + onset.tobytes()).hexdigest()
+    assert digest[:16] == "0572ce1d57f42ca9"
 
 
 def test_pedigree_birth_times_put_coparents_together_and_children_later():
