@@ -15,9 +15,9 @@ env:
   OMP_NUM_THREADS: 1
   MKL_NUM_THREADS: 1
   # phensim (the [sim] extra) draws register pedigrees and Mendelian genetic
-  # values. It is a public GitHub repository, not on PyPI, so every job that
-  # runs ltpred's code installs this exact revision.
-  PHENSIM: "phensim @ git+https://github.com/bvilhjal/phensim.git@04d7c2479d8071e57510138784e6be73e36118de"
+  # values. It is on PyPI since 1.0.0, but pinned to this exact revision so
+  # every job that runs ltpred's code installs the same simulator.
+  PHENSIM: "phensim @ git+https://github.com/bvilhjal/phensim.git@c98aa2b386610e50c7092d1cc7f5b1e17b805f18"
   # The kernel-exercising files that the two pure-Python-fallback jobs run.
   KERNEL_TESTS: >-
     tests/test_mathfun.py tests/test_thresholds.py tests/test_covariance.py
