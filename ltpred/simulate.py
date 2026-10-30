@@ -472,9 +472,8 @@ def _phensim():
         import phensim
     except ImportError as exc:
         raise ImportError(
-            "simulate_pedigree and method='mendelian' need phensim, which is on "
-            "GitHub, not PyPI: pip install "
-            "\"phensim @ git+https://github.com/bvilhjal/phensim.git\"") from exc
+            "simulate_pedigree and method='mendelian' need phensim "
+            '(the [sim] extra): pip install -e ".[fast,sim]"') from exc
     return phensim
 
 

@@ -39,10 +39,10 @@ Issues = "https://github.com/bvilhjal/ltpred/issues"
 
 [project.optional-dependencies]
 fast = ["numba>=0.59"]          # JIT-compiled truncated-MVN Gibbs sweep (recommended)
-# phensim (numpy-only) draws register pedigrees and Mendelian genetic values
-# (simulate_pedigree, simulate_register_liabilities(method="mendelian")). It is
-# a public GitHub repository, not on PyPI, so install it from there:
-#   pip install "phensim @ git+https://github.com/bvilhjal/phensim.git" -e ".[fast]"
+# phensim (numpy-only, on PyPI) draws register pedigrees and Mendelian genetic
+# values (simulate_pedigree, simulate_register_liabilities(method="mendelian")):
+#   pip install -e ".[fast,sim]"
+# Register-example reproducibility uses the PHENSIM pin in ci.yml.
 sim = ["phensim>=1.0.0.dev6"]
 test = ["pytest>=7"]
 lint = ["ruff>=0.5"]            # pyflakes-style lint gate (see [tool.ruff])

@@ -1544,11 +1544,10 @@ pedigrees, ~0.30 ms on the three-generation pedigrees of the §F workload).
 The array path is memory-bandwidth-bound. These are ltpred-vs-ltpred numbers;
 the cross-package fold-times live in §30/§34 on their 200-family workloads.
 
-A construction note for reruns: `simulate_pedigree`'s multi-generation mating
-loop is quadratic in the pool (an `ids.index` call inside the loop), which
-dominates beyond a few hundred thousand residents; this benchmark builds its
-trio registers vectorised instead (review 2026-09f F10 records the simulator
-bottleneck).
+A construction note for reruns: this campaign builds its trio registers with
+the vectorised constructor, not `simulate_pedigree`. The quadratic mating loop
+it was avoiding (`ids.index` per candidate pair) was replaced in 0.7.5 by an
+id→row index; pedigrees stayed bit-identical (CHANGELOG; review ledger N7).
 
 ## Historical report changes
 

@@ -41,6 +41,7 @@ exclude_docs: |
   REVIEWS.md
   ROADMAP.md
   RELEASING.md
+  reviews/
 not_in_nav: |
   guide.md
   vignette.md

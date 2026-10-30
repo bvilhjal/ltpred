@@ -207,9 +207,11 @@ jobs:
         run: pip install -e ".[docs]" "pypdf>=4"
       - name: Check benchmark claims and tracked report
         run: python scripts/check_evidence.py
-      # `--strict` leaves link/anchor resolution at INFO, so it exits 0 on a
-      # broken cross-reference. This also catches an unmatched code fence, which
-      # silently renders following prose -- headings included -- as a code block.
+      # `--strict` aborts when the build logs a warning. That includes an
+      # unmatched code fence (the following prose, headings included, renders
+      # as a code block) and a broken relative link or anchor
+      # (`links.not_found` defaults to warn; `links.anchors` is warn). A page
+      # left out of the nav is an info log and does not fail the job.
       - name: Build and check documentation (strict)
         run: mkdocs build --strict
       # The site was previously published by hand and went stale at v0.1.0

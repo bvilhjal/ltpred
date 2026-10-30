@@ -37,7 +37,7 @@ and onset-age-decay fitting, and factor models remain under `research/`
 | 3 | A single giant pedigree | Sparse relationship operators and solves for pedigrees with thousands of informative relatives; selected-pair recursion does not remove the dense matrix for one large family. |
 | 4 | Relatives'-events contrast | RESULTS §§20–21 leave it unresolved at R = 5; rerun at larger R before quoting a payoff. |
 | 5 | Real-LD workflow | Extend the opt-in HAPNEST path to a genotype → liability → LMM example with held-out calibration and null-marker diagnostics. |
-| 6 | PyPI release | Register the trusted publisher, create a GitHub Release and verify the uploaded wheel and sdist ([RELEASING.md](RELEASING.md)). Tag `v0.7.4` first (review N3). |
+| 6 | PyPI release | Register the trusted publisher, create a GitHub Release and verify the uploaded wheel and sdist ([RELEASING.md](RELEASING.md)). |
 | 7 | Multi-trait PA | Promote only if a benchmark shows adequate accuracy for rare traits, asymmetric truncation and larger pedigrees; otherwise Gibbs stays the multi-trait engine. |
 
 **Table 2. Open review findings** (details and locations in the
@@ -52,6 +52,7 @@ and onset-age-decay fitting, and factor models remain under `research/`
 | 09e T2-4 | `bootstrap_fit` is serial | Parallelise replicates after confirming bit-identity on a quiet machine. |
 | 09e T3-4 | Probe capsules lack machine-readable thread variables and load | Record `thread_variables` and `load_average` in future capsules. |
 | 09d §7 | Unverified boundary-test failure on NumPy 1.26 + Numba | Re-run on that stack; pin the warning path or add a CI leg. |
+| 09f | Residuals of F1–F5, F7–F10 and benchmark plan B1–B8 | See the review ledger §1. The landed halves are 0.7.5. |
 
 ## 3. Deliberate boundaries
 

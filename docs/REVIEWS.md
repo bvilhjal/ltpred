@@ -1,14 +1,17 @@
 # Review ledger
 
-Six independent, read-only reviews audited ltpred from v0.3.4 to v0.7.3
+Seven independent, read-only reviews audited ltpred from v0.3.4 to v0.7.4
 (Table 1). This ledger lists each numbered finding and what became of it. It
-drops the reviews' narrative. The full texts are in git history:
+drops the reviews' narrative. The texts of reviews 08–09e are in git history:
 `git show dc5336c:docs/reviews/REVIEW_2026-09e.md` (likewise `-08`, `-09`,
-`-09b`, `-09c`, `-09d`). Statuses were checked on 2026-09-27 against the code,
-docs, tests and `git show dc5336c:CHANGELOG.md`; "Unreleased" marks items
-closed by the cleanup that created this ledger.
+`-09b`, `-09c`, `-09d`). Review 09f is tracked at
+`docs/reviews/REVIEW_2026-09f.md` and excluded from the published site.
+Statuses of 08–09e were checked on 2026-09-27 against the code, docs, tests
+and `git show dc5336c:CHANGELOG.md`. Line references in this file were
+re-anchored on 2026-10-30, which is also when 09f was indexed. Items the
+2026-09-27 pass left as "Unreleased" shipped in 0.7.5.
 
-*Table 1. The six reviews.*
+*Table 1. The seven reviews.*
 
 | Review | Date | Version reviewed (commit) | Focus | Findings | Added in |
 |---|---|---|---|---|---|
@@ -18,26 +21,28 @@ closed by the cleanup that created this ledger.
 | 09c | 2026-09-10 | v0.6.2 (`e9bfa66`) | 0.6.0 inference delta: quadrature, pairwise, selected kinship, PA pins | 4 | `64ed4c4` |
 | 09d | 2026-09-21 | v0.7.0 (`2722a59`) | Documentation, onboarding, simulated data | 10 | `47cf4de` |
 | 09e | 2026-09-25 | v0.7.3 (`6686541`) | Computational efficiency, benchmark provenance | 32 | `21b2361`–`0db95ea` |
+| 09f | 2026-09-28 | v0.7.4 (`5b33429`) | Efficiency and benchmark design (F1–F11; plan B1–B8) | 11 | `docs/reviews/REVIEW_2026-09f.md` |
 
 Severity is each review's own tier. **T1** means correctness, or a false
 published statement. **T2** means robustness, provenance or drift. **T3** means
 polish. Review 08 numbers its findings F1–F37 on the same tiers: F1–F2 are T1,
 F3–F16 are T2 and F17–F37 are T3.
 
-*Table 2. Status counts (94 numbered findings).*
+*Table 2. Status counts (105 numbered findings). Plan items B1–B8 are indexed in §1 and §3 and are not in this count.*
 
-| Status | 08 | 09 | 09b | 09c | 09d | 09e | All |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| FIXED | 35 | 4 | 4 | 3 | 9 | 18 | 73 |
-| PARTLY FIXED (open residual in §1) | — | — | — | — | — | 4 | 4 |
-| OPEN | — | — | — | — | — | 2 | 2 |
-| DECLINED / by design (§2) | 1 | 3 | — | — | — | 8 | 12 |
-| SUPERSEDED / WITHDRAWN | 1 | — | — | 1 | 1 | — | 3 |
+| Status | 08 | 09 | 09b | 09c | 09d | 09e | 09f | All |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| FIXED | 35 | 4 | 4 | 3 | 9 | 18 | 1 | 74 |
+| PARTLY FIXED (open residual in §1) | — | — | — | — | — | 4 | 5 | 9 |
+| OPEN | — | — | — | — | — | 2 | 4 | 6 |
+| DECLINED / by design (§2) | 1 | 3 | — | — | — | 8 | 1 | 13 |
+| SUPERSEDED / WITHDRAWN | 1 | — | — | 1 | 1 | — | — | 3 |
 
-Checking the statuses found four further gaps (N1–N3, F2′); N1, N2 and F2′
-were closed at once, and N3 and one UNVERIFIED item remain in §1. The
-algorithm-documentation pass that followed (docstrings verified against the
-code) added N4–N6.
+Checking the statuses found four further gaps (N1–N3, F2′). N1, N2 and F2′
+were closed at once. N3, the missing v0.7.4 tag, is on origin at `dc5336c`.
+One UNVERIFIED item remains in §1. The algorithm-documentation pass that
+followed (docstrings verified against the code) added N4–N6. N1, N2, F2′ and
+N4–N7 are in the 0.7.5 changelog. N3 closed when `v0.7.4` was tagged.
 
 ## 1. Open findings
 
@@ -48,13 +53,29 @@ feeds `docs/ROADMAP.md`.
 
 | ID | Review | Finding | Sev | Where | Next step |
 |---|---|---|---|---|---|
-| T1-4 (residual) | 09e | The PA object path still walks every member three times. `83dfd3a` fused only `_stack_object_members`. `_check_unique_roles` and `_group_by_structure` still run as separate passes. | T1 | `ltpred/estimate.py:561/575/581`, `618/648/653`, `674/684/686`, `722/738` | Fuse the other two walks. Let the mixture path fall through unchanged, and keep the bit-identity test. |
-| T2-10 step 4 | 09e | The repair gate still runs for every proband. It could be skipped where `_covariance_reduction_is_safe` proves it a no-op. That bound is proved only for the full pedigree covariance, not for the g-prepended (n+1)×(n+1) matrix. The interlacing argument is not written down. | T2 | `ltpred/_selected_kinship.py:106`, `ltpred/pipeline.py:457` | Write the proof in the methods report, then land the change with a bit-identity test. |
+| T1-4 (residual) | 09e | The PA object path still walks every member three times. `83dfd3a` fused only `_stack_object_members`. `_check_unique_roles` and `_group_by_structure` still run as separate passes. | T1 | `ltpred/estimate.py` `_check_unique_roles` (451; calls 634/691/747/795), `_group_by_structure` (558; calls 648/721/757/811), `_stack_object_members` (992; calls 654/726/759) | Fuse the other two walks. Let the mixture path fall through unchanged, and keep the bit-identity test. |
+| T2-10 step 4 | 09e | The repair gate still runs for every proband. It could be skipped where `_covariance_reduction_is_safe` proves it a no-op. That bound is proved only for the full pedigree covariance, not for the g-prepended (n+1)×(n+1) matrix. The interlacing argument is not written down. | T2 | `ltpred/_selected_kinship.py:139`, `ltpred/pipeline.py:487` | Write the proof in the methods report, then land the change with a bit-identity test. |
 | T2-3 (residual) | 09e | No driver capsule (`bench_time_memory.py`) spans v0.7.1 → v0.7.4, so the v0.7.2–v0.7.4 performance changes have no end-to-end time/memory measurement. | T2 | `benchmarks/README.md` | Run one `bench_time_memory.py` capsule from v0.7.1 to the current release (the driver writes its own capsule; it does not use `run_benchmark.py`). |
-| T2-2 (residual) | 09e | `check_capsule_integrity` checks only capsules that contain a `results.json`. That is 3 of the 6 under `benchmarks/results/`. The 2026-09-24 v0.7.3 capsule and both 2026-09-16 capsules are never checked. A capsule without `thread_variables` passes silently (`if threads:`), and lean-v072 is one such capsule. | T2 | `scripts/check_evidence.py:131-156` (`:149`) | Check each capsule's own schema. Fail when thread provenance is missing. |
-| T2-4 | 09e | `bootstrap_fit` runs strictly serially, although its replicates are independent. A probe measured 3.9× at 10 threads with max\|diff\| 0, under contention. | T2 | `ltpred/fit.py:993` | Parallelise, after re-establishing bit-identity on a quiet machine. |
+| T2-2 (residual) | 09e | `check_capsule_integrity` checks only capsules that contain a `results.json`. That is 3 of the 6 under `benchmarks/results/`. The 2026-09-24 v0.7.3 capsule and both 2026-09-16 capsules are never checked. A capsule without `thread_variables` passes silently (`if threads:`), and lean-v072 is one such capsule. | T2 | `scripts/check_evidence.py:131-158` (`if threads:` at 149) | Check each capsule's own schema. Fail when thread provenance is missing. |
+| T2-4 | 09e | `bootstrap_fit` runs strictly serially, although its replicates are independent. A probe measured 3.9× at 10 threads with max\|diff\| 0, under contention. | T2 | `ltpred/fit.py:950` | Parallelise, after re-establishing bit-identity on a quiet machine. |
 | T3-4 | 09e | The v0.7.3 capsule JSONs record `threads: 1` but not the BLAS/OMP/MKL variables or a load average. Its README states them in prose only. | T3 | `benchmarks/results/2026-09-24-review/*.json` | Add machine-readable `thread_variables` and a `load_average` field to future probe capsules. |
-| N3 | new | v0.7.4 is released (`__version__`, CHANGELOG 2026-09-25) but untagged: 09e T3-5 again. | T3 | git tags; `docs/RELEASING.md:64` | Tag `v0.7.4` at the release commit and push the tag. |
+| F1 (residual) | 09f | Pid normalization is cached on the member (0.7.5). `_stack_object_members` still rebuilds the row arrays on every call. | T2 | `ltpred/family.py` `_member_pid_key`; `ltpred/estimate.py` `_stack_object_members` | Vectorize the stacking, and keep the bit-identity test. |
+| F2 (residual) | 09f | PA groups under 128 families use the serial kernel (0.7.5). Pin conditioning is still recomputed per chunk. | T2 | `ltpred/pearson_aitken.py` `_PARALLEL_MIN_FAMILIES` | Share pin reductions across chunks of one call. |
+| F3 (residual) | 09f | The register loop reuses `Pedigree.member_index` (0.7.5) and still scores one proband per call. | T2 | `ltpred/pipeline.py` | Batch probands that share a structure and an observation mask. |
+| F4 (residual) | 09f | Gibbs collapse invariants are computed once per group (0.7.5). `_validate_covmat` still factors with `eigvalsh` on every `gibbs_params` call. | T2 | `ltpred/gibbs.py` `_validate_covmat` | A Cholesky PD test, only if the error text stays the same. |
+| F5 | 09f | Two `out` targets call `pa_estimate_batched` once each. | T2 | `ltpred/estimate.py` `_pa_from_role_arrays` | One fold that returns both targets, checked against both current orderings. |
+| F7 | 09f | `_prepare_pairs` still scans each family's members in Python. | T2 | `ltpred/pairwise.py` `_prepare_pairs` | The same ingestion treatment as F1. |
+| F8 | 09f | Each tetrachoric evaluation calls `scipy.stats.multivariate_normal.cdf`. | T2 | `ltpred/tetrachoric.py` | The pairwise Plackett quadrature, gated by the existing `polycor` lock. |
+| F9 | 09f | `_estimate_group` updates its accumulators in Python once per round. | T3 | `ltpred/estimate.py` `_estimate_group` | Leave it until a profile shows it. |
+| F10 (residual) | 09f | Kinship subsetting still builds index arrays with `np.ix_`. The mating-loop half is N7, released in 0.7.5. | T3 | `ltpred/covariance.py` kinship extraction, and the other `np.ix_` sites | No change unless a profile shows it. |
+| B1 (residual) | 09f | Personalised Gibbs and the censoring mixture are locked in RESULTS §34 (0.7.5, `d0e5102`). ADuLT and the Broad LT-FH scripts are not. | T2 | `benchmarks/RESULTS.md` §34 | Add those two arms. |
+| B2 (residual) | 09f | §36 records register and array-PA throughput. It is not the workload matrix, and it does not time LTFHPlus at 350 000. | T2 | `benchmarks/RESULTS.md` §36 | Those cells, on a quiet host. |
+| B3 | 09f | No comparison with PCGC, GREML, OpenMx or MCMCglmm. | T2 | `benchmarks/` | An external column on the existing fitter cohorts. |
+| B4 | 09f | The suite does not report Z-based effective N, a locus count with a jackknife SE, Lee R² with a jackknife SE, or an S-LDSC attenuation ratio. | T2 | `benchmarks/RESULTS.md` | Add them beside the NCP ratio. The locus count needs B7. |
+| B5 (residual) | 09f | Quadrature has RESULTS §35 (0.7.5). Multi-trait scoring still has no accuracy benchmark. | T2 | `docs/ROADMAP.md` priority 7 | That benchmark, before promoting multi-trait PA. |
+| B6 | 09f | No FamEvent triangulation. | T3 | `benchmarks/` | An independent ascertained age-at-onset draw. |
+| B7 | 09f | The HAPNEST real-LD arm has no artifact. | T2 | RESULTS limitations | One committed run. |
+| B8 | 09f | The missing driver capsule is 09e T2-3. The case list still has no Gibbs, quadrature, fitter, or large-register case. | T2 | `benchmarks/bench_time_memory.py` | See T2-3, then extend the case list. |
 | 09d §7 | 09d | **UNVERIFIED.** At `2722a59`, `test_pairwise_multi.py::test_boundary_withholds_uncertainty_and_zero_variance_correlations` failed under CPython 3.10 / NumPy 1.26 / Numba 0.66 ("Emitted warnings: []"). It passes under 3.14/NumPy 2.4 (09e) and under 3.11/NumPy 2.4 (2026-09-27). No CI job runs NumPy 1.26 with Numba. | T2 | `tests/test_pairwise_multi.py` | Re-run on that stack. If it still fails, pin the warning path or add a CI leg. |
 
 ## 2. Declined, by design, or deliberate boundaries
@@ -64,9 +85,9 @@ feeds `docs/ROADMAP.md`.
 | ID | Review | Finding | Decision, and where it is recorded |
 |---|---|---|---|
 | F9 | 08 | Four CSVs had no manifest row, and schema-2 source states were unrecoverable. | A disclosed limit in the `benchmarks/RESULTS.md` preamble and its remaining limitations. The register and pedigree CSVs were rerun under the wrapper (`8219ce7`). `bench_pgs_comparison.csv` and `bench_ascertainment_h2null.csv` still have no manifest row. The h2null CSV was reproduced to 1.5e-14 (RESULTS §29). |
-| T3-3 | 09 | Seeding `rtmvnorm_gibbs` mutates the global NumPy RNG. | Documented at `ltpred/gibbs.py:721`. The high-level estimators seed per family. |
-| T3-4 | 09 | Per-family seed blocks wrap mod 2³², so streams can collide beyond about 43M families per call. | Documented at `ltpred/estimate.py:538-541`. |
-| T3-7 | 09 | The collapsed-kernel Gibbs MC SE is about 10× below `batch_means` on raw draws. | By design: the kernel streams E[g\|y], which is Rao–Blackwellised. See methods report step G2 and `ltpred/gibbs.py:452-459`. |
+| T3-3 | 09 | Seeding `rtmvnorm_gibbs` mutates the global NumPy RNG. | Documented at `ltpred/gibbs.py:923-927`. The high-level estimators seed per family. |
+| T3-4 | 09 | Per-family seed blocks wrap mod 2³², so streams can collide beyond about 43M families per call. | Documented at `ltpred/estimate.py:599-601`. |
+| T3-7 | 09 | The collapsed-kernel Gibbs MC SE is about 10× below `batch_means` on raw draws. | By design: the kernel streams E[g\|y], which is Rao–Blackwellised. See methods report step G2 and `ltpred/gibbs.py:525-536`. |
 | T3-2 (rest) | 09c | The docs should call quadrature a cross-check, not a cohort workhorse. | The measured part was fixed. The positioning was left to the maintainer. `docs/estimation.md:321` already says "numerical posterior cross-check". |
 | T2-4 (rest) | 09d | De-duplicate the 28 "own status" restatements. | Declined by the review's own correction: only 6 are enumerations, and about 22 are distinct warnings. The fix was a separate tutorial page. |
 | T3-6 | 09e | Reuse the invariant eigenbasis in `gibbs_params`. | Declined. The stage is 1.17% of an iteration, and the change is not bit-reproducible. |
@@ -75,10 +96,11 @@ feeds `docs/ROADMAP.md`.
 | T3-9 | 09e | Deduplicate PA bound rows, as was done for quadrature. | **Do not implement.** It is 9.9–15.8% slower, because `np.unique(axis=0)` costs more than the kernel it saves. |
 | T3-10 | 09e | Vectorise the per-family Gibbs convergence loop. | Declined. The saving is noise at the defaults and pays off only beyond about 50 sweeps. |
 | T3-11 | 09e | Allocation pressure. | Not a defect: 277 B/family for PA and 561 B/family for Gibbs. |
-| T3-14 | 09e | Construct `_SelectedKinship` lazily. | Declined in `151898b`. The eager topological rank is the driver's whole-graph cycle check (`ltpred/pipeline.py:333-335`). |
+| T3-14 | 09e | Construct `_SelectedKinship` lazily. | Declined in `151898b`. The eager topological rank is the driver's whole-graph cycle check (`ltpred/pipeline.py:361-363`). |
+| F11 | 09f | The Gibbs sweep and the PA fold are already the right shapes. | Do not micro-optimize them. Keep the pure-Python fallback, per-family reseeding, chunk bit-identity, and the time/memory output gate. |
 | T3-15 | 09e | Compact the kinship cache into an array store. | Declined. Real occupancy is 0.7–4.5 MiB, and the default cap is within 1.16× of optimal. |
 | — | 09e §6 | Exploit Kronecker structure in the multi-trait covariance. | Unavailable: no Kronecker matrix is ever built at scale. |
-| — | 09e §6 | `simulate_register_liabilities(method="dense")` is quadratic-to-cubic in memory. | Covered qualitatively at `docs/estimation.md:577-582`, which recommends `mendelian` for large registers. The review measured 1.5 GB against 15 MB at n≈9,100. |
+| — | 09e §6 | `simulate_register_liabilities(method="dense")` is quadratic-to-cubic in memory. | Covered qualitatively at `docs/estimation.md:581-586`, which recommends `mendelian` for large registers. The review measured 1.5 GB against 15 MB at n≈9,100. |
 
 ## 3. Resolved findings
 
@@ -163,8 +185,8 @@ feeds `docs/ROADMAP.md`.
 | T2-3 | `registry_pipeline.py` never called the register driver | SUPERSEDED: renamed, then removed in 0.7.1 |
 | T2-4 | Docs written as contract; tutorial too small | 0.7.1 (tutorial page; de-duplication declined, §2) |
 | T3-1 | Examples read case status off bound finiteness | 0.7.1 |
-| T3-2 | OMP deprecation notice on first run | 0.7.1 (`docs/quickstart.md:40`) |
-| T3-3 | `age_thresholds` downgraded only on later pages | 0.7.1 (admonition, `quickstart.md:76`) |
+| T3-2 | OMP deprecation notice on first run | 0.7.1 (`docs/quickstart.md`, the Numba stderr note) |
+| T3-3 | `age_thresholds` downgraded only on later pages | 0.7.1 (admonition, `quickstart.md`, "demonstration, not the production path") |
 | T3-4 | Nine exported names absent from docs | 0.7.3 (`docs/api.md`) |
 
 **09e (v0.7.3).** Fixed in 0.7.4 (`151898b`, `83dfd3a`, `0050113`, `573d0cf`). All
@@ -182,16 +204,16 @@ outputs are bit-identical. Partial fixes have their residuals in §1.
 | T2-5 | `fit_pairwise_multi` ran the pid pass twice | 0.7.4 |
 | T2-6 | Three O(members×traits) scans of the same bounds | 0.7.4 |
 | T2-7 | `_probability_limits` bisection repaid per bootstrap fit | 0.7.4 (memoised) |
-| T2-8 | No cost signal between sampling and deterministic fitters | 0.7.4; lost in `dc5336c`, restored in `docs/inference.md` (Unreleased) |
+| T2-8 | No cost signal between sampling and deterministic fitters | 0.7.4; lost in `dc5336c`, restored in `docs/inference.md` (0.7.5) |
 | T2-9 | Single-family PA paid 28–67 µs of fixed dispatch | 0.7.4 |
 | T2-10 | Three `eigvalsh` per register proband | 0.7.4, steps 1–3 (now one); step 4 in §1 |
 | T2-11 | Dense/selected rule linear in m; crossover is quadratic | 0.7.4 (`0.03·m²`) |
 | T2-12 | `_parent_links` round trip from index to id to index | 0.7.4 (`_kinship_A`) |
 | T2-13 | `construct_covmat_multi` filled entry by entry | 0.7.4 |
-| T3-1 | v0.7.1 headline multipliers (25×, 4×, 4×) had no artifact | Unreleased (restated qualitatively) |
-| T3-2 | External 2026-09-05 efficiency review orphaned | 0.7.4 (`benchmarks/README.md:94-97`) |
+| T3-1 | v0.7.1 headline multipliers (25×, 4×, 4×) had no artifact | 0.7.5 (restated qualitatively) |
+| T3-2 | External 2026-09-05 efficiency review orphaned | 0.7.4 (`benchmarks/README.md:69-71`) |
 | T3-3 | `bench_tetrachoric.py` printed "the same families" | 0.7.4 |
-| T3-5 | v0.7.0 and v0.7.3 untagged | `573d0cf` (tags on remote; v0.7.4 is N3) |
+| T3-5 | v0.7.0 and v0.7.3 untagged | `573d0cf` (tags on remote; v0.7.4 is N3, tag on origin) |
 | T3-12 | `kinship_cache_size=0` unguarded and 6,000× slower | 0.7.4 (warns) |
 | T3-13 | `gibbs_chunked` built an O(F) seed array | 0.7.4 |
 
@@ -199,13 +221,28 @@ outputs are bit-identical. Partial fixes have their residuals in §1.
 
 | ID | Finding | Version |
 |---|---|---|
-| N1 | 0.7.4's "1.22×" PA object-path figure had no artifact | Unreleased (restated qualitatively) |
-| N2 | `docs/estimation.md` cited a `v0.4.0` tag that was never pushed | Unreleased (cites commit `1684fc5`; `check_evidence` pins the CSV by SHA-256) |
-| F2′ | No test showed that `cip_by_stratum` changes a register score | Unreleased (`test_stratified_cips_route_each_record_to_its_own_curve`) |
-| N4 | Chunked Gibbs was not seed-reproducible against the array API: the G2 collapse set was the coordinates unbounded in every family of a kernel call, so a family's draws depended on its batch | Unreleased (each family collapses its own unbounded set; chunked = array output bit for bit, `test_gibbs_family_result_does_not_depend_on_its_batch`) |
-| N5 | The mixture path folded pins without P2's compatibility checks: a duplicated compatible pin crashed with an opaque `SystemError` (division by zero in the parallel kernel) and incompatible pins did not raise `ValueError` | Unreleased (`_check_pin_support` plus a collapsed-variance guard; ordinary mixture outputs bit-identical; `test_mixture_path_applies_the_pin_checks_of_the_standard_path`) |
-| N6 | The methods report was imprecise on P1 (only the object API sorts roles), G1/G2 (P and sd are formed per kept block), G4 (the far-tail draw is a leading-order approximation), G6 (fresh chains each round; stop at `se ≤ tol`), Algorithm Q (16-node start, last-two-changes acceptance, mode-search stop rules) and the case-rate screen | Unreleased (report text corrected, PDF rebuilt) |
-| N7 | `simulate_pedigree`'s mating loop rescanned the id list per candidate mating — `ids.index` four times inside the loop, so quadratic in the pool and dominating register simulation past a few hundred thousand residents. Logged as "a new F10 item" in `docs/reviews/REVIEW_2026-09f.md` while building B2; that label collides with the two earlier F10 findings, so it is tracked here as N7 | Unreleased (an `index` dict makes the sibling check O(1). Seeded pedigrees bit-identical across 24 configurations and 317,068 people — ids, parent columns, birth times and both Mendelian outputs — and 4.9 s → 0.04 s at 45,048 people, so no committed register evidence moves) |
+| N1 | 0.7.4's "1.22×" PA object-path figure had no artifact | 0.7.5 (restated qualitatively) |
+| N2 | `docs/estimation.md` cited a `v0.4.0` tag that was never pushed | 0.7.5 (cites commit `1684fc5`; `check_evidence` pins the CSV by SHA-256) |
+| N3 | v0.7.4 released but untagged | 0.7.4 (tag `v0.7.4` at `dc5336c`, on origin) |
+| F2′ | No test showed that `cip_by_stratum` changes a register score | 0.7.5 (`test_stratified_cips_route_each_record_to_its_own_curve`) |
+| N4 | Chunked Gibbs was not seed-reproducible against the array API: the G2 collapse set was the coordinates unbounded in every family of a kernel call, so a family's draws depended on its batch | 0.7.5 (each family collapses its own unbounded set; chunked = array output bit for bit, `test_gibbs_family_result_does_not_depend_on_its_batch`) |
+| N5 | The mixture path folded pins without P2's compatibility checks: a duplicated compatible pin crashed with an opaque `SystemError` (division by zero in the parallel kernel) and incompatible pins did not raise `ValueError` | 0.7.5 (`_check_pin_support` plus a collapsed-variance guard; ordinary mixture outputs bit-identical; `test_mixture_path_applies_the_pin_checks_of_the_standard_path`) |
+| N6 | The methods report was imprecise on P1 (only the object API sorts roles), G1/G2 (P and sd are formed per kept block), G4 (the far-tail draw is a leading-order approximation), G6 (fresh chains each round; stop at `se ≤ tol`), Algorithm Q (16-node start, last-two-changes acceptance, mode-search stop rules) and the case-rate screen | 0.7.5 (report text corrected, PDF rebuilt) |
+| N7 | `simulate_pedigree`'s mating loop rescanned the id list per candidate mating — `ids.index` four times inside the loop, so quadratic in the pool and dominating register simulation past a few hundred thousand residents. Logged as "a new F10 item" in `docs/reviews/REVIEW_2026-09f.md` while building B2; that label collides with the two earlier F10 findings, so it is tracked here as N7 | 0.7.5 (an id→row index makes the sibling check O(1). Seeded pedigrees bit-identical across 24 configurations and 317,068 people — ids, parent columns, birth times and both Mendelian outputs — and 4.9 s → 0.04 s at 45,048 people, so no committed register evidence moves) |
+
+**09f (v0.7.4).** The postscript's landed halves, and the R lock it asked for, are in 0.7.5. Residuals stay in §1. Recommendations R1–R8 are the actions for F1–F10; they are not a second finding list.
+
+| ID | Finding | Version |
+|---|---|---|
+| F1 | Object API ingestion-bound | 0.7.5, **partly** (pid cache; §1) |
+| F2 | Per-chunk PA setup | 0.7.5, **partly** (serial kernel below 128 families; §1) |
+| F3 | Serial per-proband register loop | 0.7.5, **partly** (`Pedigree.member_index`; §1) |
+| F4 | Repeated factorizations in the Gibbs loop | 0.7.5, **partly** (collapse memo; §1) |
+| F6 | Mixture fold of absent rows | 0.7.5 |
+| F10 | Mating loop quadratic in the pool | 0.7.5 (N7). `np.ix_` churn remains (§1) |
+| B1 | Personalised LT-FH++ and censoring-mixture R lock | 0.7.5 (`d0e5102`, RESULTS §34), **partly** (§1) |
+| B2 | Population-scale throughput | 0.7.5 (RESULTS §36), **partly** (§1) |
+| B5 | Quadrature evidence | 0.7.5 (RESULTS §35), **partly** (§1) |
 
 ## 4. Durable lessons
 
