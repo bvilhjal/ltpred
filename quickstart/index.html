@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+        <meta name="description" content="LT-FH, LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python">
       
       
       
@@ -1028,7 +1028,7 @@ six-row example; the <a href="../tutorial/">tutorial</a> runs a simulated popula
 </tr>
 <tr>
 <td>III. Estimate model parameters</td>
-<td>A score is optional; fitting has its own sampling and identification requirements</td>
+<td>A score is optional; fitters need common case/control thresholds, a declared sampling design and identifying relationships</td>
 <td><a href="../inference/">Fit h²/covariances</a> or <a href="../cip-estimation/">estimate CIP</a></td>
 </tr>
 </tbody>
@@ -1036,7 +1036,7 @@ six-row example; the <a href="../tutorial/">tutorial</a> runs a simulated popula
 <p>For either scoring use, supply disease-specific liability-scale <code>h2</code> and population
 prevalence or cumulative incidence. With relatives, common lifetime bounds give
 LT-FH and personalised CIP bounds give LT-FH++; personalised proband-only bounds
-give ADuLT. <a href="../estimation/#choose-a-scoring-model">Scoring</a> covers engines and PA-FGRS.</p>
+give ADuLT (a GWAS phenotype only). <a href="../estimation/#choose-a-scoring-model">Scoring</a> covers engines and PA-FGRS.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <p>PyPI publication is pending. Until then, installation from a source checkout is
 the supported path:</p>
@@ -1072,17 +1072,15 @@ and for <a href="../data-preparation/#beyond-the-role-grammar-arbitrary-pedigree
 (<code>lower</code>, <code>upper</code>): a case is pinned at the threshold for their onset age, and a
 control lies below the threshold for their current age. Because relatives are
 included, this is a family-history (LT-FH++-style) analysis. <code>age_thresholds</code>
-uses one built-in logistic incidence curve (<code>mid_point=60</code>, <code>slope=1/8</code>) and is
-for demonstration only:</p>
+uses one built-in logistic incidence curve (<code>mid_point=60</code>, <code>slope=1/8</code>):</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">age_thresholds</span>
 <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span> <span class="o">=</span> <span class="n">age_thresholds</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">age</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>   <span class="c1"># pop_prev = lifetime prevalence</span>
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">This builder is a demonstration, not the production path</p>
-<p><code>age_thresholds</code> uses one built-in logistic incidence curve shared by every
-person, so it cannot represent the sex- and birth-cohort-specific risk that
-LT-FH++ is built around. It is here to make step 2 runnable on six typed
-rows. For <strong>real register data</strong>, use
+<p>One curve shared by every person cannot represent the sex- and
+birth-cohort-specific risk that LT-FH++ is built around. For <strong>real register
+data</strong>, use
 <a href="../data-preparation/#a-real-register-data-recipe"><code>thresholds_from_cip</code></a> with
 your population's estimated cumulative-incidence curve — see
 <a href="../cip-estimation/">CIP estimation</a> for how to get that curve, and the
@@ -1101,9 +1099,8 @@ section).</p>
 <span class="n">res</span> <span class="o">=</span> <span class="n">estimate_liability</span><span class="p">(</span><span class="n">families</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>        <span class="c1"># PA is the single-trait default</span>
 <span class="n">score</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">genetic</span>                                <span class="c1"># == res.est["genetic"]</span>
 </code></pre></div>
-<p>For full LT-FH++, replace the logistic helper with age-, birth-year- and
-sex-stratified empirical CIPs. To run ADuLT instead, build the same personalised
-bounds for role <code>o</code> only and omit every relative row.</p>
+<p>To run ADuLT instead, build the same personalised bounds for role <code>o</code> only and
+omit every relative row.</p>
 <p><code>h2</code> is the <strong>liability-scale</strong> heritability. Prefer an external estimate, or
 convert an observed-scale value — see
 <a href="../data-preparation/#getting-heritability-on-the-liability-scale">getting <code>h²</code></a>.
@@ -1124,8 +1121,7 @@ P2 0.462
 <p>For a GWAS, explicitly join <code>res.pids</code> to the genotyped proband IDs, residualize
 the phenotype for sex, cohort, ancestry PCs, batch and other design covariates,
 and validate calibration under the actual sampling design; see
-<a href="../estimation/#using-the-estimate-in-a-gwas">Using the estimate in a GWAS</a>.
-The score is not an absolute disease-risk probability.</p>
+<a href="../estimation/#using-the-estimate-in-a-gwas">Using the estimate in a GWAS</a>.</p>
 <h2 id="population-register-input">Population register input<a class="headerlink" href="#population-register-input" title="Permanent link">&para;</a></h2>
 <p>For an <code>ids</code>/<code>father</code>/<code>mother</code> table, use the supported <code>estimate_liabilities</code>
 driver instead of assigning role labels yourself. Supply aligned <code>status</code> and
@@ -1133,7 +1129,7 @@ driver instead of assigning role labels yourself. Supply aligned <code>status</c
 or <code>strata</code> with <code>cip_by_stratum={label: (ages, values, k_pop)}</code>.
 Choose <code>use="gwas"</code> to include own diagnosis; prospective <code>use="prediction"</code>
 also requires calendar <code>birth_time</code> and per-proband <code>index_time</code> so relatives'
-records are censored at that landmark. The <a href="../data-preparation/#beyond-the-role-grammar-arbitrary-pedigrees">register recipe</a>
+records are censored at that landmark. The <a href="../data-preparation/#beyond-the-role-grammar-arbitrary-pedigrees">register-driver example</a>
 shows a complete call. <code>result.to_dict()</code> exports aligned columns;
 <code>result.to_frame()</code> additionally requires pandas.</p>
 <h2 id="continue-with-your-data">Continue with your data<a class="headerlink" href="#continue-with-your-data" title="Permanent link">&para;</a></h2>

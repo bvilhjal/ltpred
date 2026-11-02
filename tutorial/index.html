@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+        <meta name="description" content="LT-FH, LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python">
       
       
       
@@ -958,10 +958,11 @@
 <h1 id="tutorial">Tutorial<a class="headerlink" href="#tutorial" title="Permanent link">&para;</a></h1>
 <p>Five questions on a simulated cohort whose genetic liability is known. Run
 the blocks in order: each one uses only names the earlier blocks defined.
-Copy the page into a script, or paste one block at a time.
+Copy the page into a script, or paste one block at a time. Step 1 needs the
+<code>[sim]</code> extra: <code>pip install -e ".[fast,sim]"</code>.
 <code>tests/test_tutorial.py</code> re-runs the blocks and checks the printouts.</p>
 <p>Steps 1–4 are one disease. Step 5 is two traits. The
-<a href="../estimation/#choose-a-scoring-model">scoring reference</a> is the decision table for a real table. Contracts
+<a href="../estimation/#choose-a-scoring-model">scoring reference</a> is the decision table for real data. Contracts
 this tutorial simplifies are at the end.</p>
 <p><strong>Table 1. The five steps and their numerical checks.</strong></p>
 <table>
@@ -1046,9 +1047,9 @@ later steps correlate against. The register columns are <code>status</code>, <co
 <p><strong>Question.</strong> When death competes with diagnosis, which estimator moves?</p>
 <p>These 50,000 records are a <strong>new</strong> sample, not the 984 people above. A CIP
 from 81 events is too noisy to teach the difference. <code>simulate_followup_records</code>
-draws from the same logistic curve so the estimate can be checked. The
-estimator reports 49,999 entered records: one simulated onset at age 0 has no
-follow-up and is dropped (<code>plain.n_dropped</code>).</p>
+draws from the same logistic curve so the estimate can be checked. 49,999
+records remain: the simulator drops one onset at age 0, which has no follow-up
+(<code>plain.n_dropped</code>).</p>
 <p>First, nobody dies:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">kaplan_meier_cip</span><span class="p">,</span> <span class="n">simulate_followup_records</span>
 
@@ -1123,15 +1124,13 @@ records with an unresolved parent = 0.0000
 <p><strong>Answer.</strong> The correlation, 0.55, is with the true genetic liability, which
 the scorer was not given. It is not a disease-risk correlation. Square the
 score standard deviation and add the mean posterior variance:
-0.390² + 0.356 = 0.508, the variance of <code>genetic</code> in step 1. The scores' own
-variance, 0.15, is the part the family data explain (0.15 / 0.51 ≈ 0.30 ≈
-0.55², the squared correlation); about 0.36 is still posterior uncertainty,
-so the score is not a measurement. <code>estimate_liabilities</code> walks relatives up
-to <code>max_degree=3</code> by default. The 984 scores are
-overlapping pedigrees, not 984 independent people. Unresolved parents are 0
-because every parent id was in the table. This step passes the generating
-net curve back in. A real analysis passes a stratified estimate
-(<code>strata</code>, <code>cip_by_stratum</code>).</p>
+0.390² + 0.356 = 0.508 ≈ h² = 0.5, the prior Var(g) (law of total variance).
+The scores' own variance, 0.15, is the part the family data explain
+(0.15 / 0.5 ≈ 0.30 ≈ 0.55², the squared correlation); about 0.36 is still
+posterior uncertainty, so the score is not a measurement.
+<code>estimate_liabilities</code> walks relatives up to <code>max_degree=3</code> by default. The
+984 scores are overlapping pedigrees, not 984 independent people. Unresolved
+parents are 0 because every parent id was in the table.</p>
 <h2 id="step-4-score-prospectively-without-the-probands-own-diagnosis">Step 4 — Score prospectively, without the proband's own diagnosis<a class="headerlink" href="#step-4-score-prospectively-without-the-probands-own-diagnosis" title="Permanent link">&para;</a></h2>
 <p><strong>Question.</strong> What does a score made at each proband's 40th birthday lose?</p>
 <p><code>use="prediction"</code> scores at an index time: it hides the proband's own
@@ -1159,14 +1158,14 @@ Those two arrays have different lengths.</p>
 corr(score, truth) = 0.3069   score sd = 0.2134
 proband states: ['disease_free_and_followed']
 </code></pre></div>
-<p><strong>Answer.</strong> The drop from 0.55 to 0.31 is still a correlation with genetic
-liability. Two kinds of information went: the proband's own diagnosis, and
+<p><strong>Answer.</strong> On these 974 probands <code>use="gwas"</code> gives 0.51, so the cut takes
+0.51 to 0.31. Two kinds of information went: the proband's own diagnosis, and
 the relatives' diagnoses after the index date, and on this cohort the second
-costs about as much as the first. It is not the accuracy of predicting who
-becomes a case after 40. Restricting <code>probands</code> to people
-undiagnosed at 40 is part of that question: scoring someone already diagnosed
-and calling it prospective is leakage, and the driver warns. <code>proband_state</code>
-is that check.</p>
+costs about as much as the first. The 0.31 is still a correlation with genetic
+liability, not the accuracy of predicting who becomes a case after 40.
+Restricting <code>probands</code> to people undiagnosed at 40 is part of that question:
+scoring someone already diagnosed and calling it prospective is leakage, and
+the driver warns. <code>proband_state</code> is that check.</p>
 <h2 id="step-5-two-traits-at-once">Step 5 — Two traits at once<a class="headerlink" href="#step-5-two-traits-at-once" title="Permanent link">&para;</a></h2>
 <p><strong>Question.</strong> On a second cohort, can one fit recover both heritabilities,
 the genetic correlation, and the residual correlation?</p>
@@ -1174,10 +1173,10 @@ the genetic correlation, and the residual correlation?</p>
 builds nuclear families with two binary traits. <code>fit_pairwise_multi</code> fits
 them together. The components are A (additive genetic), C (an environment
 shared by full siblings) and M (one shared by a couple); the simulator has
-both C and M, and leaving them out would push h² up. <code>sampling="population"</code>
-declares the families unselected (see <a href="../inference/">inference</a>). <code>re</code> is the
-correlation of the non-shared residuals. Read <code>inference_status</code> before
-reading a standard error.</p>
+both: leaving out C pushes h² up, and leaving out M biases <code>re</code>.
+<code>sampling="population"</code> declares the families unselected (see
+<a href="../inference/">inference</a>). <code>re</code> is the correlation of the non-shared
+residuals. Read <code>inference_status</code> before reading a standard error.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_pairwise_multi</span><span class="p">,</span> <span class="n">simulate_under_LTM_multi</span>
 
 <span class="n">multi</span> <span class="o">=</span> <span class="n">simulate_under_LTM_multi</span><span class="p">(</span><span class="n">n_families</span><span class="o">=</span><span class="mi">3000</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
@@ -1189,7 +1188,7 @@ reading a standard error.</p>
 
 <span class="n">emp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">corrcoef</span><span class="p">(</span><span class="n">multi</span><span class="o">.</span><span class="n">liabilities</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span>
                   <span class="n">multi</span><span class="o">.</span><span class="n">liabilities</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">())[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"simulated trait correlation </span><span class="si">{</span><span class="n">emp</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> (target "</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"simulated liability correlation </span><span class="si">{</span><span class="n">emp</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> (target "</span>
       <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">truth</span><span class="p">[</span><span class="s1">'target_trait_corr'</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
 <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">fitted</span><span class="p">,</span> <span class="n">se</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="p">(</span>
         <span class="p">(</span><span class="s2">"h2 trait 1"</span><span class="p">,</span> <span class="n">joint</span><span class="o">.</span><span class="n">h2</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">joint</span><span class="o">.</span><span class="n">se</span><span class="p">[</span><span class="s2">"h2"</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">truth</span><span class="p">[</span><span class="s2">"h2"</span><span class="p">][</span><span class="mi">0</span><span class="p">]),</span>
@@ -1201,7 +1200,7 @@ reading a standard error.</p>
           <span class="sa">f</span><span class="s2">"   (</span><span class="si">{</span><span class="nb">abs</span><span class="p">(</span><span class="n">fitted</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">target</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">se</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> SE)"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"inference status: </span><span class="si">{</span><span class="n">joint</span><span class="o">.</span><span class="n">inference_status</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>simulated trait correlation 0.1551 (target 0.1511)
+<div class="highlight"><pre><span></span><code>simulated liability correlation 0.1551 (target 0.1511)
   h2 trait 1  fitted +0.4314 ± 0.0500   truth +0.35   (1.63 SE)
   h2 trait 2  fitted +0.4137 ± 0.0355   truth +0.40   (0.39 SE)
   rg          fitted +0.5435 ± 0.0760   truth +0.50   (0.57 SE)
@@ -1222,20 +1221,20 @@ below is a real decision, with the page that carries it.</p>
 <ul>
 <li><strong>One curve for everyone.</strong> Steps 3 and 4 pass <code>TRUE_CIP</code>, the net
   generating curve. Real LT-FH++ passes an estimated curve per sex and
-  birth-year stratum (Aalen–Johansen in the published method).
-  <a href="../cip-estimation/">CIP estimation</a>,
+  birth-year stratum (<code>strata</code>, <code>cip_by_stratum</code>); a wrong curve inflates a
+  GWAS or mis-scales the score
+  (<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md"><code>benchmarks/RESULTS.md</code></a>
+  §13, §18). <a href="../cip-estimation/">CIP estimation</a>,
   <a href="../data-preparation/">data preparation</a>.</li>
 <li><strong><code>h² = 0.5</code> was given.</strong> It is the liability-scale heritability of this
   disease, it has no default, and fitting it needs a declared sampling design.
   <a href="../data-preparation/#getting-heritability-on-the-liability-scale">Which h²?</a>,
   <a href="../inference/">inference</a>.</li>
-<li><strong>The generating curve was fed back in.</strong> Passing a wrong curve is a measured
-  failure mode. <a href="../assumptions/">Assumptions</a>.</li>
 <li><strong>The sample is unascertained.</strong> Biobanks selected on case status are not.
   <a href="../inference/#ascertained-samples">Ascertainment</a>.</li>
-<li><strong>The score is not a risk.</strong> It is a posterior mean liability. A GWAS joins
-  it on the returned proband ids and residualises the design covariates.
-  <a href="../estimation/">Estimation</a>, <a href="../quickstart/#choose-the-analysis">analysis choices</a>.</li>
+<li><strong>The score is not a risk.</strong> It is a posterior mean genetic liability. A GWAS
+  joins it on the returned proband ids and residualises the design covariates.
+  <a href="../estimation/#using-the-estimate-in-a-gwas">GWAS use</a>.</li>
 </ul>
 <h2 id="continue-with-your-data">Continue with your data<a class="headerlink" href="#continue-with-your-data" title="Permanent link">&para;</a></h2>
 <p>Use <a href="../data-preparation/">Data preparation</a> for your columns and thresholds,

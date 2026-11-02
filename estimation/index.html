@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+        <meta name="description" content="LT-FH, LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python">
       
       
       
@@ -1214,8 +1214,7 @@ Only fully pid-free families may omit <code>o</code> and use <code>fam_id</code>
 <li><code>h2</code> — liability-scale heritability (scalar; a vector selects the multi-trait
   model, below).</li>
 <li><code>method</code> — the <strong>default</strong> is the deterministic <strong>Pearson–Aitken</strong> (PA)
-  inference engine for a single trait (PA–Gibbs posterior-mean correlation ≥ 0.997
-  in the tested no-mixture structures), falling back to <strong>Gibbs</strong> for the
+  inference engine for a single trait, falling back to <strong>Gibbs</strong> for the
   multi-trait model. Pass
   <code>"gibbs"</code> to force the sampler (needed
   for multiple traits, a Monte-Carlo SE, or a sampling-based cross-check), or
@@ -1246,7 +1245,7 @@ Only fully pid-free families may omit <code>o</code> and use <code>fam_id</code>
 <tbody>
 <tr>
 <td><code>res.fam_ids</code></td>
-<td>one family id per result, in first-appearance family order</td>
+<td>one family id per result, in the order of <code>families</code></td>
 </tr>
 <tr>
 <td><code>res.pids</code></td>
@@ -1301,9 +1300,7 @@ retain their documented return order; Gibbs exposes posterior variance with
 on each supported engine. No-mixture PA conditions exact pins jointly first;
 an unpinned target's interval is folded after the remaining relative intervals
 (an unbounded <code>g</code> is a no-op). A lone case therefore gives a
-positive PA <code>full</code>, matching Gibbs, not zero. Retain role <code>o</code> with its pid and set its
-bounds to <code>(-inf, inf)</code> when you want a relatives-only predictor — the
-same rule as for prospective prediction. The canonical GWAS phenotype is
+positive PA <code>full</code>, matching Gibbs, not zero. The canonical GWAS phenotype is
 still <code>out="genetic"</code>.</p>
 </blockquote>
 <h3 id="what-the-score-is-and-is-not">What the score is — and is not<a class="headerlink" href="#what-the-score-is-and-is-not" title="Permanent link">&para;</a></h3>
@@ -1365,7 +1362,8 @@ Var(l_i)      = h2 + c2 + m2 + e2 = 1               (residual e2 absorbs)
 </code></pre></div>
 <p>so <code>h2 + c2 + m2 &lt;= 1</code> must hold. The genetic target still couples to
 relatives only through <code>h2 * A</code> — <code>g</code> remains a <em>genetic</em> liability.</p>
-<p>If the families are independent and non-overlapping, and you can declare their
+<p>If the families are independent and non-overlapping, carry common case/control
+thresholds (personalised bounds are rejected), and you can declare their
 sampling design (unascertained, or selected on observed status with known
 inclusion probabilities — see <a href="../inference/#ascertained-samples">Inference</a>),
 fit the components and wire them back in:</p>
@@ -1381,9 +1379,8 @@ fit the components and wire them back in:</p>
 <p>Or pass known values directly: <code>estimate_liability(families, h2=0.4, c2=0.15,
 m2=0.1)</code>. The <code>c2</code>/<code>m2</code> arguments are supported by the single-trait role/object
 and array entry points (<code>estimate_liability</code> with scalar <code>h2</code>,
-<code>estimate_liability_pa_arrays</code>, <code>estimate_liability_gibbs_arrays</code>). The
-high-level multi-trait route rejects nonzero components until their cross-trait
-covariance is defined. For an arbitrary pedigree, the high-level kinship route
+<code>estimate_liability_pa_arrays</code>, <code>estimate_liability_gibbs_arrays</code>). For an
+arbitrary pedigree, the high-level kinship route
 accepts the proportions only together with aligned relationship kernels:</p>
 <div class="highlight"><pre><span></span><code><span class="n">gen</span><span class="p">,</span> <span class="n">se</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">estimate_liability_from_kinship</span><span class="p">(</span>
     <span class="n">A</span><span class="p">,</span> <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span>
@@ -1391,11 +1388,11 @@ accepts the proportions only together with aligned relationship kernels:</p>
     <span class="n">m2</span><span class="o">=</span><span class="mf">0.10</span><span class="p">,</span> <span class="n">m_kernel</span><span class="o">=</span><span class="n">M</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
-<p>Every kernel must be finite, symmetric, positive semi-definite, and have unit
-diagonal. It is deliberately caller-supplied: <code>A</code> cannot distinguish a full-sib
-pair from parent--offspring, or a mate pair from two unrelated strangers. The
-current component fitters remain role-based and assume independent,
-non-overlapping families; this scoring API is not a component fitter for
+<p><code>c_kernel</code> and <code>m_kernel</code> must each be finite, symmetric, positive semi-definite,
+with unit diagonal. They are deliberately caller-supplied: <code>A</code> cannot
+distinguish a full-sib pair from parent--offspring, or a mate pair from two
+unrelated strangers. The current component fitters remain role-based and assume
+independent, non-overlapping families; this scoring API is not a component fitter for
 overlapping extracted register pedigrees. Validated on the role path in
 <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">benchmarks/RESULTS.md</a> (section 24): wiring
 recalibrates the genetic estimate (slope 0.93 -&gt; 0.99) and sharpens
@@ -1452,7 +1449,7 @@ test a different, no-mixture observation model
 <tr>
 <td>error</td>
 <td>batch-means MC SE (<code>res.se</code>)</td>
-<td>no Monte-Carlo error (<code>res.se</code> is <code>0</code>), but a non-zero sequential moment-approximation error</td>
+<td>no Monte-Carlo error (<code>res.se</code> is <code>0</code>); approximation error outside the exact cases below</td>
 </tr>
 <tr>
 <td>posterior variance</td>
@@ -1462,7 +1459,7 @@ test a different, no-mixture observation model
 <tr>
 <td>exactness</td>
 <td>exact in the limit of infinite draws</td>
-<td>exact for 1 truncation, close approx for families</td>
+<td>no mixture: exact with at most one interval left after pins; otherwise a sequential two-moment approximation</td>
 </tr>
 <tr>
 <td>speed</td>
@@ -1482,21 +1479,13 @@ classic LT-FH families is in
 both ltpred engines reproduce the R Gibbs scores and ltpred PA reproduces
 LTFGRS PA; total and per-family times, fold times and isolated-process peak
 RSS are in that section.</p>
-<p>The intra-package speed and agreement comparisons use ordinary bounds without the censoring
-mixture. Those rates are machine-specific medians from five warmed timings per point;
-<code>benchmarks/RESULTS.md</code> reports the configuration and IQR-backed grid. Treat the
-range as evidence about scale, not a hardware promise.</p>
 <p><strong>Rule of thumb:</strong> the default already picks <strong>Pearson–Aitken</strong> for single-trait
 runs — keep it for biobank-scale cohorts and the age-censoring mixture; pass
 <code>method="gibbs"</code> for a sampling-based truncated-MVN cross-check. The high-level
 estimator returns posterior-mean estimates and
 Monte-Carlo SEs, not retained draws; use the low-level <code>rtmvnorm_gibbs</code> function
-when you need the sampled TMVN coordinates themselves. For the <code>genetic</code> score,
-PA and Gibbs agree closely and gave the same downstream independent-SNP
-causal-NCP result under the benchmark's marginal association calculation and
-non-overlapping simulated families. That is not evidence from a real-LD,
-related-sample mixed-model GWAS. These comparisons also do not validate the
-PA-only censoring mixture.</p>
+when you need the sampled TMVN coordinates themselves. The PA–Gibbs comparisons
+do not validate the PA-only censoring mixture.</p>
 <h2 id="nuclear-family-quadrature">Nuclear-family quadrature<a class="headerlink" href="#nuclear-family-quadrature" title="Permanent link">&para;</a></h2>
 <p>For a numerical posterior cross-check on an additive nuclear family, pass
 <code>method="quadrature"</code> to <code>estimate_liability</code>, or call
@@ -1532,8 +1521,9 @@ in the mean or variance across the last two quadrature refinements; it is
 neither a certified numerical error bound nor a Monte-Carlo SE. Analytic
 answers report zero nodes and zero refinement error. The <code>max_nodes</code> limit is
 64–512 nodes <strong>per active dimension</strong>, and failure to meet the refinement
-criterion raises <code>RuntimeError</code> identifying the family. No unchecked result
-is returned on nonconvergence. Acceptance requires <em>both</em> of the last two
+criterion raises <code>RuntimeError</code> naming the failing row (under
+<code>estimate_liability</code>, its index within its role-set group, not within
+<code>families</code>). Acceptance requires <em>both</em> of the last two
 changes to fall within <code>quadrature_atol</code>, so at <code>max_nodes=64</code> — where the
 ladder 16→32→64 leaves only two changes — the coarse first refinement is
 binding, and a family that has in fact settled can still be refused. Raising
@@ -1565,12 +1555,11 @@ first call JIT-compiles) before timing. Different family structures still need
 separate array calls (one covariance each); the object API groups them for you.</p>
 <p>The array APIs still hold every family's bounds in RAM. The <strong>chunked driver</strong>
 streams homogeneous family batches through the same kernels so the working set
-is a few thousand (Gibbs) or tens of thousands (PA) rows at a time. Grouping
-stays deterministic — mixed pedigrees still need one call per role-set — and
-the summaries stay <code>O(F)</code>. Each chunk receives the seeds its rows would get in
-the one-shot call, and each family's collapsed coordinates depend only on its own
-bounds, so the result is bit-identical to <code>estimate_liability_gibbs_arrays</code> at
-the same <code>seed</code>:</p>
+is a few thousand (Gibbs) or tens of thousands (PA) rows at a time. Each call
+takes one role set, and the summaries stay <code>O(F)</code>. Each chunk receives the
+seeds its rows would get in the one-shot call, and each family's collapsed
+coordinates depend only on its own bounds, so the result is bit-identical to
+<code>estimate_liability_gibbs_arrays</code> at the same <code>seed</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="n">estimate_liability_pa_chunked</span><span class="p">,</span>
                     <span class="n">estimate_liability_gibbs_chunked</span><span class="p">)</span>
 
@@ -1596,10 +1585,9 @@ gate that once globally, so an all-cases chunk does not fail:</p>
     <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
-<p>Gibbs batches are consecutive blocks of a virtual concatenated cohort: a
-running family offset gives each batch the seeds of the corresponding rows, so
-the results are bit-identical to one-shot <code>estimate_liability_gibbs_arrays</code> on
-the concatenated arrays at the same <code>seed</code>.</p>
+<p><code>estimate_liability_gibbs_batches</code> seeds each row by its stream position, so it
+is bit-identical to <code>estimate_liability_gibbs_arrays</code> on the concatenated bounds
+at the same <code>seed</code>, however the stream is split.</p>
 <p><strong>Shape contract.</strong> <code>roles</code> is a length-<code>k</code> list (<code>"o"</code> + relatives; <code>g</code> is added
 internally); <code>lower</code> and <code>upper</code> are both <code>(n_families, k)</code>, column <code>j</code> aligned to
 <code>roles[j]</code>. A relative that is <strong>absent or uninformative</strong> for a given family is
@@ -1619,15 +1607,11 @@ Monte-Carlo accumulators stay float64, so the estimates match the float64 result
 to ~1e-5 (float32 rounding of the thresholds only). Quantising the <em>covariance</em>
 itself (à la ldpred3's int8 LD) would not help here — it is a small <code>d×d</code> matrix
 shared per structure, kilobytes total, and it is used in a matrix inverse.</p>
-<p>PA compares complete observation masks as byte strings when grouping families.
-With the genetic target already first, it reuses contiguous input bounds;
-Gaussian reductions center two owned work arrays in float64 in place. This
-avoids duplicate cohort arrays while preserving pin conditioning and interval
-order. The input arrays are not modified. The
+<p>PA does not modify the input arrays. The
 <a href="https://github.com/bvilhjal/ltpred/tree/main/benchmarks/results/2026-09-09-time-memory-v061-rerun">9 September 2026 rerun</a>
-measured these changes on 200,000-family batches: the mixed-mask case gained
-the most in both warm time and peak memory, interval-only and mixture batches
-changed little, and every mean and variance matched exactly. The figures,
+measured the v0.6.1 PA changes on 200,000-family batches: the mixed-mask case
+sped up most, peak memory fell in every PA case, and every mean and variance
+matched exactly. The figures,
 thread settings and first-call times are in
 <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md#31-time-and-memory-v061-versus-v060">RESULTS §31</a>;
 the driver is <code>benchmarks/bench_time_memory.py</code>.</p>
@@ -1649,7 +1633,7 @@ the driver is <code>benchmarks/bench_time_memory.py</code>.</p>
 <code>D = diag(sqrt(h2))</code>, the genetic covariance <code>G = D @ genetic_corrmat @ D</code> and
 the residual covariance <code>E = full_corrmat - G</code> must both be positive
 semi-definite; both correlation matrices must also be symmetric with unit
-diagonal. Incoherent inputs now raise instead of being silently changed.</p>
+diagonal. Incoherent inputs raise <code>ValueError</code>.</p>
 <p>Multi-trait borrows strength across genetically correlated diseases. It is
 Gibbs-only — the default picks Gibbs automatically for multiple traits, and an
 explicit <code>method="pearson-aitken"</code> here raises <code>NotImplementedError</code>.
@@ -1784,8 +1768,10 @@ substantial recursion work. The default <code>method="dense"</code> preserves hi
 seeded draws; the two methods agree in distribution, not draw by draw.</p>
 <h2 id="coming-from-ltfhplus-or-ltfgrs">Coming from LTFHPlus or LTFGRS<a class="headerlink" href="#coming-from-ltfhplus-or-ltfgrs" title="Permanent link">&para;</a></h2>
 <p><code>estimate_liability</code> exists in all three packages with incompatible
-signatures. Role labels are unchanged; the input object and the
-uncertainty column are not.</p>
+signatures. Role labels are unchanged except for children: write them
+<code>c&lt;group&gt;.&lt;idx&gt;</code>; children of different partner groups are half sibs (LTFHPlus
+makes every pair full sibs). The input object and the uncertainty column also
+differ.</p>
 <p><strong>Table 5. Equivalent calls and result columns when migrating from R.</strong></p>
 <table>
 <thead>

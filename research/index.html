@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+        <meta name="description" content="LT-FH, LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python">
       
       
       
@@ -989,17 +989,13 @@ The <a href="https://github.com/bvilhjal/ltpred/blob/main/research/README.md"><c
 inventories the modules and the <a href="https://github.com/bvilhjal/ltpred/blob/main/docs/ROADMAP.md#4-graduation-rule">roadmap</a> states
 when a capability graduates into <code>ltpred</code> proper.</p>
 <p>This page documents the models behind those modules. The supported core is
-described in <a href="../algorithm/">Algorithm &amp; model</a>; these sections were moved out of
-that page so that it describes only what the installed package does.</p>
+described in <a href="../algorithm/">Model and algorithms</a>.</p>
 <h2 id="covariance-extensions-researchcovariance_extensionspy">Covariance extensions (<code>research/covariance_extensions.py</code>)<a class="headerlink" href="#covariance-extensions-researchcovariance_extensionspy" title="Permanent link">&para;</a></h2>
 <h3 id="direct-and-indirect-genetic-nurture-effects">Direct and indirect (genetic-nurture) effects<a class="headerlink" href="#direct-and-indirect-genetic-nurture-effects" title="Permanent link">&para;</a></h3>
 <p>The <a href="../assumptions/#modelling-assumptions">modelling assumptions</a> note that
 a symmetric shared-environment matrix is not a maternal effect, because that
-is a <em>directional</em> path. <code>construct_covmat_nurture</code> (in
-<code>research/covariance_extensions.py</code> — research code, not the supported core)
-builds
-the directional model instead, from the path structure rather than from
-kinship:</p>
+is a <em>directional</em> path. <code>construct_covmat_nurture</code> builds the directional
+model instead, from the path structure rather than from kinship:</p>
 <div class="highlight"><pre><span></span><code>A_o = (A_m + A_f)/2 + w_o              # transmission + Mendelian sampling
 l_o = A_o + n*(A_m + A_f) + e_o        # own genes, plus parental nurture
 l_m = A_m + e_m                        # parents are founders here
@@ -1059,9 +1055,8 @@ entry in the <code>A</code>/<code>C</code>/<code>M</code> bank. <strong><code>n 
 by every offspring of the couple, so <em>on sibling covariance alone genetic
 nurture is indistinguishable from a sibship environment <code>C</code></em>. What separates
 them is the parent-offspring covariance: <code>C</code> leaves it untouched, nurture
-raises it by <code>n*h</code>. Fitting both from sibs only is not identified, and a study
-with no parental phenotypes cannot tell the two apart at all -- it will load
-whichever one it is offered.</p>
+raises it by <code>n*h</code>. Without parental phenotypes the two cannot be told apart; a
+fit loads whichever one it is offered.</p>
 <p>Offspring liabilities are standardised to unit variance, so thresholds keep
 their prevalence meaning; this requires <code>1 - h - 2*n^2*h - 2*n*h &gt;= 0</code>, since
 the shared nurture term takes variance the residual must give up.</p>
@@ -1081,10 +1076,10 @@ binary data obtain them with <code>ltpred.tetrachoric</code> rather than from
 observed-scale correlations. It is a moment estimator, so it carries no standard
 errors and inherits whatever bias the input covariances have. It also reports
 <code>h2_additive_po</code> and <code>h2_additive_sib</code> -- what a nurture-blind additive model
-would claim from each relative type alone -- whose <strong>disagreement is the
-diagnostic</strong>, and which is zero exactly when <code>n</code> is zero. A sibling covariance
-<em>below</em> the parent-offspring one yields a negative <code>n</code> (a contrast effect),
-returned rather than clipped.</p>
+would claim from each relative type alone -- and their difference,
+<code>disagreement</code>, the diagnostic, which is zero exactly when <code>n</code> is zero. A
+sibling covariance <em>below</em> the parent-offspring one yields a negative <code>n</code> (a
+contrast effect), returned rather than clipped.</p>
 <p><strong>Scope.</strong> Nuclear roles only (<code>m</code>, <code>f</code>, <code>s...</code>). Extending to grandparents
 means propagating the path model up the pedigree, which stops the parents being
 founders -- their liabilities would gain their own nurture terms from the
@@ -1096,13 +1091,12 @@ rejected. Like the other covariance constructors, the result is an ordinary
 <h3 id="sex-limited-genetic-architecture">Sex-limited genetic architecture<a class="headerlink" href="#sex-limited-genetic-architecture" title="Permanent link">&para;</a></h3>
 <p>Everywhere else in ltpred, sex enters through the <strong>threshold</strong>: a sex-specific
 CIP gives each person their own <code>T</code>. That is where it belongs for calibration,
-but the predictor factorises as <code>g0 = w' mu</code>, with <code>mu</code> the vector of
-folded truncated means and <code>w = V^-1 c</code> the BLUP weights. The weights <code>w</code>
-depend on heritability and kinship only — they are threshold-free. So a
-sex-specific threshold moves <code>mu</code> and can reorder scores through the truncated
-means, but it never changes how much weight a relative carries.</p>
-<p><code>construct_covmat_sex_limited</code> (in <code>research/covariance_extensions.py</code>) puts
-sex in <code>V</code> instead:</p>
+but the predictor factorises as <code>g0 = w' mu</code>, with <code>mu = E[l | data]</code> the
+truncated-normal conditional means and <code>w = V^-1 c</code> the BLUP weights. The
+weights <code>w</code> depend on heritability and kinship only — they are threshold-free.
+So a sex-specific threshold moves <code>mu</code> and can reorder scores through the
+truncated means, but it never changes how much weight a relative carries.</p>
+<p><code>construct_covmat_sex_limited</code> puts sex in <code>V</code> instead:</p>
 <div class="highlight"><pre><span></span><code>Cov(g_i, g_j) = 2*phi_ij * sqrt(h2_i * h2_j) * rg_cross^[sex_i != sex_j]
 </code></pre></div>
 <p>with <code>h2_i</code> the heritability of person <code>i</code>'s sex. This is the standard
@@ -1128,8 +1122,8 @@ scaling preserves it.</p>
 aunts/uncles are ambiguous — <code>mau</code>/<code>pau</code> covers both aunts and uncles — and
 must be declared in <code>sex=</code> (the genetic row <code>g</code> takes <code>o</code>'s sex); the
 constructor raises rather than defaulting, since a silent default would impose
-one sex's heritability on the other. Because <code>o</code> is always present, every
-call needs <code>sex=</code>.</p>
+one sex's heritability on the other. With the default <code>add_ind=True</code> the
+proband <code>o</code> is present, so <code>sex=</code> is required.</p>
 <p>Two cautions. <strong>(i)</strong> These are <em>inputs</em>, not fitted quantities: the constructor
 takes <code>h2_female</code>, <code>h2_male</code> and <code>rg_cross</code> and builds the covariance. Nothing
 here estimates them, and the identification requirements are real — separating
@@ -1142,28 +1136,25 @@ already absorbs. Reach for this model when same- and opposite-sex relative
 correlations differ <strong>after</strong> the thresholds are personalised.</p>
 <p>Because the result is an ordinary <code>Covmat</code>, its <code>.matrix</code> (rows in <code>.roles</code>
 order) feeds the covariance-level entry points (<code>pa_algorithm</code>,
-<code>rtmvnorm_gibbs</code>, <code>pa_estimate_batched</code>), the same route documented for any
-user-supplied kernel. The
-role-based <code>estimate_liability</code> still takes a scalar <code>h2</code>.</p>
+<code>rtmvnorm_gibbs</code>, <code>pa_estimate_batched</code>). The role-based <code>estimate_liability</code>
+still takes a scalar <code>h2</code>.</p>
 <h2 id="multi-trait-fitters-researchadvanced_fittingpy">Multi-trait fitters (<code>research/advanced_fitting.py</code>)<a class="headerlink" href="#multi-trait-fitters-researchadvanced_fittingpy" title="Permanent link">&para;</a></h2>
 <p>The supported <a href="../algorithm/#multiple-traits">multi-trait scorer</a> takes
 covariance parameters as inputs. For joint common-threshold fitting, use the
 installed <a href="../inference/#joint-heritability-and-cross-trait-correlations"><code>fit_pairwise_multi</code></a>
 API, including optional sibship/couple covariance and family-cluster sampling
-SEs. The alternative prototypes below remain uninstalled, checkout-only code;
-their moment and EM routes carry the caveats stated in each section.</p>
+SEs.</p>
 <h3 id="fitting-the-genetic-correlation">Fitting the genetic correlation<a class="headerlink" href="#fitting-the-genetic-correlation" title="Permanent link">&para;</a></h3>
-<p><code>fit_genetic_correlation</code> (in <code>research/advanced_fitting.py</code>) estimates <code>rho_g</code>
-between traits from family data — the
-multi-trait analogue of <code>fit_heritability</code>, a <strong>cross-trait</strong> Haseman–Elston
+<p><code>fit_genetic_correlation</code> estimates <code>rho_g</code> between traits from family data —
+the multi-trait analogue of <code>fit_heritability</code>, a <strong>cross-trait</strong> Haseman–Elston
 regression. Each member carries one case/control interval per trait. Each sweep
 draws the members' <code>P</code>-trait liabilities from the full truncated-MVN under the
 current parameters, then regresses the sampled cross-products on the additive
-relationship <code>A</code>. Like the core moment fitters it requires
-<code>sampling="population"</code> (it warns when omitted and raises on any other value),
-non-overlapping families, one common threshold per trait (personalised or
-pinned bounds raise) and a population-consistent case rate; it raises with
-fewer than two traits or without related pairs.</p>
+relationship <code>A</code>. It requires <code>sampling="population"</code> (it warns when omitted and
+raises on any other value, including <code>"ipw"</code>), non-overlapping families, one
+common threshold per trait (personalised or pinned bounds raise) and a
+population-consistent case rate; it raises with fewer than two traits or
+without related pairs.</p>
 <div class="highlight"><pre><span></span><code>same trait, diff relatives:  h2_p    = sum A_ij l_ip l_jp / sum A_ij^2
 diff trait, diff relatives:  G[p,q]  = sum A_ij (l_ip l_jq + l_iq l_jp) / (2 sum A_ij^2)
 same individual, diff trait: rp[p,q] = mean_i l_ip l_iq              (phenotypic corr)
@@ -1188,15 +1179,13 @@ are PSD too — with <code>rg</code>, <code>re</code> and <code>rp</code> all de
 returned object is one coherent model: <code>rp == genetic_cov + env_cov</code> exactly, and
 every correlation it reports comes from a single PSD fit rather than from
 separately averaged ratios. In the repository benchmarks it was approximately
-unbiased near the null (no
-spurious <code>rg</code> when traits are genetically independent but
-phenotypically correlated), with mild attenuation at large <code>|rg|</code> (the bounded
-ratio estimator); use an iid-family cluster bootstrap for sampling uncertainty when
-its assumptions hold. This is the pedigree-scale analogue
-of bivariate GREML / cross-trait LD-score regression.</p>
+unbiased at true <code>rg</code> of 0, 0.3 and 0.6 (no spurious <code>rg</code> when traits are
+genetically independent but phenotypically correlated); use an iid-family
+cluster bootstrap for sampling uncertainty when its assumptions hold. This is
+the pedigree-scale analogue of bivariate GREML / cross-trait LD-score
+regression.</p>
 <h3 id="onset-age-structured-genetic-correlation">Onset-age-structured genetic correlation<a class="headerlink" href="#onset-age-structured-genetic-correlation" title="Permanent link">&para;</a></h3>
-<p><code>fit_genetic_correlation_decay</code> (also <code>research/advanced_fitting.py</code>) generalises
-<code>fit_genetic_correlation</code> to a genetic
+<p><code>fit_genetic_correlation_decay</code> generalises <code>fit_genetic_correlation</code> to a genetic
 correlation that <strong>decays with the difference in age at onset</strong> between two
 relatives (or between two traits). The motivating idea is that genetic liability
 need not be one static quantity: the genes driving early- and late-onset forms of
@@ -1220,12 +1209,12 @@ of ages, and has the deepest precedent for age/time-varying genetic correlation
 Pletcher &amp; Geyer 1999; Jaffrezic &amp; Pletcher 2000; genetic "simplex" models; the
 phylogenetic OU model). Within a trait (<code>p == q</code>) the same structure models
 genetic heterogeneity by onset age; across traits it is the <code>rho_g</code> decay above.
-With a single shared rate across blocks the covariance is positive-definite by
-construction (a Schur/Kronecker sum of PSD terms).</p>
+With a single shared rate across blocks the covariance is PSD whenever <code>G</code> and
+<code>E</code> are (a sum of Schur and Kronecker products of PSD terms).</p>
 <p><strong>Estimation is by Monte-Carlo EM, not moments.</strong> The natural cross-trait
 Haseman-Elston step (regressing the augmented cross-products <code>l_ip l_jq</code> on
-<code>A_ij K</code>) fails here, for a reason worth understanding: case/control ascertainment
-truncates the liabilities, and the resulting inflation of <code>E[l_ip l_jq]</code> is itself
+<code>A_ij K</code>) fails here: conditioning on case/control status truncates the
+liabilities, and the resulting inflation of <code>E[l_ip l_jq]</code> is itself
 age-dependent -- closely related, similar-onset pairs are more often jointly
 affected, so their cross-products are inflated most, and that extra, steeply
 age-decaying signal is indistinguishable from fast genetic decay. A moment
@@ -1237,13 +1226,14 @@ maximises <code>Q = -1/2 sum_f [ log|Sig_f| + tr(Sig_f^-1 M_f) ]</code> over the
 heritabilities, the genetic/environmental covariances and the decay rates by
 L-BFGS with the analytic score. Each family's covariance <code>Sig_f</code> depends on its
 own onset ages, so the E-step loops over families; the M-step is batched.</p>
-<p><strong>Identifiability is the limiting factor, and it is worth being honest about.</strong>
+<p><strong>Identifiability is the limiting factor.</strong>
 The amplitude (<code>rho_g</code>) and the rate (<code>lam</code>) trade off along a likelihood ridge --
 a strong correlation that decays fast can mimic a weak one that decays slowly --
 and the cross-trait genetic signal competes with the environmental correlation.
 The model is identifiable <em>in principle</em> (the cross-relative cross-trait
-covariance <code>A G K</code> is purely genetic here, since environment is not shared across
-relatives), but only <strong>data-rich</strong> designs pin it down: the repository kill-test
+covariance <code>A G K</code> is purely genetic here, since without <code>shared_env</code> the
+environment is not shared across relatives), but only <strong>data-rich</strong> designs pin
+it down: the repository kill-test
 (<code>benchmarks/bench_aod_decay.py</code>) recovers both <code>rho_g</code> and <code>lam</code> well at
 <code>n_fam ~ 2500</code> (<code>r_g ~ 0.51-0.53</code>, <code>lam ~ 0.041</code> vs true 0.5 / 0.04; <code>lam ~ 0.001</code>
 under the scalar null, and <code>r_g ~ 0.009</code> at the <code>r_g = 0</code> null), but at
@@ -1263,13 +1253,13 @@ correlation is attributed to genetics -- inflating <code>h2</code> and thereby <
 <code>r_g = G / sqrt(h2_0 h2_1)</code> (<code>r_g ~ 0.33</code> vs true 0.5 at <code>c2 = 0.10</code>). For traits
 with real household effects this is the binding limitation.</p>
 <p><strong>Options that address these limits.</strong> <code>shared_lambda</code> ties every block's decay
-rate to a single scalar -- fewer parameters, a guaranteed-PSD covariance, and less
-amplitude-decay ridge; it is the recommended setting (pass <code>shared_lambda=True</code>;
+rate to a single scalar -- fewer parameters, a covariance that is PSD whenever <code>G</code>
+and <code>E</code> are, and less amplitude-decay ridge; it is the recommended setting (pass <code>shared_lambda=True</code>;
 the argument defaults to <code>False</code>) unless there is reason to let the rates differ. <code>shared_env</code> adds the shared-family environmental component <code>C</code>
 directly to the model (an onset-age <strong>ACE decomposition</strong>: genetics <code>A</code>, shared
 environment <code>C</code>, unique environment <code>E</code>), so household environment is estimated
 rather than absorbed into genetics -- it recovers <code>c2</code> and stops the <code>h2</code>
-inflation. But note the honest caveat: the <em>cross-trait</em> genetic-vs-shared-env
+inflation. But the <em>cross-trait</em> genetic-vs-shared-env
 separation is itself hard (both produce cross-trait familial covariance, one
 scaling with relatedness and age, the other constant), so <code>shared_env</code> can
 overestimate <code>r_g</code> at moderate <code>n</code>; it is a variance-attribution tool, not a free
@@ -1280,8 +1270,7 @@ block (genetic, environmental, decay, shared-environment) is pinned against
 finite differences in <code>research/tests/test_decay.py</code>.</p>
 <h3 id="genetic-factor-structure-common-factor-model">Genetic factor structure (common-factor model)<a class="headerlink" href="#genetic-factor-structure-common-factor-model" title="Permanent link">&para;</a></h3>
 <p>With more than a handful of traits, the genetic correlation matrix <code>r_g</code> is itself a
-structured object worth summarising. <code>fit_genetic_factor</code> (in
-<code>research/advanced_fitting.py</code>) fits a <strong>common-factor
+structured object worth summarising. <code>fit_genetic_factor</code> fits a <strong>common-factor
 model</strong> to it,</p>
 <div class="highlight"><pre><span></span><code>r_g ≈ Λ Λ' + Ψ ,     Ψ = diag(uniquenesses),
 </code></pre></div>

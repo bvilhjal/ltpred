@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+        <meta name="description" content="LT-FH, LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python">
       
       
       
@@ -1030,15 +1030,12 @@ stratum who are diagnosed at or before a given age. For uses I and II of the
 <a href="../quickstart/#choose-the-analysis">analysis choices</a> that curve is an <em>input</em> to the thresholds. For use III
 it can <em>be</em> the result: the age, sex and cohort pattern of incidence, without
 scoring families.</p>
-<div class="highlight"><pre><span></span><code>CIP(age | stratum) = P(diagnosed at or before `age`),   T = Phi^-1(1 - CIP).
+<div class="highlight"><pre><span></span><code>CIP(age | stratum) = P(diagnosed at or before age),   T = Phi^-1(1 - CIP).
 </code></pre></div>
-<p>This page describes how to estimate that curve from registry-style health
-data with <code>ltpred.cip</code>: the input format, the two estimators (Kaplan-Meier and
-Aalen-Johansen) with their formulas and variance estimators, the estimand
-choice that matters most in practice, stratification, worked examples, and the
-edge cases. The construction follows the LT-FH++ paper (Pedersen et al. 2022)
-and the Danish register-epidemiology literature (Andersen, Borgan, Gill &amp;
-Keiding 1993; Plana-Ripoll, Dalsgaard, Beck and colleagues).</p>
+<p><code>ltpred.cip</code> estimates that curve from registry-style follow-up records. The
+construction follows the LT-FH++ paper (Pedersen et al. 2022) and the Danish
+register-epidemiology literature (Andersen, Borgan, Gill &amp; Keiding 1993;
+Plana-Ripoll, Dalsgaard, Beck and colleagues).</p>
 <h2 id="when-you-need-this-page">When you need this page<a class="headerlink" href="#when-you-need-this-page" title="Permanent link">&para;</a></h2>
 <p>If you already have a published CIP (e.g. from the LT-FH++ supplementary
 tables or a national registry report), skip to
@@ -1112,10 +1109,8 @@ process (for example, administrative end of follow-up).</p>
 the presence of death. Death then remains a competing event even if death and
 diagnosis times are statistically independent. Censoring the dead asks a
 different, hypothetical no-death question and <code>1 - KM</code> generally
-<strong>overestimates</strong> the crude diagnosed proportion — increasingly at older ages
-(measured directly in <code>benchmarks/bench_cip_estimation.py</code>: an absolute
-overestimation of 0.022 at a 42% death share). Use Aalen-Johansen and put death
-in a competing-event code.</p>
+<strong>overestimates</strong> the crude diagnosed proportion — increasingly at older ages.
+Use Aalen-Johansen and put death in a competing-event code.</p>
 <h2 id="aalen-johansen-aalen_johansen_cip">Aalen-Johansen (<code>aalen_johansen_cip</code>)<a class="headerlink" href="#aalen-johansen-aalen_johansen_cip" title="Permanent link">&para;</a></h2>
 <p>The competing-risks estimator. With <code>d_j</code> the number of events of <em>any</em> type
 at <code>t_j</code>, <code>d_kj</code> the events of the cause of interest, and <code>S</code> the overall
@@ -1124,7 +1119,7 @@ event-free survival (any event),</p>
 F_k(t) = sum_{t_j &lt;= t} S(t_j-) * d_kj / Y_j .
 </code></pre></div>
 <p><code>F_k</code> is the <strong>crude cumulative incidence</strong>: the probability of being
-diagnosed by age <code>t</code> <em>in the presence of</em> death and emigration. This is what
+diagnosed by age <code>t</code> <em>in the presence of</em> competing events such as death. This is what
 LT-FH++ estimated for its CIPs ("the cumulative incidence function for each
 disorder was estimated with the Aalen-Johansen approach considering death and
 emigration as competing events", Pedersen et al. 2022, one curve per sex and
@@ -1173,8 +1168,8 @@ asymptotically equivalent, not finite-sample identities.</p>
 </ul>
 <p>Which curve the thresholds need is a modelling choice, not only an estimation
 one. In the threshold-crossing model a person's onset age is when liability
-crosses <code>T(t)</code>; if death is independent of liability, a living undiagnosed
-person satisfies <code>P(l &gt; T(t)) =</code> the <strong>net</strong> risk, so the net curve is the
+crosses <code>T(t)</code>; if death is independent of liability, <code>P(l &gt; T(t))</code> among
+people alive at <code>t</code> equals the <strong>net</strong> risk, so the net curve is the
 one the model implies and the crude curve sets thresholds slightly too high
 (more so where death is common). If death is related to liability, or the
 estimand is the population diagnosed fraction, the crude curve is the
@@ -1185,7 +1180,7 @@ Aalen-Johansen thresholds with mortality present.</p>
 <p><code>benchmarks/bench_cip_estimation.py</code> measures all of this on a simulated
 registry with a known curve: AJ recovers the crude curve to ~0.002 absolute
 error at N = 50,000 (with or without delayed entry), while KM-as-censoring
-overshoots the crude curve by ~0.022 at a 42% death share.</p>
+overshoots the crude curve by up to 0.022 at a 42% death share.</p>
 <h2 id="stratification">Stratification<a class="headerlink" href="#stratification" title="Permanent link">&para;</a></h2>
 <p>CIPs are stratum-specific: LT-FH++ uses one curve per <strong>sex x birth year</strong>.
 Estimate each curve separately by calling the estimator once per stratum:</p>
@@ -1200,8 +1195,8 @@ Estimate each curve separately by calling the estimator once per stratum:</p>
 <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">stratum</span><span class="p">):</span>
     <span class="n">m</span> <span class="o">=</span> <span class="n">stratum</span> <span class="o">==</span> <span class="n">key</span>
     <span class="n">curve</span> <span class="o">=</span> <span class="n">aalen_johansen_cip</span><span class="p">(</span><span class="n">age_entry</span><span class="p">[</span><span class="n">m</span><span class="p">],</span> <span class="n">age_exit</span><span class="p">[</span><span class="n">m</span><span class="p">],</span> <span class="n">event</span><span class="p">[</span><span class="n">m</span><span class="p">])</span>
-    <span class="c1"># start the grid at age 0 so nobody is given incidence before the</span>
-    <span class="c1"># first observed event age (np.interp would hold the first value)</span>
+    <span class="c1"># anchor the curve at (0, 0); otherwise np.interp holds the first event</span>
+    <span class="c1"># age's incidence for all younger ages (it now ramps linearly from 0)</span>
     <span class="n">ages</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">curve</span><span class="o">.</span><span class="n">ages</span><span class="p">]</span>
     <span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">curve</span><span class="o">.</span><span class="n">values</span><span class="p">]</span>
     <span class="n">lower</span><span class="p">[</span><span class="n">m</span><span class="p">],</span> <span class="n">upper</span><span class="p">[</span><span class="n">m</span><span class="p">],</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">thresholds_from_cip</span><span class="p">(</span>
@@ -1217,10 +1212,7 @@ Estimate each curve separately by calling the estimator once per stratum:</p>
 <li><strong><code>k_pop</code>.</strong> <code>thresholds_from_cip</code> defaults <code>k_pop</code> to <code>max(cip_values)</code>,
   which is only the lifetime prevalence if the curve reaches the lifetime
   horizon. On a heavily censored young cohort it does not — pass a separately
-  justified <code>k_pop</code> (e.g. from an older stratum or the literature) instead.
-  An empirical terminal value of exactly one is valid when the risk set is
-  exhausted, but it cannot define a finite probit threshold; use a justified
-  non-degenerate horizon rather than clipping it silently.</li>
+  justified <code>k_pop</code> (e.g. from an older stratum or the literature) instead.</li>
 </ul>
 <h2 id="worked-example">Worked example<a class="headerlink" href="#worked-example" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -1293,17 +1285,15 @@ Estimate each curve separately by calling the estimator once per stratum:</p>
 <p>Walking the first rows: at 40, one diagnosis among <code>Y = 8</code> at risk (the two
 late entries, ages 5 and 10, are already at risk — delayed entry only excludes
 people not yet entered), so <code>S = 7/8</code> and <code>F_diag = 1 * 1/8 = 0.125</code>. At 47,
-the risk set is down to 6 (the person diagnosed at 40 has left), so
+the risk set is down to 6 (the diagnosis at 40 and the censoring at 44 have left), so
 <code>F_diag = 0.125 + (7/8) * (1/6) = 0.271</code>. At 52 the death removes one from the
 risk set without adding to <code>F_diag</code>: <code>F_death = (7/8 * 5/6) * (1/5) = 0.146</code>.
-At the horizon, <code>F_diag + F_death = 0.563 + 0.438 = 1 = 1 - S</code>, as required.
-<code>tests/test_cip.py</code> contains further hand-computed KM and AJ examples, and
-<code>benchmarks/bench_cip_estimation.py</code> simulates a full registry.</p>
+At the horizon, <code>F_diag + F_death = 0.563 + 0.438 = 1 = 1 - S</code>, as required.</p>
 <h2 id="edge-cases-and-gotchas">Edge cases and gotchas<a class="headerlink" href="#edge-cases-and-gotchas" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Prevalent cases (washout).</strong> If a person was diagnosed <em>before</em> their
   entry age, they are not an incident case: exclude them (the Danish
-  practice), or left-truncate the whole analysis past a minimum onset age.</li>
+  practice).</li>
 <li><strong>Zero-length follow-up</strong> (<code>exit == entry</code>): a censored row contributes
   nothing and may be kept for bookkeeping; an event-coded row is rejected
   because that person was never in the risk set.</li>
@@ -1340,10 +1330,9 @@ events including an exhausted final risk set, and runs the curve into
 <code>thresholds_from_cip</code>. <code>benchmarks/bench_cip_estimation.py</code>
 (RESULTS.md section 19) simulates a 50,000-person registry with a known
 curve, mortality, administrative censoring and a register-start year, and
-shows exact recovery, the KM competing-risks bias, and the end-to-end cost of
+shows recovery to within 0.002, the KM competing-risks bias, and the end-to-end cost of
 using an estimated curve (calibration slope 1.0023 vs 1.0069 oracle,
-identical correlation). That end-to-end arm estimates the net (Kaplan-Meier)
-curve on families simulated without mortality.</p>
+identical correlation).</p>
 <h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Pedersen et al. (2022), <em>Am J Hum Genet</em> — LT-FH++; its CIPs are
@@ -1355,8 +1344,8 @@ curve on families simulated without mortality.</p>
 <li>Aalen (1978), <em>Ann Statist</em> 6:534-545 — the closed-form CIF variance.</li>
 <li>Plana-Ripoll et al. (2019), <em>JAMA Psychiatry</em> — register comorbidity with
   the same counting-process machinery (analysis code: NB-COMO).</li>
-<li>Beck et al. (2024), <em>Acta Psychiatr Scand</em> — age-of-onset CIPs across
-  birth cohorts with delayed entry and competing risks
+<li>Beck et al. (2024), <em>Acta Psychiatr Scand</em> — sex-specific age-of-onset CIPs
+  pooled across birth cohorts, with delayed entry and competing risks
   (<a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11065580/">PMC11065580</a>).</li>
 <li>Greenwood (1926) — the KM variance; Kaplan &amp; Meier (1958) — the estimator.</li>
 </ul>

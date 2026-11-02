@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+        <meta name="description" content="LT-FH, LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python">
       
       
       
@@ -1086,7 +1086,8 @@ it automatically, and it is what you get back.</p>
 <p>A family can contain any subset of these. If <code>o</code> is absent from a family with no
 personal IDs, the estimator inserts it with uninformative <code>(-inf, inf)</code> bounds; with
 pids, keep <code>o</code> and its pid (see below). Two relatives of the same kind must be
-numbered (<code>s1</code>, <code>s2</code>). Relatedness (and hence covariance) is derived from the role
+numbered (<code>s1</code>, <code>s2</code>); unnumbered <code>s</code> names a single sibling, and a repeated
+label raises. Relatedness (and hence covariance) is derived from the role
 labels — see <code>get_relatedness</code>.</p>
 <p>One half-sib convention is worth knowing: following LTFHPlus, two <strong>same-side</strong>
 half-sibs (<code>mhs1</code>/<code>mhs2</code>, or <code>phs1</code>/<code>phs2</code>) are related <code>0.5·h²</code> to each other,
@@ -1099,9 +1100,8 @@ parent, with no implied second-parent sharing).</p>
 <p>Conditioning on <code>o</code> is an analysis choice, not a structural requirement. Include
 it for <strong>use II</strong> (a GWAS phenotype from the proband's diagnosis). For <strong>use I</strong>
 (prospective prediction/classification of that diagnosis), keep <code>o</code> and its <code>pid</code>
-but make its bounds uninformative; otherwise the outcome leaks directly into the predictor.</p>
-<p>Unnumbered <code>s</code> is a supported label for one sibling; use <code>s1</code>, <code>s2</code>, … for
-multiple siblings. It is not an input error. Repeated labels still raise.</p>
+but make its bounds uninformative, and censor relatives at the prediction landmark;
+otherwise the outcome or later family history leaks into the predictor.</p>
 <h3 id="beyond-the-role-grammar-arbitrary-pedigrees">Beyond the role grammar: arbitrary pedigrees<a class="headerlink" href="#beyond-the-role-grammar-arbitrary-pedigrees" title="Permanent link">&para;</a></h3>
 <p>If the pedigree itself must be <em>discovered</em> from population parent-offspring
 records, <code>ltpred.pedigree</code> does that first: <code>build_parent_graph(ids, father,
@@ -1109,8 +1109,8 @@ mother)</code> indexes the records and <code>extract_pedigree(graph, proband,
 max_degree=3)</code> returns each proband's relatives up to third degree (parents,
 siblings, grandparents, half-sibs, aunts/uncles, cousins) with all their
 ancestors closed in, so the sub-pedigree's kinship is exact (see
-<code>benchmarks/bench_pedigree_inference.py</code>). For the full chain -- trio records
--&gt; pedigrees -&gt; per-stratum CIP thresholds -&gt; per-proband scores -- use the
+<code>benchmarks/bench_pedigree_inference.py</code>). For the full chain — trio records
+→ pedigrees → per-stratum CIP thresholds → per-proband scores — use the
 supported <code>ltpred.estimate_liabilities</code> driver. Its required <code>use</code> argument
 makes the observation design explicit: <code>"gwas"</code> conditions on the proband's
 diagnosis, while <code>"prediction"</code> makes that diagnosis uninformative and
@@ -1142,8 +1142,8 @@ or after <code>t</code> has no follow-up and is uninformative. Prevalent cases a
 probands whose follow-up ended before the landmark are not dropped but flagged
 in <code>proband_state</code>; only <code>"disease_free_and_followed"</code> probands belong in a
 prospective evaluation.</p>
-<p>The extracted pedigree retains ancestors beyond <code>max_degree</code> when they are
-needed for exact kinship, but marks them <code>Pedigree.closure_only</code>. The supported
+<p>The extracted pedigree retains all recorded ancestors beyond <code>max_degree</code>,
+which makes kinship exact, but marks them <code>Pedigree.closure_only</code>. The supported
 driver leaves their diagnoses uninformative by default, so <code>max_degree</code> really
 bounds the observation set. Set <code>condition_closure=True</code> only when those extra
 diagnoses are deliberately part of the analysis. A non-null parent id that
@@ -1152,7 +1152,7 @@ these per table: it reports <code>frac_records_with_unresolved_parents</code>, w
 implausibly high for a register boundary, and refuses when no non-null
 reference resolves at all, which is an id-format or join mismatch rather than
 missing history. The driver intentionally uses
-pinned-onset LT-FH++ bounds and deterministic Pearson--Aitken inference; build
+pinned-onset LT-FH++ bounds and deterministic Pearson–Aitken inference; build
 bounds and call the lower-level estimators directly for interval-case or
 PA-FGRS mixture models.</p>
 <p>When your relatives don't fit the fixed roles — deeper pedigrees, cousins,
@@ -1178,17 +1178,16 @@ relationship classes must be explicit: pass <code>c2</code> with an aligned <cod
 and/or <code>m2</code> with <code>m_kernel</code>. They cannot be recovered from <code>A</code> alone.</p>
 <p>For a pedigree that <em>does</em> fit the role grammar the two paths use the identical
 covariance (except for same-side half-sibs, above); Gibbs agrees to Monte-Carlo
-error and PA up to its fold-order difference (about 0.1% of the score SD,
-RESULTS §14); the pedigree path additionally handles half-sibs of any
-degree, cousins, and inbred pedigrees (where a self-relationship can exceed 1).
+error and PA up to its fold-order difference (median about 0.1%, p95 under
+3.4% of the score SD; <code>benchmarks/RESULTS.md</code> §14); the pedigree path
+additionally handles half-sibs of any degree, cousins, and inbred pedigrees
+(where a self-relationship can exceed 1).
 For inbred pedigrees, the raw additive covariance is formed from <code>A</code> and then
 standardised so every full liability has unit marginal variance; standard-normal
 prevalence thresholds therefore retain their usual meaning. Build the covariance
 alone with <code>construct_covmat_from_kinship(A, h2, target)</code> (and the same optional
 component kernels).</p>
-<p>Discovery from population registers is handled by <code>ltpred.pedigree</code> above, with
-<code>max_degree</code> setting how far the traversal reaches. The graph-based extraction
-approach is described in
+<p>The graph-based extraction approach is described in
 <a href="https://doi.org/10.3389/fgene.2025.1708315">Pedersen et al. (2025)</a>, whose graph
 utilities are implemented in the R package LTFHPlus. If you take that route
 instead, translate <code>graph_to_trio</code> output into <code>ids</code>, <code>father</code> and <code>mother</code>, then
@@ -1296,11 +1295,7 @@ mixture. With the built-in logistic curve, construct those inputs as follows:</p
 </code></pre></div>
 <p>For real data, obtain <code>K_i</code> from the population CIP rather than the logistic demo,
 retain lifetime bounds from <code>prevalence_thresholds</code> (using the matching stratum's
-<code>K_pop</code>), and provide <code>K_i</code>/<code>K_pop</code> only for controls. Instead of unbinding <code>o</code> as
-above, you may omit its row only when no member has a <code>pid</code>; the output then
-uses <code>fam_id</code> as its join key. With personal IDs, retain <code>o</code> and its <code>pid</code> with
-<code>(-inf, inf)</code> bounds. Missing or absent proband pids raise rather than silently
-changing the join key.</p>
+<code>K_pop</code>), and provide <code>K_i</code>/<code>K_pop</code> only for controls.</p>
 <p>You can also build the bounds yourself: any <code>(lower, upper)</code> interval per person
 is valid (<code>lower == upper</code> pins a liability exactly; <code>(-inf, inf)</code> is
 uninformative).</p>
@@ -1315,8 +1310,8 @@ incidence curves stratified by sex, birth year/cohort, ancestry and calendar
 period. <code>thresholds_from_cip(status, age, cip_ages, cip_values, ...)</code> takes such
 a curve directly (call it once per stratum) and returns <code>lower, upper, K_i,
 K_pop</code> — use it instead of the logistic builders for real data. CIPs from an
-ascertained biobank sample, or that ignore competing risks (death, emigration),
-can bias the estimate.</p>
+ascertained biobank sample can bias the estimate; whether death should compete
+with diagnosis is the <a href="../cip-estimation/#the-estimand-choice-the-most-important-decision-on-this-page">estimand choice</a>.</p>
 <p><code>thresholds_from_cip</code> interpolates within the supplied age grid and holds the
 first or last CIP constant outside it; it does <strong>not</strong> extrapolate incidence.
 Make the grid cover every onset/follow-up age you will analyse. If <code>k_pop</code> is
@@ -1328,9 +1323,9 @@ separately justified lifetime prevalence otherwise.</p>
 <p>If the CIP itself must be estimated from health data, <code>ltpred.cip</code> provides the
 two standard estimators, following the LT-FH++ construction (Pedersen et al.
 2022: Aalen-Johansen with death and emigration as competing events, one curve
-per sex x birth-year stratum). The full methodology -- input format, risk
+per sex x birth-year stratum). The full methodology — input format, risk
 sets, formulas, variance estimators, estimand choice, stratification, worked
-example, edge cases -- is in <a href="../cip-estimation/">CIP estimation</a>:</p>
+example, edge cases — is in <a href="../cip-estimation/">CIP estimation</a>:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">aalen_johansen_cip</span><span class="p">,</span> <span class="n">kaplan_meier_cip</span>
 
 <span class="c1"># per person: age at entry into follow-up (0, register start, or immigration),</span>
@@ -1340,20 +1335,9 @@ example, edge cases -- is in <a href="../cip-estimation/">CIP estimation</a>:</p
 <span class="c1"># yield exactly 1, which has no finite probit threshold. curve.se is the</span>
 <span class="c1"># finite-risk-set, tie-correct Aalen (1978) SE.</span>
 </code></pre></div>
-<p>Use <code>aalen_johansen_cip</code> when the target is the <strong>crude diagnosed
-proportion</strong> in a population where death can preclude diagnosis (the LT-FH++
-convention; which curve the thresholds need is discussed under
-<a href="../cip-estimation/#the-estimand-choice-the-most-important-decision-on-this-page">the estimand choice</a>). Death remains
-a competing event even if death and diagnosis are statistically independent.
-Treating death as censoring asks for the different, hypothetical no-death
-<strong>net risk</strong> and generally overestimates the diagnosed proportion (quantified
-in <code>benchmarks/bench_cip_estimation.py</code>). Use <code>kaplan_meier_cip</code> only when net
-risk is the intended estimand and non-event censoring is independent. Both
-estimators handle left truncation (delayed entry) when entry is independent of
-the event process conditional on the modelled strata and the risk sets overlap.
-Ordinary right censoring must likewise be conditionally non-informative.
-Stratify by calling the estimator once per stratum (sex, birth-year band) and
-passing each group of relatives the curve of their stratum.</p>
+<p>Which estimator to use, and which curve the thresholds need, is
+<a href="../cip-estimation/#the-estimand-choice-the-most-important-decision-on-this-page">the estimand choice</a>.
+Stratify by calling the estimator once per stratum.</p>
 <h4 id="a-real-register-data-recipe">A real register-data recipe<a class="headerlink" href="#a-real-register-data-recipe" title="Permanent link">&para;</a></h4>
 <p>The end-to-end path for register data uses your <strong>own</strong> cumulative-incidence curve
 (not the logistic demo), one call to <code>thresholds_from_cip</code> per stratum, and PA:</p>
@@ -1402,18 +1386,12 @@ passing each group of relatives the curve of their stratum.</p>
 <ul>
 <li><code>case_mode="pin"</code> (the default) is the personalised onset-pinned encoding:
   LT-FH++ with relative rows, ADuLT with role <code>o</code> only;
-  <code>case_mode="interval"</code> is an age-dependent PA-FGRS-style interval encoding,
-  not the published base model or an exact implementation of PA-FGRS_ADT.</li>
-<li><code>use_mixture=True</code> only makes sense when <code>K_i</code> / <code>K_pop</code> are supplied (from
+  <code>case_mode="interval"</code> is LTFHPlus's default case interval <code>(thresh(onset), ∞)</code>;
+  with <code>use_mixture=True</code>, as in this recipe, it is an age-dependent
+  PA-FGRS-style variant, not base PA-FGRS or PA-FGRS_ADT.</li>
+<li><code>use_mixture=True</code> requires control <code>K_i</code> / <code>K_pop</code> pairs (from
   <code>pa_thresholds</code> or <code>thresholds_from_cip</code>); it is the PA-FGRS
   age-censored-control correction and is supported by the PA engine only.</li>
-<li>Estimate the <strong>CIP from population-representative data</strong>, using
-  <a href="../cip-estimation/"><code>ltpred.cip</code></a> or an external estimator. Stratify by sex,
-  birth cohort, ancestry and calendar period, account for competing risks, and
-  pass one stratum's curve per call.</li>
-<li>Ensure each stratum's age grid covers the analysed ages. Values outside the grid
-  use the nearest endpoint rather than extrapolation, and <code>k_pop</code> should be passed
-  explicitly unless the last CIP value is a defensible lifetime prevalence.</li>
 </ul>
 <p>For <strong>ADuLT</strong>, use the same stratum-specific proband bounds but build one row per
 person with <code>role="o"</code>; do not add relative rows. There is no separate ADuLT
@@ -1447,7 +1425,7 @@ total liability variance. For independent or suitably LD-pruned variants, sum
 <code>q</code> first; only then convert the aggregate to the total-variance fraction
 <code>q / (1 + q)</code>.</p>
 <p><strong>Which <code>h²</code>?</strong> The right value is the additive genetic variance component you want
-the family covariance to represent — the model is additive-genetic only (see
+the family covariance to represent — the default covariance is additive-genetic only (see
 <a href="../algorithm/#connection-to-selection-index-and-blup">algorithm.md</a>). A pedigree /
 twin <strong>narrow-sense</strong> estimate captures more of the family-history signal but can
 be inflated by shared environment, assortative mating or indirect genetic effects

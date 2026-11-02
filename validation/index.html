@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+        <meta name="description" content="LT-FH, LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python">
       
       
       
@@ -938,7 +938,7 @@
 <h1 id="numerical-checks-on-simulated-families">Numerical checks on simulated families<a class="headerlink" href="#numerical-checks-on-simulated-families" title="Permanent link">&para;</a></h1>
 <p>This page explains the numerical checks in
 <a href="https://github.com/bvilhjal/ltpred/blob/main/examples/validation.py"><code>examples/validation.py</code></a>.
-It is a companion to the <a href="../algorithm/">model</a>, not a second getting-started guide.
+It is a companion to the <a href="../algorithm/">model</a>; the <a href="../tutorial/">tutorial</a> is the worked example.
 Run the complete script from a source checkout:</p>
 <div class="highlight"><pre><span></span><code>python<span class="w"> </span>examples/validation.py
 </code></pre></div>
@@ -963,16 +963,14 @@ The cohort behind them is</p>
 <span class="p">)</span>
 </code></pre></div>
 <p><code>use_age=False</code> makes it classic LT-FH under the liability-threshold
-model: one <span class="arithmatex">\(K\)</span>, not a CIP. The <a href="../tutorial/">tutorial</a> is the sequential worked
-example; this page explains additional checks from the script.</p>
+model: one <span class="arithmatex">\(K\)</span>, not a CIP.</p>
 <h2 id="heritability-checks">Heritability checks<a class="headerlink" href="#heritability-checks" title="Permanent link">&para;</a></h2>
 <p>Prefer an external estimate. A first-degree check is Falconer's
 <span class="arithmatex">\(h^2 \approx 2\rho_{\mathrm{tet}}\)</span> from the <strong>parent–offspring</strong>
 tetrachoric correlation
 (<a href="https://doi.org/10.1111/j.1469-1809.1965.tb00500.x">Falconer 1965</a>).
 The sib tetrachoric is not interchangeable: full sibs also share the
-sibship kernel, so twice the sib correlation estimates <span class="arithmatex">\(h^2+2c^2\)</span> —
-inflated by exactly twice the <span class="arithmatex">\(c^2\)</span> you might fit below. Both routes are
+sibship kernel, so twice the sib correlation estimates <span class="arithmatex">\(h^2+2c^2\)</span>. Both routes are
 inflated further by assortative mating and by parent–offspring
 environmental transmission.</p>
 <p>The Lee map from an observed-scale estimate in a <strong>population</strong>
@@ -1002,9 +1000,7 @@ tetrachoric at <span class="arithmatex">\(K=0.05\)</span> is carried by the <em>
 <span class="arithmatex">\(\rho_{\mathrm{tet}}=-0.082 \pm 0.188\)</span>, so
 <span class="arithmatex">\(2\rho_{\mathrm{tet}}=-0.164 \pm 0.376\)</span> against a truth of <span class="arithmatex">\(0.5\)</span>: not
 evidence against the model, just little precision. The same estimator on 25,000 families
-returns <span class="arithmatex">\(0.247 \pm 0.023\)</span>, so <span class="arithmatex">\(2\rho_{\mathrm{tet}}=0.494 \pm 0.046\)</span>.
-The larger cohort gives a more precise estimate; neither single cohort
-establishes estimator calibration.</p>
+returns <span class="arithmatex">\(0.247 \pm 0.023\)</span>, so <span class="arithmatex">\(2\rho_{\mathrm{tet}}=0.494 \pm 0.046\)</span>.</p>
 <p>The sib tetrachoric on those 25,000 families is <span class="arithmatex">\(0.268 \pm 0.023\)</span> —
 close only because this simulator has no sibship kernel to inflate it.</p>
 <p>Family-data fitting has the <a href="../inference/">sampling and common-threshold contract</a>.
@@ -1015,7 +1011,6 @@ with a short schedule (<code>n_iter=250, burn_in=80</code>) returns
 Monte-Carlo standard error of <span class="arithmatex">\(0.011\)</span> — that number is a fixed-point
 diagnostic, not a sampling interval. Use
 <code>bootstrap_fit</code> for a family-cluster interval.</p>
-<p>Details: <a href="../inference/">Fitting</a>.</p>
 <h2 id="score-and-variance-checks">Score and variance checks<a class="headerlink" href="#score-and-variance-checks" title="Permanent link">&para;</a></h2>
 <p>The model implies checks you can run on the returned object. The law of
 total variance is the useful one: conditioning splits the genetic
@@ -1053,20 +1048,20 @@ under population sampling.</p>
 <p>On the liability scale <span class="arithmatex">\(\mu_i\)</span> is in population standard-deviation
 units, not a probability. For <strong>family-history-only prediction</strong> — own status out of <span class="arithmatex">\(D_F\)</span>,
 so the proband's residual is independent of the family — the model's
-implied risk can be approximated as follows. Here <code>prediction</code> is the
-relatives-only result created in the complete script, not the GWAS result above:</p>
+implied risk can be approximated as follows. Here <code>prediction</code> is a
+relatives-only <code>estimate_liability</code> result (<code>fh</code> in the script's calibration
+loop), not the GWAS result above:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">norm</span>
 
 <span class="n">T</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">isf</span><span class="p">(</span><span class="n">K</span><span class="p">)</span>                      <span class="c1"># or the person's own threshold T_i</span>
-<span class="c1"># prediction is a result computed with the proband bounds uninformative.</span>
 <span class="n">risk</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">sf</span><span class="p">((</span><span class="n">T</span> <span class="o">-</span> <span class="n">prediction</span><span class="o">.</span><span class="n">genetic</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">prediction</span><span class="o">.</span><span class="n">var</span><span class="p">[</span><span class="s2">"genetic"</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">h2</span><span class="p">))</span>
 </code></pre></div>
 <p>The reasoning is that <span class="arithmatex">\(\ell_i = a_i + e_i\)</span> with <span class="arithmatex">\(\mathrm{Var}(e_i)=1-h^2\)</span>,
 and with own status out of <span class="arithmatex">\(D_F\)</span> the residual <span class="arithmatex">\(e_i\)</span> is independent of the
 family, so <span class="arithmatex">\(\ell_i \mid D_F\)</span> is centred on <span class="arithmatex">\(\mu_i\)</span> with variance
 <span class="arithmatex">\(\mathrm{Var}(a_i \mid D_F) + 1 - h^2\)</span>. Two conditions come with that: it
-assumes no shared-environment components (<span class="arithmatex">\(c^2=m^2=0\)</span>, or <span class="arithmatex">\(e_i\)</span> is coupled
+assumes no shared-environment components (<span class="arithmatex">\(c^2=m^2=0\)</span>; otherwise <span class="arithmatex">\(e_i\)</span> is coupled
 to the relatives), and it treats <span class="arithmatex">\(a_i \mid D_F\)</span> as Gaussian, which is the
 same two-moment approximation PA makes.</p>
 <p>At <span class="arithmatex">\(h^2=0.5\)</span>, <span class="arithmatex">\(K=0.05\)</span>, under the generating model, the simulation is
@@ -1081,10 +1076,8 @@ all: with three relatives at <span class="arithmatex">\(K=0.05\)</span>, 86% of 
 lowest-risk configuration — no affected relative — so the lowest 400 are
 an arbitrary subset of one stratum rather than a tail. The script breaks
 such ties with a stable sort (simulation order), so every platform picks
-the same families. A <em>single</em> replicate can look off
-by two or three standard errors in the tail, so do not read one run as a
-bias. The formula is <strong>not</strong> valid for a GWAS phenotype, where the proband's own
-status is already in <span class="arithmatex">\(D_F\)</span>.</p>
+the same families. The formula is <strong>not</strong> valid for a GWAS phenotype, where
+the proband's own status is already in <span class="arithmatex">\(D_F\)</span>.</p>
 <h2 id="what-the-run-produced">What the run produced<a class="headerlink" href="#what-the-run-produced" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_liability</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -1129,34 +1122,34 @@ would otherwise use.</p>
 effective-<span class="arithmatex">\(N\)</span> proxy the script prints. Two probands show the shrinkage
 behind it: an affected one gets <span class="arithmatex">\(\hat{\mu}_i=+0.947\)</span> with posterior
 variance <span class="arithmatex">\(0.271\)</span>, an unaffected one <span class="arithmatex">\(-0.119\)</span> with variance <span class="arithmatex">\(0.430\)</span>.
-One cohort of 800 is a noisy read on that ratio — treat RESULTS §10,
-not this line, as the measurement.</p>
+RESULTS §4 replicates this design (causal-SNP NCP ratio 1.47×).</p>
 <p>ADuLT ties the baseline for a structural reason, not by coincidence:
 with no relatives and a single lifetime <span class="arithmatex">\(T\)</span> it is a monotone relabelling
 of the 0/1 status, so any correlation is identical by construction.</p>
 <p>Three identity checks. PA against Gibbs on 80 families:
 <span class="arithmatex">\(\mathrm{Corr}=0.9997\)</span>, at a median Gibbs Monte-Carlo SE of <span class="arithmatex">\(0.0065\)</span>.
 The same families rebuilt from columns reproduce the role-grammar PA
-scores exactly (maximum difference 0). Scored through
-<code>kinship_from_pedigree</code> they agree to <span class="arithmatex">\(1.1\times10^{-3}\)</span> — PA's
-sequential fold order differs between the two row layouts, so that is
-approximation error, not round-off and not Monte-Carlo noise.</p>
+scores exactly (maximum difference 0). Scored by
+<code>estimate_liability_from_kinship</code> on the <code>kinship_from_pedigree</code> matrix
+they agree to <span class="arithmatex">\(1.1\times10^{-3}\)</span> — PA's sequential fold order differs
+between the two row layouts, so that is approximation error, not
+round-off and not Monte-Carlo noise.</p>
 <p>The script's last block reruns the same design with <code>use_age=True</code>,
 where a person counts as a case only once onset precedes their current
 age. Simulated proband ages are young (median 37, against the incidence
-curve's mid-point of 60), so about 89% of would-be proband cases become
+curve's mid-point of 60), so about 90% of would-be proband cases become
 censored controls: the observed case rate falls from 0.045 to 0.0050, so the block uses <strong>20,000</strong> families to leave 99
 observed cases behind the own-status baseline — at <span class="arithmatex">\(n=800\)</span> it would rest
 on one to five, and the ratios below would be noise. The
 <span class="arithmatex">\(\mathrm{Corr}=0.251\)</span> there is <strong>not</strong> comparable with the 0.426 above.</p>
-<p>The block also carries a control that is easy to omit and easy to
-misread without. On that censored cohort the proband's own 0/1 label
+<p>A control arm separates family history from age. On that censored
+cohort the proband's own 0/1 label
 reaches 0.139; classic one-<span class="arithmatex">\(K\)</span> LT-FH on the <em>same</em> rows, using no age
 information at all, already reaches 0.245; the age-aware encoding, given
 the simulator's true incidence curve, then reaches 0.251. So family history does nearly all the work
 (<span class="arithmatex">\(3.11\times\)</span> on the squared-correlation proxy) and the age term adds
 <span class="arithmatex">\(1.05\times\)</span> on top — compare the replicated campaign in
-<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS §10</a>. Credit the gain to the right input.</p>
+<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS §10</a>.</p>
 <h2 id="calendar-and-pedigree-leakage-checks">Calendar and pedigree leakage checks<a class="headerlink" href="#calendar-and-pedigree-leakage-checks" title="Permanent link">&para;</a></h2>
 <p>In the runnable six-person example in
 <a href="https://github.com/bvilhjal/ltpred/blob/main/examples/validation.py"><code>examples/validation.py</code></a>,
@@ -1169,9 +1162,7 @@ exactly unchanged. This is an API/leakage check using a toy CIP, not clinical
 calibration or new performance evidence.</p>
 <p>For the input contract, see <a href="../data-preparation/#beyond-the-role-grammar-arbitrary-pedigrees">data preparation</a>.
 For measured accuracy, runtime and memory, use the
-<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">benchmark ledger</a>.
-The source archives, manifests and retained arrays beneath <code>benchmarks/results/</code>
-are evidence for those measurements; they are not alternative user guides.</p>
+<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">benchmark ledger</a>.</p>
 
 
 

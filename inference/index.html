@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+        <meta name="description" content="LT-FH, LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python">
       
       
       
@@ -1069,11 +1069,10 @@ reweighted at all. Omitting <code>sampling</code> warns and proceeds as
 <code>"population"</code>.</p>
 <p><code>sampling="population"</code> is <strong>screened for marginal inconsistency</strong> with your
 data, not taken entirely on trust. Your thresholds assert a prevalence, so
-each role's case rate is compared with it and a gross mismatch raises. This
-is worth knowing because
-the failure it guards is severe and silent: on ascertained families with a
+each role's case rate is compared with it and a gross mismatch raises. The
+failure it guards is severe and silent: on ascertained families with a
 true <code>h²</code> of <strong>0</strong>, the unguarded HE fitter returns <strong><code>h² = 1.0</code></strong>
-(<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS.md §29</a>).</p>
+(<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md#29-ascertainment-what-the-fitters-do-on-selected-samples-bench_ascertainmentpy">RESULTS.md §29</a>).</p>
 <p>A failure is equally consistent with an honestly sampled cohort analysed
 with the <strong>wrong prevalence</strong> — a real and fixable cause — so the error
 reports the observed and asserted rates rather than assuming ascertainment.</p>
@@ -1082,8 +1081,7 @@ reports the observed and asserted rates rather than assuming ascertainment.</p>
 15% rate-ratio floor. At K = 0.05 that is ~1.67× at N = 1,500 and
 ~1.26× at N = 10,000, with the 1.15× floor binding for N ≳ 30,000. Milder enrichment passes silently, and the
 HE dose-response below shows a 1.51× enrichment already inflates <code>h²</code> by
-+0.48. Passing this check is not evidence that your sample is
-population-sampled.</p>
++0.48.</p>
 </div>
 <p>The meaning of a reported <code>se</code> depends on the method. For the
 Haseman–Elston/data-augmentation fits, it is a <em>within-dataset</em> Monte-Carlo
@@ -1130,13 +1128,7 @@ approximate family-cluster sampling interval when families are independent.</p>
 relationship contrasts, and the sampling contract above. Personalised CIP/onset
 bounds are for scoring, not these fits. Use deterministic pairwise fitting when
 its composite-likelihood model answers the question. The stochastic moment
-fitters are roughly two orders of magnitude slower: in one 3,000-family probe
-(2026-09 efficiency review; not a committed benchmark) <code>fit_heritability</code> at its
-defaults ran about 200× longer than <code>fit_pairwise</code>, and its default
-<code>n_iter=1500</code> is three times the 500 iterations <code>bench_fit_heritability.py</code>
-uses. Their <code>h2_se</code> measures
-within-dataset Monte Carlo variation, while pairwise sandwich SEs describe
-conditional sampling uncertainty for identifiable interior fits. See the
+fitters are one to two orders of magnitude slower at their defaults. See the
 <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">benchmark ledger</a>
 for measured recovery and computation; shorter Gibbs schedules need their own
 Monte Carlo precision checks.</p>
@@ -1153,13 +1145,9 @@ is not a posterior draw and its mean is not a posterior mean.</p>
 <p>The implemented Haseman–Elston fitter requires <strong>one case/control threshold
 per trait</strong>. Personalised (age-/CIP-specific) or onset-pinned LT-FH++ bounds —
 including the Quickstart's <code>age_thresholds</code> output, even when they are
-internally coherent — are <strong>rejected</strong>. This is a validation and implementation
-restriction, including the prevalence screen. With known person-specific
-thresholds and a correct conditional model, total expectation still recovers
-the population covariance at the true parameters. That identity alone does
-not establish identification, convergence or finite-sample performance of this
-fitter. Exploratory failures motivated the restriction; they do not show that
-heterogeneous thresholds inherently bias the moments. Fit from
+internally coherent — are <strong>rejected</strong>. This is the validated scope, which the
+prevalence screen also needs; it is not evidence that heterogeneous thresholds
+bias the moments. Fit from
 common-threshold bounds (<code>prevalence_thresholds</code>), or bring an external
 liability-scale <code>h²</code>. Personalised bounds remain the intended input for
 <code>estimate_liability</code>, which conditions on <code>h²</code> rather than fitting it. For
@@ -1205,14 +1193,13 @@ representative sampling or valid aligned IPW. It is not automatically calibrated
 for zero-probability selection strata, boundary parameters, or overlapping
 pedigrees. The <code>n_boot=100</code> call above is a computational example, not a
 recommended final precision: percentile endpoints can be visibly unstable with
-so few resamples. Increase <code>n_boot</code> until the SE and interval endpoints are stable
-for your analysis, and report the number of successful refits.</p>
+so few resamples. Increase <code>n_boot</code> until the SE and interval endpoints are stable,
+and report <code>n_boot</code>.</p>
 <h2 id="deterministic-pairwise-fitting">Deterministic pairwise fitting<a class="headerlink" href="#deterministic-pairwise-fitting" title="Permanent link">&para;</a></h2>
 <p><code>fit_pairwise</code> estimates the same A/C/M covariance parameters using products of
 binary relative-pair probabilities. It aggregates common-threshold observations
 by relationship pattern and optimizes a small deterministic objective, without
-sampling latent liabilities. This is a separate composite-likelihood estimator;
-<code>fit_heritability</code> and <code>fit_variance_components</code> retain their existing algorithms.</p>
+sampling latent liabilities. This is a separate composite-likelihood estimator.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">ltpred</span><span class="w"> </span><span class="kn">import</span> <span class="n">fit_pairwise</span>
 
 <span class="n">pw</span> <span class="o">=</span> <span class="n">fit_pairwise</span><span class="p">(</span>
@@ -1221,7 +1208,7 @@ sampling latent liabilities. This is a separate composite-likelihood estimator;
 <span class="n">pw</span><span class="o">.</span><span class="n">components</span><span class="p">,</span> <span class="n">pw</span><span class="o">.</span><span class="n">residual</span>
 <span class="n">pw</span><span class="o">.</span><span class="n">se</span><span class="p">,</span> <span class="n">pw</span><span class="o">.</span><span class="n">inference_status</span>
 </code></pre></div>
-<p>The initial implementation requires a common single-trait case/control
+<p>It requires a common single-trait case/control
 threshold. It rejects personalized thresholds, onset pins and two-sided
 intervals; uninformative members contribute no pairs. Components must have
 independent identifying contrasts among the <strong>observed</strong> pairs. Fractions are
@@ -1310,9 +1297,9 @@ residual correlation and their nulls, A+C+M, MCAR missingness, positive IPW and 
 environment diagnostic. Coverage is reported only for interior estimates,
 alongside all failures and boundary counts. Its evidence applies to the tested
 prevalences, family structures and sampling designs, not all register data.</p>
-<p>This API fits covariance parameters. Multi-trait <code>estimate_liability</code> still
-uses the A+E model: a fit including C/M cannot be passed into that scorer by
-silently folding shared covariance into <code>full_corrmat</code>.</p>
+<p>Multi-trait <code>estimate_liability</code> uses the A+E model, so do not pass a C/M fit's
+<code>rp</code> as <code>full_corrmat</code>: the scorer accepts it but treats the shared C/M
+covariance as within-person residual E.</p>
 <h2 id="ascertained-samples">Ascertained samples<a class="headerlink" href="#ascertained-samples" title="Permanent link">&para;</a></h2>
 <p>Selection on phenotype also matters for pairwise fitting. The quantified
 failure below concerns the HE/data-augmentation fitter. From the
@@ -1362,7 +1349,7 @@ weights:</p>
 <em>given</em> family with <em>given</em> statuses is already the correct conditional
 distribution. What selection breaks is the <strong>mix</strong> of families, and weighting
 re-mixes them to population proportions. Benchmarked
-(<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">RESULTS §29</a>),
+(<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md#29-ascertainment-what-the-fitters-do-on-selected-samples-bench_ascertainmentpy">RESULTS §29</a>),
 this takes both a 50/50 case/control cohort and a 20%-enriched cohort from an
 unweighted fit pinned at <code>h² = 1</code> back close to the true 0.5; the fitted means
 and their replicate scatter are in that section.</p>
@@ -1387,10 +1374,10 @@ and strictly positive. Deterministic family-history selection usually violates
 that condition.</p>
 <div class="admonition warning">
 <p class="admonition-title">What a scale correction cannot do</p>
-<p>A Lee et al. (2011)-style observed→liability factor does not help here, and
-the reason is worth stating: it is a multiplicative function of <code>(K, P)</code>
-alone, while at fixed <code>K</code> a true <code>h²</code> of 0.5 and of 0.0 <strong>both</strong> produce
-1.000. No invertible constant maps both back. That correction also targets
+<p>A Lee et al. (2011)-style observed→liability factor does not help here: it
+is a multiplicative function of <code>(K, P)</code> alone, while on ascertained data at
+fixed <code>K</code> the fitter returns 1.000 for a true <code>h²</code> of 0.5 and of 0.0 alike.
+No invertible constant maps both back. That correction also targets
 an <em>observed-scale</em> estimate, whereas these fitters estimate on the
 liability scale directly, so there is no observed-scale quantity to
 transform. <a href="../api/"><code>observed_to_liability_h2</code></a> remains the right tool for
@@ -1419,11 +1406,9 @@ changing the assumed <code>h²</code> acts mostly like a near-linear
 rescaling of the liability score. This is an empirical sensitivity result, not
 rank invariance or a guarantee for other structures. A low cross-setting
 correlation is the signal to obtain a better external <code>h²</code>, or—only when the
-population-sampling contract holds—to fit it with <code>fit_heritability</code>. Prevalence/CIP
+sampling contract above holds—to fit it with <code>fit_heritability</code>. Prevalence/CIP
 sensitivity changes the truncation bounds rather than the covariance, so probe it
-by rebuilding the families under each prevalence and comparing. (The <em>scale</em> is more
-sensitive than the ranking — see the calibration benchmark in
-<a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">benchmark results</a>.)</p>
+by rebuilding the families under each prevalence and comparing.</p>
 <h2 id="variance-components-a-c-m">Variance components (A / C / M)<a class="headerlink" href="#variance-components-a-c-m" title="Permanent link">&para;</a></h2>
 <p>To separate additive heritability from a shared <strong>common-environment</strong> component
 <code>C</code> (e.g. a full-sib effect that inflates familial resemblance beyond genetics),
@@ -1436,7 +1421,7 @@ regression:</p>
 <span class="n">vc</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">"A"</span><span class="p">],</span> <span class="n">vc</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">"C"</span><span class="p">],</span> <span class="n">vc</span><span class="o">.</span><span class="n">residual</span>   <span class="c1"># proportions of liability variance</span>
 </code></pre></div>
 <p><code>C</code> is identified only from <strong>full-sib pairs</strong>, so the families must contain them
-(otherwise the fit raises). The same <code>h2_se</code> caveat applies — use <code>bootstrap_fit</code> for a CI.</p>
+(otherwise the fit raises). <code>vc.se</code> is the same Monte-Carlo diagnostic as <code>h2_se</code> — use <code>bootstrap_fit</code> for a CI.</p>
 <p>Dominance is intentionally not offered. It requires a dominance relationship
 kernel with contrasts linearly independent of <code>A</code> and <code>C</code>. MZ/DZ twin observations
 can contribute useful contrasts within a richer design, but MZ/DZ pairs alone
@@ -1457,13 +1442,11 @@ offspring and across generations). Because mates have <code>A = 0</code>, omitti
 quantify spousal resemblance
 for its own sake (a parametric-bootstrap component test lives in
 <code>research.advanced_fitting</code>) rather than to de-bias <code>h²</code>. The shipped <code>C</code> and <code>M</code> kernels are
-equivalence-class partitions, which guarantees that they are positive
-semi-definite (PSD); equivalence classes are sufficient, not necessary. Any future
-kernel must be symmetric and PSD. Every fitted kernel has diagonal one, so each
-component also consumes that fraction of marginal liability variance and the
-individual residual is <code>1 - sum(components)</code>. The naive vertical parent-offspring
-indicator considered here is non-PSD and is rejected. Component kernels may be
-PSD; the assembled covariance used by Gibbs must be strictly positive-definite.</p>
+equivalence-class partitions, so they are positive semi-definite (PSD); a
+vertical parent-offspring indicator is not, which is why it is not offered.
+Every kernel has diagonal one, so each component consumes that fraction of
+liability variance and the residual is <code>1 - sum(components)</code>, floored at <code>eps</code>
+so the family covariance stays positive-definite.</p>
 <h2 id="unsupported-research-prototypes">Unsupported research prototypes<a class="headerlink" href="#unsupported-research-prototypes" title="Permanent link">&para;</a></h2>
 <p>HE multi-trait genetic-correlation and onset-age-decay fitting, common-factor and
 genetic-nurture models, MCEM, and parametric-bootstrap tests live in

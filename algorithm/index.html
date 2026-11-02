@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="LT-FH++ with family history and family-free ADuLT in Python">
+        <meta name="description" content="LT-FH, LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python">
       
       
       
@@ -1199,8 +1199,7 @@ score. Supply <code>c2</code>/<code>m2</code> to single-trait role scoring; on t
 supply the aligned <code>c_kernel</code>/<code>m_kernel</code>. Additive relatedness alone cannot
 identify whether two equally related people share a sibship or household.</p>
 <p>The <a href="../estimation/#shared-environment-components-c-and-m">scoring reference</a>
-owns the kernel conventions and runnable examples. Multi-trait scoring supports
-A+E only; fitting C/M components does not extend that scorer.</p>
+owns the kernel conventions and runnable examples.</p>
 <h3 id="pedigree-selection-and-observation-selection">Pedigree selection and observation selection<a class="headerlink" href="#pedigree-selection-and-observation-selection" title="Permanent link">&para;</a></h3>
 <p>The register driver extracts relatives within <code>max_degree</code> and retains the
 ancestors required for exact kinship. Those extra ancestors are structural:
@@ -1287,11 +1286,11 @@ prevalence, observation model or sampling design.</p>
 covariance with each coordinate's truncated moments. This is a deterministic
 two-moment approximation; the result can depend on processing order. Exact pins
 are conditioned jointly and uninformative coordinates can be marginalised before
-the sequential updates. Repeated deterministic bound rows can share a result.</p>
+the sequential updates.</p>
 <p>PA is the single-trait default. The restricted <a href="../estimation/#nuclear-family-quadrature">nuclear-family quadrature</a>
 route provides deterministic numerical integration for additive, non-inbred
 nuclear families without shared-environment kernels or a mixture. Check its
-refinement diagnostics; its finite quadrature rule is not exact arithmetic.
+refinement diagnostics.
 <a href="../validation/">Numerical checks</a> demonstrate agreement and its limits.</p>
 <h2 id="fitting-the-covariance-heritability">Fitting the covariance (heritability)<a class="headerlink" href="#fitting-the-covariance-heritability" title="Permanent link">&para;</a></h2>
 <p>Scoring conditions on covariance parameters. Fitting estimates them from
@@ -1338,15 +1337,17 @@ store no draws. <strong>G6.</strong> Repeat rounds of fresh chains for unconverg
 pooling sums, until every batch-means SE is at most <code>tol</code> or <code>max_rounds</code> is
 reached (then warn). This is a Monte Carlo precision criterion, not a mixing
 certificate: batch means can miss slow exploration. Family seeds are fixed by the family's global index, so a
-result depends only on its own records and seed: thread scheduling, chunking
-and the other families in the cohort do not change it (chunked Gibbs is
+result depends only on its own records, its seed and the covariance row order
+(object API: that of the first family with its role set): thread scheduling,
+chunking and the other families' bounds do not change it (chunked Gibbs is
 bit-identical to the array call; chunked PA agrees to rounding).</p>
 <p><strong>Algorithm P (Pearson–Aitken; <code>ltpred.pearson_aitken</code>).</strong> Selecting coordinate
 <span class="arithmatex">\(i\)</span> from <span class="arithmatex">\(N(m_i,v_i)\)</span> to moments <span class="arithmatex">\((m^\star,v^\star)\)</span> updates the others by
 <span class="arithmatex">\(m_j\leftarrow m_j+\Sigma_{ji}(m^\star-m_i)/v_i\)</span> and
 <span class="arithmatex">\(\Sigma_{jk}\leftarrow\Sigma_{jk}+\Sigma_{ji}\Sigma_{ik}(v^\star-v_i)/v_i^2\)</span>.
-<strong>P1.</strong> Put the target first (the object API sorts the other roles by name; array
-and kinship callers keep their own order). <strong>P2.</strong> Drop absent rows and condition
+<strong>P1.</strong> Put the target first (the object and role-array APIs sort the other roles
+by name; kinship and direct <code>pa_algorithm</code>/<code>pa_estimate_batched</code> callers keep their own order).
+<strong>P2.</strong> Drop absent non-target rows and condition
 on all pins jointly, <span class="arithmatex">\(m_X=\Sigma_{XP}\Sigma_{PP}^{-1}p\)</span>,
 <span class="arithmatex">\(V_X=\Sigma_{XX}-\Sigma_{XP}\Sigma_{PP}^{-1}\Sigma_{PX}\)</span>, sharing <span class="arithmatex">\(V_X\)</span> between
 families with the same observation mask; incompatible exact observations raise.
@@ -1359,7 +1360,8 @@ fold order.</p>
 its current-age threshold is a lifetime control or a not-yet-onset case. In P3
 its moments are those of the two-component mixture split at the lifetime
 threshold <span class="arithmatex">\(T=\Phi^{-1}(1-K_{pop})\)</span>, with weight
-<span class="arithmatex">\(\pi=\Phi_{\rm below}/\{\Phi_{\rm below}+(1-\Phi_{\rm below})(K_{pop}-K_i)/K_{pop}\}\)</span>.
+<span class="arithmatex">\(\pi=\Phi_{\rm below}/\{\Phi_{\rm below}+(1-\Phi_{\rm below})(K_{pop}-K_i)/K_{pop}\}\)</span>,
+where <span class="arithmatex">\(\Phi_{\rm below}\)</span> is the current conditional mass below <span class="arithmatex">\(T\)</span>.
 The factor <span class="arithmatex">\((K_{pop}-K_i)/K_{pop}\)</span> assumes onset timing independent of liability
 among eventual cases. A call containing a mixture row skips P2's reduction: pins,
 absent rows and intervals are folded sequentially, but P2's compatibility checks
@@ -1387,9 +1389,10 @@ binary fractions, so both routes agree bit for bit at realistic pedigree depths.
 inputs and each CIP once. <strong>R2.</strong> Build the parent graph and check it for cycles;
 report unresolved parents. <strong>R3.</strong> For each proband, extract relatives within
 <code>max_degree</code> plus the ancestors needed for exact kinship (closure-only).
-<strong>R4.</strong> Form the observation set: under <code>use="prediction"</code> censor each relative
-at their own age at the proband's <code>index_time</code>, and leave the proband's and
-closure-only rows uninformative. <strong>R5.</strong> Convert records to pinned-onset bounds.
+<strong>R4.</strong> Form the observation set: closure-only rows are uninformative unless
+<code>condition_closure</code>; under <code>use="prediction"</code> so is the proband's row, and each
+relative is censored at their own age at the proband's <code>index_time</code>. <strong>R5.</strong>
+Convert records to pinned-onset bounds.
 <strong>R6.</strong> When the positive-definiteness bound allows, keep only the target and
 informative rows (exact marginalisation) and compute their kinship by the dense
 or selected route of Algorithm K; otherwise use the full matrix. <strong>R7.</strong> Score
