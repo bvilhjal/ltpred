@@ -4,8 +4,8 @@ Pearson-Aitken's selling point over the Gibbs sampler is speed: it is a determin
 closed-form sweep with no Monte-Carlo draws. This measures wall-clock time for
 both methods as a function of (a) the number of families and (b) the family size
 (number of relatives conditioned on), on the same simulated data. Both back-ends
-use the structure-grouped, Numba-parallel path, so this is an honest end-to-end
-comparison. Both paths are warmed before measurement; each point is the median
+use the structure-grouped path; Gibbs gains from Numba threads far more than the
+largely serial PA object path, so quote the speed-up with its thread count. Both paths are warmed before measurement; each point is the median
 of repeated timings. The array-level PA path is included separately so its
 documented biobank-scale throughput is backed by this benchmark.
 

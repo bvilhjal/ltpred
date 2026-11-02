@@ -213,8 +213,7 @@ def extract_pedigree(graph: ParentGraph, proband: object,
     # Relax rather than first-write: an ancestor reachable by two routes (say a
     # grandparent who is also a more distant ancestor on the other side) must
     # keep the shortest relationship-degree distance, which is what ``degree``
-    # documents and what pipeline diagnostics summarise. Assigning on first
-    # visit instead recorded whichever route the traversal happened to reach.
+    # documents.
     queue = list(degree)
     while queue:
         i = queue.pop()

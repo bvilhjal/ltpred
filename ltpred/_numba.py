@@ -75,7 +75,7 @@ except ImportError:  # pragma: no cover - exercised only without numba
 
 
 def set_num_threads(ncores: int) -> None:
-    """Set the active thread count for subsequent Numba-parallel kernels.
+    """Set the active thread count for Numba-parallel kernels launched later from the calling thread (Numba's setting is thread-local).
 
     ``ncores`` must be a positive, non-boolean integer. With Numba installed,
     this masks its existing thread pool to the requested number of active

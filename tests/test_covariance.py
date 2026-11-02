@@ -412,7 +412,7 @@ def test_zero_h2_is_rejected_with_an_explanation():
                                full_corrmat=np.eye(2))
     with pytest.raises(ValueError, match=r"h2 must be in \(0, 1\]"):
         construct_covmat_from_kinship(np.eye(2), h2=0.0)
-    # the open end of the interval is still fine
+    # h2 = 1 and a small h2 above the 1e-8 floor still build
     construct_covmat_single(fam_vec=["m", "f"], h2=1.0)
     construct_covmat_single(fam_vec=["m", "f"], h2=1e-6)
 

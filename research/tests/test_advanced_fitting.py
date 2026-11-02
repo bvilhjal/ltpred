@@ -116,7 +116,7 @@ def test_genetic_correlation_recovers_rg():
     assert r.phen_names == ["A", "B"]
     assert np.allclose(np.diag(r.rg), 1.0)
     assert r.rg[0, 1] == pytest.approx(r.rg[1, 0])            # symmetric
-    assert 0.25 < r.rg[0, 1] < 0.75                          # true 0.50 (parallel-RNG band)
+    assert 0.25 < r.rg[0, 1] < 0.75                          # true 0.50 (sampling band)
     assert r.h2[0] == pytest.approx(0.5, abs=0.12)
     assert r.h2[1] == pytest.approx(0.4, abs=0.12)
     assert np.allclose(np.diag(r.genetic_cov), r.h2)

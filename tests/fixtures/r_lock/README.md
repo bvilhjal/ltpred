@@ -1,7 +1,9 @@
 # Locked R-package reference scores
 
 `input_tbl.csv` holds 48 simulated classic LT-FH families (fam_vec `m`, `f`,
-`s1`; h2 = 0.5, K = 0.05; `simulate_under_LTM_single(..., seed=20260816)`).
+`s1`; h2 = 0.5, K = 0.05; `simulate_under_LTM_single(..., seed=20260816)`
+before 0.7.1 changed seeded draws; the committed CSVs, not the seeds, are the
+reference).
 The two score files are the R packages' own outputs on that table, so a
 numerical regression in the Python port fails in pytest instead of waiting
 for the next opt-in benchmark rerun:
@@ -26,7 +28,7 @@ Rscript benchmarks/ltfgrs_compare.R tests/fixtures/r_lock/input_tbl.csv \
 `input_tbl_age_pin.csv` and `input_tbl_age_interval.csv` hold the *same* 48
 simulated families (fam_vec `m`, `f`, `s1`; h2 = 0.5, K = 0.20;
 `simulate_under_LTM_single(..., use_age=True, onset_resolution=None,
-seed=20260912)`), differing only in how the 16 observed cases are written:
+seed=20260912)` on ltpred 0.6.2), differing only in how the 16 observed cases are written:
 
 - `_pin`: `lower == upper == T(onset)`, the point pin that `age_thresholds`
   and `thresholds_from_cip(case_mode="pin")` emit -- LTFHPlus's
@@ -59,8 +61,8 @@ LTFHPlus corr 0.9999 / RMSE 3.6e-3 (pin) and 3.5e-3 (interval).
 (`simulate_under_LTM_single(..., use_age=True, pop_prev=0.10, seed=20260928)`)
 whose bounds come from the age-CIP curve: 4 cases pinned at their onset-age
 threshold, 188 controls censored with a finite age-specific upper and a
-`K_i`/`K_pop` pair (NaN elsewhere). This is the input regime the tables above
-never exercise — every control there has an unbounded upper. Two companions:
+`K_i`/`K_pop` pair (NaN elsewhere). The tables above carry no `K_i`/`K_pop`,
+so they never exercise the mixture. Two companions:
 
 - `input_tbl_censored_ltfgrs.csv` — the same rows under LTFGRS's mixture
   contract: censored uppers moved to the lifetime threshold

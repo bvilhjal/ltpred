@@ -309,7 +309,7 @@ def test_onset_rho_rejected_on_other_models():
                                   onset_model="stochastic", onset_rho=0.5)
 
 
-def test_child_roles_get_the_child_age_range():
+def test_role_stem_maps_child_roles_to_c():
     # "c1.2".rstrip("0123456789") stops at the dot and yields "c1.", so the
     # "c" entry was unreachable and children drew adult ages. The range table
     # lives here (the package no longer ships the unused lookup); the

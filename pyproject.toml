@@ -28,8 +28,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
-# NumPy and SciPy are required runtime dependencies; SciPy supplies the
-# vectorised normal CDF/PPF used by the helpers.
+# NumPy and SciPy are the only required runtime dependencies.
 dependencies = ["numpy>=1.20", "scipy>=1.6"]
 
 [project.urls]
@@ -38,12 +37,12 @@ Repository = "https://github.com/bvilhjal/ltpred"
 Issues = "https://github.com/bvilhjal/ltpred/issues"
 
 [project.optional-dependencies]
-fast = ["numba>=0.59"]          # JIT-compiled truncated-MVN Gibbs sweep (recommended)
+fast = ["numba>=0.59"]          # JIT-compiled Pearson-Aitken, Gibbs and quadrature kernels (recommended)
 # phensim (numpy-only, on PyPI) draws register pedigrees and Mendelian genetic
 # values (simulate_pedigree, simulate_register_liabilities(method="mendelian")):
 #   pip install -e ".[fast,sim]"
 # Register-example reproducibility uses the PHENSIM pin in ci.yml.
-sim = ["phensim>=1.0.0.dev6"]
+sim = ["phensim>=1.0.0"]
 test = ["pytest>=7"]
 lint = ["ruff>=0.5"]            # pyflakes-style lint gate (see [tool.ruff])
 docs = ["mkdocs-material>=9", "mkdocstrings[python]>=0.24"]   # `mkdocs serve` / `mkdocs build`
@@ -62,9 +61,9 @@ pythonpath = ["."]
 markers = [
     # Correct without Numba, but sampling-dominated: ~100x slower on the
     # pure-Python fallback, so the no-JIT CI job deselects these with
-    # `-m "not jit_required"`. Everything unmarked -- including the whole
-    # truncated-moment/quantile kernel, the PA sweep and the small-n_sim
-    # batched-accumulator identities -- still runs there.
+    # `-m "not jit_required"`. Unmarked tests in its file list (KERNEL_TESTS
+    # in ci.yml) -- the truncated-moment/quantile kernel, the PA sweep and the
+    # small-n_sim batched-accumulator identities -- still run there.
     "jit_required: too sampling-heavy to run without the Numba JIT",
 ]
 

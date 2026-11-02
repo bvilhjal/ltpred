@@ -34,14 +34,13 @@ risk at age ``t`` when ``age_entry_i < t <= age_exit_i``. Events and censorings
 occur at ``age_exit``; zero-length follow-ups (``exit == entry``) never enter a
 risk set. Ages may be continuous; ties are handled by grouping on unique exit
 ages. Stratification (e.g. by sex x birth-year bands) is done by calling an
-estimator once per stratum -- see "Stratification" in ``docs/cip-estimation.md``
-and ``benchmarks/bench_cip_estimation.py``.
+estimator once per stratum -- see "Stratification" in ``docs/cip-estimation.md``.
 
 The returned `CipCurve` carries ascending ``ages``, non-decreasing
 ``values`` in ``[0, 1]``, pointwise standard errors and event counts.
 `ltpred.thresholds.thresholds_from_cip` consumes a non-degenerate curve
 only (all values below one). If a terminal event exhausts the empirical risk
-set, the valid estimate is exactly one but cannot define a finite probit
+set, a Kaplan-Meier estimate is exactly one but cannot define a finite probit
 threshold; choose a scientifically justified earlier/lifetime horizon rather
 than silently clipping it. ``thresholds_from_cip`` takes ``k_pop``
 separately: pass the curve's value at the intended lifetime horizon, or a
@@ -205,12 +204,10 @@ def aalen_johansen_cip(age_entry: ArrayLike, age_exit: ArrayLike,
     where ``S`` is the overall survival (any event). The competing events are
     not censorable in the Kaplan-Meier sense; comparing against
     `kaplan_meier_cip` (which treats them as censoring) quantifies the
-    estimand difference. This is the estimator LT-FH++ used for its CIPs
-    (Pedersen et al. 2022: Aalen-Johansen with death and emigration as
-    competing events, sex x birth-year strata). The variance includes the
-    finite-risk-set and tied-event corrections from Aalen (1978) and ABGK
-    (1993, sec. IV.4), evaluated in the algebraically equivalent recurrence
-    used by ``cmprsk::cuminc`` so it remains finite when the final risk set is
+    estimand difference. The variance includes the finite-risk-set and
+    tied-event corrections from Aalen (1978) and ABGK (1993, sec. IV.4),
+    evaluated in the algebraically equivalent recurrence used by
+    ``cmprsk::cuminc`` so it remains finite when the final risk set is
     exhausted.
     """
     age_entry, age_exit = _validate_followup(age_entry, age_exit)
@@ -285,10 +282,10 @@ def _aalen_variance(F, pieces):
     surv_after = surv_prev * (1.0 - d_all / Y)
     var = np.empty(F.size, dtype=float)
 
-    # ``v1 + F^2 v3 - 2 F v2`` is the influence-function variance. Separate
-    # cause/other contributions are essential when causes are tied: replacing
-    # their finite-population factors with d / Y**2 is only a large-risk-set
-    # approximation.
+    # ``v1 + F^2 v3 - 2 F v2`` is the Aalen variance (docs/cip-estimation.md,
+    # Equation 4). Separate cause/other contributions are essential when causes
+    # are tied: replacing their finite-population factors with d / Y**2 is only
+    # a large-risk-set approximation.
     v1 = v2 = v3 = 0.0
     for j in range(F.size):
         if d_other[j] > 0 and surv_after[j] > 0:

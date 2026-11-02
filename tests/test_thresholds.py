@@ -214,7 +214,7 @@ def test_liability_threshold_validates_elementwise():
 @pytest.mark.parametrize("K", [1e-8, 1e-12, 1e-16, 1e-17, 1e-100, 1e-300])
 def test_liability_threshold_survives_the_far_tail(K):
     # liability_threshold used to compute norm_ppf(1.0 - K); that subtraction
-    # discards the tail below ~1e-16 and returns +inf for K <= 1.1e-16, even
+    # discards the tail below ~1e-16 and returns +inf for K <= 2**-54, even
     # though _validate_pop_prev admits the whole open interval (0, 1). The
     # identity Phi^-1(1-K) = -Phi^-1(K) is exact and cancellation-free.
     got = float(liability_threshold(K))

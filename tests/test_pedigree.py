@@ -147,7 +147,7 @@ class KinshipIntegrationTests(unittest.TestCase):
 
     def test_degree_is_the_shortest_route_not_the_first_found(self):
         # A is P's paternal grandfather (degree 2) but is also reachable as
-        # B's father via the maternal-uncle route; assigning on first visit
+        # B's father via the maternal-grandfather route; assigning on first visit
         # recorded whichever the traversal hit first, overstating the degree.
         g = build_parent_graph(ids=["P", "F", "M", "B", "A"],
                                father=["F", "A", "B", "A", None],

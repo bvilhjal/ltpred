@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
 # Locked LTFGRS Pearson-Aitken pass on a threshold table written by
 # bench_ltfhplus_compare.py. LTFHPlus 2.2.0 has no PA path; LTFGRS is the
-# public PA package from the same authors (method = "PA", useMixture = FALSE).
+# public PA package from the same authors (default method = "PA", useMixture =
+# FALSE; both settable by argument).
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 5) {
@@ -48,7 +49,8 @@ est <- estimate_liability(
 )
 elapsed <- proc.time()[["elapsed"]] - t0
 
-# LTFGRS PA returns columns est / var; Gibbs may use genetic_est / genetic_se.
+# LTFGRS PA returns est / var, so its genetic_se column is the posterior SD
+# sqrt(var), not a Monte-Carlo SE; Gibbs may use genetic_est / genetic_se.
 if ("est" %in% names(est)) {
   genetic_est <- est$est
   genetic_se <- if ("var" %in% names(est)) sqrt(pmax(est$var, 0)) else NA_real_

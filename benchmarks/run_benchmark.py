@@ -200,7 +200,7 @@ def _resolve_script(name):
 
 
 def _parse_args(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
         "--artifact", action="append", required=True, metavar="FILE",
         help="CSV output to hash after the run; repeat for multiple outputs",

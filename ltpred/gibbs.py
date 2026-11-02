@@ -31,14 +31,15 @@ Algorithm G (methods report, "Computing the truncated mean"), as implemented.
 4. **G4 sweep.** Free coordinates are redrawn in covariance order by
    `_gibbs_conditional_draw`, ``x_j = mu_j + sd_j * Phi^-1(U(Phi(a), Phi(b)))``
    (Kotecha & Djuric 1999), one uniform each, on the survival scale when
-   ``a >= 0``. Where even that underflows (``|z|`` beyond about 38.5)
-   `_far_right_std_tnorm_quantile` inverts the leading-order Gaussian tail
-   ratio on the log scale (a Rayleigh construction). Strongly coupled free
-   coordinates also receive joint Gaussian conditional moves along whitened
-   eigenvectors of their precision block (`_mixing_directions`). These moves
-   preserve the same truncated law and keep pins fixed. They activate when
-   any conditional-on-pins variance exceeds its coordinate-conditional
-   variance by a factor of 16; ordinary blocks keep their coordinate sweeps.
+   ``a >= 0``. Where too few survival values remain representable (``|z|``
+   beyond about 38) `_far_right_std_tnorm_quantile` inverts the leading-order
+   Gaussian tail ratio on the log scale (a Rayleigh construction). Strongly
+   coupled free coordinates also receive joint Gaussian conditional moves
+   along whitened eigenvectors of their precision block
+   (`_mixing_directions`). These moves preserve the same truncated law and
+   keep pins fixed. They activate when any conditional-on-pins variance
+   exceeds its coordinate-conditional variance by a factor of 16; ordinary
+   blocks, and the `gibbs_advance` chains, keep coordinate sweeps.
 5. **G5 stream.** After ``burn_in`` sweeps, each of ``n_sim`` sweeps adds the
    outputs to running sums and sums of squares; the first
    ``n_batch * batch_size`` of them also form batch means, of which only the
@@ -46,7 +47,8 @@ Algorithm G (methods report, "Computing the truncated mean"), as implemented.
    additionally store ``O(d**2)`` direction coefficients per active family.
 6. **G6 stop.** `ltpred.estimate._estimate_group` reruns the unconverged
    families in rounds, pooling those sums, until every requested batch-means
-   SE is ``<= tol``; converged families leave the active set.
+   SE is ``<= tol`` or ``max_rounds`` is reached; converged families leave
+   the active set.
    This estimates Monte Carlo precision, not convergence to stationarity;
    batch means can miss slow modes. Difficult bounds still need independent
    seeds, longer burn-in/chains and, where available, a quadrature reference.
@@ -693,26 +695,25 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
     sum and sum of squares of the ``M = n_batch`` batch means of size
     ``b = batch_size`` (``M * b <= N``), giving the batch-means SE
     ``se = sqrt(b * (bm_sumsq - bm_sum^2 / M) / (M - 1) / (M * b))``: the
-    denominator counts the batched draws only, as in R ``batchmeans``. The
-    posterior variance is a property of the TMVN and does not shrink with more
-    draws; the SE is the sampler's own error and does. ``seeds[f]`` seeds
-    family ``f`` (``-1``: unseeded). ``lowers``/``uppers`` may be float32.
+    denominator counts the batched draws only (R ``batchmeans`` divides by all
+    ``N``). The posterior variance is a property of the TMVN and does not
+    shrink with more draws; the SE is the sampler's own error and does.
+    ``seeds[f]`` seeds family ``f`` (``-1``: unseeded). ``lowers``/``uppers``
+    may be float32.
 
     When ``collapse`` is true (the default whenever ``cov`` is supplied), each
     family's own ``(-inf, inf)`` coordinates are integrated out of its sweep
     (methods report, Algorithm G, step G2); families sharing an unbounded set
-    run in one kernel call. A family's draws therefore depend only on its
-    bounds and seed, not on the other families in the call. A
-    collapsed output streams ``E[z | y]`` and its sum of squares includes the
-    constant ``Var(z | y)``, so ``var`` is still ``Var(target | C_F)``, while
-    its SE is that of the Rao--Blackwellised mean. ``P``/``sd`` are then
-    unused: the kept block's are recomputed from ``cov``. If every coordinate
-    is collapsed, no sampling happens (sums 0, ``total_sumsq = N * cov[j, j]``).
+    run in one kernel call. A collapsed output streams ``E[z | y]`` and its
+    sum of squares includes the constant ``Var(z | y)``, so ``var`` is still
+    ``Var(target | C_F)``, while its SE is that of the Rao--Blackwellised
+    mean. ``P``/``sd`` then serve only families with nothing to collapse; the
+    kept block's are recomputed from ``cov``. If every coordinate is
+    collapsed, no sampling happens (sums 0, ``total_sumsq = N * cov[j, j]``).
     Pass ``collapse=False`` to force the full chain. A caller looping rounds
     on one ``cov`` (the convergence loop) may pass a dict as
     ``_collapse_cache`` so those kept-block factors are computed once instead
-    of per round; the sums are identical. ``rtmvnorm_gibbs`` is
-    never collapsed.
+    of per round; the sums are identical.
     """
     out_idx = np.asarray(out_idx, dtype=np.int64)
     F = int(np.asarray(lowers).shape[0])
@@ -849,11 +850,12 @@ def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
 
     An internal fitting primitive of `ltpred.fit`; arguments are not validated,
     and public callers control reproducibility through the fitters' ``seed``.
-    Unlike `gibbs_estimate_batched` (which runs independent short chains and
-    returns their means), this keeps a **persistent** state ``x`` (``F x d``,
-    updated in place) that the caller carries across outer iterations — the
-    data-augmentation step of a variance-component fit, where the covariance
-    (hence ``P``/``sd``, from `gibbs_params`) changes between calls.
+    Unlike `gibbs_estimate_batched` (which runs fresh independent chains and
+    returns their running sums), this keeps a **persistent** state ``x``
+    (``F x d``, updated in place) that the caller carries across outer
+    iterations — the data-augmentation step of a variance-component fit,
+    where the covariance (hence ``P``/``sd``, from `gibbs_params`) changes
+    between calls.
     ``lowers``/``uppers`` are the ``(F, d)`` bounds, and ``fixed[f, j]``
     coordinates (pinned cases) are held. ``n_sweeps <= 0`` does nothing. The
     family loop is parallel when Numba is installed and serial otherwise.
@@ -930,8 +932,9 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
         would replay the stream the seeded call left behind, making
         ``seed=None`` results deterministic after any seeded call. The reseed
         also resets the calling thread's persistent-chain stream used by
-        `gibbs_advance`. The high-level estimators seed each family inside the
-        parallel kernel and are safe for concurrent seeded use.
+        `gibbs_advance`. With Numba, the high-level estimators seed each family
+        inside the parallel kernel and are safe for concurrent seeded use;
+        without it they share the global-RNG caveat.
     params : (P, sd), optional
         Precomputed `gibbs_params` output; recomputed from ``covmat`` when
         omitted. The supplied ``covmat`` is still validated because it defines
@@ -942,7 +945,7 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
 
     Returns
     -------
-    (n_sim, len(out)) ndarray
+    (n_sim, len(set(out))) ndarray
         Samples, columns in the sorted order of ``out``.
     """
     cov = (np.ascontiguousarray(covmat, dtype=np.float64)

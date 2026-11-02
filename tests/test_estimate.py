@@ -1003,8 +1003,8 @@ def test_length_one_h2_is_a_single_trait_request():
 
 
 def test_batch_means_se_uses_batched_draw_count():
-    # the bmmat SE divides by the a*b draws that enter the batches, not by the
-    # full retained n (review 2026-08, F18); n = 10 tiles as a = 3, b = 3
+    # ltpred's SE divides by the a*b draws that enter the batches, not by the
+    # full retained n as R bmmat does (review 2026-08, F18); n = 10 tiles as a = 3, b = 3
     x = np.arange(10, dtype=float)
     _, se = batch_means(x)
     batch_mean = x[:9].reshape(3, 3).mean(axis=1)
@@ -1066,7 +1066,7 @@ def test_estimator_accepts_c2_m2_and_treats_none_as_absent():
 def test_pa_estimation_under_c2_matches_closed_form():
     # pinning a full sib at v is exact Gaussian conditioning:
     # E[o | s1 = v] = (0.5*h2 + c2)*v and E[g | s1 = v] = 0.5*h2*v
-    # (review 2026-08, F36: first exact oracle for estimation under c2)
+    # (review 2026-08, F36)
     h2, c2, v = 0.4, 0.1, 1.1
     lower = np.array([[-np.inf, v]])
     upper = np.array([[np.inf, v]])

@@ -3,7 +3,7 @@
 `fit_pairwise_multi` extends Algorithm L (`ltpred.pairwise`) to the model
 ``Sigma = G (x) A + S (x) C + T (x) M + E (x) I`` in trait-major coordinates,
 omitting ``S`` (full sibship) and/or ``T`` (couple) when not requested; see the
-efficient inference report, "Joint genetic and environmental covariance".
+methods report, "Joint genetic and environmental covariance".
 
 **Parametrisation.** The free vector ``x`` holds the
 upper-triangular entries, diagonal included, of each requested component matrix
@@ -86,15 +86,13 @@ class MultiTraitPairwiseResult:
     ``components`` includes residual ``E``. ``re`` is its within-person
     cross-trait correlation; shared sibship/couple correlations are separately
     available in ``correlations['C']``/``['M']``. ``rp`` sums *all* components.
-    Zero-variance correlations are NaN. ``se`` contains sampling SEs for
-    ``h2``, ``rg``, ``re`` and ``rp`` (delta method, family-cluster sandwich).
+    ``se`` contains sampling SEs for ``h2``, ``rg``, ``re`` and ``rp`` (delta
+    method, family-cluster sandwich).
     All SEs are withheld at any covariance constraint boundary.
 
     ``parameter_covariance`` follows ``parameter_order``: (component, trait,
     trait) triples for the free symmetric entries. Residual diagonals are
-    determined by unit total variance and are not free parameters. These are
-    conditional asymptotic SEs; estimated thresholds/weights, informative
-    missingness, overlapping clusters and boundary inference need other methods.
+    determined by unit total variance and are not free parameters.
 
     ``phen_names`` labels the traits. ``at_boundary`` is true when a component
     eigenvalue (for ``E``, eigenvalue minus ``eps``) is at most
@@ -229,9 +227,9 @@ def _prepare_multi_pairs(families, components, p, order, weights, member_bounds)
     ``member_bounds`` is `_member_bounds`'s ``(lo, hi, roles, fam_index)``
     output — stacked family-major with members sorted by role within each
     family, so each structure group's rows are one fancy index and the
-    case/observed masks are vectorised instead of re-derived per member.
-    ``thresholds[a]`` keeps the per-member loop's semantics: the value of the
-    *last* observed member in (family, role) order."""
+    case/observed masks are vectorised. ``thresholds[a]`` is the last observed
+    member's value in (structure group, family, role) order; L1 holds them
+    equal to ``rtol=1e-6``."""
     lo_all, hi_all, _roles, fam_index = member_bounds
     patterns, counts, groups, thresholds = [], [], [], np.full(p, np.nan)
     lookup = {}
@@ -287,8 +285,8 @@ def _prepare_multi_pairs(families, components, p, order, weights, member_bounds)
 
 #: Cross-call memo for `_probability_limits`. The bisection is a deterministic
 #: function of ``(t1, t2, eps)``, but it costs a 32-step bisection per sign per
-#: distinct threshold pair (two adaptive quads a step) — 22% of a multi-trait
-#: fit — and `bootstrap_fit` repays it B+1 times on inputs that never change
+#: distinct threshold pair (up to three adaptive quads a step) — 22% of a
+#: multi-trait fit — and `bootstrap_fit` repays it B+1 times on inputs that never change
 #: between resamples of one cohort. Keyed by eps, then by the float pair.
 _PROBABILITY_LIMITS_MEMO = {}
 
@@ -426,8 +424,7 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
     withheld SEs emit a ``RuntimeWarning``. Interior sampling SEs
     use family-cluster score variation and a delta method for correlations;
     any PSD/residual boundary withholds all normal SEs. A composite likelihood
-    does not support ordinary likelihood-ratio tests. Broad finite-sample
-    calibration, especially for rare traits or weak components, is not implied.
+    does not support ordinary likelihood-ratio tests.
     """
     components = tuple(components)
     if ("A" not in components or any(c not in ("A", "C", "M") for c in components)

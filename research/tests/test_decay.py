@@ -3,7 +3,7 @@
 The deterministic pieces (kernel values/derivatives, the structured covariance
 and its batched form, the lambda=0 reduction to the scalar model, and input
 validation) are checked exactly; the stochastic fit is checked for coherence and
-for recovery with deliberately loose tolerances (the model is data-hungry by
+for the sign of r_g with deliberately loose tolerances (the model is data-hungry by
 design — see benchmarks/bench_aod_decay.py for the powered kill-test).
 """
 import unittest
@@ -238,17 +238,17 @@ class FitCoherenceTests(unittest.TestCase):
         np.testing.assert_allclose(np.diag(res.rg), 1.0, atol=1e-8)
         self.assertGreaterEqual(np.linalg.eigvalsh(res.genetic_cov).min(), -1e-8)
         self.assertGreaterEqual(np.linalg.eigvalsh(res.env_cov).min(), -1e-8)
-        # decay rates within the derived bound and non-negative
+        # decay rates non-negative
         self.assertTrue(np.all(res.lambda_within >= 0.0))
         self.assertTrue(np.all(res.lambda_cross >= 0.0))
-        # traces line up with the reported averages
+        # the decay-rate trace is reported
         self.assertIn("lambda_within", res.traces)
         self.assertEqual(res.kernel, "ou")
 
     def test_recovery_loose_well_powered_direction(self):
-        # moderate-to-large cohort: the fit should move rg and lambda in the
-        # right direction (positive, not boundary-slammed) -- the powered
-        # recovery kill-test lives in benchmarks/bench_aod_decay.py.
+        # rg must have the right sign and stay off the boundary; lambda is only
+        # checked to lie in its clip range [0, lam_max]. Recovery is tested by
+        # benchmarks/bench_aod_decay.py.
         fams = _simulate(1500, lam=0.05, rg=0.5, seed=9)
         res = fit_genetic_correlation_decay(fams, n_em=14, n_draw=60, burn=30,
                                             m_iter=80, seed=5,

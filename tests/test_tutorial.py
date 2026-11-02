@@ -79,9 +79,9 @@ def test_tutorial_blocks_run_in_order_and_print_the_documented_output():
 
 
 def test_tutorial_only_uses_the_public_api():
-    """The page is what an installed user can run, so no private or
-    checkout-only imports: ``examples/`` and ``benchmarks/`` ship in neither the
-    wheel nor the sdist (docs/REVIEWS.md, 09d T2-2)."""
+    """The page is what an installed user can run, so it imports only numpy and
+    ltpred, never checkout-only code: ``examples/`` and ``benchmarks/`` ship in
+    neither the wheel nor the sdist (docs/REVIEWS.md, 09d T2-2)."""
     imported = set()
     for kind, body in _blocks():
         if kind != "python":

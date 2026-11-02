@@ -3,13 +3,11 @@
 
 The evidence ledger (``benchmarks/RESULTS.md``), the static paper tables the
 methods report inputs, the report source and the tracked PDF must agree with
-the committed CSV and JSON artifacts. Prose elsewhere links to the ledger
-instead of repeating its numbers, so it is not pinned here -- with one
-exception: ``docs/estimation.md`` repeats the array-API speedup and
-throughput ranges, so those two numbers and their vintage attribution are
-pinned against the CSV by ``check_scaling_prose``. Every committed
-``results.json`` capsule additionally carries its own integrity check
-(``check_capsule_integrity``), not just the v0.6.1 rerun.
+the committed CSV and JSON artifacts. Of the ledger numbers that docs prose
+repeats, only the array-API speedup and throughput ranges in
+``docs/estimation.md`` (with their vintage) are pinned here, by
+``check_scaling_prose``. ``check_capsule_integrity`` checks whatever hash,
+thread and power-guard provenance each committed ``results.json`` capsule records.
 """
 
 import csv
@@ -103,7 +101,7 @@ def check_scaling():
 def check_scaling_prose():
     """Pin the array-API prose in docs/estimation.md to the scaling CSV.
 
-    The one doc that repeats ledger numbers rather than linking them, so its
+    docs/estimation.md repeats these ledger numbers rather than linking them, so its
     rounded ranges, its thread count and its vintage attribution are asserted
     here: a regenerated grid cannot silently strand the sentence (review
     2026-09e, T1-1)."""
@@ -133,7 +131,8 @@ def check_capsule_integrity():
 
     Generalises the v0.6.1-only discipline (review 2026-09e, T2-2): each
     capsule must carry its own SHA-256 in provenance.json when one exists,
-    and must record single-threaded measurement variables."""
+    and any thread variables it records must all be 1; a capsule recording
+    none passes unchecked."""
     capsules = sorted((ROOT / "benchmarks" / "results").glob("*/results.json"))
     assert capsules, "no results.json capsules under benchmarks/results/"
     for artifact_path in capsules:
@@ -290,9 +289,8 @@ def check_paper_tables():
     """Recompute the static LaTeX tables cell by cell from their source CSVs.
 
     The generator was removed in the 2026-08 lean-down, so these tables are
-    edited by hand and can drift from the artifacts they claim to summarise --
-    which is exactly what happened to two RESULTS cells before the 2026-09-14
-    rerun caught them. Checking every cell costs nothing and makes a
+    edited by hand and can drift from the artifacts they claim to summarise.
+    Checking every cell costs nothing and makes a
     transcription slip a release failure rather than a reader's problem."""
     def cells(name, rows, build):
         text = read(ROOT / "paper" / "tables" / f"{name}.tex")

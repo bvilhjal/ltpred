@@ -1,7 +1,7 @@
 """Numerical posterior moments for additive, noninbred nuclear families.
 
-Algorithm Q of the methods report, "Nuclear families have at most two
-parental factors". Model: one trait, additive genetics plus independent
+Algorithm Q, derived in the methods report section "Nuclear families have at
+most two parental factors". Model: one trait, additive genetics plus independent
 residuals (no C/M), unrelated noninbred parents, roles ``o``, ``m``, ``f``,
 ``s1``, ``s2``, ..., ``0 <= h2 < 1``, no censoring mixture. The target is the
 proband's genetic (``out="genetic"``) or full (``"full"``) liability. With
@@ -15,19 +15,20 @@ dimensions. Each family is solved as follows:
    informative offspring (independent parental liabilities).
 2. Condition ``z`` on every pin exactly (sequential Gaussian updates); a
    pinned proband also enters the target's law given ``z``. Absent rows drop.
-3. Zero or one remaining interval: exact Gaussian or single-selection answer.
-4. Otherwise whiten ``z`` and project onto the span (rank 1 or 2) of the
+   With zero or one interval left, return the exact Gaussian or
+   single-selection answer.
+3. Otherwise whiten ``z`` and project onto the span (rank 1 or 2) of the
    interval rows' loadings; orthogonal directions add only analytic variance.
-5. Mode: Newton's method on the log-concave negative log posterior with
+4. Mode: Newton's method on the convex negative log posterior with
    its exact gradient and Hessian and Armijo backtracking. It stops on a
    negligible step, a failed line search, or an accepted decrease at
    floating-point resolution (stationary objective); else 80 iterations raise.
-6. Integrate on a tensor Gauss-Hermite grid centred at the mode and
+5. Integrate on a tensor Gauss-Hermite grid centred at the mode and
    scaled by the inverse-Hessian Cholesky factor, importance-reweighted in
    log space by prior times interval likelihoods over the proposal. Per node,
    the target's conditional moments ``mu(z)``, ``V(z)`` include its own
    observation; ``est = E[mu]`` and ``var = E[V] + Var[mu]``.
-7. Refine ``n = 16, 32, 64, ...`` nodes per dimension, doubling up to
+6. Refine ``n = 16, 32, 64, ...`` nodes per dimension, doubling up to
    ``max_nodes``, recording each change ``max(|d est|, |d var|)``. Accept
    when both of the last two changes are ``<= atol`` (at least three
    resolutions), reporting that maximum and the final ``n``.
@@ -37,7 +38,7 @@ raise ``RuntimeError``. Analytic answers report ``error = 0``,
 ``n_nodes = 0``. `estimate_liability_quadrature_arrays` solves each distinct
 ``(lower, upper)`` row once and names the first matching family in errors.
 ``estimate_liability`` exposes the diagnostics as ``quadrature_error`` and
-``quadrature_nodes``; they measure resolution change, not certified error.
+``quadrature_nodes``.
 """
 
 from __future__ import annotations
@@ -100,7 +101,8 @@ def _log_mass(mean, variance, lower, upper):
         width = upper - lower
         # Local quadrature is exceptionally accurate for a nearly flat narrow
         # interval. A far-away Gaussian can instead vary by many log units
-        # across even this width; use reflected log CDFs for those nodes.
+        # across even this width; if any node is that far, every node uses
+        # reflected log CDFs.
         if width / sd <= 1e-3 and np.all(np.abs((lower + 0.5 * width - mean) * width / variance) <= 10.0):
             center = lower + 0.5 * width
             z = (center - mean) / sd
@@ -269,8 +271,8 @@ def _family(roles, lower, upper, h2, out, atol, max_nodes):
         cov -= np.outer(cross, cross) / variance
         cov = 0.5 * (cov + cov.T)
 
-    # Given the parental factor and own observation, the genetic residual is
-    # Mendelian sampling (variance a), correlated a with own full residual v.
+    # Given the parental factor, the genetic residual is Mendelian sampling
+    # (variance a), with covariance a with the own full residual (variance v).
     a, v = 0.5 * h2, 1.0 - 0.5 * h2
     own_pin = own_lo == own_hi
     if own_pin:
@@ -370,10 +372,9 @@ def estimate_liability_quadrature_arrays(roles: Sequence[str], lower: ArrayLike,
     Two successive refinements must meet it; ``max_nodes`` (64 through 512)
     limits nodes per active factor dimension. The upper limit bounds the
     largest tensor grid to 262144 points. Failure raises ``RuntimeError`` with the
-    family index, rather than returning an unchecked estimate. Analytic zero/
+    family index, rather than returning an unchecked estimate. Analytic zero- or
     one-interval cases and families with only parental observations require no
-    nodes. Rows with identical bounds are solved once. No Monte-Carlo SE is
-    defined.
+    nodes. Rows with identical bounds are solved once.
     """
     roles = list(roles)
     if any(not isinstance(r, str) or re.fullmatch(r"o|m|f|s[1-9][0-9]*", r) is None for r in roles):

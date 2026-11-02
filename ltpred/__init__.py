@@ -1,9 +1,9 @@
 """ltpred -- LT-FH++ in Python.
 
-A faithful port of the R package **LTFHPlus**: the liability-threshold model
-conditioned on family history and age-, birth-year- and sex-dependent prevalence
-(LT-FH++), and the same personalised construction without family history
-(ADuLT). Given each individual's case/control
+It implements LT-FH, LT-FH++ (the liability-threshold model conditioned on family
+history and age-, birth-year- and sex-dependent prevalence), ADuLT (the same
+personalised construction without family history) and PA-FGRS, following the R
+packages **LTFHPlus** and **LTFGRS**. Given each individual's case/control
 status, age and relatives' statuses, it estimates the **posterior mean genetic
 liability** -- a continuous phenotype that can improve power over a plain
 case/control label when the liability model and supplied inputs are appropriate.
@@ -19,7 +19,7 @@ Typical use (single-trait inference defaults to Pearson-Aitken)::
 
 numpy and scipy are required; an optional Numba JIT (the ``[fast]`` extra)
 compiles and parallelises the Gibbs and Pearson-Aitken kernels, and register
-pedigree simulation needs phensim (the ``[sim]`` extra, from GitHub). Names are
+pedigree simulation needs phensim (the ``[sim]`` extra, from PyPI). Names are
 imported lazily (PEP 562) so ``import ltpred`` stays cheap.
 """
 
@@ -81,7 +81,7 @@ if TYPE_CHECKING:
                              liability_threshold, pa_thresholds,
                              prevalence_thresholds, thresholds_from_cip)
 
-# public name -> submodule it lives in
+# submodule -> the public names it defines (inverted below)
 _EXPORTS = {
     "quadrature": ["QuadratureResult", "estimate_liability_quadrature_arrays"],
     "pairwise": ["PairwiseFitResult", "fit_pairwise"],
@@ -161,8 +161,8 @@ def __dir__():
 # imported first (``from ltpred.tetrachoric import ...``, or any other name it
 # exports). Keep the function bound instead. The module itself stays importable
 # as ``ltpred.tetrachoric`` through ``from ltpred.tetrachoric import ...`` and
-# ``importlib.import_module``; only the attribute chain
-# ``ltpred.tetrachoric.<name>`` does not reach it.
+# ``importlib.import_module``; the attribute ``ltpred.tetrachoric`` and
+# ``import ltpred.tetrachoric as m`` give the function instead.
 _FUNCTION_NAMED_MODULES = frozenset(
     name for name, mod in _NAME_TO_MODULE.items() if name == mod)
 

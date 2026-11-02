@@ -64,8 +64,8 @@ Each page has one job:
 The [methods PDF](report/ltpred_methods.pdf) supplies the detailed derivation.
 [Numerical checks](docs/validation.md) explains reproducible simulation examples;
 [benchmark results](benchmarks/RESULTS.md) owns dated accuracy, runtime and memory
-measurements. Retained benchmark artifacts substantiate those measurements.
-`python scripts/check_evidence.py` checks the release-defining claims against them.
+measurements. `python scripts/check_evidence.py` checks the release-defining
+claims against the retained artifacts.
 
 ## Scope and development
 

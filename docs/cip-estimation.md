@@ -8,16 +8,13 @@ it can *be* the result: the age, sex and cohort pattern of incidence, without
 scoring families.
 
 ```
-CIP(age | stratum) = P(diagnosed at or before `age`),   T = Phi^-1(1 - CIP).
+CIP(age | stratum) = P(diagnosed at or before age),   T = Phi^-1(1 - CIP).
 ```
 
-This page describes how to estimate that curve from registry-style health
-data with `ltpred.cip`: the input format, the two estimators (Kaplan-Meier and
-Aalen-Johansen) with their formulas and variance estimators, the estimand
-choice that matters most in practice, stratification, worked examples, and the
-edge cases. The construction follows the LT-FH++ paper (Pedersen et al. 2022)
-and the Danish register-epidemiology literature (Andersen, Borgan, Gill &
-Keiding 1993; Plana-Ripoll, Dalsgaard, Beck and colleagues).
+`ltpred.cip` estimates that curve from registry-style follow-up records. The
+construction follows the LT-FH++ paper (Pedersen et al. 2022) and the Danish
+register-epidemiology literature (Andersen, Borgan, Gill & Keiding 1993;
+Plana-Ripoll, Dalsgaard, Beck and colleagues).
 
 ## When you need this page
 
@@ -85,10 +82,8 @@ process (for example, administrative end of follow-up).
 the presence of death. Death then remains a competing event even if death and
 diagnosis times are statistically independent. Censoring the dead asks a
 different, hypothetical no-death question and `1 - KM` generally
-**overestimates** the crude diagnosed proportion — increasingly at older ages
-(measured directly in `benchmarks/bench_cip_estimation.py`: an absolute
-overestimation of 0.022 at a 42% death share). Use Aalen-Johansen and put death
-in a competing-event code.
+**overestimates** the crude diagnosed proportion — increasingly at older ages.
+Use Aalen-Johansen and put death in a competing-event code.
 
 ## Aalen-Johansen (`aalen_johansen_cip`)
 
@@ -102,7 +97,7 @@ F_k(t) = sum_{t_j <= t} S(t_j-) * d_kj / Y_j .
 ```
 
 `F_k` is the **crude cumulative incidence**: the probability of being
-diagnosed by age `t` *in the presence of* death and emigration. This is what
+diagnosed by age `t` *in the presence of* competing events such as death. This is what
 LT-FH++ estimated for its CIPs ("the cumulative incidence function for each
 disorder was estimated with the Aalen-Johansen approach considering death and
 emigration as competing events", Pedersen et al. 2022, one curve per sex and
@@ -161,8 +156,8 @@ Three quantities are easily confused:
 
 Which curve the thresholds need is a modelling choice, not only an estimation
 one. In the threshold-crossing model a person's onset age is when liability
-crosses `T(t)`; if death is independent of liability, a living undiagnosed
-person satisfies `P(l > T(t)) =` the **net** risk, so the net curve is the
+crosses `T(t)`; if death is independent of liability, `P(l > T(t))` among
+people alive at `t` equals the **net** risk, so the net curve is the
 one the model implies and the crude curve sets thresholds slightly too high
 (more so where death is common). If death is related to liability, or the
 estimand is the population diagnosed fraction, the crude curve is the
@@ -174,7 +169,7 @@ Aalen-Johansen thresholds with mortality present.
 `benchmarks/bench_cip_estimation.py` measures all of this on a simulated
 registry with a known curve: AJ recovers the crude curve to ~0.002 absolute
 error at N = 50,000 (with or without delayed entry), while KM-as-censoring
-overshoots the crude curve by ~0.022 at a 42% death share.
+overshoots the crude curve by up to 0.022 at a 42% death share.
 
 ## Stratification
 
@@ -193,8 +188,8 @@ upper = np.empty(len(status))
 for key in np.unique(stratum):
     m = stratum == key
     curve = aalen_johansen_cip(age_entry[m], age_exit[m], event[m])
-    # start the grid at age 0 so nobody is given incidence before the
-    # first observed event age (np.interp would hold the first value)
+    # anchor the curve at (0, 0); otherwise np.interp holds the first event
+    # age's incidence for all younger ages (it now ramps linearly from 0)
     ages = np.r_[0.0, curve.ages]
     values = np.r_[0.0, curve.values]
     lower[m], upper[m], _, _ = thresholds_from_cip(
@@ -212,9 +207,6 @@ Practical guidance:
   which is only the lifetime prevalence if the curve reaches the lifetime
   horizon. On a heavily censored young cohort it does not — pass a separately
   justified `k_pop` (e.g. from an older stratum or the literature) instead.
-  An empirical terminal value of exactly one is valid when the risk set is
-  exhausted, but it cannot define a finite probit threshold; use a justified
-  non-degenerate horizon rather than clipping it silently.
 
 ## Worked example
 
@@ -245,18 +237,16 @@ with the verified curve (computed by the package, checked by hand):
 Walking the first rows: at 40, one diagnosis among `Y = 8` at risk (the two
 late entries, ages 5 and 10, are already at risk — delayed entry only excludes
 people not yet entered), so `S = 7/8` and `F_diag = 1 * 1/8 = 0.125`. At 47,
-the risk set is down to 6 (the person diagnosed at 40 has left), so
+the risk set is down to 6 (the diagnosis at 40 and the censoring at 44 have left), so
 `F_diag = 0.125 + (7/8) * (1/6) = 0.271`. At 52 the death removes one from the
 risk set without adding to `F_diag`: `F_death = (7/8 * 5/6) * (1/5) = 0.146`.
 At the horizon, `F_diag + F_death = 0.563 + 0.438 = 1 = 1 - S`, as required.
-`tests/test_cip.py` contains further hand-computed KM and AJ examples, and
-`benchmarks/bench_cip_estimation.py` simulates a full registry.
 
 ## Edge cases and gotchas
 
 - **Prevalent cases (washout).** If a person was diagnosed *before* their
   entry age, they are not an incident case: exclude them (the Danish
-  practice), or left-truncate the whole analysis past a minimum onset age.
+  practice).
 - **Zero-length follow-up** (`exit == entry`): a censored row contributes
   nothing and may be kept for bookkeeping; an event-coded row is rejected
   because that person was never in the risk set.
@@ -294,10 +284,9 @@ events including an exhausted final risk set, and runs the curve into
 `thresholds_from_cip`. `benchmarks/bench_cip_estimation.py`
 (RESULTS.md section 19) simulates a 50,000-person registry with a known
 curve, mortality, administrative censoring and a register-start year, and
-shows exact recovery, the KM competing-risks bias, and the end-to-end cost of
+shows recovery to within 0.002, the KM competing-risks bias, and the end-to-end cost of
 using an estimated curve (calibration slope 1.0023 vs 1.0069 oracle,
-identical correlation). That end-to-end arm estimates the net (Kaplan-Meier)
-curve on families simulated without mortality.
+identical correlation).
 
 ## References
 
@@ -310,7 +299,7 @@ curve on families simulated without mortality.
 - Aalen (1978), *Ann Statist* 6:534-545 — the closed-form CIF variance.
 - Plana-Ripoll et al. (2019), *JAMA Psychiatry* — register comorbidity with
   the same counting-process machinery (analysis code: NB-COMO).
-- Beck et al. (2024), *Acta Psychiatr Scand* — age-of-onset CIPs across
-  birth cohorts with delayed entry and competing risks
+- Beck et al. (2024), *Acta Psychiatr Scand* — sex-specific age-of-onset CIPs
+  pooled across birth cohorts, with delayed entry and competing risks
   ([PMC11065580](https://pmc.ncbi.nlm.nih.gov/articles/PMC11065580/)).
 - Greenwood (1926) — the KM variance; Kaplan & Meier (1958) — the estimator.

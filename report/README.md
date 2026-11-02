@@ -11,8 +11,8 @@ the note covers, and how it relates to the user documentation, is on the
 documentation site's [model reference](../docs/algorithm.md#methods-report).
 
 Rebuild (requires [Tectonic](https://tectonic-typesetting.github.io/)), then
-run the evidence check, which binds the release-defining rows to the committed
-artifacts and rejects a report source or included table newer than the tracked
+run the evidence check (requires `pypdf>=4`), which binds the release-defining
+rows to the committed artifacts and rejects a report source or included table newer than the tracked
 PDF:
 
 ```bash

@@ -21,8 +21,8 @@ Three questions, each over structures x prevalence x encoding x seeds
      JIT).
 
 Scope limit: every case and control is bounded at the one lifetime threshold,
-so a cell has few distinct bound rows (8, against ~200 with personalised
-age-specific bounds) and quadrature reuses duplicate rows. The costs here are
+so a cell has few distinct bound rows (at most 8, 16 or 32 by structure,
+against ~200 with personalised age-specific bounds) and quadrature reuses duplicate rows. The costs here are
 not throughput on personalised-onset data.
 
 Output: ``bench_quadrature.csv``; one row per cell x engine plus the engine

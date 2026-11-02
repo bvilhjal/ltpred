@@ -9,9 +9,8 @@ in full. Nothing here feeds back into ``ltpred``.
 Contents:
 
 - :func:`fit_variance_components_mcem` — the finite-iteration, fixed-damping
-  Monte-Carlo EM-style likelihood fit of the variance components (the former
-  ``fit_variance_components(method="mcem")`` route), with its approximate
-  OPG/BHHH information SE and GHK Monte-Carlo log-likelihood/AIC
+  Monte-Carlo EM-style likelihood fit of the variance components, with its
+  approximate OPG/BHHH information SE and GHK Monte-Carlo log-likelihood/AIC
   (:class:`MCEMVarCompResult`);
 - :func:`fit_genetic_correlation` — cross-trait Haseman-Elston genetic
   correlation (:class:`GenCorrResult`);
@@ -126,10 +125,9 @@ class MCEMVarCompResult:
 
     ``loglik`` / ``aic`` are the Monte-Carlo (GHK) observed-data log-likelihood
     and ``AIC = 2·(#components) − 2·loglik`` (both Monte-Carlo estimates), for
-    comparing nested models (e.g. ``A`` vs ``A+C``). They are ``None`` for
-    pinned/degenerate bounds. As always for variance components, AIC can be
-    unreliable near a parameter boundary, so use it only as a descriptive
-    comparison. The conditional parametric-bootstrap :func:`test_variance_component`
+    comparing nested models (e.g. ``A`` vs ``A+C``). As always for variance
+    components, AIC can be unreliable near a parameter boundary, so use it only
+    as a descriptive comparison. The conditional parametric-bootstrap :func:`test_variance_component`
     is the component test when its model and sampling assumptions hold."""
     components: dict
     residual: float
@@ -187,8 +185,8 @@ def _mstep_reml(h2, stats, eps):
 
 
 def _reml_observed_se(groups, comps, h2, eps, n_score=60, sweeps=1):
-    """Model-based SE from the **observed information** (outer product of per-family
-    observed-data scores; Fisher's identity + BHHH). At the estimate, draw liability
+    """Model-based OPG/BHHH SE: the outer product of per-family observed-data
+    scores (Fisher's identity). At the estimate, draw liability
     samples per family, average each family's complete-data score over them to get
     its observed-data score, and sum their outer products; the inverse is the
     estimate's covariance."""
@@ -256,15 +254,13 @@ def fit_variance_components_mcem(families, components=("A", "C"), *,
                                  damp=0.2, seed=None, eps=1e-4, sampling=None):
     """Approximate fixed-damping Monte-Carlo EM-style variance components.
 
-    **Sampling contract:** like the core moment fitters, this supports
-    independent, non-overlapping, unascertained population-sampled families only.
+    **Sampling contract:** this supports independent, non-overlapping,
+    unascertained population-sampled families only.
     Pass ``sampling="population"`` to acknowledge that contract; omitting it
     warns, and any other value raises.
 
     The likelihood counterpart of the Haseman-Elston
-    :func:`ltpred.fit.fit_variance_components` moment fit (this is the route the
-    old ``fit_variance_components(method="mcem")`` selected; ``method="reml"`` /
-    ``"ml"`` were aliases of it). ``components`` is the same
+    :func:`ltpred.fit.fit_variance_components` moment fit. ``components`` is the same
     variance-component bank (``"A"``, ``"C"``, ``"M"``).
 
     E-step: draw the liabilities from the truncated family MVN under the current
@@ -273,9 +269,9 @@ def fit_variance_components_mcem(families, components=("A", "C"), *,
     than the moment regression. The implementation uses fixed damping and reports
     the post-burn-in average; it does not apply an increasing Monte-Carlo E-step or
     stop on an observed-likelihood convergence criterion. This is not restricted ML.
-    The SE is an **approximate** observed-information SE (:func:`_reml_observed_se`,
-    an OPG/BHHH outer-product estimate that is itself subject to Monte-Carlo error),
-    accounting approximately for the information lost to thresholding. The SE,
+    The SE is an **approximate** OPG/BHHH SE (:func:`_reml_observed_se`, itself
+    subject to Monte-Carlo error), accounting approximately for the information
+    lost to thresholding. The SE,
     GHK likelihood and AIC retain Monte-Carlo and finite-iteration error and require
     validation for the target design. Use :func:`ltpred.fit.bootstrap_fit` for an
     iid-family cluster percentile interval when its sampling assumptions hold.
@@ -388,13 +384,15 @@ class DecayGenCorrResult(GenCorrResult):
     ``lambda_within`` is the ``(P,)`` vector of within-trait decay rates (how
     fast the same trait's genetic covariance decays with onset-age
     difference); ``lambda_cross`` the ``(P, P)`` matrix of cross-trait decay
-    rates (0 on the diagonal). ``kernel`` records the kernel used. A rate of 0
+    rates (0 on the diagonal unless ``shared_lambda``, which fills it with the
+    one rate). ``kernel`` records the kernel used. A rate of 0
     means no onset-age dependence (the scalar :func:`fit_genetic_correlation`
     model); larger means correlation dies faster with onset-age distance.
     ``negq`` is the per-EM-iteration trace of the negative expected
     complete-data log-likelihood (the M-step objective; it should fall and
-    plateau as the EM converges), and ``converged`` reports whether it
-    stabilised over the run -- treat estimates with ``converged == False``
+    plateau as the EM converges), and ``converged`` reports whether ``h2``,
+    ``rg``, ``re`` and the decay rates stopped drifting between the third and
+    fourth quarters of the run -- treat estimates with ``converged == False``
     as under-iterated (raise ``n_em``). ``shared_env_cov`` is the fitted
     shared-family environmental covariance ``C`` (zeros unless ``shared_env``
     was enabled); ``env_cov`` is the *total* environment ``C + E``, so
@@ -556,7 +554,8 @@ def _decay_unpack(theta, P, pairs, lam_max, eps, shared_lambda=False,
     Default layout: ``[h2 (P), lam_within (P), G pairs, lam_cross pairs, E pairs]``.
     With ``shared_lambda`` a single decay rate governs every block, so the layout
     is ``[h2 (P), lam (1), G pairs, E pairs]`` and ``lam_w``/``lam_x`` are that one
-    rate broadcast -- fewer parameters, always PSD, and less amplitude-decay ridge.
+    rate broadcast -- fewer parameters, PSD whenever ``G`` and ``E`` are, and less
+    amplitude-decay ridge.
     With ``shared_env`` the vector continues ``[..., c2 (P), C pairs]``: a
     shared-family environmental variance per trait (``c2``) and cross-trait
     covariance (``C``), constant across relatives. ``E`` is then the *unique*
@@ -625,11 +624,11 @@ def _decay_negq_grad(theta, P, M_groups, groups, pairs, lam_max, kernel, eps,
         minev = float(np.linalg.eigvalsh(Sig).min())
         if minev <= 1e-9:
             # The zero gradient makes this penalty region a stationary point for
-            # L-BFGS-B. Safe by design, not by accident: every M-step starts
-            # from the previous PSD-projected iterate (``_run_em`` re-projects
-            # after each L-BFGS call), so the optimizer never *begins* inside
-            # the region — the rising 1e9 penalty only pushes its line searches
-            # back toward feasibility.
+            # L-BFGS-B. Safe only while each M-step starts outside the region:
+            # ``_run_em`` re-projects G, C and E to PSD, which keeps Sigma PD
+            # with ``shared_lambda`` but not when per-block rates differ. From a
+            # feasible start the rising 1e9 penalty only pushes the line
+            # searches back toward feasibility.
             return 1e9 + 1e9 * abs(minev), np.zeros(len(theta))
         Si = np.linalg.inv(Sig)
         logdet = np.linalg.slogdet(Sig)[1]
@@ -684,8 +683,8 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
                                   phen_names=None, sampling=None):
     """Genetic correlation with an onset-age decay (structured ``r_g``).
 
-    **Sampling contract:** like the core moment fitters, this supports
-    independent, non-overlapping, unascertained population-sampled families only.
+    **Sampling contract:** this supports independent, non-overlapping,
+    unascertained population-sampled families only.
     Pass ``sampling="population"`` to acknowledge that contract; omitting it
     warns, and any other value raises.
 
@@ -703,9 +702,9 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
     Each member must carry ``aod`` (onset age for cases, censoring age for
     controls), per trait for the multi-trait model. ``lam_max`` bounds the rate;
     by default it is derived from the observed onset-age span. ``shared_lambda``
-    ties every block's decay rate to a single scalar (the user's original
-    one-parameter form): fewer parameters, a guaranteed positive-definite
-    covariance, and less amplitude-decay ridge -- the recommended setting unless
+    ties every block's decay rate to a single scalar (the one-parameter form):
+    fewer parameters, a covariance that is PSD whenever ``G`` and ``E`` are,
+    and less amplitude-decay ridge -- the recommended setting unless
     there is a specific reason to let the rates differ. ``shared_env`` adds a
     shared-family environmental component ``C`` (a family-level random effect,
     constant across relatives) so the model is an onset-age ACE decomposition
@@ -713,15 +712,15 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
     household environment is wrongly attributed to genetics and attenuates
     ``r_g``. ``C`` is only identifiable with enough related pairs and onset-age
     spread, so enable it on data-rich, extended-pedigree designs. ``n_starts``
-    must be at least 1; it re-runs the EM from that many perturbed
-    initialisations and keeps the best-fitting (lowest final objective) -- a
-    guard against the multi-modal likelihood at small samples (each start costs
-    a full EM run).
+    must be at least 1; it runs the EM from the default start plus
+    ``n_starts - 1`` perturbed ones and keeps the run with the lowest mean
+    objective over its second half -- a guard against the multi-modal likelihood
+    at small samples (each start costs a full EM run).
 
     **Why a likelihood M-step, not moments.** A Haseman-Elston regression of the
     augmented cross-products on ``A * K`` (the natural analogue of
-    :func:`fit_genetic_correlation`) is *confounded* here: case/control
-    ascertainment truncates the liabilities, and the truncation inflation is
+    :func:`fit_genetic_correlation`) is *confounded* here: conditioning on
+    case/control status truncates the liabilities, and the truncation inflation is
     itself age-dependent (closely related, similar-onset pairs are more often
     jointly affected), so it masquerades as a steeply decaying genetic signal
     and drives ``lam`` to its bound. This fit therefore uses a Monte-Carlo **EM**
@@ -729,19 +728,19 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
     log-likelihood ``Q = -1/2 sum_f [ log|Sig_f| + tr(Sig_f^-1 M_f) ]`` (``M_f``
     the imputed second moment, averaged over ``n_draw`` Gibbs draws) by L-BFGS
     with the analytic score. The likelihood separates the genetic decay from the
-    ascertainment geometry; the moment regression cannot.
+    truncation geometry; the moment regression cannot.
 
     **Identifiability (read this).** The amplitude (``rho_g``) and the decay
     rate (``lam``) trade off along a likelihood ridge, and the cross-trait
     genetic signal competes with the environmental correlation ``re``: at small
     samples the fit can collapse ``rho_g`` toward 0 or inflate it. The model is
     *identifiable in principle* — the cross-relative cross-trait covariance
-    ``A * G * K`` is purely genetic in this model (environment is not shared
-    across relatives) — but only **data-rich** designs pin it down: the
-    repository kill-test needs on the order of **thousands of families** and
-    several dozen EM iterations before ``rho_g`` and ``lam`` climb to their true
-    values, with residual attenuation of ``rho_g`` (environment absorbing
-    genetic correlation). With few families or little onset-age spread, expect
+    ``A * G * K`` is purely genetic in this model (without ``shared_env``,
+    environment is not shared across relatives) — but only **data-rich** designs
+    pin it down: the repository kill-test needs on the order of **thousands of
+    families** and several dozen EM iterations before ``rho_g`` and ``lam``
+    settle near their true values; at 1,000 families both still run high along
+    the ridge. With few families or little onset-age spread, expect
     noisy, ridge-dominated estimates; prefer the scalar model there. ``n_em``,
     ``n_draw`` and ``m_iter`` control the EM iterations, the per-E-step Gibbs
     draws and the L-BFGS work per M-step.
@@ -1148,8 +1147,8 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
                             sampling=None):
     """Estimate the **genetic correlation** between traits from family data.
 
-    **Sampling contract:** like the core moment fitters, this supports
-    independent, non-overlapping, unascertained population-sampled families only.
+    **Sampling contract:** this supports independent, non-overlapping,
+    unascertained population-sampled families only.
     Pass ``sampling="population"`` to acknowledge that contract; omitting it
     warns, and any other value raises.
 
@@ -1172,7 +1171,7 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
     **environmental correlation** ``re[p,q] = (rp[p,q] - G[p,q]) / sqrt(e2_p e2_q)``
     (``e2 = 1 - h2``) is returned too. Damped across sweeps; needs related pairs
     (raises otherwise). Repository benchmarks found approximately unbiased estimates
-    near the null and mild attenuation at large ``|rg|`` in the tested designs.
+    at true ``rg`` of 0, 0.3 and 0.6.
 
     Returns a :class:`GenCorrResult` (``rg``, ``re``, ``rp``, per-trait ``h2``, the
     ``genetic_cov``/``env_cov`` matrices). As with :func:`ltpred.fit.fit_heritability`,
@@ -1676,11 +1675,11 @@ def test_variance_component(families, component="C", *, n_boot=200, seed=None,
     the ``n_boot``
     refits affordable). Pass ``sampling="population"`` only for independent,
     non-overlapping, unascertained population-sampled families; this bootstrap
-    does not repair selection bias. Bounds must be case/control-style. A threshold that varies
-    across people is rejected unless ``thresholds_are_status_independent=True``;
-    make that assertion only for externally determined baseline thresholds, never
-    thresholds derived from age at onset. This is a conditional plug-in bootstrap,
-    not a universal calibration guarantee. Returns a :class:`SignificanceTest`."""
+    does not repair selection bias. Bounds must be case/control-style. Thresholds
+    must be common per trait: the refits reject individualised ones even with
+    ``thresholds_are_status_independent=True``. This is a conditional plug-in
+    bootstrap, not a universal calibration guarantee. Returns a
+    :class:`SignificanceTest`."""
     if component == "A" or component not in _COMPONENT_OFFDIAG:
         avail = ", ".join(c for c in _COMPONENT_OFFDIAG if c != "A")
         raise ValueError(f"component must be a non-additive component ({avail})")
@@ -1713,12 +1712,11 @@ def test_genetic_correlation(families, i=0, j=1, *, n_boot=200, seed=None,
     correlations compatible with a coherent PSD null — on the same pedigrees and
     thresholds, refits, and returns the two-sided p-value
     ``P(|rg| >= |observed| | H0)``. Extra keyword args pass to
-    :func:`fit_genetic_correlation`. Bounds must be case/control-style. A threshold
-    that varies across people is rejected unless
-    ``thresholds_are_status_independent=True``; make that assertion only for
-    externally determined baseline thresholds, never thresholds derived from age at
-    onset. This is a conditional plug-in bootstrap, not a universal calibration
-    guarantee. Returns a :class:`SignificanceTest`."""
+    :func:`fit_genetic_correlation`. Bounds must be case/control-style. Thresholds
+    must be common per trait: the refits reject individualised ones even with
+    ``thresholds_are_status_independent=True``. This is a conditional plug-in
+    bootstrap, not a universal calibration guarantee. Returns a
+    :class:`SignificanceTest`."""
     def trait_index(value, name):
         if isinstance(value, (bool, np.bool_)):
             raise TypeError(f"{name} must be an integer trait index, not bool")

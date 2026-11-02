@@ -199,7 +199,7 @@ references:
     end: 2509
     year: 2024
     doi: 10.1016/j.ajhg.2024.09.009
-  # Method foundations cited by the vignette and the algorithm notes
+  # Method foundations cited by the methods report
   - type: article
     title: "Note on Selection from a Multivariate Normal Population"
     authors:
@@ -225,7 +225,7 @@ references:
     start: 41
     end: 57
     year: 1974
-    notes: "PMID 4813384; no DOI registered."
+    doi: 10.2307/2529616
   - type: article
     title: "The inheritance of liability to certain diseases, estimated from the incidence among relatives"
     authors:

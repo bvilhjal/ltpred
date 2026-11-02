@@ -5,7 +5,8 @@ part ``l_g ~ N(0, h2)`` and an environmental part, summing to a full liability
 ``l_o ~ N(0, 1)``. Two relatives' genetic parts correlate by the fraction of DNA
 they share, so every covariance entry is ``shared_DNA * h2`` (methods report,
 "Covariance"). Two routes build the matrix that `ltpred.gibbs` and
-`ltpred.estimate` consume; row 0 is always the target's genetic ``g``.
+`ltpred.estimate` consume; with ``add_ind=True`` (the default) row 0 is the
+target's genetic ``g``.
 
 * **Role grammar** (ports of LTFHPlus ``get_relatedness`` /
   ``construct_covmat*``). `get_relatedness` looks up a fixed shared-DNA table
@@ -547,7 +548,8 @@ def _parent_links(ids, father, mother):
 
     Missing-id markers map to -1, as does any value not
     among ``ids``; the latter are counted in ``n_unresolved``. Raises on a
-    length mismatch, duplicate ids, and a person recorded as their own parent.
+    length mismatch, a missing or duplicate id, and a person recorded as their
+    own parent.
     """
     ids, father, mother = list(ids), list(father), list(mother)
     n = len(ids)
@@ -734,9 +736,10 @@ def _validate_kinship_component(value, kernel, name, n):
 #: and ``pa_estimate_batched(_psd_certified=...)``: the caller asserts the array
 #: was built by pedigree construction (or by `correct_positive_definite`),
 #: which is exactly symmetric and positive semi-definite by construction, so
-#: the public validation pass — an O(n^2) symmetry scan plus an
-#: ``eigvalsh`` — is skipped. Certifying replaces the check; nothing downstream
-#: is relaxed: `correct_positive_definite` still runs on the assembled matrix.
+#: the ``eigvalsh`` checks (and, in the kinship constructor, the O(n^2)
+#: symmetry scan) are skipped. Certifying replaces the checks; nothing downstream
+#: is relaxed: the kinship route still runs `correct_positive_definite` on the
+#: assembled matrix.
 _PSD_CERTIFIED = object()
 
 
@@ -768,9 +771,9 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
     ``add_ind``, the target's genetic liability divided
     by that **same full-liability SD** is prepended as ``g``, so its variance is
     ``h2 * A[t, t] / V[t, t]`` — equal to ``h2`` for a non-inbred target
-    (``A[t, t] = 1``) but strictly below the role-based ``Var(g) = h2 * A[t, t]``
+    (``A[t, t] = 1``) but strictly below the unstandardized ``Var(g) = h2 * A[t, t]``
     under inbreeding. The kinship route's "genetic" estimates are therefore on the
-    ``sd(o_target)`` scale when the target is inbred, not the role-based ``g``
+    ``sd(o_target)`` scale when the target is inbred, not the unstandardized ``g``
     scale; rescale by ``sqrt(V[t, t])`` before comparing the two routes. Row order
     is ``[g, o_0, …, o_{n-1}]``; the ``target``'s own full-liability row is labelled
     ``o`` and the rest ``rel<i>``. Returns a `Covmat`.
@@ -828,8 +831,9 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0
 
     # Inbreeding makes diag(h2*A + c2*C + m2*M + e2*I) exceed one. Standardise each
     # member's full liability so the ordinary N(0, 1) prevalence thresholds remain
-    # valid; this is exactly a no-op when every A[i, i] == 1 and all component
-    # kernels have their required unit diagonal.
+    # valid; this is a no-op (exact without C/M; within roundoff with them) when
+    # every A[i, i] == 1 and all component kernels have their required unit
+    # diagonal.
     residual = 1.0 - h2 - c2 - m2
     raw = h2 * A + residual * np.eye(n)
     if C is not None:
@@ -861,10 +865,12 @@ def correct_positive_definite(covmat: ArrayLike, correction_val: float = 0.99,
 
     Relatedness rounding can leave the assembled matrix with a tiny (or negative)
     eigenvalue, which breaks the Gibbs conditional variances and the ``solve`` in
-    `ltpred.gibbs.gibbs_params`. Following LTFHPlus, this repeatedly shrinks
-    the off-diagonal (multiply the whole matrix by ``correction_val``, then restore
-    the diagonal) until the smallest eigenvalue exceeds ``eps`` (strictly PD, not
-    merely PSD) or ``correction_limit`` is hit. After ``n`` iterations every
+    `ltpred.gibbs.gibbs_params`. Following LTFHPlus's
+    ``correct_positive_definite_simplified`` (not its same-named function),
+    this repeatedly shrinks the off-diagonal (multiply the whole matrix by
+    ``correction_val``, then restore the diagonal) until the smallest
+    eigenvalue exceeds ``eps`` (strictly PD, not merely PSD) or
+    ``correction_limit`` is hit. After ``n`` iterations every
     off-diagonal equals ``correction_val**n`` times its input value, i.e. all
     correlations are attenuated uniformly, which changes the model rather than
     only the numerics. Each check is an O(d**3) ``eigvalsh``. Returns
@@ -883,6 +889,6 @@ def correct_positive_definite(covmat: ArrayLike, correction_val: float = 0.99,
         raise ValueError(
             "unable to enforce a positive-definite covariance matrix: after "
             f"{correction_limit} shrink steps the smallest eigenvalue is still "
-            "<= eps (a tiny h2 at or below 1e-8, exactly collinear rows such "
-            "as h2=1, or near-singular relatedness are the usual causes)")
+            "<= eps (a tiny h2 at or below 1e-8 or strongly indefinite "
+            "relatedness are the usual causes)")
     return cov, n

@@ -73,12 +73,12 @@ pairwise likelihood for single- and multi-trait common-threshold covariance fitt
 The following simulation summaries describe the archived benchmark snapshots;
 they do not validate the newly introduced fitting criterion or its uncertainty.
 Simulation under the model's own generative assumptions gives
-$\Corr(\mathrm{PA},\mathrm{Gibbs})\ge 0.9995$ without the censoring
+$\Corr(\mathrm{PA},\mathrm{Gibbs})\ge 0.9991$ without the censoring
 mixture, a classic-LT-FH causal-SNP noncentrality ratio of
 $1.47\pm 0.04\times$ over case/control (independent SNPs), and a
-paired $+0.145\pm 0.015$ LT-FH++ increment over matched ADuLT when
+paired $+0.145\pm 0.016$ LT-FH++ increment over matched ADuLT when
 onset is a deterministic function of liability and the CIP is known.
-The same personalised thresholds that supply that increment also
+In a separate simulation, cohort-specific thresholds
 remove a simulated cohort-confounding $\lambda_{\mathrm{GC}}$ of
 $16.46\pm 0.40$ (Table~\ref{tab:confound}).
 A PGS and $\mu_i$ remain complementary: joint test $R^{2}=0.338$
@@ -92,7 +92,8 @@ They are not estimates of clinical utility.
 On the locked comparison to the two public R packages
 (Section~\ref{sec:ltfhplus}), ltpred is much more computationally
 efficient at the same algorithm: LTFHPlus Gibbs takes
-$6.79\pm 0.08\times$ the ltpred Gibbs wall-clock, and LTFGRS PA
+$6.79\pm 0.08\times$ the ltpred Gibbs wall-clock with four ltpred threads
+against one R worker ($1.75\times$ at one thread each), and LTFGRS PA
 takes $1418\pm 30\times$ the ltpred PA wall-clock.
 \end{abstract}
 
@@ -190,7 +191,7 @@ A third use never needs $\mu_i$ (Table~\ref{tab:uses}).
   (Section~\ref{sec:fitting}).
 \end{enumerate}
 
-The practical order is the vignette's six-stage workflow: (0) supply
+The practical order is: (0) supply
 liability-scale population parameters, (1) identify the pedigree,
 (2) specify population prevalence or CIPs, (3) encode the permitted
 observations, (4) estimate the score, and (5) perform the downstream
@@ -379,7 +380,7 @@ On the same simulated families, the interval keeps almost all of
 the onset increment except at $K=0.30$, where the pin adds another
 $0.01$--$0.02$ in the squared-correlation proxy.
 When onset only tends to track liability ($\rho=0.6$), the pin
-over-conditions (slope $0.92$ under heavy censoring).
+over-conditions (slope $0.93$ under heavy censoring).
 
 Because the BLUP weights in \eqref{eq:blup-trunc} do not depend on
 the $T_i$, a shared threshold error is mostly a calibration shift.
@@ -396,9 +397,11 @@ Kendler's FGRS \cite{kendler2021} is a third thing and is not
 implemented.
 
 \paragraph{PGS and $\mu_i$.}
-Split $a=s+u$ with $\Var(s)=p:=\h_{\mathrm{SNP}}/\h$.
+Standardise $a$ and split it as $a=s+u$ with $\Var(s)=p:=\h_{\mathrm{SNP}}/\h$.
+Write $a_{\mathrm{PGS}}=\Corr(\mathrm{PGS},s)$, $b_\mu=\Corr(\mu,a)$,
+$R^{2}_{\mathrm{PGS}}=a_{\mathrm{PGS}}^{2}$ and $R^{2}_{\mu}=b_\mu^{2}$.
 If two standardised scores satisfy
-$\mathrm{PGS}\ind\mu\mid a$, then
+$\mathrm{PGS}\ind\mu\mid a$ and $\mathrm{PGS}\ind a\mid s$, then
 \begin{equation}
   \Corr(\mathrm{PGS},\mu)
   \;=\;
@@ -435,14 +438,15 @@ to $(a_j,b_j)$ \cite{kotecha1999}.
 $\Sigma$ must be strictly positive definite.
 
 \begin{enumerate}
-\item[G1.] Group families by ordered role set; each group shares
-  $\Sigma$.
+\item[G1.] Group families by role set (sorted roles); each group shares
+  $\Sigma$, whose Gibbs row order is the first family's member order.
 \item[G2.] Integrate out each family's own untruncated coordinates
   (always the genetic rows on the public path; also an unobserved
   relative). Families sharing an untruncated set run together, and
   $P$, $\mathrm{sd}$ are formed from the marginal covariance of the
-  kept block, so a family's draws depend only on its own bounds and
-  seed, never on the other families in a call, round or chunk.
+  kept block, so a family's draws depend only on its own bounds, its seed and the
+  group's covariance row order (G1), not on the other families' bounds in a
+  call, round or chunk.
   The sweep is on the remaining truncated liabilities $y$;
   the genetic mean is $\E[g\mid y]$ and the reported posterior
   variance is $\Var(\E[g\mid y])+\Var(g\mid y)$.
@@ -450,14 +454,16 @@ $\Sigma$ must be strictly positive definite.
 \item[G3.] Initialise each chain at a feasible point of the
   rectangle. Hold pinned coordinates.
 \item[G4.] Sweep free coordinates by inverse-CDF.
-  Far-tail intervals ($\Phi$ underflows near $|z|\approx 38.5$)
+  Far-tail intervals (tail probability below $2^{-1050}$, $|z|\gtrsim 38$)
   invert the leading-order Gaussian tail ratio on the log scale
   (a Rayleigh construction), an approximation.
 \item[G5.] After burn-in, stream means, second moments, and
   batch-mean summaries. Do not store the draw array.
 \item[G6.] Rerun unconverged families in rounds, each a fresh
   chain whose sums are pooled with earlier rounds, until every
-  requested batch-means SE \cite{jones2006} is $\le\mathrm{tol}$.
+  requested batch-means SE \cite{jones2006} is $\le\mathrm{tol}$ or
+  \texttt{max\_rounds} (default $100$) rounds have run; families still above
+  tol keep their pooled values, with a warning.
   Families that have met the tolerance are dropped from later
   rounds.
 \end{enumerate}
@@ -504,8 +510,9 @@ traits \cite{mendell1974}.
 \begin{enumerate}
 \setlength{\itemsep}{3pt}\setlength{\parsep}{0pt}
 \item[P1.] Place the target first; other rows keep the caller's order.
-  The object API sorts roles by name, so its fold order is a property of the
-  pedigree shape; array and kinship callers set the fold order themselves.
+  The object and role-array APIs (chunked forms included) sort roles by name, so
+  their fold order is a property of the pedigree shape; kinship and direct
+  \texttt{pa\_estimate\_batched} callers set the fold order themselves.
 \item[P2.] Marginalize absent rows and condition all pins jointly (Section~\ref{sec:reduction}).
   Incompatible pins, and an interval that excludes a liability the pins
   determine, are refused on the standard and mixture paths alike.
@@ -595,7 +602,7 @@ internally.
 The array API receives already-aligned bounds and is the hot path.
 
 \paragraph{Three input routes.}
-The vignette follows the same mathematics through three public interfaces
+The scoring reference (\texttt{docs/estimation.md}) follows the same mathematics through three public interfaces
 (Table~\ref{tab:interfaces}). The family route is
 \texttt{estimate\_liability}; the specified-matrix route is
 \texttt{estimate\_liability\_from\_kinship}; the population-trio driver is
@@ -671,19 +678,20 @@ $O(n_{\mathrm{sim}}F)$.
 The posterior variance is the streamed second moment of the
 target, plus the constant residual variance of any collapsed
 coordinate.
-When seeded, each family carries its own RNG seed: the draw does
-not depend on which worker picked it up, nor on the chunk or batch
+When seeded, each family carries its own RNG seed: for a given
+covariance row order (G1) the draw does not depend on which worker picked it up, nor on the chunk or batch
 it arrived in.
 Without Numba the identical code runs serially.
 Far-tail inverse-CDF draws switch to a leading-order log-scale
-Rayleigh approximation once $\Phi$ underflows.
+Rayleigh approximation once the tail probability drops below $2^{-1050}$.
 
 \paragraph{PA.}
 The same grouping applies.
-On the object path fold order is canonicalised to a sorted role set,
+On the object and role-array paths fold order is canonicalised to a sorted role set,
 so the result is a function of the pedigree shape, not of input row
 order---reproducibility, not a claim of smaller approximation error;
-array and kinship callers fix the order themselves
+kinship callers and direct callers of \texttt{pa\_estimate\_batched} fix
+the order themselves
 (Section~\ref{sec:pa}).
 
 \paragraph{What the timings measure.}
@@ -713,7 +721,7 @@ On a seven-observation fold---the regime where PA $\mathtt{var}$ is
 itself an approximation---the sequential-moment variance sits within
 $5\%$ of the Gibbs Monte-Carlo variance.
 
-The vignette's total-variance check is restricted to a correctly
+The total-variance check on the validation page is restricted to a correctly
 specified population-sampled design with a common prior variance:
 $\Var(\mu_i)+\E[\Var(a_i\mid D_F)]=\h$ in the outbred case.
 An uninformative history gives $\mu_i=0$ and posterior variance $\h$;
@@ -798,7 +806,7 @@ $\ell\mid C_F,\Sigma(\h)$, then a damped Haseman--Elston step
 This is a stochastic-approximation fixed point, not a posterior.
 The number it reports as a standard error is within-chain Monte
 Carlo noise.
-Across-cohort SD is $20$--$30\times$ larger
+Across-cohort SD is $19$--$27\times$ larger
 (Table~\ref{tab:h2}).
 
 At the true parameter $\theta_0$, let $Z$ include known person-specific
@@ -821,7 +829,7 @@ The damage is severe and silent: on families selected through an
 affected proband with a \emph{true} $\h$ of zero, \eqref{eq:he}
 returns $\h=1.0$, and a realised case share of $7.6\%$ against an
 asserted $5.0\%$ ($1.51\times$) already inflates $\h$ by $+0.484$
-(Section~\ref{sec:ascertainment}).
+(\texttt{benchmarks/RESULTS.md} Table~29.4).
 The claim is therefore screened for marginal inconsistency rather
 than taken entirely on trust: the supplied
 $T$ implies $K=1-\Phi(T)$, under population sampling each role's
@@ -892,7 +900,9 @@ unrelated-sample LDSC or GREML.
 Unless noted, $\pm$ is the SE of a mean across independent simulated
 cohorts.
 The numbers below are from committed benchmark artifacts
-(campaigns of 31~July, 1~August, 10--15 and 20~August 2026).
+(campaigns of 31~July, 1~August, 10--15 and 20~August, and 3, 14, 21
+and 23~September 2026), except the misspecification stress values,
+which are recorded only in \texttt{benchmarks/RESULTS.md} \S18.
 They do not automatically validate later code.
 Every association panel uses independent SNPs and a lightweight marginal score
 statistic on non-overlapping simulated families; a real-LD,
@@ -933,7 +943,8 @@ five cohorts of $1{,}500$ families),
 $\Corr(\mathrm{PA},\mathrm{Gibbs})$ is $0.9995$--$1.0000$.
 Stress pedigrees remain $\ge 0.9991$ (worst single seed $0.99916$).
 Table~\ref{tab:acc} is the $\h=0.5$, $K=0.05$ slice.
-Calibration slopes of correctly specified PA sit on $1$ to within
+In a separate six-cell calibration grid (five $3{,}000$-family cohorts per
+cell, $\h=0.5$), slopes of correctly specified PA sit on $1$ to within
 simulation error (e.g.\ $1.006\pm 0.008$ at $K=0.05$, parents + two
 sibs).
 That is the argument for using PA as the default engine when the
@@ -1038,7 +1049,7 @@ update, not two approximations.
 Table~\ref{tab:ltfhplus-fold} is the fold-time lock
 (mean of the three per-replicate ratios, not the ratio of the means).
 Same-algorithm: LTFHPlus Gibbs is $6.79\pm 0.08\times$ the ltpred
-Gibbs wall-clock; LTFGRS PA is $1418\pm 30\times$ the ltpred PA
+Gibbs wall-clock at four ltpred threads; LTFGRS PA is $1418\pm 30\times$ the ltpred PA
 wall-clock (R \texttt{future\_lapply} versus compiled Python, not a
 different update).
 Mixing algorithms, LTFHPlus / ltpred PA is $8086\pm 250\times$;
@@ -1122,14 +1133,14 @@ and after the same covariate adjustment.}
 \end{table}
 
 The paired LT-FH++ minus ADuLT increment is
-$+0.145\pm 0.015$ NCP-ratio units ($95\%$ CI half-width).
+$+0.145\pm 0.016$ NCP-ratio units ($95\%$ CI half-width).
 Age accounts for most of the step beyond classic LT-FH
-($+0.040\pm 0.008$); cohort adds a further
-$+0.006\pm 0.002$; sex adds nothing to adjusted NCP
+($+0.040\pm 0.007$); cohort adds a further
+$+0.005\pm 0.002$; sex adds nothing to adjusted NCP
 ($-0.0004\pm 0.0010$).
 A prespecified sex-only panel nevertheless closes a
 female--minus--male mean-score-error gap of
-$0.051\pm 0.001$.
+$0.050\pm 0.001$.
 Sex-specific CIP is a calibration device in this design, not a
 proven power device.
 
@@ -1187,7 +1198,7 @@ Table~\ref{tab:ltfhpp}.
 
 A correctly specified posterior mean is self-calibrating: the
 regression of true $a_i$ on $\widehat{\mu}_i$ has slope $1$.
-On the classic-LT-FH grid that slope sits on $1$ to within
+On the six-cell calibration grid that slope sits on $1$ to within
 simulation error (e.g.\ $1.006\pm 0.008$ at $K=0.05$, parents $+$
 two sibs).
 One replicated departure remains: at $K=0.01$ with an extended
@@ -1268,7 +1279,7 @@ $\rho=0.6$ between liability and the CIP quantile among lifetime
 cases.
 Higher liability then advances onset, with residual noise.
 Plain age truncation is no longer exact, and neither is the pin.
-Pinned slope falls to $0.92$ under heavy censoring.
+Pinned slope falls to $0.93$ under heavy censoring.
 The lifetime-interval slope sits at $1.13$, between the crossing
 ($1.20$) and stochastic ($1.03$) extremes.
 
@@ -1297,13 +1308,13 @@ $\h$ under the design it is identified in.}
 \input{../paper/tables/fit_heritability.tex}
 \end{table}
 
-Joint $A+C$ on the same design (mean, emp.\ SD):
+Joint $A+C$ with parents + four sibs (mean, emp.\ SD):
 true $(0.4,0.2)$ recovers $0.399\,(0.057)$, $0.190\,(0.034)$;
 true $(0.6,0)$ recovers $0.583\,(0.057)$ and a boundary
 $0.013\,(0.012)$.
 A point near zero is not a Type~I rate.
 Omitting a real $C$ is mostly a problem for interpreting $\h$
-(at true $c^{2}=0.3$, additive-only $\widehat{\h}\approx 0.75$
+(parents + three sibs, true $c^{2}=0.3$: additive-only $\widehat{\h}\approx 0.75$
 versus $\approx 0.48$ with $C$ in the model), not for predicting
 $a_i$.
 
@@ -1415,7 +1426,7 @@ The driver scores 987 probands/s at one BLAS thread (v0.7.1).
 
 These are simulated registers under the crossing model with a logistic
 CIP.
-The six-person vignette example checks software contracts (closure,
+The six-person example in \texttt{examples/validation.py} checks software contracts (closure,
 post-index invariance), not accuracy.
 
 %----------------------------------------------------------------------
@@ -1452,7 +1463,8 @@ null affected-proband design. None is supplied by the current evidence.
 A Gibbs implementation of \eqref{eq:mix} is a separate missing feature.
 The LTFHPlus / LTFGRS lock
 (Section~\ref{sec:ltfhplus}) covers only no-mixture classic
-bounds on $200$ equal nuclear families.
+bounds on $200$ equal nuclear families; the later personalised-bound and
+mixture lock (\texttt{benchmarks/RESULTS.md} \S34) is outside this v0.7.4 snapshot.
 The liability-dependent onset arm is no longer among them---it is
 reported above at $\rho=0.6$---but a single copula strength is not
 a sweep, and the pinned encoding's behaviour under weaker

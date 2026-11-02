@@ -3,12 +3,13 @@
 Every simulator keeps the generating values so estimates can be scored
 against the truth. Multivariate normal draws use ``z @ L.T`` with the
 Cholesky factor ``L`` of the covariance (its spectrum lifted by a negligible
-amount when singular, e.g. at ``h2 = 1``), so a seed gives the same draws on
-any LAPACK build.
+amount when singular, e.g. at ``h2 = 1``), so a seed gives the same draws,
+up to rounding, on any LAPACK build.
 
-`simulate_under_LTM_single` (port of LTFHPlus::simulate_under_LTM_single)
-draws ``(g, o, relatives)`` from the role-grammar covariance, thresholds the
-full liabilities and packages bounds as `ltpred.family.Family` objects:
+`simulate_under_LTM_single` (after LTFHPlus::simulate_under_LTM_single, with
+its own age model) draws ``(g, o, relatives)`` from the role-grammar
+covariance, thresholds the full liabilities and packages bounds as
+`ltpred.family.Family` objects:
 
 * ``use_age=False`` -- classic LT-FH: a single prevalence threshold ``T``, cases
   ``(T, inf)`` and controls ``(-inf, T)``. Self-consistent, handy for validating
@@ -24,12 +25,10 @@ Register simulation: `simulate_pedigree` builds trio columns,
 `simulate_register_liabilities` draws **one** population field. Raw genetic
 values have covariance ``h2 A`` for the whole pedigree, either from a dense
 ``A`` and its factor or by an exact Mendelian recursion (linear storage).
-The pedigree and the Mendelian recursion are phensim's (`phensim.pedigree`,
-the ``[sim]`` extra), which took them from this module; seeded draws are
-unchanged.
-Both genetic and full liabilities are divided by ``sqrt(h2 A_ii + 1 - h2)``,
-keeping inbred people on the unit-variance threshold scale, and onset is the
-threshold crossing of the supplied CIP.
+The pedigree and the Mendelian recursion come from `phensim.pedigree` (the
+``[sim]`` extra). Both genetic and full liabilities are divided by
+``sqrt(h2 A_ii + 1 - h2)``, keeping inbred people on the unit-variance
+threshold scale, and onset is the threshold crossing of the supplied CIP.
 
 `simulate_followup_records` draws entry/exit/event records from a logistic
 CIP with optional Gompertz competing death; `simulate_under_LTM_multi` draws
@@ -76,10 +75,7 @@ _DEFAULT_ONSET_RHO = 0.6
 
 def _role_stem(role):
     """Role without its numbering: ``"s2"`` -> ``"s"``, ``"c1.2"`` -> ``"c"``."""
-    # Strip the numbering to get the role stem. Children carry a two-part index
-    # (``c1.2``), so the dot has to go too -- ``"c1.2".rstrip("0123456789")``
-    # stops at the dot and yields ``"c1."``, which never matched the ``"c"`` key
-    # and silently gave simulated children the 10-60 default.
+    # Children carry a two-part index (``c1.2``): strip digits, the dot, then digits.
     return role.rstrip("0123456789").rstrip(".").rstrip("0123456789")
 
 
@@ -389,10 +385,11 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     by its full age bin. A ``"pin"`` therefore becomes the corresponding
     two-sided liability interval, while ``"interval"`` keeps its one-sided
     meaning but uses the bin's conservative lower edge. Both contain the
-    generating liability. With ``onset_resolution=None``, the old exact-onset
-    behavior is preserved: ``"pin"`` is a point and ``"interval"`` starts at
-    that point. The age-0 clamp remains an upper-open liability interval because
-    arbitrarily high liabilities map to onset age zero."""
+    generating liability. On a grid the age-0 bin is upper-open, because
+    arbitrarily high liabilities map to onset age zero. With
+    ``onset_resolution=None``, ``"pin"`` is a point and ``"interval"`` starts
+    at that point; a ``"pin"`` at the age-0 clamp is then ``T(0)``, below the
+    true liability."""
     onset_resolution = _validate_onset_resolution(onset_resolution)
     onset_model, case_encoding, onset_rho = _resolve_age_options(
         use_age, onset_model, case_encoding, onset_rho)
@@ -496,8 +493,7 @@ def simulate_pedigree(rng: np.random.Generator, n_founder_pairs: int = 150,
     ``rng`` is a `numpy.random.Generator` (or anything
     `numpy.random.default_rng` accepts, such as an integer seed); pass
     ``np.random.default_rng(seed)`` for a reproducible pedigree. The draw is
-    `phensim.simulate_pedigree` with ``seed=rng`` (the ``[sim]`` extra): the
-    same pedigrees this function drew before it moved there.
+    `phensim.simulate_pedigree` with ``seed=rng`` (the ``[sim]`` extra).
 
     Raises ``ValueError`` unless ``n_founder_pairs`` is an integer >= 1,
     ``gens`` an integer >= 0 and ``remarry`` in [0, 1]."""
@@ -630,7 +626,7 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
     ``status`` is *observed* case at ``eval_age`` and ``age`` is onset for cases
     and ``eval_age`` otherwise.
 
-    ``method="dense"`` preserves historical seeded draws. For large pedigrees,
+    ``method="dense"`` (default) factors the dense ``A``. For large pedigrees,
     ``method="mendelian"`` draws the same Gaussian model using independent
     parent-to-child innovations and exact inbreeding variances, without a dense
     relationship matrix or factor (`phensim.mendelian_draw`, the ``[sim]``
@@ -744,13 +740,13 @@ def simulate_followup_records(rng: np.random.Generator, n: int, *,
     ``exp(gompertz_log_a + gompertz_b * age)`` and coded ``event = 2`` when it
     precedes onset. This is the case that makes the difference between the two
     estimators visible: `ltpred.cip.kaplan_meier_cip` treats death as
-    independent censoring and therefore **overestimates** incidence, while
-    `ltpred.cip.aalen_johansen_cip` targets the crude cumulative
-    incidence in the presence of the competing risk.
+    censoring and so estimates the net curve (here the generating one), while
+    `ltpred.cip.aalen_johansen_cip` estimates the lower crude cumulative
+    incidence, the share diagnosed before death.
 
     Records with ``age_exit <= age_entry`` are dropped and counted in
-    ``n_dropped``; they are people whose whole follow-up falls outside the
-    observation window."""
+    ``n_dropped``; they had their event at or before entry (e.g. an onset
+    clamped to age 0) or no time in the window."""
     birth_year = rng.uniform(birth_year_range[0], birth_year_range[1], n)
     entry_age = np.zeros(n)
     if register_start_year is not None:
@@ -829,9 +825,9 @@ def simulate_under_LTM_multi(n_families: int = 1000, *,
                              ) -> MultiTraitSimulation:
     """Simulate ``n_families`` independent families with two observed traits.
 
-    Builds the ``d * n_traits`` covariance as an explicit Kronecker sum over one
-    relationship matrix per variance component —
-    ``kron(G, A) + kron(S, C) + kron(M_mat, M) + kron(E, I)`` — where ``A`` is
+    Builds the ``d * n_traits`` covariance as a sum of Kronecker products, one
+    per variance component —
+    ``kron(G, A) + kron(S, C) + kron(T, M) + kron(E, I)`` — where ``A`` is
     the additive relationship from
     `ltpred.covariance.kinship_from_pedigree` and ``C``/``M`` are the
     shared-sibship and shared-couple indicators from the same component matrices
@@ -842,14 +838,13 @@ def simulate_under_LTM_multi(n_families: int = 1000, *,
     ``h2`` is the per-trait additive variance, ``rg`` the genetic correlation,
     ``sib_shared``/``couple_shared`` the per-trait shared-sibship and
     shared-couple covariance matrices, and ``residual_re`` the residual
-    environmental correlation. The defaults are the design
-    ``docs/vignette.md`` and the tutorial document, so
+    environmental correlation. The defaults are the tutorial's step-5 design, so
     ``simulate_under_LTM_multi(n_families=3000, seed=1)`` reproduces that
-    cohort bit for bit.
+    cohort.
 
     Each trait's liability has unit variance (the four component diagonals sum
     to 1), so the implied full-liability correlation between traits is
-    ``G12 + S12 + M12 + E12`` — 0.1511 for the defaults, echoed in
+    ``G12 + S12 + T12 + E12`` — 0.1511 for the defaults, echoed in
     ``truth["target_trait_corr"]``. The correlation of the *binary* statuses is
     much smaller, because thresholding at 0.10 and 0.20 discards most of it.
     Pass ``roles`` together with matching ``father``/``mother`` to use a

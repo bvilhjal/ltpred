@@ -13,7 +13,7 @@ def sim_bvn(rng, rho, n, t1=0.5, t2=0.5):
 
 
 class BvnCdfTests(unittest.TestCase):
-    def test_limits_and_symmetry(self):
+    def test_limits_and_marginal_bound(self):
         # rho = 1: P(X < a, Y < b) = Phi(min(a, b))
         self.assertAlmostEqual(_bvn_cdf(1.0, 0.3, 1.0), 0.6179, places=3)
         self.assertEqual(_bvn_cdf(-np.inf, 0.0, 0.5), 0.0)

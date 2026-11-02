@@ -66,7 +66,7 @@ screen applied under `sampling="population"`.
 | **Classic LT-FH improves simulated independent-SNP causal NCP without average null inflation.** | Causal-SNP NCP ratio **1.47 ± 0.04×** over case/control by PA or Gibbs, three replicates; not a real-LD result. | 4 |
 | **Full personalised LT-FH++ adds independent-SNP NCP beyond matched ADuLT.** | Same age/sex/cohort proband bounds: ADuLT **1.049 ± 0.004×**, full LT-FH++ **1.194 ± 0.006×**; paired increment **+0.1454 ± 0.0155** NCP-ratio units (95% CI half-width). LT-FH++ adjusted calibration slope **1.004 ± 0.015**, PA/Gibbs agreement 0.99996. | 15 |
 | **Cohort-blind family thresholds inflate stratified-null λ_GC; cohort-aware thresholds do not.** | At a 4× lifetime-prevalence trend per 30 birth years: single-K **16.460 ± 0.399**, cohort-specific K **1.007 ± 0.040**; independent null SNPs near 1 for every method. Personalised CIP is a confounding-control device, not only a power tweak. | 13 |
-| **Sex-specific CIP improves stratum calibration, not proven adjusted independent-SNP NCP.** | Prespecified sex-only scenario: correct sex curves close the female-minus-male mean-score-error gap by **0.05092 ± 0.00096** (paired 95% CI); the adjusted NCP-ratio increment **0.0040 ± 0.0046** is unresolved. | 15 |
+| **Sex-specific CIP improves stratum calibration, not proven adjusted independent-SNP NCP.** | Prespecified sex-only scenario: correct sex curves close the female-minus-male mean-score-error gap by **0.05016 ± 0.00095** (paired 95% CI); the adjusted NCP-ratio increment **0.0041 ± 0.0044** is unresolved. | 15 |
 | **A correctly specified posterior mean is self-calibrating; a wrong h² is not.** | Slope 1.006 ± 0.008 at K=0.05; assumed h² 0.2 to 0.8 sweeps it from 2.240 ± 0.015 to 0.678 ± 0.006 while ranking stays in 0.429–0.431. Use the score as a ranker or GWAS phenotype under a roughly right h²; its scale is E[g \| family] only at the h² it was computed at. | 12 |
 | **A PGS and the family-history score are complementary.** | 50/50 train/test split, test R² against held-out g: **0.236 ± 0.009** (PGS), **0.170 ± 0.003** (classic LT-FH), **0.338 ± 0.009** (two-fold cross-fitted OLS on both). | 28 |
 | **The PA-FGRS mixture has a detectable but practically negligible ranking effect; case encoding dominates calibration.** | Four of ten paired Δcorr 95% CIs exclude zero; the largest shift is −0.00034 (95% CI ± 0.00011). Under threshold crossing pinned cases stay near slope 1; when onset only *tends* to track liability (ρ = 0.6) pinning over-conditions (0.93 under heavy censoring); the lifetime interval under-conditions (up to 1.20); an age-specific case interval over-disperses (≈ 0.83). | 16 |
@@ -454,8 +454,8 @@ half-widths; NCP-ratio units).
 | full LT-FH++ − ADuLT (adding relatives) | **+0.04073 ± 0.00358** | **+0.1454 ± 0.0155** |
 | ADuLT − case/control | | +0.0490 ± 0.0096 |
 | single-K − case/control | | +0.1489 ± 0.0147 |
-| + age, beyond single-K | | +0.0399 ± 0.0076 |
-| + cohort, beyond age | | +0.0056 ± 0.0022 |
+| + age, beyond single-K | | +0.0403 ± 0.0074 |
+| + cohort, beyond age | | +0.0052 ± 0.0022 |
 | full LT-FH++ − classic LT-FH | | **+0.0455 ± 0.0073** |
 | + sex, beyond age | | -0.0004 ± 0.0010 |
 | + sex, beyond age + cohort | | -0.00004 ± 0.00076 |
@@ -474,11 +474,11 @@ mortality effect; fixed before seeing the integrated result.
 | FH + age + sex CIP (ablation) | 0.6307 ± 0.0080 | 1.296 ± 0.016× | -0.0068 ± 0.0087 | -0.0002 ± 0.0084 |
 
 The adjusted ranking and NCP-ratio increments are small and unresolved:
-Δcorr = +0.00097 ± 0.00111 and ΔNCP ratio = +0.0040 ± 0.0046 (paired 95% CIs).
+Δcorr = +0.00099 ± 0.00108 and ΔNCP ratio = +0.0041 ± 0.0044 (paired 95% CIs).
 The calibration benefit is decisive because the paired errors are highly
-correlated: the correct sex curve shifts female error by -0.03691 ± 0.00040
-and male error by +0.01401 ± 0.00064, closing the female-minus-male error gap
-by **0.05092 ± 0.00096**.
+correlated: the correct sex curve shifts female error by -0.03636 ± 0.00041
+and male error by +0.01380 ± 0.00063, closing the female-minus-male error gap
+by **0.05016 ± 0.00095**.
 
 On the first two 300-family, no-mixture main-panel cross-checks, PA/Gibbs
 agreement is 0.999964. Gibbs reaches the requested MCSE tolerance for every
@@ -1511,8 +1511,8 @@ with ranking correlation indistinguishable to four decimals. Quadrature costs
 ~25x PA and ~4% of Gibbs; its role is the exactness reference and the
 cross-check for encodings where PA's sequential fold accumulates error, not
 throughput. Every case here is pinned at one lifetime threshold, so a cell
-holds few distinct bound rows (8, against ~200 with personalised age-specific
-bounds) and quadrature reuses duplicates; the timings do not establish
+holds few distinct bound rows (at most 8, 16 or 32 by structure, against ~200
+with personalised age-specific bounds) and quadrature reuses duplicates; the timings do not establish
 throughput on personalised-onset data. Cells whose simulated cohort draws no case at all (possible at
 K = 0.01) have constant estimates; their NaN correlations are retained in the
 CSV and skipped by the summary.

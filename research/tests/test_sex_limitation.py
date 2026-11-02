@@ -62,7 +62,7 @@ def test_cross_sex_pairs_are_discounted_same_sex_pairs_are_not():
     # proband (F) and sibling (M): full sibs, 2*phi = 0.5, cross-sex
     assert cov.matrix[idx["o"], idx["s1"]] == pytest.approx(
         0.5 * (h2f * h2m) ** 0.5 * rg)
-    # proband (F) and mother (F): full sibs' 2*phi = 0.5, same sex, no discount
+    # proband (F) and mother (F): parent-offspring 2*phi = 0.5, same sex, no discount
     assert cov.matrix[idx["o"], idx["m"]] == pytest.approx(0.5 * h2f)
     # mother and father share no DNA: zero regardless of the sex model
     assert cov.matrix[idx["m"], idx["f"]] == 0.0
@@ -153,7 +153,7 @@ def test_feeds_the_covariance_level_pa_api():
     d = len(cov.roles)
     lower = np.full(d, -np.inf)
     upper = np.full(d, np.inf)
-    upper[cov.roles.index("m")] = -1.0        # mother a case-like tail bound
+    upper[cov.roles.index("m")] = -1.0        # mother's liability below -1 (low tail)
     lower[cov.roles.index("m")] = -np.inf
     est = pa_algorithm(cov.matrix, lower, upper, target=cov.roles.index("g"))
     assert np.isfinite(est[0])

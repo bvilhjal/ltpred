@@ -134,11 +134,10 @@ def _dense_relationships(ped):
     """Dense A over one extracted pedigree, without the id round trip.
 
     ``extract_pedigree`` already holds the member and parent indices, so
-    `_kinship_A` builds A directly (rebuilding the id→index map that
-    `kinship_from_pedigree` would reconstruct measured 23% of that call on
-    the register workload); a hand-assembled ``Pedigree`` without index fields
-    falls back to the ids route. Either way A is exactly symmetric and PSD by
-    construction, which is what the caller certifies downstream.
+    `_kinship_A` builds A directly; a hand-assembled ``Pedigree`` without
+    index fields falls back to the ids route. Either way A is exactly
+    symmetric and PSD by construction, which is what the caller certifies
+    downstream.
     """
     if ped.sire_index is None or ped.dam_index is None:
         return kinship_from_pedigree(ped.ids, ped.father, ped.mother)[1]
@@ -236,14 +235,14 @@ def estimate_liabilities(
     SNP estimates and for the sensitivity analysis.
 
     Only target and informative observation relationships are used. They
-    come from a dense matrix over the extracted pedigree when most members
-    are selected, otherwise from selected pair recursion, where
-    ``kinship_cache_size`` bounds the number of ancestor-pair results reused
-    across probands (zero disables memoization entirely — it saves no
-    meaningful memory, since a full cache holds only a few MiB on real
-    registers, and makes deep pedigrees orders of magnitude slower, so it
-    warns). The parent graph is checked
-    for cycles once. Near covariance singularities the full extracted matrix
+    come from a dense matrix over the extracted pedigree when it has at most
+    1,500 members and more than about a quarter of them are selected,
+    otherwise from selected pair recursion, where ``kinship_cache_size``
+    bounds the number of ancestor-pair results reused across probands (zero
+    disables memoization entirely — it saves no meaningful memory, since a
+    full default cache holds about 30 MB, and makes deep pedigrees orders of
+    magnitude slower, so it warns). The parent graph is checked for cycles
+    once. Near covariance singularities the full extracted matrix
     is retained to preserve the existing positive-definite correction.
 
     Two table/proband boundary conditions are reported rather than silently
@@ -354,12 +353,12 @@ def estimate_liabilities(
             "kinship_cache_size=0 disables reuse of ancestor-pair results "
             "entirely: every request recomputes its pair recursion from "
             "scratch, which measured thousands of times slower on deep "
-            "pedigrees, and it saves no meaningful memory (a full cache holds "
-            "only a few MiB on real registers). This is not a memory-saving "
+            "pedigrees, and it saves no meaningful memory (a full default "
+            "cache holds about 30 MB). This is not a memory-saving "
             "setting; raise it if that was the intent.", UserWarning,
             stacklevel=2)
-    # Constructed eagerly even though every degree-3 proband takes the dense
-    # route: its topological rank is also the whole-graph cycle check, which
+    # Constructed eagerly, even when no proband takes the selected route: its
+    # topological rank is also the whole-graph cycle check, which
     # must reject cyclic components no proband's pedigree reaches.
     selected_kinship = _SelectedKinship(graph, kinship_cache_size)
     pos = graph.index

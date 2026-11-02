@@ -67,8 +67,9 @@ def _validate_status(status):
 def liability_threshold(pop_prev: ArrayLike) -> np.ndarray | np.floating:
     """Single-prevalence liability threshold ``T = Phi^-1(1 - K)``."""
     # -ppf(K), not ppf(1-K): the subtraction 1.0 - K discards the tail below
-    # ~1e-16 and returns +inf for K <= 1.1e-16, even though _validate_pop_prev
-    # admits the whole open interval. Phi^-1(1-K) = -Phi^-1(K) exactly.
+    # ~1e-16 and returns +inf for K <= 2**-54 (~5.6e-17), even though
+    # _validate_pop_prev admits the whole open interval.
+    # Phi^-1(1-K) = -Phi^-1(K) exactly.
     return -norm_ppf(_validate_pop_prev(pop_prev))
 
 
@@ -212,7 +213,7 @@ def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
 
     * ``use_mixture=False`` -- the supplied intervals are used directly. Controls
       have the same age-specific upper bound as `age_thresholds`, but cases
-      remain intervals rather than the point pins used by LT-FH++ and ADuLT; the
+      remain intervals rather than the point pins of `age_thresholds`; the
       encodings are not equivalent.
     * ``use_mixture=True`` -- the PA-FGRS censored-control correction switches on. It
       does the age adjustment itself, from ``K_i``/``K_pop``, by splitting the

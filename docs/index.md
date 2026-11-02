@@ -10,8 +10,8 @@ polygenic score or an absolute disease probability.
 
 1. **[Getting started](quickstart.md)** — choose the analysis, install, and score
    six rows from start to finish.
-2. **[Tutorial](tutorial.md)** — work through one simulated register, from
-   incidence estimation to scoring and prospective prediction, then fit two traits.
+2. **[Tutorial](tutorial.md)** — simulate a register, compare incidence
+   estimators, score it for a GWAS and prospectively, then fit two traits.
    Tests execute every block and check the printed results.
 3. **Use your own data:** [prepare inputs](data-preparation.md),
    [score liabilities](estimation.md), or [fit model parameters](inference.md).
@@ -23,9 +23,7 @@ polygenic score or an absolute disease probability.
   detailed methods PDF. [API reference](api.md) documents functions and results.
 - [Numerical checks](validation.md) explains the reproducible simulation checks.
   [Benchmark results](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
-  is the evidence ledger for accuracy, runtime and memory. Measurements retain
-  their source versions; the latest full time/memory comparison is v0.7.1 versus
-  v0.7.0, not a measurement of subsequent changes.
+  is the evidence ledger for accuracy, runtime and memory.
 - [Research extensions](research.md) describes unsupported, checkout-only models.
 
 Project maintenance lives in the repository:

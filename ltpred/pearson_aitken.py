@@ -44,14 +44,15 @@ PA-only): a control observed to its current age is a lifetime control on
 lifetime threshold ``T_pop = -Phi^-1(K_pop)``. Its selected moments are the
 two-component moments with weight
 ``pi = Phi_below / (Phi_below + (1 - Phi_below) (K_pop - K_i) / K_pop)``,
-``Phi_below`` the current conditional mass below ``T_pop``; this replaces P3's
-moments. ``(K_pop - K_i)/K_pop`` assumes onset timing independent of liability
-among eventual cases. Age enters only through ``K_i``; the finite ``upper``
-merely flags censoring. P2's reduction is skipped: pins, absent rows (no-op
-updates) and intervals are all folded sequentially in row order, and a row
-whose conditional variance has collapsed is skipped as known. P2's
-compatibility checks still apply (`_check_pin_support`), so both paths accept
-and reject the same exact observations.
+``Phi_below`` the current conditional mass below ``T_pop`` among values above
+``lower``; this replaces P3's moments. ``(K_pop - K_i)/K_pop`` assumes onset
+timing independent of liability among eventual cases. Age enters only through
+``K_i``; the finite ``upper`` merely flags censoring. P2's reduction is
+skipped: pins, absent rows (no-op updates) and intervals are all folded
+sequentially, last to first as in P3, and a row whose conditional variance
+has collapsed is skipped as known. P2's compatibility checks still apply
+(`_check_pin_support`), so both paths accept and reject the same exact
+observations.
 
 Truncated moments never form ``1 - Phi``: `_std_tnorm_moments` reflects
 positive intervals into the lower tail and differences log CDFs with
@@ -274,11 +275,12 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     observed case (finite ``upper`` or a point mass), the result is Algorithm M,
     the PA-FGRS age-censoring mixture (Dybdahl Krebs et al. 2024, supp. eqs.
     S3-S5): a genuine control on ``(lower, thr_pop)`` with weight
-    ``mixture_prob = c / (c + (1 - c) (K_pop - K_i) / K_pop)``, where
-    ``c = Phi((thr_pop - mu) / sd)``, and a not-yet-onset future case on
-    ``(thr_pop, inf)`` with the complement. A zero denominator (``c`` underflows
-    and ``K_i == K_pop``) gives weight 1. The result is the two-component mean
-    and variance.
+    ``mixture_prob = C / (C + (1 - c) (K_pop - K_i) / K_pop)``, where
+    ``c = Phi((thr_pop - mu) / sd)`` and ``C = c - Phi((lower - mu) / sd)``
+    (``C = c`` for ``lower = -inf`` or a point mass), and a not-yet-onset future
+    case on ``(thr_pop, inf)`` with the complement. A zero denominator
+    (``C == 0`` and ``K_i == K_pop``) gives weight 1. The result is the
+    two-component mean and variance.
 
     The split point is the *lifetime* threshold ``thr_pop = Phi^-1(1 - K_pop)`` --
     the quantity the model defines the two components by -- **not** the passed
@@ -343,10 +345,11 @@ def _pa_update(cov, mu, i, nm, nv):
 
     Only the **active leading block** ``0..i-1`` is touched: once ``i`` has been
     folded in (last-to-first), coordinates ``> i`` are never read again, so the
-    columns/rows above ``i`` need no update. This halves-to-thirds the work of a
-    full-matrix rank-1 update and avoids snapshotting ``cov[:, i]`` (column ``i`` is
-    not written here, so it can be read directly). Exactly equivalent to updating
-    the whole matrix for the target's final ``(mean, var)``."""
+    columns/rows above ``i`` need no update. Over a fold this is about a third of
+    the work of full-matrix rank-1 updates and avoids snapshotting ``cov[:, i]``
+    (column ``i`` is not written here, so it can be read directly). Exactly
+    equivalent to updating the whole matrix for the target's final
+    ``(mean, var)``."""
     v_i = cov[i, i]
     dm = (nm - mu[i]) / v_i
     fac = (nv - v_i) / (v_i * v_i)
@@ -698,8 +701,8 @@ def _pa_reduced_nomix(cov, lowers, uppers):
         keep = mask == 1
         keep[0] = mask[0] != 2
         retained = np.flatnonzero(keep)
-        # Own just two float64 work arrays. Center them in place below; even
-        # float32 bounds used float64 centering in the original reduction.
+        # Own just two float64 work arrays, even for float32 bounds; center
+        # them in place below.
         lo = np.asarray(lowers[np.ix_(rows, retained)], dtype=np.float64, order="C")
         hi = np.asarray(uppers[np.ix_(rows, retained)], dtype=np.float64, order="C")
         if len(pinned):
@@ -745,7 +748,7 @@ def _validate_pa_covmat(covmat, _psd_certified=None):
     with the same scale-relative symmetry tolerance. PA does not require strict
     positive-definiteness; pin conditioning checks singular support and the
     interval fold uses rank-1 updates. It still requires a genuine covariance and positive
-    marginal variances for every coordinate that may be truncated.
+    marginal variances for every coordinate.
 
     ``_psd_certified`` (the module-private ``_PSD_CERTIFIED`` sentinel) skips
     only the ``eigvalsh``: it is for callers whose array
@@ -883,9 +886,9 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
     ``lowers``/``uppers`` are ``(F, d)`` per-family bounds; ``covmat`` is shared.
     Reorders once so the target is row 0. Without ``K_is``/``K_pops`` it runs
     Algorithm P, sharing the pin reduction by observation mask and never
-    allocating the ``(F, d)`` mixture arrays; otherwise the parallel Algorithm M
-    kernel. Returns the PA sequential-moment
-    approximations ``(est, var)`` of length ``F``."""
+    allocating the ``(F, d)`` mixture arrays; otherwise the Algorithm M kernel.
+    Returns the PA sequential-moment approximations ``(est, var)`` of length
+    ``F``."""
     cov = _validate_pa_covmat(covmat, _psd_certified=_psd_certified)
     d = cov.shape[0]
     lowers = as_bounds(lowers)             # keeps float32 to halve memory

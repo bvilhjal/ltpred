@@ -2,11 +2,12 @@
 
 Five questions on a simulated cohort whose genetic liability is known. Run
 the blocks in order: each one uses only names the earlier blocks defined.
-Copy the page into a script, or paste one block at a time.
+Copy the page into a script, or paste one block at a time. Step 1 needs the
+`[sim]` extra: `pip install -e ".[fast,sim]"`.
 `tests/test_tutorial.py` re-runs the blocks and checks the printouts.
 
 Steps 1–4 are one disease. Step 5 is two traits. The
-[scoring reference](estimation.md#choose-a-scoring-model) is the decision table for a real table. Contracts
+[scoring reference](estimation.md#choose-a-scoring-model) is the decision table for real data. Contracts
 this tutorial simplifies are at the end.
 
 **Table 1. The five steps and their numerical checks.**
@@ -75,9 +76,9 @@ later steps correlate against. The register columns are `status`, `age`, and
 
 These 50,000 records are a **new** sample, not the 984 people above. A CIP
 from 81 events is too noisy to teach the difference. `simulate_followup_records`
-draws from the same logistic curve so the estimate can be checked. The
-estimator reports 49,999 entered records: one simulated onset at age 0 has no
-follow-up and is dropped (`plain.n_dropped`).
+draws from the same logistic curve so the estimate can be checked. 49,999
+records remain: the simulator drops one onset at age 0, which has no follow-up
+(`plain.n_dropped`).
 
 First, nobody dies:
 
@@ -172,15 +173,13 @@ records with an unresolved parent = 0.0000
 **Answer.** The correlation, 0.55, is with the true genetic liability, which
 the scorer was not given. It is not a disease-risk correlation. Square the
 score standard deviation and add the mean posterior variance:
-0.390² + 0.356 = 0.508, the variance of `genetic` in step 1. The scores' own
-variance, 0.15, is the part the family data explain (0.15 / 0.51 ≈ 0.30 ≈
-0.55², the squared correlation); about 0.36 is still posterior uncertainty,
-so the score is not a measurement. `estimate_liabilities` walks relatives up
-to `max_degree=3` by default. The 984 scores are
-overlapping pedigrees, not 984 independent people. Unresolved parents are 0
-because every parent id was in the table. This step passes the generating
-net curve back in. A real analysis passes a stratified estimate
-(`strata`, `cip_by_stratum`).
+0.390² + 0.356 = 0.508 ≈ h² = 0.5, the prior Var(g) (law of total variance).
+The scores' own variance, 0.15, is the part the family data explain
+(0.15 / 0.5 ≈ 0.30 ≈ 0.55², the squared correlation); about 0.36 is still
+posterior uncertainty, so the score is not a measurement.
+`estimate_liabilities` walks relatives up to `max_degree=3` by default. The
+984 scores are overlapping pedigrees, not 984 independent people. Unresolved
+parents are 0 because every parent id was in the table.
 
 ## Step 4 — Score prospectively, without the proband's own diagnosis
 
@@ -216,14 +215,14 @@ corr(score, truth) = 0.3069   score sd = 0.2134
 proband states: ['disease_free_and_followed']
 ```
 
-**Answer.** The drop from 0.55 to 0.31 is still a correlation with genetic
-liability. Two kinds of information went: the proband's own diagnosis, and
+**Answer.** On these 974 probands `use="gwas"` gives 0.51, so the cut takes
+0.51 to 0.31. Two kinds of information went: the proband's own diagnosis, and
 the relatives' diagnoses after the index date, and on this cohort the second
-costs about as much as the first. It is not the accuracy of predicting who
-becomes a case after 40. Restricting `probands` to people
-undiagnosed at 40 is part of that question: scoring someone already diagnosed
-and calling it prospective is leakage, and the driver warns. `proband_state`
-is that check.
+costs about as much as the first. The 0.31 is still a correlation with genetic
+liability, not the accuracy of predicting who becomes a case after 40.
+Restricting `probands` to people undiagnosed at 40 is part of that question:
+scoring someone already diagnosed and calling it prospective is leakage, and
+the driver warns. `proband_state` is that check.
 
 ## Step 5 — Two traits at once
 
@@ -234,10 +233,10 @@ This cohort is not the register from step 1. `simulate_under_LTM_multi`
 builds nuclear families with two binary traits. `fit_pairwise_multi` fits
 them together. The components are A (additive genetic), C (an environment
 shared by full siblings) and M (one shared by a couple); the simulator has
-both C and M, and leaving them out would push h² up. `sampling="population"`
-declares the families unselected (see [inference](inference.md)). `re` is the
-correlation of the non-shared residuals. Read `inference_status` before
-reading a standard error.
+both: leaving out C pushes h² up, and leaving out M biases `re`.
+`sampling="population"` declares the families unselected (see
+[inference](inference.md)). `re` is the correlation of the non-shared
+residuals. Read `inference_status` before reading a standard error.
 
 ```python
 from ltpred import fit_pairwise_multi, simulate_under_LTM_multi
@@ -251,7 +250,7 @@ joint = fit_pairwise_multi(
 
 emp = np.corrcoef(multi.liabilities[:, :, 0].ravel(),
                   multi.liabilities[:, :, 1].ravel())[0, 1]
-print(f"simulated trait correlation {emp:.4f} (target "
+print(f"simulated liability correlation {emp:.4f} (target "
       f"{truth['target_trait_corr']:.4f})")
 for name, fitted, se, target in (
         ("h2 trait 1", joint.h2[0], joint.se["h2"][0], truth["h2"][0]),
@@ -265,7 +264,7 @@ print(f"inference status: {joint.inference_status}")
 ```
 
 ```text
-simulated trait correlation 0.1551 (target 0.1511)
+simulated liability correlation 0.1551 (target 0.1511)
   h2 trait 1  fitted +0.4314 ± 0.0500   truth +0.35   (1.63 SE)
   h2 trait 2  fitted +0.4137 ± 0.0355   truth +0.40   (0.39 SE)
   rg          fitted +0.5435 ± 0.0760   truth +0.50   (0.57 SE)
@@ -289,20 +288,20 @@ below is a real decision, with the page that carries it.
 
 - **One curve for everyone.** Steps 3 and 4 pass `TRUE_CIP`, the net
   generating curve. Real LT-FH++ passes an estimated curve per sex and
-  birth-year stratum (Aalen–Johansen in the published method).
-  [CIP estimation](cip-estimation.md),
+  birth-year stratum (`strata`, `cip_by_stratum`); a wrong curve inflates a
+  GWAS or mis-scales the score
+  ([`benchmarks/RESULTS.md`](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)
+  §13, §18). [CIP estimation](cip-estimation.md),
   [data preparation](data-preparation.md).
 - **`h² = 0.5` was given.** It is the liability-scale heritability of this
   disease, it has no default, and fitting it needs a declared sampling design.
   [Which h²?](data-preparation.md#getting-heritability-on-the-liability-scale),
   [inference](inference.md).
-- **The generating curve was fed back in.** Passing a wrong curve is a measured
-  failure mode. [Assumptions](assumptions.md).
 - **The sample is unascertained.** Biobanks selected on case status are not.
   [Ascertainment](inference.md#ascertained-samples).
-- **The score is not a risk.** It is a posterior mean liability. A GWAS joins
-  it on the returned proband ids and residualises the design covariates.
-  [Estimation](estimation.md), [analysis choices](quickstart.md#choose-the-analysis).
+- **The score is not a risk.** It is a posterior mean genetic liability. A GWAS
+  joins it on the returned proband ids and residualises the design covariates.
+  [GWAS use](estimation.md#using-the-estimate-in-a-gwas).
 
 ## Continue with your data
 

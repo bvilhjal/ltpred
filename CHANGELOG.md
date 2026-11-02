@@ -13,6 +13,21 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 ## Unreleased
 
+- phensim is on PyPI since 1.0.0: the `[sim]` extra now requires
+  `phensim>=1.0.0`, and the install docs and the missing-phensim `ImportError`
+  name that extra instead of the 0.7.5 git install.
+- Documentation and comment review: wrong or stale statements in the docs,
+  tutorial, docstrings and code comments are corrected and restated text is
+  cut. The case-rate warning now quotes the RESULTS §29 dose (1.51× inflates
+  h² by +0.48), and the `kinship_cache_size=0` warning says a full default
+  cache holds about 30 MB. The methods report and RESULTS §15 now quote the
+  committed v0.6.2 artifacts, and the PDF is rebuilt.
+- The HAPNEST template (`benchmarks/hapnest/config_ltfh.yaml`) now lists
+  overrides in HAPNEST's own nesting; the old file put the output path and
+  sample count where HAPNEST does not read them.
+- The left-truncation CIP test now has late entrants after the first event,
+  so an estimator that ignored entry ages would fail it.
+
 ## 0.7.7 — 2026-10-17
 
 - Consolidate overlapping tests, shorten Gibbs chains used for identity checks,
@@ -77,6 +92,44 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   covariance matrix" error. That error now names tiny `h2`, `h2 = 1`
   collinearity and near-singular relatedness as the usual causes, and the
   `h2` docstrings state the `(1e-8, 1]` domain.
+- `scripts/check_evidence.py` pins `bench_scaling.csv` by its SHA-256 instead
+  of resolving a `v0.4.0` tag that was never pushed; the docs CI job had
+  failed on `main` since v0.7.4.
+- `docs/inference.md` again states the cost difference between the sampling
+  and deterministic fitters (lost when the method guide was retired in
+  v0.7.4). Speedup figures for v0.7.1 and v0.7.4 that no committed artifact
+  backs are restated qualitatively below.
+- A register-driver test now shows that `cip_by_stratum` routes each record
+  to its own curve; before, only permutation invariance was tested.
+- A family's Gibbs score no longer depends on the other families it is
+  sampled with. The sampler integrates out each family's own unbounded
+  coordinates (Algorithm G, step G2) instead of those unbounded in every
+  family of a batch, so the chunked drivers reproduce the array functions bit
+  for bit and later convergence rounds cannot change a family's chain.
+  **Seeded Gibbs values change** for families whose unobserved relatives
+  differ from others in their structure group (the draws target the same
+  posterior, but stored seeded results for such cohorts -- regression
+  snapshots, recorded draws -- no longer reproduce); cohorts where every
+  family has the same observed roles are bit-identical.
+- The PA-FGRS mixture path applies the same pin checks as ordinary PA. A pin
+  on a coordinate that earlier pins already determine (for example one person
+  recorded twice) crashed with an opaque `SystemError`; it now scores as the
+  single pin does, and contradictory pins raise `ValueError`. Other mixture
+  scores are bit-identical.
+- The PA pin-compatibility checks absorb storage rounding at the bounds'
+  stored precision. A coherent configuration whose pin and the bound it
+  determines round to opposite sides at float32 (the batched APIs'
+  memory-saving dtype) was rejected as a contradiction by both PA paths; it
+  is now accepted, while pin-versus-pin contradictions keep the tight
+  float64 tolerance.
+- `fit_heritability` and `fit_variance_components` reject `n_iter - burn_in < 4`
+  before sampling; the whole fit used to run first and then fail inside the
+  batch-means SE.
+- `observed_to_liability_h2`, `liability_to_observed_h2` and
+  `liability_r2_from_z` raise on a NaN or infinite `pop_prev`/`prop_cases`
+  instead of returning NaN, as `ltpred.thresholds` already did.
+- `estimate_liability_quadrature_arrays` accepts a length-one `out` sequence
+  (`("genetic",)`), like the other single-column array APIs.
 
 ### Changed
 
@@ -134,47 +187,6 @@ itemised; the full per-release notes up to v0.7.4 are in git history
   317,068 people, comparing the id and both parent columns, birth times, and
   the Mendelian draw with its inbreeding diagonal.
 
-### Fixed
-
-- `scripts/check_evidence.py` pins `bench_scaling.csv` by its SHA-256 instead
-  of resolving a `v0.4.0` tag that was never pushed; the docs CI job had
-  failed on `main` since v0.7.4.
-- `docs/inference.md` again states the cost difference between the sampling
-  and deterministic fitters (lost when the method guide was retired in
-  v0.7.4). Speedup figures for v0.7.1 and v0.7.4 that no committed artifact
-  backs are restated qualitatively below.
-- A register-driver test now shows that `cip_by_stratum` routes each record
-  to its own curve; before, only permutation invariance was tested.
-- A family's Gibbs score no longer depends on the other families it is
-  sampled with. The sampler integrates out each family's own unbounded
-  coordinates (Algorithm G, step G2) instead of those unbounded in every
-  family of a batch, so the chunked drivers reproduce the array functions bit
-  for bit and later convergence rounds cannot change a family's chain.
-  **Seeded Gibbs values change** for families whose unobserved relatives
-  differ from others in their structure group (the draws target the same
-  posterior, but stored seeded results for such cohorts -- regression
-  snapshots, recorded draws -- no longer reproduce); cohorts where every
-  family has the same observed roles are bit-identical.
-- The PA-FGRS mixture path applies the same pin checks as ordinary PA. A pin
-  on a coordinate that earlier pins already determine (for example one person
-  recorded twice) crashed with an opaque `SystemError`; it now scores as the
-  single pin does, and contradictory pins raise `ValueError`. Other mixture
-  scores are bit-identical.
-- The PA pin-compatibility checks absorb storage rounding at the bounds'
-  stored precision. A coherent configuration whose pin and the bound it
-  determines round to opposite sides at float32 (the batched APIs'
-  memory-saving dtype) was rejected as a contradiction by both PA paths; it
-  is now accepted, while pin-versus-pin contradictions keep the tight
-  float64 tolerance.
-- `fit_heritability` and `fit_variance_components` reject `n_iter - burn_in < 4`
-  before sampling; the whole fit used to run first and then fail inside the
-  batch-means SE.
-- `observed_to_liability_h2`, `liability_to_observed_h2` and
-  `liability_r2_from_z` raise on a NaN or infinite `pop_prev`/`prop_cases`
-  instead of returning NaN, as `ltpred.thresholds` already did.
-- `estimate_liability_quadrature_arrays` accepts a length-one `out` sequence
-  (`("genetic",)`), like the other single-column array APIs.
-
 ### Added
 
 - `bench_personalised_compare.py` locks the LT-FH++ features the classic
@@ -188,11 +200,9 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 - `bench_quadrature.py` gives the quadrature engine — previously in no
   benchmark — its accuracy reference role: PA matches it to RMSE 1.5e-3 on
-  the engine's documented scope at ~25x its cost, and it costs ~4% of Gibbs
+  the engine's documented scope, and quadrature costs ~25x PA and ~4% of Gibbs
   (RESULTS section 35). `bench_population_scale.py` records cohort-scale
-  throughput of the register pipeline and the array PA (section 36); its
-  register construction is vectorised because `simulate_pedigree`'s mating
-  loop is quadratic in the pool.
+  throughput of the register pipeline and the array PA (section 36).
 
 ### Removed
 
@@ -532,7 +542,7 @@ register scoring, not these three changes.
 ### Fixed
 
 - Threshold helpers use `Φ⁻¹(1 − p) = −Φ⁻¹(p)` and no longer lose the far
-  tail (`p ≤ 1.1e-16` gave `+inf`).
+  tail (`p ≤ 2**-54 ≈ 5.6e-17` gave `+inf`).
 - `families_from_columns` length-checks optional columns and rejects textual
   and NaN `fam_id` sentinels (`""` merged unrelated probands).
 - The public PA and array estimators validate bound shapes against the

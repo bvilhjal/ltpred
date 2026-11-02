@@ -22,8 +22,8 @@ remain unfinished. The [analysis choices](quickstart.md#choose-the-analysis),
 [algorithm](algorithm.md) and [assumptions](assumptions.md) state the exact
 contracts.
 
-Experimental covariance models, selection-aware fitting, HE genetic-correlation
-and onset-age-decay fitting, and factor models remain under `research/`
+Experimental covariance models, HE genetic-correlation and onset-age-decay
+fitting, and factor models remain under `research/`
 ([research extensions](research.md)).
 
 ## 2. Priorities
@@ -46,7 +46,7 @@ and onset-age-decay fitting, and factor models remain under `research/`
 | ID | Item | Next step |
 |---|---|---|
 | 09e T1-4 | PA object path still walks members three times | Fuse `_check_unique_roles` and `_group_by_structure` into the stacking pass; keep the bit-identity test. |
-| 09e T2-10 | Covariance repair gate runs for every register proband | Prove the `_covariance_reduction_is_safe` bound for the g-prepended matrix, then skip the no-op repair. |
+| 09e T2-10 | Covariance repair gate runs for every register proband | Move the `_covariance_reduction_is_safe` proof from its docstring into the methods report, then skip the no-op repair. |
 | 09e T2-3 | No time/memory capsule spans v0.7.1 → v0.7.4 | Run `bench_time_memory.py` (it writes its own capsule; see `benchmarks/README.md`) before the next release. |
 | 09e T2-2 | `check_capsule_integrity` checks 3 of 6 capsules and passes a capsule with no thread record | Check each capsule schema; fail when thread provenance is missing. |
 | 09e T2-4 | `bootstrap_fit` is serial | Parallelise replicates after confirming bit-identity on a quiet machine. |
@@ -69,8 +69,8 @@ and onset-age-decay fitting, and factor models remain under `research/`
   proportions do not define cross-trait `C`/`M` covariance, so the dispatcher
   raises; a supported extension must accept and validate those inputs.
 - **Measured non-improvements stay out.** Review 09e measured several
-  plausible optimisations that do not pay (PA bound-row deduplication is
-  9.9–15.8% slower); see the [review ledger](REVIEWS.md#2-declined-by-design-or-deliberate-boundaries).
+  plausible optimisations that do not pay, PA bound-row deduplication among
+  them; see the [review ledger](REVIEWS.md#2-declined-by-design-or-deliberate-boundaries).
 
 ## 4. Graduation rule
 

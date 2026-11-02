@@ -2,8 +2,8 @@
 
 `fit_pairwise` estimates the proportions ``theta_c`` of `ltpred.fit` -- same
 ``A``/``C``/``M`` kernels, same input and sampling contract -- by maximising a
-composite likelihood instead of augmenting liabilities (see the efficient
-inference report, "Fit covariance parameters by pairwise likelihood"). A pair
+composite likelihood instead of augmenting liabilities (see the methods
+report, "Fit covariance parameters by pairwise likelihood"). A pair
 of relatives has liability correlation ``rho_ij = x_ij' theta`` with
 ``x_ij = (K_c[i, j])_c``, and at the common threshold ``t`` its binary
 outcome has one of four bivariate-normal cell probabilities ``p_ab(t, rho)``.
@@ -283,9 +283,7 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
     non-stationary optimizer results raise ``RuntimeError`` instead of being
     returned; withheld SEs emit a ``RuntimeWarning``.
     Interior sampling SEs use the observed sensitivity and centered, weighted
-    family score outer products (finite-cluster factor n/(n-1)). They are
-    asymptotic, conditional on the supplied threshold/weights; no ordinary
-    chi-square likelihood-ratio calibration is claimed for this composite fit.
+    family score outer products (finite-cluster factor n/(n-1)).
     """
     components = tuple(_validate_components(components))
     _, eps = _validate_update_controls(0.2, eps)

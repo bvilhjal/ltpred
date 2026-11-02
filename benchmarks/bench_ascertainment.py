@@ -6,9 +6,9 @@ evidence behind two 0.3.1 features, so read the arms as the justification for
 them rather than as a description of current behaviour:
 
 * `sampling="population"` used to be an honour system (a string check, not a
-  data check), so an ascertained cohort fitted straight through. Arms A-F
-  measure what it returned. They therefore run under `unguarded()`, since the
-  check they motivated would now stop them.
+  data check), so an ascertained cohort fitted straight through. Arms A-E and
+  H measure what it returned, so their fits (and arm G's unweighted comparator)
+  run under `unguarded()`, since the check they motivated would now stop them.
 * `sampling="ipw"` with per-family weights corrects the subset of designs whose
   inclusion probability is known and positive everywhere. Arm G measures that,
   and runs through the real gate.

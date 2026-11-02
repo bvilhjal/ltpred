@@ -3,7 +3,8 @@
 
 class _TableExport:
     def to_frame(self):
-        """Return a pandas DataFrame with explicit id columns and a row index.
+        """Return `to_dict()` as a pandas DataFrame with a default row index
+        (with id columns where the result carries ids; `QuadratureResult` has none).
 
         Requires pandas. Repeated ids remain separate rows; use the id column
         for a checked join. Arrays are copied so editing the table cannot alter

@@ -1,12 +1,13 @@
 # ltpred benchmarks
 
-Benchmarks for the two ltpred inference engines — the **Gibbs sampler** and
-deterministic **Pearson–Aitken (PA)** — across LT-FH, LT-FH++ and ADuLT inputs,
-plus the fitters, the register pipeline and the PA-FGRS censoring mixture.
-Statistical benchmarks simulate their own data, so the true genetic liability
-is known; computational benchmarks use matched synthetic workloads. Both run
-locally with no downloads (real-LD genotypes are an opt-in
-[HAPNEST](hapnest/README.md) step). Results are in [RESULTS.md](RESULTS.md).
+Benchmarks for ltpred's inference engines — the **Gibbs sampler**,
+deterministic **Pearson–Aitken (PA)** and nuclear-family quadrature — across
+LT-FH, LT-FH++ and ADuLT inputs, plus the fitters, the register pipeline and
+the PA-FGRS censoring mixture. Statistical benchmarks simulate their own data,
+so the true genetic liability is known; computational benchmarks use matched
+synthetic workloads. Both run locally with no downloads (real-LD genotypes are
+an opt-in [HAPNEST](hapnest/README.md) step). Results are in
+[RESULTS.md](RESULTS.md).
 
 Pin the thread count explicitly rather than letting Numba take every core: a
 speed-up is only interpretable alongside its thread count, because Gibbs is
@@ -52,7 +53,7 @@ independent-SNP scope of every association result are defined once, in the
 `bench_time_memory.py` compares two package versions on matched graph, PA and
 register-scoring workloads. Its capsules are historical source-bound
 measurements, not timings of the current tree. **Known gap:** no time/memory
-capsule spans v0.7.1 → v0.7.4.
+capsule covers a release after v0.7.1.
 
 **Table 1. Every committed capsule in [`results/`](results/)** (JSON
 campaigns, statistical ones included). Each README gives the design,
@@ -96,12 +97,10 @@ retain `results.json`, the provenance record and the run log together.
   0.66.0 and matplotlib, the environment [`RESULTS.md`](RESULTS.md) records for
   the stored artifacts. Reruns meant to be comparable with them belong here.
 - **`.venv`** (the checkout's own) — measured the v0.6.1 time/memory capsule
-  (Python 3.10.20, NumPy 2.2.6, SciPy 1.15.3, Numba 0.67.0) but no longer
-  imports SciPy on the reference macOS host, so the v0.7.1 capsule used
-  `ltpred314`. Never use it for the statistical campaigns: it has no
-  matplotlib (every figure is silently skipped), and its NumPy draws a
-  different `multivariate_normal` stream, which shifts sampling-based
-  benchmarks in the third decimal.
+  (Python 3.10.20, NumPy 2.2.6, SciPy 1.15.3, Numba 0.67.0). Never use it for
+  the statistical campaigns: it has no matplotlib (every figure is silently
+  skipped), and its NumPy draws a different `multivariate_normal` stream, which
+  shifts sampling-based benchmarks in the third decimal.
 - **`ldpred3`** — the optional ldpred3 PGS backend used by the
   PGS-comparison arm.
 
@@ -109,9 +108,9 @@ retain `results.json`, the provenance record and the run log together.
 
 Rows marked *research* import checkout-only APIs from `research/`; those APIs
 are not installed as part of `ltpred`. Each script's module docstring gives its
-design, arms and CLI flags. The tables group scripts by the question they
-answer; the RESULTS.md section order is historical and does not follow these
-groups. Scripts whose Output is `stdout` archive no artifact.
+design and arms; `--help` lists its flags. The tables group scripts by the
+question they answer; the RESULTS.md section order is historical and does not
+follow these groups. Scripts whose Output is `stdout` archive no artifact.
 
 
 **Score accuracy, calibration and robustness**
@@ -170,7 +169,7 @@ groups. Scripts whose Output is `stdout` archive no artifact.
 | Script | Measures | Output |
 |---|---|---|
 | `bench_ltfhplus_compare.py` | **opt-in** lock against LTFHPlus Gibbs and LTFGRS PA: scores, per-family time, fold times, isolated peak RSS (exits 2 without R or LTFHPlus) | `bench_ltfhplus_compare*.csv` |
-| `bench_personalised_compare.py` | **opt-in** lock on the LT-FH++ features beyond the classic bounds: age-CIP personalised intervals/pins vs LTFHPlus Gibbs, and the PA-FGRS censoring mixture vs LTFGRS `useMixture=TRUE` under each package's own input encoding (exits 2 without R) | `bench_personalised_compare.csv` |
+| `bench_personalised_compare.py` | **opt-in** lock on the LT-FH++ features beyond the classic bounds: age-CIP personalised intervals/pins vs LTFHPlus Gibbs, and the PA-FGRS censoring mixture vs LTFGRS `useMixture=TRUE` under each package's own input encoding (exits 2 without R, LTFHPlus or LTFGRS) | `bench_personalised_compare.csv` |
 | `bench_scaling.py` | wall-clock scaling with #families and family size; families/s and speed-up | `bench_scaling.csv` |
 | `bench_quadrature.py` | the quadrature engine on its own scope: accuracy vs PA/Gibbs (quadrature as the near-exact reference) and per-family cost | `bench_quadrature.csv` |
 | `bench_population_scale.py` | cohort-scale throughput of the register pipeline (10k/50k/200k probands) and array PA (350k rows), the same-shape number as published scaling claims | `bench_population_scale.csv` |
@@ -191,25 +190,27 @@ HAPNEST path.
   pass `sampling="population"` explicitly; `bench_ascertainment.py` measures
   what those fitters return when that contract is violated, and what
   `sampling="ipw"` recovers.
-* **Association benchmarks** build each proband's genetic liability from
-  simulated independent causal-SNP genotypes and draw the relatives
-  *conditional on that value*, giving both a genotype matrix and a correctly
-  correlated family history. `--plink` substitutes real-LD HAPNEST genotypes;
-  the association helper remains a marginal score calculation, and the
-  simulation does not represent overlapping extracted pedigrees. The
-  personalised LT-FH++ benchmark adds coherent age, onset, competing mortality,
-  birth-cohort effects, ascertainment and stratified null variants.
+* **Association benchmarks** (except the null-SNP `bench_confounding.py`)
+  build each proband's genetic liability from simulated independent causal-SNP
+  genotypes and draw the relatives *conditional on that value*, giving both a
+  genotype matrix and a correctly correlated family history. `--plink`
+  substitutes real-LD HAPNEST genotypes; the association helper remains a
+  marginal score calculation, and the simulation does not represent
+  overlapping extracted pedigrees. The personalised LT-FH++ benchmark adds
+  coherent age, onset, competing mortality, birth-cohort effects,
+  ascertainment and stratified null variants.
 
 ## Caveats
 
 - These are **stochastic** benchmarks. Some cells are single simulated cohorts;
   others report means across independent cohorts. Read the reported replicate
   counts and uncertainty; a rerun shifts both by sampling noise.
-- **Runtime depends on the machine.** The reference numbers were taken on 10
-  cores with Numba installed (`pip install -e ".[fast]"`); the first call in
-  each script pays a one-off JIT compile. Expect slower runs on fewer cores, on
-  a cold JIT cache, or without Numba (the pure-Python fallback is numerically
-  identical). CLI flags (`--reps`, `--n-fam`, …) trade runtime for precision.
+- **Runtime depends on the machine.** The reference numbers were taken on a
+  10-core machine, at the thread counts above, with Numba installed
+  (`pip install -e ".[fast]"`); the first call in each script pays a one-off
+  JIT compile. Expect slower runs on fewer cores, on a cold JIT cache, or
+  without Numba (the pure-Python fallback is numerically identical). CLI flags
+  (`--reps`, `--n-fam`, …) trade runtime for precision.
 - Gibbs timings use the structure-grouped, Numba-parallel path: set
   `NUMBA_NUM_THREADS`, and `OMP_NUM_THREADS` for linked numerical libraries.
 - Checked-in CSVs and [`RESULTS.md`](RESULTS.md) are historical artifacts whose

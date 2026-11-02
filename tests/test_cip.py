@@ -19,10 +19,15 @@ class KaplanMeierTests(unittest.TestCase):
         self.assertAlmostEqual(c.se[0], np.sqrt((5 / 6) ** 2 / 30), places=6)
 
     def test_left_truncation_changes_the_risk_set(self):
-        # entries 0,0,3,5; all exits are events at 6,10,12,15.
-        c = kaplan_meier_cip([0, 0, 3, 5], [6, 10, 12, 15], [1, 1, 1, 1])
-        np.testing.assert_allclose(c.values, [0.25, 0.5, 0.75, 1.0],
+        # entries 0,0,8,8; exits 6(e), 10(c), 12(e), 15(e). The late entrants
+        # are not at risk at 6, so Y = 2 there (S = 1/2), then Y = 2 at 12
+        # (S = 1/4). Ignoring entry would give Y = 4 at 6 and CIP 0.25, 0.625.
+        entry, exit_, ev = [0, 0, 8, 8], [6, 10, 12, 15], [1, 0, 1, 1]
+        c = kaplan_meier_cip(entry, exit_, ev)
+        np.testing.assert_allclose(c.values, [0.5, 0.75, 1.0],
                                    rtol=0, atol=1e-12)
+        aj = aalen_johansen_cip(entry, exit_, np.array(ev), cause=1)
+        np.testing.assert_allclose(aj.values, c.values, rtol=0, atol=1e-12)
 
     def test_cip_is_monotone_and_bounded(self):
         rng = np.random.default_rng(0)

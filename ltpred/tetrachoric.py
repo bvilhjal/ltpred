@@ -6,15 +6,16 @@ latent **bivariate normal** cut at two thresholds. The tetrachoric correlation
 is the latent Pearson correlation implied by that table -- the pairwise face
 of the family model used throughout this package: for relatives with additive
 relationship ``A`` and liability-scale heritability ``h2`` the expected
-tetrachoric correlation is ``h2 * A`` (Falconer's classic route: parent-
-offspring and full sibs give ``h2 / 2``, so ``h2 ~ 2 * tetrachoric``).
+tetrachoric correlation under an A+E model is ``h2 * A`` (Falconer's route:
+parent-offspring pairs give ``h2 / 2``, so ``h2 ~ 2 * tetrachoric``; full sibs
+also share any sibship ``c2``).
 
 The estimator is the maximum-likelihood tetrachoric (Kirk 1973; Tallis 1962):
 thresholds ``t = Phi^-1(1 - p)`` from the marginal case proportions, then a
 bounded 1-D search over ``rho`` in ``(-1 + 1e-9, 1 - 1e-9)`` maximising the 2x2
 multinomial log-likelihood, with the bivariate-normal CDF from SciPy
-(``multivariate_normal``, with explicit ``1e-10`` requested integration
-tolerances). The 2x2 model is saturated, so at an interior optimum these
+(``multivariate_normal``, whose bivariate case is a deterministic Genz
+routine). The 2x2 model is saturated, so at an interior optimum these
 plug-in thresholds coincide with the joint MLE. The standard error is a Wald
 SE from the observed information for ``rho`` alone (a central second
 difference, step ``1e-4``, of the log-likelihood), conditional on the
@@ -69,10 +70,8 @@ class TetrachoricResult:
 def _bvn_cdf(a, b, rho):
     """P(X < a, Y < b) for standard bivariate normal with correlation rho.
 
-    Delegates to SciPy's bivariate-normal CDF (``multivariate_normal.cdf``)
-    with explicit absolute/relative tolerances of ``1e-10``. Numerical accuracy
-    remains subject to SciPy's integration routine. Handles the rho -> +-1
-    limits and infinite bounds itself."""
+    Delegates to SciPy's bivariate-normal CDF (``multivariate_normal.cdf``).
+    Handles the rho -> +-1 limits and infinite bounds itself."""
     if a == -math.inf or b == -math.inf:
         return 0.0
     if a == math.inf:
@@ -199,8 +198,9 @@ def tetrachoric_matrix(X: ArrayLike, *, continuity_correction: bool = True,
                        check_psd: bool = True) -> np.ndarray:
     """Pairwise tetrachoric correlations among the columns of ``X``.
 
-    ``X`` is an ``(n_pairs, m)`` boolean or 0/1 array; returns the symmetric
-    ``(m, m)`` matrix of pairwise estimates with unit diagonal. Each pair of
+    ``X`` is an ``(n, m)`` boolean or 0/1 array, one row per unit (e.g. family)
+    and one column per variable; returns the symmetric ``(m, m)`` matrix of
+    pairwise estimates with unit diagonal. Each pair of
     columns is fitted by `tetrachoric_table`, so ``continuity_correction`` and
     the monomorphic-column error behave as there. Because the off-diagonal
     entries are fitted independently, the result is **not guaranteed to be a

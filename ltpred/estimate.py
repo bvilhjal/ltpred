@@ -277,15 +277,16 @@ def batch_means(samples: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     """Batch-means estimate and Monte-Carlo SE of column means (Jones et al. 2006).
 
     Splits ``n`` samples into ``a = n // b`` consecutive batches of size
-    ``b = floor(sqrt(n))``, then ``se = sqrt(b * var(batch_means) / (a*b))``
-    — the denominator is the ``a*b`` draws that actually enter the batches,
-    matching R ``batchmeans::bmmat``. Accepts a
-    1-D or 2-D ``(n, ncols)`` array and returns ``(est, se)`` arrays over columns
-    (length-1 arrays for 1-D input).
-    Port of R ``batchmeans::bmmat`` -- the rule LTFHPlus uses to decide the Gibbs
-    sampler has converged. (The estimator computes the same quantity online inside
-    the kernel; this stays for direct use and tests.) Requires at least 4
-    samples (two batches), the same minimum the estimator enforces on ``n_sim``."""
+    ``b = floor(sqrt(n))``; ``est`` is the mean of all ``n`` samples and
+    ``se = sqrt(b * var(batch_means) / (a*b))``. R ``batchmeans::bmmat`` instead
+    reports the mean of the batch means and divides by ``n``; the two agree when
+    ``b`` divides ``n``. Accepts a 1-D or 2-D ``(n, ncols)`` array and returns
+    ``(est, se)`` arrays over columns (length-1 arrays for 1-D input).
+    Adapted from R ``batchmeans::bmmat``, the rule LTFHPlus uses to decide the
+    Gibbs sampler has converged. (The estimator applies it online to its
+    streamed values, keeping the first round's batch size as rounds pool; this
+    stays for direct use and tests.) Requires at least 4 samples (two batches),
+    the same minimum the estimator enforces on ``n_sim``."""
     x = np.asarray(samples, dtype=float)
     if x.ndim == 1:
         x = x[:, None]
@@ -410,13 +411,12 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
             # sum((Y - Ybar)^2) = S2 - S1^2 / M  (pooled over rounds, batch size b)
             ss = bm_s2[f] - bm_s1[f] ** 2 / m
             sigma2 = b * ss / (m - 1)
-            # batchmeans convention: the SE denominator is the m*b draws that
-            # enter the batches, not the total kept draws (n_sim >= nb*b).
+            # the SE denominator is the m*b draws that enter the batches, not the
+            # total kept draws (n_sim >= nb*b); R batchmeans divides by all draws.
             se[f] = np.sqrt(np.maximum(sigma2, 0.0) / (m * b))
             est[f] = tot[f] / total_n[f]
             # E[x^2] - E[x]^2 over every retained draw; a pinned (fixed)
-            # coordinate gives exactly 0, and rounding cannot make a variance
-            # negative, so clamp.
+            # coordinate gives 0 up to rounding, which can be negative, so clamp.
             var[f] = np.maximum(tot_sq[f] / total_n[f] - est[f] ** 2, 0.0)
             if not np.all(se[f] <= tol):
                 still.append(f)
@@ -544,10 +544,10 @@ def _warn_unconverged_array(se, tol, max_rounds):
 def _warn_if_corrected(n_corrections, engine):
     """Warn when the family covariance needed nudging to strict PD.
 
-    Reported by every estimator path (the multi-trait Gibbs path has always
-    warned): a (numerically) singular covariance usually marks a degenerate
-    model -- e.g. ``h2 = 1`` makes ``g`` and ``o`` perfectly correlated -- and
-    silently repairing it would hide that from the user."""
+    Reported by every estimator path: a (numerically) singular covariance
+    usually marks a degenerate model -- e.g. ``h2 = 1`` makes ``g`` and ``o``
+    perfectly correlated -- and silently repairing it would hide that from the
+    user."""
     if n_corrections:
         warnings.warn(
             "The covariance was singular or numerically singular and was nudged "
@@ -575,7 +575,7 @@ def _group_by_structure(families):
 
 
 #: Odd multiplier of Knuth's multiplicative hash: a bijection on uint32, so
-#: distinct user seeds map to distinct seed blocks (see `_base_seeds`).
+#: distinct user seeds get distinct block starts (blocks can overlap; see `_base_seeds`).
 _SEED_STRIDE = 2654435761
 
 
@@ -596,18 +596,19 @@ def _base_seeds(seed, n, max_rounds, start=0):
     over consecutive seeds (``for rep in range(R): ... seed=rep``) resample
     each other's draws family by family -- with identical rows and
     ``max_rounds=1`` bit for bit. The stride is odd, hence injective on
-    uint32; a wrap can still collide two families' streams when
-    ``n * max_rounds`` exceeds 2**32 (at the default ``max_rounds=100`` that
-    is beyond ~43M families per call), and even then only for specific seed
-    pairs, not every neighbour.
+    uint32, but it spreads only the block starts: the blocks of seeds ``s``
+    and ``s + k`` overlap once ``n * max_rounds`` exceeds the circular
+    distance between their starts (at ``max_rounds=100``: ~16M families for
+    consecutive seeds, ~20k for the closest pair in ``range(1000)``), and one
+    call wraps onto itself beyond 2**32 (~43M families).
 
     ``seed=None`` returns fresh per-family entropy seeds instead of the
     kernel's ``-1`` unseeded sentinel. The sentinel draws from the Numba
     worker-thread RNG, which a previous seeded call in this process leaves in
     a deterministic state -- making later unseeded calls replay it exactly --
     and which advances differently under different thread schedules. Fresh
-    seeds keep an unseeded run nondeterministic call to call, exactly like
-    the seeded path, and scheduling-independent within a call. ``start`` is
+    seeds keep an unseeded run nondeterministic call to call and, like
+    the seeded path, scheduling-independent within a call. ``start`` is
     the first family's global index, so a streamed batch builds only its own
     seeds."""
     if seed is None:
@@ -1167,8 +1168,10 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
     the PA-FGRS censored-control mixture; Gibbs does not implement it and
     raises. Each array has length ``n_families``. The covariance is built by
     `ltpred.covariance.construct_covmat_from_kinship`, so results match the
-    role-based estimator whenever the pedigree encodes the same relationships — but
-    this also handles half-sibs of any degree, cousins, and inbred pedigrees.
+    role-based estimator whenever the pedigree encodes the same relationships
+    (under PA, whose fold follows ``A``'s row order, only with the target first
+    and the relatives in sorted-role order) — but this also handles half-sibs
+    of any degree, cousins, and inbred pedigrees.
 
     ``_certified_psd`` is internal; do not pass it. Package callers whose ``A``
     was just built by a pedigree constructor (symmetric and PSD by
@@ -1176,8 +1179,8 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
     still passes through `ltpred.covariance.correct_positive_definite`. A
     family-free non-inbred proband under PA (``A = [[1]]``, no pins, no
     mixture or shared environment) uses the scalar ADuLT moments, as the role
-    estimator does for ``roles == ["o"]``; both shortcuts are bit-identical to
-    the matrix path."""
+    estimator does for ``roles == ["o"]``; this shortcut is bit-identical to
+    the matrix path (the role one agrees to rounding)."""
     A = np.ascontiguousarray(A, dtype=np.float64)
     n = A.shape[0]
     if A.shape != (n, n):
@@ -1303,7 +1306,7 @@ def estimate_liability(families: Sequence, h2: ArrayLike, *,
     family index in its message counts within the failing family's role-set
     group, not within ``families``. Diagnostics are retained
     in ``quadrature_error`` and ``quadrature_nodes``; zero ``se`` means no
-    Monte-Carlo error. The ordinary Gibbs controls do not steer this method.
+    Monte-Carlo error.
 
     ``method`` selects the inference engine; the **default** (``None``) picks the
     deterministic **Pearson-Aitken (PA)** estimator for a single trait. On the

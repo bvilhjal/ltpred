@@ -1,5 +1,5 @@
 site_name: ltpred
-site_description: LT-FH++ with family history and family-free ADuLT in Python
+site_description: LT-FH, LT-FH++, ADuLT and PA-FGRS genetic-liability estimation in Python
 site_url: https://bvilhjal.github.io/ltpred/
 repo_url: https://github.com/bvilhjal/ltpred
 repo_name: bvilhjal/ltpred

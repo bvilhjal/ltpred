@@ -5,8 +5,7 @@ on:
     branches: [main]
   pull_request:
 
-# Pin BLAS threads for deterministic numerics (family convention): the R-lock
-# tests assert exact agreement with locked reference scores, and threaded
+# Pin BLAS threads for deterministic numerics (family convention): threaded
 # reductions can differ in the last ulps. Numba's prange pool is sized by
 # NUMBA_NUM_THREADS, not OMP_NUM_THREADS, so the parallel kernels keep their
 # threads.
@@ -28,10 +27,10 @@ env:
 
 jobs:
   test:
-    # `fast` extra installed: the JIT-compiled path. Kept on both ends of the
-    # supported range plus macOS, because Numba's threading layer and `prange`
-    # scheduling are the most platform-sensitive part of the package. The 3.14t
-    # leg covers the free-threaded interpreter the benchmarks run on.
+    # `fast` extra installed: the JIT-compiled path. Run on Python 3.9-3.13 plus
+    # macOS, because Numba's threading layer and `prange` scheduling are the
+    # most platform-sensitive part of the package. The 3.14t leg covers the
+    # free-threaded interpreter the benchmarks run on.
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -90,8 +89,8 @@ jobs:
     # run the files that exercise the compiled kernels themselves (truncated
     # moments and quantiles, the PA sweep, the batched accumulators, the Gibbs
     # sweep) rather than the sampling-dominated statistical suite, and deselect
-    # the handful of large-n_sim comparisons inside them. That is ~300 tests in
-    # a few seconds; the JIT-marked ones are covered by the `test` job.
+    # the handful of large-n_sim comparisons inside them. That is ~470 tests in
+    # under a minute; the JIT-marked ones are covered by the `test` job.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -106,8 +105,8 @@ jobs:
       - name: Kernel tests on the pure-Python fallback
         run: |
           pytest -q -m "not jit_required" $KERNEL_TESTS
-      # The kernel files above do not exercise the Family/Member dispatcher,
-      # simulation entry point, fitter entry point, or the deterministic R lock.
+      # The kernel files above do not exercise the simulation entry point,
+      # fitter entry point, or the deterministic R lock.
       # Keep these node IDs deliberately small: collecting their full files on
       # the ~100x slower fallback would also collect sampling-heavy tests.
       - name: Public workflow smokes on the pure-Python fallback
@@ -145,13 +144,9 @@ jobs:
           pytest -q -m "not jit_required" $KERNEL_TESTS
 
   examples:
-    # examples/*.py are the front door for new users and were previously run by
-    # neither the tests nor CI, so they could rot silently. They are small (a
-    # few seconds each), so just run them. This job covers the __main__ path;
-    # the figures examples/validation.py produces are separately checked against
-    # docs/validation.md by tests/test_validation_numbers.py, which the `test` job
-    # runs on every matrix leg -- macOS included, which is the platform
-    # coverage that matters for a sampler that used to depend on LAPACK.
+    # examples/validation.py (a few seconds) reproduces docs/validation.md;
+    # this job covers its __main__ path. tests/test_validation_numbers.py
+    # checks its figures against the page on every `test` leg, macOS included.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -207,16 +202,12 @@ jobs:
         run: pip install -e ".[docs]" "pypdf>=4"
       - name: Check benchmark claims and tracked report
         run: python scripts/check_evidence.py
-      # `--strict` aborts when the build logs a warning. That includes an
-      # unmatched code fence (the following prose, headings included, renders
-      # as a code block) and a broken relative link or anchor
-      # (`links.not_found` defaults to warn; `links.anchors` is warn). A page
-      # left out of the nav is an info log and does not fail the job.
+      # `--strict` aborts when the build logs a warning. That includes a
+      # broken relative link or anchor (`links.not_found` defaults to warn;
+      # `links.anchors` is warn). A page left out of the nav is an info log and
+      # does not fail the job.
       - name: Build and check documentation (strict)
         run: mkdocs build --strict
-      # The site was previously published by hand and went stale at v0.1.0
-      # while the package reached 0.3.4 -- the strict build above already
-      # verified it on every push, and only the publish step was missing.
       # Deploy on pushes to main only, so pull requests still get the check
       # without touching the live site.
       - name: Publish to GitHub Pages

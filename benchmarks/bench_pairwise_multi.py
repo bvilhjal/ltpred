@@ -2,7 +2,7 @@
 
 Run from a checkout, for example:
   python benchmarks/bench_pairwise_multi.py --reps 100 --n-fam 3000 --jobs 4 \
-    --output benchmarks/results/2026-09-16-joint-pairwise
+    --output /tmp/ltpred-joint-pairwise
 
 All attempted fits are retained, including failures and boundaries. Coverage is
 conditional on an available interior SE and is accompanied by its denominator.
@@ -159,7 +159,7 @@ def clean_json(obj):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--reps", type=int, default=100)
     parser.add_argument("--n-fam", type=int, default=3000)
     parser.add_argument("--jobs", type=int, default=1)

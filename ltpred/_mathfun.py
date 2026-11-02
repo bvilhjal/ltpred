@@ -5,20 +5,18 @@ Two flavours live here because they serve two callers:
 * ``_norm_cdf`` / ``_norm_ppf`` are **scalar, branch-only** functions built on
   ``math.erfc`` and Wichura's algorithm AS 241 (Applied Statistics, 1988). They
   contain nothing Numba cannot compile, so the Gibbs kernel calls them directly
-  and produces identical numbers with or without the JIT. AS 241 is accurate to
-  ~1e-16, matching R's ``qnorm`` (which uses the same algorithm), so the port's
-  thresholds line up with LTFHPlus.
+  and produces identical numbers with or without the JIT. AS 241 is also R's
+  ``qnorm`` algorithm, accurate to ~1e-16.
 * ``norm_cdf`` / ``norm_ppf`` are the **vectorised** versions used by the
-  public threshold helpers; they defer to SciPy's ``ndtr`` / ``ndtri`` for speed
-  and to stay exact on arrays. ``+/-inf`` inputs map to the obvious 1 / 0 and
-  ``+/-inf`` limits.
+  public threshold helpers; they defer to SciPy's ``ndtr`` / ``ndtri`` for speed.
+  ``norm_cdf(+/-inf)`` is 1 / 0; ``norm_ppf(1)`` / ``norm_ppf(0)`` is ``+/-inf``.
 
 Keeping the kernel on the scalar pair (rather than SciPy) is what lets the
 sampler run inside ``numba.njit`` at all.
 
 Upper-tail thresholds are computed by callers as ``-ppf(p)``, using the exact
 symmetry ``Phi^-1(1 - p) = -Phi^-1(p)``: forming ``1 - p`` in floating point
-discards the tail of a small ``p`` and gives ``+inf`` for ``p <~ 1.1e-16``.
+discards the tail of a small ``p`` and gives ``+inf`` for ``p <~ 5.6e-17``.
 """
 
 from __future__ import annotations
@@ -49,7 +47,7 @@ def _norm_ppf(p):
     """Standard-normal quantile of a scalar via Wichura's AS 241 (PPND16).
 
     ``p <= 0`` returns ``-inf`` and ``p >= 1`` returns ``+inf``. Elsewhere the
-    absolute error is below ~1e-16, so it agrees with R's ``qnorm`` to double
+    relative error is about 1e-16, so it agrees with R's ``qnorm`` to double
     precision."""
     if p <= 0.0:
         return -math.inf

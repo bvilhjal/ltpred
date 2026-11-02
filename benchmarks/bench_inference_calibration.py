@@ -1,8 +1,8 @@
 """Calibration of the inference machinery: p-values, intervals, and SEs.
 
-The package ships three inference tools whose *calibration* had no benchmark
-(external review, Tier 2): the parametric-bootstrap component test
-(`test_variance_component`), the family-bootstrap interval (`bootstrap_fit`),
+Three inference tools had no calibration benchmark (external review, Tier 2):
+the parametric-bootstrap component test (`test_variance_component`, in
+`research.advanced_fitting`), the family-bootstrap interval (`bootstrap_fit`),
 and the MCEM OPG/BHHH information SE (`fit_variance_components_mcem`, the former
 `fit_variance_components(method="mcem")` route, now in `research.advanced_fitting`).
 Point-estimate bias is benchmarked elsewhere (bench_fit_heritability,
@@ -176,7 +176,7 @@ def report_pvals(pvals, reps):
 
 
 def parse_args(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--parts", default="1,2,3,4",
                     help="comma-separated parts to run (default: all)")
     ap.add_argument("--reps", type=int, default=R,

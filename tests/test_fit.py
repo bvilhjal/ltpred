@@ -173,8 +173,8 @@ def test_variance_components_recovers_A_and_C():
     r = fit_variance_components(
         fams, ("A", "C"), n_iter=800, burn_in=250, seed=1,
         sampling="population")
-    # a real C is recovered (not collapsed to 0, not absorbed into A); the sampler
-    # uses numba's parallel RNG so the exact value drifts run-to-run -> band check
+    # a real C is recovered (not collapsed to 0, not absorbed into A); the bands
+    # cover the estimator's sampling error at n=3500
     assert 0.28 < r.components["A"] < 0.52          # true 0.40
     assert 0.12 < r.components["C"] < 0.30          # true 0.20
     assert r.residual == pytest.approx(1.0 - a2 - c2, abs=0.12)

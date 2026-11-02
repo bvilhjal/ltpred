@@ -18,11 +18,9 @@ prevalence, and informative relatives; the *relative* squared-correlation
 effective-N proxy over a case/control label is largest at low prevalence.
 
 Each cell is replicated on ``--reps`` independent seeds (default 5); replicate
-``r`` uses ``--seed + r`` for both the cohort simulation and the Gibbs sampler,
-so the historical single-seed configuration is replicate 0. Reported values are
-across-seed means with standard errors (sd/sqrt(reps)). Per-cell settings are
-unchanged (1,500 families, 25,000 Gibbs draws), so the means are directly
-comparable to the former single-seed numbers.
+``r`` uses ``--seed + r`` for both the cohort simulation and the Gibbs sampler.
+Reported values are across-seed means with standard errors (sd/sqrt(reps)); each
+cell has 1,500 families and 25,000 Gibbs draws by default.
 
     python benchmarks/bench_accuracy.py                 # default grid, 5 seeds
     python benchmarks/bench_accuracy.py --n-fam 3000 --reps 3

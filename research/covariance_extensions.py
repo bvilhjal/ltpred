@@ -15,7 +15,7 @@ exercises them; the private imports from
   families, built from the path model rather than from kinship.
 
 Shared machinery (the relatedness table, the family-spec expansion, the
-shared-environment components, the PD correction) stays in
+shared-environment components) stays in
 ``ltpred.covariance`` and is imported from there.
 """
 

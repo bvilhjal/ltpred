@@ -486,10 +486,9 @@ def test_mixture_is_calibrated_no_double_correction():
     # simulated under the LTM (young controls, so censoring bites), the mixture fed
     # `pa_thresholds`' mixture is checked against the same interval-case bounds with
     # no mixture, computed on the same data. Anchoring to that in-test
-    # reference is seed-robust and independent of the absolute slope (~0.84 here,
-    # set by the interval case encoding). The pre-fix double-correction inflated the
-    # estimate badly -- bias +0.84 vs +0.25, corr(g) 0.47 vs 0.52, slope 0.77 vs
-    # 0.84, and only ~0.98 agreement with the exact encoding -- so it fails below.
+    # reference is seed-robust and independent of the absolute slope. Splitting at
+    # the passed `upper` (the old double correction) still passes here;
+    # test_mixture_split_is_lifetime_threshold_not_passed_upper pins the split.
     from ltpred.family import families_from_columns
     from ltpred.thresholds import pa_thresholds
 

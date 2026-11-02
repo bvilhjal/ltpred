@@ -6,7 +6,7 @@ by the prevalence. Everything in this module follows from that identity.
 
 **Two probit scales must not be conflated.** A probit coefficient fixes the
 residual variance to one. For a SNP with minor-allele frequency ``f`` and effect
-``beta``, ``2 f (1-f) beta^2`` is genetic variance in those residual-variance
+``beta``, ``q = 2 f (1-f) beta^2`` is genetic variance in those residual-variance
 units. It is not yet a fraction of total latent variance; for a single predictor
 that fraction is ``q / (1 + q)``. `probit_liability_r2` returns ``q`` by
 default despite its name; ``fraction=True`` gives ``q / (1 + q)``.
@@ -43,7 +43,8 @@ __all__ = ["observed_to_liability_h2", "liability_to_observed_h2",
 
 
 def _z_density(pop_prev):
-    """z = phi(Phi^-1(1 - K)), the normal density at the liability threshold."""
+    """Validate K and return ``(K, z)`` with ``z = phi(Phi^-1(1 - K))``, the
+    normal density at the liability threshold."""
     pop_prev = np.asarray(pop_prev, dtype=float)
     if np.any(~np.isfinite(pop_prev) | (pop_prev <= 0) | (pop_prev >= 1)):
         raise ValueError("pop_prev must be finite and lie in (0, 1)")

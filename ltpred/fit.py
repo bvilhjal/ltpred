@@ -1,6 +1,7 @@
 """Fit liability-scale variance components from family data (stochastic moment fixed point).
 
-Everywhere else in ltpred the family covariance is *given*; here it is fitted.
+The liability estimators take the family covariance as *given*; here it is
+fitted (`ltpred.pairwise` fits the same model by composite likelihood).
 `fit_heritability` fits the additive proportion ``h2``; `fit_variance_components`
 fits proportions ``theta_c`` for a subset of the kernels ``A`` (additive
 relationship, ``2 * kinship``), ``C`` (full-sib indicator) and ``M`` (mate-pair
@@ -40,7 +41,7 @@ with known person-specific thresholds. Common binary thresholds are this
 implementation's validated scope, not a requirement of that identity.
 IPW with ``w_f = 1 / P(family sampled)``
 (in both ``X'WX`` and the products) restores the mix, but not a stratum that
-had zero inclusion probability. The SE therefore measures only this run's
+had zero inclusion probability. The SE measures only this run's
 Monte-Carlo noise on this dataset, not sampling uncertainty; `bootstrap_fit`
 resamples whole families and refits for that. Traces are fixed-point iterates,
 not posterior draws. Likelihood-based and multi-trait fits built on this core
@@ -174,15 +175,16 @@ def _assert_nonoverlapping_pids(families, context):
 
 
 #: Thresholds for the case-rate check. Sensitivity: in the dose-response of
-#: ``benchmarks/bench_ascertainment.py`` (RESULTS §29) a case share 1.27x the
-#: assumed prevalence already inflates h2 by +0.23, and every ascertainment
-#: scheme fires at z >= +67. Specificity matters more, since a false positive
-#: refuses a legitimate analysis: the check runs once per role, and
-#: `bootstrap_fit` resamples centre on the cohort's rate rather than on K. A
-#: legitimate 1,500-family cohort produced a resample at z = 4.4, hence a bar of
-#: 6 (per-test null probability ~1e-9). The detectable enrichment this implies,
-#: stated in the `fit_heritability` docstring, makes it a guard against the
-#: catastrophic case, not a certificate of population sampling.
+#: ``benchmarks/bench_ascertainment.py`` (RESULTS §29) a case share 1.51x the
+#: assumed prevalence already inflates h2 by +0.48, and every ascertainment
+#: scheme fires at z >= +67 on the N = 10,000 grid. Specificity matters more,
+#: since a false positive refuses a legitimate analysis: the check runs once
+#: per role, and `bootstrap_fit` resamples centre on the cohort's rate rather
+#: than on K. A legitimate 1,500-family cohort produced a resample at z = 4.4,
+#: hence a bar of 6 (per-test null probability ~1e-9). The detectable
+#: enrichment this implies, stated in the `fit_heritability` docstring, makes
+#: it a guard against the catastrophic case, not a certificate of population
+#: sampling.
 _CASE_RATE_RATIO_TOL = 1.15
 _CASE_RATE_Z_TOL = 6.0
 
@@ -314,8 +316,8 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None,
         f"{ratio:.2f} ({z:+.1f} SD). The pooled Haseman-Elston fixed point "
         "assumes every member is a draw from that same population, so this "
         "mismatch biases it hard and in a direction that looks like real "
-        "heritability: in the repository benchmark a 1.27x enrichment inflates "
-        "h2 by +0.23 and 2x pins it at the boundary, and on ascertained data "
+        "heritability: in the repository benchmark a 1.51x enrichment inflates "
+        "h2 by +0.48 and 2x pins it at the boundary, and on ascertained data "
         "with true h2 = 0 the fitter returns h2 = 1.0. Either the cohort is "
         "ascertained (case/control, family-history or proband-affected "
         "selection), in which case use valid IPW for known, strictly positive "
@@ -530,8 +532,7 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     mismatch raises, because the failure it guards is severe and silent -- on
     ascertained families with a true ``h2`` of 0, this fitter returns
     ``h2 = 1.0``. The check is deliberately conservative, so it catches the
-    catastrophic designs rather than certifying population sampling; mild
-    enrichment on a small cohort still passes and remains your responsibility.
+    catastrophic designs rather than certifying population sampling.
     When members carry ``pid``, a person who appears in more than one family
     (distinct ``fam_id``) is rejected; prediction on overlapping register
     pedigrees is `ltpred.estimate.estimate_liability`.
@@ -582,14 +583,11 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
     ``n_iter - burn_in >= 4``, since the batch-means SE needs two batches.
     Invalid controls raise before any sampling.
 
-    **Requires a common case/control threshold per trait.** This is the
-    implementation's validated scope, including its prevalence screen. It is
-    not a mathematical necessity of the augmented moment identity. Personalised
-    (age-/CIP-specific) or onset-pinned LT-FH++ bounds remain outside that
-    supported scope. Those inputs are **rejected**, not silently
-    fitted. Fit from common-threshold bounds; the
-    prediction path (`ltpred.estimate.estimate_liability`) is unaffected,
-    since it conditions on ``h2`` rather than fitting it. Standard NaN and
+    **Requires a common case/control threshold per trait** (the validated
+    scope, not a necessity of the moment identity): personalised
+    (age-/CIP-specific) or onset-pinned LT-FH++ bounds are **rejected**, not
+    silently fitted. The prediction path (`ltpred.estimate.estimate_liability`)
+    is unaffected, since it conditions on ``h2``. Standard NaN and
     interval-order validation still applies."""
     n_iter, burn_in, inner_sweeps = _validate_iteration_controls(
         n_iter, burn_in, inner_sweeps, min_retained=_MIN_RETAINED)
@@ -667,8 +665,7 @@ def _component_matrix(roles, comp):
     relationship is PSD for any consistent pedigree; an equivalence-class partition
     is one sufficient construction for a shared-environment kernel). A non-PSD ``K`` — e.g. a
     vertical parent-offspring "environment" whose sharing chains across generations —
-    is not a proper component and would be silently distorted downstream by
-    `ltpred.covariance.correct_positive_definite`, so it is rejected here."""
+    is not a proper component, so it is rejected here."""
     off = _COMPONENT_OFFDIAG[comp]
     k = len(roles)
     K = np.eye(k)
@@ -795,8 +792,8 @@ def _fit_component_engine(families, comps, initial, *, n_iter, burn_in,
             "relationship design is rank-deficient (e.g. fitting 'C' with no "
             "full-sib pairs, or no related pairs at all).")
     _assert_observed_identification(groups, comps, context=context)
-    # The scalar solve is exact division, preserving fit_heritability's original
-    # update. The tiny ridge stabilises only an identified multicomponent design.
+    # The scalar solve is exact division. The tiny ridge stabilises only an
+    # identified multicomponent design.
     XtX_reg = XtX if C == 1 else XtX + 1e-10 * np.eye(C)
 
     # Unconditional: seed=None reseeds from entropy (see gibbs._seed_rng), so
@@ -807,8 +804,8 @@ def _fit_component_engine(families, comps, initial, *, n_iter, burn_in,
     values = np.asarray(initial, dtype=float).copy()
     trace = np.empty((n_iter, C))
     for it in range(n_iter):
-        # Updates stay below 1 - eps. A user-supplied h2_init=1 retains the
-        # single-component fitter's historical first-iteration behaviour.
+        # Updates stay below 1 - eps. With h2_init=1 the first iteration has
+        # zero residual (Sigma = K_A).
         residual = max(1.0 - values.sum(), 0.0)
         Xty = np.zeros(C)
         for group in groups:
@@ -856,14 +853,15 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
     elementwise clamp.
 
     Generalises `fit_heritability` from one component to several (Algorithm H
-    of the module docstring). Each sweep it (1) advances the latent liabilities
-    under the **full family truncated-MVN** ``N(0, sum_c h2_c K_c + e2 I)``, then
-    (2) updates all proportions at once by regressing the sampled cross-products
-    on the component relationship matrices over every related pair,
+    of the module docstring). Each outer iteration it (1) advances the latent
+    liabilities by ``inner_sweeps`` Gibbs sweeps under the **full family
+    truncated-MVN** ``N(0, sum_c h2_c K_c + e2 I)``, then (2) updates all
+    proportions at once by regressing the sampled cross-products on the
+    component relationship matrices over every related pair,
 
         [h2_c] = (X'WX)^-1 X'Wy ,   X[p, c] = K_c[i, j] ,   y[p] = l_i l_j ,
 
-    clamped and damped across sweeps (``W`` holds the IPW family weights). Unlike a single-``h2`` fit this separates
+    clamped and damped across iterations (``W`` holds the IPW family weights). Unlike a single-``h2`` fit this separates
     relative *kinds* when the supplied pedigrees yield linearly independent
     relationship contrasts: ``A`` by the parent-offspring /
     grandparent / avuncular relatednesses, ``C`` by the full-sib excess, ``M`` by
@@ -880,7 +878,7 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
       genetically unrelated, ``M`` captures spousal resemblance from *any* source —
       shared adult environment or assortative mating, which parent data alone cannot
       separate. Note that, unlike ``C``, leaving ``M`` unmodelled biases ``A``
-      **much less**: mates have ``A_ab = 0`` so they carry little direct weight in
+      **much less**: mates have ``A_ab = 0`` so they carry no direct weight in
       the additive regression; ``M`` matters when the spousal resemblance is itself
       of interest, or to test/report it.
 
@@ -890,10 +888,8 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
     explicit dominance kernel and an independently informative relationship
     design.)
 
-    Runs a data-augmentation sweep of ``inner_sweeps`` truncated-MVN sweeps per
-    outer iteration, starting every proportion at ``0.5 / len(components)``;
-    ``damp`` must lie in ``(0, 1]`` and ``eps`` in ``[1e-8, 0.5)`` keeps a
-    positive residual floor. ``n_iter`` and ``burn_in`` follow
+    It starts every proportion at ``0.5 / len(components)``; ``damp`` must lie
+    in ``(0, 1]`` and ``eps`` in ``[1e-8, 0.5)`` keeps a positive residual floor. ``n_iter`` and ``burn_in`` follow
     `fit_heritability` (outer iterations; ``n_iter - burn_in >= 4``). Returns a
     `VarCompResult`. Simulation benchmarks recover ``A`` and ``A+C`` with
     small bias relative to their across-dataset SD. ``se`` is only a within-fit
@@ -937,7 +933,7 @@ class BootstrapResult:
     standard error (SD, ``ddof=1``, of the resampled estimates); ``ci_low`` / ``ci_high`` the
     percentile confidence interval at ``ci_level``; ``samples`` the ``(n_boot, …)``
     array of per-resample estimates. Shapes follow whatever the estimator returns
-    (scalar → 0-d arrays; vector/matrix → that shape)."""
+    (scalar → shape ``()``; vector/matrix → that shape)."""
     estimate: np.ndarray
     se: np.ndarray
     ci_low: np.ndarray
@@ -965,7 +961,7 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *,
     bias-corrected, studentized, or automatically calibrated at boundaries.
 
     ``estimator`` is a callable ``families -> value`` returning the quantity of
-    interest as a float or array, e.g.::
+    interest as a float or array, e.g.:
 
         bootstrap_fit(
             fams,
@@ -978,7 +974,7 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *,
     For an IPW analysis, pass the original per-family ``weights`` and accept a
     second argument in the estimator. The helper resamples the two arrays with
     the same indices, preventing weights from becoming detached from their
-    families::
+    families:
 
         bootstrap_fit(
             fams,

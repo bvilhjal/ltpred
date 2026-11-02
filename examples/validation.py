@@ -32,7 +32,7 @@ N_FAM = 800
 SEED = 1
 N_REP = 10
 # A parent-offspring tetrachoric at K=0.05 needs concordant case PAIRS, which
-# N_FAM families do not supply: see the comment in step 0.
+# N_FAM families do not supply: see the step-0 output.
 N_TET = 25_000
 # Under age censoring only a few per 1,000 probands are observed cases, so the
 # own-status baseline needs a much larger cohort than N_FAM to mean anything.

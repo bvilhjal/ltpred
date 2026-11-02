@@ -11,10 +11,8 @@ standardised anyway). Truth ``g`` is known from the simulation, so it reports:
 
   (a) **calibration when correctly specified** — slope, intercept and a decile
       calibration curve (mean true g vs mean estimate per decile) for the PA
-      estimate; it should sit on the diagonal. PA-only by design: PA-vs-Gibbs
-      agreement at these settings is already established by ``bench_accuracy.py``
-      and ``bench_pa_robustness.py``, so the Gibbs arm (and its ~30 sampler
-      runs per full sweep) was dropped from this benchmark;
+      estimate; it should sit on the diagonal. PA only: PA-vs-Gibbs agreement is
+      covered by ``bench_accuracy.py`` and ``bench_pa_robustness.py``;
   (b) **calibration vs an assumed-h² that is wrong** — sweep the ``h²`` handed to the
       estimator away from the truth. The headline: ``corr`` barely moves (ranking is
       robust) while the **slope tilts** — assume

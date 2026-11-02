@@ -129,7 +129,7 @@ def _pid_key(pid):
 
 
 def _member_pid_key(member):
-    """`_pid_key` of ``member.pid`, computed once per assigned pid.
+    """`_pid_key` of ``member.pid``, computed once per assigned pid.
 
     The object estimators and the moment fitters re-validate the same family
     objects call after call (a bootstrap resample revisits every member), so

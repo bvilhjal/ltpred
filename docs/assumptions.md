@@ -18,10 +18,8 @@ documented bias from survival and non-random participation in parental-history
 surveys ([Wu et al. 2024](https://doi.org/10.1038/s41588-024-01963-9)), while a
 broader psychiatric-genetics Perspective argues that shallow EHR or self-reported
 phenotypes can carry heritable confounding
-([Cai et al. 2026](https://doi.org/10.1038/s41588-025-02465-y)). These sources do
-not imply that every register phenotype is biased. They show or argue, respectively,
-that liability modelling alone cannot correct a biased diagnosis or reporting
-process.
+([Cai et al. 2026](https://doi.org/10.1038/s41588-025-02465-y)). Liability
+modelling alone cannot correct a biased diagnosis or reporting process.
 
 The age-dependent formulation assumes a non-decreasing cumulative-incidence curve
 (hence a non-increasing liability threshold) and, in the current high-level model,
@@ -30,15 +28,17 @@ sex and cohort. In LT-FH++/ADuLT those variables alter thresholds; in base PA-FG
 they alter a censored control's mixture weight through `K_i`. They do not alter
 `h²` or genetic correlations. Follow-up/censoring must be represented by a
 defensible observation model; independent censoring is required for ordinary
-Kaplan–Meier risk estimates, and competing events require a cumulative-incidence
-estimator. The PA-FGRS censored-control mixture inherits both requirements: its
+Kaplan–Meier risk estimates, and with competing death the thresholds need a
+deliberate choice between net and crude incidence
+([the estimand choice](cip-estimation.md#the-estimand-choice-the-most-important-decision-on-this-page)).
+The PA-FGRS censored-control mixture inherits both requirements: its
 weight `(K_pop − K_i)/K_pop` reads a future case's not-yet-onset probability off
 the stratum's population CIP, which assumes censoring is non-informative given
 the stratum and onset timing among future cases independent of liability (see
 [algorithm.md](algorithm.md#base-pa-fgrs-lifetime-cases-and-censored-controls)).
-A liability-dependent onset arm (ρ = 0.6) leaves ranking intact and still
-shifts calibration the way the mixture is supposed to; it is the pinned
-case encoding that then over-conditions (RESULTS.md §16).
+When that independence fails (liability-dependent onset, ρ = 0.6), the mixture
+still leaves ranking intact and shifts calibration the way it is supposed to;
+it is the pinned case encoding that then over-conditions (RESULTS.md §16).
 
 Gibbs targets the truncated-Gaussian conditional moments by Monte Carlo. PA is a
 deterministic sequential-moment approximation when several interval observations
@@ -66,16 +66,9 @@ of stationarity; check difficult problems with independent seeds, longer
 burn-in/chains and a deterministic reference where available.
 The high-level estimators nudge
 a numerically singular assembled covariance to strict positive-definiteness and
-warn when they do so. The fitters ship descriptive sibship `C` and mate/couple
-`M` kernels, and the single-trait high-level predictor accepts them as `c2`/`m2`
-on the role/object and array paths. The arbitrary-kinship predictor accepts the
-same proportions only with caller-supplied `c_kernel`/`m_kernel`, because `A`
-does not encode environmental relationship classes. Multi-trait **scoring**
-still rejects nonzero `c2`/`m2`. Joint **fitting** with `fit_pairwise_multi`
-supports PSD trait covariances for A, optional C/M, and residual E, but that
-does not extend the scorer; see
-[algorithm.md](algorithm.md#adding-environmental-covariance-to-improve-prediction)
-and [Inference](inference.md#joint-heritability-and-cross-trait-correlations).
+warn when they do so. Which entry points accept `c2`/`m2` is listed under
+[Scoring](estimation.md#shared-environment-components-c-and-m); multi-trait
+scoring is A+E only.
 
 All common-threshold fitters require identifying contrasts among **jointly
 observed** phenotypes. Missing relatives cannot identify a component merely
@@ -87,7 +80,7 @@ These model components do not identify causal genetic or environmental effects.
 The family-data fitters assume **independent, non-overlapping families**, and
 one of two sampling contracts. When members carry `pid`, a person who appears
 in more than one family is rejected rather than silently pooled. `sampling="population"` for an unascertained
-sample — now *screened for gross marginal inconsistency* with your data, since
+sample — *screened for gross marginal inconsistency* with your data, since
 the thresholds assert a prevalence the observed case rates should match.
 `sampling="ipw"` with per-family
 `weights` for a sample selected on observed status with a **known, strictly
@@ -99,11 +92,7 @@ correct selection bias. Selection on family history can be reweighted only when
 the inclusion probability of every complete observed family pattern is known
 and strictly positive. A design that samples *no* families from some stratum
 cannot be corrected — ascertainment through an affected proband is the standard
-example, where inclusion probability is zero for unaffected probands. The
-severity is worth internalising: on ascertained families with a **true `h²` of
-0**, the unguarded fitter returns **`h² = 1.0`**, and a case rate only 1.51×
-the assumed prevalence already inflates `h²` by +0.48
-([RESULTS.md §29](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)).
+example, where inclusion probability is zero for unaffected probands.
 
 ## Real-data checklist
 
@@ -122,9 +111,9 @@ Then, before running a production analysis:
    default and not an ascertained biobank sample.
 3. **Stratify** CIPs by sex, birth year/cohort, ancestry and calendar period where
    incidence differs. With independent right censoring and no competing events,
-   `1 − Kaplan–Meier` estimates risk; with competing death or diagnoses, use a
-   cause-specific cumulative-incidence estimator such as Aalen–Johansen, and
-   decide which of the two curves the thresholds need
+   `1 − Kaplan–Meier` estimates risk; with competing death or diagnoses,
+   Aalen–Johansen gives the crude curve and Kaplan–Meier with those events
+   censored the net curve; decide which the thresholds need
    ([the estimand choice](cip-estimation.md#the-estimand-choice-the-most-important-decision-on-this-page)).
 4. Make each CIP age grid cover the analysed onset/follow-up ages and supply
    `k_pop` explicitly unless its final value is a defensible lifetime prevalence;
@@ -135,18 +124,20 @@ Then, before running a production analysis:
 6. Check **sensitivity** of the score to `h²` and to prevalence/CIP choices,
    especially for rare traits and dense pedigrees.
 7. **Validate roles**: valid abbreviations, no duplicate roles within a family
-   (the estimator now raises on duplicates).
+   (the estimator raises on duplicates).
 8. Decide whether to **condition on the proband's own status**. Include `o` for
    use II (a diagnosis-derived GWAS phenotype); for use I (prospective
    prediction/classification of that diagnosis) keep `o` and its `pid` with
    uninformative `(-inf, inf)` bounds (omitting `o` is allowed only when no member
    carries a `pid`).
-9. Decide **case encoding** — onset-pinned (`age_thresholds`), lifetime-interval
-   (base PA-FGRS), or age-specific interval (`pa_thresholds`, an age-dependent
+9. Decide **case encoding** — onset-pinned (`thresholds_from_cip`,
+   `case_mode="pin"`), lifetime-interval (base PA-FGRS), or age-specific
+   interval (`case_mode="interval"`; with the mixture, an age-dependent
    PA-FGRS-style variant) — and record it. Pin only when you believe onset is
    the CIP inverse of liability; under partial or noisy onset dependence the
-   pin over-conditions, and most of the onset increment survives the interval
-   `[T(onset), ∞)` (RESULTS.md §3 and §16).
+   pin over-conditions and the lifetime interval is the safer encoding
+   (RESULTS.md §16). The age-specific interval `[T(onset), ∞)` keeps most of
+   the pin's ranking gain (§3) but over-disperses calibration (slope ≈ 0.83, §16).
 10. Choose **Gibbs vs Pearson–Aitken**; for unusual no-mixture pedigrees cross-check
     PA against Gibbs. The PA-FGRS censoring mixture has no Gibbs implementation.
 11. **Residualize** the phenotype for covariates (sex, cohort, PCs, batch). Prefer
@@ -160,12 +151,12 @@ Then, before running a production analysis:
     `sampling="population"` for an unascertained sample, or `sampling="ipw"`
     with `weights = 1 / P(family sampled)` when selection was on observed status
     with a known positive probability for every stratum. Check that your
-    observed case rates plausibly match the prevalence behind your thresholds —
-    this is a marginal diagnostic, not proof of joint-pattern positivity —
-    the fitter now checks this for you and raises, but a mismatch may equally
-    mean the prevalence is wrong rather than the sample selected. Neither
-    contract covers proband-ascertained families; those need an estimator that
-    models the selection.
+    observed case rates plausibly match the prevalence behind your thresholds.
+    The fitter raises only on gross mismatch (about 1.67× at K = 0.05 with
+    1,500 families), and a match does not prove joint-pattern positivity. A
+    mismatch may equally mean the prevalence is wrong rather than the sample
+    selected. Neither contract covers proband-ascertained families; those need
+    an estimator that models the selection.
 13. For **joint covariance fitting**, supply one common case/control threshold
     per trait, model defensible shared-environment components, and inspect
     `inference_status`. Family-cluster SEs condition on the thresholds and
@@ -176,28 +167,23 @@ Then, before running a production analysis:
 ## Pitfalls
 
 - **`h²` must be liability-scale.** Convert observed-scale estimates first.
-- **Ages mean different things by status.** For `age_thresholds`/`pa_thresholds`,
-  `age` is the **age of onset** for cases and the **age at last follow-up** for
-  controls.
+- **Ages mean different things by status.** For `thresholds_from_cip`,
+  `age_thresholds` and `pa_thresholds`, `age` is the **age of onset** for cases
+  and the **age at last follow-up** for controls.
 - **Number repeated relatives** (`s1`, `s2`) — an unnumbered duplicate role
   collides.
 - **The proband's optional observed-status role is `o`**, not `g`. `g` (what you
-  estimate) is added for you. For leakage-free prediction keep `o` with its `pid`
-  and `(-inf, inf)` bounds; a pid-free family may omit `o`, which is then inserted
-  unbounded.
+  estimate) is added for you.
 - **Prevalence and CIPs should match the population** the thresholds refer to;
   stratify by sex/birth-year if your incidence differs across strata (one CIP
   per stratum when building the bounds with `thresholds_from_cip`; the
   per-person `K_i` matters only for the PA mixture, `use_mixture=True`).
-- **CIP interpolation is flat beyond its age grid.** It does not extrapolate an
-  incidence trend; cover the analysed ages and do not equate the last observed CIP
-  with lifetime prevalence unless the curve reaches that horizon.
 - **`use_mixture=True` needs `K_i`/`K_pop`** on the members (from `pa_thresholds`
-  or `thresholds_from_cip`) — otherwise it now raises rather than silently doing
-  nothing. In mixture mode, age enters through `K_i`; the implementation splits at
-  the lifetime threshold and uses the finite control bound only as a censoring flag,
-  so an age-specific control bound from these helpers is not applied twice. Their
-  age-specific **case** intervals nevertheless remain a variant of base PA-FGRS.
+  or `thresholds_from_cip`) — otherwise it raises. In mixture mode, age enters
+  through `K_i`; the implementation splits at the lifetime threshold and uses
+  the finite control bound only as a censoring flag, so an age-specific control
+  bound from these helpers is not applied twice. Their age-specific **case**
+  bounds (pins or intervals) nevertheless remain a variant of base PA-FGRS.
 - **Missing or uninformative family observations** leave less conditioning
   information. If `o` is included, the estimate then relies mostly on the
   proband's own status; if `o` is also unbound, it shrinks toward the prior mean.

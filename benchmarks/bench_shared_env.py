@@ -269,7 +269,7 @@ def main():
     ap.add_argument("--n-sim", type=int, default=20000)
     ap.add_argument("--burn-in", type=int, default=600)
     ap.add_argument("--wire-h2", type=float, default=0.4,
-                    help="panel (c): true h2 (bench_env_components design)")
+                    help="panel (c): true h2")
     ap.add_argument("--wire-c2", type=float, default=0.15,
                     help="panel (c): true sibship environment c2")
     ap.add_argument("--wire-m2", type=float, default=0.15,

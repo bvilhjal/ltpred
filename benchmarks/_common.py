@@ -1,6 +1,6 @@
 """Shared helpers for the ltpred benchmark suite.
 
-Two simulation paths feed the benchmarks:
+Four simulation paths feed the benchmarks:
 
 * :func:`simulate_families` -- draws genetic ``g``, full liability ``o``, and
   relatives jointly from the liability-threshold family covariance, then applies
@@ -363,7 +363,7 @@ def lambda_gc(chisq_null):
 # --------------------------------------------------------------------------- #
 #  PLINK genotype reader (for the HAPNEST opt-in)                             #
 # --------------------------------------------------------------------------- #
-_BED_MAP = np.array([2.0, np.nan, 1.0, 0.0])   # 2-bit code -> a2 dosage; 01 = missing
+_BED_MAP = np.array([2.0, np.nan, 1.0, 0.0])   # 2-bit code -> A1 (first .bim allele) dosage; 01 = missing
 
 
 def read_plink_bed(prefix):

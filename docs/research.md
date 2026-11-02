@@ -10,8 +10,7 @@ inventories the modules and the [roadmap](https://github.com/bvilhjal/ltpred/blo
 when a capability graduates into `ltpred` proper.
 
 This page documents the models behind those modules. The supported core is
-described in [Algorithm & model](algorithm.md); these sections were moved out of
-that page so that it describes only what the installed package does.
+described in [Model and algorithms](algorithm.md).
 
 ## Covariance extensions (`research/covariance_extensions.py`)
 
@@ -19,11 +18,8 @@ that page so that it describes only what the installed package does.
 
 The [modelling assumptions](assumptions.md#modelling-assumptions) note that
 a symmetric shared-environment matrix is not a maternal effect, because that
-is a *directional* path. `construct_covmat_nurture` (in
-`research/covariance_extensions.py` — research code, not the supported core)
-builds
-the directional model instead, from the path structure rather than from
-kinship:
+is a *directional* path. `construct_covmat_nurture` builds the directional
+model instead, from the path structure rather than from kinship:
 
 ```text
 A_o = (A_m + A_f)/2 + w_o              # transmission + Mendelian sampling
@@ -61,9 +57,8 @@ entry in the `A`/`C`/`M` bank. **`n = 0` reproduces
 by every offspring of the couple, so *on sibling covariance alone genetic
 nurture is indistinguishable from a sibship environment `C`*. What separates
 them is the parent-offspring covariance: `C` leaves it untouched, nurture
-raises it by `n*h`. Fitting both from sibs only is not identified, and a study
-with no parental phenotypes cannot tell the two apart at all -- it will load
-whichever one it is offered.
+raises it by `n*h`. Without parental phenotypes the two cannot be told apart; a
+fit loads whichever one it is offered.
 
 Offspring liabilities are standardised to unit variance, so thresholds keep
 their prevalence meaning; this requires `1 - h - 2*n^2*h - 2*n*h >= 0`, since
@@ -91,10 +86,10 @@ binary data obtain them with `ltpred.tetrachoric` rather than from
 observed-scale correlations. It is a moment estimator, so it carries no standard
 errors and inherits whatever bias the input covariances have. It also reports
 `h2_additive_po` and `h2_additive_sib` -- what a nurture-blind additive model
-would claim from each relative type alone -- whose **disagreement is the
-diagnostic**, and which is zero exactly when `n` is zero. A sibling covariance
-*below* the parent-offspring one yields a negative `n` (a contrast effect),
-returned rather than clipped.
+would claim from each relative type alone -- and their difference,
+`disagreement`, the diagnostic, which is zero exactly when `n` is zero. A
+sibling covariance *below* the parent-offspring one yields a negative `n` (a
+contrast effect), returned rather than clipped.
 
 **Scope.** Nuclear roles only (`m`, `f`, `s...`). Extending to grandparents
 means propagating the path model up the pedigree, which stops the parents being
@@ -109,14 +104,13 @@ rejected. Like the other covariance constructors, the result is an ordinary
 
 Everywhere else in ltpred, sex enters through the **threshold**: a sex-specific
 CIP gives each person their own `T`. That is where it belongs for calibration,
-but the predictor factorises as `g0 = w' mu`, with `mu` the vector of
-folded truncated means and `w = V^-1 c` the BLUP weights. The weights `w`
-depend on heritability and kinship only — they are threshold-free. So a
-sex-specific threshold moves `mu` and can reorder scores through the truncated
-means, but it never changes how much weight a relative carries.
+but the predictor factorises as `g0 = w' mu`, with `mu = E[l | data]` the
+truncated-normal conditional means and `w = V^-1 c` the BLUP weights. The
+weights `w` depend on heritability and kinship only — they are threshold-free.
+So a sex-specific threshold moves `mu` and can reorder scores through the
+truncated means, but it never changes how much weight a relative carries.
 
-`construct_covmat_sex_limited` (in `research/covariance_extensions.py`) puts
-sex in `V` instead:
+`construct_covmat_sex_limited` puts sex in `V` instead:
 
 ```text
 Cov(g_i, g_j) = 2*phi_ij * sqrt(h2_i * h2_j) * rg_cross^[sex_i != sex_j]
@@ -147,8 +141,8 @@ The role grammar fixes the sex of parents and grandparents (`m`, `f`, `mgm`,
 aunts/uncles are ambiguous — `mau`/`pau` covers both aunts and uncles — and
 must be declared in `sex=` (the genetic row `g` takes `o`'s sex); the
 constructor raises rather than defaulting, since a silent default would impose
-one sex's heritability on the other. Because `o` is always present, every
-call needs `sex=`.
+one sex's heritability on the other. With the default `add_ind=True` the
+proband `o` is present, so `sex=` is required.
 
 Two cautions. **(i)** These are *inputs*, not fitted quantities: the constructor
 takes `h2_female`, `h2_male` and `rg_cross` and builds the covariance. Nothing
@@ -163,9 +157,8 @@ correlations differ **after** the thresholds are personalised.
 
 Because the result is an ordinary `Covmat`, its `.matrix` (rows in `.roles`
 order) feeds the covariance-level entry points (`pa_algorithm`,
-`rtmvnorm_gibbs`, `pa_estimate_batched`), the same route documented for any
-user-supplied kernel. The
-role-based `estimate_liability` still takes a scalar `h2`.
+`rtmvnorm_gibbs`, `pa_estimate_batched`). The role-based `estimate_liability`
+still takes a scalar `h2`.
 
 ## Multi-trait fitters (`research/advanced_fitting.py`)
 
@@ -173,22 +166,20 @@ The supported [multi-trait scorer](algorithm.md#multiple-traits) takes
 covariance parameters as inputs. For joint common-threshold fitting, use the
 installed [`fit_pairwise_multi`](inference.md#joint-heritability-and-cross-trait-correlations)
 API, including optional sibship/couple covariance and family-cluster sampling
-SEs. The alternative prototypes below remain uninstalled, checkout-only code;
-their moment and EM routes carry the caveats stated in each section.
+SEs.
 
 ### Fitting the genetic correlation
 
-`fit_genetic_correlation` (in `research/advanced_fitting.py`) estimates `rho_g`
-between traits from family data — the
-multi-trait analogue of `fit_heritability`, a **cross-trait** Haseman–Elston
+`fit_genetic_correlation` estimates `rho_g` between traits from family data —
+the multi-trait analogue of `fit_heritability`, a **cross-trait** Haseman–Elston
 regression. Each member carries one case/control interval per trait. Each sweep
 draws the members' `P`-trait liabilities from the full truncated-MVN under the
 current parameters, then regresses the sampled cross-products on the additive
-relationship `A`. Like the core moment fitters it requires
-`sampling="population"` (it warns when omitted and raises on any other value),
-non-overlapping families, one common threshold per trait (personalised or
-pinned bounds raise) and a population-consistent case rate; it raises with
-fewer than two traits or without related pairs.
+relationship `A`. It requires `sampling="population"` (it warns when omitted and
+raises on any other value, including `"ipw"`), non-overlapping families, one
+common threshold per trait (personalised or pinned bounds raise) and a
+population-consistent case rate; it raises with fewer than two traits or
+without related pairs.
 
 ```text
 same trait, diff relatives:  h2_p    = sum A_ij l_ip l_jp / sum A_ij^2
@@ -217,17 +208,15 @@ are PSD too — with `rg`, `re` and `rp` all derived from that same pair. So the
 returned object is one coherent model: `rp == genetic_cov + env_cov` exactly, and
 every correlation it reports comes from a single PSD fit rather than from
 separately averaged ratios. In the repository benchmarks it was approximately
-unbiased near the null (no
-spurious `rg` when traits are genetically independent but
-phenotypically correlated), with mild attenuation at large `|rg|` (the bounded
-ratio estimator); use an iid-family cluster bootstrap for sampling uncertainty when
-its assumptions hold. This is the pedigree-scale analogue
-of bivariate GREML / cross-trait LD-score regression.
+unbiased at true `rg` of 0, 0.3 and 0.6 (no spurious `rg` when traits are
+genetically independent but phenotypically correlated); use an iid-family
+cluster bootstrap for sampling uncertainty when its assumptions hold. This is
+the pedigree-scale analogue of bivariate GREML / cross-trait LD-score
+regression.
 
 ### Onset-age-structured genetic correlation
 
-`fit_genetic_correlation_decay` (also `research/advanced_fitting.py`) generalises
-`fit_genetic_correlation` to a genetic
+`fit_genetic_correlation_decay` generalises `fit_genetic_correlation` to a genetic
 correlation that **decays with the difference in age at onset** between two
 relatives (or between two traits). The motivating idea is that genetic liability
 need not be one static quantity: the genes driving early- and late-onset forms of
@@ -254,13 +243,13 @@ of ages, and has the deepest precedent for age/time-varying genetic correlation
 Pletcher & Geyer 1999; Jaffrezic & Pletcher 2000; genetic "simplex" models; the
 phylogenetic OU model). Within a trait (`p == q`) the same structure models
 genetic heterogeneity by onset age; across traits it is the `rho_g` decay above.
-With a single shared rate across blocks the covariance is positive-definite by
-construction (a Schur/Kronecker sum of PSD terms).
+With a single shared rate across blocks the covariance is PSD whenever `G` and
+`E` are (a sum of Schur and Kronecker products of PSD terms).
 
 **Estimation is by Monte-Carlo EM, not moments.** The natural cross-trait
 Haseman-Elston step (regressing the augmented cross-products `l_ip l_jq` on
-`A_ij K`) fails here, for a reason worth understanding: case/control ascertainment
-truncates the liabilities, and the resulting inflation of `E[l_ip l_jq]` is itself
+`A_ij K`) fails here: conditioning on case/control status truncates the
+liabilities, and the resulting inflation of `E[l_ip l_jq]` is itself
 age-dependent -- closely related, similar-onset pairs are more often jointly
 affected, so their cross-products are inflated most, and that extra, steeply
 age-decaying signal is indistinguishable from fast genetic decay. A moment
@@ -273,13 +262,14 @@ heritabilities, the genetic/environmental covariances and the decay rates by
 L-BFGS with the analytic score. Each family's covariance `Sig_f` depends on its
 own onset ages, so the E-step loops over families; the M-step is batched.
 
-**Identifiability is the limiting factor, and it is worth being honest about.**
+**Identifiability is the limiting factor.**
 The amplitude (`rho_g`) and the rate (`lam`) trade off along a likelihood ridge --
 a strong correlation that decays fast can mimic a weak one that decays slowly --
 and the cross-trait genetic signal competes with the environmental correlation.
 The model is identifiable *in principle* (the cross-relative cross-trait
-covariance `A G K` is purely genetic here, since environment is not shared across
-relatives), but only **data-rich** designs pin it down: the repository kill-test
+covariance `A G K` is purely genetic here, since without `shared_env` the
+environment is not shared across relatives), but only **data-rich** designs pin
+it down: the repository kill-test
 (`benchmarks/bench_aod_decay.py`) recovers both `rho_g` and `lam` well at
 `n_fam ~ 2500` (`r_g ~ 0.51-0.53`, `lam ~ 0.041` vs true 0.5 / 0.04; `lam ~ 0.001`
 under the scalar null, and `r_g ~ 0.009` at the `r_g = 0` null), but at
@@ -301,13 +291,13 @@ correlation is attributed to genetics -- inflating `h2` and thereby *attenuating
 with real household effects this is the binding limitation.
 
 **Options that address these limits.** `shared_lambda` ties every block's decay
-rate to a single scalar -- fewer parameters, a guaranteed-PSD covariance, and less
-amplitude-decay ridge; it is the recommended setting (pass `shared_lambda=True`;
+rate to a single scalar -- fewer parameters, a covariance that is PSD whenever `G`
+and `E` are, and less amplitude-decay ridge; it is the recommended setting (pass `shared_lambda=True`;
 the argument defaults to `False`) unless there is reason to let the rates differ. `shared_env` adds the shared-family environmental component `C`
 directly to the model (an onset-age **ACE decomposition**: genetics `A`, shared
 environment `C`, unique environment `E`), so household environment is estimated
 rather than absorbed into genetics -- it recovers `c2` and stops the `h2`
-inflation. But note the honest caveat: the *cross-trait* genetic-vs-shared-env
+inflation. But the *cross-trait* genetic-vs-shared-env
 separation is itself hard (both produce cross-trait familial covariance, one
 scaling with relatedness and age, the other constant), so `shared_env` can
 overestimate `r_g` at moderate `n`; it is a variance-attribution tool, not a free
@@ -320,8 +310,7 @@ finite differences in `research/tests/test_decay.py`.
 ### Genetic factor structure (common-factor model)
 
 With more than a handful of traits, the genetic correlation matrix `r_g` is itself a
-structured object worth summarising. `fit_genetic_factor` (in
-`research/advanced_fitting.py`) fits a **common-factor
+structured object worth summarising. `fit_genetic_factor` fits a **common-factor
 model** to it,
 
 ```text

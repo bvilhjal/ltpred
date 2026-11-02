@@ -50,7 +50,7 @@ def _validate_chunk_size(chunk_size):
 
 
 def _row_slices(n, chunk_size):
-    """Yield row slices covering ``n`` families, including a ``(0, 0)`` empty."""
+    """Yield row slices covering ``n`` families; one empty slice when ``n == 0``."""
     if n == 0:
         yield slice(0, 0)
         return

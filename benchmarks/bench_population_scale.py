@@ -8,7 +8,7 @@ number to sit against (§30/§34 lock fold-times are per-package wall-times on
 200 families; this is the cohort-scale complement):
 
   * **register** -- `estimate_liabilities` (pinned-onset LT-FH++, deterministic
-    PA, ``max_degree=2``) on multi-generation synthetic registers with
+    PA, ``max_degree=2``) on two-generation synthetic trio registers with
     10k / 50k / 200k probands;
   * **array** -- `estimate_liability_pa_chunked` on 350k role-array rows with
     LT-FH++-style bounds (pinned cases, censored controls, absent relatives),
@@ -19,7 +19,7 @@ process's peak RSS. Timing is the estimator call only (simulation excluded),
 after a warm-up call; the register arm loops probands serially, exactly as
 the pipeline does. Pin threads with ``NUMBA_NUM_THREADS`` and record the load
 average beside any quoted number -- throughput claims without a thread count
-and a load line are not comparable (review 2026-09f, lesson 2).::
+and a load line are not comparable (docs/REVIEWS.md, lesson 2).::
 
     NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \\
         python benchmarks/run_benchmark.py \\
@@ -58,10 +58,7 @@ def _peak_rss_mib():
 def _trio_register(rng, n_probands):
     """Vectorised two-generation register: unrelated founder couples, 1-3
     children each, children are the proband pool (parents degree 1, full
-    siblings degree 2). ``simulate_pedigree``'s multi-generation construction
-    is quadratic in the pool (an ``ids.index`` call inside its mating loop),
-    which dominates at these sizes, so this benchmark builds the trios
-    directly."""
+    siblings degree 2)."""
     children_per = []
     n_children = 0
     while n_children < n_probands:      # 1-3 children per couple, mean 2

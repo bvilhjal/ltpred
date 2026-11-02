@@ -31,7 +31,7 @@ than null (see ``hapnest/README.md``). The association helper remains marginal;
 neither mode is a related-sample mixed-model GWAS.
 
     python benchmarks/bench_gwas_power.py
-    python benchmarks/bench_gwas_power.py --plink data/output/synthetic --n-causal 40
+    python benchmarks/bench_gwas_power.py --plink data/output/synthetic_chr-22 --n-causal 40
 Writes bench_gwas_power.csv (+ .png if matplotlib is present).
 """
 

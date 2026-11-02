@@ -78,7 +78,7 @@ def simulate(rng, arm, n_fam, prev):
         e = rng.standard_t(df=5, size=(n_fam, 4)) / np.sqrt(5.0 / 3.0)
         e *= np.sqrt(1.0 - H2)
     elif arm == "assortative":
-        # mates' environmental parts correlated at rho_e = 0.15
+        # mates' environmental parts correlated at rho_e = 0.3
         z = rng.standard_normal((n_fam, 2))
         e = rng.standard_normal((n_fam, 4)) * np.sqrt(1.0 - H2)
         e[:, 1] = z[:, 0] * np.sqrt(1 - H2)

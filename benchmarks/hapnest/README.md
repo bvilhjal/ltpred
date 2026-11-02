@@ -20,37 +20,40 @@ GWAS. No HAPNEST result is present in the committed benchmark artifacts.
 ## Step 1 — generate genotypes with HAPNEST
 
 HAPNEST is a container-distributed tool; the reference download is multi-GB, so
-this is an opt-in local step (not CI). See the config here as a starting point.
+this is an opt-in local step (not CI). Start from HAPNEST's own `config.yaml`
+and set the keys listed in `config_ltfh.yaml`.
 
 ```bash
 singularity pull docker://sophiewharrie/intervene-synthetic-data
 mkdir -p data/output
-cp benchmarks/hapnest/config_ltfh.yaml data/config.yaml     # then edit paths
+cp <HAPNEST checkout>/config.yaml data/config.yaml   # then set the keys in config_ltfh.yaml
 
 SIF=intervene-synthetic-data_latest.sif
-singularity exec --bind data/:/data/ $SIF init      # writes an example config to diff against
+singularity exec --bind data/:/data/ $SIF init      # finishes the container's dependency setup
 singularity exec --bind data/:/data/ $SIF fetch     # downloads the 1000G+HGDP reference (large)
 singularity exec --bind data/:/data/ $SIF generate_geno 4 data/config.yaml
 ```
 
-This writes a PLINK fileset (`.bed/.bim/.fam`) under `data/output/`. Only the
+This writes a PLINK fileset (`synthetic_chr-22.bed/.bim/.fam`) under `data/output/`. Only the
 **genotypes** are used — the phenotype is simulated by the benchmark under the
-liability-threshold model, so `generate_pheno` is not needed. **Reconcile
-`config_ltfh.yaml` against the `init`-generated example first**; HAPNEST's field
-names are stable but the YAML nesting can shift between versions.
+liability-threshold model, so `generate_pheno` is not needed.
 
 ## Step 2 — run the benchmark on the real-LD genotypes
 
 ```bash
 NUMBA_NUM_THREADS=10 OMP_NUM_THREADS=10 \
   python benchmarks/run_benchmark.py \
-    --input data/output/synthetic.bed \
-    --input data/output/synthetic.bim \
-    --input data/output/synthetic.fam \
+    --input data/output/synthetic_chr-22.bed \
+    --input data/output/synthetic_chr-22.bim \
+    --input data/output/synthetic_chr-22.fam \
     --artifact bench_gwas_power.csv \
-    bench_gwas_power.py -- --plink data/output/synthetic \
+    bench_gwas_power.py -- --plink data/output/synthetic_chr-22 \
     --n-fam 10000 --n-causal 30 --h2 0.5 --prev 0.05
 ```
+
+This overwrites the committed `bench_gwas_power.csv` and appends to
+`run_manifest.jsonl`; `git checkout` both unless you mean to commit the real-LD
+run.
 
 `--plink PREFIX` loads the fileset via the minimal reader in `_common.py`
 (SNP-major `.bed`, missing calls mean-imputed) and uses the first `--n-fam`

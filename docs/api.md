@@ -15,10 +15,10 @@ is also a top-level export.
 | function | purpose |
 |---|---|
 | `estimate_liability` | end-to-end estimator (PA by default for one trait, Gibbs for multi-trait; opt-in `method="quadrature"` for additive nuclear families) |
-| `fit_heritability` | **fit** liability-scale `h²` from independent, non-overlapping families; `sampling="population"` (unascertained, screened for gross marginal case-rate inconsistency but not certified) or `sampling="ipw"` with `weights = 1 / P(family sampled)` for a known, strictly positive selected design |
+| `fit_heritability` | **fit** liability-scale `h²` from independent, non-overlapping families with a common case/control threshold; `sampling="population"` (unascertained, screened for gross marginal case-rate inconsistency but not certified) or `sampling="ipw"` with `weights = 1 / P(family sampled)` for a known, strictly positive selected design |
 | `prevalence_thresholds` / `age_thresholds` | classic or personalised pinned bounds; family rows determine LT-FH++ vs ADuLT |
 | `pa_thresholds` | age-specific interval-case and PA-FGRS censored-control-mixture inputs; an age-dependent variant, not base PA-FGRS, exact PA-FGRS_ADT, or a requirement merely to use the PA engine |
-| `thresholds_from_cip` | bounds from an empirical (population) CIP curve — `case_mode="interval"` is likewise an age-dependent PA-FGRS-style variant rather than exact PA-FGRS_ADT; endpoint values are held constant outside its age grid |
+| `thresholds_from_cip` | bounds from an empirical (population) CIP curve — `case_mode="interval"` is LTFHPlus's default case interval and, with the mixture, a PA-FGRS-style variant (not PA-FGRS_ADT); endpoint values are held constant outside its age grid |
 | `families_from_columns` | build family inputs from flat columns |
 | `kinship_from_pedigree` / `estimate_liability_from_kinship` | arbitrary-pedigree input and PA-default estimation; caller-supplied `c_kernel`/`m_kernel` support environmental components, and `use_mixture=True` with `K_i`/`K_pop` enables the PA-FGRS censored-control mixture |
 | `estimate_liabilities` | supported population-trio driver: pedigree discovery, pinned-onset empirical-CIP bounds, explicit GWAS versus prospective-prediction observation sets, and calendar-time censoring |
@@ -39,7 +39,7 @@ is also a top-level export.
 | `estimate_liability_pa_arrays` / `estimate_liability_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
 | `estimate_liability_quadrature_arrays` | opt-in numerical posterior moments for additive, noninbred nuclear families with `0 <= h2 < 1`; separate refinement diagnostics, no mixture or shared environment |
 | `estimate_liability_pa_chunked` / `estimate_liability_gibbs_chunked` | chunked array API — same kernels, bounded working set |
-| `estimate_liability_pa_batches` / `estimate_liability_gibbs_batches` | streaming iterator of bound batches; never holds all bounds |
+| `estimate_liability_pa_batches` / `estimate_liability_gibbs_batches` | consume an iterator of bound batches and return concatenated arrays; never hold all bounds |
 | `fit_variance_components` | **fit** additive `A` + shared-environment `C` (sibship) / `M` (couple) as proportions under the same population/IPW sampling contract |
 | `fit_pairwise` | opt-in deterministic A/C/M binary-pair composite likelihood; common thresholds, independent families and explicit population/IPW sampling contract; conditional interior cluster-sandwich SEs |
 | `fit_pairwise_multi` | opt-in joint h²/rg/re and optional multivariate sibship/couple covariance; observed-pair identification, PSD components, population/IPW and conditional cluster-sandwich SEs |
@@ -92,7 +92,7 @@ checkout-only `research/covariance_extensions.py`.
 | `convert_liability_to_aoo`, `liability_threshold` | liability-to-onset and prevalence-to-threshold conversion |
 | `gibbs_params`, `batch_means` | conditional sampler parameters and Monte Carlo SE calculation |
 | `Simulation`, `RegisterSimulation`, `FollowupSimulation`, `MultiTraitSimulation` | simulated records with generating values |
-| `FitResult`, `VarCompResult`, `BootstrapResult`, `PairwiseFitResult`, `MultiTraitPairwiseResult` | parameter-fitting results; their uncertainty describes parameter estimation, not individual liability |
+| `FitResult`, `VarCompResult`, `BootstrapResult`, `PairwiseFitResult`, `MultiTraitPairwiseResult` | parameter-fitting results, not individual liabilities; `FitResult.h2_se` and `VarCompResult.se` are within-fit Monte-Carlo diagnostics, not sampling SEs |
 
 The older array APIs keep their tuple contracts: PA `(est, var)`, Gibbs
 `(est, se)` or `(est, se, var)` with `return_var=True`, and kinship
@@ -123,30 +123,24 @@ its zero `se` means no Monte-Carlo noise. See the
 
 ## Tetrachoric correlation — `ltpred.tetrachoric`
 
+`ltpred.tetrachoric` is the function; import these names from `ltpred` or with `from ltpred.tetrachoric import ...`.
+
 ::: ltpred.tetrachoric
 
 ## Register pipeline — `ltpred.pipeline`
 
-`PopulationScores` and `estimate_liabilities` are installed public APIs and are
-also available as explicit lazy imports from `ltpred`. They are included in the curated wildcard-import list. Prediction requires per-person
-`birth_time` and per-proband `index_time` on a common numeric calendar scale
-whose unit matches `age`; this is what gives relatives from different birth
-years their correct attained-age censoring landmarks. Structural ancestors in
-the pedigree's exact-kinship closure are not diagnosis observations unless
-`condition_closure=True` is explicitly requested. Under `use="prediction"` the
-estimand is `E[g | relatives' records at the landmark]` — it is *not*
-additionally conditioned on the proband being disease-free at the landmark; the
-two agree on ranking within an age and family structure but differ in level
-across ages, because
-surviving to an older age disease-free is evidence of lower liability. The
-driver's payoff and throughput evidence (RESULTS §§20–21, regenerated
-2026-09-21): the API is supported, with the
-payoff quantified there -- degree-3 corr(est, true g) 0.567 ± 0.029 vs
-degree-1 0.522 ± 0.031 (paired contrast +0.045 ± 0.009), prospective
-familywise-censored AUC 0.654 ± 0.021, and 987 probands/s throughput (v0.7.1,
-rerun 2026-09-23).
-The relatives'-events contrast is unresolved at R = 5 on both metrics and
-is not quoted as a payoff.
+Prediction requires per-person `birth_time` and per-proband `index_time` on a
+common numeric calendar scale whose unit matches `age`; this is what gives
+relatives from different birth years their correct attained-age censoring
+landmarks. Structural ancestors in the pedigree's exact-kinship closure are not
+diagnosis observations unless `condition_closure=True` is explicitly requested.
+Under `use="prediction"` the estimand is
+`E[g | relatives' records at the landmark]` — it is *not* additionally
+conditioned on the proband being disease-free at the landmark; the two rank
+probands of one age and family structure almost identically but differ in level
+across ages, because surviving to an older age disease-free is evidence of lower
+liability. Accuracy and throughput evidence:
+[RESULTS §21](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md#21-end-to-end-register-pipeline-bench_register_pipelinepy).
 
 Two boundary diagnostics are surfaced on `PopulationScores` rather than
 silently absorbed: `frac_records_with_unresolved_parents` (the fraction of records with a
@@ -194,6 +188,8 @@ for the sampling contract and distinction from the existing stochastic fitters.
 ## Gibbs sampler — `ltpred.gibbs`
 
 ::: ltpred.gibbs
+    options:
+      members: [rtmvnorm_gibbs, gibbs_params, gibbs_estimate_batched]
 
 ## Pearson–Aitken — `ltpred.pearson_aitken`
 
@@ -205,7 +201,7 @@ for the sampling contract and distinction from the existing stochastic fitters.
 
 ## Runtime configuration — `ltpred.set_num_threads`
 
-::: ltpred._numba.set_num_threads
+::: ltpred.set_num_threads
 
 ## Joint pairwise fitting — `ltpred.pairwise_multi`
 

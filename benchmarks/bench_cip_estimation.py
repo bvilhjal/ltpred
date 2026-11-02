@@ -9,9 +9,10 @@ delayed entry (register starts mid-life). It then asks:
   Part 1 (no mortality): Kaplan-Meier recovers the true curve -- max abs
          error and pointwise containment on one prespecified age grid. This is
          not a repeated-sample coverage experiment.
-  Part 2 (mortality):  Aalen-Johansen recovers the true curve while
-         Kaplan-Meier (death as independent censoring) OVERESTIMATES
-         incidence -- the classic competing-risks bias, quantified.
+  Part 2 (mortality):  Aalen-Johansen recovers the crude cumulative
+         incidence (death competing), which Kaplan-Meier with death as
+         censoring OVERESTIMATES -- the classic competing-risks bias; KM
+         instead targets the no-death CIP above.
   Part 3 (delayed entry): the same with left truncation added.
   Part 4 (end-to-end): the estimated curve feeds `thresholds_from_cip` ->
          `estimate_liability` on a family cohort; calibration slope vs the

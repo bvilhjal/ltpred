@@ -11,7 +11,7 @@ processes:
   * ltpred Pearson-Aitken (no mixture)
 
 Score agreement (correlation, RMSE, max abs) is a software lock, not the
-intra-package PA-vs-Gibbs grid in ``bench_scaling.py``.
+intra-package PA-vs-Gibbs grid in ``bench_accuracy.py``.
 
 Wall-clock is the estimator call after in-process warmup, reported as a
 cohort total and as milliseconds per family (total / n_fam). Peak RSS uses

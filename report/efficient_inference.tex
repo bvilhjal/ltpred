@@ -96,7 +96,7 @@ conditional factor precision and mean are
 Only unpinned interval factors remain. Integrating in a Gaussian coordinate
 system adapted to the posterior mode further prevents rare observations
 from placing most posterior mass beyond the original prior-centered nodes.
-The mode is found by Newton's method on the log-concave negative log
+The mode is found by Newton's method on the convex negative log
 posterior, with its exact gradient and Hessian and Armijo backtracking; it
 stops on a negligible step, a failed line search, or a decrease at
 floating-point resolution, and fails after $80$ iterations. The tensor
@@ -215,9 +215,11 @@ personalized/pinned thresholds and overlapping extracted register families
 remain outside this initial fitter's contract.
 
 Pairwise fitting estimates the same covariance parameters with a different
-statistical criterion from the stochastic moment fitter. Neither matching
-point estimates on a few simulations nor passing probability tests establishes
-coverage or statistical efficiency. The new method is explicit and opt-in.
+statistical criterion from the stochastic moment fitter. One recovery campaign
+(\texttt{benchmarks/RESULTS.md} \S32: $o,m,f,s_1,s_2$ families, $K=0.10$,
+$(A,C,M)=(0.30,0.15,0.10)$, $11{,}364$ cohorts) found sandwich SE/SD
+$0.96$--$1.10$ and interior $95\%$ coverage $0.940$--$0.975$; other designs
+and statistical efficiency remain unvalidated. The new method is explicit and opt-in.
 
 \subsection{Joint genetic and environmental covariance}
 \label{sec:joint-pairwise}

@@ -20,18 +20,16 @@ Register the trusted publisher for the `ltpred` project at
 | Workflow name | `publish.yml` |
 | Environment name | `pypi` |
 
-Optionally add the same as a trusted publisher on
-[TestPyPI](https://test.pypi.org/) first to rehearse.
-
 ## Cutting a release
 
 1. Bump `__version__` in `ltpred/__init__.py` (the sole source of truth for the
    distribution; `pyproject.toml` reads it dynamically) and move the
    `## Unreleased` section of `CHANGELOG.md` under the new `## X.Y.Z — <date>`
-   heading. Three files carry the version independently of that attribute and
-   drift when missed: `CITATION.cff` (`version` and `date-released`),
-   `report/ltpred_methods.tex` (the `v` string and `\date{}`, both checked by
-   `scripts/check_evidence.py`) and `report/README.md` (not checked).
+   heading. Four files carry the version independently of that attribute and
+   drift when missed: `CITATION.cff` (`version` and `date-released`) and
+   `report/ltpred_methods.tex` (the `v` string and `\date{}`), which
+   `scripts/check_evidence.py` checks, and `report/README.md` and
+   `docs/algorithm.md` (§ Methods report), which nothing checks.
 2. Confirm CI is green on `main`: `test` (3.9–3.13 and 3.14t, plus macOS 3.12),
    `research-tests`, `lint` (`ruff`), `test-no-numba`, `oldest-deps` (3.9 at the
    minimum NumPy/SciPy), `examples`, `build` (wheel and sdist) and `docs` (strict

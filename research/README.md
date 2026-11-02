@@ -3,10 +3,11 @@
 Unsupported research code, split out of the lean `ltpred` core. Nothing here
 ships in the wheel or belongs to the public API, and interfaces may change
 without notice. Import it as `research.<module>` from a repository checkout
-(repository root on `sys.path`, for example by running from the repo root).
+(repository root on `sys.path`, for example `python -m`/`-c` or `pytest` from the
+repo root; a script elsewhere must insert the root itself, as the benchmarks do).
 
 For common-threshold joint h²/rg/re fitting, the installed
-`ltpred.fit_pairwise_multi` now provides deterministic pairwise inference,
+`ltpred.fit_pairwise_multi` provides deterministic pairwise inference,
 optional multivariate sibship/couple components and conditional family-cluster
 sampling SEs. The HE correlation implementation here remains a research
 comparison; its `se` fields measure Monte Carlo error.

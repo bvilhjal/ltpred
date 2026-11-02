@@ -161,7 +161,7 @@ def _worker(source, case, mode, output, reps):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--baseline-ref", default="HEAD")
     parser.add_argument("--reps", type=int, default=5)
