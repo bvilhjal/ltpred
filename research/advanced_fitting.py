@@ -42,7 +42,7 @@ from ltpred._validation import validate_bounds
 from ltpred.covariance import get_relatedness, correct_positive_definite
 from ltpred.estimate import (_group_by_structure, _validate_multitrait_bounds,
                              _check_unique_roles, _assert_nonempty_families,
-                             batch_means)
+                             _batch_means)
 from ltpred.family import Family, Member
 from ltpred.fit import (fit_variance_components, _COMPONENT_OFFDIAG, _validate_components,
                         _component_matrix, _prepare_component_group,
@@ -50,7 +50,7 @@ from ltpred.fit import (fit_variance_components, _COMPONENT_OFFDIAG, _validate_c
                         _assert_population_case_rate, _assert_nonoverlapping_pids,
                         _validate_iteration_controls, _validate_update_controls,
                         _assert_observed_identification)
-from ltpred.gibbs import (gibbs_params, gibbs_advance, _advance_uniform_blocks,
+from ltpred.gibbs import (gibbs_params, _gibbs_advance_chain, _advance_uniform_blocks,
                           _gibbs_conditional_draw, _init_chain, _FIXED_TOL,
                           _MAX_SEED, _seed_rng)
 from ltpred._numba import _jit_parallel, prange
@@ -90,13 +90,13 @@ def _gibbs_advance_m2(P, sd, lowers, uppers, fixed, x, uniforms, out_m):
                     out_m[f, a, b] += xa * xf[b]
 
 
-def gibbs_advance_moment(P, sd, lowers, uppers, fixed, x, n_sweeps):
+def _gibbs_advance_moment(P, sd, lowers, uppers, fixed, x, n_sweeps):
     """Advance chains in place by ``n_sweeps`` and return the mean outer product.
 
     Returns ``out_m[f] = (1/n_sweeps) * sum_sweep outer(x_f, x_f)``, the second
     moment an EM variance-component M-step needs, in one kernel call per block
-    rather than one `gibbs_advance` call per draw. ``x`` is carried across calls
-    exactly as for `gibbs_advance`, from the same thread-local stream."""
+    rather than one `_gibbs_advance_chain` call per draw. ``x`` is carried across calls
+    exactly as for `_gibbs_advance_chain`, from the same thread-local stream."""
     n_sweeps = int(n_sweeps)
     n_families, d = x.shape
     out_m = np.zeros((n_families, d, d))
@@ -203,7 +203,7 @@ def _reml_observed_se(groups, comps, h2, eps, n_score=60, sweeps=1):
         F = g["F"]
         acc = np.zeros((F, C))                              # summed per-family score
         for _ in range(int(n_score)):
-            gibbs_advance(P, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
+            _gibbs_advance_chain(P, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
                           int(sweeps))
             x = g["x"]                                      # (F, k)
             for ci in range(C):
@@ -325,7 +325,7 @@ def fit_variance_components_mcem(families, components=("A", "C"), *,
             Kmats = [g["K"][c] for c in comps]
             Sig = correct_positive_definite(_reml_sigma(h2, Kmats, k, eps))[0]
             P, sd = gibbs_params(Sig)
-            gibbs_advance(P, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
+            _gibbs_advance_chain(P, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
                           int(inner_sweeps))
             S = (g["x"].T @ g["x"]) / g["F"]
             stats.append((S, g["F"], Kmats))
@@ -828,8 +828,8 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
                 up_s = g["uppers"][slot:slot + 1]
                 fx_s = g["fixed"][slot:slot + 1]
                 x_s = g["x"][slot:slot + 1]
-                gibbs_advance(Pm, sd, lo_s, up_s, fx_s, x_s, int(burn))
-                M[slot] = gibbs_advance_moment(Pm, sd, lo_s, up_s, fx_s, x_s,
+                _gibbs_advance_chain(Pm, sd, lo_s, up_s, fx_s, x_s, int(burn))
+                M[slot] = _gibbs_advance_moment(Pm, sd, lo_s, up_s, fx_s, x_s,
                                                int(n_draw))[0]
             M_groups.append(M)
         return M_groups
@@ -961,10 +961,10 @@ def fit_genetic_correlation_decay(families, *, kernel="ou", lam_max=None,
     re = _cov_to_corr(env_est, 1.0 - h2_est, eps)
     rp = G_est + env_est
     np.fill_diagonal(rp, 1.0)
-    _, h2_se = batch_means(tr_h2[tail])
-    _, rg_se = batch_means(tr_rg[tail].reshape(-1, P * P))
-    _, re_se = batch_means(tr_re[tail].reshape(-1, P * P))
-    _, rp_se = batch_means(tr_rp[tail].reshape(-1, P * P))
+    _, h2_se = _batch_means(tr_h2[tail])
+    _, rg_se = _batch_means(tr_rg[tail].reshape(-1, P * P))
+    _, re_se = _batch_means(tr_re[tail].reshape(-1, P * P))
+    _, rp_se = _batch_means(tr_rp[tail].reshape(-1, P * P))
 
     # convergence: the parameter estimates should stop drifting over the
     # converged tail (the negQ trace is shown in traces but is not monotone in
@@ -1244,7 +1244,7 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
             k = g["k"]
             sigma = _multi_cov(g["A"], h2, G, rp)
             Pm, sd = gibbs_params(sigma)
-            gibbs_advance(Pm, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
+            _gibbs_advance_chain(Pm, sd, g["lowers"], g["uppers"], g["fixed"], g["x"],
                           int(inner_sweeps))
             gram = g["x"].T @ g["x"]                   # (kP, kP)
             for p in range(P):
@@ -1284,10 +1284,10 @@ def fit_genetic_correlation(families, *, n_iter=1500, burn_in=500, inner_sweeps=
             E_sum += E
 
     sl = slice(int(burn_in), int(n_iter))
-    _, h2_se = batch_means(tr_h2[sl])
-    _, rg_se = batch_means(tr_rg[sl].reshape(-1, P * P))
-    _, re_se = batch_means(tr_re[sl].reshape(-1, P * P))
-    _, rp_se = batch_means(tr_rp[sl].reshape(-1, P * P))
+    _, h2_se = _batch_means(tr_h2[sl])
+    _, rg_se = _batch_means(tr_rg[sl].reshape(-1, P * P))
+    _, re_se = _batch_means(tr_re[sl].reshape(-1, P * P))
+    _, rp_se = _batch_means(tr_rp[sl].reshape(-1, P * P))
     # Average covariance states (a convex, hence PSD, operation) and derive every
     # reported correlation from those same two matrices. Ratio-averaging rg/re
     # separately would generally break rp == G + E after burn-in.

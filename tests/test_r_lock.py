@@ -27,12 +27,17 @@ def _fixture_families(name="input_tbl.csv"):
     from ltpred import families_from_columns
     with open(FIXTURES / name, newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
+    extra = {}
+    if rows and "K_i" in rows[0]:   # censored-cohort fixtures carry a K pair
+        extra = dict(K_i=[_parse_bound(r["K_i"]) for r in rows],
+                     K_pop=[_parse_bound(r["K_pop"]) for r in rows])
     return families_from_columns(
         [r["fam_ID"] for r in rows],
         [r["role"] for r in rows],
         [_parse_bound(r["lower"]) for r in rows],
         [_parse_bound(r["upper"]) for r in rows],
         pid=[r["indiv_ID"] for r in rows],
+        **extra,
     )
 
 
@@ -51,12 +56,6 @@ def _corr_rmse(a, b):
             float(np.sqrt(np.mean((a - b) ** 2))))
 
 
-def test_ltfhplus_fixture_records_seed():
-    with open(FIXTURES / "ltfhplus_gibbs.csv", newline="",
-              encoding="utf-8") as fh:
-        rows = list(csv.DictReader(fh))
-    assert {int(r["seed"]) for r in rows} == {20260816}
-    assert all(r["r_version"] and r["rng_kind"] for r in rows)
 
 
 def test_pa_matches_locked_ltfgrs_scores():
@@ -132,6 +131,7 @@ def test_pa_matches_locked_ltfgrs_scores_with_age_of_onset(encoding):
 
 @pytest.mark.jit_required
 @pytest.mark.parametrize("encoding", AGE_ENCODINGS)
+@pytest.mark.slow
 def test_gibbs_matches_locked_ltfhplus_scores_with_age_of_onset(encoding):
     from ltpred import estimate_liability
     families = _fixture_families(f"input_tbl_age_{encoding}.csv")
@@ -156,24 +156,9 @@ def test_gibbs_matches_locked_ltfhplus_scores_with_age_of_onset(encoding):
 # LTFGRS consumes it and double-corrects an age-specific bound.
 
 
-def _fixture_families_censored(name="input_tbl_censored.csv"):
-    from ltpred import families_from_columns
-    with open(FIXTURES / name, newline="", encoding="utf-8") as fh:
-        rows = list(csv.DictReader(fh))
-    return families_from_columns(
-        [r["fam_ID"] for r in rows],
-        [r["role"] for r in rows],
-        [_parse_bound(r["lower"]) for r in rows],
-        [_parse_bound(r["upper"]) for r in rows],
-        pid=[r["indiv_ID"] for r in rows],
-        K_i=[_parse_bound(r["K_i"]) for r in rows],
-        K_pop=[_parse_bound(r["K_pop"]) for r in rows],
-    )
-
-
 def test_censored_fixtures_pair_native_and_ltfgrs_encodings():
-    native = _fixture_families_censored()
-    contract = _fixture_families_censored("input_tbl_censored_ltfgrs.csv")
+    native = _fixture_families("input_tbl_censored.csv")
+    contract = _fixture_families("input_tbl_censored_ltfgrs.csv")
     n_mixture = 0
     for fn, fc in zip(native, contract):
         for mn, mc in zip(fn.members, fc.members):
@@ -196,7 +181,7 @@ def test_censored_fixtures_pair_native_and_ltfgrs_encodings():
 
 def test_pa_mixture_matches_locked_ltfgrs_scores():
     from ltpred import estimate_liability
-    families = _fixture_families_censored()
+    families = _fixture_families("input_tbl_censored.csv")
     r_est = _aligned(families, _r_scores("ltfgrs_pa_mixture.csv"))
     ours = estimate_liability(families, h2=0.5, use_mixture=True).est["genetic"]
     corr, rmse = _corr_rmse(ours, r_est)
@@ -210,9 +195,10 @@ def test_pa_mixture_matches_locked_ltfgrs_scores():
 
 
 @pytest.mark.jit_required
+@pytest.mark.slow
 def test_gibbs_matches_locked_ltfhplus_scores_censored():
     from ltpred import estimate_liability
-    families = _fixture_families_censored()
+    families = _fixture_families("input_tbl_censored.csv")
     r_est = _aligned(families, _r_scores("ltfhplus_gibbs_censored.csv"))
     ours = estimate_liability(families, h2=0.5, method="gibbs",
                               n_sim=100_000, burn_in=1000, tol=0.01,

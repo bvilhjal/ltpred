@@ -65,6 +65,11 @@ markers = [
     # in ci.yml) -- the truncated-moment/quantile kernel, the PA sweep and the
     # small-n_sim batched-accumulator identities -- still run there.
     "jit_required: too sampling-heavy to run without the Numba JIT",
+    # Sampling-heavy recovery/bootstrap/subprocess tests whose fast-tier
+    # siblings already guard the same engines. The `test` CI job deselects
+    # them on every matrix leg; the `test-slow` job runs them once. Local
+    # `pytest -q` still runs everything.
+    "slow: run once in CI (test-slow job), not on every test-matrix leg",
 ]
 
 [tool.ruff]

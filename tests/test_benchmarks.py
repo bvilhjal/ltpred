@@ -166,73 +166,12 @@ def test_benchmark_generators_are_the_public_ones():
 # --- run_benchmark.py ---
 
 
-def test_source_state_does_not_exclude_tracked_repo_inputs(tmp_path, monkeypatch):
-    root = tmp_path / "repo"
-    input_path = root / "data" / "cohort.bed"
-    calls = []
-
-    def fake_git(*args):
-        if args[:2] == ("rev-parse", "HEAD"):
-            return "a" * 40 + "\n"
-        if args[:3] == ("ls-files", "--cached", "--"):
-            return "data/cohort.bed\n"
-        calls.append(args)
-        return " M data/cohort.bed\n"
-
-    monkeypatch.setattr(run_benchmark, "ROOT", root)
-    monkeypatch.setattr(run_benchmark, "_git", fake_git)
-    state = run_benchmark._source_state([input_path])
-
-    assert state == {
-        "commit": "a" * 40,
-        "dirty": True,
-        "status": [" M data/cohort.bed"],
-    }
-    assert ":(exclude,literal)data/cohort.bed" not in calls[0]
 
 
-def test_source_state_excludes_declared_untracked_repo_inputs(
-        tmp_path, monkeypatch):
-    root = tmp_path / "repo"
-    input_path = root / "data" / "cohort.bed"
-    calls = []
-
-    def fake_git(*args):
-        if args[:2] == ("rev-parse", "HEAD"):
-            return "a" * 40 + "\n"
-        if args[:3] == ("ls-files", "--cached", "--"):
-            return ""
-        calls.append(args)
-        return ""
-
-    monkeypatch.setattr(run_benchmark, "ROOT", root)
-    monkeypatch.setattr(run_benchmark, "_git", fake_git)
-    state = run_benchmark._source_state([input_path])
-
-    assert state == {"commit": "a" * 40, "dirty": False, "status": []}
-    assert ":(exclude,literal)data/cohort.bed" in calls[0]
 
 
-def test_resolve_script_rejects_nonbenchmark_and_path_escape(tmp_path, monkeypatch):
-    here = tmp_path / "benchmarks"
-    here.mkdir()
-    (here / "bench_ok.py").write_text("", encoding="utf-8")
-    (here / "helper.py").write_text("", encoding="utf-8")
-    monkeypatch.setattr(run_benchmark, "HERE", here)
-
-    assert run_benchmark._resolve_script("bench_ok.py") == here / "bench_ok.py"
-    for invalid in ("helper.py", "../bench_ok.py", "missing.py"):
-        with pytest.raises(ValueError, match=r"bench_\*\.py"):
-            run_benchmark._resolve_script(invalid)
 
 
-def test_only_csv_outputs_are_retained_artifacts(tmp_path, monkeypatch):
-    # Figures are gitignored, so a manifest row must not hash one as retained.
-    monkeypatch.setattr(run_benchmark, "HERE", tmp_path)
-    assert run_benchmark._resolve_artifact("bench_ok.csv") == tmp_path / "bench_ok.csv"
-    for invalid in ("bench_ok.png", "../bench_ok.csv"):
-        with pytest.raises(ValueError, match="CSV files"):
-            run_benchmark._resolve_artifact(invalid)
 
 
 def test_runner_records_commit_environment_and_artifact_hash(tmp_path, monkeypatch):

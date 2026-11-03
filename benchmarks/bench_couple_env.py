@@ -32,7 +32,7 @@ from `a2 A + s2 K + e2 I`, thresholded, so ground truth is known):
 
     python benchmarks/bench_couple_env.py
     python benchmarks/bench_couple_env.py --reps 40 --n-fam 4000
-Writes bench_couple_env.csv (+ .png if matplotlib is present).
+Writes bench_couple_env.csv.
 """
 
 import os
@@ -41,7 +41,7 @@ import argparse
 
 import numpy as np
 
-from _common import get_plt, simulate_families_components, write_rows
+from _common import simulate_families_components, write_rows
 from ltpred.fit import fit_variance_components
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -137,10 +137,7 @@ def main():
               f"({rec['A_ignoreM_bias']:+.3f}, SD={rec['A_ignoreM_sd']:.3f}; much less biased)")
 
     write_csv(rows)
-    plot(panel_a, panel_b, a2)
     print("\nwrote bench_couple_env.csv")
-    if get_plt() is not None:
-        print("wrote bench_couple_env.png")
 
 
 def write_csv(rows):
@@ -148,40 +145,6 @@ def write_csv(rows):
               "M_bias", "M_sd", "A_ignoreC", "A_ignoreC_bias", "A_ignoreC_sd",
               "A_ignoreM", "A_ignoreM_bias", "A_ignoreM_sd", "n_fam", "reps"]
     return write_rows(os.path.join(HERE, "bench_couple_env.csv"), rows, fields)
-
-
-def plot(panel_a, panel_b, a2):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, ax = plt.subplots(1, 2, figsize=(11, 4.4))
-    # (a) M recovery vs true m2
-    m2 = [r["m2"] for r in panel_a]
-    ax[0].errorbar(m2, [r["M_mean"] for r in panel_a], yerr=[r["M_sd"] for r in panel_a],
-                   fmt="o", capsize=3, label="M fitted")
-    ax[0].plot([min(m2), max(m2)], [min(m2), max(m2)], "k:", lw=1, label="M true (y=x)")
-    ax[0].errorbar(m2, [r["A_mean"] for r in panel_a], yerr=[r["A_sd"] for r in panel_a],
-                   fmt="s", capsize=3, color="tab:green", label="A fitted")
-    ax[0].axhline(a2, color="tab:green", ls=":", lw=1, label=f"A true ({a2})")
-    ax[0].set_xlabel("true couple variance m²")
-    ax[0].set_ylabel("fitted proportion")
-    ax[0].set_title("(a) A+M recovery")
-    ax[0].legend(fontsize=8)
-    # (b) additive-only A bias: ignore C vs ignore M
-    s2 = [r["s2"] for r in panel_b]
-    ax[1].errorbar(s2, [r["A_ignoreC_bias"] for r in panel_b],
-                   yerr=[r["A_ignoreC_sd"] for r in panel_b], fmt="-o", capsize=3,
-                   color="tab:red", label="ignore C (sibship) → A inflated (± SD)")
-    ax[1].errorbar(s2, [r["A_ignoreM_bias"] for r in panel_b],
-                   yerr=[r["A_ignoreM_sd"] for r in panel_b], fmt="-o", capsize=3,
-                   color="tab:blue", label="ignore M (couple) → much less bias (± SD)")
-    ax[1].axhline(0, color="k", lw=1)
-    ax[1].set_xlabel("true shared-environment variance s²")
-    ax[1].set_ylabel("bias in additive-only Â  (fitted − true)")
-    ax[1].set_title("(b) why C and M differ: bias from omitting each")
-    ax[1].legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_couple_env.png"), dpi=130)
 
 
 if __name__ == "__main__":

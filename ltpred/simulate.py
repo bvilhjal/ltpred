@@ -38,7 +38,7 @@ trait-by-trait genetic, sibship, couple and residual matrices ``G, S, T, E``.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 import warnings
 
@@ -277,7 +277,7 @@ def _onset_times(liab, pop_prev, mid_point, slope, onset_model, lifetime_t, rng,
         cir = np.clip(u * pop_prev, 1e-12, pop_prev * (1.0 - 1e-12))
     else:
         l_case = liab[lifetime_case]
-        q_dep = np.clip((1.0 - norm_cdf(l_case)) / pop_prev, 1e-12, 1.0 - 1e-12)
+        q_dep = np.clip(norm_cdf(-l_case) / pop_prev, 1e-12, 1.0 - 1e-12)   # Phi(-x) == 1-Phi(x), tail-safe
         z_dep = norm_ppf(q_dep)
         z_ind = norm_ppf(np.clip(u, 1e-12, 1.0 - 1e-12))
         z = rho * z_dep + np.sqrt(max(0.0, 1.0 - rho * rho)) * z_ind
@@ -339,7 +339,6 @@ def _stable_factor(cov):
 
 def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
                                                               "mgf", "pgm", "pgf"),
-                              n_fam: Mapping[str, int] | None = None,
                               add_ind: bool = True, h2: float = 0.5,
                               n_sim: int = 1000, pop_prev: float = 0.1,
                               use_age: bool = False, mid_point: float = 60.0,
@@ -350,7 +349,7 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
                               onset_rho: float | None = None) -> Simulation:
     """Simulate ``n_sim`` families for a single trait.
 
-    Builds the covariance from ``fam_vec``/``n_fam`` as
+    Builds the covariance from ``fam_vec`` as
     `ltpred.covariance.construct_covmat_single` does (``add_ind=False``
     raises, since the simulation needs ``g``/``o``), draws liabilities, and
     returns a `Simulation`. ``n_sim`` counts families, not sampler draws.
@@ -393,7 +392,7 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     onset_resolution = _validate_onset_resolution(onset_resolution)
     onset_model, case_encoding, onset_rho = _resolve_age_options(
         use_age, onset_model, case_encoding, onset_rho)
-    cov_obj = construct_covmat_single(fam_vec=fam_vec, n_fam=n_fam,
+    cov_obj = construct_covmat_single(fam_vec=fam_vec,
                                       add_ind=add_ind, h2=h2)
     roles = cov_obj.roles
     if "g" not in roles or "o" not in roles:
@@ -420,6 +419,10 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     else:
         ages = onset = None
         status = {r: liab[:, roles.index(r)] > t for r in non_g}
+        # Classic LT-FH bounds, vectorised once per role (the same builder
+        # simulate_under_LTM_multi uses).
+        plain_bounds = {r: prevalence_thresholds(status[r], pop_prev)
+                        for r in non_g}
 
     families = []
     for i in range(n_sim):
@@ -427,7 +430,8 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
         for r in non_g:
             is_case = bool(status[r][i])
             if not use_age:
-                lower, upper = (t, np.inf) if is_case else (-np.inf, t)
+                lower = float(plain_bounds[r][0][i])
+                upper = float(plain_bounds[r][1][i])
             elif is_case:
                 aoo = float(onset[r][i])
                 if case_encoding == "lifetime":
@@ -674,7 +678,7 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
     residual_var = (1.0 - h2) / scale ** 2
 
     onset = np.full(n, np.inf)
-    need = 1.0 - norm_cdf(liability)
+    need = norm_cdf(-liability)   # Phi(-x) == 1-Phi(x), tail-safe
     event = need <= cip_values[-1]
     # Tiny positive floor avoids a zero-length follow-up event in the
     # Aalen-Johansen estimate for the rare extreme liability.

@@ -23,7 +23,7 @@ Ground truth is the simulator's genetic-correlation matrix / factor loadings.
 
     python benchmarks/bench_genetic_correlation.py
     python benchmarks/bench_genetic_correlation.py --reps 40 --n-fam 4000
-Writes bench_genetic_correlation.csv (+ .png if matplotlib is present).
+Writes bench_genetic_correlation.csv.
 """
 
 import os
@@ -36,8 +36,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root: `research`
 
-from _common import (get_plt, log_scale_if_positive,
-                     sd_ci, simulate_families_multi,
+from _common import (simulate_families_multi,
                      write_rows)
 from research.advanced_fitting import fit_genetic_correlation, fit_genetic_factor
 
@@ -202,70 +201,13 @@ def main():
                      n_fam=args.n_fam, reps=args.reps_factor))
 
     write_csv(rows)
-    plot(panel_a, panel_b,
-         dict(Lmean=Lmean, Lsd=Lsd,
-              srmr_true1f=(srmr_1f.mean(), srmr_1f.std(ddof=1)),
-              srmr_1f=(s1.mean(), s1.std(ddof=1)),
-              srmr_2f=(s2.mean(), s2.std(ddof=1))))
     print("\nwrote bench_genetic_correlation.csv")
-    if get_plt() is not None:
-        print("wrote bench_genetic_correlation.png")
 
 
 def write_csv(rows):
     fields = ["panel", "rg", "n_fam", "bias", "sd", "reps",
               "trait", "true", "fitted", "srmr", "srmr_sd", "prop"]  # panel (c)
     return write_rows(os.path.join(HERE, "bench_genetic_correlation.csv"), rows, fields)
-
-
-def plot(panel_a, panel_b, panel_c):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, ax = plt.subplots(2, 2, figsize=(10.5, 8.8))
-    ax = ax.ravel()
-    rg = [r["rg"] for r in panel_a]
-    fitted = [r["rg"] + r["bias"] for r in panel_a]
-    sd = [r["sd"] for r in panel_a]
-    ax[0].errorbar(rg, fitted, yerr=sd, fmt="o", capsize=4, label="fitted ± SD")
-    lim = [min(rg) - 0.1, max(rg) + 0.1]
-    ax[0].plot(lim, lim, "k--", lw=1, label="y = x")
-    ax[0].set_xlabel("true r_g")
-    ax[0].set_ylabel("fitted r_g")
-    ax[0].set_title("(a) bias & precision (incl. null)")
-    ax[0].legend(fontsize=8)
-    n = np.array([r["n_fam"] for r in panel_b], float)
-    sdb = np.array([r["sd"] for r in panel_b])
-    ci = np.array([sd_ci(r["sd"], r["reps"]) for r in panel_b])
-    ax[1].errorbar(n, sdb, yerr=np.vstack([sdb - ci[:, 0], ci[:, 1] - sdb]),
-                   fmt="-o", capsize=3, label="across-replicate SD (95% CI)")
-    ref = sdb[0] * np.sqrt(n[0] / n)
-    ax[1].plot(n, ref, "k:", lw=1, label="∝ 1/√N")
-    log_scale_if_positive(ax[1])
-    ax[1].set_xlabel("number of families")
-    ax[1].set_ylabel("SD of fitted r_g")
-    ax[1].set_title("(b) precision vs #families (r_g=0.5)")
-    ax[1].legend(fontsize=8)
-    ax[2].errorbar(LOADINGS_1F, panel_c["Lmean"], yerr=panel_c["Lsd"],
-                   fmt="o", capsize=4, label="fitted ± SD")
-    lim = [0.0, max(LOADINGS_1F) + 0.15]
-    ax[2].plot(lim, lim, "k--", lw=1, label="y = x")
-    ax[2].set_xlabel("true loading")
-    ax[2].set_ylabel("fitted loading")
-    ax[2].set_title("(c) single-factor loading recovery")
-    ax[2].legend(fontsize=8)
-    labels = ["1-factor\n(true 1F)", "1-factor\n(true 2F)", "2-factor\n(true 2F)"]
-    vals = [panel_c["srmr_true1f"][0], panel_c["srmr_1f"][0], panel_c["srmr_2f"][0]]
-    errs = [panel_c["srmr_true1f"][1], panel_c["srmr_1f"][1], panel_c["srmr_2f"][1]]
-    colors = ["#4c72b0", "#c44e52", "#55a868"]
-    ax[3].bar(labels, vals, yerr=errs, capsize=4, color=colors)
-    ax[3].axhline(0.08, ls=":", color="gray", lw=1,
-                  label="descriptive reference (srmr=0.08)")
-    ax[3].set_ylabel("srmr (off-diagonal misfit)")
-    ax[3].set_title("(d) srmr diagnoses planted misspecification")
-    ax[3].legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_genetic_correlation.png"), dpi=130)
 
 
 if __name__ == "__main__":

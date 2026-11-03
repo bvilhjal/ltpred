@@ -25,7 +25,7 @@ to the across-seed mean ± SE.
     python benchmarks/bench_pa_robustness.py
     python benchmarks/bench_pa_robustness.py --n-fam 3000 --orders 12
     python benchmarks/bench_pa_robustness.py --reps 5 --seed 7
-Writes bench_pa_robustness.csv (+ .png if matplotlib is present).
+Writes bench_pa_robustness.csv.
 """
 
 import os
@@ -34,7 +34,7 @@ import argparse
 
 import numpy as np
 
-from _common import estimate, get_plt, safe_corr, simulate_families
+from _common import estimate, safe_corr, simulate_families
 from ltpred.covariance import construct_covmat_single, correct_positive_definite
 from ltpred.thresholds import liability_threshold
 from ltpred.pearson_aitken import pa_algorithm
@@ -203,10 +203,7 @@ def main():
                  100 * r["rel_p95"], 100 * r["rel_p95_se"]))
 
     write_csv(reg, fo)
-    plot(agg_reg, agg_fo)
     print("\nwrote bench_pa_robustness.csv")
-    if get_plt() is not None:
-        print("wrote bench_pa_robustness.png")
 
 
 def write_csv(reg, fo):
@@ -223,42 +220,6 @@ def write_csv(reg, fo):
             w.writerow(["foldorder", r["name"], r["n_rel"], r["seed"],
                         "", "", "", r["median_sd"], r["p95_sd"], r["rel_median"],
                         r["rel_p95"], r["between_sd"]])
-
-
-def plot(agg_reg, agg_fo):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, ax = plt.subplots(1, 2, figsize=(11, 4.4))
-    names = [r["regime"] for r in agg_reg]
-    x = np.arange(len(names))
-    ax[0].errorbar(x, [r["agree"] for r in agg_reg],
-                   yerr=[r["agree_se"] for r in agg_reg],
-                   fmt="-o", color="#2F7D4F", capsize=3, label="corr(PA, Gibbs)")
-    ax[0].errorbar(x, [r["corr_pa"] for r in agg_reg],
-                   yerr=[r["corr_pa_se"] for r in agg_reg],
-                   fmt="-s", color="#3B4A9C", capsize=3, label="corr(PA, g)")
-    ax[0].errorbar(x, [r["corr_gibbs"] for r in agg_reg],
-                   yerr=[r["corr_gibbs_se"] for r in agg_reg],
-                   fmt="--^", color="#B95C3C", capsize=3, label="corr(Gibbs, g)")
-    ax[0].set_xticks(x); ax[0].set_xticklabels(names, fontsize=7.5, rotation=12)
-    ax[0].set_ylabel("correlation")
-    ax[0].set_title("(a) PA tracks Gibbs across stressful pedigrees")
-    ax[0].legend(fontsize=8)
-
-    nrel = [r["n_rel"] for r in agg_fo]
-    ax[1].errorbar(nrel, [100 * r["rel_p95"] for r in agg_fo],
-                   yerr=[100 * r["rel_p95_se"] for r in agg_fo],
-                   fmt="-o", color="#B07A16", capsize=3, label="worst-case (p95)")
-    ax[1].errorbar(nrel, [100 * r["rel_median"] for r in agg_fo],
-                   yerr=[100 * r["rel_median_se"] for r in agg_fo],
-                   fmt="-s", color="#3B4A9C", capsize=3, label="typical (median)")
-    ax[1].set_xlabel("number of relatives folded in")
-    ax[1].set_ylabel("order-induced spread (% of between-proband SD)")
-    ax[1].set_title("(b) fold-order sensitivity stays small across sizes")
-    ax[1].legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_pa_robustness.png"), dpi=130)
 
 
 if __name__ == "__main__":

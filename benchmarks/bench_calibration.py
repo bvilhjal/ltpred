@@ -28,7 +28,7 @@ the decile curves are averaged across seeds.
 
     python benchmarks/bench_calibration.py
     python benchmarks/bench_calibration.py --n-fam 5000 --true-h2 0.5 --reps 3
-Writes bench_calibration.csv (+ .png if matplotlib is present). Metric columns
+Writes bench_calibration.csv. Metric columns
 are across-seed means with matching ``se_`` columns.
 """
 
@@ -38,7 +38,7 @@ import argparse
 
 import numpy as np
 
-from _common import estimate, get_plt, mean_se, simulate_families, write_rows
+from _common import estimate, mean_se, simulate_families, write_rows
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -178,10 +178,7 @@ def main():
     rows += mrows
 
     write_csv(rows)
-    plot(rows, args.true_h2, curves)
     print("\nwrote bench_calibration.csv")
-    if get_plt() is not None:
-        print("wrote bench_calibration.png")
     print("total runtime: %.1f min" % ((time.perf_counter() - t_start) / 60))
 
 
@@ -191,58 +188,6 @@ def write_csv(rows):
               "corr_pa", "se_corr_pa", "cal_rmse_pa", "se_cal_rmse_pa",
               "top_ratio_pa", "se_top_ratio_pa"]
     return write_rows(os.path.join(HERE, "bench_calibration.csv"), rows, fields)
-
-
-def plot(rows, true_h2, curves):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, ax = plt.subplots(1, 3, figsize=(15, 4.4))
-
-    # (a) well-specified decile curve at the true h2, averaged across seeds
-    me, mg = curves[true_h2]
-    lim = [min(me.min(), mg.min()) - 0.03, max(me.max(), mg.max()) + 0.03]
-    ax[0].plot(lim, lim, "k--", lw=1, label="calibrated (y=x)")
-    ax[0].plot(me, mg, "-o", color="#2F7D4F", label="decile means")
-    ax[0].set_xlabel("mean estimate (per decile)")
-    ax[0].set_ylabel("mean true g (per decile)")
-    ax[0].set_title("(a) correctly specified: on the diagonal")
-    ax[0].legend(fontsize=8)
-
-    # (b) slope & corr vs assumed h2 (seed means; bars = across-seed SE)
-    ms = [r for r in rows if r["panel"] == "misspec"]
-    ms.sort(key=lambda r: r["assumed_h2"])
-    a = [r["assumed_h2"] for r in ms]
-    ax[1].errorbar(a, [r["slope_pa"] for r in ms],
-                   yerr=[r["se_slope_pa"] for r in ms], fmt="-o", capsize=3,
-                   color="#B95C3C", label="calibration slope")
-    ax[1].errorbar(a, [r["corr_pa"] for r in ms],
-                   yerr=[r["se_corr_pa"] for r in ms], fmt="-s", capsize=3,
-                   color="#3B4A9C", label="corr(est, true g)")
-    ax[1].axhline(1.0, color="k", ls=":", lw=1)
-    ax[1].axvline(true_h2, color="gray", ls=":", lw=1)
-    ax[1].set_xlabel("assumed h² handed to the estimator")
-    ax[1].set_ylabel("slope / corr")
-    ax[1].set_title("(b) ranking robust, scale is not")
-    ax[1].legend(fontsize=8)
-
-    # (c) decile curves under misspecification
-    lo = min(curves); hi = max(curves)
-    allv = np.concatenate([np.concatenate(curves[k]) for k in curves])
-    lim = [allv.min() - 0.03, allv.max() + 0.03]
-    ax[2].plot(lim, lim, "k--", lw=1)
-    colors = {lo: "#3B4A9C", true_h2: "#2F7D4F", hi: "#B95C3C"}
-    for k in (lo, true_h2, hi):
-        me, mg = curves[k]
-        tag = " (true)" if abs(k - true_h2) < 1e-9 else ""
-        ax[2].plot(me, mg, "-o", color=colors[k], label=f"assumed h²={k:.1f}{tag}")
-    ax[2].set_xlabel("mean estimate (per decile)")
-    ax[2].set_ylabel("mean true g (per decile)")
-    ax[2].set_title("(c) misspecified h² tilts the calibration")
-    ax[2].legend(fontsize=8)
-
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_calibration.png"), dpi=130)
 
 
 if __name__ == "__main__":

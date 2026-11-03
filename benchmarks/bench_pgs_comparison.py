@@ -63,7 +63,7 @@ comparable to each other.
     python benchmarks/bench_pgs_comparison.py --reps 10 --m-snps 5000
     python benchmarks/bench_pgs_comparison.py --pgs-backend ldpred3 --reps 1 --n-fam 2000
 
-Writes bench_pgs_comparison.csv (+ .png if matplotlib is present).
+Writes bench_pgs_comparison.csv.
 """
 
 import argparse
@@ -71,7 +71,7 @@ import os
 
 import numpy as np
 
-from _common import (get_plt, gwas_chisq, lambda_gc,
+from _common import (gwas_chisq, lambda_gc,
                      mean_ci, safe_corr, simulate_genotype_families,
                      write_rows)
 from ltpred.estimate import estimate_liability_pa_arrays
@@ -397,52 +397,6 @@ def write_csv(rows, args):
                       [{**meta, **r} for r in rows], fields)
 
 
-def plot(agg, replicate_rows):
-    plt = get_plt()
-    if plt is None:
-        return
-    by_arm = {r["arm"]: r for r in agg}
-    fig, ax = plt.subplots(1, 3, figsize=(15, 4.4))
-
-    gwas_arms = [CC, LTFH, ORACLE]
-    ax[0].bar(range(len(gwas_arms)),
-              [by_arm[a]["ncp_ratio_vs_cc"] for a in gwas_arms],
-              yerr=[by_arm[a]["se_ncp_ratio_vs_cc"] for a in gwas_arms],
-              capsize=3, color=["#999", "#1f77b4", "#2ca02c"])
-    ax[0].set_xticks(range(len(gwas_arms)))
-    ax[0].set_xticklabels(gwas_arms, rotation=20, ha="right", fontsize=8)
-    ax[0].set_ylabel("causal-SNP NCP ratio vs case/control")
-    ax[0].set_title("(a) independent-SNP causal-NCP ratio")
-
-    pred_arms = [CC, PGS, LTFH, JOINT]
-    ax[1].bar(range(len(pred_arms)), [by_arm[a]["r2_g"] for a in pred_arms],
-              yerr=[by_arm[a]["se_r2_g"] for a in pred_arms], capsize=3,
-              color=["#999", "#ff7f0e", "#1f77b4", "#9467bd"])
-    ax[1].set_xticks(range(len(pred_arms)))
-    ax[1].set_xticklabels(pred_arms, rotation=20, ha="right", fontsize=8)
-    ax[1].set_ylabel("R2 against held-out true g")
-    ax[1].set_title("(b) prediction on the test cohort")
-
-    joint = sorted((r for r in replicate_rows if r["arm"] == JOINT),
-                   key=lambda r: r["rep"])
-    theory = np.asarray([r["theory_corr_pgs_fh"] for r in joint])
-    observed = np.asarray([r["corr_pgs_fh"] for r in joint])
-    lim = [0.0, float(max(theory.max(initial=0.0),
-                          observed.max(initial=0.0)) * 1.2 + 0.02)]
-    ax[2].plot(lim, lim, "k--", lw=1)
-    ax[2].plot(theory, observed, "o", color="#1f77b4")
-    mean_t, _, se_t, _, _ = mean_ci(theory)
-    mean_o, _, se_o, _, _ = mean_ci(observed)
-    ax[2].errorbar([mean_t], [mean_o], xerr=[se_t], yerr=[se_o], fmt="s",
-                   color="#d62728", capsize=4, label="mean ± SE")
-    ax[2].set_xlabel("theory: a * b * sqrt(p)  (p = 1 here)")
-    ax[2].set_ylabel("observed corr(PGS, LT-FH)")
-    ax[2].set_title("(c) PGS vs family-history correlation")
-    ax[2].legend(fontsize=8, loc="lower right")
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_pgs_comparison.png"), dpi=130)
-
-
 def summarize(agg, contrasts):
     print(f"\n{'arm':22s} {'corr_g':>16s} {'R2_g':>16s} {'NCP/cc':>14s} "
           f"{'lambdaGC':>14s}")
@@ -511,10 +465,7 @@ def main():
     contrasts = paired_contrasts(replicate_rows)
     summarize(agg, contrasts)
     path = write_csv(list(replicate_rows) + contrasts, args)
-    plot(agg, replicate_rows)
     print(f"\nwrote {os.path.basename(path)}")
-    if get_plt() is not None:
-        print("wrote bench_pgs_comparison.png")
 
 
 if __name__ == "__main__":

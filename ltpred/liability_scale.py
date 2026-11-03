@@ -93,9 +93,9 @@ def liability_to_observed_h2(liab_h2: ArrayLike, pop_prev: ArrayLike,
     factor, with ``pop_prev`` (``K``) and ``prop_cases`` (``P``, or ``None``)
     under the same rules.
     """
-    pop_prev, z = _z_density(pop_prev)
-    factor = (z * z) / (pop_prev * (1.0 - pop_prev))
-    return np.asarray(liab_h2, dtype=float) * factor / _ascertainment(
+    # Exactly 1 / _master_factor: one definition of the Lee factor serves
+    # both directions (differs from the recomputed ratio by <= 2 ulp).
+    return np.asarray(liab_h2, dtype=float) / _master_factor(
         pop_prev, prop_cases)
 
 

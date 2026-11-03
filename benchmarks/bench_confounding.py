@@ -22,7 +22,7 @@ at 1. The gap grows with the secular trend `R`.
 
     python benchmarks/bench_confounding.py
     python benchmarks/bench_confounding.py --trends 1 2 4 --n-fam 10000 --reps 5
-Writes bench_confounding.csv (+ .png if matplotlib is present).
+Writes bench_confounding.csv.
 """
 
 import os
@@ -30,7 +30,7 @@ import argparse
 
 import numpy as np
 
-from _common import get_plt, gwas_chisq, lambda_gc, write_rows
+from _common import gwas_chisq, lambda_gc, write_rows
 from ltpred.covariance import construct_covmat_single, correct_positive_definite
 from ltpred.thresholds import liability_threshold
 from ltpred.family import Family, Member
@@ -158,10 +158,7 @@ def main():
                  m["lgc_null_cohort"], m["se_lgc_null_cohort"]))
 
     write_csv(rows)
-    plot(rows)
     print("\nwrote bench_confounding.csv")
-    if get_plt() is not None:
-        print("wrote bench_confounding.png")
 
 
 def write_csv(rows):
@@ -169,42 +166,6 @@ def write_csv(rows):
                for m in ("cohort", "single_K", "casecontrol")]
     fields = ["trend_R", "reps", *metrics, *[f"se_{metric}" for metric in metrics]]
     return write_rows(os.path.join(HERE, "bench_confounding.csv"), rows, fields)
-
-
-def plot(rows):
-    plt = get_plt()
-    if plt is None:
-        return
-    rows = sorted(rows, key=lambda r: r["trend_R"])
-    R = [r["trend_R"] for r in rows]
-    fig, ax = plt.subplots(1, 2, figsize=(10.5, 4.4))
-    C = dict(cohort="#2F7D4F", single_K="#B95C3C", casecontrol="#888780")
-    lab = dict(cohort="FH + cohort-specific K", single_K="single-K (cohort-blind)",
-               casecontrol="case/control label")
-    for key in ("cohort", "single_K", "casecontrol"):
-        ax[0].errorbar(R, [r[f"lgc_strat_{key}"] for r in rows],
-                       yerr=[r[f"se_lgc_strat_{key}"] for r in rows],
-                       fmt="-o", capsize=3, color=C[key], label=lab[key])
-    ax[0].axhline(1.0, color="k", ls=":", lw=1)
-    ax[0].set_xlabel("secular prevalence trend  R  (× per 30 y)")
-    ax[0].set_ylabel("λ_GC on cohort-correlated null SNPs")
-    ax[0].set_title("(a) single-K inflates; cohort-aware holds λ_GC≈1")
-    ax[0].legend(fontsize=8)
-    # (b) stratified vs unstratified at the strongest trend
-    top = rows[-1]
-    keys = ["cohort", "single_K", "casecontrol"]
-    x = np.arange(len(keys)); w = 0.38
-    ax[1].bar(x - w / 2, [top[f"lgc_strat_{k}"] for k in keys], w, label="cohort-correlated SNPs",
-              yerr=[top[f"se_lgc_strat_{k}"] for k in keys], capsize=3, color="#B95C3C")
-    ax[1].bar(x + w / 2, [top[f"lgc_null_{k}"] for k in keys], w, label="independent null SNPs",
-              yerr=[top[f"se_lgc_null_{k}"] for k in keys], capsize=3, color="#3B4A9C")
-    ax[1].axhline(1.0, color="k", ls=":", lw=1)
-    ax[1].set_xticks(x); ax[1].set_xticklabels([lab[k] for k in keys], fontsize=7.5, rotation=12)
-    ax[1].set_ylabel("λ_GC")
-    ax[1].set_title(f"(b) inflation is specific to cohort SNPs (R={top['trend_R']:.0f})")
-    ax[1].legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_confounding.png"), dpi=130)
 
 
 if __name__ == "__main__":

@@ -50,8 +50,25 @@ jobs:
           cache: pip
       - name: Install (with the JIT + test extras)
         run: pip install "$PHENSIM" -e ".[fast,test]"
-      - name: Core tests
-        run: pytest -q tests
+      - name: Core tests (fast tier; slow tier runs once in test-slow)
+        run: pytest -q -m "not slow" tests
+
+  test-slow:
+    # The slow tier (sampling-heavy recovery/bootstrap/subprocess tests):
+    # run once here instead of on all seven `test` matrix legs. One
+    # interpreter is enough -- the fast tier carries the platform-sensitive
+    # kernel and lock coverage on every leg, macOS included.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install (with the JIT + test extras)
+        run: pip install "$PHENSIM" -e ".[fast,test]"
+      - name: Slow-tier tests
+        run: pytest -q -m "slow" tests
 
   research-tests:
     # research/ is unsupported, checkout-only code, but five benchmark scripts

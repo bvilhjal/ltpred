@@ -22,7 +22,7 @@ draws, so this characterises the estimator only under its supported
 
     python benchmarks/bench_variance_components.py
     python benchmarks/bench_variance_components.py --reps 40 --n-fam 4000
-Writes bench_variance_components.csv (+ .png if matplotlib is present).
+Writes bench_variance_components.csv.
 """
 
 import os
@@ -31,8 +31,7 @@ import argparse
 
 import numpy as np
 
-from _common import (get_plt, log_scale_if_positive,
-                     sd_ci, simulate_families_components,
+from _common import (simulate_families_components,
                      write_rows)
 from ltpred.fit import fit_variance_components
 
@@ -118,56 +117,12 @@ def main():
         print(f"  n_fam={n:5d} | C SD={rec['C_sd']:.3f}  A SD={rec['A_sd']:.3f}")
 
     write_csv(rows)
-    plot(panel_a, fp, panel_c)
     print("\nwrote bench_variance_components.csv")
-    if get_plt() is not None:
-        print("wrote bench_variance_components.png")
 
 
 def write_csv(rows):
     fields = ["panel", "a2", "c2", "A_bias", "A_sd", "C_bias", "C_sd", "n_fam", "reps"]
     return write_rows(os.path.join(HERE, "bench_variance_components.csv"), rows, fields)
-
-
-def plot(panel_a, fp, panel_c):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, ax = plt.subplots(1, 3, figsize=(15, 4.4))
-    # (a) fitted vs true for A and C
-    idx = np.arange(len(panel_a))
-    labels = [f"a{r['a2']}/c{r['c2']}" for r in panel_a]
-    ax[0].errorbar(idx - 0.08, [r["a2"] + r["A_bias"] for r in panel_a],
-                   yerr=[r["A_sd"] for r in panel_a], fmt="o", capsize=3, label="A fitted")
-    ax[0].plot(idx - 0.08, [r["a2"] for r in panel_a], "k_", ms=14, label="A true")
-    ax[0].errorbar(idx + 0.08, [r["c2"] + r["C_bias"] for r in panel_a],
-                   yerr=[r["C_sd"] for r in panel_a], fmt="s", capsize=3, label="C fitted")
-    ax[0].plot(idx + 0.08, [r["c2"] for r in panel_a], "r_", ms=14, label="C true")
-    ax[0].set_xticks(idx); ax[0].set_xticklabels(labels, fontsize=8)
-    ax[0].set_ylabel("proportion of variance")
-    ax[0].set_title("(a) A+C recovery")
-    ax[0].legend(fontsize=8)
-    # (b) nonnegative boundary estimate (not a hypothesis-test rejection rate)
-    ax[1].bar(["true c2=0"], [fp["C_mean"]], yerr=[fp["C_sd"]], capsize=5,
-              color="tab:red", alpha=0.7)
-    ax[1].axhline(0, color="k", lw=1)
-    ax[1].set_ylabel("fitted C on additive-only data")
-    ax[1].set_title("(b) null boundary estimate (not false-positive rate)")
-    # (c) SD of C vs N
-    n = np.array([r["n_fam"] for r in panel_c], float)
-    csd = np.array([r["C_sd"] for r in panel_c])
-    ci = np.array([sd_ci(r["C_sd"], r["reps"]) for r in panel_c])
-    ax[2].errorbar(n, csd, yerr=np.vstack([csd - ci[:, 0], ci[:, 1] - csd]),
-                   fmt="-o", capsize=3, label="across-replicate SD of C (95% CI)")
-    ref = csd[0] * np.sqrt(n[0] / n)
-    ax[2].plot(n, ref, "k:", lw=1, label="∝ 1/√N")
-    log_scale_if_positive(ax[2])
-    ax[2].set_xlabel("number of families")
-    ax[2].set_ylabel("SD of fitted C")
-    ax[2].set_title("(c) precision vs #families")
-    ax[2].legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_variance_components.png"), dpi=130)
 
 
 if __name__ == "__main__":

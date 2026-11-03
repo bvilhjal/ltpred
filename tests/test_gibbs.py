@@ -9,7 +9,7 @@ import pytest
 from scipy import stats
 
 from ltpred._numba import HAVE_NUMBA
-from ltpred.gibbs import (rtmvnorm_gibbs, gibbs_params, gibbs_advance,
+from ltpred.gibbs import (rtmvnorm_gibbs, gibbs_params, _gibbs_advance_chain,
                           _seed_rng)
 
 from _helpers import imr
@@ -21,7 +21,7 @@ def _advance_from_zero(seed=None, n_families=12, d=3, n_sweeps=7):
     if seed is not None:
         _seed_rng(seed)
     x = np.zeros((n_families, d))
-    gibbs_advance(np.zeros((d, d)), np.ones(d),
+    _gibbs_advance_chain(np.zeros((d, d)), np.ones(d),
                   np.full_like(x, -np.inf), np.full_like(x, np.inf),
                   np.zeros_like(x, dtype=bool), x, n_sweeps)
     return x
@@ -82,7 +82,7 @@ def test_parallel_advance_keeps_extreme_tail_draws_in_bounds():
     fixed = np.zeros_like(x, dtype=bool)
 
     _seed_rng(23)
-    gibbs_advance(np.zeros((2, 2)), np.ones(2), lower, upper, fixed, x, 20)
+    _gibbs_advance_chain(np.zeros((2, 2)), np.ones(2), lower, upper, fixed, x, 20)
 
     assert np.isfinite(x).all()
     assert np.all(x >= lower)
@@ -213,7 +213,7 @@ def test_parallel_gibbs_advance_seed_is_scheduler_independent():
         set_num_threads(n_threads)
         x = np.zeros((n_families, d))
         _seed_rng(seed)
-        gibbs_advance(P, sd, lower, upper, fixed, x, 7)
+        _gibbs_advance_chain(P, sd, lower, upper, fixed, x, 7)
         return x
 
     previous = get_num_threads()
@@ -252,7 +252,7 @@ def test_concurrent_gibbs_advance_seed_streams_are_isolated():
         for _ in range(4):
             if synchronize:
                 barrier.wait(timeout=10)
-            gibbs_advance(P, sd, lower, upper, fixed, x, 2)
+            _gibbs_advance_chain(P, sd, lower, upper, fixed, x, 2)
         return x
 
     expected = {seed: run(seed) for seed in (101, 202)}
@@ -458,6 +458,7 @@ def test_far_tail_narrow_band_draws_spread_over_the_interval():
                                _std_tnorm_moments(-38.46, -38.45)[0], rtol=1e-2)
 
 
+@pytest.mark.slow
 def test_unseeded_sampler_is_fresh_after_a_seeded_call():
     # review 2026-10-07: an unseeded call replayed the RNG state a previous
     # seeded call left in this thread, so the same script printed identical

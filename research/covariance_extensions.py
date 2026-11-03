@@ -77,7 +77,7 @@ def _resolve_sexes(roles, sex):
 
 
 def construct_covmat_sex_limited(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"),
-                                 n_fam=None, add_ind=True, *, h2_female, h2_male,
+                                 add_ind=True, *, h2_female, h2_male,
                                  rg_cross=1.0, sex=None, c2=None, m2=None):
     """Covariance for one trait under a **sex-limitation** model.
 
@@ -124,7 +124,7 @@ def construct_covmat_sex_limited(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "
             "outside that range the covariance is not positive semi-definite")
 
     roles = _expand_family(list(fam_vec) if fam_vec is not None else None,
-                           n_fam, add_ind)
+                           add_ind)
     if not roles:
         return Covmat(np.empty((0, 0)), [])
 
@@ -151,7 +151,7 @@ def construct_covmat_sex_limited(fam_vec=("m", "f", "s1", "mgm", "mgf", "pgm", "
 _NURTURE_ROLES = re.compile(r"^(g|o|m|f|s\d*)$")
 
 
-def construct_covmat_nurture(fam_vec=("m", "f", "s1"), n_fam=None, add_ind=True,
+def construct_covmat_nurture(fam_vec=("m", "f", "s1"), add_ind=True,
                              *, h2, nurture):
     """Covariance separating a proband's **direct** genetic effect from parental
     **indirect** (genetic-nurture) effects.
@@ -217,7 +217,7 @@ def construct_covmat_nurture(fam_vec=("m", "f", "s1"), n_fam=None, add_ind=True,
             "reduce h2 or |nurture|")
 
     roles = _expand_family(list(fam_vec) if fam_vec is not None else None,
-                           n_fam, add_ind)
+                           add_ind)
     bad = sorted({r for r in roles if not _NURTURE_ROLES.match(r)})
     if bad:
         raise ValueError(

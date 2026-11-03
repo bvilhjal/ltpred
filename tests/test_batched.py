@@ -5,13 +5,14 @@ import pytest
 from scipy import stats
 
 from ltpred.family import Family, Member
-from ltpred.gibbs import gibbs_estimate_batched, gibbs_params
+from ltpred.gibbs import _gibbs_round, gibbs_params
 from ltpred.estimate import estimate_liability
 
 from _helpers import imr
 
 
 @pytest.mark.jit_required
+@pytest.mark.slow
 def test_batched_kernel_matches_batch_means_single_round():
     # streamed batch-mean summaries reconstruct est + SE, matching the analytic
     # case posterior (g = h2*IMR, o = IMR), single round, one family.
@@ -24,7 +25,7 @@ def test_batched_kernel_matches_batch_means_single_round():
     n_sim = 40_000
     b = int(np.floor(np.sqrt(n_sim)))
     nb = n_sim // b
-    tot, tot_sq, bm_sum, bm_sumsq = gibbs_estimate_batched(
+    tot, tot_sq, bm_sum, bm_sumsq = _gibbs_round(
         P, sd, sd0, lowers, uppers, np.array([0, 1]), n_sim, 1000, b, nb,
         np.array([7]), cov=cov)
     est = tot[0] / n_sim
@@ -43,7 +44,7 @@ def test_batched_kernel_matches_batch_means_single_round():
     assert var[1] == pytest.approx(var_o, rel=0.05)
     assert var[0] == pytest.approx(0.5 + 0.25 * (var_o - 1.0), rel=0.05)
     # posterior variance is a property of the target, not of how long we sampled
-    tot2, tot_sq2, _, _ = gibbs_estimate_batched(
+    tot2, tot_sq2, _, _ = _gibbs_round(
         P, sd, sd0, lowers, uppers, np.array([0, 1]), 4 * n_sim, 1000,
         b, nb, np.array([7]), cov=cov)
     var2 = tot_sq2[0] / (4 * n_sim) - (tot2[0] / (4 * n_sim)) ** 2
@@ -66,9 +67,9 @@ def test_collapsed_genetic_matches_full_chain_mean():
     kwargs = dict(lowers=lowers, uppers=uppers, out_idx=np.array([0, 1]),
                   n_sim=n_sim, burn_in=burn, batch_size=b, n_batch=nb,
                   seeds=seed)
-    tot_c, tsq_c, _, _ = gibbs_estimate_batched(
+    tot_c, tsq_c, _, _ = _gibbs_round(
         P, sd, sd0, cov=cov, collapse=True, **kwargs)
-    tot_f, tsq_f, _, _ = gibbs_estimate_batched(
+    tot_f, tsq_f, _, _ = _gibbs_round(
         P, sd, sd0, collapse=False, **kwargs)
     est_c = tot_c / n_sim
     est_f = tot_f / n_sim
@@ -88,7 +89,7 @@ def test_collapse_all_unbounded_is_the_prior():
     lowers = np.full((4, 2), -np.inf)
     uppers = np.full((4, 2), np.inf)
     n_sim, b, nb = 20, 4, 5
-    tot, tsq, bm, bmsq = gibbs_estimate_batched(
+    tot, tsq, bm, bmsq = _gibbs_round(
         P, sd, sd0, lowers, uppers, np.array([0, 1]), n_sim, 0, b, nb,
         np.arange(4), cov=cov)
     assert np.array_equal(tot, np.zeros((4, 2)))
@@ -102,11 +103,11 @@ def test_multi_round_pooling_matches_offline_batch_means():
     # _estimate_group pools the streamed batch-mean sums (bm_s1/bm_s2) across
     # rounds. With n_sim = 4 the per-round batching (b = 2, nb = 2) tiles the
     # concatenated draws exactly, so two tol-forced rounds must reproduce the
-    # offline batch_means of the same-seeded rtmvnorm_gibbs draws to machine
+    # offline _batch_means of the same-seeded rtmvnorm_gibbs draws to machine
     # precision. Every coordinate carries a finite bound (+-8 is no truncation
     # in practice), so no family collapses a coordinate (step G2) and the
     # uncollapsed rtmvnorm_gibbs draws are the right reference.
-    from ltpred.estimate import _estimate_group, _base_seeds, batch_means
+    from ltpred.estimate import _estimate_group, _base_seeds, _batch_means
     from ltpred.gibbs import rtmvnorm_gibbs
     cov = np.array([[0.5, 0.5], [0.5, 1.0]])
     t = float(stats.norm.isf(0.05))
@@ -123,7 +124,7 @@ def test_multi_round_pooling_matches_offline_batch_means():
                            burn_in=25, seed=int((base[f] + r) % (2 ** 32)))
             for r in range(max_rounds)
         ])
-        est_off, se_off = batch_means(draws)
+        est_off, se_off = _batch_means(draws)
         np.testing.assert_allclose(est[f], est_off, atol=1e-12)
         np.testing.assert_allclose(se[f], se_off, atol=1e-12)
 
@@ -201,6 +202,7 @@ def test_pa_nomix_equals_mixture_with_nan_K():
 
 
 @pytest.mark.jit_required
+@pytest.mark.slow
 def test_float32_bounds_match_float64():
     # float32 per-family bounds halve memory and match float64 to f32 precision
     from ltpred.simulate import simulate_under_LTM_single
@@ -284,7 +286,7 @@ def test_multi_round_convergence_tightens_se():
 
 @pytest.mark.jit_required
 def test_gibbs_arrays_coerces_integer_and_list_bounds():
-    # The `lower = as_bounds(lower)` line sat inside the duplicate-role `raise`
+    # The `lower = _as_bounds(lower)` line sat inside the duplicate-role `raise`
     # block, so it never ran: integer bounds failed when the auto-added genetic
     # row needed a -inf default, and list-of-lists raised AttributeError.
     from ltpred.estimate import (estimate_liability_gibbs_arrays,
@@ -417,7 +419,7 @@ def test_joint_move_streams_do_not_depend_on_other_families():
     hi = np.array([[np.inf, np.inf], [-1., -1.], [.7, .8]])
     seeds = np.array([91, 37, 58])
     def run(rows):
-        return gibbs_estimate_batched(P, sd, np.ones(2), lo[rows], hi[rows],
+        return _gibbs_round(P, sd, np.ones(2), lo[rows], hi[rows],
                                      np.array([0, 1]), 96, 10, 8, 12,
                                      seeds[rows], collapse=False)
     whole = run(np.arange(3))

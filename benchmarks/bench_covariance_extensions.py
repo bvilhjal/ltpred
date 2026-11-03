@@ -82,8 +82,7 @@ proxy for the covariance fix.
     python benchmarks/bench_covariance_extensions.py
     python benchmarks/bench_covariance_extensions.py --panels sex --reps 1
     python benchmarks/bench_covariance_extensions.py --panels nurture --nurture-n-fam 4000
-Writes bench_sex_limitation.csv and bench_nurture.csv (+ .png if matplotlib is
-present) -- the same artefacts the standalone scripts produced.
+Writes bench_sex_limitation.csv and bench_nurture.csv -- the same artefacts the standalone scripts produced.
 """
 
 import os
@@ -100,7 +99,7 @@ from research.covariance_extensions import (construct_covmat_sex_limited,
 from ltpred.covariance import construct_covmat_single
 from ltpred.pearson_aitken import pa_algorithm
 
-from _common import get_plt, write_rows
+from _common import write_rows
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -333,38 +332,7 @@ def sex_panel(args):
                   f"{m['gain']:+.4f} ± {m['gain_ci95']:.4f}")
 
     write_csv("bench_sex_limitation.csv", SEX_FIELDS, rows)
-    plot_sex(rows)
     print("\nwrote bench_sex_limitation.csv")
-
-
-def plot_sex(rows):
-    plt = get_plt()
-    if plt is None:
-        return
-    a = [r for r in rows if r["panel"] == "rg"]
-    b = [r for r in rows if r["panel"] == "gap"]
-    fig, ax = plt.subplots(1, 2, figsize=(11, 4.4))
-    x = [r["rg"] for r in a]
-    for key, lab in (("sex_thr_corr", "sex thresholds only"),
-                     ("sigma_true_corr", "sex in Sigma (true)"),
-                     ("sigma_rg1_corr", "sex in Sigma (rg=1)")):
-        ax[0].errorbar(x, [r[key] for r in a],
-                       yerr=[r[f"{key}_ci95"] for r in a], fmt="-o", capsize=3,
-                       label=lab)
-    ax[0].set_xlabel("true cross-sex genetic correlation rg")
-    ax[0].set_ylabel("corr(estimate, true genetic liability)")
-    ax[0].set_title("(a) qualitative sex limitation")
-    ax[0].legend(fontsize=8)
-    gaps = [r["h2_female"] - r["h2_male"] for r in b]
-    ax[1].errorbar(gaps, [r["gain"] for r in b],
-                   yerr=[r["gain_ci95"] for r in b], fmt="-o", capsize=3,
-                   color="tab:green")
-    ax[1].axhline(0, color="k", lw=1)
-    ax[1].set_xlabel("h2_female - h2_male")
-    ax[1].set_ylabel("delta corr (Sigma - thresholds only)")
-    ax[1].set_title("(b) scalar sex limitation, rg = 1")
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_sex_limitation.png"), dpi=130)
 
 
 # --------------------------------------------------------------------------- #
@@ -481,35 +449,7 @@ def nurture_panel(args):
               f"{m['trap']:+.4f} ± {m['trap_ci95']:.4f}")
 
     write_csv("bench_nurture.csv", NUR_FIELDS, rows)
-    plot_nurture(rows)
     print("\nwrote bench_nurture.csv")
-
-
-def plot_nurture(rows):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, ax = plt.subplots(1, 2, figsize=(11, 4.4))
-    x = [r["nurture"] for r in rows]
-    for key, lab in (("add_moment_corr", "additive (moment h2)"),
-                     ("ace_sibs_corr", "A+C matched to sibs"),
-                     ("nurture_corr", "nurture model")):
-        ax[0].errorbar(x, [r[key] for r in rows],
-                       yerr=[r[f"{key}_ci95"] for r in rows], fmt="-o", capsize=3,
-                       label=lab)
-    ax[0].set_xlabel("true nurture coefficient n")
-    ax[0].set_ylabel("corr(estimate, true direct effect)")
-    ax[0].set_title("(a) cost of ignoring genetic nurture")
-    ax[0].legend(fontsize=8)
-    ax[1].plot(x, [r["h2_moment_po"] for r in rows], "-o", label="h2 from parent-offspring")
-    ax[1].plot(x, [r["h2_moment_sib"] for r in rows], "-o", label="h2 from sibs")
-    ax[1].axhline(rows[0]["h2"], color="k", lw=1, ls="--", label="true direct h2")
-    ax[1].set_xlabel("true nurture coefficient n")
-    ax[1].set_ylabel("heritability a nurture-blind fitter returns")
-    ax[1].set_title("(b) the two estimates disagree -- the diagnostic")
-    ax[1].legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_nurture.png"), dpi=130)
 
 
 # --------------------------------------------------------------------------- #

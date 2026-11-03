@@ -38,4 +38,4 @@ Layout:
 - `tests/` — tests for the above.
 
 A capability graduates into `ltpred` under the
-[roadmap's graduation rule](../docs/ROADMAP.md#4-graduation-rule).
+[roadmap's graduation rule](../docs/MAINTAINING.md#24-graduation-rule).

@@ -16,7 +16,6 @@ from ltpred.thresholds import pa_thresholds
 from ltpred.estimate import (estimate_liability, _estimate_liability_pa,
                              estimate_liability_pa_arrays,
                              estimate_liability_gibbs_arrays)
-from ltpred.simulate import simulate_under_LTM_single
 
 from _helpers import imr
 
@@ -173,18 +172,6 @@ def test_pa_pinned_case_conditions_exactly():
     assert var == pytest.approx(h2 - h2 ** 2)
 
 
-@pytest.mark.jit_required
-def test_pa_matches_gibbs_on_families():
-    # 150 families: the tighter engine-vs-R lock in test_r_lock.py carries the
-    # precision claim; this is the in-package agreement smoke
-    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5,
-                                    pop_prev=0.1, n_sim=150, seed=3)
-    pa = estimate_liability(sim.families, h2=0.5, method="pa", out=("genetic",))
-    gb = estimate_liability(sim.families, h2=0.5, method="gibbs", out=("genetic",),
-                            tol=0.02, n_sim=40_000, burn_in=800, seed=1)
-    diff = np.abs(pa.est["genetic"] - gb.est["genetic"])
-    assert np.corrcoef(pa.est["genetic"], gb.est["genetic"])[0, 1] > 0.99
-    assert diff.mean() < 0.02
 
 
 @pytest.mark.jit_required
@@ -517,9 +504,13 @@ def test_mixture_is_calibrated_no_double_correction():
 def test_method_dispatch_and_multi_trait_error():
     t = float(stats.norm.isf(0.05))
     fam = Family("f", [Member("o", t, np.inf)])
-    for m in ("pa", "pearson-aitken", "AITKEN"):
+    for m in ("pa", "pearson-aitken", "PA"):
         res = estimate_liability([fam], h2=0.5, method=m, out=("genetic",))
         assert res.est["genetic"][0] > 0
+    # the former extra spellings are gone: one canonical name + one alias
+    for m in ("aitken", "pearson_aitken"):
+        with pytest.raises(ValueError, match="unknown method"):
+            estimate_liability([fam], h2=0.5, method=m)
     with pytest.raises(NotImplementedError):
         estimate_liability([fam], h2=[0.5, 0.5], method="pa",
                            genetic_corrmat=np.eye(2), full_corrmat=np.eye(2))

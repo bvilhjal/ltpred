@@ -173,7 +173,7 @@ def test_genetic_correlation_uses_and_reports_one_coherent_psd_model(monkeypatch
         state[:] = fixed_x
 
     monkeypatch.setattr(af_mod, "gibbs_params", fake_params)
-    monkeypatch.setattr(af_mod, "gibbs_advance", fake_advance)
+    monkeypatch.setattr(af_mod, "_gibbs_advance_chain", fake_advance)
     result = af_mod.fit_genetic_correlation(
         fams, n_iter=5, burn_in=1, inner_sweeps=1, damp=1.0,
         sampling="population")
@@ -606,17 +606,17 @@ def test_gibbs_advance_moment_accumulates_mean_outer_product():
     # direct unit test of the E-step kernel (review 2026-08, F36)
     import numpy as _np
     from ltpred.gibbs import gibbs_params
-    from research.advanced_fitting import gibbs_advance_moment
+    from research.advanced_fitting import _gibbs_advance_moment
     P, sd = gibbs_params(_np.array([[1.0]]))
     # an untruncated 1-d chain draws N(0, 1) each sweep: mean outer product -> 1
     x = _np.zeros((1, 1))
-    out = gibbs_advance_moment(P, sd, _np.array([[-_np.inf]]),
+    out = _gibbs_advance_moment(P, sd, _np.array([[-_np.inf]]),
                                _np.array([[_np.inf]]), _np.array([[False]]),
                                x, 50_000)
     assert out[0, 0, 0] == pytest.approx(1.0, abs=0.05)
     # a fixed coordinate never moves: the moment is exactly the pinned square
     x = _np.full((1, 1), 1.3)
-    out = gibbs_advance_moment(P, sd, _np.array([[1.3]]), _np.array([[1.3]]),
+    out = _gibbs_advance_moment(P, sd, _np.array([[1.3]]), _np.array([[1.3]]),
                                _np.array([[True]]), x, 100)
     assert out[0, 0, 0] == pytest.approx(1.3 ** 2)
 

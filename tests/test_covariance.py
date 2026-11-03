@@ -55,30 +55,10 @@ def test_single_covmat_default_is_pd():
     assert np.min(np.linalg.eigvalsh(cov.matrix)) > 0
 
 
-def test_n_fam_expands_multiples():
-    cov = construct_covmat_single(fam_vec=None,
-                                  n_fam={"m": 1, "s": 2}, h2=0.5)
-    assert cov.roles == ["g", "o", "m", "s1", "s2"]
 
 
-def test_n_fam_preserves_explicit_numbered_roles():
-    cov = construct_covmat_single(
-        fam_vec=None, n_fam={"s1": 1, "mhs3": 1, "c2.4": 1}, h2=0.5,
-    )
-    assert cov.roles == ["g", "o", "s1", "mhs3", "c2.4"]
-    with pytest.raises(ValueError, match="explicit role 's1'"):
-        construct_covmat_single(fam_vec=None, n_fam={"s1": 2}, h2=0.5)
 
 
-@pytest.mark.parametrize("role,count", [("s", 1.9), ("s1", 0.5),
-                                         ("s", np.nan), ("s", np.inf),
-                                         ("s", True), ("s", 10 ** 1000)])
-def test_n_fam_rejects_non_integer_counts(role, count):
-    with pytest.raises(ValueError, match="non-negative integers"):
-        construct_covmat_single(fam_vec=None, n_fam={role: count}, h2=0.5)
-    # Preserve the convenient, unambiguous case of an integral float.
-    cov = construct_covmat_single(fam_vec=None, n_fam={"s": 2.0}, h2=0.5)
-    assert cov.roles == ["g", "o", "s1", "s2"]
 
 
 def test_add_ind_false_omits_g_o():
@@ -153,14 +133,14 @@ def test_correct_positive_definite_fixes_non_pd():
 
 def test_invalid_role_raises():
     with pytest.raises(ValueError):
-        get_relatedness("o", "zzz")
+        get_relatedness("o", "zzz", 0.5)
 
 
 @pytest.mark.parametrize("bad", ["s1abc", "c1x2", "zzz", "go", "m1", "s1.2"])
 def test_malformed_roles_rejected(bad):
     # fullmatch validation rejects trailing junk instead of silently accepting it
     with pytest.raises(ValueError):
-        get_relatedness("o", bad)
+        get_relatedness("o", bad, 0.5)
 
 
 @pytest.mark.parametrize("ok", ["g", "o", "m", "f", "s", "s1", "mgm", "c1.1", "mhs2", "pau3"])
@@ -272,29 +252,29 @@ def test_kinship_environment_kernel_validation():
     A = np.eye(2)
     I = np.eye(2)
     with pytest.raises(ValueError, match="required when c2 is nonzero"):
-        construct_covmat_from_kinship(A, c2=0.1)
+        construct_covmat_from_kinship(A, 0.5, c2=0.1)
     with pytest.raises(ValueError, match="supplied without c2"):
-        construct_covmat_from_kinship(A, c_kernel=I)
+        construct_covmat_from_kinship(A, 0.5, c_kernel=I)
     with pytest.raises(ValueError, match="finite nonnegative"):
-        construct_covmat_from_kinship(A, c2=np.nan)
+        construct_covmat_from_kinship(A, 0.5, c2=np.nan)
     with pytest.raises(ValueError, match="finite nonnegative"):
-        construct_covmat_from_kinship(A, c2=-0.1)
+        construct_covmat_from_kinship(A, 0.5, c2=-0.1)
     with pytest.raises(ValueError, match="must not exceed 1"):
         construct_covmat_from_kinship(
             A, h2=0.8, c2=0.2, c_kernel=I, m2=0.1, m_kernel=I)
     with pytest.raises(ValueError, match=r"shape \(2, 2\)"):
-        construct_covmat_from_kinship(A, c2=0.1, c_kernel=np.eye(3))
+        construct_covmat_from_kinship(A, 0.5, c2=0.1, c_kernel=np.eye(3))
     with pytest.raises(ValueError, match="finite values"):
         construct_covmat_from_kinship(
-            A, c2=0.1, c_kernel=np.array([[1.0, np.nan], [np.nan, 1.0]]))
+            A, 0.5, c2=0.1, c_kernel=np.array([[1.0, np.nan], [np.nan, 1.0]]))
     with pytest.raises(ValueError, match="symmetric"):
         construct_covmat_from_kinship(
-            A, c2=0.1, c_kernel=np.array([[1.0, 0.2], [0.0, 1.0]]))
+            A, 0.5, c2=0.1, c_kernel=np.array([[1.0, 0.2], [0.0, 1.0]]))
     with pytest.raises(ValueError, match="unit diagonal"):
-        construct_covmat_from_kinship(A, c2=0.1, c_kernel=0.5 * I)
+        construct_covmat_from_kinship(A, 0.5, c2=0.1, c_kernel=0.5 * I)
     with pytest.raises(ValueError, match="positive semi-definite"):
         construct_covmat_from_kinship(
-            A, c2=0.1, c_kernel=np.array([[1.0, 2.0], [2.0, 1.0]]))
+            A, 0.5, c2=0.1, c_kernel=np.array([[1.0, 2.0], [2.0, 1.0]]))
 
 
 def test_kinship_inputs_canonicalize_accepted_numeric_asymmetry():
@@ -378,7 +358,7 @@ def test_kinship_input_validation():
     with pytest.raises(ValueError, match="h2"):
         construct_covmat_from_kinship(A, h2=1.5)
     with pytest.raises(ValueError, match="target"):
-        construct_covmat_from_kinship(A, target=5)
+        construct_covmat_from_kinship(A, 0.5, target=5)
 
 
 def test_multi_covmat_add_ind_false_same_person_cross_trait_uses_full_corr():
@@ -417,15 +397,6 @@ def test_zero_h2_is_rejected_with_an_explanation():
     construct_covmat_single(fam_vec=["m", "f"], h2=1e-6)
 
 
-def test_n_fam_rejects_singleton_counts_above_one():
-    # a count > 1 for a singleton role used to be silently dropped; numbered
-    # roles are the way to request multiples
-    with pytest.raises(ValueError, match="singleton role"):
-        construct_covmat_single(fam_vec=None, n_fam={"m": 2}, h2=0.5)
-    with pytest.raises(ValueError, match="singleton role"):
-        construct_covmat_single(fam_vec=None, n_fam={"mgm": 3}, h2=0.5)
-    cov = construct_covmat_single(fam_vec=None, n_fam={"s": 2}, h2=0.5)
-    assert cov.roles == ["g", "o", "s1", "s2"]
 
 
 def test_same_side_half_sibs_share_a_second_parent_by_convention():

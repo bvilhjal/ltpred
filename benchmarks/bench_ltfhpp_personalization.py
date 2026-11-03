@@ -42,7 +42,7 @@ import numpy as np
 from scipy import stats
 from scipy.special import ndtr
 
-from _common import get_plt, gwas_chisq, lambda_gc, mean_ci, safe_corr, write_rows
+from _common import gwas_chisq, lambda_gc, mean_ci, safe_corr, write_rows
 from ltpred.covariance import construct_covmat_single, correct_positive_definite
 from ltpred.estimate import (estimate_liability_gibbs_arrays,
                              estimate_liability_pa_arrays)
@@ -637,152 +637,6 @@ def _short(name):
     }.get(name, name)
 
 
-def plot(rows, output_prefix):
-    plt = get_plt()
-    if plt is None:
-        return None
-
-    main = _replicate_rows(rows, MAIN_PANEL)
-    sex = _replicate_rows(rows, SEX_PANEL)
-    main_names = [name for name in dict.fromkeys(row["phenotype"] for row in main)
-                  if name != ORACLE]
-    fig, axes = plt.subplots(2, 3, figsize=(17, 10.4))
-    blue, orange, green, grey = "#3B4A9C", "#D97706", "#15803D", "#6B7280"
-
-    # Main means: useful context, while the adjacent panels foreground paired deltas.
-    ax = axes[0, 0]
-    means, errors = _means_and_errors(main, main_names, "corr_g_adjusted")
-    ax.bar(range(len(main_names)), means, yerr=errors, capsize=3, color=blue)
-    ax.set_xticks(range(len(main_names)), [_short(name) for name in main_names],
-                  rotation=28, ha="right", fontsize=8)
-    ax.set_ylabel("corr(adjusted score, adjusted g)")
-    ax.set_title("A  Main-panel adjusted accuracy")
-
-    main_contrasts = [row for row in rows
-                      if row["row_type"] == "paired_contrast"
-                      and row["panel"] == MAIN_PANEL]
-    compact_labels = [f"{_short(row['contrast_right'])} - {_short(row['contrast_left'])}"
-                      for row in main_contrasts]
-
-    ax = axes[0, 1]
-    y = np.arange(len(main_contrasts))
-    ax.errorbar([row["delta_corr_g_adjusted"] for row in main_contrasts], y,
-                xerr=np.nan_to_num([row["delta_corr_g_adjusted_ci95"]
-                                    for row in main_contrasts]),
-                fmt="o", capsize=3, color=green)
-    ax.axvline(0.0, color="black", ls=":", lw=1)
-    ax.set_yticks(y, compact_labels, fontsize=8)
-    ax.invert_yaxis()
-    ax.set_xlabel("paired Δ adjusted correlation")
-    ax.set_title("B  Main ablations (95% CI)")
-
-    ax = axes[0, 2]
-    effn = [row["delta_effN_vs_cc_adjusted"] for row in main_contrasts]
-    effn_ci = np.nan_to_num([row["delta_effN_vs_cc_adjusted_ci95"]
-                             for row in main_contrasts])
-    ax.errorbar(effn, y, xerr=effn_ci, fmt="o", capsize=3, color=orange)
-    ax.axvline(0.0, color="black", ls=":", lw=1)
-    ax.set_yticks(y, compact_labels, fontsize=8)
-    ax.invert_yaxis()
-    ax.set_xlabel("paired Δ effective-N ratio vs case/control")
-    ax.set_title("C  Main causal-SNP signal (95% CI)")
-
-    if sex:
-        paired_names = (AGE, AGE_SEX)
-        by_rep = {name: {row["rep"]: row for row in sex
-                         if row["phenotype"] == name} for name in paired_names}
-        reps = sorted(set(by_rep[AGE]) & set(by_rep[AGE_SEX]))
-
-        ax = axes[1, 0]
-        curve = [row for row in rows if row["row_type"] == "cip_curve"]
-        ages = np.asarray([row["age"] for row in curve])
-        male = np.asarray([row["cip_male"] for row in curve])
-        female = np.asarray([row["cip_female"] for row in curve])
-        ax.plot(ages, male, label="male", color=blue)
-        ax.plot(ages, female, label="female", color=orange)
-        ax.fill_between(ages, male, female, color=orange, alpha=0.15)
-        max_sep = np.max(np.abs(female - male))
-        ax.text(0.03, 0.96, f"max |CIP separation|, ages 20–100={max_sep:.3f}",
-                transform=ax.transAxes, va="top", fontsize=8)
-        ax.set_xlabel("age")
-        ax.set_ylabel("cumulative incidence")
-        ax.set_title("D  Prespecified sex-specific CIP")
-        ax.legend(fontsize=8)
-
-        ax = axes[1, 1]
-        for rep in reps:
-            ax.plot([0, 1], [by_rep[name][rep]["corr_g_adjusted"]
-                             for name in paired_names], color="#9CA3AF", alpha=0.65)
-        means, cis = _means_and_errors(sex, paired_names, "corr_g_adjusted", ci=True)
-        ax.errorbar([0, 1], means, yerr=cis, fmt="o-", color=green,
-                    lw=2.2, capsize=4, label="mean ± 95% CI")
-        ax.set_xticks([0, 1], ["age only", "age + sex"])
-        ax.set_ylabel("corr(adjusted score, adjusted g)")
-        ax.set_title("E  Sex isolation: paired accuracy")
-        sex_contrast = _contrast_lookup(rows, SEX_PANEL)[f"{AGE_SEX} - {AGE}"]
-        ax.text(0.03, 0.96,
-                f"Δcorr={sex_contrast['delta_corr_g_adjusted']:+.5f} "
-                f"±{sex_contrast['delta_corr_g_adjusted_ci95']:.5f}\n"
-                f"ΔeffN={sex_contrast['delta_effN_vs_cc_adjusted']:+.4f} "
-                f"±{sex_contrast['delta_effN_vs_cc_adjusted_ci95']:.4f}\n"
-                f"Δmean χ²={sex_contrast['delta_mean_chi2_causal_adjusted']:+.2f} "
-                f"±{sex_contrast['delta_mean_chi2_causal_adjusted_ci95']:.2f}",
-                transform=ax.transAxes, va="top", fontsize=8)
-        ax.legend(fontsize=8, loc="lower right")
-
-        ax = axes[1, 2]
-        error_keys = ("mean_error_female_raw", "mean_error_male_raw")
-        labels = ("female", "male")
-        x = np.arange(2)
-        width = 0.36
-        for offset, name, color in ((-width / 2, AGE, grey),
-                                    (width / 2, AGE_SEX, blue)):
-            subset = [row for row in sex if row["phenotype"] == name]
-            values = [np.mean([row[key] for row in subset]) for key in error_keys]
-            errors = [mean_ci([row[key] for row in subset])[2] for key in error_keys]
-            ax.bar(x + offset, values, width, yerr=np.nan_to_num(errors), capsize=3,
-                   label=_short(name), color=color)
-        ax.axhline(0.0, color="black", ls=":", lw=1)
-        ax.set_xticks(x, labels)
-        ax.set_ylabel("mean(score - true g)")
-        ax.set_title("F  Sex-specific mean error (raw score scale)")
-        ax.text(
-            0.03, 0.04,
-            "Δ(female−male error gap)="
-            f"{sex_contrast['delta_mean_error_sex_gap_raw']:+.4f} "
-            f"±{sex_contrast['delta_mean_error_sex_gap_raw_ci95']:.4f}",
-            transform=ax.transAxes, va="bottom", fontsize=8,
-        )
-        ax.legend(fontsize=8)
-    else:
-        for ax in axes[1]:
-            ax.axis("off")
-            ax.text(0.5, 0.5, "sex-isolation panel disabled",
-                    ha="center", va="center")
-
-    main_cfg = main[0] if main else {}
-    sex_cfg = sex[0] if sex else {}
-    fig.suptitle("LT-FH++ decomposition, matched ADuLT contrast, and sex isolation",
-                 fontsize=15, y=0.995)
-    fig.text(
-        0.5, 0.012,
-        "Mean bars show ±SE; paired contrast points and thick sex-isolation means "
-        "show t-based 95% CIs. Thin lines are independent paired replicates.  "
-        f"Main: N={main_cfg.get('n_fam', '—')}, M={main_cfg.get('m_snps', '—')}, "
-        f"R={main_cfg.get('panel_reps', '—')}.  Sex isolation: "
-        f"N={sex_cfg.get('n_fam', '—')}, M={sex_cfg.get('m_snps', '—')}, "
-        f"R={sex_cfg.get('panel_reps', '—')}, RR={sex_cfg.get('sex_rr', '—')}, "
-        "cohort effects off, equal onset midpoints.",
-        ha="center", va="bottom", fontsize=8,
-    )
-    fig.tight_layout(rect=(0, 0.045, 1, 0.965))
-    path = f"{output_prefix}.png"
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    fig.savefig(path, dpi=150)
-    plt.close(fig)
-    return path
-
-
 def _sex_isolation_args(args):
     values = vars(args).copy()
     values.update(
@@ -969,11 +823,7 @@ def main():
 
     summarize(rows)
     csv_path = write_csv(rows, args.output_prefix)
-    png_path = plot(rows, args.output_prefix)
-    written = os.path.basename(csv_path)
-    if png_path is not None:
-        written += f" and {os.path.basename(png_path)}"
-    print(f"\nwrote {written}")
+    print(f"\nwrote {os.path.basename(csv_path)}")
 
 
 if __name__ == "__main__":

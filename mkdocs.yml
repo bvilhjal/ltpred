@@ -36,16 +36,9 @@ theme:
         name: Switch to light mode
 
 # One entry point, one worked tutorial, and references organised by task.
-# Historical reviews and maintenance plans stay in the repository, outside search.
+# The maintenance file (releasing, roadmap, review ledger) stays in the repository, outside search.
 exclude_docs: |
-  REVIEWS.md
-  ROADMAP.md
-  RELEASING.md
-  reviews/
-not_in_nav: |
-  guide.md
-  vignette.md
-  report.md
+  MAINTAINING.md
 
 nav:
   - Overview: index.md

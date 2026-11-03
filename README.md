@@ -79,8 +79,7 @@ not build LD or run the downstream GWAS.
 
 Unsupported prototypes remain in the checkout-only [research package](research/README.md).
 They are not installed with the wheel. See the [changelog](CHANGELOG.md),
-[benchmark instructions](benchmarks/README.md), [roadmap](docs/ROADMAP.md) and
-[release instructions](docs/RELEASING.md) for development.
+[benchmark instructions](benchmarks/README.md), [roadmap and release instructions](docs/MAINTAINING.md) for development.
 
 The code and documentation were written together with AI, with support from
 [SMARTbiomed](https://smartbiomed.dk/).

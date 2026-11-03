@@ -44,7 +44,6 @@ Thresholds and weights are held fixed, as in `ltpred.pairwise`.
 from __future__ import annotations
 
 import math
-import operator
 import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -60,7 +59,8 @@ from .estimate import (_assert_nonempty_families, _check_unique_roles,
 from .fit import (_component_matrix, _assert_common_thresholds,
                   _assert_nonoverlapping_pids, _assert_population_case_rate,
                   _member_bounds, _validate_population_sampling,
-                  _validate_weights, _validate_update_controls)
+                  _validate_weights, _validate_eps,
+                  _validate_optimizer_controls, _normalized_weights)
 from .pairwise import _cluster_sandwich
 
 __all__ = ["MultiTraitPairwiseResult", "fit_pairwise_multi"]
@@ -430,14 +430,8 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
     if ("A" not in components or any(c not in ("A", "C", "M") for c in components)
             or len(set(components)) != len(components)):
         raise ValueError("components must contain A and optionally C/M, without duplicates")
-    _, eps = _validate_update_controls(.2, eps)
-    if isinstance(maxiter, (bool, np.bool_)):
-        raise TypeError("maxiter must be a positive integer")
-    maxiter = operator.index(maxiter)
-    if maxiter < 1:
-        raise ValueError("maxiter must be positive")
-    if isinstance(tol, (bool, np.bool_)) or not np.isfinite(tol) or not 0 < tol < 1:
-        raise ValueError("tol must be finite and in (0, 1)")
+    eps = _validate_eps(eps)
+    maxiter, tol = _validate_optimizer_controls(maxiter, tol)
     families = list(families)
     if not families:
         raise ValueError("fit_pairwise_multi needs at least one family")
@@ -458,10 +452,9 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
         raise ValueError("phen_names length must match number of traits")
     weights = _validate_weights(weights, len(families), "fit_pairwise_multi")
     _validate_population_sampling(sampling, "fit_pairwise_multi", weights=weights)
-    w = np.ones(len(families)) if weights is None else weights / weights.max()
-    w /= w.mean()
-    if np.any(w == 0):
-        raise ValueError("IPW weights span too wide a numerical range")
+    w = _normalized_weights(weights)
+    if w is None:
+        w = np.ones(len(families))
     _assert_population_case_rate(families, p, context="fit_pairwise_multi",
                                  weights=None if weights is None else w,
                                  member_bounds=member_bounds)

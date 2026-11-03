@@ -20,7 +20,7 @@ population draws, so this characterises the estimator only under its supported
 
     python benchmarks/bench_fit_heritability.py
     python benchmarks/bench_fit_heritability.py --reps 40 --n-fam 5000
-Writes bench_fit_heritability.csv (+ .png if matplotlib is present).
+Writes bench_fit_heritability.csv.
 """
 
 import os
@@ -29,7 +29,7 @@ import argparse
 
 import numpy as np
 
-from _common import get_plt, log_scale_if_positive, sd_ci, write_rows
+from _common import write_rows
 from ltpred import simulate_under_LTM_single, fit_heritability
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -123,57 +123,12 @@ def main():
         print(f"  {name:16s} ({len(fv)} rel) | SD={sd:.3f}")
 
     write_csv(rows)
-    plot(panel_a, panel_b, panel_s)
     print("\nwrote bench_fit_heritability.csv")
-    if get_plt() is not None:
-        print("wrote bench_fit_heritability.png")
 
 
 def write_csv(rows):
     fields = ["panel", "h2", "n_fam", "structure", "bias", "sd", "reported_se", "reps"]
     return write_rows(os.path.join(HERE, "bench_fit_heritability.csv"), rows, fields)
-
-
-def plot(panel_a, panel_b, panel_s):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, ax = plt.subplots(1, 3, figsize=(15, 4.4))
-    # (a) fitted vs true, with +/- SD error bars
-    h2 = [r["h2"] for r in panel_a]
-    fitted = [r["h2"] + r["bias"] for r in panel_a]
-    sd = [r["sd"] for r in panel_a]
-    ax[0].errorbar(h2, fitted, yerr=sd, fmt="o", capsize=4, label="fitted ± SD")
-    lim = [min(h2) - 0.1, max(h2) + 0.1]
-    ax[0].plot(lim, lim, "k--", lw=1, label="y = x")
-    ax[0].set_xlabel("true h²")
-    ax[0].set_ylabel("fitted h²")
-    ax[0].set_title("(a) bias & precision")
-    ax[0].legend(fontsize=8)
-    # (b) SD vs N with 1/sqrt(N) reference
-    n = np.array([r["n_fam"] for r in panel_b], float)
-    sdb = np.array([r["sd"] for r in panel_b])
-    ci = np.array([sd_ci(r["sd"], r["reps"]) for r in panel_b])
-    ax[1].errorbar(n, sdb, yerr=np.vstack([sdb - ci[:, 0], ci[:, 1] - sdb]),
-                   fmt="-o", capsize=3, label="across-replicate SD (95% CI)")
-    ref = sdb[0] * np.sqrt(n[0] / n)
-    ax[1].plot(n, ref, "k:", lw=1, label="∝ 1/√N")
-    log_scale_if_positive(ax[1])
-    ax[1].set_xlabel("number of families")
-    ax[1].set_ylabel("SD of fitted h²")
-    ax[1].set_title("(b) precision vs #families (h²=0.5)")
-    ax[1].legend(fontsize=8)
-    # (c) reported se vs true SD (calibration)
-    labels = [f"h²={r['h2']}" for r in panel_a]
-    xs = np.arange(len(labels))
-    ax[2].bar(xs - 0.2, [r["sd"] for r in panel_a], 0.4, label="true SD (across datasets)")
-    ax[2].bar(xs + 0.2, [r["reported_se"] for r in panel_a], 0.4, label="reported h2_se (within)")
-    ax[2].set_xticks(xs); ax[2].set_xticklabels(labels, fontsize=8)
-    ax[2].set_ylabel("uncertainty in h²")
-    ax[2].set_title("(c) reported se under-states true SD")
-    ax[2].legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_fit_heritability.png"), dpi=130)
 
 
 if __name__ == "__main__":

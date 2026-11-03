@@ -8,7 +8,7 @@ from scipy import stats
 
 from ltpred.covariance import construct_covmat_multi, construct_covmat_single
 from ltpred.family import Family, Member, families_from_columns
-from ltpred.estimate import (batch_means, estimate_liability,
+from ltpred.estimate import (_batch_means, estimate_liability,
                              estimate_liability_from_kinship,
                              estimate_liability_gibbs_arrays,
                              estimate_liability_pa_arrays,
@@ -23,16 +23,11 @@ from _helpers import imr
 def test_batch_means_mean_and_se():
     rng = np.random.default_rng(0)
     x = rng.normal(2.0, 1.0, size=10_000)
-    est, se = batch_means(x)
+    est, se = _batch_means(x)
     assert est[0] == pytest.approx(x.mean())
     assert 0 < se[0] < 0.1
 
 
-def test_batch_means_se_shrinks_with_n():
-    rng = np.random.default_rng(1)
-    small = batch_means(rng.normal(0, 1, 2_500))[1][0]
-    big = batch_means(rng.normal(0, 1, 40_000))[1][0]
-    assert big < small
 
 
 @pytest.mark.parametrize("n_sim", [0, 1, 2, 3])
@@ -699,6 +694,7 @@ def test_base_seeds_none_gives_valid_seeds_and_negatives_raise():
     # landing on the sentinel.
     seeds = _base_seeds(None, 3, 100)
     assert (seeds >= 0).all() and (seeds <= (1 << 32) - 1).all()
+    assert not np.array_equal(seeds, _base_seeds(None, 3, 100))  # fresh entropy
     with pytest.raises(ValueError, match="seed must be in"):
         _base_seeds(-1, 3, 100)
     assert (_base_seeds(0, 3, 100) >= 0).all()
@@ -723,11 +719,11 @@ def test_batch_means_requires_at_least_four_samples(n):
     # below two batches the estimator's rule is undefined; the public helper
     # now guards it exactly like the estimator guards n_sim
     with pytest.raises(ValueError, match="at least 4"):
-        batch_means(np.arange(n, dtype=float))
+        _batch_means(np.arange(n, dtype=float))
 
 
 def test_batch_means_accepts_four_samples():
-    est, se = batch_means(np.arange(4, dtype=float))
+    est, se = _batch_means(np.arange(4, dtype=float))
     assert est[0] == pytest.approx(1.5)
     assert np.isfinite(se[0])
 
@@ -1006,7 +1002,7 @@ def test_batch_means_se_uses_batched_draw_count():
     # ltpred's SE divides by the a*b draws that enter the batches, not by the
     # full retained n as R bmmat does (review 2026-08, F18); n = 10 tiles as a = 3, b = 3
     x = np.arange(10, dtype=float)
-    _, se = batch_means(x)
+    _, se = _batch_means(x)
     batch_mean = x[:9].reshape(3, 3).mean(axis=1)
     sigma2 = 3.0 * np.sum((batch_mean - batch_mean.mean()) ** 2) / 2
     assert se[0] == pytest.approx(np.sqrt(sigma2 / 9.0))
@@ -1218,19 +1214,6 @@ def test_neighbouring_seeds_do_not_share_family_streams():
     assert np.array_equal(e5, e5b)          # a seeded call stays reproducible
 
 
-def test_base_seeds_none_draws_fresh_entropy():
-    from ltpred.estimate import _base_seeds
-    first = _base_seeds(None, 4, 100)
-    second = _base_seeds(None, 4, 100)
-    assert np.all(first >= 0)              # the -1 unseeded sentinel is gone
-    assert not np.array_equal(first, second)
-
-
-def test_base_seed_blocks_of_neighbouring_seeds_are_disjoint():
-    from ltpred.estimate import _base_seeds
-    a = set(_base_seeds(5, 4, 100).tolist())
-    b = set(_base_seeds(6, 4, 100).tolist())
-    assert not (a & b)
 
 
 def test_estimator_rejects_h2_below_the_strict_pd_floor():

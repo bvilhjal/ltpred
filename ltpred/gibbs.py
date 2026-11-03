@@ -13,7 +13,7 @@ Algorithm G (methods report, "Computing the truncated mean"), as implemented.
 1. **G1 group.** Families with one role set share ``Sigma``;
    `ltpred.estimate._group_by_structure` buckets them and
    `ltpred.estimate._estimate_group` forms ``(P, sd)`` once per group.
-2. **G2 collapse.** `gibbs_estimate_batched` integrates out each family's
+2. **G2 collapse.** `_gibbs_round` integrates out each family's
    own ``(-inf, inf)`` coordinates (always the genetic rows on the public
    path; also ``o`` or a relative left unobserved), running families that
    share an unbounded set together (`_unbounded_patterns`). A family's draws
@@ -39,7 +39,7 @@ Algorithm G (methods report, "Computing the truncated mean"), as implemented.
    (`_mixing_directions`). These moves preserve the same truncated law and
    keep pins fixed. They activate when any conditional-on-pins variance
    exceeds its coordinate-conditional variance by a factor of 16; ordinary
-   blocks, and the `gibbs_advance` chains, keep coordinate sweeps.
+   blocks, and the `_gibbs_advance_chain` chains, keep coordinate sweeps.
 5. **G5 stream.** After ``burn_in`` sweeps, each of ``n_sim`` sweeps adds the
    outputs to running sums and sums of squares; the first
    ``n_batch * batch_size`` of them also form batch means, of which only the
@@ -56,7 +56,7 @@ Algorithm G (methods report, "Computing the truncated mean"), as implemented.
 Seeding. The batched kernels reseed the kernel RNG with ``seeds[f]`` at the
 top of family ``f``'s ``prange`` iteration (``-1``: unseeded), so a family's
 draws do not depend on thread scheduling; seed derivation is in
-`ltpred.estimate._base_seeds`. `gibbs_advance` (persistent chains for
+`ltpred.estimate._base_seeds`. `_gibbs_advance_chain` (persistent chains for
 `ltpred.fit`) instead draws every uniform from a thread-local
 ``numpy.random.Generator`` before entering ``prange``. `rtmvnorm_gibbs`
 reseeds the serial sweep's RNG (see its ``seed``).
@@ -75,11 +75,11 @@ from ._numba import _jit, _jit_parallel, prange
 from ._mathfun import _norm_cdf, _norm_ppf
 from ._validation import validate_bounds
 
-__all__ = ["rtmvnorm_gibbs", "gibbs_params", "gibbs_estimate_batched"]
+__all__ = ["rtmvnorm_gibbs", "gibbs_params"]
 
 # Numba's ``np.random`` state is tied to worker threads, so seeding the calling
 # thread cannot make a ``prange`` kernel scheduler-independent. For
-# `gibbs_advance`, generate float64 uniforms here instead and pass them into a
+# `_gibbs_advance_chain`, generate float64 uniforms here instead and pass them into a
 # random-free kernel (the estimator kernels reseed per family instead). The
 # RNG is thread-local so concurrent seeded fits cannot overwrite one another.
 _advance_rng_state = threading.local()
@@ -123,11 +123,14 @@ def _far_right_std_tnorm_quantile(a, b, u):
     if np.isinf(span):
         share = 1.0
     else:
-        share = 1.0 - np.exp(-a * span - 0.5 * span * span)
+        share = -np.expm1(-a * span - 0.5 * span * span)
     p = u * share
     if p > 1.0 - 1e-16:
         p = 1.0 - 1e-16
-    t = -a + np.sqrt(a * a - 2.0 * np.log(1.0 - p))
+    # Rationalised sqrt(a^2 + d) - a == d / (sqrt(a^2 + d) + a) with
+    # d = -2 log(1-p): no cancellation when d << a^2 (a >= 38 here).
+    d = -2.0 * np.log1p(-p)
+    t = d / (np.sqrt(a * a + d) + a)
     x = a + t
     if x < a:
         return a
@@ -602,7 +605,7 @@ def _gibbs_estimate_batched_collapsed(
             bm_sumsq[f, c] = s2[c]
 
 
-def as_bounds(a):
+def _as_bounds(a):
     """Contiguous float array for a kernel: **keep float32** (to halve the memory
     of large per-family bound arrays), otherwise coerce to float64. The kernels'
     internal state and accumulators stay float64 regardless, so only the big
@@ -617,7 +620,7 @@ def _collapsed_round(P, sd, sd0, cov, unbounded, lowers, uppers, out_idx, n_sim,
     """One round of step G2 for families sharing the unbounded set ``unbounded``.
 
     Samples only the kept block and streams ``E[z | y]`` for collapsed outputs
-    (see `gibbs_estimate_batched`); with nothing to collapse it runs the full
+    (see `_gibbs_round`); with nothing to collapse it runs the full
     chain on ``P``/``sd``. Returns the four ``(F, ncols)`` sums.
 
     Everything derived from ``(cov, unbounded, out_idx)`` -- the BLUP map, the
@@ -640,8 +643,8 @@ def _collapsed_round(P, sd, sd0, cov, unbounded, lowers, uppers, out_idx, n_sim,
         return total_sum, total_sumsq, bm_sum, bm_sumsq
     if coll_idx.size == 0:
         _gibbs_estimate_batched(np.ascontiguousarray(P), np.ascontiguousarray(sd),
-                                np.ascontiguousarray(sd0), as_bounds(lowers),
-                                as_bounds(uppers), out_idx, n_sim, burn_in,
+                                np.ascontiguousarray(sd0), _as_bounds(lowers),
+                                _as_bounds(uppers), out_idx, n_sim, burn_in,
                                 batch_size, n_batch, np.ascontiguousarray(seeds),
                                 total_sum, total_sumsq, bm_sum, bm_sumsq)
         return total_sum, total_sumsq, bm_sum, bm_sumsq
@@ -666,8 +669,8 @@ def _collapsed_round(P, sd, sd0, cov, unbounded, lowers, uppers, out_idx, n_sim,
         if _cache is not None:
             _cache[unbounded.tobytes()] = prepared
     W, cond_var, out_kind, out_local, P_k, sd_k, sd0_k = prepared
-    lo_k = as_bounds(np.ascontiguousarray(lowers[:, keep_idx]))
-    hi_k = as_bounds(np.ascontiguousarray(uppers[:, keep_idx]))
+    lo_k = _as_bounds(np.ascontiguousarray(lowers[:, keep_idx]))
+    hi_k = _as_bounds(np.ascontiguousarray(uppers[:, keep_idx]))
     _gibbs_estimate_batched_collapsed(
         P_k, sd_k, np.ascontiguousarray(sd0_k), lo_k, hi_k, out_kind,
         out_local, W, cond_var, n_sim, burn_in, batch_size, n_batch,
@@ -675,7 +678,7 @@ def _collapsed_round(P, sd, sd0, cov, unbounded, lowers, uppers, out_idx, n_sim,
     return total_sum, total_sumsq, bm_sum, bm_sumsq
 
 
-def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
+def _gibbs_round(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                            batch_size, n_batch, seeds, cov=None, collapse=None,
                            _collapse_cache=None):
     """Run one round of the batched sampler for same-covariance families.
@@ -752,7 +755,7 @@ def gibbs_estimate_batched(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
 
     _gibbs_estimate_batched(np.ascontiguousarray(P), np.ascontiguousarray(sd),
                             np.ascontiguousarray(sd0),
-                            as_bounds(lowers), as_bounds(uppers),
+                            _as_bounds(lowers), _as_bounds(uppers),
                             out_idx, n_sim, burn_in, batch_size, n_batch,
                             seeds, total_sum, total_sumsq, bm_sum, bm_sumsq)
     return total_sum, total_sumsq, bm_sum, bm_sumsq
@@ -845,12 +848,12 @@ def _advance_rng():
     return generator
 
 
-def gibbs_advance(P, sd, lowers, uppers, fixed, x, n_sweeps):
+def _gibbs_advance_chain(P, sd, lowers, uppers, fixed, x, n_sweeps):
     """Advance many families' truncated-MVN chains in place by ``n_sweeps`` sweeps.
 
     An internal fitting primitive of `ltpred.fit`; arguments are not validated,
     and public callers control reproducibility through the fitters' ``seed``.
-    Unlike `gibbs_estimate_batched` (which runs fresh independent chains and
+    Unlike `_gibbs_round` (which runs fresh independent chains and
     returns their running sums), this keeps a **persistent** state ``x``
     (``F x d``, updated in place) that the caller carries across outer
     iterations — the data-augmentation step of a variance-component fit,
@@ -932,7 +935,7 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
         would replay the stream the seeded call left behind, making
         ``seed=None`` results deterministic after any seeded call. The reseed
         also resets the calling thread's persistent-chain stream used by
-        `gibbs_advance`. With Numba, the high-level estimators seed each family
+        `_gibbs_advance_chain`. With Numba, the high-level estimators seed each family
         inside the parallel kernel and are safe for concurrent seeded use;
         without it they share the global-RNG caveat.
     params : (P, sd), optional

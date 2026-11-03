@@ -73,12 +73,11 @@ from scipy.linalg import qr
 from ._numba import _jit, _jit_parallel, prange
 from ._mathfun import _norm_cdf, _norm_ppf
 from .covariance import _PSD_CERTIFIED
-from .gibbs import as_bounds
+from .gibbs import _as_bounds
 from ._validation import validate_bounds, validate_mixture_inputs
 
 __all__ = ["pa_algorithm", "pa_estimate_batched"]
 
-_SQRT_2 = 1.4142135623730951
 _LOG_SQRT_2PI = 0.9189385332046727
 _FAR_TAIL_START = 16.0
 _FAR_TAIL_QUAD_LIMIT = 40.0
@@ -111,7 +110,7 @@ def _log_norm_cdf(x):
             term *= -(2.0 * k - 1.0) * inv_x2
             series += term
         return -0.5 * x * x - _LOG_SQRT_2PI - math.log(-x) + math.log(series)
-    return math.log(0.5 * math.erfc(-x / _SQRT_2))
+    return math.log(_norm_cdf(x))
 
 
 @_jit
@@ -167,34 +166,28 @@ def _far_right_std_tnorm_moments(a, b):
         if limit > _FAR_TAIL_QUAD_LIMIT:
             limit = _FAR_TAIL_QUAD_LIMIT
 
+    # One pass suffices in the local coordinate: y, E[y] and Var(y) are all
+    # O(1) (E[y^2]/Var(y) ~ 2 for the limiting exponential), so
+    # E[y^2] - E[y]^2 loses no digits -- the a^2-scale subtraction this
+    # transform exists to avoid would only reappear in x coordinates.
     n_panels = max(1, int(math.ceil(limit)))
     panel_width = limit / n_panels
+    half_width = 0.5 * panel_width
     mass = 0.0
     first = 0.0
+    second = 0.0
     for panel in range(n_panels):
-        left = panel * panel_width
-        half_width = 0.5 * panel_width
-        center = left + half_width
+        center = panel * panel_width + half_width
         for i in range(8):
             y = center + half_width * _GL8_NODES[i]
             density = math.exp(-y - 0.5 * (y / a) * (y / a))
             weight = half_width * _GL8_WEIGHTS[i] * density
             mass += weight
             first += weight * y
+            second += weight * y * y
 
     mean_y = first / mass
-    centered_second = 0.0
-    for panel in range(n_panels):
-        left = panel * panel_width
-        half_width = 0.5 * panel_width
-        center = left + half_width
-        for i in range(8):
-            y = center + half_width * _GL8_NODES[i]
-            density = math.exp(-y - 0.5 * (y / a) * (y / a))
-            weight = half_width * _GL8_WEIGHTS[i] * density
-            centered_second += weight * (y - mean_y) * (y - mean_y)
-
-    var_y = centered_second / mass
+    var_y = second / mass - mean_y * mean_y
     return a + mean_y / a, var_y / a / a
 
 
@@ -295,39 +288,39 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     sd = math.sqrt(var)
     use_mix = (not math.isnan(K_pop)) and (not math.isnan(K_i)) and \
         (upper != math.inf or lower == upper)
-    if use_mix:
-        split = -_norm_ppf(K_pop)               # lifetime threshold thr_pop
-        cdf_pop = _norm_cdf((split - mu) / sd)
-        # Weights are the masses that survive the lower bound: the control mass
-        # on (lower, split) and the future-case mass on (split, inf). With
-        # lower == -inf this is cdf_pop vs (1 - cdf_pop) (K_pop - K_i) / K_pop.
-        # A point mass (lower == upper) keeps the unbounded control weight.
-        cdf_lo = 0.0
-        if lower != -math.inf and lower != upper:
-            cdf_lo = _norm_cdf((lower - mu) / sd)
-        control = max(cdf_pop - cdf_lo, 0.0)
-        future = (1.0 - cdf_pop) * (K_pop - K_i) / K_pop
-        # denom == 0 needs no control mass left and K_i == K_pop (no future cases);
-        # with no future cases a censored control is certainly a lifetime control,
-        # so pin the weight to 1 instead of NaN. A lower bound at or above the
-        # split leaves only the future-case component (weight 0, below).
-        denom = control + future
-        mixture_prob = control / denom if denom > 0.0 else 1.0
-        if lower != upper and lower >= split:
-            mixture_prob = 0.0
-    else:
-        split = upper                            # plain truncated normal on (lower, upper)
-        mixture_prob = 1.0
+    if not use_mix:
+        # Plain mode is exactly the truncated normal on (lower, upper); the
+        # mixture algebra below would compute a second component on
+        # (upper, inf) only to multiply it by zero.
+        return _tnorm_moments_loc(mu, sd, lower, upper)
+    split = -_norm_ppf(K_pop)               # lifetime threshold thr_pop
+    cdf_pop = _norm_cdf((split - mu) / sd)
+    # Weights are the masses that survive the lower bound: the control mass
+    # on (lower, split) and the future-case mass on (split, inf). With
+    # lower == -inf this is cdf_pop vs (1 - cdf_pop) (K_pop - K_i) / K_pop.
+    # A point mass (lower == upper) keeps the unbounded control weight.
+    cdf_lo = 0.0
+    if lower != -math.inf and lower != upper:
+        cdf_lo = _norm_cdf((lower - mu) / sd)
+    control = max(cdf_pop - cdf_lo, 0.0)
+    future = _norm_cdf(-(split - mu) / sd) * (K_pop - K_i) / K_pop
+    # denom == 0 needs no control mass left and K_i == K_pop (no future cases);
+    # with no future cases a censored control is certainly a lifetime control,
+    # so pin the weight to 1 instead of NaN. A lower bound at or above the
+    # split leaves only the future-case component (weight 0, below).
+    denom = control + future
+    mixture_prob = control / denom if denom > 0.0 else 1.0
+    if lower != upper and lower >= split:
+        mixture_prob = 0.0
 
-    if mixture_prob == 0.0 and use_mix and lower != upper:
+    if mixture_prob == 0.0 and lower != upper:
         # Only the not-yet-onset case component survives, on (max(lower, split), inf).
         m0, v0 = 0.0, 0.0
         m1, v1 = _tnorm_moments_loc(mu, sd, max(lower, split), math.inf)
     else:
         m0, v0 = _tnorm_moments_loc(mu, sd, lower, split)
-        # ``split == inf``: plain-mode observed case (split = upper = +inf).
         # ``lower == split``: zero-width lower component, nothing to mix.
-        if split == math.inf or lower == split:
+        if lower == split:
             m1 = 0.0
             v1 = 0.0
         else:
@@ -870,8 +863,8 @@ def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
     K_i, K_pop = validate_mixture_inputs(
         K_i, K_pop, expected_shape=(d,), lower=lower, upper=upper,
         context="pa_algorithm mixture inputs")
-    K_i = as_bounds(K_i)
-    K_pop = as_bounds(K_pop)
+    K_i = _as_bounds(K_i)
+    K_pop = _as_bounds(K_pop)
     _check_pin_support(cov, lo[None, :], hi[None, :], K_i[order][None, :])
     return _pa_family(cov, lo, hi, K_i[order], K_pop[order])
 
@@ -891,8 +884,8 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
     ``F``."""
     cov = _validate_pa_covmat(covmat, _psd_certified=_psd_certified)
     d = cov.shape[0]
-    lowers = as_bounds(lowers)             # keeps float32 to halve memory
-    uppers = as_bounds(uppers)
+    lowers = _as_bounds(lowers)             # keeps float32 to halve memory
+    uppers = _as_bounds(uppers)
     F = lowers.shape[0]
     # Same fancy-index hazard as pa_algorithm, one dimension up: extra columns
     # are dropped without complaint, short ones raise a bare IndexError.
@@ -908,7 +901,7 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
         raise ValueError(f"target must be in [0, {d}); got {target}")
     order = np.concatenate(([target], np.delete(np.arange(d), target)))
     cov = np.ascontiguousarray(cov[np.ix_(order, order)])
-    # as_bounds already made contiguous inputs. The usual target is zero;
+    # _as_bounds already made contiguous inputs. The usual target is zero;
     # an identity permutation would duplicate both full cohort arrays.
     lo = lowers if target == 0 else np.ascontiguousarray(lowers[:, order])
     hi = uppers if target == 0 else np.ascontiguousarray(uppers[:, order])
@@ -922,8 +915,8 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
     K_is, K_pops = validate_mixture_inputs(
         K_is, K_pops, expected_shape=(F, d), lower=lowers, upper=uppers,
         context="batched PA mixture inputs")
-    K_is = as_bounds(K_is)
-    K_pops = as_bounds(K_pops)
+    K_is = _as_bounds(K_is)
+    K_pops = _as_bounds(K_pops)
     ki = K_is if target == 0 else np.ascontiguousarray(K_is[:, order])
     kp = K_pops if target == 0 else np.ascontiguousarray(K_pops[:, order])
     _check_pin_support(cov, lo, hi, ki)

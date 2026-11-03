@@ -59,6 +59,8 @@ from .pearson_aitken import _tnorm_moments_loc
 from ._numba import _jit
 from ._results import _TableExport
 
+__all__ = ["QuadratureResult", "estimate_liability_quadrature_arrays"]
+
 
 @dataclass(frozen=True)
 class QuadratureResult(_TableExport):
@@ -88,6 +90,7 @@ class QuadratureResult(_TableExport):
 
 _LOG_SQRT_2PI = 0.5 * math.log(2.0 * math.pi)
 _GL_X, _GL_W = roots_legendre(12)
+_LOG_GL_W = np.log(_GL_W)
 _EPS = float(np.finfo(float).eps)
 
 
@@ -110,7 +113,7 @@ def _log_mass(mean, variance, lower, upper):
             correction = -z[..., None] * delta - 0.5 * delta * delta
             return (math.log(width / sd) - math.log(2.0) - _LOG_SQRT_2PI
                     - 0.5 * z * z
-                    + logsumexp(np.log(_GL_W) + correction, axis=-1))
+                    + logsumexp(_LOG_GL_W + correction, axis=-1))
     a = (lower - mean) / sd
     b = (upper - mean) / sd
     # Reflect positive intervals before subtracting CDFs. expm1 avoids losing
@@ -131,7 +134,7 @@ def _moments(mean, variance, lower, upper):
         if width / math.sqrt(variance) <= 1e-3 and abs((lower + 0.5 * width - mean) * width / variance) <= 10.0:
             center = lower + 0.5 * width
             delta = 0.5 * width * _GL_X
-            logw = np.log(_GL_W) - ((center - mean) * delta + 0.5 * delta**2) / variance
+            logw = _LOG_GL_W - ((center - mean) * delta + 0.5 * delta**2) / variance
             weight = np.exp(logw - logsumexp(logw))
             shift = float(weight @ delta)
             return center + shift, float(weight @ (delta - shift)**2)
@@ -143,14 +146,15 @@ def _moments_array(means, variance, lower, upper):
     """Node-wise moments; retain the scalar oracle and its narrow-tail guard."""
     result = np.empty((means.size, 2))
     sd = math.sqrt(variance)
+    width = upper - lower
     narrow = (lower != upper and math.isfinite(lower) and math.isfinite(upper)
-              and (upper - lower) / sd <= 1e-3)
+              and width / sd <= 1e-3)
+    center = lower + 0.5 * width if narrow else 0.0
+    delta = 0.5 * width * _GL_X if narrow else _GL_X
     for i in range(means.size):
         mean = means[i]
-        if narrow and abs((lower + 0.5 * (upper - lower) - mean) * (upper - lower) / variance) <= 10.0:
-            center = lower + 0.5 * (upper - lower)
-            delta = 0.5 * (upper - lower) * _GL_X
-            logw = np.log(_GL_W) - ((center - mean) * delta + 0.5 * delta**2) / variance
+        if narrow and abs((center - mean) * width / variance) <= 10.0:
+            logw = _LOG_GL_W - ((center - mean) * delta + 0.5 * delta**2) / variance
             weight = np.exp(logw - np.max(logw))
             weight /= np.sum(weight)
             shift = np.sum(weight * delta)

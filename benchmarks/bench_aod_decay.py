@@ -36,7 +36,7 @@ here is conservative.
     python benchmarks/bench_aod_decay.py --reps 8 --n-fam 4000 --n-em 60
     python benchmarks/bench_aod_decay.py --no-robustness   # skip panel (d)
     python benchmarks/bench_aod_decay.py --rob-reps 4 --rob-n-fam 3000 --c2 0.15
-Writes bench_aod_decay.csv (+ .png if matplotlib is present).
+Writes bench_aod_decay.csv.
 """
 
 import os
@@ -49,7 +49,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # repo root: `research`
 
-from _common import get_plt, simulate_families_multi, write_rows
+from _common import simulate_families_multi, write_rows
 from research.advanced_fitting import fit_genetic_correlation_decay
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -222,65 +222,13 @@ def main():
                   f"lam_x={rec['lx_mean']:.4f}   [{time.time()-t0:.0f}s]  ({desc})")
 
     write_csv(rows)
-    plot(panel_a, panel_b, panel_d, lam_max)
     print("\nwrote bench_aod_decay.csv")
-    if get_plt() is not None:
-        print("wrote bench_aod_decay.png")
 
 
 def write_csv(rows):
     fields = ["panel", "lam", "n_fam", "rg_mean", "rg_sd", "lx_mean", "lx_sd",
               "lw_mean", "reps", "arm", "desc", "c2", "h2_0", "h2_1"]
     return write_rows(os.path.join(HERE, "bench_aod_decay.csv"), rows, fields)
-
-
-def plot(panel_a, panel_b, panel_d, lam_max):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, ax = plt.subplots(1, 3, figsize=(14.5, 4.4))
-    if panel_a:
-        lam = [r["lam"] for r in panel_a]
-        ax[0].errorbar(lam, [r["rg_mean"] for r in panel_a],
-                       yerr=[r["rg_sd"] for r in panel_a], fmt="o", capsize=4,
-                       label="fitted r_g ± SD")
-        ax[0].axhline(0.5, color="k", ls="--", lw=1, label="true r_g = 0.5")
-        ax2 = ax[0].twinx()
-        ax2.errorbar(lam, [r["lx_mean"] for r in panel_a],
-                     yerr=[r["lx_sd"] for r in panel_a], fmt="s", color="tab:red",
-                     capsize=4, label="fitted λ")
-        ax2.plot(lam, lam, color="tab:red", ls=":", lw=1)
-        ax2.set_ylabel("fitted λ", color="tab:red")
-        ax[0].set_xlabel("true λ")
-        ax[0].set_ylabel("fitted r_g")
-        ax[0].set_title("(a) recovery vs true λ (r_g=0.5)")
-        ax[0].legend(fontsize=8, loc="lower right")
-    if panel_b:
-        n = [r["n_fam"] for r in panel_b]
-        ax[1].errorbar(n, [r["rg_mean"] for r in panel_b],
-                       yerr=[r["rg_sd"] for r in panel_b], fmt="-o", capsize=4,
-                       label="fitted r_g ± SD")
-        ax[1].axhline(0.5, color="k", ls="--", lw=1, label="true r_g = 0.5")
-        ax[1].set_xscale("log")
-        ax[1].set_xlabel("number of families")
-        ax[1].set_ylabel("fitted r_g")
-        ax[1].set_title("(b) data requirement (r_g=0.5, λ=0.04)")
-        ax[1].legend(fontsize=8)
-    if panel_d:
-        x = np.arange(len(panel_d))
-        sd = [r["rg_sd"] for r in panel_d]
-        ax[2].bar(x, [r["rg_mean"] for r in panel_d],
-                  yerr=sd if np.all(np.isfinite(sd)) else None, capsize=4,
-                  color=["tab:red", "tab:orange", "tab:gray"][:len(panel_d)])
-        ax[2].axhline(0.5, color="k", ls="--", lw=1, label="true r_g = 0.5")
-        ax[2].set_xticks(x)
-        ax[2].set_xticklabels([r["arm"] for r in panel_d], rotation=15,
-                              fontsize=8)
-        ax[2].set_ylabel("fitted r_g")
-        ax[2].set_title("(d) misspecification robustness")
-        ax[2].legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_aod_decay.png"), dpi=130)
 
 
 if __name__ == "__main__":

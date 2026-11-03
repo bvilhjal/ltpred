@@ -9,9 +9,61 @@ and measured performance. Documentation-only corrections, benchmark
 housekeeping and the review findings behind each change are summarised, not
 itemised; the full per-release notes up to v0.7.4 are in git history
 (`git show dc5336c:CHANGELOG.md`), and review findings are indexed in
-[`docs/REVIEWS.md`](docs/REVIEWS.md).
+[the review ledger](docs/MAINTAINING.md).
 
 ## Unreleased
+
+## 0.8.0 — 2026-11-03
+
+Cleanup release (a minor bump: the removals below are breaking
+for code that used them). No estimator, fitter or sampler changes its model;
+the deterministic PA and R-lock scores are unchanged.
+
+- **Breaking:** `h2` is now required by `get_relatedness`,
+  `construct_covmat_single` (keyword-only) and
+  `construct_covmat_from_kinship`; the stale `h2=0.5` defaults are gone (the
+  estimators have required `h2` since 0.7.0, so a constructor could silently
+  build a covariance for the wrong disease).
+- **Breaking:** the `n_fam` count-mapping family specification is removed
+  from the covariance constructors, `simulate_under_LTM_single` and the
+  research sex-limitation/nurture constructors. Spell the family once, as
+  `fam_vec=["m", "s1", "s2"]`.
+- **Breaking:** `method="aitken"` and `method="pearson_aitken"` are no
+  longer accepted; the Pearson–Aitken engine is `"pearson-aitken"` (alias
+  `"pa"`).
+- **Breaking:** internal primitives that leaked as public names are now
+  private: `batch_means`, `gibbs_estimate_batched`, `gibbs_advance` and
+  `as_bounds` (and `gibbs_advance_moment` in `research/`). Their arguments
+  were never checked; use `estimate_liability` / `rtmvnorm_gibbs`.
+- Tetrachoric estimation solves the saturated-model root
+  `p_both(rho) = a/n` by Brent's method on Plackett cell probabilities (the
+  pairwise fitters' engine), with a closed-form observed-information SE.
+  Estimates move by up to ~1e-8 (the old bounded optimizer was the loose
+  side) and each evaluation is about 3× faster than the Genz CDF it
+  replaces (kept only as an extreme-corner fallback). This closes review
+  09f F8.
+- Faster, with numbers unchanged to rounding: the Aalen (1978) variance in
+  `aalen_johansen_cip` is three cumulative sums instead of a Python loop
+  over the age grid; plain (non-mixture) Pearson–Aitken rows no longer
+  compute a mixture component that is multiplied by zero; far-tail
+  truncated-normal moments take one quadrature pass instead of two;
+  `correct_positive_definite` runs one `eigvalsh` per shrink step instead
+  of up to three. Tail probabilities are spelled `Phi(-x)` instead of
+  `1 - Phi(x)` throughout, and the logistic CIP uses `expit`, so extreme
+  ages/liabilities no longer lose digits (or warn) before clipping.
+- Tests: a `slow` tier (15 sampling-heavy tests, ~25 s of the 55 s suite)
+  runs once in CI instead of on every matrix leg; local `pytest -q` still
+  runs everything. A handful of tests duplicated by stronger ones (the
+  loose PA-vs-Gibbs correlation smoke, seed-block arithmetic, fixture
+  metadata, benchmark-runner plumbing) are deleted.
+- Benchmarks write CSVs only: the per-script matplotlib plotting (~975
+  lines; the PNGs were gitignored and never cited) is removed, which also
+  removes the silent no-matplotlib environment trap.
+- Docs: `docs/MAINTAINING.md` replaces `ROADMAP.md`, `RELEASING.md`,
+  `REVIEWS.md` and the archived 09f review text (open and declined
+  findings kept; resolved findings are in this changelog); the redirect
+  stubs and the hand-maintained advanced-API tables in `api.md` are gone
+  (the generated reference below them already lists every name).
 
 - phensim is on PyPI since 1.0.0: the `[sim]` extra now requires
   `phensim>=1.0.0`, and the install docs and the missing-phensim `ImportError`
@@ -228,8 +280,8 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 - Condensed this changelog and the benchmark ledger (`RESULTS.md` 1,904 →
   1,462 lines, no result changed); merged the six dated reviews into one
-  [review ledger](docs/REVIEWS.md) of open, declined and resolved findings;
-  merged `docs/PAPER_PLAN.md` into `docs/ROADMAP.md`, whose priorities now
+  [review ledger](docs/MAINTAINING.md) of open, declined and resolved findings;
+  merged `docs/PAPER_PLAN.md` into the roadmap (now in `docs/MAINTAINING.md`), whose priorities now
   include the open review findings; dropped redundant files from the
   benchmark evidence capsules.
 - Every core algorithm is stated step by step in its module docstring, with

@@ -66,7 +66,7 @@ onset was at least that early.
 
     python benchmarks/bench_fh_prediction.py
     python benchmarks/bench_fh_prediction.py --trends 1 2 4 --h2s 0.3 0.6
-Writes bench_fh_prediction.csv (+ .png if matplotlib is present).
+Writes bench_fh_prediction.csv.
 """
 
 import os
@@ -75,7 +75,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from _common import estimate, get_plt, safe_corr, write_rows
+from _common import estimate, safe_corr, write_rows
 from ltpred.covariance import construct_covmat_single, correct_positive_definite
 from ltpred.thresholds import liability_threshold, convert_age_to_thresh, convert_liability_to_aoo
 from ltpred.family import Family, Member
@@ -242,7 +242,7 @@ def simulate_onset(fam_vec, h2, K, n_fam, seed, mid=60.0, slope=1.0 / 8.0):
 def _engine_label(method):
     """Canonical display/CSV label for the selected pedigree inference engine."""
     key = str(method).lower()
-    if key in {"pa", "pearson-aitken", "pearson_aitken", "aitken"}:
+    if key in {"pa", "pearson-aitken"}:
         return "PA"
     if key == "gibbs":
         return "Gibbs"
@@ -487,10 +487,7 @@ def main():
                   f"| first-rep Gibbs={m['corr_fh_onset_pin_gibbs']:.3f}")
 
     write_csv(rows)
-    plot(rows, args)
     print("\nwrote bench_fh_prediction.csv")
-    if get_plt() is not None:
-        print("wrote bench_fh_prediction.png")
 
 
 def write_csv(rows):
@@ -522,108 +519,6 @@ def write_csv(rows):
                "mean_shift_fh_age_single_k_minus_cohort"]
     fields.extend(f"{name}_se" for name in metrics)
     return write_rows(os.path.join(HERE, "bench_fh_prediction.csv"), rows, fields)
-
-
-def plot(rows, args):
-    plt = get_plt()
-    if plt is None:
-        return
-    asc = sorted([r for r in rows if r["panel"] == "ascertain"], key=lambda r: r["case_frac"])
-    h2s = sorted([r for r in rows if r["panel"] == "h2"], key=lambda r: r["h2"])
-    trd = sorted([r for r in rows if r["panel"] == "trend"], key=lambda r: r["trend_R"])
-    csp = sorted([r for r in rows if r["panel"] == "cohortspan"], key=lambda r: r["span"])
-    ons = sorted([r for r in rows if r["panel"] == "onset"],
-                 key=lambda r: (r["h2"], r["K"]))
-    fig, axs = plt.subplots(3, 2, figsize=(13, 12.5))
-    ax = axs.ravel()
-    pedigree_engine = asc[0]["inference_engine"] if asc else _engine_label(args.method)
-    adult_engine = csp[0]["inference_engine"] if csp else "closed-form"
-    C = dict(fh_age_cohort="#2a78d6", ltfh="#1baf7a", count="#eda100",
-             cc="#888780", one="#e34948")
-
-    P = [r["case_frac"] for r in asc]
-    ax[0].errorbar(P, [r["corr_fh_age_cohort"] for r in asc],
-                   yerr=[r["corr_fh_age_cohort_se"] for r in asc], fmt="-o",
-                   capsize=2, color=C["fh_age_cohort"], label="FH + age/cohort CIP")
-    ax[0].errorbar(P, [r["corr_ltfh"] for r in asc],
-                   yerr=[r["corr_ltfh_se"] for r in asc], fmt="-s",
-                   capsize=2, color=C["ltfh"], label="LT-FH")
-    ax[0].errorbar(P, [r["corr_cc"] for r in asc],
-                   yerr=[r["corr_cc_se"] for r in asc], fmt="--^",
-                   capsize=2, color=C["cc"], label="case/control")
-    ax[0].errorbar(P, [r["corr_count"] for r in asc],
-                   yerr=[r["corr_count_se"] for r in asc], fmt=":d",
-                   capsize=2, color=C["count"], label="FH-count")
-    ax[0].set_xlabel("proband case fraction (ascertainment)")
-    ax[0].set_ylabel("corr(prediction, true g)")
-    ax[0].set_title(f"(a) ascertainment (h²={args.h2}, K={args.K}; {pedigree_engine})")
-    ax[0].legend(fontsize=8)
-
-    H = [r["h2"] for r in h2s]
-    ax[1].errorbar(H, [r["corr_fh_age_cohort"] for r in h2s],
-                   yerr=[r["corr_fh_age_cohort_se"] for r in h2s], fmt="-o",
-                   capsize=2, color=C["fh_age_cohort"], label="FH + age/cohort CIP")
-    ax[1].errorbar(H, [r["corr_ltfh"] for r in h2s],
-                   yerr=[r["corr_ltfh_se"] for r in h2s], fmt="-s",
-                   capsize=2, color=C["ltfh"], label="LT-FH")
-    ax[1].errorbar(H, [r["corr_cc"] for r in h2s],
-                   yerr=[r["corr_cc_se"] for r in h2s], fmt="--^",
-                   capsize=2, color=C["cc"], label="case/control")
-    ax[1].set_xlabel("heritability h²")
-    ax[1].set_ylabel("corr(prediction, true g)")
-    ax[1].set_title(f"(b) vs heritability (50% ascertained; {pedigree_engine})")
-    ax[1].legend(fontsize=8)
-
-    R = [r["trend_R"] for r in trd]
-    ax[2].axhline(0.0, color="k", ls=":", lw=1)
-    ax[2].bar([str(r) for r in R],
-              [r["mean_shift_fh_age_single_k_minus_cohort"] for r in trd],
-              yerr=[r["mean_shift_fh_age_single_k_minus_cohort_se"] for r in trd],
-              capsize=3,
-              color=C["one"], width=0.55)
-    ax[2].set_xlabel("secular prevalence trend  R  (× per 30 y)")
-    ax[2].set_ylabel("cohort-blind − cohort-aware mean score")
-    ax[2].set_title(f"(c) ignoring cohort shifts the score (pedigree; {pedigree_engine})")
-
-    S = [r["span"] for r in csp]
-    ax[3].errorbar(S, [r["corr_adult"] for r in csp],
-                   yerr=[r["corr_adult_se"] for r in csp], fmt="-o",
-                   capsize=2, color=C["fh_age_cohort"], label="ADuLT: cohort-aware")
-    ax[3].errorbar(S, [r["corr_adult_single_k"] for r in csp],
-                   yerr=[r["corr_adult_single_k_se"] for r in csp], fmt="-x",
-                   capsize=2, color=C["one"], label="ADuLT: cohort-blind")
-    ax[3].set_xlabel("birth-cohort half-span of cases  (± years)")
-    ax[3].set_ylabel("corr(own-onset estimate, true g)")
-    ax[3].set_title(f"(d) ADuLT cohort personalisation "
-                    f"(R={args.span_trend}; {adult_engine})")
-    ax[3].legend(fontsize=8)
-
-    h2s_o = sorted({r["h2"] for r in ons})
-    for h2 in h2s_o:
-        sub = [r for r in ons if r["h2"] == h2]
-        K = [r["K"] for r in sub]
-        col = f"C{h2s_o.index(h2)}"
-        ax[4].errorbar(K, [r["corr_ltfh"] for r in sub],
-                       yerr=[r["corr_ltfh_se"] for r in sub], fmt="--s",
-                       capsize=2, color=col, alpha=0.55,
-                       label=f"h²={h2} classic LT-FH")
-        ax[4].errorbar(K, [r["corr_fh_onset_pin"] for r in sub],
-                       yerr=[r["corr_fh_onset_pin_se"] for r in sub], fmt="-o",
-                       capsize=2, color=col, label=f"h²={h2} onset pin")
-        ax[4].errorbar(K, [r["corr_fh_onset_interval"] for r in sub],
-                       yerr=[r["corr_fh_onset_interval_se"] for r in sub],
-                       fmt=":^", capsize=2, color=col, alpha=0.8,
-                       label=f"h²={h2} onset interval")
-    ax[4].set_xscale("log")
-    ax[4].set_xlabel("prevalence K")
-    ax[4].set_ylabel("corr(prediction, true g)")
-    ax[4].set_title("(e) onset encoding: pin vs interval vs classic "
-                    "(full follow-up; PA)")
-    ax[4].legend(fontsize=7)
-    ax[5].axis("off")
-
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_fh_prediction.png"), dpi=130)
 
 
 if __name__ == "__main__":

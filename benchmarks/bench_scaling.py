@@ -11,7 +11,7 @@ documented biobank-scale throughput is backed by this benchmark.
 
     python benchmarks/bench_scaling.py
     python benchmarks/bench_scaling.py --sizes 500 1000 2000 4000 8000
-Writes bench_scaling.csv (+ .png if matplotlib is present).
+Writes bench_scaling.csv.
 """
 
 import os
@@ -20,7 +20,7 @@ import time
 
 import numpy as np
 
-from _common import estimate, get_plt, simulate_families, write_rows
+from _common import estimate, simulate_families, write_rows
 from ltpred import estimate_liability_pa_arrays
 
 try:
@@ -131,46 +131,6 @@ def write_csv(rows):
     return write_rows(os.path.join(HERE, "bench_scaling.csv"), rows, fields)
 
 
-def plot(nfam_rows, size_rows):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.4))
-
-    def timing_error(rows, key):
-        values = np.asarray([r[key] for r in rows])
-        q25 = np.asarray([r[f"{key}_q25"] for r in rows])
-        q75 = np.asarray([r[f"{key}_q75"] for r in rows])
-        return np.vstack((values - q25, q75 - values))
-
-    n = [r["value"] for r in nfam_rows]
-    for key, label, marker in (("t_gibbs", "Gibbs", "o"),
-                               ("t_pa", "PA object", "s"),
-                               ("t_pa_array", "PA array", "^")):
-        axes[0].errorbar(n, [r[key] for r in nfam_rows],
-                         yerr=timing_error(nfam_rows, key), fmt=f"-{marker}",
-                         capsize=2, label=label)
-    axes[0].set_xlabel("number of families")
-    axes[0].set_ylabel("wall time (s)")
-    axes[0].set_yscale("log")
-    axes[0].set_title("(a) scaling: parents + one sibling")
-    axes[0].legend()
-    sz = [r["value"] for r in size_rows]
-    for key, label, marker in (("t_gibbs", "Gibbs", "o"),
-                               ("t_pa", "PA object", "s"),
-                               ("t_pa_array", "PA array", "^")):
-        axes[1].errorbar(sz, [r[key] for r in size_rows],
-                         yerr=timing_error(size_rows, key), fmt=f"-{marker}",
-                         capsize=2, label=label)
-    axes[1].set_xlabel("relatives per family")
-    axes[1].set_ylabel("wall time (s)")
-    axes[1].set_yscale("log")
-    axes[1].set_title("(b) scaling with family size")
-    axes[1].legend()
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_scaling.png"), dpi=130)
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sizes", type=int, nargs="+",
@@ -206,10 +166,7 @@ def main():
                                  args.seed, args.timing_reps)
 
     path = write_csv(nfam_rows + size_rows)
-    plot(nfam_rows, size_rows)
     print(f"\nwrote {os.path.basename(path)}")
-    if get_plt() is not None:
-        print("wrote bench_scaling.png")
 
 
 if __name__ == "__main__":

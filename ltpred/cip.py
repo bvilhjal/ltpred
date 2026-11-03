@@ -150,11 +150,11 @@ def kaplan_meier_cip(age_entry: ArrayLike, age_exit: ArrayLike,
     if np.any(is_event & (age_exit == age_entry)):
         raise ValueError("zero-length follow-up cannot carry an event")
 
-    grid = np.unique(age_exit[is_event])
+    grid, d = np.unique(age_exit[is_event], return_counts=True)
     if grid.size == 0:
         raise ValueError("no events of interest in the data")
     Y = _risk_sets(age_entry, age_exit, grid)
-    d = _count_at(np.sort(age_exit[is_event]), grid).astype(float)
+    d = d.astype(float)
     if np.any(Y <= 0):
         raise ValueError("empty risk set at an event age (check follow-up data)")
     if np.any(d > Y):
@@ -246,13 +246,15 @@ def aalen_johansen_cip(age_entry: ArrayLike, age_exit: ArrayLike,
 
 
 def _aj_on_grid(age_entry, age_exit, event_type, cause, grid):
-    """Aalen-Johansen CIF for ``cause`` on a fixed grid, plus variance pieces.
+    """Aalen-Johansen CIF for ``cause`` on ``grid`` (the unique event ages), plus variance pieces.
 
     An empty risk set (``Y == 0``) at a grid age leaves the increment undefined:
     there is no one left to have had the event, yet the grid says one did.
     Raises, matching `kaplan_meier_cip`."""
     Y = _risk_sets(age_entry, age_exit, grid).astype(float)
-    d_all = _count_at(np.sort(age_exit[event_type > 0]), grid).astype(float)
+    # grid is np.unique of these exits at the caller, so counts align with it.
+    _, d_all = np.unique(age_exit[event_type > 0], return_counts=True)
+    d_all = d_all.astype(float)
     d_cause = _count_at(np.sort(age_exit[event_type == cause]), grid).astype(float)
     if np.any(Y <= 0):
         raise ValueError(
@@ -280,43 +282,29 @@ def _aalen_variance(F, pieces):
     surv_prev, d_cause, d_all, Y = pieces
     d_other = d_all - d_cause
     surv_after = surv_prev * (1.0 - d_all / Y)
-    var = np.empty(F.size, dtype=float)
 
     # ``v1 + F^2 v3 - 2 F v2`` is the Aalen variance (docs/cip-estimation.md,
     # Equation 4). Separate cause/other contributions are essential when causes
     # are tied: replacing their finite-population factors with d / Y**2 is only
-    # a large-risk-set approximation.
-    v1 = v2 = v3 = 0.0
-    for j in range(F.size):
-        if d_other[j] > 0 and surv_after[j] > 0:
-            tie = 1.0 if d_other[j] == 1 else (
-                1.0 - (d_other[j] - 1.0) / (Y[j] - 1.0)
-            )
-            increment = (
-                surv_prev[j] ** 2 * tie * d_other[j] / Y[j] ** 2
-            )
-            inv_surv = 1.0 / surv_after[j]
-            scaled_f = F[j] * inv_surv
-            v1 += scaled_f ** 2 * increment
-            v2 += inv_surv * scaled_f * increment
-            v3 += inv_surv ** 2 * increment
+    # a large-risk-set approximation. Each contribution at age j depends only
+    # on quantities at j (never on the running v's), so the recurrence is
+    # three plain cumulative sums -- vectorised below, no Python loop over
+    # what may be a 1e5-age register grid.
+    def _contrib(d, active, scaled):
+        """Per-age (v1, v2, v3) increments for one event class."""
+        with np.errstate(divide="ignore", invalid="ignore"):
+            # tie = 1 at d == 1 (incl. the removable Y == d == 1 boundary,
+            # where cmprsk likewise assigns 1), else 1 - (d-1)/(Y-1).
+            tie = np.where(d == 1, 1.0, 1.0 - (d - 1.0) / (Y - 1.0))
+            increment = surv_prev ** 2 * tie * d / Y ** 2
+            inv_surv = np.where(surv_after > 0, 1.0 / surv_after, 0.0)
+        s = scaled(F, inv_surv)
+        inc = np.where(active, increment, 0.0)
+        return s ** 2 * inc, inv_surv * s * inc, inv_surv ** 2 * inc
 
-        if d_cause[j] > 0:
-            # For Y == d_cause == 1 the finite-population fraction is the
-            # removable 0 / 0 boundary. ``cmprsk`` assigns tie=1, giving the
-            # finite last-event contribution rather than NaN.
-            tie = 1.0 if d_cause[j] == 1 else (
-                1.0 - (d_cause[j] - 1.0) / (Y[j] - 1.0)
-            )
-            increment = (
-                surv_prev[j] ** 2 * tie * d_cause[j] / Y[j] ** 2
-            )
-            inv_surv = 0.0 if surv_after[j] <= 0 else 1.0 / surv_after[j]
-            scaled_f = 1.0 + F[j] * inv_surv
-            v1 += scaled_f ** 2 * increment
-            v2 += inv_surv * scaled_f * increment
-            v3 += inv_surv ** 2 * increment
-
-        var[j] = v1 + F[j] ** 2 * v3 - 2.0 * F[j] * v2
-
-    return var
+    o1, o2, o3 = _contrib(d_other, (d_other > 0) & (surv_after > 0),
+                          lambda f, inv: f * inv)
+    c1, c2, c3 = _contrib(d_cause, d_cause > 0,
+                          lambda f, inv: 1.0 + f * inv)
+    v1 = np.cumsum(o1 + c1); v2 = np.cumsum(o2 + c2); v3 = np.cumsum(o3 + c3)
+    return v1 + F ** 2 * v3 - 2.0 * F * v2

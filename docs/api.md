@@ -1,7 +1,8 @@
 # API reference
 
-A quick map of the primary workflow, followed by advanced and numerical APIs and
-then signatures/docstrings generated from the source. The top-level
+A quick map of the primary workflow, followed by signatures and docstrings
+generated from the source for every public module (advanced array, pairwise
+and low-level numerical APIs included). The top-level
 `ltpred.__all__` controls wildcard imports and is intentionally limited to the
 ordinary single-trait path. A wider set of names is available as explicit
 top-level compatibility imports; the remaining numerical functions are available
@@ -30,20 +31,6 @@ is also a top-level export.
 | `observed_to_liability_h2` / `liability_to_observed_h2` | observed ↔ liability-scale `h²` (Lee et al.) |
 | `set_num_threads` | set the Numba-parallel thread count |
 
-## Advanced fitting and scale APIs
-
-**Table 2. Advanced estimation and fitting.**
-
-| function | purpose |
-|---|---|
-| `estimate_liability_pa_arrays` / `estimate_liability_gibbs_arrays` | array API — skip `Family` objects for biobank scale |
-| `estimate_liability_quadrature_arrays` | opt-in numerical posterior moments for additive, noninbred nuclear families with `0 <= h2 < 1`; separate refinement diagnostics, no mixture or shared environment |
-| `estimate_liability_pa_chunked` / `estimate_liability_gibbs_chunked` | chunked array API — same kernels, bounded working set |
-| `estimate_liability_pa_batches` / `estimate_liability_gibbs_batches` | consume an iterator of bound batches and return concatenated arrays; never hold all bounds |
-| `fit_variance_components` | **fit** additive `A` + shared-environment `C` (sibship) / `M` (couple) as proportions under the same population/IPW sampling contract |
-| `fit_pairwise` | opt-in deterministic A/C/M binary-pair composite likelihood; common thresholds, independent families and explicit population/IPW sampling contract; conditional interior cluster-sandwich SEs |
-| `fit_pairwise_multi` | opt-in joint h²/rg/re and optional multivariate sibship/couple covariance; observed-pair identification, PSD components, population/IPW and conditional cluster-sandwich SEs |
-| `bootstrap_fit` | iid-family cluster bootstrap SD / percentile interval; it does not correct ascertainment bias |
 
 The heavier inferential machinery — the HE multi-trait genetic-correlation,
 onset-age-decay, common-factor and genetic-nurture fits, the MCEM
@@ -58,18 +45,6 @@ integer in `[0, 2**32 - 1]`; booleans are rejected. Derived sampler streams wrap
 deterministically within that 32-bit range. Resampling seeds on bootstrap helpers
 follow NumPy's `default_rng` contract.
 
-## Low-level numerical APIs
-
-**Table 3. Numerical building blocks.**
-
-| function | purpose |
-|---|---|
-| `pa_algorithm` / `pa_estimate_batched` | Pearson–Aitken selection updates |
-| `construct_covmat_single` / `construct_covmat_multi` | family covariance from relatedness |
-| `get_relatedness` | shared-DNA × `h²` for a pair of roles |
-| `construct_covmat_from_kinship` | liability covariance from a kinship/`A` matrix, optionally with caller-supplied `C`/`M` kernels |
-| `rtmvnorm_gibbs` | truncated-MVN Gibbs sampler; covariance must be strictly positive-definite |
-| `convert_age_to_cir` / `convert_age_to_thresh` / … | age ↔ incidence ↔ threshold |
 
 PA accepts a symmetric positive-semidefinite covariance with strictly positive
 marginal variances. Gibbs requires strict positive-definiteness because it forms
@@ -77,22 +52,6 @@ precision-based conditional variances.
 The sex-limited and genetic-nurture covariance constructors live in the
 checkout-only `research/covariance_extensions.py`.
 
-## Additional public names
-
-**Table 4. Supporting functions and result containers.**
-
-| names | purpose |
-|---|---|
-| `Member`, `Family`, `LiabilityResult`, `QuadratureResult`, `PopulationScores` | family inputs and scoring outputs; scoring results export columns with `to_dict()` or optional-pandas `to_frame()` |
-| `CipCurve`, `kaplan_meier_cip`, `aalen_johansen_cip` | empirical cumulative-incidence estimation and curve result |
-| `ParentGraph`, `Pedigree`, `build_parent_graph`, `extract_pedigree` | indexed register relationships and proband pedigree extraction |
-| `Covmat`, `correct_positive_definite` | labelled covariance and explicit positive-definite repair |
-| `tetrachoric`, `tetrachoric_table`, `tetrachoric_matrix`, `TetrachoricResult` | binary-data liability-correlation diagnostics |
-| `probit_liability_r2`, `liability_r2_from_z` | liability-scale explained-variance summaries |
-| `convert_liability_to_aoo`, `liability_threshold` | liability-to-onset and prevalence-to-threshold conversion |
-| `gibbs_params`, `batch_means` | conditional sampler parameters and Monte Carlo SE calculation |
-| `Simulation`, `RegisterSimulation`, `FollowupSimulation`, `MultiTraitSimulation` | simulated records with generating values |
-| `FitResult`, `VarCompResult`, `BootstrapResult`, `PairwiseFitResult`, `MultiTraitPairwiseResult` | parameter-fitting results, not individual liabilities; `FitResult.h2_se` and `VarCompResult.se` are within-fit Monte-Carlo diagnostics, not sampling SEs |
 
 The older array APIs keep their tuple contracts: PA `(est, var)`, Gibbs
 `(est, se)` or `(est, se, var)` with `return_var=True`, and kinship
@@ -189,7 +148,7 @@ for the sampling contract and distinction from the existing stochastic fitters.
 
 ::: ltpred.gibbs
     options:
-      members: [rtmvnorm_gibbs, gibbs_params, gibbs_estimate_batched]
+      members: [rtmvnorm_gibbs, gibbs_params]
 
 ## Pearson–Aitken — `ltpred.pearson_aitken`
 

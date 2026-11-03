@@ -30,7 +30,7 @@ pedigree construction may skip re-validating it; the repair still runs.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -45,10 +45,6 @@ __all__ = ["Covmat", "get_relatedness", "construct_covmat_single",
 # as a sibling/child. Children must use the full ``c<group>.<idx>`` form (e.g.
 # c1.1) so the partner-group logic in get_relatedness applies.
 _VALID = re.compile(r"[gomf]|c\d+\.\d+|[mp]g[mf]|s\d*|[mp]hs\d*|[mp]au\d*")
-# roles that may appear at most once (everything else can be numbered s1, s2, ...)
-_SINGLE = re.compile(r"^[gomf]$|^[mp]g[mf]$")
-# unnumbered role stems that ``n_fam`` may expand to role1, role2, ...
-_REPEATABLE_STEM = re.compile(r"s|[mp]hs|[mp]au")
 
 
 @dataclass
@@ -104,7 +100,9 @@ def _classify(role):
         return 'avunc', 'm' if role.startswith('m') else 'p'
     if _ROLE_CHILD.fullmatch(role):
         return 'child', ''
-    return 'unknown', ''
+    # Unreachable for validated roles; raise rather than silently return
+    # relatedness 0 for a role the grammar accepted but this table forgot.
+    raise ValueError(f"unclassifiable role {role!r}")
 
 
 # Shared-DNA fraction between role kinds, for same-side or side-neutral pairs.
@@ -149,7 +147,7 @@ _SHARED_DNA = {
 }
 
 
-def get_relatedness(s1: str, s2: str, h2: float = 0.5) -> float:
+def get_relatedness(s1: str, s2: str, h2: float) -> float:
     """Shared-DNA fraction between two family roles, times ``h2``.
 
     ``s1``/``s2`` are role strings (``g`` genetic liability, ``o`` full liability,
@@ -165,7 +163,7 @@ def get_relatedness(s1: str, s2: str, h2: float = 0.5) -> float:
     paternal ``f``/``pg*``/``phs``/``pau``) return 0; two children share 0.5
     within a partner group ``c<group>.*`` and 0.25 across groups; any other
     pair reads a fixed shared-DNA table by role kind (mates such as ``m``/``f`` or
-    ``mgm``/``mgf`` are unrelated; unknown kind pairs give 0).
+    ``mgm``/``mgf`` are unrelated).
 
     Two **same-side** half-sibs (``mhs1``/``mhs2`` or ``phs1``/``phs2``) are
     related ``0.5*h2`` *to each other* — the role grammar cannot name their second
@@ -196,8 +194,8 @@ def get_relatedness(s1: str, s2: str, h2: float = 0.5) -> float:
         return frac * h2
 
     key = (k1, k2) if k1 <= k2 else (k2, k1)
-    frac = _SHARED_DNA.get(key, 0.0)
-    return frac * h2
+    # Every kind pair except child/child (handled above) is in the table.
+    return _SHARED_DNA[key] * h2
 
 
 def _child_group(s):
@@ -211,61 +209,19 @@ def _child_group(s):
     return m.group(1) if m else s
 
 
-def _expand_family(fam_vec, n_fam, add_ind):
+def _expand_family(fam_vec, add_ind):
     """Normalise the family spec to an ordered list of role labels.
 
-    Accepts either ``fam_vec`` (an explicit list like ``["m", "f", "s1"]``) or
-    ``n_fam``. In the mapping, unnumbered repeatable stems such as ``"s"`` expand
-    to ``s1, s2, ...``; an already-numbered role such as ``"s1"`` names that one
-    individual and therefore requires count 1. ``g`` and ``o`` are stripped from
-    the input and, when ``add_ind``, re-inserted first so the proband's genetic and
+    ``fam_vec`` is an explicit list like ``["m", "f", "s1"]`` (number repeated
+    relatives ``s1, s2, ...``). ``g`` and ``o`` are stripped from the input
+    and, when ``add_ind``, re-inserted first so the proband's genetic and
     full liabilities lead the ordering."""
-    if fam_vec is not None and n_fam is not None:
-        raise ValueError("supply only one of fam_vec or n_fam")
-
-    if fam_vec is None and n_fam is None:
+    if fam_vec is None:
         return ["g", "o"] if add_ind else []
 
-    if n_fam is not None:
-        counts = {}
-        for role, cnt in n_fam.items():
-            _validate_relative(role)
-            if (isinstance(cnt, (bool, np.bool_, str, bytes)) or
-                    np.ndim(cnt) != 0):
-                raise ValueError("n_fam counts must be non-negative integers")
-            try:
-                value = float(cnt)
-            except (TypeError, ValueError, OverflowError):
-                raise ValueError(
-                    "n_fam counts must be non-negative integers") from None
-            if not np.isfinite(value) or value < 0 or not value.is_integer():
-                raise ValueError("n_fam counts must be non-negative integers")
-            count = int(value)
-            if count > 1 and _SINGLE.match(role):
-                raise ValueError(
-                    f"n_fam count {count} for singleton role {role!r}: roles like "
-                    f"{role!r} occur at most once per family — request multiples "
-                    "with a numbered role instead (s1, s2, ...)")
-            counts[role] = count
-        n_fam = {r: c for r, c in counts.items() if c > 0 and r not in ("g", "o")}
-        roles = []
-        for r, c in n_fam.items():
-            if _SINGLE.match(r):
-                roles.append(r)
-            elif _REPEATABLE_STEM.fullmatch(r):
-                roles.extend(f"{r}{i}" for i in range(1, int(c) + 1))
-            else:
-                if c > 1:
-                    raise ValueError(
-                        f"n_fam count {c} for explicit role {r!r}: a numbered "
-                        "role names one individual; use an unnumbered stem such "
-                        "as 's' when the role grammar provides one")
-                roles.append(r)
-        fam_vec = roles
-    else:
-        fam_vec = [r for r in fam_vec if r not in ("g", "o")]
-        for r in fam_vec:
-            _validate_relative(r)
+    fam_vec = [r for r in fam_vec if r not in ("g", "o")]
+    for r in fam_vec:
+        _validate_relative(r)
 
     if len(set(fam_vec)) != len(fam_vec):
         # a repeated role names two individuals with one covariance coordinate,
@@ -383,8 +339,7 @@ _H2_FLOOR = 1e-8
 
 def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
                                                             "mgf", "pgm", "pgf"),
-                            n_fam: Mapping[str, int] | None = None,
-                            add_ind: bool = True, h2: float = 0.5,
+                            add_ind: bool = True, *, h2: float,
                             c2: float | None = None,
                             m2: float | None = None) -> Covmat:
     """Covariance matrix for one trait: proband ``g``/``o`` plus relatives.
@@ -393,11 +348,9 @@ def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mg
     ``(1e-8, 1]`` (below the floor the smallest eigenvalue, about ``h2``, is
     under the strict positive-definiteness threshold and no correction can
     recover it; at ``h2 = 1`` ``g`` and ``o`` coincide and the matrix is
-    singular). Relatives come from ``fam_vec``, a list of role strings, or
-    ``n_fam``, a mapping from role to count; supply at most one. In ``n_fam``
-    an unnumbered stem (``"s"``, ``"mhs"``, ``"phs"``, ``"mau"``, ``"pau"``)
-    expands to ``s1, s2, ...`` and any other role needs count 0 or 1. ``g``/``o``
-    in either input are dropped and, when ``add_ind``, put first; duplicate
+    singular). Relatives come from ``fam_vec``, a list of role strings
+    (number repeated relatives ``s1, s2, ...``). ``g``/``o`` in the input are
+    dropped and, when ``add_ind``, put first; duplicate
     roles raise. With the defaults the matrix covers a proband and both
     parents, a sibling and all four grandparents. Returns a `Covmat`; ``.roles`` gives the row ordering the
     Gibbs sampler expects (``g``, ``o`` first when ``add_ind``). ``c2``/``m2`` add
@@ -419,7 +372,7 @@ def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mg
             "correction can make the matrix usable -- supply a realistic "
             "liability-scale heritability")
     roles = _expand_family(list(fam_vec) if fam_vec is not None else None,
-                           n_fam, add_ind)
+                           add_ind)
     if not roles:
         return Covmat(np.empty((0, 0)), [])
     d = len(roles)
@@ -436,14 +389,13 @@ def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mg
 
 def construct_covmat_multi(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
                                                            "mgf", "pgm", "pgf"),
-                           n_fam: Mapping[str, int] | None = None,
                            add_ind: bool = True, *,
                            genetic_corrmat: ArrayLike,
                            full_corrmat: ArrayLike, h2_vec: ArrayLike,
                            phen_names: Sequence[str] | None = None) -> Covmat:
     """Covariance matrix for several correlated traits.
 
-    ``fam_vec``/``n_fam``/``add_ind`` are as in `construct_covmat_single`,
+    ``fam_vec``/``add_ind`` are as in `construct_covmat_single`,
     except that a family with no relatives always gives roles ``g``, ``o``.
     ``h2_vec`` holds one heritability per trait, each in ``(1e-8, 1]``;
     ``genetic_corrmat`` and ``full_corrmat`` are ``n_pheno x n_pheno``, finite,
@@ -502,7 +454,7 @@ def construct_covmat_multi(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm
         raise ValueError("phen_names length must match number of phenotypes")
 
     fam_roles = _expand_family(list(fam_vec) if fam_vec is not None else None,
-                               n_fam, add_ind)
+                               add_ind)
     if not fam_roles:  # bare g/o for every phenotype
         fam_roles = ["g", "o"]
     k = len(fam_roles)
@@ -526,7 +478,10 @@ def construct_covmat_multi(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm
             gcov = genetic_cov[p1, p2]
             scale = h2_vec[p1] if p1 == p2 else gcov
             for a, ra in enumerate(fam_roles):
-                cov[p1 * k + a, p2 * k + a] = get_relatedness(ra, ra, h2=scale)
+                # For p1 != p2 the same-role entries are overwritten just
+                # below; don't pay a validated get_relatedness call for them.
+                if p1 == p2:
+                    cov[p1 * k + a, p2 * k + a] = get_relatedness(ra, ra, h2=scale)
                 for b in range(a + 1, k):
                     val = frac[a, b] * scale
                     cov[p1 * k + a, p2 * k + b] = val
@@ -743,7 +698,7 @@ def _validate_kinship_component(value, kernel, name, n):
 _PSD_CERTIFIED = object()
 
 
-def construct_covmat_from_kinship(A: ArrayLike, h2: float = 0.5, target: int = 0,
+def construct_covmat_from_kinship(A: ArrayLike, h2: float, target: int = 0,
                                   add_ind: bool = True, *,
                                   c2: float | None = None,
                                   c_kernel: ArrayLike | None = None,
@@ -877,15 +832,19 @@ def correct_positive_definite(covmat: ArrayLike, correction_val: float = 0.99,
     ``(corrected, n_iter)`` and leaves already-PD matrices untouched (a copy,
     ``n_iter = 0``); raises ``ValueError`` if it cannot reach strict PD."""
     cov = np.array(covmat, dtype=np.float64, copy=True)
-    if np.min(np.linalg.eigvalsh(cov)) > eps:
+    # Cache the smallest eigenvalue: exactly one eigvalsh per shrink step
+    # (the loop condition and the final check reuse the same value).
+    min_eig = np.min(np.linalg.eigvalsh(cov))
+    if min_eig > eps:
         return cov, 0
     diag = np.diag(cov).copy()
     n = 0
-    while np.min(np.linalg.eigvalsh(cov)) <= eps and n < correction_limit:
+    while min_eig <= eps and n < correction_limit:
         cov *= correction_val
         np.fill_diagonal(cov, diag)
         n += 1
-    if np.min(np.linalg.eigvalsh(cov)) <= eps:
+        min_eig = np.min(np.linalg.eigvalsh(cov))
+    if min_eig <= eps:
         raise ValueError(
             "unable to enforce a positive-definite covariance matrix: after "
             f"{correction_limit} shrink steps the smallest eigenvalue is still "

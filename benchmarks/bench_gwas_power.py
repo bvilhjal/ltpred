@@ -32,7 +32,7 @@ neither mode is a related-sample mixed-model GWAS.
 
     python benchmarks/bench_gwas_power.py
     python benchmarks/bench_gwas_power.py --plink data/output/synthetic_chr-22 --n-causal 40
-Writes bench_gwas_power.csv (+ .png if matplotlib is present).
+Writes bench_gwas_power.csv.
 """
 
 import os
@@ -41,7 +41,7 @@ import argparse
 import numpy as np
 from scipy import stats
 
-from _common import (estimate, get_plt, gwas_chisq,
+from _common import (estimate, gwas_chisq,
                      lambda_gc, read_plink_bed, simulate_genotype_families,
                      write_rows)
 
@@ -136,41 +136,6 @@ def write_csv(rows):
     return write_rows(os.path.join(HERE, "bench_gwas_power.csv"), rows, fields)
 
 
-def plot(rows, chisq, calibration_mask):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, ax = plt.subplots(1, 3, figsize=(15, 4.4))
-    names = [r["phenotype"] for r in rows]
-    ax[0].bar(range(len(names)), [r["mean_chi2_causal"] for r in rows],
-              yerr=[r["se_mean_chi2_causal"] for r in rows], capsize=3,
-              color=["#999", "#1f77b4", "#ff7f0e", "#2ca02c"])
-    ax[0].set_xticks(range(len(names)))
-    ax[0].set_xticklabels(names, rotation=20, ha="right", fontsize=8)
-    ax[0].set_ylabel("mean chi2 at causal SNPs")
-    ax[0].set_title("(a) marginal causal-SNP NCP")
-    ax[1].bar(range(len(names)), [100 * r["power_sug"] for r in rows],
-              yerr=[100 * r["se_power_sug"] for r in rows], capsize=3,
-              color=["#999", "#1f77b4", "#ff7f0e", "#2ca02c"])
-    ax[1].set_xticks(range(len(names)))
-    ax[1].set_xticklabels(names, rotation=20, ha="right", fontsize=8)
-    ax[1].set_ylabel("% causal SNPs detected (p<1e-4)")
-    ax[1].set_title("(b) detection rate")
-    # (c) QQ of null chi2 -> calibration
-    for name in names:
-        null = np.sort(chisq[name][calibration_mask])
-        expected = stats.chi2.ppf((np.arange(1, len(null) + 1) - 0.5) / len(null), 1)
-        ax[2].plot(expected, null, lw=1, label=name)
-    lim = [0, max(3, expected.max())]
-    ax[2].plot(lim, lim, "k--", lw=1)
-    ax[2].set_xlabel("expected chi2 (null)")
-    ax[2].set_ylabel("observed chi2 (null)")
-    ax[2].set_title("(c) calibration at null SNPs (representative replicate)")
-    ax[2].legend(fontsize=7)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_gwas_power.png"), dpi=130)
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n-fam", type=int, default=10_000)
@@ -216,10 +181,7 @@ def main():
               f"{row['power_gw']:6.2%}±{row['se_power_gw']:.2%} "
               f"{row['lambda_gc']:6.3f}±{row['se_lambda_gc']:.3f}")
     path = write_csv(rows)
-    plot(rows, representative[0], representative[1])
     print(f"\nwrote {os.path.basename(path)}")
-    if get_plt() is not None:
-        print("wrote bench_gwas_power.png")
 
 
 if __name__ == "__main__":

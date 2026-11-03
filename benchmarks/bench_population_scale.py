@@ -19,7 +19,7 @@ process's peak RSS. Timing is the estimator call only (simulation excluded),
 after a warm-up call; the register arm loops probands serially, exactly as
 the pipeline does. Pin threads with ``NUMBA_NUM_THREADS`` and record the load
 average beside any quoted number -- throughput claims without a thread count
-and a load line are not comparable (docs/REVIEWS.md, lesson 2).::
+and a load line are not comparable (review-ledger lesson, docs/MAINTAINING.md §3).::
 
     NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \\
         python benchmarks/run_benchmark.py \\

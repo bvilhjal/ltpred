@@ -68,7 +68,7 @@ res = estimate_liability(families, h2=0.5, out=("genetic",))
   multi-trait model. Pass
   `"gibbs"` to force the sampler (needed
   for multiple traits, a Monte-Carlo SE, or a sampling-based cross-check), or
-  `"pearson-aitken"` (aliases `"pa"`, `"aitken"`) to force PA. For additive
+  `"pearson-aitken"` (alias `"pa"`) to force PA. For additive
   nuclear families, `"quadrature"` selects the opt-in
   [numerical integration route](#nuclear-family-quadrature). Bounds determine the observation
   encoding; inclusion of relatives distinguishes LT-FH++ from ADuLT. The engine

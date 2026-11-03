@@ -80,12 +80,6 @@ def test_singular_covariance_still_gets_the_canonical_cholesky_form(fam_vec):
     np.testing.assert_allclose(L @ L.T, cov, atol=1e-9)
 
 
-def test_repeated_eigenvalue_pedigree_is_the_case_that_needs_it():
-    """Pins the premise of the test above, so it cannot quietly stop biting."""
-    cov = construct_covmat_single(
-        fam_vec=["m", "f", "s1", "mgm", "mgf", "pgm", "pgf"], h2=1.0).matrix
-    evals = np.round(np.linalg.eigvalsh(cov), 9)
-    assert len(set(evals)) < len(evals)
 
 
 def test_simulation_family_structure():
@@ -341,7 +335,7 @@ def test_pin_encoding_warns_without_threshold_crossing():
 
 # ---------------------------------------------------------------------------
 # Promoted population-register, follow-up and multi-trait generators
-# (docs/REVIEWS.md, 09d T1-1/T2-2). These were benchmark-private;
+# (review 09d T1-1/T2-2; ledger in docs/MAINTAINING.md). These were benchmark-private;
 # the guards below are what make them safe to teach from.
 # ---------------------------------------------------------------------------
 

@@ -8,7 +8,7 @@ name: Publish to PyPI
 # One-time setup on PyPI (project owner, not automatable here): register this
 # repository + the `publish.yml` workflow + the `pypi` environment as a trusted
 # publisher for the `ltpred` project at
-# https://pypi.org/manage/account/publishing/. See docs/RELEASING.md.
+# https://pypi.org/manage/account/publishing/. See docs/MAINTAINING.md §1.
 
 on:
   release:

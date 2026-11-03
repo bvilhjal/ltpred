@@ -38,6 +38,7 @@ def test_recovers_simulated_heritability(h2_true):
     assert res.trace.shape == (500,)
 
 
+@pytest.mark.slow
 def test_converges_from_different_inits():
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1"], h2=0.5, n_sim=3000,
                                     pop_prev=0.1, seed=4)
@@ -218,6 +219,7 @@ def test_variance_components_is_he_only():
         "components", "residual", "se", "traces", "n_iter", "burn_in"}
 
 
+@pytest.mark.slow
 def test_bootstrap_fit_scalar_and_calibration():
     from ltpred import bootstrap_fit
     sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
@@ -409,6 +411,7 @@ def test_c_component_groups_same_side_avuncular():
     assert set(r.components) == {"A", "C"}
 
 
+@pytest.mark.slow
 def test_variance_components_recovers_couple_env():
     # additive + couple (spousal) environment: M loads on the genetically-unrelated
     # mate pairs (m,f), (mgm,mgf), (pgm,pgf); A on the related pairs. The HE
@@ -423,6 +426,7 @@ def test_variance_components_recovers_couple_env():
     assert r.residual == pytest.approx(1.0 - 0.4 - 0.2, abs=0.12)
 
 
+@pytest.mark.slow
 def test_variance_components_no_spurious_couple_env():
     # purely additive data -> M should stay near 0 (no spurious couple environment)
     fam = ["o", "m", "f", "mgm", "mgf", "pgm", "pgf"]
@@ -443,6 +447,7 @@ def test_variance_components_couple_env_needs_mate_pairs():
             sampling="population")
 
 
+@pytest.mark.slow
 def test_variance_components_joint_A_C_M_identified():
     # a 3-generation pedigree identifies all three at once: A from the related pairs,
     # C from the full-sib excess (o,s1,s2), M from the mate pairs (m,f)/(mgm,mgf).
@@ -493,7 +498,7 @@ def test_fit_heritability_validates_burn_in_and_h2_init():
         fit_heritability(sim.families, h2_init=-0.1, n_iter=10, burn_in=6)
     with pytest.raises(TypeError, match="h2_init.*bool"):
         fit_heritability(sim.families, h2_init=True, n_iter=10, burn_in=6)
-    # valid inputs still run (4 post-burn-in samples is the batch_means minimum)
+    # valid inputs still run (4 post-burn-in samples is the _batch_means minimum)
     res = fit_heritability(
         sim.families, h2_init=0.5, n_iter=10, burn_in=6,
         inner_sweeps=1, seed=1, sampling="population")
@@ -503,7 +508,7 @@ def test_fit_heritability_validates_burn_in_and_h2_init():
 @pytest.mark.parametrize(("n_iter", "burn_in"), [(3, 0), (5, 2), (10, 7)])
 def test_fitters_require_four_retained_iterates_up_front(monkeypatch, n_iter,
                                                          burn_in):
-    # batch_means needs 4 retained iterates; reject before running the fit
+    # _batch_means needs 4 retained iterates; reject before running the fit
     import importlib
     fit_mod = importlib.import_module("ltpred.fit")
 
@@ -717,6 +722,7 @@ def test_population_case_rate_guard_passes_genuine_population_samples():
         assert 0.0 < res.h2 < 1.0
 
 
+@pytest.mark.slow
 def test_population_case_rate_guard_survives_bootstrap_resampling():
     # bootstrap_fit re-runs the estimator on resamples centred on the COHORT's
     # rate rather than on K, so their z carries the cohort's own sampling error

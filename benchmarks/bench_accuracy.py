@@ -24,7 +24,7 @@ cell has 1,500 families and 25,000 Gibbs draws by default.
 
     python benchmarks/bench_accuracy.py                 # default grid, 5 seeds
     python benchmarks/bench_accuracy.py --n-fam 3000 --reps 3
-Writes bench_accuracy.csv (+ .png if matplotlib is present). Metric columns are
+Writes bench_accuracy.csv. Metric columns are
 across-seed means with matching ``se_`` columns; ``t_gibbs``/``t_pa`` are mean
 seconds per replicate.
 """
@@ -35,7 +35,7 @@ import argparse
 
 import numpy as np
 
-from _common import estimate, get_plt, mean_se, simulate_families, write_rows
+from _common import estimate, mean_se, simulate_families, write_rows
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -115,51 +115,6 @@ def write_csv(rows):
     return write_rows(os.path.join(HERE, "bench_accuracy.csv"), rows)
 
 
-def plot(rows):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.4))
-    # (a) Gibbs vs PA accuracy agreement (across-seed cell means)
-    cg = [r["corr_gibbs"] for r in rows]
-    cp = [r["corr_pa"] for r in rows]
-    axes[0].scatter(cg, cp, s=20, alpha=0.8)
-    lim = [min(cg + cp) - 0.02, max(cg + cp) + 0.02]
-    axes[0].plot(lim, lim, "k--", lw=1)
-    axes[0].set_xlabel("corr(Gibbs, true g)")
-    axes[0].set_ylabel("corr(PA estimate, true g)")
-    axes[0].set_title("(a) accuracy: Gibbs vs PA")
-    # (b) accuracy vs prevalence, by structure (h2=0.5); bars = across-seed SE
-    for sname in STRUCTURES:
-        sub = [r for r in rows if r["structure"] == sname and r["h2"] == 0.5]
-        sub.sort(key=lambda r: r["prevalence"])
-        axes[1].errorbar([r["prevalence"] for r in sub],
-                         [r["corr_pa"] for r in sub],
-                         yerr=[r["se_corr_pa"] for r in sub],
-                         fmt="-o", capsize=3, label=sname)
-    axes[1].set_xscale("log")
-    axes[1].set_xlabel("prevalence")
-    axes[1].set_ylabel("corr(PA estimate, true g)")
-    axes[1].set_title("(b) PA accuracy vs prevalence (h2=0.5)")
-    axes[1].legend(fontsize=8)
-    # (c) squared-correlation effective-N proxy, by h2 (extended family)
-    for h2 in sorted({r["h2"] for r in rows}):
-        sub = [r for r in rows if r["structure"] == "extended" and r["h2"] == h2]
-        sub.sort(key=lambda r: r["prevalence"])
-        axes[2].errorbar([r["prevalence"] for r in sub],
-                         [r["eff_n_proxy_pa"] for r in sub],
-                         yerr=[r["se_eff_n_proxy_pa"] for r in sub],
-                         fmt="-o", capsize=3, label=f"h2={h2}")
-    axes[2].axhline(1.0, color="k", ls=":", lw=1)
-    axes[2].set_xscale("log")
-    axes[2].set_xlabel("prevalence")
-    axes[2].set_ylabel("squared-correlation eff-N proxy vs case/control")
-    axes[2].set_title("(c) PA effective-N proxy (extended family)")
-    axes[2].legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_accuracy.png"), dpi=130)
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n-fam", type=int, default=1500)
@@ -184,10 +139,7 @@ def main():
 
     rows = run(args.n_fam, args.h2, args.prev, args.n_sim, args.seed, args.reps)
     path = write_csv(rows)
-    plot(rows)
     print(f"\nwrote {os.path.basename(path)}")
-    if get_plt() is not None:
-        print("wrote bench_accuracy.png")
     print(f"total runtime: {(time.perf_counter() - t_start) / 60:.1f} min")
 
 

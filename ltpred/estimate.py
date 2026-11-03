@@ -55,7 +55,7 @@ from numpy.typing import ArrayLike
 from .covariance import (construct_covmat_single, construct_covmat_multi,
                          construct_covmat_from_kinship, correct_positive_definite,
                          _PSD_CERTIFIED)
-from .gibbs import (gibbs_params, gibbs_estimate_batched, as_bounds, _MAX_SEED,
+from .gibbs import (gibbs_params, _gibbs_round, _as_bounds, _MAX_SEED,
                     _validate_seed, _validate_burn_in)
 from .pearson_aitken import pa_estimate_batched, _tnorm_moments_loc
 from ._numba import _jit
@@ -63,11 +63,11 @@ from ._validation import validate_bounds, validate_mixture_inputs
 from .family import _member_pid_key, _proband_pid
 from ._results import _TableExport
 
-__all__ = ["LiabilityResult", "batch_means", "estimate_liability",
+__all__ = ["LiabilityResult", "estimate_liability",
            "estimate_liability_pa_arrays", "estimate_liability_gibbs_arrays",
            "estimate_liability_from_kinship"]
 
-_PA_METHODS = {"pa", "pearson-aitken", "pearson_aitken", "aitken"}
+_PA_METHODS = {"pa", "pearson-aitken"}
 
 
 def _warn_unused_sampler_controls(method, tol, n_sim, burn_in, seed, max_rounds):
@@ -89,8 +89,8 @@ def _resolve_method(method, default):
 
     The single method-name -> engine gate shared by `estimate_liability`
     and `estimate_liability_from_kinship`: ``None`` maps to ``default``,
-    the PA aliases (``"pa"``, ``"pearson_aitken"``, ``"aitken"``) to
-    ``"pearson-aitken"``; ``"gibbs"`` and ``"quadrature"`` keep their names.
+    the PA alias ``"pa"`` to ``"pearson-aitken"``; ``"gibbs"`` and
+    ``"quadrature"`` keep their names.
     Other spellings raise."""
     if method is None:
         method = default
@@ -273,12 +273,12 @@ def _validate_max_rounds(max_rounds):
     return max_rounds
 
 
-def batch_means(samples: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
+def _batch_means(samples: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     """Batch-means estimate and Monte-Carlo SE of column means (Jones et al. 2006).
 
     Splits ``n`` samples into ``a = n // b`` consecutive batches of size
     ``b = floor(sqrt(n))``; ``est`` is the mean of all ``n`` samples and
-    ``se = sqrt(b * var(batch_means) / (a*b))``. R ``batchmeans::bmmat`` instead
+    ``se = sqrt(b * var(batch means) / (a*b))``. R ``batchmeans::bmmat`` instead
     reports the mean of the batch means and divides by ``n``; the two agree when
     ``b`` divides ``n``. Accepts a 1-D or 2-D ``(n, ncols)`` array and returns
     ``(est, se)`` arrays over columns (length-1 arrays for 1-D input).
@@ -341,7 +341,7 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
     ``b = max(floor(sqrt(n_sim)), 2)`` and ``nb = n_sim // b`` batches, each
     round (methods report, Algorithm G, step G6):
 
-    1. calls `gibbs_estimate_batched` on the active (unconverged) families,
+    1. calls `_gibbs_round` on the active (unconverged) families,
        family ``f`` seeded with ``(base_seeds[f] + round) % 2**32``
        (`_base_seeds` never emits the kernel's ``-1`` unseeded sentinel;
        unseeded calls get fresh entropy seeds). Each call starts fresh chains
@@ -395,7 +395,7 @@ def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
         # wrap again: the per-round offset can carry a base seed past uint32
         seeds = np.where(base_seeds[active] < 0, -1,
                          (base_seeds[active] + rnd) % (_MAX_SEED + 1))
-        ts, tsq, s1, s2 = gibbs_estimate_batched(
+        ts, tsq, s1, s2 = _gibbs_round(
             P, sd, sd0, lowers[active], uppers[active],
             out_idx, n_sim, burn_in, b, nb, seeds, cov=cov,
             _collapse_cache=collapse_cache)
@@ -900,8 +900,8 @@ def _prepare_role_arrays(roles, lower, upper):
     """Validate role columns and bounds; return ``(roles, lower, upper)``."""
     roles = list(roles)
     _check_unique_role_labels(roles)
-    lower = as_bounds(lower)
-    upper = as_bounds(upper)
+    lower = _as_bounds(lower)
+    upper = _as_bounds(upper)
     if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
         raise ValueError(
             f"lower and upper must be (n_families, {len(roles)}) -- one "
@@ -946,7 +946,7 @@ def _pa_from_role_arrays(roles, lower, upper, h2, out_coords, K_i=None,
             lower=lower, upper=upper,
             context="array estimator mixture inputs")
         ki, kp = _align_to_cov(
-            roles, cov_obj.roles, (as_bounds(K_i), as_bounds(K_pop)),
+            roles, cov_obj.roles, (_as_bounds(K_i), _as_bounds(K_pop)),
             (np.nan, np.nan))
     est, var = {}, {}
     for coord in out_coords:
@@ -1103,7 +1103,7 @@ def estimate_liability_gibbs_arrays(roles: Sequence[str], lower: ArrayLike,
     from OS entropy, so unseeded runs differ call to call -- also after a
     seeded call in the same process."""
     coord = _single_out(out)
-    lower = as_bounds(lower)
+    lower = _as_bounds(lower)
     seeds = _base_seeds(seed, np.asarray(lower).shape[0], max_rounds)
     est, se, var = _gibbs_from_role_arrays(
         roles, lower, upper, h2, [coord], seeds, tol, n_sim, burn_in,
@@ -1185,8 +1185,8 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
     n = A.shape[0]
     if A.shape != (n, n):
         raise ValueError("A must be a square (n, n) relationship matrix")
-    lower = np.atleast_2d(as_bounds(lower))
-    upper = np.atleast_2d(as_bounds(upper))
+    lower = np.atleast_2d(_as_bounds(lower))
+    upper = np.atleast_2d(_as_bounds(upper))
     validate_bounds(lower, upper, context="kinship estimator bounds")
     if lower.shape[1] != n or upper.shape[1] != n:
         raise ValueError(f"lower/upper must have {n} columns (one per pedigree member)")
@@ -1259,11 +1259,11 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
                 K_i, K_pop, expected_shape=lower.shape, require_pair=True,
                 lower=lower, upper=upper,
                 context="kinship estimator mixture inputs")
-            nan_g = np.full((F, 1), np.nan, dtype=as_bounds(K_i).dtype)
-            ki = np.ascontiguousarray(np.concatenate([nan_g, as_bounds(K_i)], axis=1))
+            nan_g = np.full((F, 1), np.nan, dtype=_as_bounds(K_i).dtype)
+            ki = np.ascontiguousarray(np.concatenate([nan_g, _as_bounds(K_i)], axis=1))
             kp = np.ascontiguousarray(np.concatenate(
-                [np.full((F, 1), np.nan, dtype=as_bounds(K_pop).dtype),
-                 as_bounds(K_pop)], axis=1))
+                [np.full((F, 1), np.nan, dtype=_as_bounds(K_pop).dtype),
+                 _as_bounds(K_pop)], axis=1))
             est, var = pa_estimate_batched(cov, lo, hi, target=tgt,
                                            K_is=ki, K_pops=kp,
                                            _psd_certified=pa_gate)
@@ -1319,7 +1319,7 @@ def estimate_liability(families: Sequence, h2: ArrayLike, *,
     That path collapses untruncated genetic coordinates out of the
     sweep and Rao--Blackwellises their posterior means. Pass ``method``
     explicitly to override (names are case-insensitive): ``"pearson-aitken"``
-    (aliases ``"pa"``, ``"pearson_aitken"``, ``"aitken"``; single trait only,
+    (alias ``"pa"``; single trait only,
     ``use_mixture`` enables the age-censored-control correction) or
     ``"gibbs"`` (the truncated-MVN sampler; needed for multiple traits or a
     Monte-Carlo SE), or ``"quadrature"`` under the nuclear-family restrictions

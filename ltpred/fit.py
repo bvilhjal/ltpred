@@ -23,7 +23,7 @@ are missing data; see the methods report, "Fitting h² is a different problem".
   family's chain starts at its members' marginal truncated medians.
 - **H4. Augment.** Advance every family's persistent truncated-MVN chain
   ``l_f | bounds, Sigma(theta)`` by ``inner_sweeps`` Gibbs sweeps
-  (`ltpred.gibbs.gibbs_advance`).
+  (`ltpred.gibbs._gibbs_advance_chain`).
 - **H5. Regress.** ``theta_hat = (X'WX)^-1 sum_f w_f sum_(i,j) x_ij l_fi l_fj``:
   the Haseman-Elston moment equation ``E[l_i l_j] = x_ij' theta``. One component
   is exact division; several add a ``1e-10`` ridge.
@@ -33,7 +33,7 @@ are missing data; see the methods report, "Fitting h² is a different problem".
   after the first update, so ``Sigma`` stays positive definite.
 - **H7. Summarise.** Repeat H4-H6 ``n_iter`` times and drop ``burn_in`` iterates.
   The estimate is the mean of the retained trace; its SE is the batch-means
-  Monte-Carlo SE of that mean (`ltpred.estimate.batch_means`).
+  Monte-Carlo SE of that mean (`ltpred.estimate._batch_means`).
 
 At the true parameters, total expectation recovers ``x_ij' theta`` from
 correctly specified conditional draws and the population family mix, even
@@ -63,11 +63,11 @@ from numpy.typing import ArrayLike
 from ._mathfun import norm_cdf
 from ._validation import validate_bounds
 from .covariance import get_relatedness, _is_full_sib, _is_mates
-from .gibbs import (gibbs_params, gibbs_advance,
+from .gibbs import (gibbs_params, _gibbs_advance_chain,
                     _init_chain, _FIXED_TOL, _seed_rng)
 from .family import _member_pid_key
 from .estimate import (_assert_nonempty_families, _check_unique_roles,
-                       _group_by_structure, batch_means)
+                       _group_by_structure, _batch_means)
 
 __all__ = ["FitResult", "fit_heritability", "VarCompResult",
            "fit_variance_components", "BootstrapResult", "bootstrap_fit"]
@@ -396,22 +396,61 @@ def _validate_moment_families(families, *, weights, context):
                                  weights=weights, member_bounds=member_bounds)
 
 
+def _validate_eps(eps):
+    """Validate the convergence tolerance shared by all fitters."""
+    if isinstance(eps, (bool, np.bool_)):
+        raise TypeError("eps must be a real number, not bool")
+    try:
+        eps = float(eps)
+    except (TypeError, ValueError):
+        raise TypeError("eps must be a real number") from None
+    if not np.isfinite(eps) or not 1e-8 <= eps < 0.5:
+        raise ValueError("eps must lie in [1e-8, 0.5)")
+    return eps
+
+
+def _validate_optimizer_controls(maxiter, tol):
+    """Validate the SLSQP controls shared by the pairwise fitters."""
+    if isinstance(maxiter, (bool, np.bool_)):
+        raise TypeError("maxiter must be a positive integer")
+    try:
+        maxiter = operator.index(maxiter)
+    except TypeError:
+        raise TypeError("maxiter must be a positive integer") from None
+    if maxiter < 1:
+        raise ValueError("maxiter must be positive")
+    if isinstance(tol, (bool, np.bool_)):
+        raise TypeError("tol must be a finite positive real number")
+    tol = float(tol)
+    if not np.isfinite(tol) or not 0 < tol < 1:
+        raise ValueError("tol must be finite and in (0, 1)")
+    return maxiter, tol
+
+
+def _normalized_weights(weights):
+    """IPW weights rescaled to mean one (max-first, so the rescale itself
+    cannot overflow); ``None`` stays ``None`` for callers whose unweighted
+    path differs."""
+    if weights is None:
+        return None
+    w = weights / weights.max()
+    w = w / w.mean()
+    if np.any(w == 0):
+        raise ValueError("IPW weights span too wide a numerical range to retain positive contributions")
+    return w
+
+
 def _validate_update_controls(damp, eps):
     """Validate and normalise the stochastic fixed-point controls."""
     if isinstance(damp, (bool, np.bool_)):
         raise TypeError("damp must be a real number, not bool")
-    if isinstance(eps, (bool, np.bool_)):
-        raise TypeError("eps must be a real number, not bool")
     try:
         damp = float(damp)
-        eps = float(eps)
     except (TypeError, ValueError):
         raise TypeError("damp and eps must be real numbers") from None
     if not np.isfinite(damp) or not 0.0 < damp <= 1.0:
         raise ValueError("damp must lie in (0, 1]")
-    if not np.isfinite(eps) or not 1e-8 <= eps < 0.5:
-        raise ValueError("eps must lie in [1e-8, 0.5)")
-    return damp, eps
+    return damp, _validate_eps(eps)
 
 
 def _validate_components(components):
@@ -437,7 +476,7 @@ def _validate_iteration_controls(n_iter, burn_in, inner_sweeps, *,
     """Return strict integer controls for the stochastic fixed point.
 
     ``min_retained`` is the least ``n_iter - burn_in`` accepted; the public
-    fitters pass 4, the two batches `ltpred.estimate.batch_means` needs."""
+    fitters pass 4, the two batches `ltpred.estimate._batch_means` needs."""
     values = {}
     for name, value, minimum in (("n_iter", n_iter, 1),
                                  ("burn_in", burn_in, 0),
@@ -813,7 +852,7 @@ def _fit_component_engine(families, comps, initial, *, n_iter, burn_in,
                 values[ci] * group["K"][component]
                 for ci, component in enumerate(comps))
             precision, conditional_sd = gibbs_params(sigma)
-            gibbs_advance(
+            _gibbs_advance_chain(
                 precision, conditional_sd, group["lowers"], group["uppers"],
                 group["fixed"], group["x"], inner_sweeps)
             x = group["x"]
@@ -829,7 +868,7 @@ def _fit_component_engine(families, comps, initial, *, n_iter, burn_in,
         trace[it] = values
 
     samples = trace[burn_in:].copy()
-    fitted, se = batch_means(samples)
+    fitted, se = _batch_means(samples)
     return trace, samples, fitted, se
 
 

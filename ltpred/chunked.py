@@ -30,7 +30,7 @@ from ._validation import validate_mixture_inputs
 from .estimate import (_OUT_NAMES, _base_seeds, _check_unique_role_labels,
                        _gibbs_from_role_arrays, _pa_from_role_arrays,
                        _prepare_role_arrays, _single_out, _warn_unconverged)
-from .gibbs import as_bounds
+from .gibbs import _as_bounds
 
 __all__ = ["estimate_liability_pa_chunked", "estimate_liability_gibbs_chunked",
            "estimate_liability_pa_batches", "estimate_liability_gibbs_batches"]
@@ -248,7 +248,7 @@ def estimate_liability_gibbs_batches(roles: Sequence[str],
         if K_i is not None or K_pop is not None:
             raise ValueError(
                 "Gibbs batches have no censoring mixture; omit K_i and K_pop")
-        lower = as_bounds(lower)
+        lower = _as_bounds(lower)
         n = 0 if lower.ndim != 2 else lower.shape[0]
         seeds = _base_seeds(seed, n, max_rounds, start=start)
         e, s, v = _gibbs_from_role_arrays(

@@ -35,7 +35,7 @@ true full liability.
 
     python benchmarks/bench_shared_env.py
     python benchmarks/bench_shared_env.py --c2 0 0.1 0.2 0.3 --n-fam 3000
-Writes bench_shared_env.csv (+ .png if matplotlib is present).
+Writes bench_shared_env.csv.
 """
 
 import os
@@ -45,7 +45,7 @@ import warnings
 import numpy as np
 from scipy.stats import t as student_t
 
-from _common import get_plt, simulate_families_components, write_rows
+from _common import simulate_families_components, write_rows
 from ltpred.covariance import (construct_covmat_single, get_relatedness,
                                correct_positive_definite)
 from ltpred.fit import _component_matrix, fit_heritability, fit_variance_components
@@ -350,10 +350,7 @@ def main():
               f"{mw[key + '_slopeg_se']:.3f}/{mw[key + '_corro_se']:.3f})")
 
     write_csv(rows_c2 + rows_sib + rows_wire)
-    plot(rows_c2, rows_sib, h2)
     print("\nwrote bench_shared_env.csv")
-    if get_plt() is not None:
-        print("wrote bench_shared_env.png")
 
 
 def write_csv(rows):
@@ -376,42 +373,6 @@ def write_csv(rows):
     for comp in "ACM":
         fields.extend([f"wire_fit_{comp}", f"wire_fit_{comp}_sd"])
     return write_rows(os.path.join(HERE, "bench_shared_env.csv"), rows, fields)
-
-
-def plot(rows_c2, rows_sib, h2):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, ax = plt.subplots(1, 2, figsize=(11, 4.4))
-    c2 = [r["c2"] for r in rows_c2]
-    ax[0].errorbar(c2, [r["add_fit"] for r in rows_c2],
-                   yerr=[r["add_fit_ci95"] for r in rows_c2], fmt="-o", capsize=3,
-                   label="ignore C (fitted h²)")
-    ax[0].errorbar(c2, [r["ace_fit"] for r in rows_c2],
-                   yerr=[r["ace_fit_ci95"] for r in rows_c2], fmt="-o", capsize=3,
-                   label="fit A+C")
-    ax[0].errorbar(c2, [r["ace_oracle"] for r in rows_c2],
-                   yerr=[r["ace_oracle_ci95"] for r in rows_c2], fmt="--", capsize=3,
-                   color="gray", label="oracle A+C")
-    ax[0].set_xlabel("true shared-environment c²")
-    ax[0].set_ylabel("corr(estimate, true genetic liability)")
-    ax[0].set_title(f"(a) accuracy vs c²  (h²={h2}, 3 sibs; 95% CI)")
-    ax[0].legend(fontsize=8)
-    ns = [r["n_sib"] for r in rows_sib]
-    ax[1].errorbar(ns, [r["gain"] for r in rows_sib],
-                   yerr=[r["gain_ci95"] for r in rows_sib], fmt="-o", capsize=3,
-                   color="tab:green", label="fit A+C − ignore C")
-    ax[1].errorbar(ns, [r["oracle_gain"] for r in rows_sib],
-                   yerr=[r["oracle_gain_ci95"] for r in rows_sib], fmt="--", capsize=3,
-                   color="gray", label="oracle − ignore C")
-    ax[1].axhline(0, color="k", lw=1)
-    ax[1].set_xlabel("number of full sibs")
-    ax[1].set_ylabel("Δ corr accuracy gain")
-    cf = rows_sib[0]["c2"] if rows_sib else ""
-    ax[1].set_title(f"(b) gain from modelling C vs sib-ship size (c²={cf}; 95% CI)")
-    ax[1].legend(fontsize=8)
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_shared_env.png"), dpi=130)
 
 
 if __name__ == "__main__":

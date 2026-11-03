@@ -119,6 +119,7 @@ def test_h2_is_a_required_argument_on_the_score_surface():
     "from ltpred import tetrachoric_matrix",
     "import importlib; importlib.import_module('ltpred.tetrachoric')",
 ])
+@pytest.mark.slow
 def test_package_attribute_tetrachoric_is_the_function_not_the_module(first):
     """`tetrachoric` names both a public function and its module.
 

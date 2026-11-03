@@ -83,7 +83,7 @@ contrast against that arm rather than against zero.
 
     python benchmarks/bench_ascertainment.py --quick
     python benchmarks/bench_ascertainment.py --reps 10 --n-fam 10000
-Writes bench_ascertainment{--tag}.csv (+ .png if matplotlib is present).
+Writes bench_ascertainment{--tag}.csv.
 """
 
 import os
@@ -95,7 +95,7 @@ import contextlib
 
 import numpy as np
 
-from _common import get_plt, sd_ci, write_rows
+from _common import sd_ci, write_rows
 from ltpred.covariance import (construct_covmat_multi, correct_positive_definite,
                                get_relatedness)
 from ltpred.family import Family, Member
@@ -1004,46 +1004,6 @@ def write_csv(rows, tag=""):
     print(f"\nwrote {path}")
 
 
-def plot(rows, tag=""):
-    plt = get_plt()
-    if plt is None:
-        return
-    h2 = [r for r in rows if r["arm"] == "h2" and r["structure"] == "nuclear"]
-    scale = [r for r in rows if r["arm"] == "scale"]
-    if not h2:
-        return
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4))
-    ax = axes[0]
-    names = [r["scheme"] for r in h2]
-    bias = [r["bias"] for r in h2]
-    err = [r["sd"] / max(np.sqrt(r["reps"]), 1) for r in h2]
-    ax.barh(names, bias, xerr=err, color=["#4C72B0" if n == "population" else "#C44E52"
-                                          for n in names])
-    ax.axvline(0.0, color="k", lw=1)
-    ax.set_xlabel("bias in fitted h²")
-    ax.set_title("A. h² bias by ascertainment scheme")
-    ax = axes[1]
-    scale_schemes = sorted({r["scheme"] for r in scale})
-    for scheme in scale_schemes:
-        pts = sorted((r["n_fam"], r["bias"], r["sd"]) for r in scale
-                     if r["scheme"] == scheme)
-        n = [p[0] for p in pts]
-        b = [p[1] for p in pts]
-        s = [p[2] for p in pts]
-        ax.errorbar(n, b, yerr=s, marker="o", label=scheme, capsize=3)
-    ax.axhline(0.0, color="k", lw=1)
-    ax.set_xscale("log")
-    ax.set_xlabel("families analysed")
-    ax.set_ylabel("bias in fitted h²")
-    ax.set_title("D. does more data fix it?")
-    if scale_schemes:            # --arms without "scale" leaves the panel empty
-        ax.legend()
-    fig.tight_layout()
-    path = os.path.join(HERE, f"bench_ascertainment{tag}.png")
-    fig.savefig(path, dpi=140)
-    print(f"wrote {path}")
-
-
 def main():
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--reps", type=int, default=5)
@@ -1149,7 +1109,6 @@ def main():
     if "lee" in args.arms:
         arm_lee(args, rows)
     write_csv(rows, args.tag)
-    plot(rows, args.tag)
     print(f"total {time.time() - t0:.1f}s")
 
 

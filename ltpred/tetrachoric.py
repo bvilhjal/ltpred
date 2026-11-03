@@ -11,15 +11,16 @@ parent-offspring pairs give ``h2 / 2``, so ``h2 ~ 2 * tetrachoric``; full sibs
 also share any sibship ``c2``).
 
 The estimator is the maximum-likelihood tetrachoric (Kirk 1973; Tallis 1962):
-thresholds ``t = Phi^-1(1 - p)`` from the marginal case proportions, then a
-bounded 1-D search over ``rho`` in ``(-1 + 1e-9, 1 - 1e-9)`` maximising the 2x2
-multinomial log-likelihood, with the bivariate-normal CDF from SciPy
-(``multivariate_normal``, whose bivariate case is a deterministic Genz
-routine). The 2x2 model is saturated, so at an interior optimum these
-plug-in thresholds coincide with the joint MLE. The standard error is a Wald
-SE from the observed information for ``rho`` alone (a central second
-difference, step ``1e-4``, of the log-likelihood), conditional on the
-thresholds. The quick cosine approximation
+thresholds ``t = Phi^-1(1 - p)`` from the marginal case proportions. The 2x2
+model is saturated, so with plug-in thresholds matching both margins the MLE
+is the unique root of ``p_both(rho) = a / n`` (``dp_both/drho`` is the
+bivariate density, hence positive), found by Brent's method on
+``(-1 + 1e-9, 1 - 1e-9)`` with cell probabilities from Plackett integration
+(`ltpred.pairwise_multi._bivariate_probabilities`, the same engine the
+pairwise fitters use). The standard error is a Wald SE from the closed-form
+observed information for ``rho`` alone,
+``-ll'' = -sum n (p''/p - (p'/p)^2)``, conditional on the thresholds. The
+quick cosine approximation
 (``cos(pi / (1 + sqrt(a*d / (b*c))))``-style estimators) is not used -- the
 MLE is cheap enough.
 
@@ -36,17 +37,17 @@ from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import ArrayLike
-from scipy.optimize import minimize_scalar
+from scipy.optimize import brentq
 from scipy.special import ndtr, ndtri
 from scipy.stats import multivariate_normal
 
 from ._validation import validate_binary
+from .pairwise_multi import _bivariate_probabilities
 
 __all__ = ["TetrachoricResult", "tetrachoric", "tetrachoric_table",
            "tetrachoric_matrix"]
 
 _RHO_EPS = 1e-9
-_CDF_TOL = 1e-10
 
 
 @dataclass
@@ -67,11 +68,32 @@ class TetrachoricResult:
     corrected: bool
 
 
+def _plackett(t1, t2, rho):
+    """Plackett cell probabilities, or ``None`` where that engine objects.
+
+    The pairwise engine raises when a cell underflows to exactly zero and
+    its quadrature warns when it cannot certify its tolerance (both happen
+    at extreme thresholds/correlations the root bracket visits). Either way
+    the caller falls back to SciPy's Genz CDF for that evaluation."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        try:
+            result = _bivariate_probabilities(float(t1), float(t2), float(rho))
+        except FloatingPointError:
+            return None
+    if any(w.category.__name__ == "IntegrationWarning" for w in caught):
+        return None
+    for w in caught:                       # unrelated warnings still surface
+        warnings.showwarning(w.message, w.category, w.filename, w.lineno)
+    return result
+
+
 def _bvn_cdf(a, b, rho):
     """P(X < a, Y < b) for standard bivariate normal with correlation rho.
 
-    Delegates to SciPy's bivariate-normal CDF (``multivariate_normal.cdf``).
-    Handles the rho -> +-1 limits and infinite bounds itself."""
+    The ``neither`` cell of the Plackett probabilities in
+    `ltpred.pairwise_multi`; the rho -> +-1 limits and infinite bounds are
+    handled here (the Plackett engine needs finite thresholds, ``|rho| < 1``)."""
     if a == -math.inf or b == -math.inf:
         return 0.0
     if a == math.inf:
@@ -82,25 +104,12 @@ def _bvn_cdf(a, b, rho):
         return float(ndtr(min(a, b)))
     if rho <= -1.0 + 1e-12:
         return max(0.0, float(ndtr(a) - ndtr(-b)))
+    cells = _plackett(a, b, rho)
+    if cells is not None:
+        return float(cells[0][3])
     return float(multivariate_normal.cdf(
         [a, b], mean=[0.0, 0.0], cov=[[1.0, rho], [rho, 1.0]],
-        maxpts=1_000_000, abseps=_CDF_TOL, releps=_CDF_TOL))
-
-
-def _neg_loglik(rho, t1, t2, a, b, c, d):
-    """Negative 2x2 log-likelihood; a case lies ABOVE its threshold.
-
-    Cell probabilities are floored at ``1e-300`` inside the log only."""
-    below = _bvn_cdf(t1, t2, rho)           # P(X < t1, Y < t2) = neither
-    p_neither = below
-    p_x_only = float(ndtr(t2)) - below      # X > t1, Y < t2
-    p_y_only = float(ndtr(t1)) - below      # X < t1, Y > t2
-    p_both = 1.0 - float(ndtr(t1)) - float(ndtr(t2)) + below
-    ll = 0.0
-    for n_ij, p_ij in ((a, p_both), (b, p_x_only), (c, p_y_only), (d, p_neither)):
-        if n_ij:
-            ll += n_ij * math.log(max(p_ij, 1e-300))
-    return -ll
+        maxpts=1_000_000, abseps=1e-10, releps=1e-10))
 
 
 def tetrachoric_table(a: float, b: float, c: float, d: float, *,
@@ -150,20 +159,47 @@ def tetrachoric_table(a: float, b: float, c: float, d: float, *,
     p1 = (a + b) / n
     p2 = (a + c) / n
 
-    t1 = float(ndtri(1.0 - p1))
-    t2 = float(ndtri(1.0 - p2))
+    t1 = float(-ndtri(p1))   # Phi^-1(1-p) == -Phi^-1(p), no 1-p cancellation
+    t2 = float(-ndtri(p2))
 
-    def f(rho):
-        return _neg_loglik(rho, t1, t2, a, b, c, d)
+    # Saturated model: the MLE matches the one free cell. p_both is strictly
+    # increasing in rho (derivative = bivariate density > 0) and the valid
+    # table puts a/n between its Frechet endpoints, so the root is bracketed;
+    # the endpoint fallbacks only cover last-bit bracket failures.
+    target = a / n
+    lo, hi = -1.0 + _RHO_EPS, 1.0 - _RHO_EPS
+    k1, c2 = float(ndtr(-t1)), float(ndtr(t2))
 
-    res = minimize_scalar(f, bounds=(-1.0 + _RHO_EPS, 1.0 - _RHO_EPS),
-                          method="bounded", options={"xatol": 1e-12})
-    rho, fmin = res.x, res.fun
+    def gap(rho):
+        # p_both = P(X > t1) - P(X > t1, Y < t2) = k1 - (c2 - below); routed
+        # through _bvn_cdf so the +-1 bracket ends use its limit handling.
+        return k1 - c2 + _bvn_cdf(t1, t2, rho) - target
 
-    # observed information via a numeric Hessian
-    delta = 1e-4
-    hess = (f(rho + delta) - 2.0 * fmin + f(rho - delta)) / (delta * delta)
-    se = math.sqrt(1.0 / hess) if hess > 0 else math.nan
+    if gap(lo) >= 0.0:
+        rho = lo
+    elif gap(hi) <= 0.0:
+        rho = hi
+    else:
+        rho = brentq(gap, lo, hi, xtol=1e-13, rtol=1e-13)
+
+    # Closed-form observed information: -ll'' = -sum n (p''/p - (p'/p)^2).
+    counts = np.array([a, b, c, d])
+    cells = _plackett(t1, t2, float(rho))
+    if cells is not None:
+        prob, first, second = cells
+        info = -float(np.sum(counts * (second / prob - (first / prob) ** 2)))
+    else:
+        # Extreme corner (see _plackett): numeric Hessian of the log-likelihood.
+        def nll(r):
+            below = _bvn_cdf(t1, t2, r)
+            cells = (k1 - c2 + below, c2 - below,
+                     float(ndtr(t1)) - below, below)
+            return -sum(nij * math.log(max(pij, 1e-300))
+                        for nij, pij in zip(counts, cells) if nij)
+        delta = 1e-4
+        info = (nll(rho + delta) - 2.0 * nll(rho)
+                + nll(rho - delta)) / (delta * delta)
+    se = math.sqrt(1.0 / info) if info > 0 else math.nan
     return TetrachoricResult(rho=float(rho), se=float(se),
                              thresholds=(t1, t2), n=n_pairs, corrected=corrected)
 

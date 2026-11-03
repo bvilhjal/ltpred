@@ -29,6 +29,7 @@ constants.
 from __future__ import annotations
 
 import numpy as np
+from scipy.special import expit
 
 from numpy.typing import ArrayLike
 
@@ -83,10 +84,12 @@ def convert_age_to_cir(age: ArrayLike, pop_prev: ArrayLike,
     at ``mid_point``. Vectorised over ``age``."""
     _validate_pop_prev(pop_prev)
     age = np.asarray(age, dtype=float)
-    return pop_prev / (1.0 + np.exp((mid_point - age) * slope))
+    # K * expit(z) == K / (1 + exp(-z)) exactly, without overflowing exp
+    # (and warning) for very young ages.
+    return pop_prev * expit((age - mid_point) * slope)
 
 
-def _convert_cir_to_age(cir, pop_prev=0.1, mid_point=60.0, slope=1.0 / 8.0):
+def _convert_cir_to_age(cir, pop_prev, mid_point=60.0, slope=1.0 / 8.0):
     """Invert `convert_age_to_cir`: the age at a cumulative incidence ``cir``.
 
     ``mid_point - log(pop_prev/cir - 1) / slope``, clamped at 0. Returns ``nan``
@@ -128,7 +131,7 @@ def convert_liability_to_aoo(liability: ArrayLike, pop_prev: ArrayLike,
     LTFHPlus::convert_liability_to_aoo (the logistic branch; the
     truncated-normal ``dist="normal"`` alternative is not ported)."""
     liability = np.asarray(liability, dtype=float)
-    cir = 1.0 - norm_cdf(liability)
+    cir = norm_cdf(-liability)   # Phi(-x) == 1 - Phi(x), without tail cancellation
     return _convert_cir_to_age(cir, pop_prev=pop_prev, mid_point=mid_point,
                                slope=slope)
 
@@ -228,10 +231,11 @@ def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
     matching the intended study design."""
     status = _validate_status(status)
     age = np.asarray(age, dtype=float)
-    thr = np.asarray(convert_age_to_thresh(age, pop_prev=pop_prev,
-                                           mid_point=mid_point, slope=slope), dtype=float)
+    # One logistic evaluation: thr is -Phi^-1(cir) by definition
+    # (convert_age_to_thresh), so derive it from cir directly.
     cir = np.asarray(convert_age_to_cir(age, pop_prev=pop_prev, mid_point=mid_point,
                                         slope=slope), dtype=float)
+    thr = np.asarray(-norm_ppf(cir), dtype=float)
     lower = np.where(status, thr, -np.inf)
     upper = np.where(status, np.inf, thr)
     K_i = np.where(status, np.nan, cir)

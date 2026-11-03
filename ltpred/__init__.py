@@ -28,7 +28,7 @@ import sys
 import types
 from typing import TYPE_CHECKING
 
-__version__ = "0.7.7"
+__version__ = "0.8.0"
 
 if TYPE_CHECKING:
     # Static re-exports. At runtime ``__getattr__`` below imports these lazily,
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
                           estimate_liability_gibbs_chunked,
                           estimate_liability_pa_batches,
                           estimate_liability_pa_chunked)
-    from .estimate import (LiabilityResult, batch_means,  # noqa: F401
+    from .estimate import (LiabilityResult,  # noqa: F401
                            estimate_liability,
                            estimate_liability_from_kinship,
                            estimate_liability_gibbs_arrays,
@@ -107,7 +107,7 @@ _EXPORTS = {
     "family": ["Member", "Family", "families_from_columns"],
     "estimate": ["estimate_liability",
                  "estimate_liability_pa_arrays", "estimate_liability_gibbs_arrays",
-                 "estimate_liability_from_kinship", "batch_means",
+                 "estimate_liability_from_kinship",
                  "LiabilityResult"],
     "chunked": ["estimate_liability_pa_chunked",
                 "estimate_liability_gibbs_chunked",

@@ -32,7 +32,7 @@ order `1e-4` and far too small to see.
     python benchmarks/bench_pairwise_recovery.py
     python benchmarks/bench_pairwise_recovery.py --budget 8800000 \
         --sizes 1500 3000 6000 12000 24000 --jobs 6
-Writes bench_pairwise_recovery.csv (+ .png if matplotlib is present).
+Writes bench_pairwise_recovery.csv.
 """
 
 import argparse
@@ -42,8 +42,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 
-from _common import (get_plt, log_scale_if_positive,
-                     simulate_families_components, write_rows)
+from _common import (simulate_families_components, write_rows)
 from ltpred.pairwise import fit_pairwise
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -133,7 +132,6 @@ def main():
               f"{pinned_any:.1%}  [{time.time()-t0:.0f}s]")
 
     write_csv(rows)
-    plot(panel)
     print("\nwrote bench_pairwise_recovery.csv")
 
 
@@ -141,43 +139,6 @@ def write_csv(rows):
     fields = ["n_fam", "reps", "comp", "truth", "bias", "se_bias", "sd",
               "mean_se", "se_over_sd", "coverage", "pinned_frac"]
     return write_rows(os.path.join(HERE, "bench_pairwise_recovery.csv"), rows, fields)
-
-
-def plot(panel):
-    plt = get_plt()
-    if plt is None:
-        return
-    fig, ax = plt.subplots(1, 3, figsize=(15, 4.4))
-    n = np.array([p["n_fam"] for p in panel], float)
-    for c in COMPONENTS:
-        bias = np.array([p["by_comp"][c]["bias"] for p in panel])
-        err = np.array([1.96 * p["by_comp"][c]["se_bias"] for p in panel])
-        ax[0].errorbar(n, bias, yerr=err, fmt="-o", capsize=3, label=c)
-    ax[0].axhline(0.0, color="k", lw=1)
-    log_scale_if_positive(ax[0], y=False)
-    ax[0].set_xlabel("number of families")
-    ax[0].set_ylabel("mean(fitted) - true")
-    ax[0].set_title("(a) bias vs #families (95% CI)")
-    ax[0].legend(fontsize=8)
-    for c in COMPONENTS:
-        ax[1].plot(n, [p["by_comp"][c]["se_over_sd"] for p in panel], "-o",
-                   label=f"{c} SE/SD")
-        ax[1].plot(n, [p["by_comp"][c]["coverage"] for p in panel], "--s",
-                   label=f"{c} coverage")
-    ax[1].axhline(1.0, color="k", lw=1)
-    ax[1].axhline(0.95, color="r", lw=1, ls=":")
-    log_scale_if_positive(ax[1], y=False)
-    ax[1].set_xlabel("number of families")
-    ax[1].set_title("(b) SE calibration and 95% coverage")
-    ax[1].legend(fontsize=7, ncol=2)
-    ax[2].plot(n, [100.0 * p["pinned_any"] for p in panel], "-o",
-               color="tab:red")
-    log_scale_if_positive(ax[2], y=False)
-    ax[2].set_xlabel("number of families")
-    ax[2].set_ylabel("% of replicates with a pinned component")
-    ax[2].set_title("(c) non-negativity boundary")
-    fig.tight_layout()
-    fig.savefig(os.path.join(HERE, "bench_pairwise_recovery.png"), dpi=130)
 
 
 if __name__ == "__main__":
