@@ -697,39 +697,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#advanced-fitting-and-scale-apis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Advanced fitting and scale APIs
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#low-level-numerical-apis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Low-level numerical APIs
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#additional-public-names" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Additional public names
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#estimation-ltpredestimate" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -789,17 +756,6 @@
         
       </ul>
     </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ltpred.estimate.batch_means" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        batch_means
-      
-    </span>
-  </a>
   
 </li>
         
@@ -1900,17 +1856,6 @@
     <span class="md-ellipsis">
       
         gibbs_params
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ltpred.gibbs.gibbs_estimate_batched" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        gibbs_estimate_batched
       
     </span>
   </a>
@@ -2432,39 +2377,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#advanced-fitting-and-scale-apis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Advanced fitting and scale APIs
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#low-level-numerical-apis" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Low-level numerical APIs
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#additional-public-names" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Additional public names
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#estimation-ltpredestimate" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2524,17 +2436,6 @@
         
       </ul>
     </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ltpred.estimate.batch_means" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        batch_means
-      
-    </span>
-  </a>
   
 </li>
         
@@ -3641,17 +3542,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#ltpred.gibbs.gibbs_estimate_batched" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        gibbs_estimate_batched
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -4078,8 +3968,9 @@
 
 
 <h1 id="api-reference">API reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h1>
-<p>A quick map of the primary workflow, followed by advanced and numerical APIs and
-then signatures/docstrings generated from the source. The top-level
+<p>A quick map of the primary workflow, followed by signatures and docstrings
+generated from the source for every public module (advanced array, pairwise
+and low-level numerical APIs included). The top-level
 <code>ltpred.__all__</code> controls wildcard imports and is intentionally limited to the
 ordinary single-trait path. A wider set of names is available as explicit
 top-level compatibility imports; the remaining numerical functions are available
@@ -4157,50 +4048,6 @@ is also a top-level export.</p>
 </tr>
 </tbody>
 </table>
-<h2 id="advanced-fitting-and-scale-apis">Advanced fitting and scale APIs<a class="headerlink" href="#advanced-fitting-and-scale-apis" title="Permanent link">&para;</a></h2>
-<p><strong>Table 2. Advanced estimation and fitting.</strong></p>
-<table>
-<thead>
-<tr>
-<th>function</th>
-<th>purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>estimate_liability_pa_arrays</code> / <code>estimate_liability_gibbs_arrays</code></td>
-<td>array API — skip <code>Family</code> objects for biobank scale</td>
-</tr>
-<tr>
-<td><code>estimate_liability_quadrature_arrays</code></td>
-<td>opt-in numerical posterior moments for additive, noninbred nuclear families with <code>0 &lt;= h2 &lt; 1</code>; separate refinement diagnostics, no mixture or shared environment</td>
-</tr>
-<tr>
-<td><code>estimate_liability_pa_chunked</code> / <code>estimate_liability_gibbs_chunked</code></td>
-<td>chunked array API — same kernels, bounded working set</td>
-</tr>
-<tr>
-<td><code>estimate_liability_pa_batches</code> / <code>estimate_liability_gibbs_batches</code></td>
-<td>consume an iterator of bound batches and return concatenated arrays; never hold all bounds</td>
-</tr>
-<tr>
-<td><code>fit_variance_components</code></td>
-<td><strong>fit</strong> additive <code>A</code> + shared-environment <code>C</code> (sibship) / <code>M</code> (couple) as proportions under the same population/IPW sampling contract</td>
-</tr>
-<tr>
-<td><code>fit_pairwise</code></td>
-<td>opt-in deterministic A/C/M binary-pair composite likelihood; common thresholds, independent families and explicit population/IPW sampling contract; conditional interior cluster-sandwich SEs</td>
-</tr>
-<tr>
-<td><code>fit_pairwise_multi</code></td>
-<td>opt-in joint h²/rg/re and optional multivariate sibship/couple covariance; observed-pair identification, PSD components, population/IPW and conditional cluster-sandwich SEs</td>
-</tr>
-<tr>
-<td><code>bootstrap_fit</code></td>
-<td>iid-family cluster bootstrap SD / percentile interval; it does not correct ascertainment bias</td>
-</tr>
-</tbody>
-</table>
 <p>The heavier inferential machinery — the HE multi-trait genetic-correlation,
 onset-age-decay, common-factor and genetic-nurture fits, the MCEM
 variance-component fit, and the parametric-bootstrap significance tests — lives
@@ -4212,99 +4059,11 @@ they are not installed with the distribution. See
 integer in <code>[0, 2**32 - 1]</code>; booleans are rejected. Derived sampler streams wrap
 deterministically within that 32-bit range. Resampling seeds on bootstrap helpers
 follow NumPy's <code>default_rng</code> contract.</p>
-<h2 id="low-level-numerical-apis">Low-level numerical APIs<a class="headerlink" href="#low-level-numerical-apis" title="Permanent link">&para;</a></h2>
-<p><strong>Table 3. Numerical building blocks.</strong></p>
-<table>
-<thead>
-<tr>
-<th>function</th>
-<th>purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>pa_algorithm</code> / <code>pa_estimate_batched</code></td>
-<td>Pearson–Aitken selection updates</td>
-</tr>
-<tr>
-<td><code>construct_covmat_single</code> / <code>construct_covmat_multi</code></td>
-<td>family covariance from relatedness</td>
-</tr>
-<tr>
-<td><code>get_relatedness</code></td>
-<td>shared-DNA × <code>h²</code> for a pair of roles</td>
-</tr>
-<tr>
-<td><code>construct_covmat_from_kinship</code></td>
-<td>liability covariance from a kinship/<code>A</code> matrix, optionally with caller-supplied <code>C</code>/<code>M</code> kernels</td>
-</tr>
-<tr>
-<td><code>rtmvnorm_gibbs</code></td>
-<td>truncated-MVN Gibbs sampler; covariance must be strictly positive-definite</td>
-</tr>
-<tr>
-<td><code>convert_age_to_cir</code> / <code>convert_age_to_thresh</code> / …</td>
-<td>age ↔ incidence ↔ threshold</td>
-</tr>
-</tbody>
-</table>
 <p>PA accepts a symmetric positive-semidefinite covariance with strictly positive
 marginal variances. Gibbs requires strict positive-definiteness because it forms
 precision-based conditional variances.
 The sex-limited and genetic-nurture covariance constructors live in the
 checkout-only <code>research/covariance_extensions.py</code>.</p>
-<h2 id="additional-public-names">Additional public names<a class="headerlink" href="#additional-public-names" title="Permanent link">&para;</a></h2>
-<p><strong>Table 4. Supporting functions and result containers.</strong></p>
-<table>
-<thead>
-<tr>
-<th>names</th>
-<th>purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>Member</code>, <code>Family</code>, <code>LiabilityResult</code>, <code>QuadratureResult</code>, <code>PopulationScores</code></td>
-<td>family inputs and scoring outputs; scoring results export columns with <code>to_dict()</code> or optional-pandas <code>to_frame()</code></td>
-</tr>
-<tr>
-<td><code>CipCurve</code>, <code>kaplan_meier_cip</code>, <code>aalen_johansen_cip</code></td>
-<td>empirical cumulative-incidence estimation and curve result</td>
-</tr>
-<tr>
-<td><code>ParentGraph</code>, <code>Pedigree</code>, <code>build_parent_graph</code>, <code>extract_pedigree</code></td>
-<td>indexed register relationships and proband pedigree extraction</td>
-</tr>
-<tr>
-<td><code>Covmat</code>, <code>correct_positive_definite</code></td>
-<td>labelled covariance and explicit positive-definite repair</td>
-</tr>
-<tr>
-<td><code>tetrachoric</code>, <code>tetrachoric_table</code>, <code>tetrachoric_matrix</code>, <code>TetrachoricResult</code></td>
-<td>binary-data liability-correlation diagnostics</td>
-</tr>
-<tr>
-<td><code>probit_liability_r2</code>, <code>liability_r2_from_z</code></td>
-<td>liability-scale explained-variance summaries</td>
-</tr>
-<tr>
-<td><code>convert_liability_to_aoo</code>, <code>liability_threshold</code></td>
-<td>liability-to-onset and prevalence-to-threshold conversion</td>
-</tr>
-<tr>
-<td><code>gibbs_params</code>, <code>batch_means</code></td>
-<td>conditional sampler parameters and Monte Carlo SE calculation</td>
-</tr>
-<tr>
-<td><code>Simulation</code>, <code>RegisterSimulation</code>, <code>FollowupSimulation</code>, <code>MultiTraitSimulation</code></td>
-<td>simulated records with generating values</td>
-</tr>
-<tr>
-<td><code>FitResult</code>, <code>VarCompResult</code>, <code>BootstrapResult</code>, <code>PairwiseFitResult</code>, <code>MultiTraitPairwiseResult</code></td>
-<td>parameter-fitting results, not individual liabilities; <code>FitResult.h2_se</code> and <code>VarCompResult.se</code> are within-fit Monte-Carlo diagnostics, not sampling SEs</td>
-</tr>
-</tbody>
-</table>
 <p>The older array APIs keep their tuple contracts: PA <code>(est, var)</code>, Gibbs
 <code>(est, se)</code> or <code>(est, se, var)</code> with <code>return_var=True</code>, and kinship
 <code>(est, se, var)</code>. Posterior variance and Monte Carlo SE are distinct quantities.</p>
@@ -4513,37 +4272,6 @@ Quadrature results also get <code>quadrature_error_&lt;name&gt;</code> and
 <div class="doc doc-object doc-function">
 
 
-<h4 id="ltpred.estimate.batch_means" class="doc doc-heading">
-            <span class="doc doc-object-name doc-function-name">batch_means</span>
-
-
-<a href="#ltpred.estimate.batch_means" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">batch_means</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Batch-means estimate and Monte-Carlo SE of column means (Jones et al. 2006).</p>
-<p>Splits <code>n</code> samples into <code>a = n // b</code> consecutive batches of size
-<code>b = floor(sqrt(n))</code>; <code>est</code> is the mean of all <code>n</code> samples and
-<code>se = sqrt(b * var(batch_means) / (a*b))</code>. R <code>batchmeans::bmmat</code> instead
-reports the mean of the batch means and divides by <code>n</code>; the two agree when
-<code>b</code> divides <code>n</code>. Accepts a 1-D or 2-D <code>(n, ncols)</code> array and returns
-<code>(est, se)</code> arrays over columns (length-1 arrays for 1-D input).
-Adapted from R <code>batchmeans::bmmat</code>, the rule LTFHPlus uses to decide the
-Gibbs sampler has converged. (The estimator applies it online to its
-streamed values, keeping the first round's batch size as rounds pool; this
-stays for direct use and tests.) Requires at least 4 samples (two batches),
-the same minimum the estimator enforces on <code>n_sim</code>.</p>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
 <h4 id="ltpred.estimate.estimate_liability_pa_arrays" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">estimate_liability_pa_arrays</span>
 
@@ -4723,7 +4451,7 @@ sampler for the multi-trait model, which PA does not support.
 That path collapses untruncated genetic coordinates out of the
 sweep and Rao--Blackwellises their posterior means. Pass <code>method</code>
 explicitly to override (names are case-insensitive): <code>"pearson-aitken"</code>
-(aliases <code>"pa"</code>, <code>"pearson_aitken"</code>, <code>"aitken"</code>; single trait only,
+(alias <code>"pa"</code>; single trait only,
 <code>use_mixture</code> enables the age-censored-control correction) or
 <code>"gibbs"</code> (the truncated-MVN sampler; needed for multiple traits or a
 Monte-Carlo SE), or <code>"quadrature"</code> under the nuclear-family restrictions
@@ -5371,15 +5099,16 @@ tetrachoric correlation under an A+E model is <code>h2 * A</code> (Falconer's ro
 parent-offspring pairs give <code>h2 / 2</code>, so <code>h2 ~ 2 * tetrachoric</code>; full sibs
 also share any sibship <code>c2</code>).</p>
 <p>The estimator is the maximum-likelihood tetrachoric (Kirk 1973; Tallis 1962):
-thresholds <code>t = Phi^-1(1 - p)</code> from the marginal case proportions, then a
-bounded 1-D search over <code>rho</code> in <code>(-1 + 1e-9, 1 - 1e-9)</code> maximising the 2x2
-multinomial log-likelihood, with the bivariate-normal CDF from SciPy
-(<code>multivariate_normal</code>, whose bivariate case is a deterministic Genz
-routine). The 2x2 model is saturated, so at an interior optimum these
-plug-in thresholds coincide with the joint MLE. The standard error is a Wald
-SE from the observed information for <code>rho</code> alone (a central second
-difference, step <code>1e-4</code>, of the log-likelihood), conditional on the
-thresholds. The quick cosine approximation
+thresholds <code>t = Phi^-1(1 - p)</code> from the marginal case proportions. The 2x2
+model is saturated, so with plug-in thresholds matching both margins the MLE
+is the unique root of <code>p_both(rho) = a / n</code> (<code>dp_both/drho</code> is the
+bivariate density, hence positive), found by Brent's method on
+<code>(-1 + 1e-9, 1 - 1e-9)</code> with cell probabilities from Plackett integration
+(<code>ltpred.pairwise_multi._bivariate_probabilities</code>, the same engine the
+pairwise fitters use). The standard error is a Wald SE from the closed-form
+observed information for <code>rho</code> alone,
+<code>-ll'' = -sum n (p''/p - (p'/p)^2)</code>, conditional on the thresholds. The
+quick cosine approximation
 (<code>cos(pi / (1 + sqrt(a*d / (b*c))))</code>-style estimators) is not used -- the
 MLE is cheap enough.</p>
 <p>Use it as a diagnostic and cross-check: estimate liability correlations
@@ -6888,7 +6617,7 @@ list repeats the per-trait roles once per phenotype.</p>
 
 
 <a href="#ltpred.covariance.get_relatedness" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">get_relatedness</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">get_relatedness</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">,</span> <span class="n">h2</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6906,7 +6635,7 @@ roles on opposite sides (maternal <code>m</code>/<code>mg*</code>/<code>mhs</cod
 paternal <code>f</code>/<code>pg*</code>/<code>phs</code>/<code>pau</code>) return 0; two children share 0.5
 within a partner group <code>c&lt;group&gt;.*</code> and 0.25 across groups; any other
 pair reads a fixed shared-DNA table by role kind (mates such as <code>m</code>/<code>f</code> or
-<code>mgm</code>/<code>mgf</code> are unrelated; unknown kind pairs give 0).</p>
+<code>mgm</code>/<code>mgf</code> are unrelated).</p>
 <p>Two <strong>same-side</strong> half-sibs (<code>mhs1</code>/<code>mhs2</code> or <code>phs1</code>/<code>phs2</code>) are
 related <code>0.5*h2</code> <em>to each other</em> — the role grammar cannot name their second
 parents, so it implies a shared one (they are treated as full sibs of each
@@ -6927,7 +6656,7 @@ for those.</p>
 
 
 <a href="#ltpred.covariance.construct_covmat_single" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_single</span><span class="p">(</span><span class="n">fam_vec</span><span class="o">=</span><span class="p">(</span><span class="s1">'m'</span><span class="p">,</span> <span class="s1">'f'</span><span class="p">,</span> <span class="s1">'s1'</span><span class="p">,</span> <span class="s1">'mgm'</span><span class="p">,</span> <span class="s1">'mgf'</span><span class="p">,</span> <span class="s1">'pgm'</span><span class="p">,</span> <span class="s1">'pgf'</span><span class="p">),</span> <span class="n">n_fam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_single</span><span class="p">(</span><span class="n">fam_vec</span><span class="o">=</span><span class="p">(</span><span class="s1">'m'</span><span class="p">,</span> <span class="s1">'f'</span><span class="p">,</span> <span class="s1">'s1'</span><span class="p">,</span> <span class="s1">'mgm'</span><span class="p">,</span> <span class="s1">'mgf'</span><span class="p">,</span> <span class="s1">'pgm'</span><span class="p">,</span> <span class="s1">'pgf'</span><span class="p">),</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">h2</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -6937,11 +6666,9 @@ for those.</p>
 <code>(1e-8, 1]</code> (below the floor the smallest eigenvalue, about <code>h2</code>, is
 under the strict positive-definiteness threshold and no correction can
 recover it; at <code>h2 = 1</code> <code>g</code> and <code>o</code> coincide and the matrix is
-singular). Relatives come from <code>fam_vec</code>, a list of role strings, or
-<code>n_fam</code>, a mapping from role to count; supply at most one. In <code>n_fam</code>
-an unnumbered stem (<code>"s"</code>, <code>"mhs"</code>, <code>"phs"</code>, <code>"mau"</code>, <code>"pau"</code>)
-expands to <code>s1, s2, ...</code> and any other role needs count 0 or 1. <code>g</code>/<code>o</code>
-in either input are dropped and, when <code>add_ind</code>, put first; duplicate
+singular). Relatives come from <code>fam_vec</code>, a list of role strings
+(number repeated relatives <code>s1, s2, ...</code>). <code>g</code>/<code>o</code> in the input are
+dropped and, when <code>add_ind</code>, put first; duplicate
 roles raise. With the defaults the matrix covers a proband and both
 parents, a sibling and all four grandparents. Returns a <code>Covmat</code>; <code>.roles</code> gives the row ordering the
 Gibbs sampler expects (<code>g</code>, <code>o</code> first when <code>add_ind</code>). <code>c2</code>/<code>m2</code> add
@@ -6964,13 +6691,13 @@ Requires <code>h2 + c2 + m2 &lt;= 1</code>.</p>
 
 
 <a href="#ltpred.covariance.construct_covmat_multi" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_multi</span><span class="p">(</span><span class="n">fam_vec</span><span class="o">=</span><span class="p">(</span><span class="s1">'m'</span><span class="p">,</span> <span class="s1">'f'</span><span class="p">,</span> <span class="s1">'s1'</span><span class="p">,</span> <span class="s1">'mgm'</span><span class="p">,</span> <span class="s1">'mgf'</span><span class="p">,</span> <span class="s1">'pgm'</span><span class="p">,</span> <span class="s1">'pgf'</span><span class="p">),</span> <span class="n">n_fam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">genetic_corrmat</span><span class="p">,</span> <span class="n">full_corrmat</span><span class="p">,</span> <span class="n">h2_vec</span><span class="p">,</span> <span class="n">phen_names</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_multi</span><span class="p">(</span><span class="n">fam_vec</span><span class="o">=</span><span class="p">(</span><span class="s1">'m'</span><span class="p">,</span> <span class="s1">'f'</span><span class="p">,</span> <span class="s1">'s1'</span><span class="p">,</span> <span class="s1">'mgm'</span><span class="p">,</span> <span class="s1">'mgf'</span><span class="p">,</span> <span class="s1">'pgm'</span><span class="p">,</span> <span class="s1">'pgf'</span><span class="p">),</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">genetic_corrmat</span><span class="p">,</span> <span class="n">full_corrmat</span><span class="p">,</span> <span class="n">h2_vec</span><span class="p">,</span> <span class="n">phen_names</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
         <p>Covariance matrix for several correlated traits.</p>
-<p><code>fam_vec</code>/<code>n_fam</code>/<code>add_ind</code> are as in <code>construct_covmat_single</code>,
+<p><code>fam_vec</code>/<code>add_ind</code> are as in <code>construct_covmat_single</code>,
 except that a family with no relatives always gives roles <code>g</code>, <code>o</code>.
 <code>h2_vec</code> holds one heritability per trait, each in <code>(1e-8, 1]</code>;
 <code>genetic_corrmat</code> and <code>full_corrmat</code> are <code>n_pheno x n_pheno</code>, finite,
@@ -7040,7 +6767,7 @@ covariance for these individuals.</p>
 
 
 <a href="#ltpred.covariance.construct_covmat_from_kinship" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_from_kinship</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">c_kernel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m_kernel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">_certified_psd</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">construct_covmat_from_kinship</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">h2</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">c2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">c_kernel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">m_kernel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">_certified_psd</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -7165,7 +6892,7 @@ are missing data; see the methods report, "Fitting h² is a different problem".<
   family's chain starts at its members' marginal truncated medians.</li>
 <li><strong>H4. Augment.</strong> Advance every family's persistent truncated-MVN chain
   <code>l_f | bounds, Sigma(theta)</code> by <code>inner_sweeps</code> Gibbs sweeps
-  (<code>ltpred.gibbs.gibbs_advance</code>).</li>
+  (<code>ltpred.gibbs._gibbs_advance_chain</code>).</li>
 <li><strong>H5. Regress.</strong> <code>theta_hat = (X'WX)^-1 sum_f w_f sum_(i,j) x_ij l_fi l_fj</code>:
   the Haseman-Elston moment equation <code>E[l_i l_j] = x_ij' theta</code>. One component
   is exact division; several add a <code>1e-10</code> ridge.</li>
@@ -7175,7 +6902,7 @@ are missing data; see the methods report, "Fitting h² is a different problem".<
   after the first update, so <code>Sigma</code> stays positive definite.</li>
 <li><strong>H7. Summarise.</strong> Repeat H4-H6 <code>n_iter</code> times and drop <code>burn_in</code> iterates.
   The estimate is the mean of the retained trace; its SE is the batch-means
-  Monte-Carlo SE of that mean (<code>ltpred.estimate.batch_means</code>).</li>
+  Monte-Carlo SE of that mean (<code>ltpred.estimate._batch_means</code>).</li>
 </ul>
 <p>At the true parameters, total expectation recovers <code>x_ij' theta</code> from
 correctly specified conditional draws and the population family mix, even
@@ -8047,7 +7774,7 @@ positive definite. A coordinate whose interval spans less than <code>1e-8</code>
 <li><strong>G1 group.</strong> Families with one role set share <code>Sigma</code>;
    <code>ltpred.estimate._group_by_structure</code> buckets them and
    <code>ltpred.estimate._estimate_group</code> forms <code>(P, sd)</code> once per group.</li>
-<li><strong>G2 collapse.</strong> <code>gibbs_estimate_batched</code> integrates out each family's
+<li><strong>G2 collapse.</strong> <code>_gibbs_round</code> integrates out each family's
    own <code>(-inf, inf)</code> coordinates (always the genetic rows on the public
    path; also <code>o</code> or a relative left unobserved), running families that
    share an unbounded set together (<code>_unbounded_patterns</code>). A family's draws
@@ -8073,7 +7800,7 @@ positive definite. A coordinate whose interval spans less than <code>1e-8</code>
    (<code>_mixing_directions</code>). These moves preserve the same truncated law and
    keep pins fixed. They activate when any conditional-on-pins variance
    exceeds its coordinate-conditional variance by a factor of 16; ordinary
-   blocks, and the <code>gibbs_advance</code> chains, keep coordinate sweeps.</li>
+   blocks, and the <code>_gibbs_advance_chain</code> chains, keep coordinate sweeps.</li>
 <li><strong>G5 stream.</strong> After <code>burn_in</code> sweeps, each of <code>n_sim</code> sweeps adds the
    outputs to running sums and sums of squares; the first
    <code>n_batch * batch_size</code> of them also form batch means, of which only the
@@ -8090,7 +7817,7 @@ positive definite. A coordinate whose interval spans less than <code>1e-8</code>
 <p>Seeding. The batched kernels reseed the kernel RNG with <code>seeds[f]</code> at the
 top of family <code>f</code>'s <code>prange</code> iteration (<code>-1</code>: unseeded), so a family's
 draws do not depend on thread scheduling; seed derivation is in
-<code>ltpred.estimate._base_seeds</code>. <code>gibbs_advance</code> (persistent chains for
+<code>ltpred.estimate._base_seeds</code>. <code>_gibbs_advance_chain</code> (persistent chains for
 <code>ltpred.fit</code>) instead draws every uniform from a thread-local
 <code>numpy.random.Generator</code> before entering <code>prange</code>. <code>rtmvnorm_gibbs</code>
 reseeds the serial sweep's RNG (see its <code>seed</code>).</p>
@@ -8232,7 +7959,7 @@ that reseed -- without it, an unseeded call following a seeded one
 would replay the stream the seeded call left behind, making
 <code>seed=None</code> results deterministic after any seeded call. The reseed
 also resets the calling thread's persistent-chain stream used by
-<code>gibbs_advance</code>. With Numba, the high-level estimators seed each family
+<code>_gibbs_advance_chain</code>. With Numba, the high-level estimators seed each family
 inside the parallel kernel and are safe for concurrent seeded use;
 without it they share the global-RNG caveat.</p>
           </div>
@@ -8299,58 +8026,6 @@ strictly positive-definite (smallest eigenvalue greater than <code>1e-12</code>
 times the covariance's spectral scale);
 a merely invertible but indefinite covariance would otherwise silently
 yield NaN conditional SDs and garbage draws, so it raises <code>ValueError</code>.</p>
-
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="ltpred.gibbs.gibbs_estimate_batched" class="doc doc-heading">
-            <span class="doc doc-object-name doc-function-name">gibbs_estimate_batched</span>
-
-
-<a href="#ltpred.gibbs.gibbs_estimate_batched" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">gibbs_estimate_batched</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">sd</span><span class="p">,</span> <span class="n">sd0</span><span class="p">,</span> <span class="n">lowers</span><span class="p">,</span> <span class="n">uppers</span><span class="p">,</span> <span class="n">out_idx</span><span class="p">,</span> <span class="n">n_sim</span><span class="p">,</span> <span class="n">burn_in</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">n_batch</span><span class="p">,</span> <span class="n">seeds</span><span class="p">,</span> <span class="n">cov</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">collapse</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">_collapse_cache</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Run one round of the batched sampler for same-covariance families.</p>
-<p>An internal primitive of <code>ltpred.estimate</code>, which validates the arguments
-(they are not checked here). <code>P</code>/<code>sd</code> are <code>gibbs_params</code> of <code>cov</code>
-and <code>sd0 = sqrt(diag(cov))</code> sets each chain's start; <code>lowers</code>/
-<code>uppers</code> are <code>(F, d)</code> bounds in <code>cov</code> row order; <code>out_idx</code> lists
-the <code>ncols</code> coordinates to accumulate. Each family discards <code>burn_in</code>
-sweeps of a fresh chain, then keeps <code>n_sim</code>.</p>
-<p>Returns <code>(total_sum, total_sumsq, bm_sum, bm_sumsq)</code>, each <code>(F, ncols)</code>.
-<code>total_sum[f, c]</code> is the sum of <code>N = n_sim</code> post-burn-in values (divide
-by <code>N</code> for the posterior mean) and <code>total_sumsq[f, c]</code> the sum of their
-squares, so the <strong>posterior variance</strong> is
-<code>total_sumsq / N - (total_sum / N)^2</code>. <code>bm_sum</code> / <code>bm_sumsq</code> are the
-sum and sum of squares of the <code>M = n_batch</code> batch means of size
-<code>b = batch_size</code> (<code>M * b &lt;= N</code>), giving the batch-means SE
-<code>se = sqrt(b * (bm_sumsq - bm_sum^2 / M) / (M - 1) / (M * b))</code>: the
-denominator counts the batched draws only (R <code>batchmeans</code> divides by all
-<code>N</code>). The posterior variance is a property of the TMVN and does not
-shrink with more draws; the SE is the sampler's own error and does.
-<code>seeds[f]</code> seeds family <code>f</code> (<code>-1</code>: unseeded). <code>lowers</code>/<code>uppers</code>
-may be float32.</p>
-<p>When <code>collapse</code> is true (the default whenever <code>cov</code> is supplied), each
-family's own <code>(-inf, inf)</code> coordinates are integrated out of its sweep
-(methods report, Algorithm G, step G2); families sharing an unbounded set
-run in one kernel call. A collapsed output streams <code>E[z | y]</code> and its
-sum of squares includes the constant <code>Var(z | y)</code>, so <code>var</code> is still
-<code>Var(target | C_F)</code>, while its SE is that of the Rao--Blackwellised
-mean. <code>P</code>/<code>sd</code> then serve only families with nothing to collapse; the
-kept block's are recomputed from <code>cov</code>. If every coordinate is
-collapsed, no sampling happens (sums 0, <code>total_sumsq = N * cov[j, j]</code>).
-Pass <code>collapse=False</code> to force the full chain. A caller looping rounds
-on one <code>cov</code> (the convergence loop) may pass a dict as
-<code>_collapse_cache</code> so those kept-block factors are computed once instead
-of per round; the sums are identical.</p>
 
 
     </div>
@@ -8877,13 +8552,13 @@ generating variance parameters, so a fit can be scored against them.</p>
 
 
 <a href="#ltpred.simulate.simulate_under_LTM_single" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">simulate_under_LTM_single</span><span class="p">(</span><span class="n">fam_vec</span><span class="o">=</span><span class="p">(</span><span class="s1">'m'</span><span class="p">,</span> <span class="s1">'f'</span><span class="p">,</span> <span class="s1">'s1'</span><span class="p">,</span> <span class="s1">'mgm'</span><span class="p">,</span> <span class="s1">'mgf'</span><span class="p">,</span> <span class="s1">'pgm'</span><span class="p">,</span> <span class="s1">'pgf'</span><span class="p">),</span> <span class="n">n_fam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">use_age</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">onset_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">case_encoding</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">onset_resolution</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">onset_rho</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">simulate_under_LTM_single</span><span class="p">(</span><span class="n">fam_vec</span><span class="o">=</span><span class="p">(</span><span class="s1">'m'</span><span class="p">,</span> <span class="s1">'f'</span><span class="p">,</span> <span class="s1">'s1'</span><span class="p">,</span> <span class="s1">'mgm'</span><span class="p">,</span> <span class="s1">'mgf'</span><span class="p">,</span> <span class="s1">'pgm'</span><span class="p">,</span> <span class="s1">'pgf'</span><span class="p">),</span> <span class="n">add_ind</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">h2</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">n_sim</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">pop_prev</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">use_age</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mid_point</span><span class="o">=</span><span class="mf">60.0</span><span class="p">,</span> <span class="n">slope</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="mf">8.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">onset_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">case_encoding</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">onset_resolution</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">onset_rho</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
         <p>Simulate <code>n_sim</code> families for a single trait.</p>
-<p>Builds the covariance from <code>fam_vec</code>/<code>n_fam</code> as
+<p>Builds the covariance from <code>fam_vec</code> as
 <code>ltpred.covariance.construct_covmat_single</code> does (<code>add_ind=False</code>
 raises, since the simulation needs <code>g</code>/<code>o</code>), draws liabilities, and
 returns a <code>Simulation</code>. <code>n_sim</code> counts families, not sampler draws.
