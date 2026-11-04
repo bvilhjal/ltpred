@@ -1,33 +1,10 @@
-"""Tetrachoric correlation: latent liability correlation from binary pairs.
+"""Tetrachoric maximum-likelihood correlation for binary pairs.
 
-Under the liability-threshold model, two binary observations (two traits, or
-the case/control statuses of two relatives) are read as a 2x2 table of a
-latent **bivariate normal** cut at two thresholds. The tetrachoric correlation
-is the latent Pearson correlation implied by that table -- the pairwise face
-of the family model used throughout this package: for relatives with additive
-relationship ``A`` and liability-scale heritability ``h2`` the expected
-tetrachoric correlation under an A+E model is ``h2 * A`` (Falconer's route:
-parent-offspring pairs give ``h2 / 2``, so ``h2 ~ 2 * tetrachoric``; full sibs
-also share any sibship ``c2``).
-
-The estimator is the maximum-likelihood tetrachoric (Kirk 1973; Tallis 1962):
-thresholds ``t = Phi^-1(1 - p)`` from the marginal case proportions. The 2x2
-model is saturated, so with plug-in thresholds matching both margins the MLE
-is the unique root of ``p_both(rho) = a / n`` (``dp_both/drho`` is the
-bivariate density, hence positive), found by Brent's method on
-``(-1 + 1e-9, 1 - 1e-9)`` with cell probabilities from Plackett integration
-(`ltpred.pairwise_multi._bivariate_probabilities`, the same engine the
-pairwise fitters use). The standard error is a Wald SE from the closed-form
-observed information for ``rho`` alone,
-``-ll'' = -sum n (p''/p - (p'/p)^2)``, conditional on the thresholds. The
-quick cosine approximation
-(``cos(pi / (1 + sqrt(a*d / (b*c))))``-style estimators) is not used -- the
-MLE is cheap enough.
-
-Use it as a diagnostic and cross-check: estimate liability correlations
-directly from relative pairs' statuses and compare with the model's
-``h2 * A`` expectation, or sanity-check a fitted ``h2`` against the pairwise
-tetrachorics in the same data (``benchmarks/bench_tetrachoric.py``).
+Marginal case proportions set the thresholds. With those margins fixed, the
+saturated 2x2 model gives a unique root ``p_both(rho) = a/n``, solved by
+Brent's method using the pairwise fitters' Plackett probabilities. The
+reported Wald SE comes from observed information conditional on the
+thresholds. Pairwise estimates need not form a PSD matrix.
 """
 from __future__ import annotations
 
@@ -232,18 +209,10 @@ def tetrachoric(x: ArrayLike, y: ArrayLike, *,
 
 def tetrachoric_matrix(X: ArrayLike, *, continuity_correction: bool = True,
                        check_psd: bool = True) -> np.ndarray:
-    """Pairwise tetrachoric correlations among the columns of ``X``.
+    """Return pairwise tetrachoric correlations among columns of binary ``X``.
 
-    ``X`` is an ``(n, m)`` boolean or 0/1 array, one row per unit (e.g. family)
-    and one column per variable; returns the symmetric ``(m, m)`` matrix of
-    pairwise estimates with unit diagonal. Each pair of
-    columns is fitted by `tetrachoric_table`, so ``continuity_correction`` and
-    the monomorphic-column error behave as there. Because the off-diagonal
-    entries are fitted independently, the result is **not guaranteed to be a
-    positive-semidefinite correlation matrix**. With ``check_psd=True`` (the
-    default), a materially negative eigenvalue emits a warning; do not pass such
-    a result to a covariance model without a scientifically justified joint fit
-    or projection.
+    Each pair uses `tetrachoric_table`. Independent estimates need not be PSD;
+    ``check_psd=True`` warns on a materially negative eigenvalue.
     """
     if not isinstance(check_psd, (bool, np.bool_)):
         raise TypeError("check_psd must be bool")

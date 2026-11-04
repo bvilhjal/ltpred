@@ -1,24 +1,10 @@
-"""Turning case/control status, age and prevalence into liability thresholds.
+"""Convert status, age and cumulative incidence into liability bounds.
 
-Under the liability-threshold model a person is a case when their full liability
-exceeds a threshold ``T``. With a single population prevalence ``K`` that
-threshold is ``T = Phi^-1(1 - K)``. Personalised models instead derive a person's
-threshold from cumulative incidence at their age, birth year and sex. A case can
-be pinned at the threshold matching their age of onset; a control's liability is
-bounded above by the threshold at their current age.
-
-Those bounds do not, by themselves, name the model. They form **LT-FH++** when
-the proband and relatives are conditioned on together, and **ADuLT** when only
-the proband is used (no family history). This module ports LTFHPlus's ``convert_*``
-helpers and provides convenience builders that produce the ``(lower, upper)``
-bounds consumed by either inference engine.
-
-Each row is one of three encodings: a **pin** ``lower == upper`` (finite; an
-exact liability, e.g. a case at its onset threshold), an **interval** with at
-least one finite end (a control ``(-inf, T)`` or a case ``(T, inf)``), or
-**absent** ``(-inf, inf)``. ``K_i``/``K_pop`` accompany censored controls
-for the PA mixture and are NaN elsewhere. Thresholds are ``T = -Phi^-1(K)``
-for a prevalence or cumulative incidence ``K``, avoiding ``1 - K``.
+Thresholds are computed tail-safely as ``T = -Phi^-1(K)``. Cases can be pinned
+at their onset threshold or bounded below by it; controls lie below their
+follow-up-age threshold. Uninformative rows use ``(-inf, inf)``. With
+relatives these bounds support LT-FH/LT-FH++; without relatives, ADuLT.
+Optional ``K_i``/``K_pop`` arrays feed the PA censoring mixture.
 
 Every public helper whose result depends on ``pop_prev`` requires that value
 explicitly. There is no disease-independent prevalence default: the ``0.05`` and
@@ -155,21 +141,12 @@ def prevalence_thresholds(status: ArrayLike, pop_prev: ArrayLike
 def age_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
                    mid_point: float = 60.0, slope: float = 1.0 / 8.0
                    ) -> tuple[np.ndarray, np.ndarray]:
-    """Age-dependent, onset-pinned bounds from status and age.
+    """Return onset-pinned case bounds and age-censored control bounds.
 
-    A case is pinned at its onset threshold (``lower = upper = thresh(age_of_onset)``,
-    a point mass); a control lies below the threshold for its current age
-    (``lower = -inf``, ``upper = thresh(current_age)``). ``age`` is the age of
-    onset for cases and the current/censoring age for controls. ``status`` must
-    be a one-dimensional Boolean or exact numeric 0/1 array; ``pop_prev`` may be
-    a scalar or per-person array. Returns ``(lower, upper)`` arrays ready for
-    `ltpred.family.families_from_columns` (then
-    `ltpred.estimate.estimate_liability`) or the array estimators.
-
-    This helper uses one logistic CIP curve and is mainly for simulation and
-    tutorials. For full LT-FH++, use `thresholds_from_cip` with age-, birth-
-    year- and sex-specific curves and include relatives. The same personalised
-    construction with proband rows only is ADuLT."""
+    ``age`` is onset for cases and last follow-up for controls. This logistic
+    demonstration is mainly for simulation; production register analyses use
+    `thresholds_from_cip` with appropriate stratum-specific curves.
+    """
     status = _validate_status(status)
     thr = convert_age_to_thresh(age, pop_prev=pop_prev,
                                 mid_point=mid_point, slope=slope)
@@ -183,52 +160,18 @@ def age_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
 def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
                   mid_point: float = 60.0, slope: float = 1.0 / 8.0
                   ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """LT-FH++ interval case encoding plus PA-FGRS mixture inputs — **not** base PA-FGRS.
+    """Return age-specific interval bounds and PA mixture inputs.
 
-    This helper gives cases **age-specific onset intervals**
-    ``(thresh(age_of_onset), inf)`` -- the LT-FH++ case encoding that
-    LTFHPlus's ``prepare_LTFHPlus_input`` emits by default
-    (``use_fixed_case_thr = FALSE``). Dybdahl Krebs et al. (2024) instead give
-    observed cases the lifetime interval ``(Phi^-1(1 - K_pop), inf)`` and use
-    age-specific incidence only in the censored-control mixture, so feeding
-    this helper's output to the mixture is an age-dependent PA-FGRS-style
-    variant, not the base model.
+    Cases use ``[T(onset), inf)`` with NaN mixture values; controls use
+    ``(-inf, T(follow-up))`` plus their current and lifetime incidence. With
+    ``use_mixture=True``, the control's age-specific upper only flags
+    censoring: PA splits at the lifetime threshold and does not apply age
+    twice. Without the mixture, all supplied bounds apply directly.
 
-    For **base PA-FGRS**, obtain lifetime case/control intervals with
-    `prevalence_thresholds`, supply ``K_i``/``K_pop`` for controls, and use
-    the Pearson-Aitken estimator with ``use_mixture=True``. To infer onset-pinned
-    LT-FH++ or ADuLT with Pearson-Aitken, use `age_thresholds` or
-    `thresholds_from_cip` with ``case_mode="pin"`` and pass the resulting
-    families to the default estimator.
-
-    ``status`` must be a one-dimensional Boolean or exact numeric 0/1 array. A
-    case gets ``(thresh(age_of_onset), inf)`` and no mixture (``K_i = K_pop =
-    nan``). An age-censored control gets ``(-inf, thresh(current_age))``
-    together with its cumulative incidence ``K_i = cir(current_age)`` and the
-    lifetime prevalence ``K_pop = pop_prev``, which must be a scalar in (0, 1)
-    here. Build families with `ltpred.family.families_from_columns` (passing
-    ``K_i``/``K_pop``) and estimate with `ltpred.estimate.estimate_liability`
-    and ``method="pearson-aitken"``, or use
-    `ltpred.estimate.estimate_liability_pa_arrays`.
-
-    The control ``upper`` is the *age-specific* threshold ``Phi^-1(1 - K_i)``, and
-    how the estimator reads it depends on ``use_mixture``:
-
-    * ``use_mixture=False`` -- the supplied intervals are used directly. Controls
-      have the same age-specific upper bound as `age_thresholds`, but cases
-      remain intervals rather than the point pins of `age_thresholds`; the
-      encodings are not equivalent.
-    * ``use_mixture=True`` -- the PA-FGRS censored-control correction switches on. It
-      does the age adjustment itself, from ``K_i``/``K_pop``, by splitting the
-      control's liability at the *lifetime* threshold ``Phi^-1(1 - K_pop)`` into a
-      genuine-control and a not-yet-onset-case component (Dybdahl Krebs et al.
-      2024, eqs. S3-S5). The age-specific ``upper`` is then only a
-      censored-vs-observed flag -- its value does not re-enter. Age therefore
-      enters through ``K_i`` only and is not applied twice.
-
-    These two settings encode different observation models; neither their
-    equivalence nor calibration should be assumed without a generative validation
-    matching the intended study design."""
+    This is an age-dependent PA-FGRS-style variant, not base PA-FGRS. For the
+    latter, use lifetime bounds from `prevalence_thresholds` and add control
+    ``K_i``/``K_pop`` values.
+    """
     status = _validate_status(status)
     age = np.asarray(age, dtype=float)
     # One logistic evaluation: thr is -Phi^-1(cir) by definition
@@ -247,41 +190,19 @@ def thresholds_from_cip(status: ArrayLike, age: ArrayLike, cip_ages: ArrayLike,
                         cip_values: ArrayLike, k_pop: float | None = None,
                         case_mode: str = "pin", min_cip: float = 1e-5
                         ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Liability bounds (+ ``K_i``, ``K_pop``) from an *empirical* CIP curve.
+    """Build liability bounds and mixture inputs from an empirical CIP.
 
-    The production alternative to the logistic ``age_thresholds`` /
-    ``pa_thresholds``: instead of the built-in logistic incidence, pass a
-    population-representative cumulative-incidence curve as ``cip_ages`` (ascending)
-    and ``cip_values`` (CIP at each age). Call once **per stratum** (sex, birth
-    year, ancestry, ...) with that stratum's curve. Each person's CIP is linearly
-    interpolated at their ``age`` and clipped to ``[min_cip, k_pop]`` before being
-    turned into a threshold ``Phi^-1(1 - CIP)``. ``numpy.interp`` holds the first
-    or last CIP constant outside the supplied age grid; it does not extrapolate
-    incidence, so the grid should cover all analysed onset/follow-up ages.
+    CIP is linearly interpolated at each age, clipped to ``[min_cip, k_pop]``
+    and converted tail-safely to a threshold. Endpoint values are held constant
+    outside the age grid. ``k_pop`` defaults to the curve maximum and should
+    represent the intended lifetime horizon.
 
-    ``k_pop`` is the lifetime prevalence for the stratum. It defaults to
-    ``max(cip_values)``, which is appropriate only when the curve reaches the
-    intended lifetime horizon; otherwise pass a separately justified value.
-    ``case_mode`` sets the case encoding. Both are LT-FH++ encodings (with
-    family history) and ADuLT encodings (without), and both are emitted by
-    LTFHPlus's ``prepare_LTFHPlus_input``: ``"pin"`` (ltpred's default) fixes
-    a case at ``thresh(age_of_onset)`` -- exact under threshold-crossing onset,
-    LTFHPlus's opt-in ``use_fixed_case_thr = TRUE`` -- while ``"interval"``
-    uses ``(thresh(age_of_onset), inf)``, LTFHPlus's default
-    (``use_fixed_case_thr = FALSE``). Neither is base PA-FGRS, whose observed
-    cases use the lifetime threshold. The two agree closely on ranking and
-    differ in calibration scale; see algorithm.md, "Thresholds and observation
-    models", and ``benchmarks/RESULTS.md`` section 16.
-    ``status`` must be a one-dimensional Boolean or exact numeric 0/1 array.
-    Controls are always ``(-inf, thresh(current_age))`` and carry ``K_i`` /
-    ``K_pop`` for the PA censored-control mixture. Returns
-    ``(lower, upper, K_i, K_pop)``: the scalar argument ``k_pop`` becomes the
-    per-row ``K_pop`` array (NaN for cases, like ``K_i``).
-
-    Raises ``ValueError`` when ``k_pop < max(cip_values)``, when
-    ``min_cip > k_pop``, or for a ``case_mode`` other than ``"pin"`` or
-    ``"interval"``, as well as for a malformed curve (non-finite, unsorted ages,
-    decreasing values or values outside ``[0, 1)``)."""
+    ``case_mode="pin"`` fixes cases at their onset threshold;
+    ``"interval"`` bounds them below by it. Controls always use an upper bound
+    at their follow-up age and receive ``K_i``/``K_pop`` (NaN for cases).
+    Call once per population stratum. These encodings are not base PA-FGRS,
+    whose cases use the lifetime threshold.
+    """
     status = _validate_status(status)
     age = np.asarray(age, dtype=float)
     if status.ndim != 1 or age.ndim != 1 or status.shape != age.shape:

@@ -1,13 +1,11 @@
-import unittest
-
 import numpy as np
+import pytest
 
 from ltpred.covariance import get_relatedness, kinship_from_pedigree
 from ltpred.pedigree import build_parent_graph, extract_pedigree
 
-# Toy population: two grandparent couples, their children m and f, proband o
-# and full sib s1, f's remarriage (half-sib hs1 with f2), m's brother au and
-# his child c1, and o's own child c_o with mate sp.
+# Two grandparent couples, their children m/f, a proband and full sibling,
+# f's remarriage, m's brother and child, and the proband's own child and mate.
 IDS = ["mgm", "mgf", "pgm", "pgf", "m", "f", "au", "f2", "au_sp", "sp",
        "o", "s1", "hs1", "c1", "c_o"]
 FATHER = [None, None, None, None, "mgf", "pgf", "mgf", None, None, None,
@@ -20,7 +18,7 @@ def make_graph():
     return build_parent_graph(IDS, FATHER, MOTHER)
 
 
-class BuildGraphTests(unittest.TestCase):
+class TestBuildGraph:
     def test_sibling_adjacency_matches_shared_known_parents_in_row_order(self):
         rng = np.random.default_rng(89)
         ids = list(range(60))
@@ -32,150 +30,120 @@ class BuildGraphTests(unittest.TestCase):
                                    [father[i] for i in order],
                                    [mother[i] for i in order])
         for i, siblings in enumerate(graph.sibs):
-            expected = [j for j in range(len(ids))
-                        if j != i and graph.sire[i] != -1 and graph.dam[i] != -1
-                        and graph.sire[j] == graph.sire[i] and graph.dam[j] == graph.dam[i]]
-            self.assertEqual(siblings, expected)
-        self.assertEqual(len({id(siblings) for siblings in graph.sibs}), len(ids))
+            expected = [
+                j for j in range(len(ids))
+                if j != i and graph.sire[i] != -1 and graph.dam[i] != -1
+                and graph.sire[j] == graph.sire[i] and graph.dam[j] == graph.dam[i]
+            ]
+            assert siblings == expected
+        assert len({id(siblings) for siblings in graph.sibs}) == len(ids)
 
     def test_rejects_duplicates_and_self_parenting(self):
-        with self.assertRaisesRegex(ValueError, "unique"):
+        with pytest.raises(ValueError, match="unique"):
             build_parent_graph(["a", "a"], [None, None], [None, None])
-        with self.assertRaisesRegex(ValueError, "own parent"):
+        with pytest.raises(ValueError, match="own parent"):
             build_parent_graph(["a", "b"], ["a", None], [None, None])
-        with self.assertRaisesRegex(ValueError, "share length"):
+        with pytest.raises(ValueError, match="share length"):
             build_parent_graph(["a"], [None, None], [None])
 
     def test_unresolved_nonnull_parents_are_counted(self):
-        # Only the unlisted non-null "x" counts; None/nan are declared unknown.
         graph = build_parent_graph(["a", "b", "c"], ["c", "x", None],
                                    [None, float("nan"), None])
-        self.assertEqual(graph.n_unresolved_parents, 1)
-        self.assertEqual(graph.sire, [2, -1, -1])
-        # The toy population's founders are all declared unknown.
-        self.assertEqual(make_graph().n_unresolved_parents, 0)
+        assert graph.n_unresolved_parents == 1
+        assert graph.sire == [2, -1, -1]
+        assert make_graph().n_unresolved_parents == 0
 
 
-class ExtractTests(unittest.TestCase):
+class TestExtract:
     def test_degree_two_membership_and_degrees(self):
         ped = extract_pedigree(make_graph(), "o", max_degree=2)
-        self.assertEqual(ped.ids[0], "o")
-        self.assertEqual(set(ped.ids),
-                         {"o", "m", "f", "s1", "hs1", "mgm", "mgf", "pgm",
-                          "pgf", "c_o", "sp", "au", "f2"})
-        deg = dict(zip(ped.ids, ped.degree))
-        self.assertEqual(deg["o"], 0)
-        # first degree: parents, children, full siblings
-        self.assertEqual((deg["m"], deg["f"], deg["s1"], deg["c_o"]),
-                         (1, 1, 1, 1))
-        # second degree: half-sibs, grandparents, aunts/uncles, mates via child
-        for r in ("hs1", "mgm", "mgf", "pgm", "pgf", "au", "sp"):
-            self.assertEqual(deg[r], 2, r)
-        # parental closure: hs1's mother enters even just past the limit
-        self.assertEqual(deg["f2"], 3)
+        assert ped.ids[0] == "o"
+        assert set(ped.ids) == {
+            "o", "m", "f", "s1", "hs1", "mgm", "mgf", "pgm", "pgf",
+            "c_o", "sp", "au", "f2",
+        }
+        degree = dict(zip(ped.ids, ped.degree))
+        assert degree["o"] == 0
+        assert (degree["m"], degree["f"], degree["s1"], degree["c_o"]) == (1, 1, 1, 1)
+        for role in ("hs1", "mgm", "mgf", "pgm", "pgf", "au", "sp"):
+            assert degree[role] == 2, role
+        assert degree["f2"] == 3
         closure = dict(zip(ped.ids, ped.closure_only.tolist()))
-        self.assertTrue(closure["f2"])
-        self.assertFalse(any(closure[pid] for pid in ped.ids if pid != "f2"))
+        assert closure["f2"]
+        assert not any(closure[pid] for pid in ped.ids if pid != "f2")
 
     def test_deeper_degrees(self):
         ped2 = extract_pedigree(make_graph(), "o", max_degree=2)
-        self.assertNotIn("c1", ped2.ids)       # cousin is third degree
+        assert "c1" not in ped2.ids
         ped3 = extract_pedigree(make_graph(), "o", max_degree=3)
-        self.assertIn("c1", ped3.ids)          # first cousin at degree 3
-        self.assertIn("f2", ped3.ids)          # father's mate via hs1
-        self.assertIn("au_sp", ped3.ids)       # closure parent (degree 4)
-        self.assertTrue(ped3.closure_only[ped3.ids.index("au_sp")])
+        assert "c1" in ped3.ids
+        assert "f2" in ped3.ids
+        assert "au_sp" in ped3.ids
+        assert ped3.closure_only[ped3.ids.index("au_sp")]
 
     def test_founder_columns_and_ordering(self):
         ped = extract_pedigree(make_graph(), "o", max_degree=2)
-        idx = {pid: i for i, pid in enumerate(ped.ids)}
-        # grandparents' parents are beyond the limit -> founders
-        for gp in ("mgm", "mgf", "pgm", "pgf"):
-            self.assertIsNone(ped.father[idx[gp]])
-            self.assertIsNone(ped.mother[idx[gp]])
-        # extracted parents are expressed as ids
-        self.assertEqual(ped.father[idx["o"]], "f")
-        self.assertEqual(ped.mother[idx["o"]], "m")
-        self.assertEqual(ped.mother[idx["hs1"]], "f2" if "f2" in ped.ids else None)
-        # deterministic under record shuffling
+        index = {pid: i for i, pid in enumerate(ped.ids)}
+        for grandparent in ("mgm", "mgf", "pgm", "pgf"):
+            assert ped.father[index[grandparent]] is None
+            assert ped.mother[index[grandparent]] is None
+        assert ped.father[index["o"]] == "f"
+        assert ped.mother[index["o"]] == "m"
+        assert ped.mother[index["hs1"]] == "f2"
+
         order = np.arange(len(IDS))[::-1]
-        g2 = build_parent_graph([IDS[i] for i in order],
-                                [FATHER[i] for i in order],
-                                [MOTHER[i] for i in order])
-        ped2 = extract_pedigree(g2, "o", max_degree=2)
-        self.assertEqual(ped.ids, ped2.ids)
+        shuffled = build_parent_graph([IDS[i] for i in order],
+                                      [FATHER[i] for i in order],
+                                      [MOTHER[i] for i in order])
+        ped2 = extract_pedigree(shuffled, "o", max_degree=2)
+        assert ped.ids == ped2.ids
         np.testing.assert_array_equal(ped.closure_only, ped2.closure_only)
 
     def test_validation(self):
-        with self.assertRaisesRegex(ValueError, "not in the parent graph"):
+        with pytest.raises(ValueError, match="not in the parent graph"):
             extract_pedigree(make_graph(), "nobody")
-        with self.assertRaisesRegex(ValueError, "at least 1"):
+        with pytest.raises(ValueError, match="at least 1"):
             extract_pedigree(make_graph(), "o", max_degree=0)
+        for bad in (2.9, True):
+            with pytest.raises(TypeError, match="integer"):
+                extract_pedigree(make_graph(), "o", max_degree=bad)
+        assert "m" in extract_pedigree(make_graph(), "o", max_degree=np.int64(2)).ids
+
+    def test_degree_is_shortest_route_not_first_found(self):
+        graph = build_parent_graph(ids=["P", "F", "M", "B", "A"],
+                                   father=["F", "A", "B", "A", None],
+                                   mother=["M", None, None, None, None])
+        ped = extract_pedigree(graph, "P", max_degree=1)
+        degree = dict(zip(ped.ids, ped.degree.tolist()))
+        assert degree["A"] == 2
+        assert max(ped.degree) == 2
+        closure = dict(zip(ped.ids, ped.closure_only.tolist()))
+        assert closure["A"] and closure["B"]
+        assert not any(closure[pid] for pid in ("P", "F", "M"))
 
 
-class KinshipIntegrationTests(unittest.TestCase):
+class TestKinshipIntegration:
     def test_extracted_kinship_matches_role_grammar(self):
         ped = extract_pedigree(make_graph(), "o", max_degree=2)
-        _, A = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
-        idx = {pid: i for i, pid in enumerate(ped.ids)}
-        for role, pid in (("m", "m"), ("f", "f"), ("s1", "s1"),
-                          ("mgm", "mgm"), ("mgf", "mgf"),
-                          ("pgm", "pgm"), ("pgf", "pgf")):
-            self.assertAlmostEqual(A[idx["o"], idx[pid]],
-                                   get_relatedness("o", role, h2=1.0),
-                                   places=12)
-        # half-sib and mate beyond the grammar
-        self.assertAlmostEqual(A[idx["o"], idx["hs1"]], 0.25, places=12)
-        self.assertAlmostEqual(A[idx["o"], idx["sp"]], 0.0, places=12)
+        _, relationship = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
+        index = {pid: i for i, pid in enumerate(ped.ids)}
+        for role in ("m", "f", "s1", "mgm", "mgf", "pgm", "pgf"):
+            assert relationship[index["o"], index[role]] == pytest.approx(
+                get_relatedness("o", role, h2=1.0), abs=1e-12)
+        assert relationship[index["o"], index["hs1"]] == pytest.approx(0.25, abs=1e-12)
+        assert relationship[index["o"], index["sp"]] == 0.0
 
     def test_deep_kinship_values(self):
         ped = extract_pedigree(make_graph(), "o", max_degree=4)
-        _, A = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
-        idx = {pid: i for i, pid in enumerate(ped.ids)}
-        self.assertAlmostEqual(A[idx["o"], idx["au"]], 0.25, places=12)
-        self.assertAlmostEqual(A[idx["o"], idx["c1"]], 0.125, places=12)
+        _, relationship = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
+        index = {pid: i for i, pid in enumerate(ped.ids)}
+        assert relationship[index["o"], index["au"]] == pytest.approx(0.25, abs=1e-12)
+        assert relationship[index["o"], index["c1"]] == pytest.approx(0.125, abs=1e-12)
 
     def test_extraction_preserves_full_pedigree_kinship(self):
-        # the sub-pedigree A equals the full-population A restricted to members
-        _, A_full = kinship_from_pedigree(IDS, FATHER, MOTHER)
+        _, full = kinship_from_pedigree(IDS, FATHER, MOTHER)
         ped = extract_pedigree(make_graph(), "o", max_degree=2)
-        _, A_sub = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
-        fi = {pid: i for i, pid in enumerate(IDS)}
-        sub_idx_full = [fi[p] for p in ped.ids]
-        np.testing.assert_allclose(A_sub, A_full[np.ix_(sub_idx_full, sub_idx_full)],
-                                   rtol=0, atol=1e-12)
-
-    def test_degree_is_the_shortest_route_not_the_first_found(self):
-        # A is P's paternal grandfather (degree 2) but is also reachable as
-        # B's father via the maternal-grandfather route; assigning on first visit
-        # recorded whichever the traversal hit first, overstating the degree.
-        g = build_parent_graph(ids=["P", "F", "M", "B", "A"],
-                               father=["F", "A", "B", "A", None],
-                               mother=["M", None, None, None, None])
-        ped = extract_pedigree(g, "P", max_degree=1)
-        degrees = dict(zip(ped.ids, ped.degree.tolist()))
-        self.assertEqual(degrees["A"], 2)
-        self.assertEqual(max(ped.degree), 2)
-        closure = dict(zip(ped.ids, ped.closure_only.tolist()))
-        self.assertTrue(closure["A"])
-        self.assertTrue(closure["B"])
-        self.assertFalse(closure["P"])
-        self.assertFalse(closure["F"])
-        self.assertFalse(closure["M"])
-
-
-if __name__ == "__main__":
-    unittest.main()
-
-
-def test_extract_pedigree_rejects_noninteger_max_degree():
-    # 2.9 used to truncate silently to 2 (review 2026-08, F24)
-    import pytest
-    from ltpred.pedigree import build_parent_graph, extract_pedigree
-    g = build_parent_graph(["o", "m"], ["f", None], ["m", None])
-    with pytest.raises(TypeError, match="integer"):
-        extract_pedigree(g, "o", max_degree=2.9)
-    with pytest.raises(TypeError, match="integer"):
-        extract_pedigree(g, "o", max_degree=True)
-    ped = extract_pedigree(g, "o", max_degree=np.int64(2))
-    assert "m" in ped.ids
+        _, subset = kinship_from_pedigree(ped.ids, ped.father, ped.mother)
+        full_index = {pid: i for i, pid in enumerate(IDS)}
+        rows = [full_index[pid] for pid in ped.ids]
+        np.testing.assert_allclose(subset, full[np.ix_(rows, rows)], rtol=0, atol=1e-12)

@@ -1,12 +1,8 @@
-"""Optional Numba acceleration shim.
+"""Shared Numba decorators and serial pure-Python fallbacks.
 
-The truncated-MVN Gibbs sampler's inner sweep dominates runtime; JIT-compiling it
-gives a large speed-up, and because families are independent the estimator also
-runs many of them in parallel (``_jit_parallel`` + ``prange``). If Numba is not
-installed we fall back to no-op decorators (``prange`` becomes ``range``) and run
-the identical code in pure Python -- just serial and slower. Every module gets
-its JIT decorators from here so the with/without-Numba switch lives in one place,
-the same pattern ldpred3 uses.
+Parallel launches are serialised only on Numba's macOS ``workqueue`` layer,
+which cannot safely handle concurrent launches. Numerical code is otherwise
+identical with and without the JIT.
 """
 
 from __future__ import annotations
@@ -75,14 +71,11 @@ except ImportError:  # pragma: no cover - exercised only without numba
 
 
 def set_num_threads(ncores: int) -> None:
-    """Set the active thread count for Numba-parallel kernels launched later from the calling thread (Numba's setting is thread-local).
+    """Set this thread's active Numba worker count to a positive integer.
 
-    ``ncores`` must be a positive, non-boolean integer. With Numba installed,
-    this masks its existing thread pool to the requested number of active
-    workers and cannot exceed the maximum configured when Numba initialized.
-    Setting ``NUMBA_NUM_THREADS`` before import establishes that maximum; it is
-    therefore not equivalent to this runtime setter. Without Numba, the value
-    is still validated but otherwise has no effect.
+    The count cannot exceed the pool maximum fixed at Numba initialisation
+    (configure that with ``NUMBA_NUM_THREADS`` before import). Without Numba,
+    validation still runs but the setting has no effect.
     """
     if isinstance(ncores, (bool, np.bool_)):
         raise TypeError("ncores must be a non-boolean integer")

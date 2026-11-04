@@ -1,30 +1,10 @@
-"""Locked comparison of ltpred against public R LTFHPlus and LTFGRS.
+"""Lock classic LT-FH scores and cost against LTFHPlus/LTFGRS.
 
-LTFHPlus 2.2.0 is Gibbs-only (no ``method`` argument). Public Pearson-Aitken
-lives in LTFGRS 1.0.1 (``estimate_liability(..., method="PA")``). This script
-feeds the *same* simulated families and bounds to four isolated estimator
-processes:
-
-  * LTFHPlus::estimate_liability (Rcpp Gibbs, n_sim=1e5, burn_in=1000)
-  * LTFGRS::estimate_liability(method="PA", useMixture=FALSE)
-  * ltpred Gibbs with the same tol / n_sim / burn_in
-  * ltpred Pearson-Aitken (no mixture)
-
-Score agreement (correlation, RMSE, max abs) is a software lock, not the
-intra-package PA-vs-Gibbs grid in ``bench_accuracy.py``.
-
-Wall-clock is the estimator call after in-process warmup, reported as a
-cohort total and as milliseconds per family (total / n_fam). Peak RSS uses
-ldpred3's isolated-process pattern: a stdlib-only launcher
-(``_peak_launcher.py``) forks the command so ``wait4``'s ``ru_maxrss`` is the
-child's own high-water mark, not the fat driver's inherited floor.
-
-Requires R with LTFHPlus. LTFGRS is required for the PA arm; if it is
-missing the script still locks LTFHPlus Gibbs and writes empty LTFGRS
-columns. Exits 2 if R or LTFHPlus is missing::
-
-    install.packages(c("LTFHPlus", "LTFGRS"))
-    python benchmarks/bench_ltfhplus_compare.py
+The same simulated families enter LTFHPlus Gibbs, LTFGRS PA, ltpred Gibbs and
+ltpred PA. Correlation/RMSE/max-abs lock numerical agreement; warm estimator
+calls report total and per-family time, and isolated processes report peak
+RSS. Requires R and LTFHPlus; the PA arm needs LTFGRS, whose absence leaves
+empty columns. Writes `bench_ltfhplus_compare.csv`.
 """
 
 from __future__ import annotations

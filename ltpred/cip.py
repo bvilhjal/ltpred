@@ -1,50 +1,15 @@
-"""Cumulative-incidence (CIP) estimation from registry-style health data.
+"""Cumulative incidence from follow-up records with delayed entry.
 
-The personalised thresholds of LT-FH++ / ADuLT / PA-FGRS consume a
-cumulative-incidence curve per stratum (sex x birth cohort) through
-`ltpred.thresholds.thresholds_from_cip`. This module estimates that curve
-from individual follow-up records: per person an entry age (start of
-follow-up), an exit age, and what happened at exit.
+`kaplan_meier_cip` estimates net incidence with Greenwood SEs;
+`aalen_johansen_cip` estimates cause-specific crude incidence with competing
+risks and finite-risk-set, tie-correct Aalen SEs. A person is at risk at ``t``
+when ``age_entry < t <= age_exit``; zero-length follow-up cannot carry an
+event. Both estimators handle right censoring and tied event ages.
 
-Two estimators, both handling **left truncation** (delayed entry: register
-starts mid-life, immigration) and **right censoring** (emigration, end of
-follow-up). Delayed entry must be independent of the event process conditional
-on the modelled strata, with overlapping risk-set support; right censoring
-must likewise be conditionally non-informative:
-
-* `kaplan_meier_cip` -- the product-limit estimator ``CIP = 1 - S`` for
-  the single-event setting. Under independent censoring it estimates net risk:
-  incidence in a hypothetical world without the censoring process. Death must
-  not be treated as censoring when the target is the crude diagnosed
-  proportion, even if death and diagnosis are independent. Greenwood standard
-  errors.
-* `aalen_johansen_cip` -- the Aalen--Johansen estimator of the
-  cause-specific cumulative incidence with competing risks (diagnosis vs
-  death without diagnosis). This is the estimator LT-FH++ used for its CIPs
-  (Pedersen et al. 2022: Aalen-Johansen with death and emigration as
-  competing events, one curve per sex x birth-year stratum) and the standard
-  counting-process practice of the Danish register literature (Andersen,
-  Borgan, Gill & Keiding 1993; e.g. Beck et al. 2024, *Acta Psychiatr
-  Scand*). Pointwise SEs use the finite-risk-set, tie-correct Aalen (1978)
-  variance (the ``cmprsk::cuminc`` convention).
-
-Risk-set convention (counting processes; Andersen, Borgan, Gill & Keiding,
-*Statistical Models Based on Counting Processes*, 1993): person ``i`` is at
-risk at age ``t`` when ``age_entry_i < t <= age_exit_i``. Events and censorings
-occur at ``age_exit``; zero-length follow-ups (``exit == entry``) never enter a
-risk set. Ages may be continuous; ties are handled by grouping on unique exit
-ages. Stratification (e.g. by sex x birth-year bands) is done by calling an
-estimator once per stratum -- see "Stratification" in ``docs/cip-estimation.md``.
-
-The returned `CipCurve` carries ascending ``ages``, non-decreasing
-``values`` in ``[0, 1]``, pointwise standard errors and event counts.
-`ltpred.thresholds.thresholds_from_cip` consumes a non-degenerate curve
-only (all values below one). If a terminal event exhausts the empirical risk
-set, a Kaplan-Meier estimate is exactly one but cannot define a finite probit
-threshold; choose a scientifically justified earlier/lifetime horizon rather
-than silently clipping it. ``thresholds_from_cip`` takes ``k_pop``
-separately: pass the curve's value at the intended lifetime horizon, or a
-separately justified estimate.
+The returned `CipCurve` feeds `thresholds_from_cip` per population stratum.
+Curves reaching one cannot define a finite probit threshold; choose a justified
+lifetime horizon and ``k_pop``. See ``docs/cip-estimation.md`` for estimand
+choice and examples.
 """
 from __future__ import annotations
 
@@ -61,16 +26,7 @@ __all__ = ["CipCurve", "kaplan_meier_cip", "aalen_johansen_cip"]
 
 @dataclass
 class CipCurve:
-    """An estimated cumulative-incidence curve.
-
-    ``ages`` are ascending and ``values`` non-decreasing in ``[0, 1]``.
-    Values strictly below one feed
-    `ltpred.thresholds.thresholds_from_cip`; an exact terminal one is a
-    valid estimate but has no finite probit threshold. ``se`` is the
-    pointwise standard error (Greenwood for Kaplan-Meier, the finite-risk-set,
-    tie-correct Aalen (1978) variance for Aalen-Johansen); ``n_events`` counts
-    events of interest; ``n_entered`` the number of persons contributing any
-    follow-up; ``estimator`` records which estimator produced the curve."""
+    """Ascending event ages, cumulative incidence, pointwise SEs and counts."""
     ages: np.ndarray
     values: np.ndarray
     se: np.ndarray
@@ -114,33 +70,15 @@ def _count_at(sorted_vals, grid):
 
 def kaplan_meier_cip(age_entry: ArrayLike, age_exit: ArrayLike,
                      is_event: ArrayLike) -> CipCurve:
-    """Kaplan-Meier cumulative incidence ``1 - S(t)`` with left truncation.
+    """Estimate net cumulative incidence ``1 - S(t)`` by Kaplan--Meier.
 
-    Parameters
-    ----------
-    age_entry, age_exit
-        Per-person ages at start and end of follow-up (1-D, equal length,
-        ``exit >= entry``).
-    is_event
-        Boolean (or 0/1) per person: True if follow-up ended with the event of
-        interest (diagnosis), False if censored (emigration, administrative
-        end, death -- but see the note).
+    ``age_entry`` and ``age_exit`` are aligned follow-up ages;
+    ``is_event`` is boolean or exact 0/1. Delayed entry and right censoring
+    use the risk convention ``entry < t <= exit``. Returns event ages,
+    cumulative incidence and Greenwood pointwise SEs in a `CipCurve`.
 
-    Returns
-    -------
-    CipCurve
-        ``CIP = 1 - S`` at each unique event age, with Greenwood pointwise
-        standard errors.
-
-    Notes
-    -----
-    Under independent censoring this estimates net risk: incidence in a
-    hypothetical world without the censoring process. When the target is the
-    proportion actually diagnosed, death before diagnosis is a competing
-    event rather than censoring, irrespective of whether its time is
-    statistically independent of diagnosis. Use `aalen_johansen_cip`
-    with death as the competing event; the two estimands are compared in
-    ``benchmarks/bench_cip_estimation.py``.
+    For the proportion actually diagnosed before death, death is a competing
+    event rather than censoring: use `aalen_johansen_cip` instead.
     """
     age_entry, age_exit = _validate_followup(age_entry, age_exit)
     is_event_raw = np.asarray(is_event)
@@ -177,37 +115,13 @@ def kaplan_meier_cip(age_entry: ArrayLike, age_exit: ArrayLike,
 
 def aalen_johansen_cip(age_entry: ArrayLike, age_exit: ArrayLike,
                        event_type: ArrayLike, cause: int = 1) -> CipCurve:
-    """Aalen-Johansen cumulative incidence with competing risks.
+    """Estimate cause-specific cumulative incidence by Aalen--Johansen.
 
-    Parameters
-    ----------
-    age_entry, age_exit
-        Per-person follow-up ages (as in `kaplan_meier_cip`).
-    event_type
-        Integer code per person: 0 = censored, ``cause`` = event of interest
-        (default 1, diagnosis), any other positive code = competing event
-        (e.g. 2 = death without diagnosis).
-    cause
-        The event code to estimate the cumulative incidence for.
-
-    Returns
-    -------
-    CipCurve
-        Cause-specific cumulative incidence at each unique event age (any
-        cause), with pointwise standard errors from the finite-risk-set,
-        tie-correct **Aalen (1978) variance** (the estimator reported by
-        ``cmprsk::cuminc``; Andersen, Borgan, Gill & Keiding 1993, sec. IV.4).
-
-    Notes
-    -----
-    The estimator is ``F_cause(t) = sum S(t_i-) * d_cause(t_i) / Y(t_i)``,
-    where ``S`` is the overall survival (any event). The competing events are
-    not censorable in the Kaplan-Meier sense; comparing against
-    `kaplan_meier_cip` (which treats them as censoring) quantifies the
-    estimand difference. The variance includes the finite-risk-set and
-    tied-event corrections from Aalen (1978) and ABGK (1993, sec. IV.4),
-    evaluated in the algebraically equivalent recurrence used by
-    ``cmprsk::cuminc`` so it remains finite when the final risk set is
+    ``event_type`` uses 0 for censoring, ``cause`` for the event of interest
+    and other positive codes for competing events. Follow-up arrays match
+    `kaplan_meier_cip`. Returns every event age with
+    ``sum S(t-) * d_cause / Y`` and finite-risk-set, tie-correct Aalen SEs.
+    The variance recurrence remains defined when the final risk set is
     exhausted.
     """
     age_entry, age_exit = _validate_followup(age_entry, age_exit)
@@ -271,13 +185,10 @@ def _aj_on_grid(age_entry, age_exit, event_type, cause, grid):
 
 
 def _aalen_variance(F, pieces):
-    """Finite-risk-set, tie-correct Aalen variance of the CIF.
+    """Evaluate the tie-correct Aalen variance as three cumulative sums.
 
-    This is the recurrence used by ``cmprsk::cuminc``. It is algebraically
-    equivalent to the closed form in ABGK (1993, sec. IV.4) while the
-    post-event survival is positive. The recurrence also defines the boundary
-    case where an event exhausts the risk set; evaluating the closed form
-    directly would produce removable ``0 / 0`` terms there.
+    This ``cmprsk::cuminc``-equivalent recurrence avoids removable 0/0 terms
+    when an event exhausts the risk set.
     """
     surv_prev, d_cause, d_all, Y = pieces
     d_other = d_all - d_cause

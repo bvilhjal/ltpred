@@ -1,26 +1,9 @@
-"""Variance-component inference: does `fit_heritability` recover h2, how precisely?
+"""Measure heritability-fit bias and across-dataset variability.
 
-The important properties of a heritability estimator are **bias** and **sampling
-variability across datasets** — not runtime. This benchmark measures them by
-fitting many independent simulated cohorts (each a fresh draw), so the spread of
-the fitted values estimates sampling variability. It reports:
-
-  (a) **bias & precision vs true h2** — mean(fitted) - h2_true and the
-      across-replicate SD, for h2 from 0.2 to 0.8;
-  (b) **precision vs #families** — the across-replicate SD as N grows (the
-      1/sqrt(N) law), and how family structure (informativeness) changes it;
-  (c) **SE calibration** — the reported within-dataset `h2_se` vs the true
-      across-dataset SD. The reported `se` is a *Monte-Carlo* error of the fit on
-      one dataset, NOT the sampling SD, so it under-states the real uncertainty;
-      this panel quantifies the gap (bootstrap families for a genuine CI).
-
-Ground truth is known (the simulator's `h2`) and families are unascertained
-population draws, so this characterises the estimator only under its supported
-`sampling="population"` contract, not under case/control ascertainment.
-
-    python benchmarks/bench_fit_heritability.py
-    python benchmarks/bench_fit_heritability.py --reps 40 --n-fam 5000
-Writes bench_fit_heritability.csv.
+Independent population cohorts evaluate recovery versus true h2, scaling with
+family count and structure, and the within-fit `h2_se` diagnostic versus true
+sampling SD. The latter is Monte-Carlo error, not a sampling SE; use the family
+bootstrap for inferential intervals. Writes `bench_fit_heritability.csv`.
 """
 
 import os
@@ -82,7 +65,6 @@ def main():
 
     # (a) bias & precision vs true h2  ------------------------------------------
     print("== (a) bias & precision vs true h2 (n_fam=%d, %s) ==" % (args.n_fam, "parents+2 sibs"))
-    panel_a = []
     for h2 in args.h2:
         t0 = time.time()
         fitted, rep_se = fit_replicates(fam_a, h2, args.n_fam, args.prev, args.reps,
@@ -90,7 +72,6 @@ def main():
         bias = float(fitted.mean() - h2)
         sd = float(fitted.std(ddof=1))
         se_rep = float(np.median(rep_se))
-        panel_a.append(dict(h2=h2, bias=bias, sd=sd, reported_se=se_rep))
         rows.append(dict(panel="bias_precision", h2=h2, n_fam=args.n_fam,
                          structure="parents+2 sibs", bias=bias, sd=sd,
                          reported_se=se_rep, reps=args.reps))
@@ -100,23 +81,19 @@ def main():
 
     # (b) precision vs #families (and structure)  -------------------------------
     print("== (b) precision (SD) vs #families (h2=0.5) ==")
-    panel_b = []
     for n in args.sizes:
         fitted, _ = fit_replicates(fam_a, 0.5, n, args.prev, args.reps_scaling,
                                    args.seed + 1000, args.n_iter, args.burn_in, args.inner_sweeps)
         sd = float(fitted.std(ddof=1))
-        panel_b.append(dict(n_fam=n, sd=sd, reps=args.reps_scaling))
         rows.append(dict(panel="scaling", h2=0.5, n_fam=n, structure="parents+2 sibs",
                          bias=float(fitted.mean() - 0.5), sd=sd, reported_se=np.nan,
                          reps=args.reps_scaling))
         print(f"  n_fam={n:5d} | SD={sd:.3f}")
     print("== structure at n_fam=%d, h2=0.5 ==" % args.n_fam)
-    panel_s = []
     for name, fv in STRUCTURES.items():
         fitted, _ = fit_replicates(fv, 0.5, args.n_fam, args.prev, args.reps_scaling,
                                    args.seed + 2000, args.n_iter, args.burn_in, args.inner_sweeps)
         sd = float(fitted.std(ddof=1))
-        panel_s.append(dict(structure=name, sd=sd, n_rel=len(fv)))
         rows.append(dict(panel="structure", h2=0.5, n_fam=args.n_fam, structure=name,
                          bias=float(fitted.mean() - 0.5), sd=sd, reported_se=np.nan,
                          reps=args.reps_scaling))

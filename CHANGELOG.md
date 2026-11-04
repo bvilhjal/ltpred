@@ -13,6 +13,32 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 ## Unreleased
 
+Second cleanup pass on top of 0.8.0. No public API changes and no changed
+numbers: PA, seeded Gibbs, kinship and register-pipeline outputs are
+bit-identical to 0.8.0 (verified against the 0.8.0 tree, with and without
+Numba).
+
+- Docstrings and the estimation/inference/CIP/data-preparation guides are
+  cut to contract and equations; repeated derivations now live only in
+  `docs/algorithm.md` and the methods report. Benchmark scripts state the
+  question, arms and output file; numerical claims stay in
+  `benchmarks/RESULTS.md`.
+- Duplicated bookkeeping removed: one heritability check shared by the
+  covariance constructors; the object estimators validate and group families
+  in a single pass; the PA mixture's global K-pair gate runs on the stacked
+  groups instead of a separate pre-pass over every member; dead
+  plotting-era `panel_*` lists deleted from the benchmark scripts (CSV rows
+  unchanged).
+- Register scoring skips the positive-definiteness repair check when the
+  existing eigenvalue bound already certifies the reduced covariance
+  (λmin > 1e-6, far above the repair threshold); the repaired path is
+  unchanged elsewhere.
+- Tests: the remaining `unittest` classes in the CIP, pedigree and
+  tetrachoric suites are plain pytest, and overlapping validation cases are
+  folded into shared tests. Numerical oracles (R locks, closed forms,
+  product-limit reference) are untouched; the Gibbs batch-independence
+  check now lives in the chunked suite with the same missingness pattern.
+
 ## 0.8.0 — 2026-11-03
 
 Cleanup release (a minor bump: the removals below are breaking

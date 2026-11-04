@@ -57,23 +57,13 @@ def validate_bounds(lower, upper, *, context="bounds"):
 def validate_mixture_inputs(K_i, K_pop, *, expected_shape=None,
                             require_pair=False, lower=None, upper=None,
                             context="mixture inputs"):
-    """Validate paired cumulative-incidence inputs for the PA mixture.
+    """Validate cumulative-incidence pairs for the PA censoring mixture.
 
-    ``NaN``/``NaN`` marks a coordinate where the mixture is unused. Every other
-    coordinate must provide a finite pair satisfying
-    ``0 <= K_i <= K_pop < 1``, with strictly positive ``K_pop`` because it is a
-    denominator in the mixture weight. ``None`` is treated like an all-NaN input.
-    The normalised arrays are returned so callers share the same missing-value
-    semantics.
-
-    When the observation ``lower``/``upper`` bounds are supplied, a K pair on a
-    pinned row (``lower == upper``) is rejected: a pinned observation needs no
-    censoring mixture, and K's there can invert the mixture interval and produce
-    NaN moments. A supplied pair is only meaningful on a censored-control row
-    with a finite upper bound; supplying one on an observed case or unbounded row
-    is rejected. The row's lower bound must be below the lifetime split
-    ``Phi^-1(1 - K_pop)``. When ``require_pair`` is true, at least one such active
-    row is required.
+    ``NaN``/``NaN`` marks unused coordinates. Supplied pairs must be finite
+    with ``0 <= K_i <= K_pop < 1`` and positive ``K_pop``. With bounds, pairs
+    are allowed only on unpinned controls with finite upper bounds and a lower
+    bound below the lifetime threshold. ``require_pair`` demands at least one
+    active coordinate. Returns normalised arrays; ``None`` means all NaN.
     """
     shape = None if expected_shape is None else tuple(expected_shape)
 

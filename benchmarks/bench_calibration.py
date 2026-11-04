@@ -1,13 +1,9 @@
-"""Calibration of the estimated genetic liability — not just its ranking.
+"""Measure PA score calibration, separately from ranking.
 
-Every other accuracy benchmark scores the estimate by ``corr(estimate, true g)``,
-which measures **ranking** only. But the estimate is a posterior *mean*, so it also
-has a **scale**: a well-specified posterior mean is *self-calibrating* — regressing
-the true genetic liability on the estimate gives slope 1 and intercept 0 (because
-``E[g | ĝ] = ĝ`` when ``ĝ = E[g | data]``). This benchmark checks that scale, which
-is what matters if the score is used for **risk stratification** (who is in the top
-decile of genetic liability?) rather than only as a GWAS phenotype (where it is
-standardised anyway). Truth ``g`` is known from the simulation, so it reports:
+A correctly specified posterior mean has slope 1 and intercept 0 when true g
+is regressed on the estimate. Simulations check that relationship and decile
+curves; a misspecified-h2 sweep shows how ranking can remain stable while
+scale tilts.
 
   (a) **calibration when correctly specified** — slope, intercept and a decile
       calibration curve (mean true g vs mean estimate per decile) for the PA

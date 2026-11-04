@@ -1,35 +1,11 @@
-"""Exact selected pedigree relationships with bounded memoization.
+"""Selected additive relationships with bounded LRU memoization.
 
-Algorithm K (selected entries of ``A = 2 * kinship``; methods report,
-"Compute selected relationships with bounded reuse"). Let ``rank`` be a
-topological order of the **whole** parent graph (parents before children),
-fixed once by Kahn's algorithm, which also rejects a cycle anywhere in the
-graph. For a requested pair ``(i, j)``:
-
-* K1. If ``i`` or ``j`` is an unknown parent (``-1``), ``A_ij = 0``.
-* K2. Swap so ``rank[i] >= rank[j]``; then ``i`` is not an ancestor of ``j``.
-* K3. On a cache hit for ``(i, j)`` return it and mark it most recently used.
-* K4. If ``i == j``: ``A_ii = 1`` when either parent is unknown (``F_i = 0``),
-  else ``A_ii = 1 + A(s_i, d_i) / 2``.
-* K5. If ``i != j``: ``A_ij = (A(s_i, j) + A(d_i, j)) / 2``.
-* K6. Store the value in an LRU cache of at most ``cache_max_entries``
-  entries (zero stores nothing), evicting the least recently used.
-
-K4/K5 recurse on pairs whose larger rank strictly decreases, so evaluation
-terminates. Recursion is an explicit continuation stack (no Python
-recursion): a pending K5 frame holds its first term while the second is
-evaluated, so eviction changes work, never the result or the ancestry used.
-Nesting depth is at most the sum of the two members' ancestral-chain lengths.
-Work is one evaluation per distinct ancestor pair reached when the cache
-holds them all (at worst quadratic in population size) and grows toward the
-unmemoized pair recursion as the cache shrinks. Entries are dyadic
-rationals, so for realistic depths the float arithmetic is exact and agrees
-bit for bit with the dense `ltpred.covariance._kinship_A` fill.
-
-The register driver (`ltpred.pipeline`) instead fills a dense ``A`` over the
-``m``-member extracted pedigree when `_covariance_reduction_is_safe` fails,
-or when ``m <= _DENSE_KINSHIP_MAX_MEMBERS`` and the ``n_sel`` selected rows
-request more than ``_DENSE_KINSHIP_MIN_PAIR_FRACTION * m**2`` pairs.
+A whole-graph topological rank guides the exact tabular recursion
+``A_ij = (A_sj + A_dj)/2`` and ``A_ii = 1 + A_sd/2``; unknown parents
+contribute zero. An explicit continuation stack avoids Python recursion and
+keeps active values alive when the cache evicts entries. Cache size changes
+work, never values, which agree bit-for-bit with the dense fill at realistic
+pedigree depths.
 """
 from collections import OrderedDict
 
@@ -137,23 +113,13 @@ class _SelectedKinship:
 
 
 def _covariance_reduction_is_safe(h2, n_members):
-    """Prove the full pedigree covariance needs no legacy PD repair.
+    """Certify when pedigree marginalisation needs no covariance repair.
 
-    True certifies that the standardized ``(g, o_1..o_n)`` covariance of any
-    ``n_members``-member additive pedigree has smallest eigenvalue above
-    ``1e-6``. By Cauchy interlacing every principal block does too, so
-    `ltpred.covariance.correct_positive_definite` is a no-op on the full
-    matrix and on the block of retained rows; dropping unbounded rows, which
-    PA skips anyway, then leaves the estimate unchanged.
-
-    Write q = h2. Pedigree diagonals lie in [1, 2], so standardized target
-    genetic variance a >= q and independent full-liability residual variance
-    r >= (1-q)/(1+q). Regress the other genetic values on the target: each
-    coefficient has square <= 2. The covariance therefore dominates the
-    matrix for (g, beta*g + independent residuals). Its inverse trace is at
-    most 1/q + 3*n_members/r, giving the reciprocal as an eigenvalue lower
-    bound. Require 100 times the legacy 1e-8 repair threshold for roundoff.
-    Near boundaries, use the unchanged full-pedigree correction instead.
+    A conservative inverse-trace bound puts every principal covariance block's
+    smallest eigenvalue above ``1e-6``. The bound uses pedigree diagonals in
+    [1,2], genetic variance at least ``h2`` and residual variance at least
+    ``(1-h2)/(1+h2)``. Near the heritability boundaries it fails closed, so
+    callers retain the full matrix and legacy repair.
     """
     # The bound cannot exceed h2; reject tiny values before reciprocation.
     if not 1e-6 < h2 < 1.0:

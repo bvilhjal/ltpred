@@ -1,54 +1,14 @@
-"""Discovering relatives from parent-offspring (trio) records.
+"""Discover pedigrees from population parent-offspring records.
 
-The role grammar and `ltpred.covariance.kinship_from_pedigree` start
-from a **specified** pedigree. Register data instead arrive as population-scale
-parent-offspring records (``id, father, mother`` per person), and the pedigree
-must be *discovered*: which people are this proband's relatives, and how are
-they connected? This module builds the parent-child graph once
-(`build_parent_graph`) and then extracts each proband's pedigree by
-breadth-first traversal (`extract_pedigree`) — the graph-based relative
-extraction of Pedersen
-et al. (2025, *Front Genet*): a relative is anyone within ``max_degree``
-relationship degrees of the proband.
+`build_parent_graph` indexes parents, children and full-sibling edges;
+`extract_pedigree` performs a breadth-first search to ``max_degree`` and then
+adds every recorded ancestor needed for exact kinship. Full-sib edges make
+parents, children and full siblings distance one; grandparents, half-sibs and
+avuncular relatives distance two; first cousins distance three.
 
-Degree conventions follow the standard relationship-degree scale (and
-Pedersen et al. 2025): **first-degree** relatives (parents, children, full
-siblings) are graph distance 1; **second-degree** (grandparents,
-grandchildren, half-siblings, aunts/uncles, nieces/nephews) distance 2;
-**third-degree** (first cousins, great-grandparents) distance 3. This is
-achieved by adding explicit edges between full siblings (two shared parents)
-to the parent-child graph, so traversal distance equals the standard degree
-rather than the raw meiotic count. Mates enter through shared children: the
-proband's own mate is graph distance 2 (proband -> child -> mate), while a
-first-degree relative's mate is distance 3 via that relative's child (a
-parent's other mate via a half-sibling); mates are genetically
-unrelated to the proband but belong to the pedigree (and to the
-spousal-environment component of `fit_variance_components`).
-
-Graph construction (`build_parent_graph`, O(n + sum of squared sibship
-sizes)): parent values are resolved against ``ids``; declared-missing
-markers and unlisted values both become ``-1`` (an unknown founder), and
-unlisted non-null values are counted as unresolved. Full-sibling edges join
-people whose recorded father **and** mother coincide, so a person with an
-unknown parent has no sib edges (a half-sib is reached through the shared
-parent).
-
-Extraction (`extract_pedigree`) in two phases:
-
-1. Breadth-first search from the proband over parent, child and full-sib
-   edges for ``max_degree`` steps; ``degree`` is the BFS distance.
-2. Ancestral closure: repeatedly add every member's recorded parents,
-   relaxing ``degree[parent] = min(degree[parent], degree[child] + 1)``.
-   Added people are ``closure_only`` (their degree exceeds ``max_degree``).
-
-Because every recorded ancestor of every member is present, the tabular
-kinship of the extracted pedigree equals the full-population kinship
-restricted to it, inbreeding included; the degree limit truncates which
-*relatives* are included, never the kinship among them. Cost is linear in
-the size of the extracted set plus its edges, and a sort. Members are
-ordered proband first, then by ``(degree, str(id))``, independent of record
-order; this is not a topological order, which
-`ltpred.covariance.kinship_from_pedigree` computes itself.
+Closure-only ancestors retain their shortest degree and are marked so their
+diagnoses need not enter the observation set. Output order is proband first,
+then ``(degree, str(id))``, independent of record order.
 """
 from __future__ import annotations
 
@@ -153,21 +113,12 @@ def build_parent_graph(ids: Sequence, father: Sequence,
 
 def extract_pedigree(graph: ParentGraph, proband: object,
                      max_degree: int = 2) -> Pedigree:
-    """One proband's pedigree by breadth-first traversal of ``graph``.
+    """Extract one proband's relatives and complete ancestral closure.
 
-    Visits every person within ``max_degree`` relationship-degrees of
-    ``proband`` (see the module docstring for the degree conventions), then
-    closes on **all recorded ancestors** of the extracted set. Kinship flows
-    through common ancestors, so with every ancestor present the extracted
-    pedigree's kinship is **exact**: it equals the full-population kinship
-    restricted to the extracted members, inbreeding included. The degree
-    limit truncates only *which* relatives are included (lateral and
-    descendant links beyond ``max_degree``), never the kinship among those
-    included. ``closure_only`` marks ancestors added after the traversal, so a
-    downstream scorer can retain them for kinship without automatically using
-    their diagnoses. A parent not present in the records at all is an unknown
-    founder, as `ltpred.covariance.kinship_from_pedigree` expects. Raises on
-    a non-integer or sub-1 ``max_degree`` and on a proband not in ``graph``.
+    BFS visits relatives through ``max_degree``; closure then adds every
+    recorded ancestor, making extracted kinship exact even with inbreeding.
+    ``closure_only`` identifies added ancestors. ``max_degree`` must be a
+    positive integer and ``proband`` must be present.
     """
     if isinstance(max_degree, bool) or not isinstance(max_degree,
                                                        (int, np.integer)):

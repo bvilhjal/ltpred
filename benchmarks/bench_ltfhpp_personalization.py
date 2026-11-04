@@ -1,35 +1,15 @@
-"""LT-FH++ thresholds in an independent-SNP marginal-association simulation.
+"""Evaluate personalised LT-FH++ in an independent-SNP simulation.
 
-The main panel combines age-, sex-, and birth-cohort-dependent cumulative
-incidence (CIP), coherent family follow-up/onset, competing mortality,
-ascertainment, and demographically stratified null SNPs.  It compares
+The integrated panel combines age/sex/cohort CIPs, coherent onset and
+follow-up, competing mortality, ascertainment and stratified nulls. It
+compares case/control, ADuLT, classic LT-FH, component ablations and full
+LT-FH++. Holding personalised bounds fixed while adding relatives isolates
+the family-history contribution. A separate sex-isolation panel measures the
+increment of sex-specific prevalence beyond age alone.
 
-  case/control -> ADuLT (full personalised bounds, no family history) ->
-  classic LT-FH -> LT-FH++ component ablations -> full LT-FH++.
-
-The matched ``ADuLT -> LT-FH++`` contrast holds every proband's personalised
-age/sex/cohort bounds fixed and adds only their relatives.  It therefore isolates
-the family-history contribution that distinguishes LT-FH++ from ADuLT.
-
-A separate, prespecified sex-isolation panel asks the narrower question that the
-integrated panel cannot answer cleanly: does adding the correct sex-specific
-lifetime prevalence help beyond age alone?  It uses five paired replicates by
-default (N=3,000, M=600, 30 causal SNPs), sex RR=2, equal onset midpoints, an
-age-dependent CIP, and no cohort or sex-dependent-mortality effect.
-
-Pearson-Aitken (PA) is the primary single-trait engine.  Gibbs is run only for the
-first ``--gibbs-reps`` main-panel replicates and is used as an agreement diagnostic,
-not as a second headline analysis. Raw and sex/birth-year-adjusted score/truth and
-marginal-association metrics are both retained. Paired contrasts use t-based 95%
-confidence intervals across independent simulated cohorts. This is not a
-real-LD, related-sample mixed-model GWAS.
-
-Run:
-    python benchmarks/bench_ltfhpp_personalization.py
-    python benchmarks/bench_ltfhpp_personalization.py --n-fam 8000 --reps 10
-    python benchmarks/bench_ltfhpp_personalization.py --output-prefix /tmp/ltfhpp
-
-The default output prefix is ``benchmarks/bench_ltfhpp_personalization``.
+PA is primary; a small Gibbs subset checks agreement. Paired contrasts use
+95% t intervals. This is not a real-LD, related-sample mixed-model GWAS.
+Writes `bench_ltfhpp_personalization.csv`.
 """
 
 from __future__ import annotations
@@ -732,8 +712,8 @@ def _validate_args(parser, args):
         parser.error("--seed must be nonnegative")
     if not args.output_prefix.strip():
         parser.error("--output-prefix must not be empty")
-    if args.output_prefix.endswith((".csv", ".png")):
-        parser.error("--output-prefix is a path stem; omit .csv/.png")
+    if args.output_prefix.endswith(".csv"):
+        parser.error("--output-prefix is a path stem; omit .csv")
 
 
 def main():
@@ -785,7 +765,7 @@ def main():
     sex.add_argument("--sex-isolation-seed", type=int, default=100_001)
 
     parser.add_argument("--output-prefix", default=DEFAULT_OUTPUT_PREFIX,
-                        help="path stem for .csv and .png outputs")
+                        help="path stem for .csv output")
     args = parser.parse_args()
     args.truth_use_sex = True
     args.truth_use_cohort = True

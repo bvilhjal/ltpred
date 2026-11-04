@@ -1,51 +1,15 @@
-"""Fit liability-scale variance components from family data (stochastic moment fixed point).
+"""Stochastic moment fits of liability variance components.
 
-The liability estimators take the family covariance as *given*; here it is
-fitted (`ltpred.pairwise` fits the same model by composite likelihood).
-`fit_heritability` fits the additive proportion ``h2``; `fit_variance_components`
-fits proportions ``theta_c`` for a subset of the kernels ``A`` (additive
-relationship, ``2 * kinship``), ``C`` (full-sib indicator) and ``M`` (mate-pair
-indicator), with ``Sigma = sum_c theta_c K_c + (1 - sum_c theta_c) I`` on the
-unit-variance liability scale. The latent liabilities
-are missing data; see the methods report, "Fitting h² is a different problem".
+`fit_heritability` fits additive ``h2``; `fit_variance_components` fits A/C/M
+proportions in ``Sigma = sum_c theta_c K_c + (1 - sum_c theta_c) I``. Persistent
+truncated-normal chains augment liabilities, then a damped Haseman--Elston
+regression updates the proportions. Retained fixed-point traces provide the
+estimate and a batch-means Monte-Carlo diagnostic, not a sampling SE.
 
-**Algorithm H** (both fitters).
-
-- **H1. Screen.** Families are assumed independent and must not share a
-  ``pid``; each trait must have one common one-sided threshold ``t`` -- no pins,
-  intervals or person-specific thresholds -- and each role's (weighted) case
-  rate must be consistent with ``K = 1 - Phi(t)``.
-- **H2. Design.** Group families by role set. Every within-family pair ``i < j``
-  with a nonzero kernel row ``x_ij = (K_c[i, j])_c`` enters
-  ``X'WX = sum_f w_f sum_(i,j) x_ij x_ij'`` (``w_f = 1`` without IPW). Raise
-  unless ``X'WX`` and the rows of jointly observed pairs have full rank.
-- **H3. Initialise.** ``theta = h2_init`` (or ``0.5 / n_components`` each); each
-  family's chain starts at its members' marginal truncated medians.
-- **H4. Augment.** Advance every family's persistent truncated-MVN chain
-  ``l_f | bounds, Sigma(theta)`` by ``inner_sweeps`` Gibbs sweeps
-  (`ltpred.gibbs._gibbs_advance_chain`).
-- **H5. Regress.** ``theta_hat = (X'WX)^-1 sum_f w_f sum_(i,j) x_ij l_fi l_fj``:
-  the Haseman-Elston moment equation ``E[l_i l_j] = x_ij' theta``. One component
-  is exact division; several add a ``1e-10`` ridge.
-- **H6. Clamp and damp.** Clip each ``theta_hat_c`` to ``[eps, 1 - eps]``, scale
-  the vector down to sum ``1 - eps`` if it exceeds that, then
-  ``theta <- (1 - damp) theta + damp theta_hat``. The residual is positive
-  after the first update, so ``Sigma`` stays positive definite.
-- **H7. Summarise.** Repeat H4-H6 ``n_iter`` times and drop ``burn_in`` iterates.
-  The estimate is the mean of the retained trace; its SE is the batch-means
-  Monte-Carlo SE of that mean (`ltpred.estimate._batch_means`).
-
-At the true parameters, total expectation recovers ``x_ij' theta`` from
-correctly specified conditional draws and the population family mix, even
-with known person-specific thresholds. Common binary thresholds are this
-implementation's validated scope, not a requirement of that identity.
-IPW with ``w_f = 1 / P(family sampled)``
-(in both ``X'WX`` and the products) restores the mix, but not a stratum that
-had zero inclusion probability. The SE measures only this run's
-Monte-Carlo noise on this dataset, not sampling uncertainty; `bootstrap_fit`
-resamples whole families and refits for that. Traces are fixed-point iterates,
-not posterior draws. Likelihood-based and multi-trait fits built on this core
-live in ``research/advanced_fitting.py`` as unsupported research code.
+Families must be independent, non-overlapping and have common case/control
+thresholds. Population sampling or known positive family-level IPW is required.
+`bootstrap_fit` resamples whole families for sampling uncertainty. See
+``docs/inference.md`` and Algorithm H in ``docs/algorithm.md``.
 """
 
 from __future__ import annotations
@@ -216,40 +180,12 @@ def _member_bounds(families, n_pheno):
 
 def _assert_population_case_rate(families, n_pheno, *, context, weights=None,
                                  member_bounds=None):
-    """Check the observed case rate against the one the thresholds assert.
+    """Reject gross marginal case-rate/prevalence inconsistencies.
 
-    ``sampling="population"`` alone is an assertion; an ascertained cohort would
-    run straight to a boundary fixed point. The data can be checked, because the supplied
-    bounds already encode the assumed prevalence -- a common threshold ``t``
-    means ``K = 1 - Phi(t)`` -- and under population sampling each role's case
-    indicator is one ``Bernoulli(K)`` per family, independent across families.
-    So the count for role ``r`` is ``Binomial(n_families, K)`` and a plain
-    binomial z-test applies, with no clustering correction needed.
-
-    This runs after `_assert_common_thresholds`, which guarantees exactly
-    the input this assumes: one threshold per trait, every member a one-sided
-    case or control, no pins or two-sided intervals.
-
-    A failure does not necessarily mean the sample was ascertained -- an honestly
-    population-sampled cohort analysed with a mis-specified ``K`` fails the same
-    way, and is wrong for the same reason. Either way the model's own
-    precondition is violated, so the message names the observed and asserted
-    rates rather than guessing the cause.
-
-    With ``weights`` (``sampling="ipw"``) the same **marginal-calibration** check
-    is applied to the weighted case rate. Correct inverse-probability weights must
-    re-mix each role's marginal rate back to ``K``, so failure falsifies the
-    supplied weighting design. Passing is necessary but not sufficient: matching
-    marginals cannot prove that every joint family-status stratum had positive
-    inclusion probability, nor that the weights reconstruct their joint
-    distribution. The binomial SE uses Kish's effective sample size
-    ``(sum w)^2 / sum w^2``, so heavy weights widen the tolerance instead of
-    manufacturing significance.
-
-    Rule, per (role, trait) over informative members only: skip when the
-    effective ``n < 30``; otherwise raise, naming the worst cell, when
-    ``|z| >= 6`` *and* the observed/expected ratio lies outside
-    ``[1/1.15, 1.15]``.
+    Checks each informative role/trait cell with a binomial z score, using
+    Kish effective sample size under IPW. Cells with effective n < 30 are
+    skipped; otherwise ``|z| >= 6`` and a case-rate ratio outside
+    ``[1/1.15, 1.15]`` raises. Passing does not certify joint positivity.
     """
     lo_all, hi_all, roles, fam_index = (member_bounds if member_bounds is not None
                                         else _member_bounds(families, n_pheno))
@@ -328,19 +264,11 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None,
 
 
 def _assert_common_thresholds(families, n_pheno, *, context, member_bounds=None):
-    """Reject person-specific liability bounds in the pooled-moment fitters.
+    """Require one common one-sided case/control threshold per trait.
 
-    Common binary thresholds are the validated fitting scope and are required
-    by the current prevalence screen. Total expectation also holds for known
-    person-specific thresholds under a correctly specified observation and
-    covariance model; it does not establish identification or convergence of
-    this stochastic fixed point. Exploratory failures motivated the restriction,
-    but do not prove that heterogeneous thresholds inherently bias pooled
-    moments. Personalised bounds and onset pins remain unsupported for fitting.
-
-    The prediction estimators (`ltpred.estimate.estimate_liability` and
-    friends) are unaffected -- they *condition* on a supplied ``h2`` rather than
-    fitting it, and personalised bounds are exactly what they are designed for.
+    Personalised bounds, pins and two-sided intervals are rejected by these
+    moment fitters, not by liability scoring. The restriction is this
+    implementation's validated scope, not a failure of total expectation.
     """
     lo_all, hi_all, _roles, _fam_index = (member_bounds if member_bounds is not None
                                           else _member_bounds(families, n_pheno))
@@ -522,21 +450,12 @@ def _validate_h2_init(h2_init):
 
 @dataclass
 class FitResult:
-    """Result of `fit_heritability`.
+    """Heritability estimate and its fixed-point traces.
 
-    ``h2`` is the liability-scale heritability — the post-burn-in average of the
-    fixed-point ``h2`` trace (a stochastic-approximation estimate, **not** a
-    posterior mean). ``h2_se`` is its batch-means Monte-Carlo variability.
-
-    **Caveat:** ``h2_se`` is a *within-dataset* Monte-Carlo **diagnostic** of the
-    fixed point, not an inferential standard error and not the sampling variability
-    of ``h2`` across datasets; it can substantially understate that variability.
-    Do **not** use it as a confidence interval. A family-cluster bootstrap is one
-    sampling-uncertainty option when its assumptions hold. ``samples`` is the
-    post-burn-in ``h2`` trace and ``trace`` the full one
-    (for convergence diagnostics; despite the name they are fixed-point iterates,
-    not posterior draws). ``n_iter`` and ``burn_in`` are the controls the fit
-    ran with."""
+    ``h2_se`` is batch-means Monte-Carlo error in this fit, not a sampling SE
+    or a confidence interval. ``samples`` is post-burn-in and ``trace`` full;
+    neither is a posterior chain. Use `bootstrap_fit` for sampling uncertainty.
+    """
     h2: float
     h2_se: float
     samples: np.ndarray
@@ -551,83 +470,25 @@ def fit_heritability(families: Sequence, *, h2_init: float = 0.5,
                      seed: int | None = None, eps: float = 1e-4,
                      sampling: str | None = None,
                      weights: ArrayLike | None = None) -> FitResult:
-    """Estimate liability-scale ``h2`` from common-threshold family case/control statuses.
+    """Fit liability-scale heritability from common-threshold family data.
 
-    **Sampling contract:** this moment fitter assumes independent,
-    non-overlapping families under one of two designs. ``sampling="population"``
-    is the unascertained case; ``sampling="ipw"`` with per-family ``weights``
-    covers selection on observed status with a known, strictly positive
-    inclusion probability (below). Omitting ``sampling`` emits a compatibility
-    warning; anything else raises. ``weights`` are accepted only with
-    ``sampling="ipw"``, which requires them: one finite, strictly positive value
-    per family. There is no ascertainment *likelihood* here,
-    so a design that reweighting cannot reach -- because family-level selection
-    probabilities are unknown or misspecified, or any joint stratum has
-    probability zero -- still produces severe boundary bias.
+    The stochastic fixed point alternates truncated-MVN augmentation with a
+    damped Haseman--Elston update. ``n_iter`` and ``burn_in`` count outer
+    iterations, ``inner_sweeps`` sets Gibbs work per iteration, and ``damp``
+    controls the update. ``h2_init`` lies in [0, 1]; at least four retained
+    iterates are required. Related pairs are necessary for identification.
 
-    That acknowledgement is **checked against the data**: the supplied
-    thresholds assert a prevalence, and each role's (weighted) case rate is
-    compared against it with a binomial z-test. A gross
-    mismatch raises, because the failure it guards is severe and silent -- on
-    ascertained families with a true ``h2`` of 0, this fitter returns
-    ``h2 = 1.0``. The check is deliberately conservative, so it catches the
-    catastrophic designs rather than certifying population sampling.
-    When members carry ``pid``, a person who appears in more than one family
-    (distinct ``fam_id``) is rejected; prediction on overlapping register
-    pedigrees is `ltpred.estimate.estimate_liability`.
+    Families must be independent and non-overlapping. Use
+    ``sampling="population"`` for an unascertained sample, or
+    ``sampling="ipw"`` with one reciprocal inclusion probability per family
+    for a known, strictly positive selection design. Omitting ``sampling``
+    warns and assumes population sampling. Personalised bounds, onset pins and
+    two-sided intervals are outside this fitter's scope. The marginal case-rate
+    screen catches gross inconsistency but does not certify the design.
 
-    **Selected samples:** ``sampling="ipw"`` with per-family ``weights`` handles
-    selection on observed status when the inclusion probability is known and
-    strictly positive for every stratum -- the standard case/control cohort and
-    biobank case-enrichment designs. Pass ``weights = 1 / P(family sampled)``.
-    The per-family moment contributions are then re-mixed to population
-    proportions, which is the right shape of remedy here: the augmentation for a
-    *given* family with *given* statuses is already correct, and it is the
-    **mix** of families that selection breaks. In the repository benchmark
-    (``benchmarks/RESULTS.md`` section 29) this takes a 50/50 case/control
-    cohort from an unweighted fit pinned at ``h2 = 1`` back close to the true
-    0.5.
-
-    Two limits, both real. **Positivity:** a design that samples no families from
-    some joint status stratum has inclusion probability zero there, and no
-    weighting can reconstruct what was never observed. The marginal case-rate
-    check can falsify many such designs, but passing it does not prove joint
-    positivity or weight validity. **Efficiency:** weights reach 19x at K = 0.05
-    with a 50/50 cohort, so the effective sample size is far below the nominal
-    one; the benchmark reports the inflated across-replicate SD alongside the
-    bias.
-
-    The case-rate check has a stated blind spot: the enrichment it can detect is
-    ``max(1.15, 1 + 6*sqrt((1-K)/(K*n)))``, which at K = 0.05 is ~1.67x at n = 1,500 and
-    ~1.26x at n = 10,000. Milder enrichment passes, and the benchmark's
-    dose-response shows that is not harmless.
-
-    ``families`` is a list of `ltpred.family.Family` whose members carry
-    liability bounds (from a threshold builder). The fit is Algorithm H of the
-    module docstring with the single kernel ``A``: Gibbs augmentation of the
-    latent liabilities alternating with a damped Haseman–Elston update
-    ``h2_hat = sum w_f A_ij l_i l_j / sum w_f A_ij^2`` -- a
-    **stochastic-approximation fixed point**, not posterior sampling of ``h2``.
-    ``inner_sweeps`` truncated-MVN sweeps are taken per outer iteration; ``damp``
-    in ``(0, 1]`` is the update step and ``eps`` in ``[1e-8, 0.5)`` clamps each
-    update to ``[eps, 1 - eps]``. Returns a `FitResult`; its ``h2_se`` is the
-    batch-means Monte-Carlo SE of the post-burn-in trace mean.
-
-    Needs relatives (at least one related pair); a set of lone probands carries no
-    information about ``h2`` and raises. ``seed`` must be a non-boolean integer in
-    ``[0, 2**32 - 1]`` or ``None`` and ``h2_init`` must lie in [0, 1].
-    ``n_iter`` counts outer fixed-point iterations, of which the first
-    ``burn_in`` are dropped (a different unit from the estimators' Gibbs
-    ``burn_in`` sweeps); ``burn_in`` must be non-negative and
-    ``n_iter - burn_in >= 4``, since the batch-means SE needs two batches.
-    Invalid controls raise before any sampling.
-
-    **Requires a common case/control threshold per trait** (the validated
-    scope, not a necessity of the moment identity): personalised
-    (age-/CIP-specific) or onset-pinned LT-FH++ bounds are **rejected**, not
-    silently fitted. The prediction path (`ltpred.estimate.estimate_liability`)
-    is unaffected, since it conditions on ``h2``. Standard NaN and
-    interval-order validation still applies."""
+    Returns a `FitResult`. ``h2_se`` measures Monte-Carlo noise in this fit,
+    not sampling uncertainty; use `bootstrap_fit` for the latter.
+    """
     n_iter, burn_in, inner_sweeps = _validate_iteration_controls(
         n_iter, burn_in, inner_sweeps, min_retained=_MIN_RETAINED)
     h2_init = _validate_h2_init(h2_init)
@@ -878,69 +739,17 @@ def fit_variance_components(families: Sequence, components: Sequence[str] = ("A"
                             seed: int | None = None, eps: float = 1e-4,
                             sampling: str | None = None,
                             weights: ArrayLike | None = None) -> VarCompResult:
-    """Fit liability-scale variance components by a multiple Haseman-Elston regression.
+    """Fit A/C/M liability-variance proportions by stochastic moment regression.
 
-    **Sampling contract:** like `fit_heritability`, this supports
-    independent, non-overlapping families sampled either directly from the
-    population or with known, strictly positive family-level selection
-    probabilities. Pass ``sampling="population"`` for the former, or
-    ``sampling="ipw"`` with reciprocal-probability ``weights`` for the latter (see
-    `fit_heritability` for both, including the marginal-check, positivity,
-    pid-overlap, and efficiency limits). Without one of those, this fitter does not correct
-    case/control or family-history ascertainment; under it the components
-    saturate, exhausting the residual variance rather than sitting at the
-    elementwise clamp.
+    ``components`` selects additive genetic (A), full-sibship environment (C)
+    and/or couple environment (M). Identifying relationship contrasts must be
+    observed; dominance is unsupported. The algorithm, controls and sampling
+    contract match `fit_heritability`. Component proportions sum to at most
+    one and ``residual`` is the remainder.
 
-    Generalises `fit_heritability` from one component to several (Algorithm H
-    of the module docstring). Each outer iteration it (1) advances the latent
-    liabilities by ``inner_sweeps`` Gibbs sweeps under the **full family
-    truncated-MVN** ``N(0, sum_c h2_c K_c + e2 I)``, then (2) updates all
-    proportions at once by regressing the sampled cross-products on the
-    component relationship matrices over every related pair,
-
-        [h2_c] = (X'WX)^-1 X'Wy ,   X[p, c] = K_c[i, j] ,   y[p] = l_i l_j ,
-
-    clamped and damped across iterations (``W`` holds the IPW family weights). Unlike a single-``h2`` fit this separates
-    relative *kinds* when the supplied pedigrees yield linearly independent
-    relationship contrasts: ``A`` by the parent-offspring /
-    grandparent / avuncular relatednesses, ``C`` by the full-sib excess, ``M`` by
-    the resemblance between genetically-unrelated mates. The thresholds stay fixed
-    (total liability variance 1); components are returned as **proportions**, with
-    ``residual = 1 - sum``.
-
-    ``components`` is any subset of the **variance-component bank**:
-
-    - ``"A"`` — additive genetic (its proportion is the narrow-sense heritability);
-    - ``"C"`` — sibship common environment, identified only from **full-sib pairs**;
-    - ``"M"`` — couple/spousal shared environment, identified only from **mate
-      pairs** (the proband's parents, and grandparent couples). Because mates are
-      genetically unrelated, ``M`` captures spousal resemblance from *any* source —
-      shared adult environment or assortative mating, which parent data alone cannot
-      separate. Note that, unlike ``C``, leaving ``M`` unmodelled biases ``A``
-      **much less**: mates have ``A_ab = 0`` so they carry no direct weight in
-      the additive regression; ``M`` matters when the spousal resemblance is itself
-      of interest, or to test/report it.
-
-    A component whose identifying pairs are absent (``C`` with no full-sib pairs,
-    ``M`` with no mate pairs, or no related pairs at all) leaves the design singular
-    and this raises. (Dominance ``"D"`` is intentionally unsupported: it needs an
-    explicit dominance kernel and an independently informative relationship
-    design.)
-
-    It starts every proportion at ``0.5 / len(components)``; ``damp`` must lie
-    in ``(0, 1]`` and ``eps`` in ``[1e-8, 0.5)`` keeps a positive residual floor. ``n_iter`` and ``burn_in`` follow
-    `fit_heritability` (outer iterations; ``n_iter - burn_in >= 4``). Returns a
-    `VarCompResult`. Simulation benchmarks recover ``A`` and ``A+C`` with
-    small bias relative to their across-dataset SD. ``se`` is only a within-fit
-    Monte-Carlo diagnostic. Use family resampling for a sampling interval when
-    clusters are independent and representative. ``seed`` must be a non-boolean
-    integer in ``[0, 2**32 - 1]`` or ``None``.
-
-    **Requires a common case/control threshold per trait**, exactly as
-    `fit_heritability` does and for the same reason: personalised or
-    onset-pinned LT-FH++ bounds fall outside the supported pooled-moment
-    estimating contract, so they are **rejected** rather than silently fitted.
-    Standard NaN and interval-order validation still applies."""
+    Returns a `VarCompResult`. Its ``se`` values are within-fit Monte-Carlo
+    diagnostics, not sampling SEs; use family resampling for uncertainty.
+    """
     comps = _validate_components(components)
     n_iter, burn_in, inner_sweeps = _validate_iteration_controls(
         n_iter, burn_in, inner_sweeps, min_retained=_MIN_RETAINED)
@@ -986,52 +795,16 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *,
                   weights: ArrayLike | None = None, n_boot: int = 100,
                   seed: int | None = None,
                   ci_level: float = 0.95) -> BootstrapResult:
-    """Approximate percentile uncertainty by **resampling family clusters**.
+    """Estimate percentile uncertainty by resampling whole families.
 
-    The HE ``se`` reported by `fit_heritability` and
-    `fit_variance_components` is a
-    *within-dataset* Monte-Carlo diagnostic and can substantially understate
-    sampling variability. This helper resamples families with replacement
-    ``n_boot`` times (whole `ltpred.family.Family` objects, so a duplicate keeps
-    its ``fam_id`` and passes the fitters' ``pid`` overlap check) and reports the
-    refit SD and percentile interval around the full-data estimate. Its sampling
-    interpretation assumes independent, non-overlapping family clusters and
-    either representative sampling or valid aligned IPW; it is not
-    bias-corrected, studentized, or automatically calibrated at boundaries.
-
-    ``estimator`` is a callable ``families -> value`` returning the quantity of
-    interest as a float or array, e.g.:
-
-        bootstrap_fit(
-            fams,
-            lambda f: fit_heritability(
-                f, seed=1, sampling="population").h2)
-        bootstrap_fit(fams, lambda f: fit_variance_components(f, ("A", "C"),
-                                          seed=1, sampling="population"
-                                      ).components["C"])
-
-    For an IPW analysis, pass the original per-family ``weights`` and accept a
-    second argument in the estimator. The helper resamples the two arrays with
-    the same indices, preventing weights from becoming detached from their
-    families:
-
-        bootstrap_fit(
-            fams,
-            lambda f, w: fit_heritability(
-                f, sampling="ipw", weights=w, seed=1).h2,
-            weights=weights)
-
-    Fix the estimator's internal ``seed`` so each refit is deterministic given its
-    resample — then the bootstrap spread reflects family sampling, not the sampler's
-    own Monte-Carlo noise. Returns a `BootstrapResult`. Cost is ``n_boot + 1``
-    fits, so this is deliberately expensive; lower ``n_boot`` for a quick check.
-
-    ``estimator`` must return a stable scalar/array shape. ``n_boot`` is an integer
-    at least 2; substantially more than the default 100 may be needed for stable
-    interval endpoints. ``seed`` follows NumPy ``default_rng`` semantics and seeds
-    only the resampling; ``ci_level`` sets the percentile interval. When
-    ``weights`` is supplied, ``estimator`` is called as
-    ``estimator(families, weights)`` for both the point fit and every refit."""
+    ``estimator`` receives the family list and returns a scalar or array of
+    stable shape. With ``weights``, it instead receives ``(families, weights)``
+    and both are resampled by the same indices. Fix the estimator's own seed
+    so bootstrap spread reflects family resampling rather than sampler noise.
+    Returns the full-data estimate, refit SD, percentile interval and samples.
+    Independent, non-overlapping clusters and a valid sampling design remain
+    necessary; boundary intervals are not automatically calibrated.
+    """
     families = list(families)
     n = len(families)
     if n < 2:

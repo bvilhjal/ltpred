@@ -1,41 +1,15 @@
-"""Locked comparison of ltpred's personalised LT-FH++ against LTFHPlus/LTFGRS.
+"""Lock personalised LT-FH++ and the censoring mixture against R.
 
-The classic lock (``bench_ltfhplus_compare.py``, RESULTS section 30) covers
-one-threshold LT-FH bounds. This script locks the two features that define
-LT-FH++ beyond it, on families whose bounds are built from an age-dependent
-cumulative-incidence curve (every member has their own age; cases are pinned
-at their onset-age threshold, controls are censored with a finite
-age-specific upper bound):
+The personalised panel compares ltpred Gibbs with LTFHPlus on identical
+age-dependent interval/pin bounds. The mixture panel compares ltpred PA with
+LTFGRS `useMixture=TRUE`, with no-mixture PA anchors. Runtime follows warmup;
+peak RSS uses isolated processes.
 
-  * **personalised panel** -- ltpred Gibbs vs ``LTFHPlus::estimate_liability``
-    (Rcpp Gibbs) on identical per-member interval/pin bounds, with ltpred PA
-    as the deterministic reference. Locks the posterior under heterogeneous
-    intervals, the input regime the classic lock never exercises.
-  * **mixture panel** -- ltpred PA with the censored-control mixture
-    (``use_mixture=True``, Algorithm M) vs ``LTFGRS::estimate_liability``
-    (``method="PA", useMixture=TRUE``), with both packages' no-mixture PA as
-    anchors.
-
-Input-contract note (found building this lock): the two packages encode a
-censored control differently. ltpred's mixture takes the age-specific bound
-``Phi^-1(1 - CIP(age))`` as ``upper`` and ignores its exact value -- the
-mixture splits at the *lifetime* threshold ``Phi^-1(1 - K_pop)`` (Dybdahl
-Krebs et al. 2024, eqs. S3-S5), so an age-specific or a lifetime ``upper``
-gives the same score. LTFGRS *consumes* the passed ``upper``; feeding it the
-age-specific bound double-corrects the censoring (measured: corr 0.71,
-RMSE 0.29). The mixture panel therefore writes each package its own table:
-ltpred gets the age-specific intervals with NaN ``K`` off censored rows,
-LTFGRS gets lifetime uppers there and ``K`` filled on every row (its
-validator rejects NA). The no-mixture anchors share the age-specific table.
-
-Wall-clock is the estimator call after in-process warmup (as in the classic
-lock); peak RSS uses the same isolated-process ``_peak_launcher`` pattern.
-Requires R with LTFHPlus and LTFGRS (exits 2 without them).::
-
-    NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \\
-        python benchmarks/run_benchmark.py \\
-        --artifact bench_personalised_compare.csv \\
-        bench_personalised_compare.py
+Input encodings differ deliberately: ltpred's mixture splits at the lifetime
+threshold and uses age-specific upper only as a censoring flag; LTFGRS consumes
+upper directly. Each package therefore receives its own valid control table.
+Requires R, LTFHPlus and LTFGRS (exit 2 otherwise). Writes
+`bench_personalised_compare.csv`.
 """
 
 from __future__ import annotations

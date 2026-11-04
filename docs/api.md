@@ -32,30 +32,12 @@ is also a top-level export.
 | `set_num_threads` | set the Numba-parallel thread count |
 
 
-The heavier inferential machinery — the HE multi-trait genetic-correlation,
-onset-age-decay, common-factor and genetic-nurture fits, the MCEM
-variance-component fit, and the parametric-bootstrap significance tests — lives
-in the unsupported checkout-only
-[`research/` package](https://github.com/bvilhjal/ltpred/tree/main/research);
-they are not installed with the distribution. See
-[research extensions](research.md) for the models.
-
-For the Gibbs estimator and model-fit samplers, `seed` is either `None` or an
-integer in `[0, 2**32 - 1]`; booleans are rejected. Derived sampler streams wrap
-deterministically within that 32-bit range. Resampling seeds on bootstrap helpers
-follow NumPy's `default_rng` contract.
-
-
-PA accepts a symmetric positive-semidefinite covariance with strictly positive
-marginal variances. Gibbs requires strict positive-definiteness because it forms
-precision-based conditional variances.
-The sex-limited and genetic-nurture covariance constructors live in the
-checkout-only `research/covariance_extensions.py`.
-
-
-The older array APIs keep their tuple contracts: PA `(est, var)`, Gibbs
-`(est, se)` or `(est, se, var)` with `return_var=True`, and kinship
-`(est, se, var)`. Posterior variance and Monte Carlo SE are distinct quantities.
+Unsupported multi-trait, onset-decay, factor and nurture prototypes remain in
+the checkout-only [research package](research.md). Gibbs seeds are uint32
+integers or `None`; bootstrap resampling follows NumPy's `default_rng`
+contract. PA accepts PSD covariance with positive marginal variances; Gibbs
+requires strict PD. Array tuple contracts are PA `(est, var)`, Gibbs
+`(est, se)` or `(est, se, var)`, and kinship `(est, se, var)`.
 
 ## Estimation — `ltpred.estimate`
 

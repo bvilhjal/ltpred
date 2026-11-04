@@ -1,62 +1,20 @@
-"""Generative validation of the PA-FGRS age-censored-control mixture.
+"""Validate the PA-FGRS censoring mixture against known genetic truth.
 
-The PA-FGRS censoring mixture (`use_mixture=True`; Dybdahl Krebs et al. 2024)
-has unit tests, but this generative benchmark is needed to test calibration and
-ranking against known genetic liability: simulate families under the
-liability-threshold model with
-an age-dependent CIP, censor honestly (a case is observed only if its onset age
-precedes the current age; otherwise it is a censored control carrying its
-individual cumulative incidence K_i), then ask whether the mixture recovers the
-posterior mean genetic liability better than the naive no-mixture encoding.
+Families are simulated under an age-dependent CIP and honestly censored:
+observed cases have onset before current age; everyone else is a control with
+individual K_i. Correlation and calibration slope compare mixture and
+no-mixture encodings on identical records.
 
-Three observation models, because the mixture's value depends on how onset works:
+Three onset models isolate the mixture's assumptions: deterministic threshold
+crossing (plain age truncation is already exact), stochastic onset independent
+of liability (the native mixture model), and liability-dependent onset with
+rho=0.6 (its independence assumption is false). MID and OLD regimes vary
+censoring intensity.
 
-  * CROSSING (the LT-FH++ convention, used by `simulate_under_LTM_single`):
-    liability is fixed at birth and onset occurs when the age-specific
-    threshold drops below it (deterministic l -> aoo map). Under this model a
-    censored control IS exactly l < T(age), so the plain age truncation is
-    already exact and the mixture has no correct work to do -- it should
-    approximately reproduce the truncation.
-  * STOCHASTIC-ONSET (the mixture's native model): case status is set by the
-    lifetime threshold (l > T_pop) and onset age is drawn from the CIP
-    independent of liability. A censored control is then a genuine mixture of
-    true controls (l < T_pop) and future cases (l > T_pop, onset > age) --
-    exactly what the mixture models, and what a naive age truncation
-    mis-encodes. This is the arm that validates the mixture's purpose.
-  * LIABILITY-DEPENDENT (rho=0.6): lifetime status at T_pop, but among
-    lifetime cases onset is coupled to liability by a Gaussian copula
-    (ltpred.simulate onset_model="liability_dependent"). Higher liability
-    advances onset, with residual noise. Plain age truncation is then not
-    exact, pinning is not exact, and the mixture's independence assumption
-    is false: the not-yet-onset tail is depleted of high-liability people.
-    This is the assumption-stress arm. Pre-registered: the mixture still
-    lowers slope; a ranking cost may appear; pinned slope will not sit on 1.
-
-Design. h2=0.5, lifetime prevalence K_pop=0.10, logistic CIP
-K(age)=K_pop/(1+exp((mid_point-age)*slope)) (the repo's pa_thresholds family).
-Two censoring regimes: MID-life (heavy censoring -- most lifetime cases are
-still unobserved; the mixture should help most) and OLD (light censoring).
-Encodings on identical bounds:
-
-  base + no-mixture : lifetime case intervals [T_pop, inf); censored controls
-                      truncated at their age threshold; plain PA (naive).
-  base + mixture    : identical bounds + per-member (K_i, K_pop) and
-                      use_mixture=True (the PA-FGRS model).
-  interval + mixture: age-specific case intervals [T(aoo), inf) instead of the
-                      lifetime interval -- the pa_thresholds PA-FGRS-style
-                      variant, included to document its known calibration slope
-                      (~0.84 in the unit guard).
-  pinned + no-mixture / pinned + mixture: LT-FH++-exact case encoding
-                      (lower == upper == T(aoo)), without and with the censoring
-                      mixture. Under this generative model (deterministic
-                      threshold crossing) the pinned case encoding is the exact
-                      one, so these arms separate the case-encoding effect from
-                      the censoring-mixture effect.
-
-A Gibbs arm on the base bounds (no mixture) cross-checks the PA reference.
-Metrics against the true simulated genetic liability g: Pearson correlation,
-and calibration slope of regressing the true g on the estimate (1.0 =
-calibrated posterior mean).
+Design: h2=0.5 and K_pop=0.10. Arms compare lifetime bounds without/with the
+mixture, age-specific interval cases with the mixture, and onset pins
+without/with it. A base-bound Gibbs arm cross-checks PA. Metrics against true
+g are Pearson correlation and calibration slope of true g on estimate.
 
 Reading the slopes: a lifetime case interval under-conditions cases (their true
 liabilities are >= T(onset age), more extreme than [T_pop, inf) assumes) ->

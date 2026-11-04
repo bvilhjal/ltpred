@@ -1,44 +1,15 @@
-"""Conditional liability estimates for LT-FH, LT-FH++, ADuLT and PA-FGRS.
+"""Posterior genetic and full liability from family truncation bounds.
 
-For each proband this conditions a Gaussian family covariance on every
-member's liability interval and reports, for the proband's genetic liability
-``g`` and/or full liability ``o``, the posterior mean ``est``, the posterior
-variance ``var`` and the Monte-Carlo SE ``se`` of ``est``. Bounds and relative
-rows distinguish LT-FH, LT-FH++ and ADuLT; PA-FGRS also needs the
-``K_i``/``K_pop`` censoring mixture, which only Pearson-Aitken (PA) implements.
-The genetic estimate is the continuous phenotype fed to a GWAS.
+`estimate_liability` handles `Family` objects, the array functions handle one
+role set per call, and `estimate_liability_from_kinship` handles arbitrary
+pedigrees. Single-trait inference defaults to deterministic Pearson--Aitken
+(PA); multi-trait inference uses Gibbs; additive nuclear families can use
+quadrature. PA alone implements the ``K_i``/``K_pop`` censoring mixture.
 
-Dispatch. Every route ends in an array kernel over same-covariance families.
-
-* Object API. `estimate_liability` picks the engine (`_resolve_method`): PA by
-  default for scalar ``h2``; Gibbs for multi-trait, which only Gibbs supports;
-  ``"quadrature"`` on request for additive nuclear families. Its drivers
-  bucket families by sorted role set (`_group_by_structure`; methods report,
-  Algorithm G, step G1), stack each bucket's bounds and call one kernel per
-  bucket.
-* Array API. `estimate_liability_pa_arrays`, `estimate_liability_gibbs_arrays`
-  and `ltpred.chunked`: one role set per call, bounds ``(F, len(roles))``.
-* Kinship API. `estimate_liability_from_kinship`: an arbitrary relationship
-  matrix ``A``; the whole call is one group.
-
-Coordinate order. Covariance rows are ``g``, ``o``, then relatives
-(multi-trait: that block per phenotype, phenotype-major). `_align_to_cov`
-maps role columns by name and fills ``g``, and an absent ``o``, with
-``(-inf, inf)``; the kinship route prepends ``g`` to ``A``'s order. Gibbs
-keeps the caller's (object API: the bucket's first family's) relative order,
-because the sweep consumes RNG in coordinate order; PA sorts the roles so its
-sequential fold depends only on the role set.
-
-Engines. PA (`ltpred.pearson_aitken`) is deterministic with ``se = 0``: exact
-for pins followed by at most one interval, a sequential two-moment
-approximation otherwise. Gibbs runs Algorithm G (`ltpred.gibbs`) via
-`_estimate_group`, with per-family seeds from `_base_seeds`. Every covariance
-passes `correct_positive_definite`, with a warning if it was nudged.
-
-Identity. ``g`` is never an input role; roles are unique within a family, and
-a non-missing ``pid`` may occur once per family (across families is allowed).
-Member pids without a proband pid raise; `LiabilityResult` describes the
-result ``pids``.
+Families are validated and grouped by role set before calling the shared
+kernels. ``var`` is posterior variance; ``se`` is Monte-Carlo error only.
+See ``docs/estimation.md`` and ``docs/algorithm.md`` for the models and
+fold-order details.
 """
 
 from __future__ import annotations
@@ -54,7 +25,7 @@ from numpy.typing import ArrayLike
 
 from .covariance import (construct_covmat_single, construct_covmat_multi,
                          construct_covmat_from_kinship, correct_positive_definite,
-                         _PSD_CERTIFIED)
+                         _PSD_CERTIFIED, _PD_CERTIFIED)
 from .gibbs import (gibbs_params, _gibbs_round, _as_bounds, _MAX_SEED,
                     _validate_seed, _validate_burn_in)
 from .pearson_aitken import pa_estimate_batched, _tnorm_moments_loc
@@ -142,35 +113,15 @@ def _resolve_out_entry(value):
 
 @dataclass
 class LiabilityResult(_TableExport):
-    """Per-family liability estimates and their numerical uncertainty summaries.
+    """Aligned liability estimates and numerical diagnostics.
 
-    ``est``/``se``/``var`` map a column name to a per-family array (aligned with
-    ``fam_ids``). Single-trait columns are ``"genetic"`` / ``"full"``; multi-trait
-    columns are suffixed with the phenotype, e.g. ``"genetic_height"``.
-    ``pids`` holds each row's join key: the proband's (role ``o``) pid, or the
-    ``fam_id`` for a family that carries no pids.
-
-    The two uncertainty fields answer different questions and neither substitutes
-    for the other:
-
-    * ``var`` is the target's **posterior** (conditional) variance — how uncertain
-      this proband's liability is given their family. All engines report it:
-      Gibbs as a Monte-Carlo estimate from its retained draws (Rao--Blackwellised
-      for coordinates collapsed out of the sweep, such as ``g``: the variance of
-      ``E[g | y]`` over the sampled coordinates ``y`` plus the constant
-      ``Var(g | y)``), Pearson-Aitken as its sequential-moment approximation,
-      quadrature by numerical integration.
-      It does **not** shrink as you sample more.
-    * ``se`` describes **Monte-Carlo error** in ``est``. Gibbs reports
-      the batch-means Monte-Carlo error, which does shrink with more draws;
-      Pearson-Aitken is deterministic and reports ``se = 0``. Zero PA SE means no
-      Monte-Carlo error, not zero approximation error — PA's sequential fold stays
-      approximate for multiple remaining intervals, in both ``est`` and ``var``.
-
-    Quadrature also reports zero Monte-Carlo ``se``. Its ``quadrature_error``
-    dictionary records the largest change in either moment over its last two
-    refinements, not a certified error bound; ``quadrature_nodes`` records nodes
-    per active factor dimension. Both are ``None`` for the other engines."""
+    ``est``, ``se`` and ``var`` map output names to per-family arrays. ``var``
+    is posterior uncertainty, whereas ``se`` is Monte-Carlo error in ``est``
+    (zero for deterministic engines, not proof of exactness). Multi-trait names
+    are suffixed by phenotype. ``pids`` contains proband ids, falling back to
+    ``fam_id`` only for wholly pid-free families. Quadrature diagnostics record
+    refinement change and nodes per active dimension, not an error bound.
+    """
     fam_ids: np.ndarray
     pids: object
     est: dict
@@ -180,14 +131,7 @@ class LiabilityResult(_TableExport):
     quadrature_nodes: dict | None = None
 
     def to_dict(self):
-        """Copy columns: fam_id, pid, estimates and se_name/var_name diagnostics.
-
-        A column mapping preserves row order and repeated pids without silently
-        overwriting scores. Diagnostic prefixes avoid collisions between traits
-        such as "height" and "height_se". Multi-trait suffixes are retained.
-        Quadrature results also get ``quadrature_error_<name>`` and
-        ``quadrature_nodes_<name>`` columns.
-        """
+        """Return copied columns, including requested numerical diagnostics."""
         columns = {"fam_id": np.asarray(self.fam_ids, dtype=object).copy(),
                    "pid": np.asarray(self.pids, dtype=object).copy()}
         for prefix, values in (("", self.est), ("se_", self.se), ("var_", self.var),
@@ -200,9 +144,7 @@ class LiabilityResult(_TableExport):
 
     @property
     def genetic(self):
-        """Shorthand for the single-trait genetic-liability estimate ``est['genetic']``
-        (the usual output). Multi-trait results are keyed per trait, e.g.
-        ``genetic_height`` — index ``.est`` directly for those."""
+        """Return the single-trait ``est['genetic']`` array."""
         if "genetic" not in self.est:
             raise AttributeError(
                 "no 'genetic' column; multi-trait results use per-trait keys like "
@@ -334,33 +276,14 @@ def _ordered_thresholds(family, cov_roles):
 
 def _estimate_group(cov, out_idx, lowers, uppers, base_seeds, tol, n_sim,
                     burn_in, max_rounds):
-    """Run Algorithm G on one structure group and iterate to tolerance.
+    """Sample one role-set group in rounds until its batch-means SE meets ``tol``.
 
-    ``lowers``/``uppers`` are ``(F, d)`` bounds, already in the row order of
-    ``cov``; ``out_idx`` are the coordinates to estimate. With batch size
-    ``b = max(floor(sqrt(n_sim)), 2)`` and ``nb = n_sim // b`` batches, each
-    round (methods report, Algorithm G, step G6):
-
-    1. calls `_gibbs_round` on the active (unconverged) families,
-       family ``f`` seeded with ``(base_seeds[f] + round) % 2**32``
-       (`_base_seeds` never emits the kernel's ``-1`` unseeded sentinel;
-       unseeded calls get fresh entropy seeds). Each call starts fresh chains
-       with their own ``burn_in`` and collapses each family's own unbounded
-       coordinates (step G2), so the other active families never affect its
-       draws;
-    2. pools the returned sums over rounds: ``est = sum / N`` and
-       ``var = max(sumsq / N - est^2, 0)`` with ``N = rounds * n_sim``, and
-       the batch-means ``se = sqrt(b * sum((Y_k - Ybar)^2) / (M - 1) / (M * b))``
-       over all ``M = rounds * nb`` batch means ``Y_k``;
-    3. drops a family once ``se <= tol`` for every output column.
-
-    ``max_rounds`` caps the rounds (kernel calls) per family; families still
-    above ``tol`` keep their last pooled values (callers warn via
-    `_warn_unconverged`). Returns ``(est, se, var)`` of shape ``(F, ncols)``:
-    ``var`` estimates the target's **posterior** variance, ``se`` the
-    Monte-Carlo error of ``est``. The single choke point of every Gibbs
-    estimate path, so ``tol``, ``n_sim``, ``burn_in`` and ``max_rounds`` are
-    validated here once."""
+    Only unconverged families re-enter `_gibbs_round`. Sums, squares and batch
+    means are pooled online, so no draw arrays are retained. Returns
+    ``(est, se, posterior_var)`` with shape ``(F, n_outputs)``; callers warn
+    when ``max_rounds`` is exhausted. This is the single validation point for
+    the Gibbs controls.
+    """
     n_sim = _validate_mc_se_n_sim(n_sim)
     burn_in = _validate_burn_in(burn_in)
     tol = _validate_tol(tol)
@@ -448,18 +371,10 @@ def _assert_nonempty_families(families):
             "Drop those families or fix the join that dropped their member rows.")
 
 
-def _check_unique_roles(families, *, check_pids=True):
-    """Reject a family with a duplicated role (two rows both ``s1``, etc.) or a
-    user-supplied ``g`` member.
-
-    Each role names one individual, so a repeat would silently merge two relatives
-    into one covariance coordinate. Number repeated relatives instead (``s1``,
-    ``s2``). ``g`` is never legitimate user input: the estimator adds the genetic
-    coordinate itself, so a supplied ``g`` row would silently condition that
-    coordinate on the member's bounds. Likewise one non-missing ``pid`` under
-    two roles would count one person's record twice; the same person in
-    different families (a shared register relative) is legitimate."""
-    for fam in families:
+def _check_unique_roles(families, *, check_pids=True, return_groups=False):
+    """Validate roles and pids; optionally return role-set groups in one pass."""
+    groups = {}
+    for family_index, fam in enumerate(families):
         roles = [m.role for m in fam.members]
         if "g" in roles:
             raise ValueError(
@@ -472,6 +387,8 @@ def _check_unique_roles(families, *, check_pids=True):
             raise ValueError(
                 f"family {fam.fam_id!r} has duplicate role(s) {dup}; each role "
                 "names one individual — number repeated relatives (s1, s2, ...).")
+        if return_groups:
+            groups.setdefault(tuple(sorted(roles)), []).append(family_index)
         if not check_pids:  # the fitters validate both within/across families once
             continue
         keys = [key for key in map(_member_pid_key, fam.members)
@@ -485,6 +402,8 @@ def _check_unique_roles(families, *, check_pids=True):
                 "roles (consanguinity) needs "
                 "the kinship route: estimate_liability_from_kinship or "
                 "estimate_liabilities.")
+    if return_groups:
+        return list(groups.items())
 
 
 def _check_unique_role_labels(roles):
@@ -535,10 +454,10 @@ def _warn_unconverged(se, names, tol, max_rounds, n):
 
 
 def _warn_unconverged_array(se, tol, max_rounds):
-    """`_warn_unconverged` for the ``(F, ncols)`` SE array the array entry points hold."""
+    """Warn for an ``(F, ncols)`` array of Monte-Carlo SEs."""
     se = np.asarray(se)
-    _warn_unconverged({"se": np.atleast_2d(se.T).T.max(axis=1)}, ["se"], tol,
-                      max_rounds, se.shape[0])
+    _warn_unconverged({"se": se.max(axis=1)}, ["se"], tol, max_rounds,
+                      se.shape[0])
 
 
 def _warn_if_corrected(n_corrections, engine):
@@ -580,37 +499,14 @@ _SEED_STRIDE = 2654435761
 
 
 def _base_seeds(seed, n, max_rounds, start=0):
-    """Per-family base seeds: family ``i`` owns the ``max_rounds`` consecutive
-    seeds from ``(seed * _SEED_STRIDE + i*max_rounds) % 2**32``.
+    """Return one deterministic seed block per global family index.
 
-    `_estimate_group` seeds round ``r`` of that family with
-    ``(base + r) % 2**32``, so each family owns a block of ``max_rounds``
-    consecutive seeds. Its draws are then fixed by ``seed``, its global index
-    ``i``, ``max_rounds``, the sampler settings, the covariance row order and
-    its own bounds -- not by thread scheduling, chunking or the other families
-    in the call.
-
-    The user seed is multiplied by ``_SEED_STRIDE`` before the block layout:
-    with the raw value, seed ``s`` family ``i`` round ``r`` and seed ``s + 1``
-    family ``i`` round ``r - 1`` name the *same* stream, so replicate loops
-    over consecutive seeds (``for rep in range(R): ... seed=rep``) resample
-    each other's draws family by family -- with identical rows and
-    ``max_rounds=1`` bit for bit. The stride is odd, hence injective on
-    uint32, but it spreads only the block starts: the blocks of seeds ``s``
-    and ``s + k`` overlap once ``n * max_rounds`` exceeds the circular
-    distance between their starts (at ``max_rounds=100``: ~16M families for
-    consecutive seeds, ~20k for the closest pair in ``range(1000)``), and one
-    call wraps onto itself beyond 2**32 (~43M families).
-
-    ``seed=None`` returns fresh per-family entropy seeds instead of the
-    kernel's ``-1`` unseeded sentinel. The sentinel draws from the Numba
-    worker-thread RNG, which a previous seeded call in this process leaves in
-    a deterministic state -- making later unseeded calls replay it exactly --
-    and which advances differently under different thread schedules. Fresh
-    seeds keep an unseeded run nondeterministic call to call and, like
-    the seeded path, scheduling-independent within a call. ``start`` is
-    the first family's global index, so a streamed batch builds only its own
-    seeds."""
+    Family ``i`` starts at ``(seed * _SEED_STRIDE + i * max_rounds) % 2**32``;
+    round ``r`` adds ``r``. This makes draws independent of scheduling,
+    chunking and other families. ``start`` supports streaming without a full
+    seed array. ``seed=None`` uses fresh OS entropy per family. Blocks can
+    overlap for large cohorts/seed ranges and wrap after 2**32 seeds.
+    """
     if seed is None:
         return np.random.default_rng().integers(0, _MAX_SEED + 1, size=n,
                                                 dtype=np.int64)
@@ -632,7 +528,7 @@ def _estimate_liability_single(families, h2, out=("genetic",), tol=0.01, n_sim=1
     family ``i`` (input position) gets seed block ``i`` of `_base_seeds`. Each
     bucket's covariance rows follow its first family's member order.
     Returns a `LiabilityResult` whose arrays line up with ``families``."""
-    _check_unique_roles(families)
+    groups = _check_unique_roles(families, return_groups=True)
     _assert_nonempty_families(families)
     dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
@@ -646,7 +542,7 @@ def _estimate_liability_single(families, h2, out=("genetic",), tol=0.01, n_sim=1
     fam_ids = np.empty(n, dtype=object)
     pids = np.empty(n, dtype=object)
 
-    for role_key, idx in _group_by_structure(families):
+    for _role_key, idx in groups:
         # Keep the first family's member order so seeded Gibbs sweeps match
         # the kinship path on the same pedigree (coordinate order is the RNG
         # order). Bounds are stacked by those role names, not by arrival order
@@ -671,44 +567,15 @@ def _estimate_liability_single(families, h2, out=("genetic",), tol=0.01, n_sim=1
 
 def _estimate_liability_pa(families, h2, out=("genetic",), use_mixture=False,
                            dtype=np.float64, c2=None, m2=None):
-    """Deterministic Pearson-Aitken liability inference for one trait.
+    """Deterministic PA inference for one trait and `Family` objects.
 
-    ``c2``/``m2`` wire sibship (``C``) and couple (``M``) shared-environment
-    components into the family covariance (``h2 + c2 + m2 <= 1`` required).
-
-    A deterministic sequential-moment alternative to
-    ``_estimate_liability_single``: no sampling, tolerance, or Monte-Carlo
-    error. It is exact for a single truncation but approximate for multiple
-    sequential truncations. ``out=("genetic",)`` estimates the proband's
-    genetic liability ``g`` conditional on the whole family;
-    ``"full"`` is ``E[l_o | own interval and relatives]`` — the target's own
-    interval bound is applied after the relative fold; pins are conditioned first. Unbind ``o``
-    (or omit it) for a relatives-only predictor. ``use_mixture=True`` turns
-    on the age-censored-control mixture, using each member's ``K_i``/``K_pop``
-    (see `ltpred.thresholds.pa_thresholds`).
-    ``dtype=np.float32`` halves the per-family bound memory. Returns a
-    `LiabilityResult` with ``se = 0`` and PA approximations to conditional
-    variances in ``var``."""
-    _check_unique_roles(families)
+    Supports the censored-control mixture and C/M components. Returns a
+    `LiabilityResult` with zero Monte-Carlo ``se`` and sequential-moment
+    posterior variances. ``dtype=np.float32`` halves bound storage.
+    """
+    groups = _check_unique_roles(families, return_groups=True)
     _assert_nonempty_families(families)
-    if use_mixture:
-        n_members = sum(len(family.members) for family in families)
-        lower = np.empty(n_members)
-        upper = np.empty(n_members)
-        K_i, K_pop = [], []
-        slot = 0
-        for family in families:
-            for member in family.members:
-                lower[slot], upper[slot] = _scalar_member_bounds(
-                    member, family.fam_id)
-                K_i.append(np.nan if member.K_i is None else member.K_i)
-                K_pop.append(np.nan if member.K_pop is None else member.K_pop)
-                slot += 1
-        validate_mixture_inputs(
-            K_i, K_pop, expected_shape=(n_members,), require_pair=True,
-            lower=lower, upper=upper,
-            context="family mixture inputs")
-        del K_i, K_pop, lower, upper
+    found_mixture_pair = False
     dtype = _bounds_dtype(dtype)
     out_coords = _normalise_out(out)
     names = [_OUT_NAMES[c] for c in out_coords]
@@ -719,17 +586,19 @@ def _estimate_liability_pa(families, h2, out=("genetic",), use_mixture=False,
     fam_ids = np.empty(n, dtype=object)
     pids = np.empty(n, dtype=object)
 
-    for role_key, idx in _group_by_structure(families):
+    for role_key, idx in groups:
         # PA is a sequential approximation, so its fold order must be a property
         # of the family structure rather than whichever member/family happened
         # to arrive first. `_pa_from_role_arrays` canonicalises via sorted roles.
         roles = list(role_key)
         lowers, uppers, K_is, K_pops, group_pids = _stack_object_members(
             families, idx, roles, dtype, use_mixture=use_mixture)
+        if use_mixture and np.any(~np.isnan(K_is) & ~np.isnan(K_pops)):
+            found_mixture_pair = True
         group_est, group_var = _pa_from_role_arrays(
             roles, lowers, uppers, h2, out_coords, K_i=K_is, K_pop=K_pops,
             use_mixture=use_mixture, c2=c2, m2=m2,
-            mixture_require_pair=False)  # the global gate above already ran
+            mixture_require_pair=False)
         for slot, f in enumerate(idx):     # ids may be tuples: no fancy index
             fam_ids[f] = families[f].fam_id
             pids[f] = group_pids[slot]
@@ -737,6 +606,10 @@ def _estimate_liability_pa(families, h2, out=("genetic",), use_mixture=False,
             est[name][idx] = group_est[c]
             var[name][idx] = group_var[c]
 
+    if use_mixture and not found_mixture_pair:
+        raise ValueError(
+            "family mixture inputs: use_mixture=True requires at "
+            "least one active censored-control K_i/K_pop pair")
     se = {name: np.zeros(n) for name in names}   # deterministic: no Monte-Carlo error
     return LiabilityResult(fam_ids=fam_ids, pids=pids, est=est, se=se, var=var)
 
@@ -745,7 +618,7 @@ def _estimate_liability_quadrature(families, h2, out, dtype, atol, max_nodes):
     """Adapt the nuclear-family quadrature API without hiding diagnostics."""
     from .quadrature import estimate_liability_quadrature_arrays
 
-    _check_unique_roles(families)
+    groups = _check_unique_roles(families, return_groups=True)
     _assert_nonempty_families(families)
     dtype = _bounds_dtype(dtype)
     names = [_OUT_NAMES[c] for c in _normalise_out(out)]
@@ -755,7 +628,7 @@ def _estimate_liability_quadrature(families, h2, out, dtype, atol, max_nodes):
     error = {name: np.empty(n) for name in names}
     nodes = {name: np.empty(n, dtype=int) for name in names}
     fam_ids, pids = np.empty(n, dtype=object), np.empty(n, dtype=object)
-    for role_key, idx in _group_by_structure(families):
+    for role_key, idx in groups:
         roles = list(role_key)
         lo, hi, _, _, group_pids = _stack_object_members(families, idx, roles, dtype)
         for slot, f in enumerate(idx):     # ids may be tuples: no fancy index
@@ -774,15 +647,11 @@ def _estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
                               phen_names=None, out=("genetic",), tol=0.01,
                               n_sim=100_000, burn_in=1000, seed=None,
                               max_rounds=100, dtype=np.float64):
-    """Estimate genetic/full liabilities jointly across several correlated traits.
+    """Gibbs inference for correlated traits with phenotype-major covariance.
 
-    Each member's ``lower``/``upper`` must be length-``n_pheno`` sequences (one
-    interval per phenotype, in ``phen_names`` order). Builds the phenotype-major
-    multi-trait covariance, samples same-structure families together, and returns a
-    `LiabilityResult` with one column per (output, phenotype), e.g.
-    ``"genetic_<phen>"``. ``dtype=np.float32`` halves the per-family bound memory.
-    ``seed`` must be a non-boolean integer in ``[0, 2**32 - 1]`` or ``None``.
-    Port of LTFHPlus::estimate_liability_multi."""
+    Every member needs one bound per trait. Output columns are named
+    ``"genetic_<phen>"`` or ``"full_<phen>"``.
+    """
     h2_vec = np.asarray(h2_vec, dtype=float)
     n_pheno = len(h2_vec)
     if phen_names is None:
@@ -793,7 +662,7 @@ def _estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
         raise ValueError(
             f"phen_names contains duplicates {phen_names!r}; each phenotype "
             "needs a distinct name")
-    _check_unique_roles(families)
+    groups = _check_unique_roles(families, return_groups=True)
     _assert_nonempty_families(families)
     _validate_multitrait_bounds(families, n_pheno)
     dtype = _bounds_dtype(dtype)
@@ -809,7 +678,7 @@ def _estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
     fam_ids = np.empty(n, dtype=object)
     pids = np.empty(n, dtype=object)
 
-    for _key, idx in _group_by_structure(families):
+    for _key, idx in groups:
         roles = [m.role for m in families[idx[0]].members]
         cov_obj = construct_covmat_multi(fam_vec=roles, add_ind=True,
                                          genetic_corrmat=genetic_corrmat,
@@ -918,10 +787,10 @@ def _pa_from_role_arrays(roles, lower, upper, h2, out_coords, K_i=None,
     ``roles`` labels the columns of ``lower``/``upper`` (no ``g`` -- the
     constructor adds it). Returns ``(est, var)`` dicts keyed by out-coord.
     ``mixture_require_pair=False`` skips the "at least one valid K pair" gate
-    for callers that already ran it globally over every family: a structure
-    group may legitimately contain no mixture pair of its own (e.g. every
-    family in the group is all-cases), so re-requiring one per group would
-    reject a call the global gate accepted."""
+    for callers that run it globally over every family: a structure group may
+    legitimately contain no mixture pair of its own (e.g. every family in the
+    group is all-cases), so re-requiring one per group would reject a call the
+    global gate accepts. Per-entry validation still runs here."""
     roles, lower, upper = _prepare_role_arrays(roles, lower, upper)
     # det(cov[g,o])/trace(cov[g,o]) bounds its smallest eigenvalue. Stay well
     # above the legacy repair threshold; boundary requests retain that path.
@@ -1044,22 +913,14 @@ def estimate_liability_pa_arrays(roles: Sequence[str], lower: ArrayLike,
                                  use_mixture: bool = False,
                                  c2: float | None = None, m2: float | None = None
                                  ) -> tuple[np.ndarray, np.ndarray]:
-    """Array-level Pearson-Aitken estimator — skips ``Family``/``Member`` objects.
+    """PA inference for same-structure bound arrays.
 
-    The production fast path for many same-structure probands: ``roles`` is the
-    shared list of member roles (``o`` and relatives; ``g`` is added), and ``lower``
-    / ``upper`` are ``(n_families, len(roles))`` bounds aligned to ``roles`` (build
-    them straight from your columns, e.g. with a threshold helper). The covariance
-    is built once (with the ``c2``/``m2`` sibship and couple shared-environment
-    components, ``h2 + c2 + m2 <= 1``). ``h2`` must lie in ``(1e-8, 1]``
-    (the samplers' strict-PD floor); ``h2 = 1``
-    makes ``g`` and ``o`` collinear, so the covariance is nudged with a warning.
-    ``out`` is ``"genetic"`` (target ``g``) or ``"full"``
-    (``E[l_o | own interval and relatives]``), or a length-1 sequence of either.
-    ``use_mixture`` with ``K_i``/``K_pop`` (same shape, ``NaN`` where unused)
-    enables the censored-control mixture; the per-entry rules are those of
-    `ltpred.family.Member`. Returns PA sequential-moment approximations
-    ``(est, var)`` of length ``n_families``."""
+    ``lower`` and ``upper`` have shape ``(n_families, len(roles))``; ``g`` is
+    added internally. Returns ``(est, posterior_var)``. ``out`` selects
+    ``"genetic"`` or ``"full"``. C/M components and the PA-only ``K_i``/
+    ``K_pop`` mixture are optional. Float32 bounds halve input storage while
+    accumulators remain float64.
+    """
     coord = _single_out(out)
     est, var = _pa_from_role_arrays(
         roles, lower, upper, h2, [coord], K_i=K_i, K_pop=K_pop,
@@ -1077,31 +938,15 @@ def estimate_liability_gibbs_arrays(roles: Sequence[str], lower: ArrayLike,
                                     m2: float | None = None,
                                     return_var: bool = False
                                     ) -> tuple[np.ndarray, ...]:
-    """Array-level Gibbs inference — skips ``Family``/``Member`` objects.
+    """Gibbs inference for same-structure bound arrays.
 
-    Same array inputs as `estimate_liability_pa_arrays` (float32 ``lower``/
-    ``upper`` halve their memory); the covariance takes the same ``c2``/``m2``
-    shared-environment components. Returns ``(est, se)`` (posterior mean and
-    batch-means Monte-Carlo SE) of length ``n_families`` for the single target
-    selected by ``out``, or ``(est, se, var)`` with ``return_var=True``, where
-    ``var`` is the Monte-Carlo estimate of the target's **posterior** variance —
-    the comparable quantity to the ``var`` returned by
-    `estimate_liability_pa_arrays`, and a different thing from the sampler's
-    own error ``se``.
-
-    The sampler runs in rounds, each a fresh chain per family: ``burn_in``
-    (a non-negative integer) sweeps are discarded, then ``n_sim`` (an
-    integer, at least 4) draws are kept. Rounds are pooled until the batch-means SE of every
-    output is ``<= tol`` (finite, > 0) or ``max_rounds`` (>= 1) rounds have
-    run; families still above ``tol`` keep their pooled values and a warning
-    is issued. ``seed`` must be a non-boolean integer in ``[0, 2**32 - 1]`` or
-    ``None``; round ``r`` of row ``i`` is seeded with
-    ``(mix(seed) + i*max_rounds + r) % 2**32`` for an integer mixing ``mix``
-    of ``seed`` (see `_base_seeds`), so results depend on row order and
-    ``max_rounds`` as well as ``seed`` (see the `ltpred.gibbs` module
-    docstring for Algorithm G). ``seed=None`` draws fresh per-family seeds
-    from OS entropy, so unseeded runs differ call to call -- also after a
-    seeded call in the same process."""
+    Inputs match `estimate_liability_pa_arrays`. Returns ``(est, se)``, plus
+    posterior variance when ``return_var=True``. Fresh chains of ``n_sim``
+    retained draws (after ``burn_in``) are pooled until the batch-means SE is
+    at most ``tol`` or ``max_rounds`` is reached; exhaustion warns. Seeds are
+    uint32 integers or ``None`` and depend on global row index, making chunking
+    and thread scheduling irrelevant.
+    """
     coord = _single_out(out)
     lower = _as_bounds(lower)
     seeds = _base_seeds(seed, np.asarray(lower).shape[0], max_rounds)
@@ -1129,58 +974,24 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
                                     m_kernel: ArrayLike | None = None,
                                     _certified_psd: object = None
                                     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Estimate a target individual's liability from an **arbitrary pedigree**.
+    """Estimate a target's liability from an arbitrary relationship matrix.
 
-    The kinship-based counterpart of the array estimators: instead of the fixed role
-    grammar you pass the additive relationship matrix ``A``
-    (``n×n``, e.g. from `ltpred.covariance.kinship_from_pedigree`) shared by a
-    batch of families, and the per-individual truncation bounds. ``lower``/``upper``
-    are ``(n_families, n)`` (one column per pedigree member, in ``A`` order; a
-    1-D ``(n,)`` pair is one family); the genetic-liability row for ``target``
-    (an index into ``A``) is added internally and left unbounded. ``h2`` must
-    lie in ``(1e-8, 1]``.
-    Inbred members are standardised to unit marginal full-liability variance, and
-    the target's genetic contribution is scaled by its raw liability SD. Thus the
-    supplied standard-normal bounds retain their prevalence interpretation when
-    diagonal entries of ``A`` exceed one.
+    ``A`` is an ``n × n`` additive relationship matrix shared by all rows of
+    ``lower``/``upper``, whose shapes are ``(n_families, n)`` (one family for
+    1-D input). ``target`` selects the proband; their genetic coordinate is
+    added internally. Inbred liabilities are standardised to unit marginal
+    variance. Returns ``(est, se, posterior_var)``.
 
-    Optional ``c2``/``m2`` proportions require caller-supplied
-    ``c_kernel``/``m_kernel`` relationship matrices (``n x n``, symmetric,
-    positive semi-definite, unit diagonal). These bring the role estimator's
-    shared-environment model to arbitrary pedigrees without pretending that
-    sibships or couples can be recovered from additive relatedness ``A`` alone.
+    PA is the default; Gibbs is optional. ``out`` selects genetic or full
+    liability. The PA-only censoring mixture uses aligned ``K_i``/``K_pop``.
+    C/M proportions require aligned PSD, unit-diagonal ``c_kernel``/
+    ``m_kernel`` matrices because relatedness alone cannot identify those
+    environmental relationships.
 
-    ``out`` selects ``"genetic"`` (the target's genetic liability — the usual
-    family-history GWAS phenotype) or ``"full"`` (``E[l_o | own interval and
-    relatives]`` on both engines). ``method=None`` uses the
-    deterministic Pearson-Aitken engine, matching the main single-trait default;
-    pass ``method="gibbs"`` for reference sampling (method names as in
-    `estimate_liability`; ``"quadrature"`` raises ``NotImplementedError``).
-    ``tol``, ``n_sim``, ``burn_in``, ``seed`` and ``max_rounds`` are the Gibbs
-    controls of `estimate_liability_gibbs_arrays`; PA ignores them and warns
-    on non-default values. Returns ``(est, se, var)``:
-    ``se`` is the Monte-Carlo SE of ``est`` (exactly zero under PA, which is
-    deterministic — that means *no sampling error*, not no approximation error),
-    and ``var`` is the posterior (conditional) variance of the target liability
-    on both engines.
-    ``use_mixture=True`` with per-member ``K_i``/``K_pop`` (same shape as
-    ``lower``, ``NaN`` where unused; rules as in `ltpred.family.Member`) runs
-    the PA-FGRS censored-control mixture; Gibbs does not implement it and
-    raises. Each array has length ``n_families``. The covariance is built by
-    `ltpred.covariance.construct_covmat_from_kinship`, so results match the
-    role-based estimator whenever the pedigree encodes the same relationships
-    (under PA, whose fold follows ``A``'s row order, only with the target first
-    and the relatives in sorted-role order) — but this also handles half-sibs
-    of any degree, cousins, and inbred pedigrees.
-
-    ``_certified_psd`` is internal; do not pass it. Package callers whose ``A``
-    was just built by a pedigree constructor (symmetric and PSD by
-    construction) use it to skip re-validating ``A``; the assembled covariance
-    still passes through `ltpred.covariance.correct_positive_definite`. A
-    family-free non-inbred proband under PA (``A = [[1]]``, no pins, no
-    mixture or shared environment) uses the scalar ADuLT moments, as the role
-    estimator does for ``roles == ["o"]``; this shortcut is bit-identical to
-    the matrix path (the role one agrees to rounding)."""
+    ``_certified_psd`` is internal: pipeline callers use its private sentinels
+    to skip redundant matrix validation only when construction guarantees the
+    required PSD/PD properties.
+    """
     A = np.ascontiguousarray(A, dtype=np.float64)
     n = A.shape[0]
     if A.shape != (n, n):
@@ -1238,7 +1049,10 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
         A, h2=h2, target=target, add_ind=True,
         c2=c2, c_kernel=c_kernel, m2=m2, m_kernel=m_kernel,
         _certified_psd=_certified_psd)
-    cov, n_corrections = correct_positive_definite(cov_obj.matrix)
+    if _certified_psd is _PD_CERTIFIED:
+        cov, n_corrections = cov_obj.matrix, 0
+    else:
+        cov, n_corrections = correct_positive_definite(cov_obj.matrix)
     _warn_if_corrected(n_corrections, "liability estimation")
     # prepend the unbounded genetic-liability (g) coordinate
     neg = np.full((F, 1), -np.inf, dtype=lower.dtype)
@@ -1246,8 +1060,8 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
     lo = np.ascontiguousarray(np.concatenate([neg, lower], axis=1))
     hi = np.ascontiguousarray(np.concatenate([pos, upper], axis=1))
     tgt = 0 if out_coord == 0 else 1 + int(target)     # g row, or the target's o row
-    # correct_positive_definite just returned min-eig > 1e-8 on this exact
-    # array, which certifies the PA input gate's weaker PSD tolerance.
+    # The repair above (or the caller's _PD_CERTIFIED bound) puts this exact
+    # array's min eigenvalue past 1e-8, certifying the PA gate's PSD tolerance.
     pa_gate = _PSD_CERTIFIED
 
     if method_name == "pearson-aitken":
@@ -1290,74 +1104,28 @@ def estimate_liability(families: Sequence, h2: ArrayLike, *,
                        m2: float | None = None,
                        quadrature_atol: float = 1e-8,
                        quadrature_max_nodes: int = 128) -> LiabilityResult:
-    """Estimate conditional liabilities, dispatching on method and trait count.
+    """Estimate conditional genetic or full liabilities for `Family` objects.
 
-    ``families`` is a list of `ltpred.family.Family`; an empty list or a family
-    without members raises. Bounds and relative rows distinguish LT-FH, LT-FH++
-    and ADuLT. PA-FGRS also requires ``K_i``/``K_pop`` (see `ltpred.family.Member`
-    for which rows may carry them) and ``use_mixture=True`` and is implemented
-    only by the Pearson-Aitken engine.
+    ``h2`` is required liability-scale heritability. A scalar selects the
+    single-trait model and deterministic PA by default; a vector with
+    ``genetic_corrmat`` and ``full_corrmat`` selects multi-trait Gibbs.
+    ``method`` can force ``"pa"``, ``"gibbs"`` or nuclear-family
+    ``"quadrature"``. The PA-only censoring mixture needs ``use_mixture=True``
+    and member ``K_i``/``K_pop`` values.
 
-    ``method="quadrature"`` computes additive nuclear-family moments using at
-    most two parental factors (roles o/m/f/s1/s2/..., scalar 0 <= h2 < 1,
-    no C/M or mixture). ``quadrature_atol`` (default 1e-8) controls successive
-    changes in both moments; ``quadrature_max_nodes`` (64..512, default 128)
-    limits nodes per dimension. Nonconvergence raises ``RuntimeError``; the
-    family index in its message counts within the failing family's role-set
-    group, not within ``families``. Diagnostics are retained
-    in ``quadrature_error`` and ``quadrature_nodes``; zero ``se`` means no
-    Monte-Carlo error.
+    ``out`` accepts ``"genetic"``, ``"full"`` or both; multi-trait columns are
+    suffixed by ``phen_names``. Single-trait C/M components use ``c2``/``m2``
+    with ``h2 + c2 + m2 <= 1``. Float32 bounds halve storage without reducing
+    accumulator precision.
 
-    ``method`` selects the inference engine; the **default** (``None``) picks the
-    deterministic **Pearson-Aitken (PA)** estimator for a single trait. On the
-    benchmarked no-mixture structures PA and Gibbs posterior means agree
-    closely and PA is orders of magnitude faster, and both engines are locked
-    against the public R packages (LTFHPlus Gibbs, LTFGRS PA); the measured
-    figures are in ``benchmarks/RESULTS.md`` (sections 1, 2 and 30). The
-    dispatcher falls back to the **Gibbs**
-    sampler for the multi-trait model, which PA does not support.
-    That path collapses untruncated genetic coordinates out of the
-    sweep and Rao--Blackwellises their posterior means. Pass ``method``
-    explicitly to override (names are case-insensitive): ``"pearson-aitken"``
-    (alias ``"pa"``; single trait only,
-    ``use_mixture`` enables the age-censored-control correction) or
-    ``"gibbs"`` (the truncated-MVN sampler; needed for multiple traits or a
-    Monte-Carlo SE), or ``"quadrature"`` under the nuclear-family restrictions
-    above. The result contains posterior-mean estimates and method-specific uncertainty fields,
-    not retained draws; call `ltpred.gibbs.rtmvnorm_gibbs` directly when
-    draws are required. An explicit ``method="pearson-aitken"``
-    with a multi-trait request raises.
-
-    ``out`` is ``"genetic"``, ``"full"`` or a non-empty sequence of them.
-    Single-trait columns are named ``"genetic"``/``"full"``; multi-trait columns
-    ``"<out>_<phen>"``, with ``phen_names`` naming the traits (default
-    ``phenotype1``, ``phenotype2``, ...; names must be distinct).
-
-    ``h2``: Liability-scale additive heritability for this disease, in
-    ``(1e-8, 1]`` for PA and Gibbs (each entry, for multi-trait; the
-    lower bound is the samplers' strict positive-definiteness floor).
-    Required: there is no
-    disease-independent default, for the same reason the threshold builders
-    take no default prevalence. See
-    the data-preparation guide, "Getting heritability on the liability scale", for choosing between pedigree/twin and
-    SNP estimates and for the sensitivity analysis.
-
-    Scalar ``h2`` -> single trait; a vector ``h2`` with ``genetic_corrmat`` and
-    ``full_corrmat`` -> multi-trait. For single-trait estimation, ``c2``/``m2``
-    wire sibship (``C``) and couple (``M``) shared-environment components into
-    the family covariance (see
-    `ltpred.covariance.construct_covmat_single`; ``h2 + c2 + m2 <= 1``
-    required). Nonzero ``c2``/``m2`` are not supported for multi-trait
-    estimation: component proportions alone do not specify cross-trait
-    environmental covariance, so they raise rather than being discarded.
-    ``dtype=np.float32`` stores the per-family
-    liability bounds in single precision (half the memory) — useful at biobank
-    scale. ``tol``, ``n_sim``, ``burn_in``, ``seed`` and ``max_rounds`` steer
-    the Gibbs sampler as in `estimate_liability_gibbs_arrays`, with family
-    ``i`` of ``families`` in place of row ``i``; set ``seed`` for reproducible
-    Gibbs runs. Deterministic engines ignore these controls and warn on
-    non-default values; explicitly passing a default value is
-    indistinguishable from omission."""
+    Gibbs controls are ``tol``, ``n_sim``, ``burn_in``, ``seed`` and
+    ``max_rounds``. Deterministic engines warn if those controls are changed.
+    Quadrature supports only additive, noninbred nuclear families with
+    ``0 <= h2 < 1`` and no C/M or mixture; its two controls limit refinement
+    change and nodes per dimension. Results contain summaries, not draws; use
+    `ltpred.gibbs.rtmvnorm_gibbs` for draws. See ``docs/estimation.md`` for
+    observation models, examples and uncertainty semantics.
+    """
     if h2 is None:
         raise ValueError("h2 must be numeric: supply the liability-scale heritability for this disease")
     if (np.ndim(h2) > 0 and np.size(h2) == 1 and genetic_corrmat is None

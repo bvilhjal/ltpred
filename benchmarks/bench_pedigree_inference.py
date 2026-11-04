@@ -1,31 +1,11 @@
-"""Pedigree inference from trio records: extraction fidelity and payoff.
+"""Check pedigree extraction fidelity, relative-set payoff and scale.
 
-`ltpred.pedigree` discovers a proband's relatives from population
-parent-offspring records (Pedersen et al. 2025's graph-based extraction).
-This benchmark simulates a 3-generation population (founder couples,
-children, remarriages, cousins), then checks:
-
-  Part 1 (fidelity): for random probands, the kinship computed on the
-         EXTRACTED sub-pedigree equals the full-population kinship
-         restricted to the same members -- extraction does not perturb A.
-         Single run.
-  Part 2 (payoff):   over `--reps` independent simulated populations, for
-         each proband simulate liabilities on the exact extracted pedigree
-         and estimate the genetic liability two ways -- the kinship path with
-         observations from relatives reached within degree 3 (including
-         cousins) vs the fixed named-role grammar subset it can encode
-         (parents, full siblings, grandparents). Ancestors added solely for
-         exact kinship remain in A but have uninformative bounds. The LT-FGRS
-         (Pedersen et al., LTFGRS R package) claim that which relatives you
-         include matters is assessed with per-replicate values,
-         across-replicate SEs (sd/sqrt(R)), and a paired contrast with a
-         t-based 95% CI (section 15 convention).
-  Part 3 (scale):    extraction timing for thousands of probands. Single run.
-
-Writes `benchmarks/bench_pedigree_inference.csv` in long format
-(rep, metric, value; rep 0 marks the single-run parts).
-
-Run:  conda run -n ltpred314 python benchmarks/bench_pedigree_inference.py
+Synthetic three-generation registers verify that extracted kinship equals
+full-population kinship restricted to the same members. Replicates compare
+degree-3 observations (including cousins) with the named-role subset while
+closure ancestors remain uninformative, reporting paired correlation
+contrasts and CIs. A final run times extraction. Writes
+`bench_pedigree_inference.csv`.
 """
 
 from __future__ import annotations

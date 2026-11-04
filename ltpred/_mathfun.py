@@ -1,22 +1,9 @@
-"""Normal CDF / quantile primitives.
+"""Scalar and vector standard-normal CDF/quantile primitives.
 
-Two flavours live here because they serve two callers:
-
-* ``_norm_cdf`` / ``_norm_ppf`` are **scalar, branch-only** functions built on
-  ``math.erfc`` and Wichura's algorithm AS 241 (Applied Statistics, 1988). They
-  contain nothing Numba cannot compile, so the Gibbs kernel calls them directly
-  and produces identical numbers with or without the JIT. AS 241 is also R's
-  ``qnorm`` algorithm, accurate to ~1e-16.
-* ``norm_cdf`` / ``norm_ppf`` are the **vectorised** versions used by the
-  public threshold helpers; they defer to SciPy's ``ndtr`` / ``ndtri`` for speed.
-  ``norm_cdf(+/-inf)`` is 1 / 0; ``norm_ppf(1)`` / ``norm_ppf(0)`` is ``+/-inf``.
-
-Keeping the kernel on the scalar pair (rather than SciPy) is what lets the
-sampler run inside ``numba.njit`` at all.
-
-Upper-tail thresholds are computed by callers as ``-ppf(p)``, using the exact
-symmetry ``Phi^-1(1 - p) = -Phi^-1(p)``: forming ``1 - p`` in floating point
-discards the tail of a small ``p`` and gives ``+inf`` for ``p <~ 5.6e-17``.
+Scalar ``_norm_cdf`` uses ``math.erfc`` and ``_norm_ppf`` Wichura AS 241 so
+Numba and pure-Python kernels agree to double precision. Public vector helpers
+delegate to SciPy ``ndtr``/``ndtri``. Callers form upper-tail quantiles as
+``-ppf(p)`` to avoid cancellation in ``1-p``.
 """
 
 from __future__ import annotations

@@ -39,11 +39,9 @@ PLINK prefix therefore needs three declarations (`.bed`, `.bim`, and `.fam`).
 Timing runs also want an otherwise-quiet machine: record the load average
 beside the command before quoting a number.
 
-Each script's committed artifact is the `.csv` in the Output column of the
-[Scripts](#scripts) tables. With matplotlib present most scripts also draw a
-`.png` figure; figures stay local (`benchmarks/*.png` is gitignored) and are
-regenerated from a rerun, so the older `run_manifest.jsonl` rows that hash a PNG
-describe files no longer in the repository. The two gain metrics
+Each script writes only the `.csv` in the Output column of the
+[Scripts](#scripts) tables. Older manifest rows may hash PNGs from the removed
+plotting code; those figures are not retained or required. The two gain metrics
 (causal-SNP NCP ratio versus squared-correlation eff-N proxy) and the
 independent-SNP scope of every association result are defined once, in the
 [RESULTS.md preamble](RESULTS.md).
@@ -97,10 +95,9 @@ retain `results.json`, the provenance record and the run log together.
   0.66.0 and matplotlib, the environment [`RESULTS.md`](RESULTS.md) records for
   the stored artifacts. Reruns meant to be comparable with them belong here.
 - **`.venv`** (the checkout's own) — measured the v0.6.1 time/memory capsule
-  (Python 3.10.20, NumPy 2.2.6, SciPy 1.15.3, Numba 0.67.0). Never use it for
-  the statistical campaigns: it has no matplotlib (every figure is silently
-  skipped), and its NumPy draws a different `multivariate_normal` stream, which
-  shifts sampling-based benchmarks in the third decimal.
+  (Python 3.10.20, NumPy 2.2.6, SciPy 1.15.3, Numba 0.67.0). Do not use it for
+  matched statistical campaigns: its NumPy draws a different
+  `multivariate_normal` stream, shifting sampling-based results.
 - **`ldpred3`** — the optional ldpred3 PGS backend used by the
   PGS-comparison arm.
 

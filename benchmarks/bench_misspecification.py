@@ -1,37 +1,11 @@
-"""Model-misspecification stress: where do the liability estimators bend?
+"""Stress PA scoring under one model violation at a time.
 
-Every other benchmark generates data under exactly the model the estimators
-assume (Gaussian liability-threshold, unrelated mates, additive-only
-covariance, known prevalence). This benchmark violates one assumption at a
-time and measures the damage to the posterior-mean genetic liability score
-(PA estimator), in the spirit of PLDSC's misspecified_background.py. The
-question a user actually has: how wrong can the model be before the score
-degrades?
-
-Arms (proband + parents + sib, h2 = 0.5, classic case/control bounds, 8,000
-families, 5 replicates; metrics = correlation with the true genetic liability
-and the calibration slope of regressing truth on estimate):
-
-  control          Gaussian liabilities, correct prevalence -- the baseline.
-  heavy-tail env   environmental liability ~ t_5 (unit variance kept); the
-                   estimator assumes Gaussian tails.
-  assortative       generative assortative mating: mates' genetic liabilities
-                   correlate rho_g = 0.3 (in A units) and environmental parts
-                   correlate rho_e = 0.3, giving a phenotypic mate correlation
-                   of ~0.3. The estimator's covariance assumes unrelated
-                   mates (A_mf = 0).
-  sibship env      a real shared sibship environment (c2 = 0.15) that the
-                   additive-only estimator cannot represent (cf.
-                   bench_couple_env for the fitter-side analogue).
-  wrong prevalence the truth has prevalence 0.10 but the bounds are computed
-                   at 0.05 (cases treated as too extreme) and 0.20 (too mild).
-
-Pre-registered reads: control matches the repo's other no-mixture benchmarks
-(corr ~0.33-0.38, slope ~1); each misspecification arm is reported as-is
-(bias in slope/corr), with assortative mating expected to inflate the score's
-dispersion (slope < 1) and sibship-env to inflate the additive estimate.
-
-Run:  conda run -n ltpred314 python benchmarks/bench_misspecification.py
+Against a Gaussian control, arms introduce heavy-tailed residual environment,
+assortative mating, unmodelled sibship environment and wrong prevalence.
+Independent cohorts report correlation with true genetic liability and
+calibration slope. The default design uses h2=0.5, parents plus one sib,
+8,000 families and five replicates. Results are diagnostics, not acceptance
+gates. Writes `bench_misspecification.csv`.
 """
 
 from __future__ import annotations

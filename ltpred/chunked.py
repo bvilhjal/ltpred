@@ -1,20 +1,10 @@
-"""Chunked and streaming drivers over the array liability kernels.
+"""Chunked and streaming wrappers for the array liability kernels.
 
-The ``*_chunked`` entry points take in-memory ``(F, k)`` bound arrays,
-validate them once and run the array kernel on row slices, bounding the
-kernel's working set. The ``*_batches`` entry points consume an iterator of
-bound blocks, so the caller never holds every family's bounds at once; outputs
-are concatenated in input order. All take one role set per call and keep the
-``O(F)`` summary-memory contract of the array APIs (no draw arrays).
-
-How results are preserved. PA is deterministic and per family, so chunking
-changes its values by floating-point rounding at most. For Gibbs, each slice
-or batch derives the seeds of its rows from their global row offset, the
-same seeds `ltpred.estimate.estimate_liability_gibbs_arrays` gives those rows,
-without building an ``O(F)`` seed array. A family's draws depend only on its
-own bounds, seed block and the sampler settings (step G2 collapses each
-family's own unbounded coordinates; methods report, Algorithm G), so the
-estimates are bit-identical to the unchunked call for any chunk size.
+``*_chunked`` slices in-memory bound arrays; ``*_batches`` consumes iterators
+of ``(lower, upper)`` or ``(lower, upper, K_i, K_pop)`` blocks (mappings also
+work). Outputs concatenate in input order and retain only O(F) summaries.
+PA is unchanged up to rounding. Gibbs seeds by global row offset, so results
+are bit-identical to the unchunked call for any partition.
 """
 
 from __future__ import annotations
@@ -109,14 +99,11 @@ def estimate_liability_pa_chunked(roles: Sequence[str], lower: ArrayLike,
                                   c2: float | None = None, m2: float | None = None,
                                   chunk_size: int = 65536
                                   ) -> tuple[np.ndarray, np.ndarray]:
-    """PA over row-chunks of one role-set. Returns ``(est, var)`` of length ``F``.
+    """PA over slices of one role set; returns ``(est, var)``.
 
-    Arguments and return values are those of
-    `ltpred.estimate.estimate_liability_pa_arrays`; only the chunking differs.
-    Validates the full bound arrays (and, with ``use_mixture``, the ``K_i``/
-    ``K_pop`` pairs) once, then calls the array kernel on slices of
-    ``chunk_size`` (default 65536). An in-memory array still holds every
-    bound; stream with `estimate_liability_pa_batches` to avoid that.
+    Inputs match `estimate_liability_pa_arrays`. Full-array validation runs
+    once before evaluating chunks of ``chunk_size``. Use the batch API to
+    avoid holding all bounds in memory.
     """
     chunk_size = _validate_chunk_size(chunk_size)
     coord = _single_out(out)
@@ -149,14 +136,7 @@ def estimate_liability_gibbs_chunked(roles: Sequence[str], lower: ArrayLike,
                                      chunk_size: int = 4096,
                                      return_var: bool = False
                                      ) -> tuple[np.ndarray, ...]:
-    """Gibbs over row-chunks of one role-set.
-
-    Arguments and return values are those of
-    `ltpred.estimate.estimate_liability_gibbs_arrays`; only the chunking
-    differs. Each chunk's seeds come from its global row offset, so results
-    are bit-identical to that function at the same ``seed`` for any
-    ``chunk_size`` (default 4096; see the module docstring).
-    """
+    """Gibbs over slices with global-row seeds and unchunked bit identity."""
     chunk_size = _validate_chunk_size(chunk_size)
     coord = _single_out(out)
     roles, lower, upper = _prepare_role_arrays(roles, lower, upper)
@@ -184,15 +164,10 @@ def estimate_liability_pa_batches(roles: Sequence[str],
                                   use_mixture: bool = False,
                                   c2: float | None = None, m2: float | None = None
                                   ) -> tuple[np.ndarray, np.ndarray]:
-    """PA from an iterator of bound batches, concatenated in order.
+    """PA over an iterator of bound batches, concatenated in input order.
 
-    Other arguments and return values are those of
-    `ltpred.estimate.estimate_liability_pa_arrays`. Each item is
-    ``(lower, upper)``, ``(lower, upper, K_i, K_pop)``, or a mapping with those
-    keys (``K_i``/``K_pop`` optional). An empty iterator returns empty arrays.
-    Mixture inputs are checked per batch, so with ``use_mixture=True`` a batch
-    with no valid ``K`` pair raises; the chunked API gates that once on the
-    whole cohort instead.
+    Items are 2-/4-tuples or mappings with the same keys. Unlike the chunked
+    API, mixture validation requires an active K pair in every batch.
     """
     coord = _single_out(out)
     roles = list(roles)
@@ -227,15 +202,11 @@ def estimate_liability_gibbs_batches(roles: Sequence[str],
                                      m2: float | None = None,
                                      return_var: bool = False
                                      ) -> tuple[np.ndarray, ...]:
-    """Gibbs from consecutive bound batches of one virtual cohort.
+    """Gibbs over consecutive bound batches with global-row seeds.
 
-    Other arguments and return values are those of
-    `ltpred.estimate.estimate_liability_gibbs_arrays`. Each item is
-    ``(lower, upper)`` or a mapping with those keys; a batch carrying
-    ``K_i``/``K_pop`` raises (Gibbs has no censoring mixture). Rows are seeded
-    by their position in the concatenated stream, so the result is
-    bit-identical to one array call on the concatenated bounds at the same
-    ``seed``, however the stream is split.
+    Items are 2-tuples or mappings; K columns are rejected because Gibbs has
+    no censoring mixture. Any partition is bit-identical to one array call at
+    the same seed.
     """
     coord = _single_out(out)
     roles = list(roles)

@@ -1,44 +1,14 @@
-"""Joint liability covariance for ``P >= 2`` binary traits from observed pairs.
+"""Joint binary-trait covariance fitting by pairwise composite likelihood.
 
-`fit_pairwise_multi` extends Algorithm L (`ltpred.pairwise`) to the model
-``Sigma = G (x) A + S (x) C + T (x) M + E (x) I`` in trait-major coordinates,
-omitting ``S`` (full sibship) and/or ``T`` (couple) when not requested; see the
-methods report, "Joint genetic and environmental covariance".
+The trait-major model is ``Sigma = G ⊗ A + S ⊗ C + T ⊗ M + E ⊗ I`` with PSD
+components and unit total variance per trait. Jointly observed coordinate pairs
+are tabulated by trait pair and kernel row, then fitted with analytic scores
+under component and correlation constraints. A projected-score check certifies
+stationarity.
 
-**Parametrisation.** The free vector ``x`` holds the
-upper-triangular entries, diagonal included, of each requested component matrix
-and the off-diagonal entries of ``E``; ``E_aa = 1 - sum_c Comp_c[a, a]``, so every
-trait has unit liability variance and every matrix is affine in ``x``. Trait
-``a`` of member ``i`` and trait ``b`` of member ``j`` then have correlation
-``rho = sum_c K_c[i, j] Comp_c[a, b]`` (``K_E = I``), linear in ``x`` -- the
-design row; a same-person cross-trait pair loads on ``G + S + T + E``. ``h2`` is
-``diag(G)``; ``rg``, ``re`` and ``correlations`` standardise ``G``, ``E`` or any
-component.
-
-**Algorithm L, multi-trait.**
-
-- **L1.** Screen as Algorithm H1, per trait: length-``P`` bounds on every member,
-  one common threshold ``t_a`` per trait (traits may differ), ``(-inf, inf)`` for
-  a missing phenotype, and the case-rate screen per role and trait.
-- **L2.** Tabulate every jointly observed coordinate pair with a nonzero row,
-  keyed by trait pair and row; raise unless the rows have full rank. Missing
-  phenotypes contribute no pairs.
-- **L3.** Criterion as in Algorithm L at unequal thresholds. Trial points
-  beyond a precomputed safe ``rho`` range get a C1 quadratic extension; the
-  returned fit is re-evaluated unextended.
-- **L4.** SLSQP from diagonals ``0.5 / n_components`` and zero off-diagonals,
-  subject to: every component PSD, ``eig(E) >= eps``, ``|rho| <= 1 - eps`` for
-  every row, and box bounds. Stationarity is certified by projecting
-  ``x - grad / n`` onto the feasible set; it must return within
-  ``max(1e-5, 10 sqrt(tol))`` of ``x``.
-- **L5.** Sandwich covariance of ``x`` as in Algorithm L5, withheld when any
-  component eigenvalue (for ``E``, eigenvalue minus ``eps``) is at most
-  ``max(1e-7, 10 sqrt(tol))``. SEs of ``h2``, ``rg``, ``re`` and ``rp`` follow by
-  the delta method.
-
-Missingness must preserve the modelled pair distributions (e.g. MCAR). Only pair
-counts enter the optimizer; Boolean observations are kept for family scores.
-Thresholds and weights are held fixed, as in `ltpred.pairwise`.
+Family-cluster sandwiches and delta methods provide h2/rg/re/rp SEs at
+identifiable interior fits; all are withheld at a covariance boundary.
+Missingness must preserve pair distributions. Thresholds and weights are fixed.
 """
 
 from __future__ import annotations
@@ -81,29 +51,12 @@ def _correlation(cov, variance_tol=1e-8):
 
 @dataclass
 class MultiTraitPairwiseResult:
-    """Joint A[/C/M]/E fit, conditional on thresholds and sampling weights.
+    """Joint A/C/M/E matrices and sampling diagnostics.
 
-    ``components`` includes residual ``E``. ``re`` is its within-person
-    cross-trait correlation; shared sibship/couple correlations are separately
-    available in ``correlations['C']``/``['M']``. ``rp`` sums *all* components.
-    ``se`` contains sampling SEs for ``h2``, ``rg``, ``re`` and ``rp`` (delta
-    method, family-cluster sandwich).
-    All SEs are withheld at any covariance constraint boundary.
-
-    ``parameter_covariance`` follows ``parameter_order``: (component, trait,
-    trait) triples for the free symmetric entries. Residual diagonals are
-    determined by unit total variance and are not free parameters.
-
-    ``phen_names`` labels the traits. ``at_boundary`` is true when a component
-    eigenvalue (for ``E``, eigenvalue minus ``eps``) is at most
-    ``boundary_tolerance``, ``max(1e-7, 10 sqrt(tol))``; the same value is the
-    variance below which `correlations`, `rg` and `re` report NaN.
-    ``inference_status`` takes the values of
-    `ltpred.pairwise.PairwiseFitResult`. ``composite_loglik`` uses IPW weights
-    normalised to mean one and is not a full-data log likelihood. ``n_families``
-    counts input clusters, ``n_pairs`` the informative observed coordinate pairs
-    (including same-person cross-trait pairs), and ``n_iter`` the SLSQP
-    iterations.
+    ``parameter_covariance`` follows ``parameter_order``; ``se`` contains
+    delta-method h2/rg/re/rp SEs, withheld at any boundary. ``re`` standardises
+    residual E only, while ``rp`` sums all components. Zero-variance component
+    correlations are NaN. ``composite_loglik`` is not a full-data likelihood.
     """
     components: dict[str, np.ndarray]
     parameter_order: tuple
@@ -393,38 +346,17 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
                        sampling: str | None = None, weights: ArrayLike | None = None,
                        phen_names: Sequence[str] | None = None, eps: float = 1e-6,
                        maxiter: int = 300, tol: float = 1e-10) -> MultiTraitPairwiseResult:
-    """Fit joint h², genetic and residual environmental correlations.
+    """Fit joint heritabilities and genetic/residual trait correlations.
 
-    Each member supplies explicit length-P bounds, P >= 2. A common threshold
-    per trait is required; different traits may have different prevalences.
-    Missing phenotypes use (-inf, inf) and contribute no pairs. Missingness must
-    not select the pair's statuses, unless valid family IPW corrects that design.
-    Families must be independent and non-overlapping. ``sampling='ipw'`` needs
-    known, positive family inclusion probabilities; this is not an ascertainment
-    likelihood or a method for overlapping register pedigrees.
+    Each member needs one bound per trait and a common threshold per trait;
+    uninformative traits contribute no pairs. ``components`` contains A and
+    optional C/M. Component matrices are PSD with unit total variance and
+    residual eigenvalues at least ``eps``. ``phen_names`` labels the traits.
 
-    ``components`` contains A and optionally C (full sibship) and M (couple).
-    Every component is a PSD trait covariance; residual E has eigenvalues at
-    least eps. The marginal variance of every trait is one. C and M consume
-    liability variance and have their own cross-trait covariances; ``re`` refers
-    specifically to E. M describes spousal resemblance, not a generative model
-    of assortative mating. Relationship kernels follow the single-trait fitter.
-
-    ``families`` is a list of `ltpred.family.Family`; ``weights`` (with
-    ``sampling="ipw"`` only) holds one reciprocal inclusion probability per
-    family and is rescaled to mean one. ``phen_names`` (default ``phenotype1``,
-    ``phenotype2``, ...) must have one name per trait.
-
-    The fit is the multi-trait Algorithm L of the module docstring: aggregated
-    pair counts, analytic scores and sensitivity. ``eps`` must lie in
-    ``[1e-8, 0.5)``. ``maxiter`` (a positive integer) caps the SLSQP iterations
-    and ``tol`` in ``(0, 1)`` is its ``ftol``, which also scales the
-    stationarity and boundary tolerances of L4-L5 (``10 sqrt(tol)``).
-    Failed, infeasible or nonstationary solutions raise ``RuntimeError``;
-    withheld SEs emit a ``RuntimeWarning``. Interior sampling SEs
-    use family-cluster score variation and a delta method for correlations;
-    any PSD/residual boundary withholds all normal SEs. A composite likelihood
-    does not support ordinary likelihood-ratio tests.
+    The independent-family and population/IPW contracts match `fit_pairwise`.
+    ``maxiter`` and ``tol`` control SLSQP and stationarity checks. Interior fits
+    return family-cluster/delta-method SEs; any covariance boundary withholds
+    them. Composite likelihood does not support ordinary likelihood-ratio tests.
     """
     components = tuple(components)
     if ("A" not in components or any(c not in ("A", "C", "M") for c in components)

@@ -22,7 +22,7 @@ Four simulation paths feed the benchmarks:
 Plus small utilities the scripts share: a vectorised linear-regression GWAS
 (:func:`gwas_chisq`), method runners (:func:`estimate`), replicate summaries
 (:func:`mean_se`, :func:`mean_ci`, :func:`sd_ci`, :func:`safe_corr`), CSV output
-(:func:`write_rows`) and Agg-safe plotting.
+and :func:`write_rows` for CSV output.
 """
 
 from __future__ import annotations
@@ -395,10 +395,4 @@ def read_plink_bed(prefix):
     inds = np.where(np.isnan(X))
     X[inds] = np.take(col_mean, inds[1])
     return X, m
-
-
-# --------------------------------------------------------------------------- #
-#  Plotting                                                                    #
-# --------------------------------------------------------------------------- #
-
 

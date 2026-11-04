@@ -1,34 +1,10 @@
-"""Probit estimation of residual-scale genetic variance (and the Lee bridge).
+"""Validate probit residual variance and the observed/liability bridge.
 
-The probit model IS the liability-threshold model (residual variance 1), so
-per-SNP residual-scale genetic variance is q = 2 f (1-f) beta². It is not a
-fraction of total latent variance; after aggregating independent or suitably
-LD-pruned variants, that fraction is q / (1 + q). This benchmark
-simulates a polygenic disease on that convention (liab = X beta + eps,
-eps ~ N(0, 1); effects scaled to total Var(X beta) = 0.5; threshold at the
-empirical quantile for exact prevalence K = 0.1) and checks the routes from
-case-control data to residual-scale genetic variance and, separately, the
-fraction of total liability variance:
-
-  truth (probit scale): sum_j 2 f_j (1-f_j) beta_j² = 0.5; Lee fraction of
-  total liability = 0.5 / 1.5 = 1/3.
-  (a)  joint probit fit (all SNPs at once) -> sum_j 2 f_j (1-f_j) beta_j²:
-       the exact route; should recover the truth.
-  (a') marginal probit fits (one SNP at a time, the GWAS practice): same
-       identity, but each marginal fit absorbs the other SNPs' effects into
-       its residual, attenuating it by ~1/sqrt(1 + V_background) -- the
-       honest caveat for marginal estimation at substantial h².
-  (b)  probit z route: sum_j (z_j² - 1) / (N wbar), subtracting the null
-       second moment, with the probit information
-       weight wbar = phi(a)^2/(Phi(a)(1-Phi(a))) -- the summary-statistic
-       version of (a').
-  (c)  OLS + Lee 2011 bridge: the null-adjusted observed-scale total
-       sum_j (z_OLS,j² - 1)/N,
-       bridged with [K(1-K)/z_K^2][K(1-K)/(P(1-P))] -> the Lee fraction of
-       total (1/3), NOT the probit residual-scale total (0.5) -- the
-       convention difference made explicit.
-
-Run:  conda run -n ltpred314 python benchmarks/bench_liability_scale.py
+Simulated polygenic case/control data compare joint and marginal probit fits,
+the null-adjusted z route and OLS plus the Lee transformation. The probit
+truth is residual-scale `sum 2f(1-f)beta² = 0.5`; the Lee total-liability
+fraction is `0.5/(1+0.5) = 1/3`. Marginal fits absorb background effects,
+which attenuates them at substantial h2. Writes `bench_liability_scale.csv`.
 """
 
 from __future__ import annotations

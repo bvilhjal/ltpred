@@ -58,6 +58,10 @@ def test_pa_chunked_matches_pa_arrays(chunk_size, out, components):
 ])
 def test_gibbs_chunked_matches_gibbs_arrays(chunk_size, out):
     roles, lower, upper, _t = _nuclear_bounds(12, seed=2)
+    # Mixed missingness also exercises per-family collapsed-coordinate masks.
+    missing = np.random.default_rng(5).random(lower.shape) < 0.3
+    missing[:, 0] = False
+    lower[missing], upper[missing] = -np.inf, np.inf
     # This checks seeded identity, not Monte-Carlo accuracy or convergence.
     kwargs = dict(h2=0.5, c2=0.1, m2=0.05, out=out,
                   n_sim=200, burn_in=20, seed=3, tol=1e9, max_rounds=1)

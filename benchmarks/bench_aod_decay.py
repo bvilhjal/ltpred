@@ -1,42 +1,11 @@
-"""Onset-age-structured genetic correlation: does `fit_genetic_correlation_decay`
-recover rho_g and the decay rate lambda?
+"""Benchmark onset-age-decay genetic-correlation fitting.
 
-`fit_genetic_correlation_decay` fits a genetic correlation between traits that
-decays with the onset-age difference between relatives,
-
-    Cov(g_i^p, g_j^q) = A_ij * sqrt(h2_p h2_q) * rho_g * K(|a_ip - a_jq| ; lam),
-
-by a Monte-Carlo EM (a likelihood M-step, *not* a Haseman-Elston moment step --
-the latter is confounded by age-dependent ascertainment truncation, see
-docs/research.md, "Onset-age-structured genetic correlation"). The properties
-that matter are (i) whether the headline **genetic correlation** rho_g is
-recovered, (ii) whether the **decay rate** lambda is identified at all, and
-(iii) how much **data** that takes -- the model has an amplitude-decay ridge
-that makes it data-hungry. This benchmark fits many
-independent simulated two-trait cohorts and reports:
-
-  (a) **recovery vs true lambda** (incl. the scalar null lam=0, which must not
-      manufacture a decay) at a data-rich size;
-  (b) **data requirement** -- rho_g / lambda recovery as n_fam grows (the ridge
-      attenuates rho_g at small n; the attenuation should shrink as n grows);
-  (c) **null r_g = 0** -- no spurious genetic correlation or decay;
-  (d) **misspecification robustness** -- panels (a)-(c) are *circular* (the
-      simulator draws from exactly the fitted covariance), so this panel probes
-      two realistic failure modes: arm A fits the OU kernel to GAUSSIAN-decay
-      truth; arm B adds an unmodelled shared family environment c2 (a
-      family-level random effect, attributed to genetics -- inflating h2 and
-      thereby attenuating r_g); arm B0 is the matched OU/no-c2 reference.
-
-Ground truth is the simulator's rho_g and lambda. Onset ages are drawn
-independently per member-trait -- a *pessimistic* choice (it maximises the
-within-person onset-age spread, hence the amplitude-decay ridge), so recovery
-here is conservative.
-
-    python benchmarks/bench_aod_decay.py
-    python benchmarks/bench_aod_decay.py --reps 8 --n-fam 4000 --n-em 60
-    python benchmarks/bench_aod_decay.py --no-robustness   # skip panel (d)
-    python benchmarks/bench_aod_decay.py --rob-reps 4 --rob-n-fam 3000 --c2 0.15
-Writes bench_aod_decay.csv.
+Independent two-trait cohorts measure recovery of rho_g and decay rate lambda,
+data requirements, the lambda=0 and rg=0 nulls, and robustness to the wrong
+decay kernel and unmodelled shared environment. The likelihood M-step is
+compared with its known truth; onset ages are independent per member-trait,
+which accentuates the amplitude-decay ridge. `--no-robustness` skips the
+misspecification panel. Writes `bench_aod_decay.csv`.
 """
 
 import os
@@ -146,7 +115,6 @@ def main():
 
     # (a) recovery vs true lambda (incl scalar null lam=0) -------------------
     print(f"\n== (a) recovery vs true lambda (rg=0.5, n_fam={args.n_fam}) ==")
-    panel_a = []
     for lam in args.lams:
         t0 = time.time()
         rg_f, lx_f, lw_f = fit_replicates(
@@ -155,7 +123,6 @@ def main():
         rec = dict(lam=lam, rg_mean=float(rg_f.mean()), rg_sd=float(rg_f.std(ddof=1)),
                    lx_mean=float(lx_f.mean()), lx_sd=float(lx_f.std(ddof=1)),
                    lw_mean=float(lw_f.mean()))
-        panel_a.append(rec)
         rows.append(dict(panel="vs_lambda", n_fam=args.n_fam, **rec,
                          reps=args.reps))
         tag = " (scalar null)" if lam == 0.0 else ""
@@ -165,14 +132,12 @@ def main():
 
     # (b) data requirement (rg=0.5, lam=0.04) --------------------------------
     print("\n== (b) data requirement (rg=0.5, lam=0.04) ==")
-    panel_b = []
     for n in args.sizes:
         rg_f, lx_f, lw_f = fit_replicates(
             0.5, 0.04, n, args.prev, args.reps, args.seed + 1000, args.n_em,
             args.n_draw, args.burn, args.m_iter)
         rec = dict(n_fam=n, rg_mean=float(rg_f.mean()), rg_sd=float(rg_f.std(ddof=1)),
                    lx_mean=float(lx_f.mean()), lx_sd=float(lx_f.std(ddof=1)))
-        panel_b.append(rec)
         rows.append(dict(panel="data_req", lam=0.04, **rec, reps=args.reps))
         print(f"  n_fam={n:5d} | rg={rec['rg_mean']:+.3f}±{rec['rg_sd']:.3f} "
               f"(true .5)  lam_x={rec['lx_mean']:.4f} (true .04)")
@@ -189,7 +154,6 @@ def main():
           f"lam_x={rec['lx_mean']:.4f} (true .04)")
 
     # (d) misspecification robustness -----------------------------------------
-    panel_d = []
     if args.robustness:
         print(f"\n== (d) misspecification robustness (rg=0.5, "
               f"n_fam={args.rob_n_fam}) ==")
@@ -214,7 +178,6 @@ def main():
                        h2_0=float(h2_f[:, 0].mean()),
                        h2_1=float(h2_f[:, 1].mean()),
                        lx_mean=float(lx_f.mean()))
-            panel_d.append(rec)
             rows.append(dict(panel="robustness", n_fam=args.rob_n_fam, **rec,
                              reps=args.rob_reps))
             print(f"  {name:18s} | rg={rec['rg_mean']:+.3f}  "

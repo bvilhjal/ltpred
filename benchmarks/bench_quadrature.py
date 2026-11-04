@@ -1,35 +1,11 @@
-"""The quadrature engine against PA and Gibbs on its own documented scope.
+"""Compare nuclear-family quadrature with PA and Gibbs.
 
-`ltpred.quadrature.estimate_liability_quadrature_arrays` computes nuclear-
-family posterior moments by Gauss--Hermite factor quadrature -- the third
-inference engine, and the one no other benchmark measures. This script is
-that missing evidence, on the scope its docstring claims: unique ``o``/``m``/
-``f``/``s*`` roles, unrelated noninbred parents, no mixture, ``h2 < 1``.
-
-Three questions, each over structures x prevalence x encoding x seeds
-(200 families per cell):
-
-  1. **Accuracy.** Quadrature's posterior mean is exact up to its ``atol``
-     tolerance, so it is a near-truth reference for PA (a moment
-     approximation) and Gibbs (Monte Carlo): report corr and RMSE of each
-     against quadrature, and of each against the true genetic liability.
-  2. **Encoding coverage.** Classic one-sided case/control bounds and
-     onset-pinned cases (the LT-FH++ encodings); censored-control mixtures
-     are outside the quadrature model and excluded by design.
-  3. **Cost.** Wall-time per family for each engine at the default settings,
-     after a warm-up call (the quadrature engine is pure NumPy/SciPy: no
-     JIT).
-
-Scope limit: every case and control is bounded at the one lifetime threshold,
-so a cell has few distinct bound rows (at most 8, 16 or 32 by structure,
-against ~200 with personalised age-specific bounds) and quadrature reuses duplicate rows. The costs here are
-not throughput on personalised-onset data.
-
-Output: ``bench_quadrature.csv``; one row per cell x engine plus the engine
-pairs.::
-
-    python benchmarks/run_benchmark.py --artifact bench_quadrature.csv \\
-        bench_quadrature.py
+Structures, prevalences, case encodings and seeds evaluate correlation/RMSE
+against quadrature and true genetic liability, plus per-family runtime after
+warm-up. Quadrature is the near-exact reference within its documented scope;
+mixtures and non-nuclear pedigrees are excluded. Every row uses one lifetime
+threshold, so duplicate bound rows are heavily reused and these timings are
+not personalised-onset throughput. Writes `bench_quadrature.csv`.
 """
 
 from __future__ import annotations

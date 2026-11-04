@@ -1,28 +1,9 @@
-"""Spawn one command and report *its* peak RSS, not its parent's.
+"""Spawn a command and report its own peak RSS via ``wait4``.
 
-``getrusage``'s ``ru_maxrss`` is a property of the task, and ``execve`` does not
-reset it: a child forked from a fat parent reports that parent's high-water
-mark before it has allocated anything of its own. The kernel *does* give the
-exec'd program a fresh address space, so ``/proc/<pid>/status`` ``VmHWM`` is
-clean -- but polling it can miss a spike, and misses short-lived processes.
-
-This launcher keeps ``wait4``'s exactness by removing the inherited floor. It
-imports nothing outside the standard library, so its own resident set is a few
-MB. A benchmark driver holding simulated families spawns *this*, and the
-measured command forks from here. What ``wait4`` then returns is the command's
-own peak plus a few MB.
-
-Adapted from ldpred3's ``benchmarks/_peak_launcher.py`` (same inherited-floor
-problem). Darwin ``wait4`` reports ``ru_maxrss`` in bytes; Linux reports KiB.
-
-Usage (JSON in, JSON out)::
-
-    python _peak_launcher.py request.json
-
-where ``request.json`` is ``{"cmd": [...], "cwd": "...", "out": "..."}`` and
-the optional ``env`` map, if present, is the child's environment. The command's
-stdout and stderr are merged into ``out``. The reply includes ``peak_rss_bytes``
-and a ``floor_kb`` (launcher footprint; 0 when ``/proc`` is unavailable).
+This stdlib-only launcher avoids inheriting the benchmark driver's high-water
+mark. Darwin reports bytes and Linux KiB. Input JSON has ``cmd``, ``cwd``,
+``out`` and optional ``env``; stdout/stderr go to ``out`` and the reply adds
+``peak_rss_bytes`` plus the launcher's ``floor_kb`` when available.
 """
 from __future__ import annotations
 

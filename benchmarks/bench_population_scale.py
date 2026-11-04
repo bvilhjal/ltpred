@@ -1,29 +1,10 @@
-"""ltpred's throughput at population scale: the register path and the array PA.
+"""Measure register and array-PA throughput at population scale.
 
-The published comparison point for this problem class is LTFHPlus's scaling
-claim ("350 000 individuals in under 25 minutes on 32 cores", Pedersen et al.
-2022, AJHG, Table S13). This script measures ltpred's two production paths on
-matched-scale synthetic cohorts so any future head-to-head has a same-shape
-number to sit against (§30/§34 lock fold-times are per-package wall-times on
-200 families; this is the cohort-scale complement):
-
-  * **register** -- `estimate_liabilities` (pinned-onset LT-FH++, deterministic
-    PA, ``max_degree=2``) on two-generation synthetic trio registers with
-    10k / 50k / 200k probands;
-  * **array** -- `estimate_liability_pa_chunked` on 350k role-array rows with
-    LT-FH++-style bounds (pinned cases, censored controls, absent relatives),
-    the input shape of the personalised lock.
-
-Reports probands (families) per second, milliseconds per proband and the
-process's peak RSS. Timing is the estimator call only (simulation excluded),
-after a warm-up call; the register arm loops probands serially, exactly as
-the pipeline does. Pin threads with ``NUMBA_NUM_THREADS`` and record the load
-average beside any quoted number -- throughput claims without a thread count
-and a load line are not comparable (review-ledger lesson, docs/MAINTAINING.md §3).::
-
-    NUMBA_NUM_THREADS=4 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \\
-        python benchmarks/run_benchmark.py \\
-        --artifact bench_population_scale.csv bench_population_scale.py
+The register arm scores 10k/50k/200k probands with pinned-onset LT-FH++ at
+max_degree=2. The array arm runs 350k personalised role-array rows with
+pinned, censored and absent entries. Reports probands/s, ms/proband and peak
+RSS after warm-up, with simulation excluded. Pin `NUMBA_NUM_THREADS` and
+record load when comparing timings. Writes `bench_population_scale.csv`.
 """
 
 from __future__ import annotations

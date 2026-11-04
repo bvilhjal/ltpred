@@ -1,38 +1,10 @@
-"""End-to-end register-pipeline benchmark.
+"""End-to-end register scoring, calibration, leakage and throughput.
 
-`ltpred.pipeline.estimate_liabilities` chains trio records -> pedigree
-discovery -> CIP thresholds -> per-proband genetic-liability scores. This
-benchmark builds synthetic registers (3-generation populations, remarriages;
-a known logistic CIP; liabilities from the extracted pedigrees; onsets by
-threshold crossing) and measures the pipeline end to end, over `--reps`
-independent registers so the paired contrasts carry across-replicate SEs and
-t-based 95% CIs (section 15 convention):
-
-  Part 1 (accuracy):    corr(est, true g) and calibration slope at degree 3
-         (first cousins included) vs degree 1 (first-degree only) -- the
-         "which relatives you include matters" effect, through the driver.
-         Replicated; the degree-3-minus-degree-1 contrast is paired.
-  Part 2 (CIP from data): the same pipeline with the CIP ESTIMATED from the
-         register itself (aalen_johansen_cip on the follow-up records) vs the
-         oracle curve. Replicated; the estimated-minus-oracle contrast is
-         paired.
-  Part 3 (prospective): prospective prediction among probands unaffected at
-         age 40, with every person assigned a birth time on one calendar
-         scale -- (a) the correct familywise-censored score at the proband's
-         own age-40 index time, (b) a leaky arm that conditions on relatives'
-         full post-index records but still leaves the proband uninformative,
-         and (c) a cumulative-leak arm using full family records including the
-         proband's own outcome. Per arm and replicate: corr(score, future),
-         the calibration slope of future on score, AUC (rank/Mann-Whitney,
-         implemented directly -- no sklearn), and calibration-in-the-large
-         (mean at-risk predicted future-case probability vs observed rate).
-         The leakage contrasts (b)-(a) and (c)-(a) are paired.
-  Part 4 (throughput):  probands/s for the full pipeline. Single run.
-
-Writes `benchmarks/bench_register_pipeline.csv` in long format
-(rep, metric, value; rep 0 marks the single-run part).
-
-Run:  conda run -n ltpred314 python benchmarks/bench_register_pipeline.py
+Synthetic three-generation registers compare degree-1 versus degree-3 scoring,
+estimated versus oracle CIPs, and properly landmark-censored prediction versus
+relative-only and cumulative leakage arms. Replicates report paired contrasts
+with SEs/CIs; prospective arms add AUC and calibration-in-the-large. A final
+single run measures probands/s. Writes `bench_register_pipeline.csv`.
 """
 
 from __future__ import annotations

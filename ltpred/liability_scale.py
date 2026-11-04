@@ -1,34 +1,13 @@
-"""Liability-scale transformations: heritability and probit-scale SNP variance.
+"""Observed/liability heritability and probit variance transformations.
 
-**The probit model IS the liability-threshold model**: the probit latent
-variable with unit residual variance is the liability, with the threshold set
-by the prevalence. Everything in this module follows from that identity.
+The Lee factor converts observed case/control heritability to liability scale
+using population prevalence ``K`` and, for ascertained studies, sample case
+fraction ``P``. The inverse transformation divides by the same factor.
 
-**Two probit scales must not be conflated.** A probit coefficient fixes the
-residual variance to one. For a SNP with minor-allele frequency ``f`` and effect
-``beta``, ``q = 2 f (1-f) beta^2`` is genetic variance in those residual-variance
-units. It is not yet a fraction of total latent variance; for a single predictor
-that fraction is ``q / (1 + q)``. `probit_liability_r2` returns ``q`` by
-default despite its name; ``fraction=True`` gives ``q / (1 + q)``.
-
-A squared GWAS z-statistic contains one unit of expected null sampling noise.
-`liability_r2_from_z` subtracts that null contribution by default,
-``((z^2 - 1) / N) * c`` with ``c`` the Lee factor below; set
-``subtract_null=False`` only when the raw second moment is deliberately wanted.
-
-**The Lee transformation is a bridge to the observed scale.** When
-heritability is estimated on the observed case-control scale (OLS on
-the 0/1 outcome, e.g. GREML/LDSC output), the factor of Lee et al. (2011,
-*AJHG*) converts between that scale and the liability
-scale, using the population prevalence ``K`` (and, for ascertained
-case/control studies, the sample case proportion ``P``) with
-``z = phi(Phi^-1(1 - K))``:
-
-* ``h²_liab  = h²_obs  * [K(1-K)/z²] * [K(1-K)/(P(1-P))]``   (Lee et al. 2011;
-  the second factor applies only to ascertained studies)
-
-`observed_to_liability_h2` is the forward h² bridge and
-`liability_to_observed_h2` its inverse.
+For SNP effect ``beta`` and allele frequency ``f``, probit residual-scale
+variance is ``q = 2 f (1-f) beta^2``; its single-predictor fraction of total
+latent variance is ``q/(1+q)``. GWAS z-based variance subtracts one unit of
+null noise by default.
 """
 from __future__ import annotations
 
@@ -101,18 +80,11 @@ def liability_to_observed_h2(liab_h2: ArrayLike, pop_prev: ArrayLike,
 
 def probit_liability_r2(beta: ArrayLike, maf: ArrayLike, *,
                         fraction: bool = False) -> np.ndarray | np.floating:
-    """Residual-scale probit genetic variance: ``2 f (1-f) beta²``.
+    """Return probit residual-scale variance ``2 f (1-f) beta²``.
 
-    Despite the compatibility name, the default is **not a total-liability
-    R²**. It is ``q = Var(x * beta)`` in units where probit residual variance
-    is one. ``beta`` is the
-    per-allele effect on the probit scale and ``maf`` the minor-allele
-    frequency (variance-standardised genotype ``x`` is NOT required -- the
-    formula uses the allele-count variance ``2 f (1-f)``). With
-    ``fraction=True`` returns the single-predictor McKelvey-Zavoina fraction
-    ``q / (1 + q)`` (Lee et al. 2012, *Genet Epidemiol*, eq. 9). Do not sum
-    those elementwise fractions across SNPs: sum the default ``q`` values first,
-    then transform the total once. Vectorised.
+    With ``fraction=True``, return the single-predictor fraction ``q/(1+q)``.
+    Sum residual-scale variances across independent SNPs before applying that
+    nonlinear transformation, not the fractions themselves.
     """
     beta = np.asarray(beta, dtype=float)
     maf = np.asarray(maf, dtype=float)
@@ -127,27 +99,13 @@ def probit_liability_r2(beta: ArrayLike, maf: ArrayLike, *,
 def liability_r2_from_z(z: ArrayLike, n: ArrayLike, pop_prev: ArrayLike,
                         prop_cases: ArrayLike | None = None, *,
                         subtract_null: bool = True) -> np.ndarray | np.floating:
-    """Residual-scale liability-variance signal from a GWAS z-statistic.
+    """Estimate small-effect liability variance from GWAS z statistics.
 
-    For a marginal case-control GWAS statistic ``z_j``, the liability-scale
-    variance explained is, in the small-effect limit,
-
-        q_liab,j ~ ((z_j² - 1) / N) * c,
-
-    with ``K`` the population prevalence, ``P`` the sample case proportion
-    (ascertained studies), and ``z_K = phi(Phi^-1(1-K))``. This is Lee & Wray
-    (2013, *PLoS ONE* 8:e71494, eq. 2-3; their non-centrality
-    ``E[chi²] - 1 ~ N * q_liab * z_K² P(1-P) / (K(1-K))²``), and the factor
-    ``c`` is exactly the Lee et al. (2011) master factor used by
-    `observed_to_liability_h2`. Without ``prop_cases`` the
-    ascertainment factor drops out (population samples). ``n`` is the per-SNP
-    sample size (scalar or per-SNP array). Null subtraction is unbiased in
-    expectation but permits negative per-SNP estimates; aggregate before
-    interpreting; it assumes a calibrated null (``E[z²] = 1``, no residual
-    inflation). Marginal per-SNP signals may be summed only across independent
-    or suitably LD-pruned variants; otherwise use an LD-aware aggregation to
-    avoid counting tagged signal repeatedly. Set ``subtract_null=False`` for
-    the raw second-moment calculation ``(z² / N) * c``.
+    Returns ``((z² - 1) / n) * c`` by default, where ``c`` is the same Lee
+    factor used by `observed_to_liability_h2`; ``subtract_null=False`` omits
+    the unit null term. Estimates can be negative per SNP and assume a
+    calibrated null. Sum only independent or LD-pruned signals, or use an
+    LD-aware aggregate.
     """
     z = np.asarray(z, dtype=float)
     n = np.asarray(n, dtype=float)

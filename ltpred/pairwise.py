@@ -1,43 +1,14 @@
-"""Deterministic variance components from binary relative-pair likelihoods.
+"""Single-trait A/C/M fitting by binary-pair composite likelihood.
 
-`fit_pairwise` estimates the proportions ``theta_c`` of `ltpred.fit` -- same
-``A``/``C``/``M`` kernels, same input and sampling contract -- by maximising a
-composite likelihood instead of augmenting liabilities (see the methods
-report, "Fit covariance parameters by pairwise likelihood"). A pair
-of relatives has liability correlation ``rho_ij = x_ij' theta`` with
-``x_ij = (K_c[i, j])_c``, and at the common threshold ``t`` its binary
-outcome has one of four bivariate-normal cell probabilities ``p_ab(t, rho)``.
+Jointly observed relative pairs are aggregated into weighted 2x2 tables keyed
+by their covariance-kernel row. SLSQP maximises the bivariate-normal composite
+likelihood with analytic derivatives and non-negativity/residual constraints.
+A family-cluster sandwich estimates sampling covariance at identifiable
+interior optima; it is withheld at boundaries or with insufficient information.
 
-**Algorithm L.**
-
-- **L1. Screen.** As Algorithm H1 (`ltpred.fit`). IPW weights are rescaled to
-  mean one; the case-rate screen uses the rescaled weights.
-- **L2. Tabulate.** In each role-set group, every within-family pair ``i < j``
-  with a nonzero row ``x_ij`` contributes the families in which both members are
-  observed (a finite bound). Pairs sharing ``x_ij`` share one weighted 2x2 table
-  ``n_ab = sum w_f`` (cells: both cases, first only, second only, neither).
-  Raise unless the distinct observed rows have full rank.
-- **L3. Criterion.** ``-ell_c(theta) = -sum_x sum_ab n_ab log p_ab(t, x' theta)``
-  with analytic gradient and exact Hessian.
-- **L4. Optimise.** SLSQP on ``-ell_c / n_families`` from
-  ``theta_c = (1 - eps) / (2 p)`` with ``theta_c >= 0`` and
-  ``sum theta <= 1 - eps``. Raise on solver failure, infeasibility, or a KKT
-  violation (reduced gradient with the sum-constraint multiplier) above
-  ``max(1e-5, 10 sqrt(tol))``.
-- **L5. Covariance.** ``V = H^-1 J H^-1``: ``H`` is the
-  Hessian of ``-ell_c`` (observed sensitivity), ``J = n/(n-1) sum_f (s_f -
-  s_bar)(s_f - s_bar)'`` over all ``n`` input families, ``s_f`` the weighted sum
-  of family ``f``'s pair scores. ``V`` and the SEs are NaN when some ``theta_c``
-  or ``1 - eps - sum theta`` is within ``max(1e-7, 10 tol)`` of zero, when
-  ``n <= p``, or when ``H`` is not positive definite or ``H``/``J`` lack full rank.
-
-Pair tables compress the composite objective only; they are not sufficient for
-the full family likelihood. Pairs within a family share members, so the inverse
-Hessian alone understates sampling variance; the sandwich treats families as
-the independent units. Thresholds and weights are held fixed, so ``V`` is an
-asymptotic covariance conditional on them -- not a finite-sample calibration
-claim, an ascertainment likelihood, or a basis for ordinary likelihood-ratio
-tests.
+The input and sampling contracts match `ltpred.fit`. Thresholds and weights
+are fixed; the composite likelihood is not a full-family likelihood or a basis
+for ordinary likelihood-ratio tests. See Algorithm L in ``docs/algorithm.md``.
 """
 
 from __future__ import annotations
@@ -65,25 +36,12 @@ __all__ = ["PairwiseFitResult", "fit_pairwise"]
 
 @dataclass
 class PairwiseFitResult:
-    """A constrained composite-likelihood fit on independent family clusters.
+    """Component fractions, optimizer diagnostics and optional sandwich SEs.
 
-    ``components`` and ``residual`` are liability-variance fractions.
-    ``covariance`` follows ``component_order``; ``se`` is its square-root
-    diagonal. At a constraint boundary, or with insufficient observed
-    information, both are NaN and ``inference_status`` explains why: it is
-    ``"interior_cluster_sandwich"`` when they are available, otherwise
-    ``"unavailable_boundary"``, ``"unavailable_clusters"`` (no more families
-    than components) or ``"unavailable_information"``. ``at_boundary`` is true
-    when some fraction, or the residual margin ``1 - eps - sum``, lies within
-    the boundary tolerance (module docstring, L5). Normal
-    intervals at such boundaries are inappropriate; a design-appropriate
-    bootstrap or profile analysis needs its own boundary calibration.
-
-    ``composite_loglik`` uses IPW weights normalized to mean one. Its magnitude
-    is not a full-data log likelihood and must not be used for ordinary
-    likelihood-ratio tests. ``n_pairs`` counts informative observed pairs;
-    ``n_families`` counts input clusters, including those contributing no pairs.
-    ``n_iter`` is the SLSQP iteration count.
+    ``covariance`` follows ``component_order`` and ``se`` is its diagonal SD.
+    Both are NaN at a boundary or with insufficient clusters/information;
+    ``inference_status`` records why. ``composite_loglik`` is not a full-data
+    likelihood and must not be used for ordinary likelihood-ratio tests.
     """
 
     components: dict[str, float]
@@ -254,36 +212,17 @@ def fit_pairwise(families: Sequence, *, components: Sequence[str] = ("A",),
                  sampling: str | None = None, weights: ArrayLike | None = None,
                  eps: float = 1e-6, maxiter: int = 200,
                  tol: float = 1e-9) -> PairwiseFitResult:
-    """Fit A, C and/or M by deterministic binary-pair composite likelihood.
+    """Fit A/C/M fractions by deterministic binary-pair composite likelihood.
 
-    This opt-in estimator keeps the current fitting input contract: independent,
-    non-overlapping families, a common single-trait case/control threshold, and
-    population sampling or valid strictly positive family-level IPW weights.
-    It rejects personalized thresholds, onset pins and two-sided intervals.
-    Uninformative members contribute no pairs. The known threshold and weights
-    are treated as fixed: estimating either from these families introduces
-    uncertainty that the returned sandwich does not include.
+    Requires independent, non-overlapping families with common case/control
+    thresholds and identifying relationship contrasts. ``sampling`` follows
+    `fit_heritability`; IPW weights are normalised to mean one. Personalised
+    bounds, pins and two-sided intervals are rejected.
 
-    ``components`` selects the existing valid A/C/M covariance kernels. Fractions
-    are nonnegative and their sum is at most ``1 - eps``. Independent identifying
-    relationship contrasts must be observed. ``sampling=None`` uses the existing
-    compatibility warning; explicitly pass ``"population"`` or ``"ipw"``.
-    The marginal case-rate screen can reject an inconsistent design but cannot
-    establish joint positivity, independent clusters, or correct weights.
-
-    ``families`` is a list of `ltpred.family.Family`; ``weights`` (with
-    ``sampling="ipw"`` only) holds one reciprocal inclusion probability per
-    family and is rescaled to mean one. ``eps`` must lie in ``[1e-8, 0.5)``.
-
-    The fit is Algorithm L of the module docstring: SLSQP with analytic scores
-    and a deterministic probability calculation. ``maxiter`` (a positive
-    integer) caps the SLSQP iterations and ``tol`` in ``(0, 1)`` is its
-    ``ftol`` -- not the Monte-Carlo ``tol`` of the estimators; it also scales
-    the KKT and boundary tolerances of L4-L5. Failed, infeasible or
-    non-stationary optimizer results raise ``RuntimeError`` instead of being
-    returned; withheld SEs emit a ``RuntimeWarning``.
-    Interior sampling SEs use the observed sensitivity and centered, weighted
-    family score outer products (finite-cluster factor n/(n-1)).
+    Fractions are nonnegative and sum to at most ``1 - eps``. ``maxiter`` and
+    ``tol`` control SLSQP and its stationarity check; failures raise. Interior
+    fits return family-cluster sandwich SEs; boundaries and insufficient
+    information withhold them with a warning.
     """
     components = tuple(_validate_components(components))
     eps = _validate_eps(eps)

@@ -1,63 +1,21 @@
-"""PGS baseline versus family history, and the PGS + LT-FH joint model.
+"""PGS, family history and their cross-fitted joint predictor.
 
-The paper needs an honest train/test answer to "what does family history add on
-top of a polygenic score?"  Same generative framework as ``bench_gwas_power.py``
-(independent SNPs, causal effects, proband genetic liability ``g = Xs @ beta``,
-relatives drawn conditional on it), but the cohort is split 50/50:
+Independent-SNP cohorts are split 50/50. TRAIN supplies the case/control
+association scan and PGS weights. TEST is untouched by fitting; it supplies
+out-of-sample PGS and LT-FH scores evaluated against true genetic liability.
+The joint OLS is cross-fitted within TEST so each proband's prediction excludes
+their own truth.
 
-  * TRAIN is the discovery cohort. An independent-SNP marginal score scan is run
-    on the case/control label (and, for the NCP arms, on the LT-FH estimate and
-    the oracle ``g``); the case/control summary statistics define the PGS
-    weights.
-  * TEST is never touched by the association scan or the PGS weight fitting. The PGS is
-    scored there, the family-history (LT-FH) estimate is computed there, and
-    both are evaluated against the held-out true genetic liability.  The joint
-    combiner is fit by deterministic cross-fitting within TEST, so each
-    proband's joint prediction is fit without that proband's true liability.
+Arms: case/control, classic LT-FH (PA), train-fitted PGS and their joint
+model. The default PGS uses independent-SNP marginal Z weights;
+`--pgs-backend ldpred3` instead fits LDpred3-auto on TRAIN. Association arms
+report causal-SNP NCP ratios; prediction arms report held-out and incremental
+squared-correlation R², which are different gain metrics.
 
-Arms (all evaluated on TEST unless noted):
-
-  1. case/control -- marginal association on the 0/1 label (train); the raw label is also the
-     baseline *predictor* on test.
-  2. LT-FH -- the package's Pearson--Aitken estimate of the proband's genetic
-     liability from the family history.  The bounds are classic LT-FH (single
-     prevalence threshold for every member): this generative framework has no
-     age/sex/cohort structure, so personalised LT-FH++ thresholds would be
-     identical for every member and add nothing; bench_ltfhpp_personalization
-     covers the personalised case.  PA is the primary engine (it matches Gibbs
-     to corr >= 0.997; RESULTS.md section 1). The association scan on this estimate gives
-     the causal-SNP NCP ratio over case/control, exactly as in
-     ``bench_gwas_power.py``.
-  3. PGS-only -- marginal Z-scored weights ``w_j = sqrt(n_train) * corr(x_j,
-     y)`` from the train case/control association scan. With independent SNPs there is no
-     LD to shrink for, so this self-contained numpy score is the LDpred-inf
-     limit; no external PGS package is required.  ``--pgs-backend ldpred3``
-     instead fits LDpred3-auto on the train summary statistics (LD reference =
-     train cohort) and scores the test cohort via
-     ``ldpred3.run_ldpred3_prs`` + ``score_from_weights``; it needs the
-     ``ldpred3`` package importable (the ldpred3 conda env, not ltpred314).
-  4. PGS + LT-FH joint -- cross-fitted OLS of the held-out true ``g`` on both
-     scores.  Each test fold is predicted by coefficients fit on the other
-     test folds; reports squared-correlation R^2, the incremental R^2 of each
-     score over the other, and corr(PGS, LT-FH).
-
-Theory check.  The methods report (report/ltpred_methods.tex, paragraph "PGS
-and mu_i", eq. pgs-fh) gives, under a conditionally-independent measurement
-model, ``Corr(PGS, FH) = a * b * sqrt(p)`` with ``a = Corr(PGS, s)`` (the PGS
-accuracy against the SNP-captured part), ``b = Corr(FH, g)``, and
-``p = h2_SNP / h2_total``.  In this design the true genetic value is built
-entirely from the simulated SNPs, so ``h2_SNP = h2_total`` and ``p = 1``; the
-prediction reported here is therefore ``a * b`` with ``a = Corr(PGS, g)`` and
-``b = Corr(FH, g)`` measured on TEST (equivalently ``sqrt(R2_pgs * R2_fh *
-p)`` at ``p = 1``).  Conditional independence holds by construction: the PGS
-error is train-cohort sampling noise, the LT-FH error is posterior uncertainty
-from the relatives, and the two cohorts do not overlap.
-
-Two different gain metrics appear and are kept separate, as in the rest of the
-suite: the GWAS arms report **causal-SNP NCP ratios** (``mean chi2 - 1``,
-proportional to effective sample size), while the prediction arms report
-**squared-correlation R^2** against held-out ``g``.  Their magnitudes are not
-comparable to each other.
+Under the report's conditionally-independent measurement model,
+Corr(PGS,FH) = a·b·sqrt(h2_SNP/h2_total). Here all genetic value comes from
+the simulated SNPs, so the predicted correlation is simply a·b. Train sampling
+noise and family posterior uncertainty are independent by construction.
 
     python benchmarks/bench_pgs_comparison.py
     python benchmarks/bench_pgs_comparison.py --reps 10 --m-snps 5000

@@ -1,30 +1,11 @@
-"""Family covariance matrices on the liability scale.
+"""Liability-scale covariance from roles or arbitrary pedigrees.
 
-Under the liability-threshold model a person's liability splits into a genetic
-part ``l_g ~ N(0, h2)`` and an environmental part, summing to a full liability
-``l_o ~ N(0, 1)``. Two relatives' genetic parts correlate by the fraction of DNA
-they share, so every covariance entry is ``shared_DNA * h2`` (methods report,
-"Covariance"). Two routes build the matrix that `ltpred.gibbs` and
-`ltpred.estimate` consume; with ``add_ind=True`` (the default) row 0 is the
-target's genetic ``g``.
-
-* **Role grammar** (ports of LTFHPlus ``get_relatedness`` /
-  ``construct_covmat*``). `get_relatedness` looks up a fixed shared-DNA table
-  by role kind and side; `construct_covmat_single` fills ``(g, o,
-  relatives)`` entry by entry and optionally adds sibship ``C`` and couple
-  ``M`` off-diagonals; `construct_covmat_multi` extends it to correlated
-  traits. The grammar cannot express every pedigree (see the same-side
-  half-sib convention in `get_relatedness`).
-* **Arbitrary pedigrees**. `kinship_from_pedigree` computes ``A = 2 *
-  kinship`` exactly by the tabular method, in O(n + edges) ordering plus an
-  O(n**2) dense fill; `construct_covmat_from_kinship` forms ``V = h2 A +
-  c2 C + m2 M + e2 I``, standardizes every full liability to unit variance
-  and prepends the target's genetic row on the same scale.
-
-`correct_positive_definite` is the LTFHPlus repair (shrink off-diagonals
-until strictly PD) that the covariance-based estimators in `ltpred.estimate`
-apply to the assembled matrix. Internal callers whose ``A`` comes from
-pedigree construction may skip re-validating it; the repair still runs.
+Role constructors use the LTFHPlus relationship grammar and optional sibship
+(C) and couple (M) kernels. The pedigree route computes ``A = 2 * kinship``
+and constructs ``V = h2 A + c2 C + m2 M + e2 I``, standardising full
+liabilities to unit variance before prepending the target genetic coordinate.
+`correct_positive_definite` shrinks off-diagonals when numerical repair is
+needed. See ``docs/algorithm.md`` for equations and model restrictions.
 """
 
 from __future__ import annotations
@@ -148,29 +129,15 @@ _SHARED_DNA = {
 
 
 def get_relatedness(s1: str, s2: str, h2: float) -> float:
-    """Shared-DNA fraction between two family roles, times ``h2``.
+    """Return shared-DNA fraction times ``h2`` for two role labels.
 
-    ``s1``/``s2`` are role strings (``g`` genetic liability, ``o`` full liability,
-    ``m``/``f`` parents, ``s`` siblings, ``mgm``/``pgf`` grandparents, ``mhs``/``phs``
-    half-sibs, ``mau``/``pau`` aunts/uncles, ``c<group>.<idx>`` children, e.g.
-    ``c1.1``; children in one partner group are full sibs). Role strings are
-    matched case-insensitively. Returns e.g.
-    ``0.5*h2`` for parent/offspring or full sibs, ``0.25*h2`` for grandparents and
-    half-sibs. Pass ``h2=1`` to get the bare shared-DNA fraction.
-
-    Lookup: a role with itself returns its variance (``h2`` for ``g``, else 1);
-    roles on opposite sides (maternal ``m``/``mg*``/``mhs``/``mau`` versus
-    paternal ``f``/``pg*``/``phs``/``pau``) return 0; two children share 0.5
-    within a partner group ``c<group>.*`` and 0.25 across groups; any other
-    pair reads a fixed shared-DNA table by role kind (mates such as ``m``/``f`` or
-    ``mgm``/``mgf`` are unrelated).
-
-    Two **same-side** half-sibs (``mhs1``/``mhs2`` or ``phs1``/``phs2``) are
-    related ``0.5*h2`` *to each other* — the role grammar cannot name their second
-    parents, so it implies a shared one (they are treated as full sibs of each
-    other). A pedigree in which same-side half-sibs have distinct other parents is
-    not expressible in this grammar; use `construct_covmat_from_kinship`
-    for those."""
+    Roles cover the proband (``o``), genetic target (``g``), parents,
+    siblings, grandparents, half-sibs, avuncular relatives and children
+    (``c<group>.<idx>``). Use ``h2=1`` for the bare fraction. Opposite-side
+    relatives and mates are unrelated; children in one partner group are full
+    sibs. Same-side half-sib sets use the role grammar's shared-other-parent
+    convention; more complex pedigrees need `construct_covmat_from_kinship`.
+    """
     s1, s2 = s1.lower(), s2.lower()
     _validate_relative(s1)
     _validate_relative(s2)
@@ -242,24 +209,12 @@ _PAT_AVUNC = re.compile(r"pau\d*")         # father's full sibs
 
 
 def _is_full_sib(a, b):
-    """Whether roles ``a`` and ``b`` are **full siblings** — the pairs the common-
-    environment component ``C`` loads on. Five cases: both in one sib-ship (proband
-    ``o`` and its sibs ``s1``, ``s2``, …); a parent and their own sib (an
-    aunt/uncle); two aunts/uncles on the **same** side (``mau1``/``mau2`` or
-    ``pau1``/``pau2``), who are full sibs of that parent and of each other; or two
-    of the proband's children in the **same partner group** (``c1.1``/``c1.2``),
-    who are full sibs of each other. Including the avuncular case is what makes
-    ``C`` form a complete sibship block ``{m, mau1, mau2, …}`` (a valid PSD
-    component) rather than a non-PSD chain; the child case keeps ``C``'s structure
-    the same whether a family is described from the parents' or the children's
-    side. Finally, same-side half-sibs of the proband (``mhs1``/``mhs2`` or
-    ``phs1``/``phs2``) are full sibs of each other under the role grammar's
-    shared-other-parent convention. They form their own C blocks; they share
-    no C with the proband, or with the opposite-side half-sibs. Cross-group
-    children are only half sibs (``c1.1``/``c2.1``) and share no C either.
-    Every block remains a disjoint equivalence class. The relatedness guard rejects unrelated look-alikes (e.g. a
-    mother and a *paternal* aunt/uncle), which would otherwise match the
-    parent/avuncular test."""
+    """Return whether two roles share a full-sibship C block.
+
+    Blocks cover the proband's sibship, each parent's avuncular sibship,
+    children in one partner group, and same-side half-sib sets under the role
+    grammar. The relatedness guard prevents unrelated look-alikes.
+    """
     if get_relatedness(a, b, 1.0) <= 0:
         return False
 
@@ -337,28 +292,8 @@ def _apply_env_components(cov, fam_roles, c2, m2, h2):
 _H2_FLOOR = 1e-8
 
 
-def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
-                                                            "mgf", "pgm", "pgf"),
-                            add_ind: bool = True, *, h2: float,
-                            c2: float | None = None,
-                            m2: float | None = None) -> Covmat:
-    """Covariance matrix for one trait: proband ``g``/``o`` plus relatives.
-
-    Entry ``(i, j)`` is ``get_relatedness(role_i, role_j, h2)``, with ``h2`` in
-    ``(1e-8, 1]`` (below the floor the smallest eigenvalue, about ``h2``, is
-    under the strict positive-definiteness threshold and no correction can
-    recover it; at ``h2 = 1`` ``g`` and ``o`` coincide and the matrix is
-    singular). Relatives come from ``fam_vec``, a list of role strings
-    (number repeated relatives ``s1, s2, ...``). ``g``/``o`` in the input are
-    dropped and, when ``add_ind``, put first; duplicate
-    roles raise. With the defaults the matrix covers a proband and both
-    parents, a sibling and all four grandparents. Returns a `Covmat`; ``.roles`` gives the row ordering the
-    Gibbs sampler expects (``g``, ``o`` first when ``add_ind``). ``c2``/``m2`` add
-    the sibship (``C``) and couple (``M``) shared-environment components of
-    ``docs/algorithm.md`` to the relatives' covariance (off-diagonals only; the
-    residual environmental variance absorbs them, so full liabilities keep unit
-    variance and the genetic target stays coupled through ``h2 * A`` only).
-    Requires ``h2 + c2 + m2 <= 1``."""
+def _validate_h2(h2):
+    """Require heritability above the covariance repair's numerical floor."""
     if h2 is None or not (0.0 < h2 <= 1.0):
         raise ValueError(
             "h2 must be in (0, 1] -- a zero h2 makes the genetic liability "
@@ -371,6 +306,21 @@ def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mg
             "positive-definiteness floor the samplers require, so no "
             "correction can make the matrix usable -- supply a realistic "
             "liability-scale heritability")
+
+
+def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
+                                                            "mgf", "pgm", "pgf"),
+                            add_ind: bool = True, *, h2: float,
+                            c2: float | None = None,
+                            m2: float | None = None) -> Covmat:
+    """Construct a single-trait role covariance.
+
+    Rows are ``g``, ``o`` and the supplied relative roles when ``add_ind``.
+    ``h2`` must exceed ``1e-8`` and be at most one. Optional C/M components
+    alter full-liability off-diagonals only and require
+    ``h2 + c2 + m2 <= 1``. Returns a `Covmat` containing its row labels.
+    """
+    _validate_h2(h2)
     roles = _expand_family(list(fam_vec) if fam_vec is not None else None,
                            add_ind)
     if not roles:
@@ -393,25 +343,14 @@ def construct_covmat_multi(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm
                            genetic_corrmat: ArrayLike,
                            full_corrmat: ArrayLike, h2_vec: ArrayLike,
                            phen_names: Sequence[str] | None = None) -> Covmat:
-    """Covariance matrix for several correlated traits.
+    """Construct a phenotype-major multi-trait role covariance.
 
-    ``fam_vec``/``add_ind`` are as in `construct_covmat_single`,
-    except that a family with no relatives always gives roles ``g``, ``o``.
-    ``h2_vec`` holds one heritability per trait, each in ``(1e-8, 1]``;
-    ``genetic_corrmat`` and ``full_corrmat`` are ``n_pheno x n_pheno``, finite,
-    symmetric, unit-diagonal and positive semi-definite. ``phen_names``
-    (default ``phenotype1``, ``phenotype2``, ...) must have one name per trait.
-
-    Same-trait blocks use ``get_relatedness(., ., h2_p)``. Cross-trait blocks
-    scale relatedness by the genetic covariance
-    ``rho_g[p, q] * sqrt(h2_p h2_q)``; on the diagonal, the same individual's
-    genetic liabilities across traits correlate by that genetic covariance while
-    their full liabilities correlate by ``full_corrmat[p, q]``. The three inputs
-    must describe one coherent decomposition: with ``D = diag(sqrt(h2_vec))``,
-    both ``G = D @ genetic_corrmat @ D`` and
-    ``E = full_corrmat - G`` must be positive semi-definite. Rows are
-    phenotype-major (all roles of trait 1, then trait 2, ...). Port of
-    LTFHPlus::construct_covmat_multi."""
+    Supply one heritability per trait and symmetric, unit-diagonal genetic and
+    full-liability correlation matrices. With ``D = diag(sqrt(h2_vec))``, both
+    ``G = D @ genetic_corrmat @ D`` and ``full_corrmat - G`` must be PSD.
+    Same-person cross-trait entries use genetic covariance for ``g`` and full
+    correlation otherwise.
+    """
     h2_vec = np.asarray(h2_vec, dtype=float)
     genetic_corrmat = np.asarray(genetic_corrmat, dtype=float)
     full_corrmat = np.asarray(full_corrmat, dtype=float)
@@ -541,27 +480,12 @@ def _parent_links(ids, father, mother):
 
 
 def _kinship_A(sire, dam, children=None):
-    """Dense ``A`` from integer parent indices (``-1`` for unknown founders).
+    """Fill dense ``A = 2 * kinship`` from indexed parents.
 
-    The arithmetic core of `kinship_from_pedigree` for callers that already
-    hold indexed parents (the register driver, whose extracted pedigree is a
-    slice of a validated parent graph): no id map is rebuilt, so the
-    ids -> indices -> ids round trip — measured at 23% of
-    `kinship_from_pedigree` on the register workload — disappears. Inputs are
-    trusted as `build_parent_graph` left them; a cycle still raises here.
-
-    This core also exists in phensim. Keep it here so estimation does not
-    require the optional simulation dependency; direct parity tests guard
-    both the indexed fast path and the public pedigree-to-matrix path.
-
-    Dense form of Algorithm K (`ltpred._selected_kinship`): order members by
-    Kahn's algorithm (parents first, O(n + edges)), then for each member ``k``
-    in that order fill row ``k`` against all earlier members at once,
-    ``A[k, :k] = (A[s_k, :k] + A[d_k, :k]) / 2``, mirror it, and set
-    ``A[k, k] = 1 + A[s_k, d_k] / 2``. An all-zero sentinel row stands in for
-    an unknown parent, so founders get ``A_kk = 1`` and zero covariance with
-    earlier members. O(n**2) time and memory; the result is permuted back to
-    input order and is exactly symmetric.
+    Kahn ordering puts parents first. Each row is the average of its parents'
+    preceding rows, with ``A[k,k] = 1 + A[s,d]/2``. Unknown parents use a zero
+    sentinel row. This indexed fast path shares phensim's arithmetic but keeps
+    estimation independent of that optional dependency. O(n²) time and memory.
     """
     n = len(sire)
     if children is None:
@@ -610,30 +534,14 @@ def _kinship_A(sire, dam, children=None):
 
 def kinship_from_pedigree(ids: Sequence, father: Sequence,
                           mother: Sequence) -> tuple[list, np.ndarray]:
-    """Additive relationship matrix ``A`` (= 2×kinship) from a pedigree.
+    """Return ``(ids, A)`` where ``A = 2 * kinship`` in input-id order.
 
-    Generalises the fixed role grammar (`get_relatedness`) to **arbitrary
-    pedigrees**: instead of naming relatives ``m``/``f``/``s1``/``mgm``… you give the
-    parent of each individual and the relatedness is computed from the pedigree.
-
-    ``ids`` is a sequence of unique individual ids; ``father`` and ``mother`` are the
-    same-length sequences giving each individual's parents. A parent that is not
-    itself one of ``ids`` (``None``, ``0``, ``""``, ``nan``, or any unlisted value)
-    is treated as an unknown **founder**. Missing-id strings and pandas NA/NaT
-    are also unknown; zero/``"0"`` remains a valid parent when listed in ``ids``. Returns ``(ids, A)`` with ``A`` an
-    ``(n, n)`` matrix in the given ``ids`` order: ``A[i,i] = 1 + F_i`` (``F_i`` the
-    inbreeding coefficient) and ``A[i,j] = 2 × kinship(i, j)`` — e.g. 0.5 for
-    parent–offspring and full sibs, 0.25 for grandparent/half-sib, 0.125 for first
-    cousins. Computed by the recursive tabular method (Henderson 1976) over a
-    topological order: ``A_ii = 1 + A_sd / 2`` and ``A_ij =
-    (A_sj + A_dj) / 2`` for ``i`` after ``j``, which handles inbreeding and any
-    pedigree depth. Raises ``ValueError`` when the three sequences differ in
-    length, when ``ids`` contains a missing value (``None``, NaN, pandas
-    NA/NaT or a missing-marker string), on duplicate ids, a self-parent, or a
-    cycle.
-
-    Feed ``A`` to `construct_covmat_from_kinship` to build the liability
-    covariance for these individuals."""
+    ``father`` and ``mother`` align to unique ``ids``. Missing or unlisted
+    parents are founders; a zero id is a parent only when explicitly listed.
+    The tabular recursion handles inbreeding and arbitrary depth, returning
+    ``A[i,i] = 1 + F_i``. Missing/duplicate ids, self-parenting and cycles
+    raise. Feed ``A`` to `construct_covmat_from_kinship`.
+    """
     ids, _index, sire, dam, children, _unresolved = _parent_links(
         ids, father, mother)
     return ids, _kinship_A(sire, dam, children)
@@ -687,15 +595,11 @@ def _validate_kinship_component(value, kernel, name, n):
     return value, K
 
 
-#: Module-private sentinel for ``construct_covmat_from_kinship(_certified_psd=...)``
-#: and ``pa_estimate_batched(_psd_certified=...)``: the caller asserts the array
-#: was built by pedigree construction (or by `correct_positive_definite`),
-#: which is exactly symmetric and positive semi-definite by construction, so
-#: the ``eigvalsh`` checks (and, in the kinship constructor, the O(n^2)
-#: symmetry scan) are skipped. Certifying replaces the checks; nothing downstream
-#: is relaxed: the kinship route still runs `correct_positive_definite` on the
-#: assembled matrix.
+# Internal certificates for pedigree-built matrices. _PSD_CERTIFIED skips
+# redundant A validation; covariance repair still runs. _PD_CERTIFIED also
+# certifies the assembled covariance, allowing the repair check to be skipped.
 _PSD_CERTIFIED = object()
+_PD_CERTIFIED = object()
 
 
 def construct_covmat_from_kinship(A: ArrayLike, h2: float, target: int = 0,
@@ -705,66 +609,27 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float, target: int = 0,
                                   m2: float | None = None,
                                   m_kernel: ArrayLike | None = None,
                                   _certified_psd: object = None) -> Covmat:
-    """Liability-scale covariance from an additive relationship matrix ``A``.
+    """Construct a standardised liability covariance from additive kinship ``A``.
 
-    The kinship-based counterpart of `construct_covmat_single`: given ``A``
-    (``n×n``, e.g. from `kinship_from_pedigree`) it first builds the raw
-    covariance ``V = h2 * A + c2 * C + m2 * M + e2 * I``, where
-    ``e2 = 1 - h2 - c2 - m2``, and then divides row/column ``i`` by
-    ``sqrt(V[i, i])``. ``C`` and ``M`` are optional caller-supplied
-    ``c_kernel``/``m_kernel`` matrices with unit diagonal. They may encode, for
-    example, sibship and couple shared environments, but are deliberately not
-    inferred from ``A``: additive relatedness alone cannot distinguish full sibs
-    from parent--offspring pairs or mates from unrelated people. A nonzero
-    component requires its kernel, ``h2`` must lie in ``(1e-8, 1]`` and
-    ``h2 + c2 + m2 <= 1``.
+    Forms ``V = h2 A + c2 C + m2 M + e2 I`` and scales full liabilities to
+    unit variance. With ``add_ind``, prepends the target genetic coordinate on
+    the same scale; rows are ``g, o_0, ..., o_{n-1}``. Environmental kernels
+    must be supplied explicitly, symmetric PSD with unit diagonal, because
+    they cannot be inferred from ``A``. Requires ``h2 + c2 + m2 <= 1``.
 
-    With no environmental kernels this reduces to
-    ``V = h2 * A + (1 - h2) * I``. Standardisation keeps every **full liability**
-    ``o`` on the unit-variance threshold scale when inbreeding gives
-    ``A[i, i] = 1 + F_i``; it is a no-op for non-inbred pedigrees. When
-    ``add_ind``, the target's genetic liability divided
-    by that **same full-liability SD** is prepended as ``g``, so its variance is
-    ``h2 * A[t, t] / V[t, t]`` — equal to ``h2`` for a non-inbred target
-    (``A[t, t] = 1``) but strictly below the unstandardized ``Var(g) = h2 * A[t, t]``
-    under inbreeding. The kinship route's "genetic" estimates are therefore on the
-    ``sd(o_target)`` scale when the target is inbred, not the unstandardized ``g``
-    scale; rescale by ``sqrt(V[t, t])`` before comparing the two routes. Row order
-    is ``[g, o_0, …, o_{n-1}]``; the ``target``'s own full-liability row is labelled
-    ``o`` and the rest ``rel<i>``. Returns a `Covmat`.
-
-    ``A`` is checked to be finite, symmetric (then symmetrized) and PSD by an
-    ``eigvalsh``; the standardized block's diagonal is set to exactly 1.
-    ``_certified_psd`` is an internal fast path that skips that check for
-    pedigree-built ``A``; do not pass it.
-
-    This is exactly the matrix the Gibbs / PA samplers consume, so a kinship-derived
-    covariance is a drop-in for the role-based one; for a standard pedigree the two
-    agree entry for entry. One qualification: the role grammar's inherited
-    convention takes two same-side half-sibs (``mhs1``, ``mhs2``) to share a second
-    parent (`get_relatedness`), so the entry-for-entry agreement holds only
-    for pedigrees whose same-side half-sib sets satisfy that convention — a
-    pedigree giving them distinct other parents legitimately disagrees with the
-    role-based matrix there."""
+    ``A`` is validated as finite, symmetric and PSD unless an internal
+    certificate is supplied. The role grammar's same-side half-sib convention
+    is the only standard-pedigree case where role and pedigree covariances can
+    legitimately differ.
+    """
     A = np.ascontiguousarray(A, dtype=np.float64)
     n = A.shape[0]
     if A.shape != (n, n):
         raise ValueError("A must be square")
-    if h2 is None or not (0.0 < h2 <= 1.0):
-        raise ValueError(
-            "h2 must be in (0, 1] -- a zero h2 makes the genetic liability "
-            "identically zero, so its row of the covariance is degenerate "
-            "and no positive-definite correction can recover it")
-    if h2 <= _H2_FLOOR:
-        raise ValueError(
-            f"h2 must exceed {_H2_FLOOR:g}: the smallest eigenvalue of the "
-            "g-o covariance is about h2, below the strict "
-            "positive-definiteness floor the samplers require, so no "
-            "correction can make the matrix usable -- supply a realistic "
-            "liability-scale heritability")
+    _validate_h2(h2)
     if not (0 <= target < n):
         raise ValueError(f"target {target} out of range for {n} individuals")
-    if _certified_psd is not _PSD_CERTIFIED:
+    if _certified_psd not in (_PSD_CERTIFIED, _PD_CERTIFIED):
         if not np.all(np.isfinite(A)):
             raise ValueError("A must contain only finite values")
         if not np.allclose(A, A.T, atol=1e-8, rtol=0.0):
@@ -816,21 +681,13 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float, target: int = 0,
 def correct_positive_definite(covmat: ArrayLike, correction_val: float = 0.99,
                               correction_limit: int = 100, eps: float = 1e-8
                               ) -> tuple[np.ndarray, int]:
-    """Nudge a not-quite-positive-definite covariance matrix back to PD.
+    """Shrink off-diagonals until the covariance is strictly positive definite.
 
-    Relatedness rounding can leave the assembled matrix with a tiny (or negative)
-    eigenvalue, which breaks the Gibbs conditional variances and the ``solve`` in
-    `ltpred.gibbs.gibbs_params`. Following LTFHPlus's
-    ``correct_positive_definite_simplified`` (not its same-named function),
-    this repeatedly shrinks the off-diagonal (multiply the whole matrix by
-    ``correction_val``, then restore the diagonal) until the smallest
-    eigenvalue exceeds ``eps`` (strictly PD, not merely PSD) or
-    ``correction_limit`` is hit. After ``n`` iterations every
-    off-diagonal equals ``correction_val**n`` times its input value, i.e. all
-    correlations are attenuated uniformly, which changes the model rather than
-    only the numerics. Each check is an O(d**3) ``eigvalsh``. Returns
-    ``(corrected, n_iter)`` and leaves already-PD matrices untouched (a copy,
-    ``n_iter = 0``); raises ``ValueError`` if it cannot reach strict PD."""
+    Each iteration multiplies off-diagonals by ``correction_val`` and preserves
+    the diagonal. Returns ``(corrected_copy, n_iterations)``; already-PD input
+    needs zero iterations. Raises after ``correction_limit`` unsuccessful
+    steps. This changes the model and callers warn when it was necessary.
+    """
     cov = np.array(covmat, dtype=np.float64, copy=True)
     # Cache the smallest eigenvalue: exactly one eigvalsh per shrink step
     # (the loop condition and the final check reuse the same value).

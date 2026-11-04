@@ -1,38 +1,11 @@
-"""The couple / spousal environment component `M`: recovery, and why it behaves
-differently from the sibship component `C`.
+"""Measure couple-environment recovery and omission bias.
 
-`fit_variance_components` fits a **bank** of relationship-specific shared-environment
-components. Besides the sibship component `C` (full-sib rearing environment), it
-ships `M`, a **couple / spousal** environment that loads on the genetically-unrelated
-mate pairs — the proband's parents `(m, f)` and the grandparent couples. `M` captures
-spousal resemblance from shared adult environment *or* assortative mating (parent
-data alone cannot separate the two).
-
-The two shared-environment components differ in a way that matters. Sibs share both
-genes and `C` (`A = 0.5`), so **ignoring a real `C` inflates the additive estimate**
-— sib resemblance is over-credited to genetics. Mates share `M` but no genes
-(`A = 0`), so they carry ~zero weight in the additive regression: **ignoring a real
-`M` biases the additive estimate much less than ignoring `C`** (a residual can remain
-from imputing under the misspecified model, especially when `M` is large). `M` is
-worth fitting for its own sake (quantifying / testing spousal resemblance), not only
-to de-bias `h²`.
-
-This benchmark makes both points empirically on simulated data (liabilities drawn
-from `a2 A + s2 K + e2 I`, thresholded, so ground truth is known):
-
-  (a) **A+M recovery** — sweep the true couple variance `m2`; fit `("A", "M")` over
-      many independent cohorts and read mean(fitted) - true and the across-replicate
-      SD. At `m2 = 0`, report the small positive boundary estimate expected from
-      the nonnegative constraint; it is not a hypothesis-test rejection rate.
-  (b) **bias from ignoring shared environment** — put the *same* shared-environment
-      variance `s2` in once as `C` (sibship) and once as `M` (couple), then fit the
-      **additive-only** model `("A",)`. The `C` version inflates `A`; the `M`
-      version is much less biased. This is the identifiability contrast the theory
-      predicts (methods report, section "Covariance": the C/M identification contrast).
-
-    python benchmarks/bench_couple_env.py
-    python benchmarks/bench_couple_env.py --reps 40 --n-fam 4000
-Writes bench_couple_env.csv.
+Panel (a) sweeps true M and reports A/M bias and across-cohort SD, including
+the nonnegative boundary at M=0. Panel (b) places the same variance in C or M
+and fits A alone: omitted C can inflate A through full-sib covariance, while
+omitted M has less effect because mates have A=0. M describes spousal
+resemblance, not a generative assortative-mating model. Writes
+`bench_couple_env.csv`.
 """
 
 import os
@@ -105,7 +78,6 @@ def main():
 
     # (a) A+M recovery ----------------------------------------------------------
     print("== (a) A+M recovery (a2=%.1f, n_fam=%d, %s) ==" % (a2, args.n_fam, "+".join(STRUCT)))
-    panel_a = []
     for m2 in args.m2:
         t0 = time.time()
         f = fit_replicates(STRUCT, {"A": a2, "M": m2}, ("A", "M"), seed0=args.seed, **kw)
@@ -113,7 +85,6 @@ def main():
         rec = dict(m2=m2, A_mean=float(fa.mean()), A_bias=float(fa.mean() - a2),
                    A_sd=float(fa.std(ddof=1)), M_mean=float(fm.mean()),
                    M_bias=float(fm.mean() - m2), M_sd=float(fm.std(ddof=1)))
-        panel_a.append(rec)
         rows.append(dict(panel="recovery", a2=a2, **rec, n_fam=args.n_fam, reps=args.reps))
         print(f"  m2={m2:.1f} | A={fa.mean():.3f}({rec['A_bias']:+.3f}) SD={rec['A_sd']:.3f}"
               f" | M={fm.mean():.3f}({rec['M_bias']:+.3f}) SD={rec['M_sd']:.3f}  [{time.time()-t0:.0f}s]")
@@ -121,7 +92,6 @@ def main():
     # (b) bias in additive-only fit from ignoring C vs M ------------------------
     print("== (b) additive-only A bias from ignoring shared environment ==")
     print("   (same s2 variance placed as C (sibship) vs M (couple); fit ('A',) only)")
-    panel_b = []
     for s2 in args.s2:
         fc = fit_replicates(STRUCT, {"A": a2, "C": s2}, ("A",), seed0=args.seed + 300, **kw)["A"]
         fm = fit_replicates(STRUCT, {"A": a2, "M": s2}, ("A",), seed0=args.seed + 600, **kw)["A"]
@@ -129,7 +99,6 @@ def main():
                    A_ignoreC_sd=float(fc.std(ddof=1)), A_ignoreM=float(fm.mean()),
                    A_ignoreM_bias=float(fm.mean() - a2),
                    A_ignoreM_sd=float(fm.std(ddof=1)))
-        panel_b.append(rec)
         rows.append(dict(panel="ignore_bias", a2=a2, **rec, n_fam=args.n_fam, reps=args.reps))
         print(f"  s2={s2:.1f} | ignore C: A={fc.mean():.3f} "
               f"({rec['A_ignoreC_bias']:+.3f}, SD={rec['A_ignoreC_sd']:.3f}; inflated)"

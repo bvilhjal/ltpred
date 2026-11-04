@@ -1,17 +1,9 @@
-"""What ascertainment does to `fit_heritability`, `fit_variance_components` and `fit_genetic_correlation`.
+"""Measure bias and recovery under family-status ascertainment.
 
-Every other fitter benchmark here draws **unascertained population families**.
-This one measures what the fitters do when that contract is violated -- the
-evidence behind two 0.3.1 features, so read the arms as the justification for
-them rather than as a description of current behaviour:
-
-* `sampling="population"` used to be an honour system (a string check, not a
-  data check), so an ascertained cohort fitted straight through. Arms A-E and
-  H measure what it returned, so their fits (and arm G's unweighted comparator)
-  run under `unguarded()`, since the check they motivated would now stop them.
-* `sampling="ipw"` with per-family weights corrects the subset of designs whose
-  inclusion probability is known and positive everywhere. Arm G measures that,
-  and runs through the real gate.
+Each replicate draws a population under a known liability model, selects
+families by one rule and fits the selected subset. Historical unguarded arms
+run under `unguarded()` because the current case-rate screen would reject
+them; valid known-probability IPW runs through the real gate.
 
 Design. Each replicate draws a **population** of families under a known
 liability-threshold model, applies one ascertainment scheme to choose which
@@ -41,22 +33,10 @@ Ten arms (`--arms`):
   C. r_g recovery (`research.advanced_fitting.fit_genetic_correlation`),
      ascertained on trait 1, which also asks whether a *cross-trait* estimand
      inherits the same bias as the within-trait ones;
-  D. bias vs N for population and proband_case. This is the arm that decides
-     whether ascertainment is a precision problem or an accuracy problem: a
-     sampling-noise problem shrinks as 1/sqrt(N), a bias does not.
-  E. the same cohort re-fitted at increasing n_iter AND from several starting
-     values, to establish that a displaced estimate is a fixed point rather
-     than an unfinished run. The `--full` campaign's n_iter=1500 is amply
-     sufficient at every N tested (the default run uses --n-iter 800); the
-     multi-start is the decisive half, because an ascertained fit reaches the
-     ceiling even when started at h2_init=0.05 -- it climbs there from below
-     rather than failing to leave.
-  F. the Haseman-Elston moment evaluated directly on the selected families'
-     TRUE liabilities, centered and uncentered. Arms A-D can only report
-     "pinned at the clamp", which is one bit; this arm gives the uncensored
-     magnitude of the selected sample's own moment and splits off the
-     mean-shift term. It is a decomposition, NOT the cause -- see `_he_moment`
-     for the true-h2=0 cell that refutes the causal reading.
+  D. bias vs N for population and proband_case (bias need not shrink with N);
+  E. n_iter and multi-start checks that the displaced value is a fixed point;
+  F. centered/uncentered HE moments on selected families' TRUE liabilities,
+     decomposing the mean shift without claiming it is the cause.
   G. IPW refit with known inclusion probabilities (`sampling="ipw"`);
   H. dose-response of the fitted h2 to the realised case enrichment;
   I. specificity of the case-rate guard on legitimate population cohorts;
@@ -68,14 +48,9 @@ disease gets rarer. `--prev` sets it (one value per run; re-run to compare).
 Note `case_control`/`enriched_20` can only raise the case share, so a target
 below the population prevalence is unreachable and the run says so.
 
-Ground truth is the simulator's own components: h2 is a property of the
-population the model defines, and ascertainment changes the sampling
-distribution rather than that parameter, so the population value stays the
-defensible target under every scheme. Uncertainty is the across-replicate SD
-with its own chi-square interval. Two different saturation detectors are
-reported because the two fitters pin differently: `boundary_frac` for the
-elementwise [eps, 1-eps] clamp (`fit_heritability`), and an exhausted residual
-for the simplex renormalisation (`fit_variance_components`) -- see `_saturated`.
+Ground truth stays the population component. Report across-replicate SDs with
+chi-square intervals. `boundary_frac` tracks the elementwise h2 clamp;
+exhausted residual tracks the multicomponent simplex renormalisation.
 
 The population arm is the control, not a claim of exactness: the fitter carries
 its own small bias at these settings, which is why every conclusion below is a

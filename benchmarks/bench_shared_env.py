@@ -1,41 +1,10 @@
-"""How much does modelling (and fitting) shared environment help prediction?
+"""Measure shared-environment effects on genetic/full-liability scoring.
 
-Family history clusters partly for **genetic** reasons (`A`) and partly for shared
-**environment** (`C`, e.g. a rearing effect common to full sibs). This benchmark's
-grouped Gibbs estimator approximates the posterior mean of the proband's *genetic*
-value given the family's covariance and case/control bounds. If you model the family
-as additive-only, the estimator wrongly credits the sib-shared environmental
-resemblance to genetics, so the score is **contaminated** by the sibship's
-environment. Modelling `C` lets the estimator attribute that resemblance to
-environment instead, sharpening the genetic estimate.
-
-This benchmark quantifies the gain. It simulates families under the true `A+C+E`
-model (so the proband's *true genetic liability* `g` is known), then estimates the
-genetic-liability score under several models and reports corr(estimate, true `g`):
-
-  1. **ignore C, true h²** — additive-only covariance at the true h² (isolates the
-     covariance misspecification);
-  2. **ignore C, fitted h²** — the realistic ignore-C pipeline: `fit_heritability`
-     (which *inflates* h² because C loads onto sib resemblance), then additive;
-  3. **fit A+C** — the realistic model-C pipeline: `fit_variance_components(A, C)`,
-     then the A+C covariance;
-  4. **oracle A+C** — true (h², c²): the ceiling.
-
-Swept over the true c². At c²=0 all four coincide (a sanity check).
-
-Panel **(c)** runs the same idea through the **public** API (merged from the
-former `bench_env_components.py`; its seeds and design are preserved): families
-simulated with sibship (`C`) and couple (`M`) shared environment via
-`construct_covmat_single(h2, c2, m2)`, then `estimate_liability(..., c2=, m2=)`
-with the components omitted (additive-only, misspecified), wired at the truth
-(oracle-wired), or wired from `fit_variance_components(("A", "C", "M"))`
-(fitted-wired). It reports corr(g), the calibration slope of the genetic
-estimate, and corr of the full-liability prediction E[l_o | family] with the
-true full liability.
-
-    python benchmarks/bench_shared_env.py
-    python benchmarks/bench_shared_env.py --c2 0 0.1 0.2 0.3 --n-fam 3000
-Writes bench_shared_env.csv.
+True A+C+E families compare additive-only scoring at true/fitted h2, fitted
+A+C and oracle A+C over a c2 sweep. The public-API panel additionally simulates
+C+M and compares omitted, true and fitted component wiring, reporting genetic
+correlation/calibration and full-liability correlation. At c2=0 the models
+coincide. Writes `bench_shared_env.csv`.
 """
 
 import os

@@ -1,78 +1,23 @@
-"""Two covariance extensions, one question each: is the fancier Sigma worth it?
+"""Compare extended covariance models with simpler observation models.
 
-Both panels draw families from a **true** extended covariance from
-``research.covariance_extensions`` -- so the proband's genetic liability is
-known exactly -- then score a ladder of estimators against that truth through
-the Pearson-Aitken algorithm. They share the scaffolding: thresholded
-case/control bounds, a PA scoring pass, corr + calibration-slope metrics, and
-paired-across-replicate t confidence intervals.
+Both panels simulate from research covariance extensions, score nested
+estimators with PA against known genetic truth, and report correlation,
+calibration slope and paired replicate confidence intervals.
 
 Panel (a) -- sex limitation
 ---------------------------
-ltpred has always let sex enter through the **threshold**: a sex-specific
-prevalence gives each person their own `T`. `construct_covmat_sex_limited`
-also lets it enter the **covariance**, with sex-specific heritabilities and a
-cross-sex genetic correlation `rg`. The algebra guarantees the BLUP weights
-change -- `w = V^-1 c` depends on `V`, and `V` now depends on sex. It does
-*not* guarantee the score gets better, nor by how much, nor under what
-conditions. Four estimators:
-
-  1. **pooled** -- one prevalence and one scalar h2 for everyone (sex ignored
-     entirely; the floor);
-  2. **sex thresholds** -- sex-specific prevalence, scalar h2 covariance. This
-     is what ltpred could do before `construct_covmat_sex_limited`;
-  3. **sex in Sigma (true)** -- sex-specific prevalence *and* the true
-     (h2_female, h2_male, rg) covariance. The ceiling;
-  4. **sex in Sigma (rg=1)** -- sex-specific prevalence and sex-specific
-     heritabilities, but the cross-sex correlation wrongly set to 1. Isolates
-     the *qualitative* half of the model, and shows what mis-specifying `rg`
-     costs -- which matters because these parameters are supplied, not fitted.
-
-Arm 2 vs arm 3 is the contrast that matters: both see the same thresholds, so
-any difference is attributable to the covariance alone. Three sub-panels:
-
-  (a1) sweep `rg` at a fixed heritability gap -- when does *qualitative* sex
-       limitation matter?
-  (a2) sweep the heritability gap at `rg = 1` -- when does *scalar* sex
-       limitation matter, with no qualitative component at all?
-  (a3) **mechanism.** `rg` discounts cross-sex pairs and nothing else, so its
-       effect must vanish in an all-same-sex family and concentrate in an
-       all-cross-sex one. Two matched compositions -- proband + mother +
-       sister versus proband + father + brother -- give the proband exactly
-       two first-degree relatives each, so they carry the same information
-       and differ *only* in sex configuration. Heritability is equal for both
-       sexes here, so scalar limitation cannot contribute and every bit of
-       any gain is attributable to `rg`.
+Compare pooled thresholds, sex-specific thresholds, true sex-limited
+covariance and the rg=1 misspecification. The key contrast holds thresholds
+fixed, isolating covariance. Sweeps vary rg and the heritability gap; matched
+same-sex and cross-sex compositions isolate the rg mechanism.
 
 Panel (b) -- genetic nurture
 ----------------------------
-Under genetic nurture the proband's liability carries two things: their
-**own** additive value `A_o`, and an **indirect** contribution from the
-parents' genotypes acting through the rearing environment. A GWAS phenotype
-should predict `A_o` alone. A nurture-blind estimator cannot separate them,
-so its score is contaminated by the parental path. Four estimators, scored
-against the true `A_o` from `construct_covmat_nurture`:
-
-  1. **additive, true h2** -- the ordinary covariance at the true *direct*
-     heritability. Isolates the covariance misspecification on its own;
-  2. **additive, moment h2** -- the realistic nurture-blind pipeline. A
-     moment-based heritability fitted from parent-offspring covariance
-     absorbs the indirect path and comes out inflated, at `h2*(1 + 2n)`;
-  3. **A + C matched to sibs** -- the confounded alternative. `c2` is chosen
-     so the model reproduces the *sib-sib* covariance exactly. This is what
-     an analyst with no parental phenotypes would fit, and it is
-     indistinguishable from nurture on sibling data alone;
-  4. **nurture, true parameters** -- the ceiling.
-
-Two sub-panels:
-
-  (b1) sweep the nurture coefficient `n` -- how fast does the cost grow?
-  (b2) the identifiability trap made consequential. Arm 3 fits sibling
-       covariance *perfectly* and still mis-scores the direct effect, because
-       it gets parent-offspring covariance wrong. Reports the two mutually
-       inconsistent heritabilities a nurture-blind moment fitter would obtain
-       from the two relative types -- their disagreement is the diagnostic
-       that nurture is present at all.
+Target only the proband's direct additive value. Compare the true direct
+additive model, nurture-blind moment h2, A+C matched to sibling covariance
+and the true nurture model. The sweep varies nurture strength; the second
+panel shows that matching sibling covariance need not match parent-offspring
+covariance or recover the direct effect.
 
 Reported per arm in both panels: `corr(estimate, truth)` (ranking, what a
 linear GWAS uses) and the calibration slope `regress(truth on estimate)`

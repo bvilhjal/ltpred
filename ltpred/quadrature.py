@@ -1,44 +1,15 @@
-"""Numerical posterior moments for additive, noninbred nuclear families.
+"""Posterior quadrature for additive, noninbred nuclear families.
 
-Algorithm Q, derived in the methods report section "Nuclear families have at
-most two parental factors". Model: one trait, additive genetics plus independent
-residuals (no C/M), unrelated noninbred parents, roles ``o``, ``m``, ``f``,
-``s1``, ``s2``, ..., ``0 <= h2 < 1``, no censoring mixture. The target is the
-proband's genetic (``out="genetic"``) or full (``"full"``) liability. With
-parental breeding values ``z = (a_m, a_f) ~ N(0, h2 I)``, the observed
-liabilities are independent given ``z``: ``l_j | z ~ N(b_j' z, d_j)`` with
-``b_j = (1, 0)``, ``(0, 1)``, ``(1/2, 1/2)`` and ``d_j = 1 - h2`` for parents,
-``1 - h2/2`` for offspring. Siblings add likelihood factors, not integration
-dimensions. Each family is solved as follows:
+Conditional on the two parental breeding values, observed liabilities are
+independent, so siblings add likelihood factors rather than dimensions. Exact
+pins are conditioned first; zero/one remaining intervals use analytic moments.
+Otherwise a rank-1/2 factor projection, Newton mode search and mode-centred
+Gauss--Hermite integration compute the posterior mean and variance.
 
-1. Analytic shortcuts: ``out="full"`` with a pinned proband; ``h2 = 0``; no
-   informative offspring (independent parental liabilities).
-2. Condition ``z`` on every pin exactly (sequential Gaussian updates); a
-   pinned proband also enters the target's law given ``z``. Absent rows drop.
-   With zero or one interval left, return the exact Gaussian or
-   single-selection answer.
-3. Otherwise whiten ``z`` and project onto the span (rank 1 or 2) of the
-   interval rows' loadings; orthogonal directions add only analytic variance.
-4. Mode: Newton's method on the convex negative log posterior with
-   its exact gradient and Hessian and Armijo backtracking. It stops on a
-   negligible step, a failed line search, or an accepted decrease at
-   floating-point resolution (stationary objective); else 80 iterations raise.
-5. Integrate on a tensor Gauss-Hermite grid centred at the mode and
-   scaled by the inverse-Hessian Cholesky factor, importance-reweighted in
-   log space by prior times interval likelihoods over the proposal. Per node,
-   the target's conditional moments ``mu(z)``, ``V(z)`` include its own
-   observation; ``est = E[mu]`` and ``var = E[V] + Var[mu]``.
-6. Refine ``n = 16, 32, 64, ...`` nodes per dimension, doubling up to
-   ``max_nodes``, recording each change ``max(|d est|, |d var|)``. Accept
-   when both of the last two changes are ``<= atol`` (at least three
-   resolutions), reporting that maximum and the final ``n``.
-
-Nonconvergence at ``max_nodes``, non-finite log weights and mode failure
-raise ``RuntimeError``. Analytic answers report ``error = 0``,
-``n_nodes = 0``. `estimate_liability_quadrature_arrays` solves each distinct
-``(lower, upper)`` row once and names the first matching family in errors.
-``estimate_liability`` exposes the diagnostics as ``quadrature_error`` and
-``quadrature_nodes``.
+Grid sizes double from 16 to ``max_nodes``. Acceptance requires the last two
+mean/variance changes to meet ``atol``; failure raises. Identical bound rows
+are solved once. The model excludes C/M, mixtures, other pedigrees and
+``h2 = 1``. See Algorithm Q in ``docs/algorithm.md``.
 """
 
 from __future__ import annotations
@@ -360,25 +331,16 @@ def estimate_liability_quadrature_arrays(roles: Sequence[str], lower: ArrayLike,
                                          upper: ArrayLike, h2: float, *,
                                          out: str = "genetic", atol: float = 1e-8,
                                          max_nodes: int = 128) -> QuadratureResult:
-    """Compute additive nuclear-family posterior moments by factor quadrature.
+    """Compute posterior moments for aligned nuclear-family bound arrays.
 
-    ``roles`` contains unique ``o``, ``m``, ``f`` and/or ``s1``, ``s2``, ...;
-    ``lower`` and ``upper`` have shape ``(n_families, len(roles))``. The target
-    is always the proband, even when ``o`` is absent (then own status is omitted).
-    Parents are unrelated and noninbred. Only ``0 <= h2 < 1`` is supported:
-    ``h2=1`` gives zero parent residual variance and needs a different integrator.
-    Shared environment, other pedigree roles and censoring mixtures are outside
-    this model. Point pins are exact observations, not narrow intervals.
+    ``roles`` contains unique ``o``, ``m``, ``f`` and/or numbered full sibs;
+    bounds have shape ``(n_families, len(roles))``. The target is the proband's
+    genetic or full liability selected by ``out``. Parents are unrelated and
+    noninbred, with ``0 <= h2 < 1``; C/M and mixtures are unsupported.
 
-    ``out`` selects ``"genetic"`` or ``"full"`` (or a length-1 sequence of
-    either, as in the other single-column array APIs). ``atol`` bounds successive
-    changes in both posterior moments, not their unknown true numerical error.
-    Two successive refinements must meet it; ``max_nodes`` (64 through 512)
-    limits nodes per active factor dimension. The upper limit bounds the
-    largest tensor grid to 262144 points. Failure raises ``RuntimeError`` with the
-    family index, rather than returning an unchecked estimate. Analytic zero- or
-    one-interval cases and families with only parental observations require no
-    nodes. Rows with identical bounds are solved once.
+    ``atol`` applies to the last two refinement changes, not a certified error
+    bound. ``max_nodes`` is 64–512 per active dimension. Nonconvergence raises
+    `RuntimeError` with the family index. Identical rows share one solve.
     """
     roles = list(roles)
     if any(not isinstance(r, str) or re.fullmatch(r"o|m|f|s[1-9][0-9]*", r) is None for r in roles):

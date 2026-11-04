@@ -1,14 +1,8 @@
-"""Calibration of the inference machinery: p-values, intervals, and SEs.
+"""Calibrate research p-values, bootstrap intervals and MCEM standard errors.
 
-Three inference tools had no calibration benchmark (external review, Tier 2):
-the parametric-bootstrap component test (`test_variance_component`, in
-`research.advanced_fitting`), the family-bootstrap interval (`bootstrap_fit`),
-and the MCEM OPG/BHHH information SE (`fit_variance_components_mcem`, the former
-`fit_variance_components(method="mcem")` route, now in `research.advanced_fitting`).
-Point-estimate bias is benchmarked elsewhere (bench_fit_heritability,
-bench_variance_components); this script asks the inferential question: are the
-p-values uniform under the null, do the intervals cover at the nominal rate,
-and do the reported SEs match the across-dataset sampling SD?
+Point-estimate recovery is measured elsewhere; this script asks whether null
+p-values are uniform, intervals cover at nominal rate and reported SEs match
+across-dataset sampling SD.
 
 Design. R = 25 independent datasets (400 families, proband + parents + sib,
 classic case/control bounds at prevalence 0.1) generated under an A-only model
@@ -16,26 +10,11 @@ classic case/control bounds at prevalence 0.1) generated under an A-only model
 n_boot=50) for runtime; each part notes the consequence. Part 4 uses its own
 two-trait null (below) at the same R, n_fam, and fit settings.
 
-  Part 1  Type-I error: `test_variance_component(fams, "C")` per dataset; the
-          null is true, so p should be ~Uniform(0,1). Report the rejection
-          rate at 0.05 with its binomial 95% interval, and the mean/median p.
-  Part 2  Interval coverage: `bootstrap_fit` (family bootstrap, n_boot=50,
-          95% percentile CI) of the fit_heritability point estimate per
-          dataset; report the coverage of the true h2 = 0.5, and the mean
-          bootstrap SE vs the across-dataset SD of the point estimates (the
-          "bootstrap SE recovers the sampling SD" check; FitResult warns the
-          internal h2_se can substantially understate that SD).
-  Part 3  MCEM SEs: `fit_variance_components_mcem(("A","C"))` per
-          dataset; compare the mean reported OPG SE with the across-dataset SD
-          of the point estimates (ratio ~1 would mean the information SE is
-          calibrated; the docs already call these approximate diagnostics).
-  Part 4  Type-I error: `test_genetic_correlation(fams)` per dataset under a
-          true r_g = 0 generative model with a NONZERO phenotypic correlation
-          (the null cell of bench_genetic_correlation: two traits,
-          h2 = (0.5, 0.4), r_p = 0.2, prevalence 0.1 each, parents + 2 sibs;
-          same R, n_fam, n_boot and fit settings as Part 1). The null is true,
-          so p should be ~Uniform(0,1) and the test must not manufacture a
-          genetic correlation from the phenotypic one.
+  Part 1  C-component test Type-I error and null p-value summaries.
+  Part 2  Family-bootstrap coverage and bootstrap-SE versus sampling SD.
+  Part 3  MCEM OPG SE versus across-dataset SD (diagnostic, no gate).
+  Part 4  Genetic-correlation test under r_g=0 but nonzero phenotypic
+          correlation; checks it does not manufacture r_g.
 
 Pre-registered reads: Part 1's and Part 4's rejection rates should be
 consistent with 0.05 (at R=25 the exact binomial interval is very wide, so

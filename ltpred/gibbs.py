@@ -1,65 +1,16 @@
-"""Gibbs sampler for the truncated multivariate normal (TMVN).
+"""Truncated multivariate-normal Gibbs sampling.
 
-Port of LTFHPlus's ``rtmvnorm.gibbs`` and its Rcpp inner loop. With
-``Q = Sigma^-1``, `gibbs_params` forms ``P[i, j] = -Q[i, j] / Q[j, j]``
-(``P[j, j] = 0``) and ``sd[j] = sqrt(1 / Q[j, j])``; the full conditional of
-coordinate ``j`` is ``N(P[:, j] . x, sd[j]^2)`` restricted to
-``(lower[j], upper[j])``. ``Sigma`` must be finite, symmetric and strictly
-positive definite. A coordinate whose interval spans less than ``1e-8`` is
-*fixed* (a pinned point mass, e.g. an onset-pinned case) and never resampled.
+For ``Q = Sigma^-1``, `gibbs_params` forms conditional means
+``P[i,j] = -Q[i,j]/Q[j,j]`` and standard deviations ``sqrt(1/Q[j,j])``.
+Each free coordinate is sampled from its truncated normal conditional;
+coordinates spanning less than ``1e-8`` are fixed. Strongly coupled blocks
+also receive joint Gaussian updates along whitened directions.
 
-Algorithm G (methods report, "Computing the truncated mean"), as implemented.
-
-1. **G1 group.** Families with one role set share ``Sigma``;
-   `ltpred.estimate._group_by_structure` buckets them and
-   `ltpred.estimate._estimate_group` forms ``(P, sd)`` once per group.
-2. **G2 collapse.** `_gibbs_round` integrates out each family's
-   own ``(-inf, inf)`` coordinates (always the genetic rows on the public
-   path; also ``o`` or a relative left unobserved), running families that
-   share an unbounded set together (`_unbounded_patterns`). A family's draws
-   therefore depend only on its bounds and seed, never on the other families
-   in a call, a round or a chunk. The chain runs on the kept block ``y`` with
-   ``(P, sd)`` of its marginal covariance, recomputed per unbounded set. A collapsed
-   output streams ``E[z | y] = W y`` and adds the constant ``Var(z | y)`` to
-   its sum of squares (`_blup_from_keep`), so the reported variance is
-   ``Var(E[z | y]) + Var(z | y)`` (Rao--Blackwell). With nothing kept the
-   prior (mean 0, variance ``Sigma[j, j]``, SE 0) is returned unsampled.
-   `rtmvnorm_gibbs` never collapses.
-3. **G3 initialise.** `_init_chain` starts each coordinate at the median of
-   its *marginal* truncated normal (SD ``sqrt(Sigma[j, j])``): a feasible
-   point of the rectangle. Fixed coordinates stay there.
-4. **G4 sweep.** Free coordinates are redrawn in covariance order by
-   `_gibbs_conditional_draw`, ``x_j = mu_j + sd_j * Phi^-1(U(Phi(a), Phi(b)))``
-   (Kotecha & Djuric 1999), one uniform each, on the survival scale when
-   ``a >= 0``. Where too few survival values remain representable (``|z|``
-   beyond about 38) `_far_right_std_tnorm_quantile` inverts the leading-order
-   Gaussian tail ratio on the log scale (a Rayleigh construction). Strongly
-   coupled free coordinates also receive joint Gaussian conditional moves
-   along whitened eigenvectors of their precision block
-   (`_mixing_directions`). These moves preserve the same truncated law and
-   keep pins fixed. They activate when any conditional-on-pins variance
-   exceeds its coordinate-conditional variance by a factor of 16; ordinary
-   blocks, and the `_gibbs_advance_chain` chains, keep coordinate sweeps.
-5. **G5 stream.** After ``burn_in`` sweeps, each of ``n_sim`` sweeps adds the
-   outputs to running sums and sums of squares; the first
-   ``n_batch * batch_size`` of them also form batch means, of which only the
-   sum and sum of squares are kept. No draw array; strongly coupled blocks
-   additionally store ``O(d**2)`` direction coefficients per active family.
-6. **G6 stop.** `ltpred.estimate._estimate_group` reruns the unconverged
-   families in rounds, pooling those sums, until every requested batch-means
-   SE is ``<= tol`` or ``max_rounds`` is reached; converged families leave
-   the active set.
-   This estimates Monte Carlo precision, not convergence to stationarity;
-   batch means can miss slow modes. Difficult bounds still need independent
-   seeds, longer burn-in/chains and, where available, a quadrature reference.
-
-Seeding. The batched kernels reseed the kernel RNG with ``seeds[f]`` at the
-top of family ``f``'s ``prange`` iteration (``-1``: unseeded), so a family's
-draws do not depend on thread scheduling; seed derivation is in
-`ltpred.estimate._base_seeds`. `_gibbs_advance_chain` (persistent chains for
-`ltpred.fit`) instead draws every uniform from a thread-local
-``numpy.random.Generator`` before entering ``prange``. `rtmvnorm_gibbs`
-reseeds the serial sweep's RNG (see its ``seed``).
+Batched estimation integrates out each family's unbounded coordinates and
+streams Rao--Blackwellised sums and batch means without retaining draws.
+Per-family seeds make results independent of scheduling and chunking.
+Persistent chains used by the fitters draw uniforms from a thread-local
+NumPy generator. See Algorithm G in ``docs/algorithm.md``.
 """
 
 from __future__ import annotations
@@ -101,21 +52,11 @@ _DIRECTIONAL_VARIANCE_RATIO = 16.0
 
 @_jit
 def _far_right_std_tnorm_quantile(a, b, u):
-    """Quantile on ``[a, b]`` with ``a`` so far right that ``Phi(-a)`` underflows.
+    """Sample a far-right truncated-normal quantile without CDF underflow.
 
-    Beyond ``a ~ 38.5`` the survival probability is below the smallest positive
-    double, so *every* quantity on the probability scale is exactly 0 and the
-    ordinary route returns ``+inf`` -- which then poisons the whole sweep with
-    NaN.  Work on the log scale instead, via the leading-order Gaussian tail
-    ratio ``S(a + t) / S(a) ~ exp(-a t - t^2 / 2)`` (it drops the factor
-    ``a / (a + t)``, so the draw is approximate, with error vanishing as ``a``
-    grows).  That inverts in closed form,
-    ``t = -a + sqrt(a^2 - 2 log(1 - u'))``, which is the exponential/Rayleigh
-    tail sampler underlying Devroye's and Robert's rejection schemes.  ``u'``
-    rescales ``u`` by the interval's share of the tail so a finite ``b`` is
-    honoured; the result is clamped to ``[a, b]``.  This mirrors the PA
-    engine's ``_far_right_std_tnorm_moments`` (methods report, Algorithm G,
-    step G4).
+    Uses the log-scale Gaussian tail ratio and a rationalised Rayleigh inverse.
+    ``u`` is rescaled to the interval's tail mass and the result is clamped to
+    ``[a,b]``. The omitted Mills-ratio correction vanishes as ``a`` grows.
     """
     span = b - a
     if span <= 0.0:
@@ -141,21 +82,11 @@ def _far_right_std_tnorm_quantile(a, b, u):
 
 @_jit
 def _std_tnorm_quantile(a, b, u):
-    """Quantile of ``N(0, 1)`` truncated to ``[a, b]``.
+    """Quantile of a standard normal truncated to ``[a,b]``.
 
-    In a positive tail, interpolating between ``Phi(a)`` and ``Phi(b)`` loses
-    the interval when both CDFs round to one.  Work on survival probabilities
-    instead and use normal symmetry, ``isf(q) = -ppf(q)``.  Lower-tail and
-    central intervals are safe on the ordinary CDF scale.  The final clamp only
-    guards the last-bit error of the inverse approximation; it never moves a
-    draw across a truncation boundary.
-
-    Past ``|z| ~ 38`` the survival values reach the subnormal range, where the
-    interpolated probability ``q`` has too few representable values to spread
-    the draws (and past ``~ 38.5`` it underflows to exactly 0, making the
-    inverse return an infinity no clamp can catch; the opposite bound is
-    typically infinite too).  Both cases hand off to
-    `_far_right_std_tnorm_quantile`, mirrored for the left tail.
+    Positive tails use survival probabilities and symmetry; extreme or
+    subnormal tails use `_far_right_std_tnorm_quantile`. The final clamp only
+    removes inverse-approximation roundoff.
     """
     if a >= 0.0:
         sa = _norm_cdf(-a)
@@ -257,23 +188,12 @@ def _validate_covmat(covmat):
 
 
 def gibbs_params(covmat: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
-    """Precompute the sweep's conditional-regression matrix ``P`` and SDs ``sd``.
+    """Precompute conditional-regression coefficients and standard deviations.
 
-    The Gibbs conditionals come from the **precision** matrix ``Q = Sigma^-1``:
-    ``sd[j] = sqrt(1 / Q[j,j])`` (conditional SD) and ``P[i,j] = -Q[i,j] / Q[j,j]``
-    (0 on the diagonal), so ``mu_j = sum_i P[i,j] x_i`` is the conditional mean.
-    This is one ``O(d^3)`` inverse instead of ``d`` size-``(d-1)`` solves
-    (``O(d^4)``) -- a few-fold speed-up that matters for multi-trait / large
-    pedigrees. Computed once and reused across the convergence loop in
-    `ltpred.estimate`. Mathematically identical to the conditional-regression
-    form; ``Sigma`` is strictly PD (see `correct_positive_definite`).
-
-    ``covmat`` must be finite, symmetric to ``1e-10`` relative to its largest
-    absolute entry, and
-    strictly positive-definite (smallest eigenvalue greater than ``1e-12``
-    times the covariance's spectral scale);
-    a merely invertible but indefinite covariance would otherwise silently
-    yield NaN conditional SDs and garbage draws, so it raises ``ValueError``.
+    For precision ``Q = Sigma^-1``, returns ``P[i,j] = -Q[i,j]/Q[j,j]`` with
+    zero diagonal and ``sd[j] = sqrt(1/Q[j,j])``. ``covmat`` must be finite,
+    symmetric and strictly positive definite. One matrix inverse is reused
+    across all coordinates and convergence rounds.
     """
     cov = _validate_covmat(covmat)
     Q = np.linalg.inv(cov)
@@ -681,42 +601,14 @@ def _collapsed_round(P, sd, sd0, cov, unbounded, lowers, uppers, out_idx, n_sim,
 def _gibbs_round(P, sd, sd0, lowers, uppers, out_idx, n_sim, burn_in,
                            batch_size, n_batch, seeds, cov=None, collapse=None,
                            _collapse_cache=None):
-    """Run one round of the batched sampler for same-covariance families.
+    """Run one fresh-chain sampling round and return streamed sufficient sums.
 
-    An internal primitive of `ltpred.estimate`, which validates the arguments
-    (they are not checked here). ``P``/``sd`` are `gibbs_params` of ``cov``
-    and ``sd0 = sqrt(diag(cov))`` sets each chain's start; ``lowers``/
-    ``uppers`` are ``(F, d)`` bounds in ``cov`` row order; ``out_idx`` lists
-    the ``ncols`` coordinates to accumulate. Each family discards ``burn_in``
-    sweeps of a fresh chain, then keeps ``n_sim``.
-
-    Returns ``(total_sum, total_sumsq, bm_sum, bm_sumsq)``, each ``(F, ncols)``.
-    ``total_sum[f, c]`` is the sum of ``N = n_sim`` post-burn-in values (divide
-    by ``N`` for the posterior mean) and ``total_sumsq[f, c]`` the sum of their
-    squares, so the **posterior variance** is
-    ``total_sumsq / N - (total_sum / N)^2``. ``bm_sum`` / ``bm_sumsq`` are the
-    sum and sum of squares of the ``M = n_batch`` batch means of size
-    ``b = batch_size`` (``M * b <= N``), giving the batch-means SE
-    ``se = sqrt(b * (bm_sumsq - bm_sum^2 / M) / (M - 1) / (M * b))``: the
-    denominator counts the batched draws only (R ``batchmeans`` divides by all
-    ``N``). The posterior variance is a property of the TMVN and does not
-    shrink with more draws; the SE is the sampler's own error and does.
-    ``seeds[f]`` seeds family ``f`` (``-1``: unseeded). ``lowers``/``uppers``
-    may be float32.
-
-    When ``collapse`` is true (the default whenever ``cov`` is supplied), each
-    family's own ``(-inf, inf)`` coordinates are integrated out of its sweep
-    (methods report, Algorithm G, step G2); families sharing an unbounded set
-    run in one kernel call. A collapsed output streams ``E[z | y]`` and its
-    sum of squares includes the constant ``Var(z | y)``, so ``var`` is still
-    ``Var(target | C_F)``, while its SE is that of the Rao--Blackwellised
-    mean. ``P``/``sd`` then serve only families with nothing to collapse; the
-    kept block's are recomputed from ``cov``. If every coordinate is
-    collapsed, no sampling happens (sums 0, ``total_sumsq = N * cov[j, j]``).
-    Pass ``collapse=False`` to force the full chain. A caller looping rounds
-    on one ``cov`` (the convergence loop) may pass a dict as
-    ``_collapse_cache`` so those kept-block factors are computed once instead
-    of per round; the sums are identical.
+    Returns ``(sum, sumsq, batch_mean_sum, batch_mean_sumsq)`` for requested
+    coordinates. When ``cov`` is supplied, each family's unbounded coordinates
+    are collapsed analytically; their output streams ``E[z|y]`` and includes
+    constant ``Var(z|y)`` in its second moment. ``collapse=False`` forces full
+    chains. ``_collapse_cache`` reuses invariant factors across rounds without
+    changing results. This internal primitive assumes validated arguments.
     """
     out_idx = np.asarray(out_idx, dtype=np.int64)
     F = int(np.asarray(lowers).shape[0])
@@ -900,56 +792,33 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
                    burn_in: int = 1000, seed: int | None = None,
                    params: tuple[np.ndarray, np.ndarray] | None = None
                    ) -> np.ndarray:
-    """Draw truncated-MVN samples of the coordinates listed in ``out``.
+    """Draw truncated-MVN samples of the coordinates in ``out``.
 
     Parameters
     ----------
     covmat : (d, d) array
-        Finite, symmetric, strictly positive-definite covariance of the
-        (untruncated) multivariate normal; singular or indefinite input raises
-        `ValueError` (see `correct_positive_definite`).
+        Finite, symmetric, strictly positive-definite covariance.
     lower, upper : float or (d,) array
-        Per-coordinate truncation bounds; scalars are broadcast. Every ``upper``
-        must be greater than or equal to its corresponding ``lower``; reversed
-        bounds raise `ValueError`.
+        Truncation bounds; scalars broadcast. Bounds must be ordered and not NaN.
     fixed : (d,) bool array, optional
-        Coordinates to hold constant instead of resampling. Defaults to
-        ``upper - lower < 1e-8`` (a pinned point mass, e.g. an age-of-onset case).
-        If a caller explicitly fixes a non-point interval, that coordinate starts
-        at its marginal truncated median and remains there.
+        Coordinates to hold at their marginal truncated medians. Defaults to
+        intervals narrower than ``1e-8``.
     out : sequence of int
-        Zero-based coordinate indices to return (0 = genetic, 1 = proband full
-        liability in the family-model ordering). Indices must be integers in
-        ``[0, d)``. Duplicates are dropped and the returned order is sorted.
+        Coordinate indices; duplicates are removed and columns sorted.
     n_sim, burn_in : int
-        Post-burn-in draws to keep (a positive integer; it is not validated)
-        and sweeps to discard first. ``burn_in`` must be a non-boolean
-        non-negative integer.
+        Retained draws and initial sweeps to discard.
     seed : int, optional
-        Non-boolean integer in ``[0, 2**32 - 1]`` for reproducibility, or ``None``.
-        Every call reseeds the RNG the serial sweep draws from: the calling
-        thread's Numba RNG when Numba is installed, otherwise NumPy's legacy
-        global RNG, so in the pure-Python fallback concurrent seeded calls from
-        different threads can interfere. ``seed=None`` draws fresh entropy for
-        that reseed -- without it, an unseeded call following a seeded one
-        would replay the stream the seeded call left behind, making
-        ``seed=None`` results deterministic after any seeded call. The reseed
-        also resets the calling thread's persistent-chain stream used by
-        `_gibbs_advance_chain`. With Numba, the high-level estimators seed each family
-        inside the parallel kernel and are safe for concurrent seeded use;
-        without it they share the global-RNG caveat.
+        Uint32 seed or ``None`` for fresh entropy. Each call reseeds this
+        thread's serial sampler and persistent-chain stream. The pure-Python
+        fallback shares NumPy's global RNG and is not safe for concurrent
+        seeded calls.
     params : (P, sd), optional
-        Precomputed `gibbs_params` output; recomputed from ``covmat`` when
-        omitted. The supplied ``covmat`` is still validated because it defines
-        the marginal initialisation; ``params`` must have been computed from
-        that same matrix -- a pair whose shapes do not match ``covmat`` raises
-        `ValueError` (the jitted sweep would otherwise index past the bounds
-        and crash the process).
+        Precomputed `gibbs_params` for this same covariance; shapes are checked.
 
     Returns
     -------
     (n_sim, len(set(out))) ndarray
-        Samples, columns in the sorted order of ``out``.
+        Retained draws. The high-level estimators return summaries instead.
     """
     cov = (np.ascontiguousarray(covmat, dtype=np.float64)
            if params is None else _validate_covmat(covmat))

@@ -1,38 +1,12 @@
-"""Independent-SNP marginal-association NCP: case/control vs LT-FH vs oracle.
+"""Compare case/control, LT-FH and oracle marginal-SNP association.
 
-The central classic-LT-FH claim is that regressing genotypes on a posterior
-genetic-liability phenotype conditioned on family history recovers association
-power that the proband's raw case/control label discards. This benchmark has no
-age/sex/cohort personalisation and no ADuLT arm; it makes the LT-FH claim concrete
-on simulated genotypes:
-
-  1. simulate causal-SNP genotypes and build each proband's genetic liability from
-     them (variance ``h2``);
-  2. draw the relatives' liabilities conditional on that value and threshold them
-     into a family history;
-  3. estimate the proband's classic LT-FH liability with Gibbs and PA;
-  4. run the lightweight marginal score scan on four phenotypes --
-     case/control, LT-FH (Gibbs), LT-FH (PA), and true genetic liability -- and
-     score each.
-
-Reported per phenotype: mean chi-square at causal SNPs (whose noncentral part,
-mean chi-square minus 1, is proportional to effective sample size), power at
-genome-wide (p<5e-8) and suggestive (p<1e-4) thresholds, and lambda_GC at null
-SNPs (calibration -- should stay ~1). The two LT-FH inference
-engines should beat case/control and match each other, below the oracle ceiling, with no
-inflation at nulls.
-
-Genotypes are independent SNPs by default (LD is not needed for the NCP
-comparison, which turns on each phenotype's correlation to the true genetic
-value). For real LD, pass HAPNEST-generated genotypes via ``--plink PREFIX``.
-In that mode, variants above ``--ld-null-r2`` with any causal SNP are excluded
-from the genomic-control/QQ set, because causal LD proxies are associated rather
-than null (see ``hapnest/README.md``). The association helper remains marginal;
-neither mode is a related-sample mixed-model GWAS.
-
-    python benchmarks/bench_gwas_power.py
-    python benchmarks/bench_gwas_power.py --plink data/output/synthetic_chr-22 --n-causal 40
-Writes bench_gwas_power.csv.
+Simulated causal genotypes determine each proband's genetic liability;
+relatives are drawn conditional on it. Gibbs and PA LT-FH scores, case/control
+and the oracle enter the same marginal scan. Report causal mean chi-square
+(NCP = mean chi-square - 1), power at two thresholds and null lambda_GC.
+Independent SNPs are the default. `--plink` supplies HAPNEST real-LD genotypes
+with causal proxies excluded from the null set; neither mode is a
+related-sample mixed-model GWAS. Writes `bench_gwas_power.csv`.
 """
 
 import os

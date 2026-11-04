@@ -1,31 +1,10 @@
-"""Pearson-Aitken robustness: where does the deterministic approximation strain?
+"""Stress PA on large, rare and densely affected pedigrees.
 
-Pearson-Aitken folds relatives into the proband's liability one at a time, updating
-moments by the Gaussian selection formula. That is *exact* for a single truncation
-but an **approximation** for several at once, so two things are worth measuring:
-
-  (a) **Agreement with the Gibbs posterior mean on stressful pedigrees** — large
-      (many relatives), rare (very low prevalence), and densely-affected (many case
-      relatives) families, the regimes where a moment approximation could drift.
-      Metric: corr(PA, Gibbs) and each method's corr with the true `g`.
-  (b) **Fold-in ordering sensitivity** — because the sequential update is
-      approximate, the estimate can depend on the *order* relatives are folded in.
-      Re-running PA under random orderings, this reports the order-induced spread of
-      the per-proband estimate (absolute, and relative to the between-proband SD),
-      versus pedigree size.
-
-Truth `g` is known from the simulation. Expectation: PA tracks Gibbs to corr ≳ 0.99
-across all regimes, and the ordering spread stays small across the tested pedigree
-sizes. This script does not compare that spread with Gibbs Monte-Carlo noise.
-
-Each grid cell is run under ``--reps`` independent seeds (default 3); the CSV
-carries one long-format row per cell per seed, and the console/plot aggregate
-to the across-seed mean ± SE.
-
-    python benchmarks/bench_pa_robustness.py
-    python benchmarks/bench_pa_robustness.py --n-fam 3000 --orders 12
-    python benchmarks/bench_pa_robustness.py --reps 5 --seed 7
-Writes bench_pa_robustness.csv.
+Measure PA–Gibbs correlation and each engine's correlation with true g, then
+rerun PA under random fold orders and report per-proband spread absolute and
+relative to between-proband SD. The ordering spread is not compared with
+Gibbs Monte-Carlo noise. Independent seeds produce long-format rows and
+across-seed mean/SE summaries. Writes `bench_pa_robustness.csv`.
 """
 
 import os

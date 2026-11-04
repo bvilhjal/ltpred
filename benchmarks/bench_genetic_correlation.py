@@ -1,29 +1,10 @@
-"""Genetic-correlation inference: does `fit_genetic_correlation` recover r_g?
+"""Measure genetic-correlation recovery and factor diagnostics.
 
-`fit_genetic_correlation` estimates the genetic correlation between traits from
-family case/control data by a cross-trait Haseman–Elston regression (the
-multi-trait analogue of `fit_heritability`). As for the single-trait fits, the
-properties that matter are **bias** and **across-dataset sampling variability**,
-so this benchmark fits many independent simulated two-trait cohorts and reads the
-spread of the fitted r_g as its sampling distribution. It reports:
-
-  (a) **bias & precision vs true r_g** — including the **null (r_g = 0 with a
-      non-zero phenotypic correlation)**, which must not manufacture a genetic
-      correlation;
-  (b) **precision vs #families** — the across-replicate SD of r_g as N grows;
-  (c) **common-factor structure of r_g** (P = 5 traits, absorbed from
-      `bench_genetic_factor.py`) — the full pipeline simulate →
-      `fit_genetic_correlation` → `fit_genetic_factor` (a Genomic-SEM-style
-      model `r_g ≈ Λ Λ' + Ψ`), reporting planted single-factor loading
-      recovery and the `srmr` contrast of 1- vs 2-factor fits when the truth
-      is two independent genetic factors (a planted diagnostic, not a
-      calibrated factor-number test).
-
-Ground truth is the simulator's genetic-correlation matrix / factor loadings.
-
-    python benchmarks/bench_genetic_correlation.py
-    python benchmarks/bench_genetic_correlation.py --reps 40 --n-fam 4000
-Writes bench_genetic_correlation.csv.
+Independent two-trait cohorts report r_g bias and sampling SD, including
+r_g=0 with nonzero phenotypic correlation, plus scaling with family count.
+A five-trait panel checks planted one-factor loadings and the 1- versus
+2-factor SRMR contrast when two factors are true; that contrast is not a
+calibrated factor-number test. Writes `bench_genetic_correlation.csv`.
 """
 
 import os
@@ -115,14 +96,12 @@ def main():
     # (a) bias & precision vs true r_g (incl null) ------------------------------
     print("== (a) bias & precision vs true r_g (n_fam=%d, h2=%s, r_p=%.1f) =="
           % (args.n_fam, H2, RP_OFFDIAG))
-    panel_a = []
     for rg in args.rg:
         t0 = time.time()
         fitted = fit_replicates(rg, args.n_fam, args.prev, args.reps, args.seed,
                                 args.n_iter, args.burn_in)
         bias = float(fitted.mean() - rg)
         sd = float(fitted.std(ddof=1))
-        panel_a.append(dict(rg=rg, bias=bias, sd=sd))
         rows.append(dict(panel="bias_precision", rg=rg, n_fam=args.n_fam,
                          bias=bias, sd=sd, reps=args.reps))
         tag = " (null)" if rg == 0.0 else ""
@@ -131,12 +110,10 @@ def main():
 
     # (b) precision vs #families (r_g=0.5) --------------------------------------
     print("== (b) precision (SD of r_g) vs #families (r_g=0.5) ==")
-    panel_b = []
     for n in args.sizes:
         fitted = fit_replicates(0.5, n, args.prev, args.reps_scaling, args.seed + 1000,
                                 args.n_iter, args.burn_in)
         sd = float(fitted.std(ddof=1))
-        panel_b.append(dict(n_fam=n, sd=sd, reps=args.reps_scaling))
         rows.append(dict(panel="scaling", rg=0.5, n_fam=n,
                          bias=float(fitted.mean() - 0.5), sd=sd, reps=args.reps_scaling))
         print(f"  n_fam={n:5d} | SD={sd:.3f}")

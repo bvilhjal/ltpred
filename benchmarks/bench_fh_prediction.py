@@ -1,57 +1,21 @@
-"""Family-history and family-free personalised liability across registry settings.
+"""Family-history and ADuLT accuracy across registry settings.
 
-The GWAS *phenotype* is the posterior-mean genetic liability
-`E[g | own status + family history (+ age of onset + birth cohort)]`, compared with
-the plain **case/control** label by correlation with known true `g`, using
-**population** cumulative-incidence (CIP)
-thresholds so it stays valid under case ascertainment (Pedersen 2022/2023).
+Compare case/control, relative counts, classic LT-FH and personalised family
+scores with known genetic truth. The generative model uses age- and
+cohort-specific CIPs, generation-consistent ages and competing death. An
+observed case has onset before follow-up ends; everyone else is a censored
+control at their own follow-up age.
 
-Age- and cohort-consistent generative model. A liability `ℓ` is fixed; the threshold
-`T(age; birth_year) = Φ⁻¹(1 − CIP(age; birth_year))` falls with age as risk accrues
-and shifts with **birth cohort** (secular change in prevalence). So each person has
-an onset age `a* = T⁻¹(ℓ)` under *their own cohort's* CIP. **Death is a competing
-risk**: each relative has an age at death `D` (other-cause mortality), and is observed
-only up to `c = min(D, age now)`; the proband is a living participant. **Observed
-case** iff `a* ≤ c` (pinned at `T(a*) ≈ ℓ`), else **censored control** at `(−∞, T(c))`
-— a relative who dies disease-free is a control censored at their death age, not a
-phantom centenarian. `CIP(age; by) = K(by) / (1 + exp((mid − age) · slope))`, with the
-cohort lifetime prevalence `K(by) = K · R^((by − 1965)/30)` (a secular ratio `R` per
-30 years). Ages are generationally consistent (proband 40–70 born ≈1950–1980, parents
-≈29–31 y older, grandparents ≈56–58 y); with mortality, grandparents are observed to
-death (~80, ~98 % deceased) with their correct ≈1908 birth cohort.
+Cohort-aware thresholds use each person's birth-cohort CIP; the single-K
+ablation uses one 1965 reference prevalence for everyone. Panels (a)–(c) use
+family inference (PA or Gibbs); panel (d) uses the closed-form family-free
+ADuLT calculation.
 
-Two threshold policies are compared:
-  * **cohort-aware** — the personalised threshold
-    `Tᵢ = Φ⁻¹(1 − K(ageᵢ ; birth_yearᵢ))`, each person anchored to *their own* birth
-    cohort's lifetime prevalence `K(by) = K·R^((by−1965)/30)`;
-  * **single-K** — the classical-LTM / original-LT-FH baseline: **one** lifetime
-    prevalence `K` (the 1965 reference) for *everyone*, i.e. the same CIP anchor
-    regardless of birth cohort (cohort-blind; sex is not modelled either).
-They coincide when there is no secular trend (`R=1`). In pedigree panels (a)–(c),
-the personalised model includes relatives and is an LT-FH++ cohort component.
-Panel (d) uses only each index case and is therefore ADuLT.
-
-Predictors in panels (a)–(c): `cc` (own case/control), `count` (# observed-case
-relatives), `LT-FH` (binary, single `K`), `FH + age/cohort CIP` (personalised
-family bounds), and its cohort-blind age-dependent ablation. Panel (d) compares
-cohort-aware ADuLT with the corresponding cohort-blind ADuLT ablation.
-Panels (a)–(c) use the selected PA or Gibbs inference engine; panel (d) is a
-family-free closed-form calculation and does not run either inference engine.
-
-Sweeps: (a) **ascertainment** (family-history vs age-of-onset gains); (b)
-**heritability** (accuracy scales with h²); (c) **secular prevalence trend R** —
-cohort-aware vs single-K thresholds. The birth-cohort correction helps **both**
-calibration and ranking: ignoring the trend biases the liability estimate (panel (c)
-reports this bias, up to −0.07), *and* it loses ranking/power whenever cases span a
-range of birth cohorts — two cases with the same age of onset but different cohorts
-have different true liabilities (the earlier-born, lower-prevalence one is more
-extreme), which a single-K analysis collapses. On this pedigree the ranking gain is
-small (the high-weight proband is a living participant spanning ~1950–1980, and the
-wide-cohort grandparents are low-relatedness controls). Panel (d) isolates that
-ranking gain across widening case-cohort spans; at the default R=3 and ±55 years,
-the current replicated result is about 0.51 (cohort-aware) vs 0.40 (single-K), or ~1.66× in
-squared-correlation terms. The
-CIP shape (`--mid`, `--slope`) is configurable; GWAS λ_GC is not tested here.
+Sweeps cover ascertainment, heritability and secular prevalence trend. The
+cohort contrast measures both calibration and ranking: the same onset age can
+imply different liabilities in different cohorts. Panel (d) widens the case-
+cohort span to isolate that effect. CIP shape is configurable; GWAS λ_GC is
+outside this benchmark's scope. Numerical results live in RESULTS.md.
 
 Panel (e) is the onset-encoding ablation (formerly `bench_age_onset.py`): the
 SAME full-follow-up families — no mortality, no cohort trend, so it stays a

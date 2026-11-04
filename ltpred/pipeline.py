@@ -1,46 +1,16 @@
-"""Supported population-register scoring from trio records and empirical CIPs.
+"""Population-register scoring from trio records and empirical CIPs.
 
-The low-level pieces live in `ltpred.pedigree`, `ltpred.thresholds` and
-`ltpred.estimate`; this module is the glue between them (methods report,
-"Implementation"). The driver is intentionally narrow: additive-only,
-pinned-onset LT-FH++ bounds and deterministic Pearson--Aitken (PA). Interval
-cases, C/M kernels and the PA-FGRS mixture use the lower-level APIs.
+For each proband the driver extracts relatives plus ancestral closure, forms
+the GWAS or calendar-censored prediction observation set, converts records to
+pinned-onset CIP bounds and scores with deterministic PA. Closure-only rows
+are structural and uninformative unless explicitly requested.
 
-Algorithm R (`estimate_liabilities`), in code order:
-
-* R1. Validate inputs and each (stratum) CIP curve, once per call.
-* R2. Build the parent graph and rank it topologically (a whole-graph cycle
-  check). Count unresolved parent references: raise if none resolves, warn
-  above 50% of records. Under ``"prediction"`` classify each proband at
-  ``index_time`` (``proband_state``) and warn on prevalent cases.
-* R3. Per proband, extract the ``max_degree`` pedigree with its ancestral
-  closure (`ltpred.pedigree.extract_pedigree`); ``m`` members.
-* R4. Observation set. ``"gwas"``: every member's record as given.
-  ``"prediction"``: member ``j`` is censored at their own attained age
-  ``c_j = index_time - birth_time[j]``; ``c_j <= 0`` is uninformative, a
-  record ending after the landmark becomes a control at ``c_j``, and the
-  proband's row is uninformative. Closure-only rows are uninformative
-  unless ``condition_closure``.
-* R5. Pinned-onset bounds from each member's (stratum) CIP; computed once
-  for the whole population under ``"gwas"``, per proband otherwise.
-* R6. Relationships. If no PD repair can occur (a conservative check on
-  ``h2`` and ``m``), keep only the target and the informative
-  rows, in pedigree order; their ``A`` block comes from a dense fill when
-  ``m <= 1500`` and they request more than ``0.03 m**2`` pairs, else from
-  selected-pair recursion (Algorithm K). Otherwise use the full dense ``A``
-  and all rows.
-* R7. Score by `ltpred.estimate.estimate_liability_from_kinship` (PA,
-  target 0, ``A`` certified PSD so it is not re-validated): standardized
-  covariance, one `ltpred.covariance.correct_positive_definite` check, PA.
-  A target with no informative relatives, ``A_tt = 1``, unpinned bounds and
-  ``h2`` inside (0, 1) takes the bit-identical scalar ADuLT moments instead.
-* R8. Record ``n_relatives``, ``n_conditioned``, ``n_closure_only`` and
-  ``degree_max``.
-
-Dropping unbounded rows in R6 is exact: Gaussian marginalization selects a
-principal block and PA skips such rows. Cost per proband is linear in the
-extracted pedigree plus the ``A`` route: O(m**2) dense, or one evaluation per
-uncached ancestor pair.
+When a conservative eigenvalue bound proves that no PD repair is needed,
+unbounded rows are marginalised and the repair check is skipped. Required
+relationships come from a dense tabular fill or bounded selected-pair
+recursion; both are exact. Boundary cases retain the full pedigree and legacy
+repair. Outputs include observation counts and unresolved-parent diagnostics.
+See Algorithm R in ``docs/algorithm.md``.
 """
 from __future__ import annotations
 
@@ -54,7 +24,8 @@ from numpy.typing import ArrayLike
 
 from ._validation import validate_binary
 from ._selected_kinship import _SelectedKinship, _covariance_reduction_is_safe
-from .covariance import kinship_from_pedigree, _kinship_A, _PSD_CERTIFIED
+from .covariance import (kinship_from_pedigree, _kinship_A,
+                         _PSD_CERTIFIED, _PD_CERTIFIED)
 from .estimate import estimate_liability_from_kinship
 from .pedigree import build_parent_graph, extract_pedigree
 from .thresholds import _cip_bounds, _validate_cip_curve
@@ -80,25 +51,13 @@ _DENSE_KINSHIP_MIN_PAIR_FRACTION = 0.03
 
 @dataclass
 class PopulationScores(_TableExport):
-    """Per-proband register-pipeline output, aligned to ``probands``.
+    """Aligned register scores, posterior variances and cohort diagnostics.
 
-    ``est`` is the Pearson--Aitken approximation to the posterior mean genetic
-    liability and ``var`` its posterior-variance approximation. ``n_relatives``
-    counts structural non-proband members reached within ``max_degree``;
-    ``n_conditioned`` counts informative diagnosis bounds that actually enter
-    the observation set (including the proband under ``use="gwas"``);
-    ``n_closure_only`` counts ancestors added solely to preserve exact kinship;
-    and ``degree_max`` is the largest non-closure degree present.
-
-    ``frac_records_with_unresolved_parents`` is the fraction of population records with at
-    least one non-null parent reference that matched no id; a high value means
-    a register boundary (parents born before registration started) or a broken
-    id join. ``proband_state`` is set under ``use="prediction"`` only (``None``
-    under ``use="gwas"``) and classifies each proband at their landmark:
-    ``"prevalent_case"`` (diagnosed at or before the landmark),
-    ``"exited_before_index"`` (follow-up ended strictly before it), or
-    ``"disease_free_and_followed"``. Only the last belongs in a prospective
-    incident-risk evaluation.
+    Counts distinguish structural relatives, conditioned observations and
+    closure-only ancestors. ``proband_state`` is prediction-only and identifies
+    prevalent cases and follow-up exits at the landmark.
+    ``frac_records_with_unresolved_parents`` helps distinguish a register
+    boundary from a broken parent-id join.
     """
 
     probands: list
@@ -199,64 +158,25 @@ def estimate_liabilities(
     cip_by_stratum: Mapping | None = None,
     kinship_cache_size: int = 100_000,
 ) -> PopulationScores:
-    """Estimate genetic liabilities from population trio and diagnosis records.
+    """Score probands from population parent pointers and diagnosis records.
 
-    ``ids``/``father``/``mother`` are one population parent-pointer table.
-    ``status`` and ``age`` are aligned to ``ids``: ``age`` is attained age at
-    diagnosis for a case and attained age at last follow-up/exit for a control,
-    finite and non-negative. ``probands`` are unique ids present in ``ids``.
-    ``max_degree`` (default 3, at least 1; `ltpred.pedigree.extract_pedigree`
-    defaults to 2) sets how far relatives are discovered.
-    Supply either one empirical population CIP (``cip_ages``, ``cip_values``,
-    optional ``k_pop``) or per-person ``strata`` plus ``cip_by_stratum``, a mapping from each label
-    to ``(cip_ages, cip_values, k_pop)``.
+    ``status`` and ``age`` align to ``ids``; age is onset for cases and last
+    follow-up for controls. Supply liability-scale ``h2``, unique ``probands``,
+    ``max_degree`` and either one ``(cip_ages, cip_values, k_pop)`` curve or
+    ``strata`` with ``cip_by_stratum``.
 
-    ``use`` is required because it changes the observation set. ``"gwas"``
-    includes the proband's own diagnosis. ``"prediction"`` leaves it
-    uninformative and requires ``birth_time`` (one value per ``id``) plus
-    ``index_time`` (one value per proband) on a common numeric calendar scale
-    whose unit matches ``age``. For member ``j`` at proband index time ``t``,
-    the censoring age is ``t - birth_time[j]``. A diagnosis or exit after ``t``
-    becomes a control censored at that member-specific age; a member not yet
-    born is uninformative. Thus relatives from different generations are never
-    assigned the proband's attained age.
+    ``use="gwas"`` includes the proband's diagnosis. ``use="prediction"``
+    leaves it uninformative and requires aligned ``birth_time`` plus one
+    ``index_time`` per proband. Every relative is censored at their own age
+    ``index_time - birth_time``; future records become controls and people not
+    yet born are uninformative. Ancestral closure is also uninformative unless
+    ``condition_closure=True``.
 
-    Pedigree ancestors added only for exact kinship are uninformative by
-    default, so ``max_degree`` bounds the diagnosis observations even though
-    relationships retain their full ancestral contribution. Set
-    ``condition_closure=True`` only to deliberately condition on those extra
-    diagnoses. Inference is pinned-onset LT-FH++ with deterministic
-    Pearson--Aitken; use the lower-level APIs for interval/mixture models.
-
-    ``h2``: Liability-scale additive heritability for this disease, in
-    ``(0, 1]``. Required: there is no disease-independent default, for the
-    same reason the threshold builders take no default prevalence. See
-    the data-preparation guide, "Getting heritability on the liability scale", for choosing between pedigree/twin and
-    SNP estimates and for the sensitivity analysis.
-
-    Only target and informative observation relationships are used. They
-    come from a dense matrix over the extracted pedigree when it has at most
-    1,500 members and more than about a quarter of them are selected,
-    otherwise from selected pair recursion, where ``kinship_cache_size``
-    bounds the number of ancestor-pair results reused across probands (zero
-    disables memoization entirely — it saves no meaningful memory, since a
-    full default cache holds about 30 MB, and makes deep pedigrees orders of
-    magnitude slower, so it warns). The parent graph is checked for cycles
-    once. Near covariance singularities the full extracted matrix
-    is retained to preserve the existing positive-definite correction.
-
-    Two table/proband boundary conditions are reported rather than silently
-    absorbed. A non-null parent reference that matches no id becomes a founder
-    (a register boundary: parents born before registration started), and the
-    fraction of records with at least one such reference is returned as
-    ``PopulationScores.frac_records_with_unresolved_parents``; when **no** non-null
-    reference resolves the table cannot be a boundary effect -- an id-format
-    or join mismatch is the likely cause -- and the call raises, while an
-    unresolved share above 50% warns. Under ``use="prediction"`` each proband
-    is classified at their landmark into
-    ``PopulationScores.proband_state`` and any ``"prevalent_case"`` warns;
-    neither diagnostic alters the scores, and neither is a substitute for
-    constructing an eligible incident-risk cohort.
+    ``kinship_cache_size`` bounds selected-pair reuse. Zero disables caching,
+    warns and is usually much slower without meaningful memory savings.
+    Unresolved-parent and prevalent-proband diagnostics are returned/warned;
+    they do not replace cohort eligibility checks. Inference is pinned-onset
+    LT-FH++ with PA; use lower-level APIs for other observation models.
     """
     ids = list(ids)
     father = list(father)
@@ -483,7 +403,8 @@ def estimate_liabilities(
         lower[uninformative] = -np.inf
         upper[uninformative] = np.inf
 
-        if _covariance_reduction_is_safe(h2, m):
+        reduce_covariance = _covariance_reduction_is_safe(h2, m)
+        if reduce_covariance:
             selected = np.flatnonzero(~uninformative)
             if uninformative[0]:
                 selected = np.concatenate(([0], selected))
@@ -508,7 +429,9 @@ def estimate_liabilities(
             inference_lower, inference_upper = lower, upper
         estimate, _, posterior_var = estimate_liability_from_kinship(
             relationship, inference_lower[None, :], inference_upper[None, :], h2=h2,
-            target=0, method="pearson-aitken", _certified_psd=_PSD_CERTIFIED)
+            target=0, method="pearson-aitken",
+            _certified_psd=(_PD_CERTIFIED if reduce_covariance
+                            else _PSD_CERTIFIED))
         est[k] = estimate[0]
         var[k] = posterior_var[0]
 

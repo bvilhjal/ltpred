@@ -1,20 +1,10 @@
-"""Input containers: a proband, their relatives, and each one's liability bounds.
+"""Family input records and flat-column conversion.
 
-The family-history models condition on a proband plus zero or more relatives,
-each with a ``role`` (``o`` = the proband's own status, ``m``/``f``/``s1``/... =
-relatives) and a liability interval ``(lower, upper)``. A `Member` holds
-one such observed-person record; a `Family` groups records for one proband. The
-genetic-liability row ``g`` is added automatically by the estimator.
-
-Model identity depends on both the bounds and the rows supplied: personalised
-age/sex/cohort bounds with relatives are LT-FH++; the same bounds with only role
-``o`` are family-free ADuLT. Classic single-prevalence bounds with relatives are
-LT-FH.
-
-For a single trait ``lower``/``upper`` are scalars. For the multi-trait model they
-are length-``n_pheno`` sequences (one interval per phenotype, in ``phen_names``
-order). `families_from_columns` builds the list from flat, tibble-style
-columns -- the shape the R package's ``.tbl`` input uses.
+A `Member` stores one person's role and liability bounds; a `Family` groups
+members for one proband. Role ``o`` is the proband's own observation and ``g``
+is added by the estimator. Bounds are scalar for one trait or one sequence per
+trait. Personalised bounds with relatives define LT-FH++; the proband-only
+construction defines ADuLT.
 """
 
 from __future__ import annotations
@@ -31,25 +21,13 @@ __all__ = ["Member", "Family", "families_from_columns"]
 
 @dataclass
 class Member:
-    """One family member's role and liability truncation bounds.
+    """One member's role, liability bounds and optional identifiers.
 
-    ``lower``/``upper`` are scalars for a single trait or length-``n_pheno``
-    sequences for the multi-trait model. They may encode one-sided case/control
-    truncation, an onset-pinned case (``lower == upper``), or an uninformative
-    interval. ``pid`` is an optional personal identifier.
-
-    ``K_i``/``K_pop`` are only used by the Pearson-Aitken estimator's censored
-    -control mixture: ``K_i`` is the individual's (age/sex-stratified) cumulative
-    incidence and ``K_pop`` the lifetime population prevalence. Supply them only
-    for age-censored controls (finite ``upper``, not a pin), with
-    ``0 <= K_i <= K_pop < 1``, ``K_pop > 0`` and ``lower < Phi^-1(1 - K_pop)``;
-    leave them ``None`` (NaN in array inputs) on cases, pins and unbounded rows.
-    With ``use_mixture=True`` a pair on such a row raises and at least one valid
-    pair is required; otherwise they are ignored.
-
-    ``aod`` is the member's age at diagnosis (cases) or age at last follow-up
-    (controls) -- only used by the onset-age-structured genetic-correlation fit
-    (``research.advanced_fitting.fit_genetic_correlation_decay``)."""
+    Bounds may describe cases, controls, finite onset pins or uninformative
+    intervals. ``K_i``/``K_pop`` belong only on age-censored controls for the
+    PA mixture, with ``0 <= K_i <= K_pop < 1`` and ``K_pop > 0``; use ``None``
+    (NaN in arrays) elsewhere. ``aod`` is used only by research onset-age fits.
+    """
     role: str
     lower: object
     upper: object
@@ -99,28 +77,16 @@ def _is_missing_parent(pid, index):
 
 
 def _pid_key(pid):
-    """Hashable identity for a member ``pid``, or ``None`` if it is missing.
-
-    Missing values cannot witness overlap. Numpy scalars are unwrapped so
-    ``np.int64(1)`` and ``1`` compare equal. Unhashable objects fall back to
-    ``str`` rather than crashing the check.
-    """
-    if isinstance(pid, str):
-        key = pid.strip()
-        return None if key.lower() in _MISSING_IDS else key
-    if _is_missing_id(pid):
-        return None
+    """Return a hashable normalised pid, or ``None`` when it is missing."""
     if isinstance(pid, np.generic):
         pid = pid.item()
-        if _is_missing_id(pid):
-            return None
     if isinstance(pid, bytes):
         pid = pid.decode("utf-8", "replace")
     if isinstance(pid, str):
         pid = pid.strip()
-        if _is_missing_id(pid):
-            return None
-        return pid
+        return None if pid.lower() in _MISSING_IDS else pid
+    if _is_missing_id(pid):
+        return None
     try:
         hash(pid)
     except TypeError:
@@ -161,22 +127,13 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
                           K_i: ArrayLike | None = None,
                           K_pop: ArrayLike | None = None,
                           aod: ArrayLike | None = None) -> list[Family]:
-    """Group flat, column-oriented threshold data into a list of families.
+    """Group aligned flat columns into families in first-appearance order.
 
-    Mirrors the R ``.tbl`` input (columns ``fam_id``, ``role``, ``lower``,
-    ``upper`` and optionally ``pid``). Records sharing a ``fam_id`` become one
-    `Family`; family order follows first appearance. For the multi-trait
-    model pass ``lower``/``upper`` as 2-D (rows x phenotypes). ``K_i``/``K_pop`` are
-    optional per-row columns for the Pearson-Aitken censored-control mixture
-    (``NaN`` on rows without a pair; see `Member` for the rules).
-    ``pid`` supplies personal join keys and overlap checks; retain the proband
-    as role ``o`` with its pid even when its bounds are uninformative. ``aod``
-    records diagnosis/last-follow-up age for the research age-decay fitter.
-    Missing ``fam_id`` values are rejected: non-finite numbers, ``None`` and
-    textual markers such as ``""``, ``"NA"`` or ``"null"`` (case-insensitive)
-    cannot group records and would otherwise fragment or merge families
-    silently. A sequence mixing string and non-string ids (``1`` and ``"1"``)
-    also raises.
+    Required columns are ``fam_id``, ``role``, ``lower`` and ``upper``;
+    optional ``pid``, ``K_i``, ``K_pop`` and ``aod`` align by row. Multi-trait
+    bounds have one row per member and one column per trait. Missing family ids
+    and mixed string/non-string ids raise. Retain role ``o`` and its pid even
+    when its bounds are uninformative.
     """
     raw_fam_id = fam_id
     fam_id = np.asarray(fam_id)

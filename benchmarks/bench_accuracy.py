@@ -1,32 +1,11 @@
-"""Accuracy of classic LT-FH genetic liability: Gibbs vs Pearson-Aitken.
+"""Compare Gibbs and PA accuracy on classic LT-FH simulations.
 
-Inspired by the LT-FH++ and PA-FGRS papers, which score a genetic-liability
-estimator by how well it recovers the *true* genetic value. For a grid of
-heritability x prevalence x family structure this simulates families under the
-liability-threshold model (so the true genetic liability is known), estimates it
-with both back-ends, and reports:
-
-  * corr(estimate, true g)          -- the headline accuracy
-  * slope of true_g ~ estimate      -- calibration (1.0 = well-calibrated posterior mean)
-  * RMSE(estimate, true g)
-  * squared-correlation effective-N proxy =
-    (corr / corr_status)^2 vs the raw case/control label
-
-The two methods should track each other closely (PA is a fast deterministic
-approximation to the Gibbs posterior mean). Absolute accuracy rises with h2,
-prevalence, and informative relatives; the *relative* squared-correlation
-effective-N proxy over a case/control label is largest at low prevalence.
-
-Each cell is replicated on ``--reps`` independent seeds (default 5); replicate
-``r`` uses ``--seed + r`` for both the cohort simulation and the Gibbs sampler.
-Reported values are across-seed means with standard errors (sd/sqrt(reps)); each
-cell has 1,500 families and 25,000 Gibbs draws by default.
-
-    python benchmarks/bench_accuracy.py                 # default grid, 5 seeds
-    python benchmarks/bench_accuracy.py --n-fam 3000 --reps 3
-Writes bench_accuracy.csv. Metric columns are
-across-seed means with matching ``se_`` columns; ``t_gibbs``/``t_pa`` are mean
-seconds per replicate.
+Sweep heritability, prevalence and family structure. Each cell uses independent
+seeds and reports across-seed means/SEs for correlation with true g,
+calibration slope, RMSE, squared-correlation effective-N proxy, PA–Gibbs
+agreement and runtime. The effective-N proxy is relative to the case/control
+label, not the causal-SNP NCP ratio used by the GWAS benchmark. Writes
+`bench_accuracy.csv`.
 """
 
 import os

@@ -1,28 +1,9 @@
-"""Multi-component variance-component inference: does `fit_variance_components`
-recover additive `A` and common-environment `C`, and how precisely?
+"""Measure A+C recovery, boundary estimates and precision.
 
-`fit_variance_components` generalises `fit_heritability` to a **multiple**
-Haseman-Elston regression, fitting `A` and `C` together. As for the single-
-component fit, the properties that matter are **bias** and **sampling variability
-across datasets**, so this benchmark fits many independent simulated cohorts (each
-a fresh draw) and uses their spread as an empirical estimate of sampling
-variability. It reports:
-
-  (a) **A+C recovery** — mean(fitted) - true and across-replicate SD for both
-      components, at a few (a2, c2) settings;
-  (b) **boundary behaviour** — fitting `A,C` on purely additive data (true c2 =
-      0): because estimates are constrained nonnegative, report the null estimate's
-      mean and SD rather than mislabeling it as a hypothesis-test false-positive rate;
-  (c) **precision vs #families** — the across-replicate SD of C as N grows.
-
-Ground truth is set by the simulator (liabilities drawn from
-`a2 A + c2 C + e2 I`, thresholded). Families are unascertained population
-draws, so this characterises the estimator only under its supported
-`sampling="population"` contract.
-
-    python benchmarks/bench_variance_components.py
-    python benchmarks/bench_variance_components.py --reps 40 --n-fam 4000
-Writes bench_variance_components.csv.
+Independent population cohorts from `a2 A + c2 C + e2 I` evaluate component
+bias and across-replicate SD, the nonnegative C estimate at true c2=0 (not a
+rejection rate), and precision as family count grows. Writes
+`bench_variance_components.csv`.
 """
 
 import os
@@ -78,14 +59,12 @@ def main():
     # (a) A+C recovery ----------------------------------------------------------
     print("== (a) A+C recovery (n_fam=%d, %s) ==" % (args.n_fam, "+".join(STRUCT)))
     settings = [(0.4, 0.2), (0.5, 0.1), (0.3, 0.3), (0.6, 0.0)]
-    panel_a = []
     for a2, c2 in settings:
         t0 = time.time()
         fa, fc = fit_replicates(STRUCT, a2, c2, args.n_fam, args.prev, args.reps,
                                 args.seed, args.n_iter, args.burn_in)
         rec = dict(a2=a2, c2=c2, A_bias=float(fa.mean() - a2), A_sd=float(fa.std(ddof=1)),
                    C_bias=float(fc.mean() - c2), C_sd=float(fc.std(ddof=1)))
-        panel_a.append(rec)
         rows.append(dict(panel="recovery", **rec, n_fam=args.n_fam, reps=args.reps))
         print(f"  a2={a2:.1f} c2={c2:.1f} | A={fa.mean():.3f}({rec['A_bias']:+.3f}) "
               f"SD={rec['A_sd']:.3f} | C={fc.mean():.3f}({rec['C_bias']:+.3f}) "
@@ -104,13 +83,11 @@ def main():
 
     # (c) precision vs #families (C at a2=0.4, c2=0.2) --------------------------
     print("== (c) precision (SD of C) vs #families ==")
-    panel_c = []
     for n in args.sizes:
         fa, fc = fit_replicates(STRUCT, 0.4, 0.2, n, args.prev, args.reps_scaling,
                                 args.seed + 1000, args.n_iter, args.burn_in)
         rec = dict(n_fam=n, C_sd=float(fc.std(ddof=1)), A_sd=float(fa.std(ddof=1)),
                    reps=args.reps_scaling)
-        panel_c.append(rec)
         rows.append(dict(panel="scaling", a2=0.4, c2=0.2, A_bias=float(fa.mean() - 0.4),
                          A_sd=rec["A_sd"], C_bias=float(fc.mean() - 0.2), C_sd=rec["C_sd"],
                          n_fam=n, reps=args.reps_scaling))

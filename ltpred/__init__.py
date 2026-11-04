@@ -1,26 +1,9 @@
-"""ltpred -- LT-FH++ in Python.
+"""LT-FH, LT-FH++, ADuLT and PA-FGRS liability estimation.
 
-It implements LT-FH, LT-FH++ (the liability-threshold model conditioned on family
-history and age-, birth-year- and sex-dependent prevalence), ADuLT (the same
-personalised construction without family history) and PA-FGRS, following the R
-packages **LTFHPlus** and **LTFGRS**. Given each individual's case/control
-status, age and relatives' statuses, it estimates the **posterior mean genetic
-liability** -- a continuous phenotype that can improve power over a plain
-case/control label when the liability model and supplied inputs are appropriate.
-
-Typical use (single-trait inference defaults to Pearson-Aitken)::
-
-    from ltpred import simulate_under_LTM_single, estimate_liability
-    sim = simulate_under_LTM_single(
-        fam_vec=["m", "f", "s1"], h2=0.5, pop_prev=0.05, n_sim=2000,
-        use_age=False, seed=1)
-    res = estimate_liability(sim.families, h2=0.5)
-    res.est["genetic"]
-
-numpy and scipy are required; an optional Numba JIT (the ``[fast]`` extra)
-compiles and parallelises the Gibbs and Pearson-Aitken kernels, and register
-pedigree simulation needs phensim (the ``[sim]`` extra, from PyPI). Names are
-imported lazily (PEP 562) so ``import ltpred`` stays cheap.
+Single-trait scoring defaults to Pearson--Aitken; multi-trait scoring uses
+Gibbs. NumPy and SciPy are required, Numba acceleration is available with
+``[fast]`` and register simulation with ``[sim]``. Public names import lazily.
+See `ltpred.estimate_liability` for the main entry point.
 """
 
 import importlib
@@ -155,14 +138,9 @@ def __dir__():
     return sorted(__all__)
 
 
-# ``tetrachoric`` names both a public function and the submodule defining it.
-# Loading a submodule makes the import system bind it as a package attribute,
-# which would shadow the lazily exported function whenever the submodule was
-# imported first (``from ltpred.tetrachoric import ...``, or any other name it
-# exports). Keep the function bound instead. The module itself stays importable
-# as ``ltpred.tetrachoric`` through ``from ltpred.tetrachoric import ...`` and
-# ``importlib.import_module``; the attribute ``ltpred.tetrachoric`` and
-# ``import ltpred.tetrachoric as m`` give the function instead.
+# Importing a same-named submodule would otherwise replace the lazily exported
+# function (notably `ltpred.tetrachoric`). Keep the function bound as the package
+# attribute; the module remains available through its dotted import path.
 _FUNCTION_NAMED_MODULES = frozenset(
     name for name, mod in _NAME_TO_MODULE.items() if name == mod)
 

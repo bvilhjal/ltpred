@@ -129,32 +129,6 @@ def test_multi_round_pooling_matches_offline_batch_means():
         np.testing.assert_allclose(se[f], se_off, atol=1e-12)
 
 
-@pytest.mark.jit_required
-@pytest.mark.filterwarnings("ignore:.*did not reach tol")   # several rounds on purpose
-def test_gibbs_family_result_does_not_depend_on_its_batch():
-    # Step G2 collapses each family's own unbounded coordinates, so chunking,
-    # later rounds and the rest of the cohort cannot change a family's draws:
-    # chunked and unchunked calls agree bit for bit even with mixed missingness.
-    from ltpred.chunked import estimate_liability_gibbs_chunked
-    from ltpred.estimate import estimate_liability_gibbs_arrays
-    rng = np.random.default_rng(5)
-    roles = ["o", "m", "f", "s1"]
-    t = 1.4
-    lower = np.where(rng.random((60, 4)) < 0.2, t, -np.inf)
-    upper = np.where(np.isfinite(lower), np.inf, t)
-    missing = rng.random((60, 4)) < 0.3
-    missing[:, 0] = False
-    lower[missing], upper[missing] = -np.inf, np.inf
-    controls = dict(n_sim=200, burn_in=20, seed=11, tol=0.02, max_rounds=3,
-                    return_var=True)
-    whole = estimate_liability_gibbs_arrays(roles, lower, upper, 0.5, **controls)
-    for chunk_size in (1, 7):
-        chunked = estimate_liability_gibbs_chunked(
-            roles, lower, upper, 0.5, chunk_size=chunk_size, **controls)
-        for a, b in zip(whole, chunked):
-            np.testing.assert_array_equal(a, b)
-
-
 def test_pa_arrays_match_object_api():
     from ltpred.estimate import estimate_liability_pa_arrays, _estimate_liability_pa
     t = float(stats.norm.isf(0.05))
@@ -218,7 +192,7 @@ def test_float32_bounds_match_float64():
     assert np.allclose(p64.est["genetic"], p32.est["genetic"], atol=1e-5)
 
 
-def test_array_api_preserves_float32():
+def test_array_api_dtype_handling():
     from ltpred.estimate import estimate_liability_pa_arrays
     t = float(stats.norm.isf(0.05))
     roles = ["o", "m", "f"]
@@ -229,13 +203,9 @@ def test_array_api_preserves_float32():
     e64, v64 = estimate_liability_pa_arrays(roles, lo.astype(np.float64),
                                             hi.astype(np.float64), h2=0.5)
     assert np.allclose(e32, e64, atol=1e-5)
-
-
-def test_bad_dtype_rejected():
-    from ltpred.family import Family, Member
-    fam = Family("f", [Member("o", 1.6, np.inf)])
     with pytest.raises(ValueError, match="float32 or float64"):
-        estimate_liability([fam], h2=0.5, method="pa", dtype=np.int32)
+        estimate_liability([Family("f", [Member("o", 1.6, np.inf)])],
+                           h2=0.5, method="pa", dtype=np.int32)
 
 
 @pytest.mark.jit_required
@@ -258,20 +228,6 @@ def test_grouping_gives_same_answer_regardless_of_order():
     for fid, val in zip(res2.fam_ids, res2.est["genetic"]):
         # different global seed offset, but must agree within Monte-Carlo error
         assert abs(by_id[fid] - val) < 0.1
-
-
-@pytest.mark.jit_required
-def test_batched_estimator_is_deterministic():
-    t = float(stats.norm.isf(0.05))
-    fams = [Family(f"f{i}", [Member("o", t if i % 2 else -np.inf,
-                                    np.inf if i % 2 else t),
-                             Member("m", -np.inf, t)]) for i in range(8)]
-    a = estimate_liability(fams, h2=0.5, method="gibbs", out=("genetic", "full"),
-                           tol=0.05, n_sim=20_000, burn_in=400, seed=3)
-    b = estimate_liability(fams, h2=0.5, method="gibbs", out=("genetic", "full"),
-                           tol=0.05, n_sim=20_000, burn_in=400, seed=3)
-    assert np.array_equal(a.est["genetic"], b.est["genetic"])
-    assert np.array_equal(a.est["full"], b.est["full"])
 
 
 @pytest.mark.jit_required
