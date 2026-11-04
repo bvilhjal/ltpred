@@ -4048,25 +4048,12 @@ is also a top-level export.</p>
 </tr>
 </tbody>
 </table>
-<p>The heavier inferential machinery — the HE multi-trait genetic-correlation,
-onset-age-decay, common-factor and genetic-nurture fits, the MCEM
-variance-component fit, and the parametric-bootstrap significance tests — lives
-in the unsupported checkout-only
-<a href="https://github.com/bvilhjal/ltpred/tree/main/research"><code>research/</code> package</a>;
-they are not installed with the distribution. See
-<a href="../research/">research extensions</a> for the models.</p>
-<p>For the Gibbs estimator and model-fit samplers, <code>seed</code> is either <code>None</code> or an
-integer in <code>[0, 2**32 - 1]</code>; booleans are rejected. Derived sampler streams wrap
-deterministically within that 32-bit range. Resampling seeds on bootstrap helpers
-follow NumPy's <code>default_rng</code> contract.</p>
-<p>PA accepts a symmetric positive-semidefinite covariance with strictly positive
-marginal variances. Gibbs requires strict positive-definiteness because it forms
-precision-based conditional variances.
-The sex-limited and genetic-nurture covariance constructors live in the
-checkout-only <code>research/covariance_extensions.py</code>.</p>
-<p>The older array APIs keep their tuple contracts: PA <code>(est, var)</code>, Gibbs
-<code>(est, se)</code> or <code>(est, se, var)</code> with <code>return_var=True</code>, and kinship
-<code>(est, se, var)</code>. Posterior variance and Monte Carlo SE are distinct quantities.</p>
+<p>Unsupported multi-trait, onset-decay, factor and nurture prototypes remain in
+the checkout-only <a href="../research/">research package</a>. Gibbs seeds are uint32
+integers or <code>None</code>; bootstrap resampling follows NumPy's <code>default_rng</code>
+contract. PA accepts PSD covariance with positive marginal variances; Gibbs
+requires strict PD. Array tuple contracts are PA <code>(est, var)</code>, Gibbs
+<code>(est, se)</code> or <code>(est, se, var)</code>, and kinship <code>(est, se, var)</code>.</p>
 <h2 id="estimation-ltpredestimate">Estimation — <code>ltpred.estimate</code><a class="headerlink" href="#estimation-ltpredestimate" title="Permanent link">&para;</a></h2>
 
 
@@ -4082,43 +4069,16 @@ checkout-only <code>research/covariance_extensions.py</code>.</p>
 
     <div class="doc doc-contents first">
 
-        <p>Conditional liability estimates for LT-FH, LT-FH++, ADuLT and PA-FGRS.</p>
-<p>For each proband this conditions a Gaussian family covariance on every
-member's liability interval and reports, for the proband's genetic liability
-<code>g</code> and/or full liability <code>o</code>, the posterior mean <code>est</code>, the posterior
-variance <code>var</code> and the Monte-Carlo SE <code>se</code> of <code>est</code>. Bounds and relative
-rows distinguish LT-FH, LT-FH++ and ADuLT; PA-FGRS also needs the
-<code>K_i</code>/<code>K_pop</code> censoring mixture, which only Pearson-Aitken (PA) implements.
-The genetic estimate is the continuous phenotype fed to a GWAS.</p>
-<p>Dispatch. Every route ends in an array kernel over same-covariance families.</p>
-<ul>
-<li>Object API. <code>estimate_liability</code> picks the engine (<code>_resolve_method</code>): PA by
-  default for scalar <code>h2</code>; Gibbs for multi-trait, which only Gibbs supports;
-  <code>"quadrature"</code> on request for additive nuclear families. Its drivers
-  bucket families by sorted role set (<code>_group_by_structure</code>; methods report,
-  Algorithm G, step G1), stack each bucket's bounds and call one kernel per
-  bucket.</li>
-<li>Array API. <code>estimate_liability_pa_arrays</code>, <code>estimate_liability_gibbs_arrays</code>
-  and <code>ltpred.chunked</code>: one role set per call, bounds <code>(F, len(roles))</code>.</li>
-<li>Kinship API. <code>estimate_liability_from_kinship</code>: an arbitrary relationship
-  matrix <code>A</code>; the whole call is one group.</li>
-</ul>
-<p>Coordinate order. Covariance rows are <code>g</code>, <code>o</code>, then relatives
-(multi-trait: that block per phenotype, phenotype-major). <code>_align_to_cov</code>
-maps role columns by name and fills <code>g</code>, and an absent <code>o</code>, with
-<code>(-inf, inf)</code>; the kinship route prepends <code>g</code> to <code>A</code>'s order. Gibbs
-keeps the caller's (object API: the bucket's first family's) relative order,
-because the sweep consumes RNG in coordinate order; PA sorts the roles so its
-sequential fold depends only on the role set.</p>
-<p>Engines. PA (<code>ltpred.pearson_aitken</code>) is deterministic with <code>se = 0</code>: exact
-for pins followed by at most one interval, a sequential two-moment
-approximation otherwise. Gibbs runs Algorithm G (<code>ltpred.gibbs</code>) via
-<code>_estimate_group</code>, with per-family seeds from <code>_base_seeds</code>. Every covariance
-passes <code>correct_positive_definite</code>, with a warning if it was nudged.</p>
-<p>Identity. <code>g</code> is never an input role; roles are unique within a family, and
-a non-missing <code>pid</code> may occur once per family (across families is allowed).
-Member pids without a proband pid raise; <code>LiabilityResult</code> describes the
-result <code>pids</code>.</p>
+        <p>Posterior genetic and full liability from family truncation bounds.</p>
+<p><code>estimate_liability</code> handles <code>Family</code> objects, the array functions handle one
+role set per call, and <code>estimate_liability_from_kinship</code> handles arbitrary
+pedigrees. Single-trait inference defaults to deterministic Pearson--Aitken
+(PA); multi-trait inference uses Gibbs; additive nuclear families can use
+quadrature. PA alone implements the <code>K_i</code>/<code>K_pop</code> censoring mixture.</p>
+<p>Families are validated and grouped by role set before calling the shared
+kernels. <code>var</code> is posterior variance; <code>se</code> is Monte-Carlo error only.
+See <code>docs/estimation.md</code> and <code>docs/algorithm.md</code> for the models and
+fold-order details.</p>
 
 
 
@@ -4160,33 +4120,13 @@ result <code>pids</code>.</p>
 
 
 
-        <p>Per-family liability estimates and their numerical uncertainty summaries.</p>
-<p><code>est</code>/<code>se</code>/<code>var</code> map a column name to a per-family array (aligned with
-<code>fam_ids</code>). Single-trait columns are <code>"genetic"</code> / <code>"full"</code>; multi-trait
-columns are suffixed with the phenotype, e.g. <code>"genetic_height"</code>.
-<code>pids</code> holds each row's join key: the proband's (role <code>o</code>) pid, or the
-<code>fam_id</code> for a family that carries no pids.</p>
-<p>The two uncertainty fields answer different questions and neither substitutes
-for the other:</p>
-<ul>
-<li><code>var</code> is the target's <strong>posterior</strong> (conditional) variance — how uncertain
-  this proband's liability is given their family. All engines report it:
-  Gibbs as a Monte-Carlo estimate from its retained draws (Rao--Blackwellised
-  for coordinates collapsed out of the sweep, such as <code>g</code>: the variance of
-  <code>E[g | y]</code> over the sampled coordinates <code>y</code> plus the constant
-  <code>Var(g | y)</code>), Pearson-Aitken as its sequential-moment approximation,
-  quadrature by numerical integration.
-  It does <strong>not</strong> shrink as you sample more.</li>
-<li><code>se</code> describes <strong>Monte-Carlo error</strong> in <code>est</code>. Gibbs reports
-  the batch-means Monte-Carlo error, which does shrink with more draws;
-  Pearson-Aitken is deterministic and reports <code>se = 0</code>. Zero PA SE means no
-  Monte-Carlo error, not zero approximation error — PA's sequential fold stays
-  approximate for multiple remaining intervals, in both <code>est</code> and <code>var</code>.</li>
-</ul>
-<p>Quadrature also reports zero Monte-Carlo <code>se</code>. Its <code>quadrature_error</code>
-dictionary records the largest change in either moment over its last two
-refinements, not a certified error bound; <code>quadrature_nodes</code> records nodes
-per active factor dimension. Both are <code>None</code> for the other engines.</p>
+        <p>Aligned liability estimates and numerical diagnostics.</p>
+<p><code>est</code>, <code>se</code> and <code>var</code> map output names to per-family arrays. <code>var</code>
+is posterior uncertainty, whereas <code>se</code> is Monte-Carlo error in <code>est</code>
+(zero for deterministic engines, not proof of exactness). Multi-trait names
+are suffixed by phenotype. <code>pids</code> contains proband ids, falling back to
+<code>fam_id</code> only for wholly pid-free families. Quadrature diagnostics record
+refinement change and nodes per active dimension, not an error bound.</p>
 
 
 
@@ -4224,9 +4164,7 @@ per active factor dimension. Both are <code>None</code> for the other engines.</
 
     <div class="doc doc-contents ">
 
-        <p>Shorthand for the single-trait genetic-liability estimate <code>est['genetic']</code>
-(the usual output). Multi-trait results are keyed per trait, e.g.
-<code>genetic_height</code> — index <code>.est</code> directly for those.</p>
+        <p>Return the single-trait <code>est['genetic']</code> array.</p>
 
     </div>
 
@@ -4248,12 +4186,7 @@ per active factor dimension. Both are <code>None</code> for the other engines.</
 
     <div class="doc doc-contents ">
 
-        <p>Copy columns: fam_id, pid, estimates and se_name/var_name diagnostics.</p>
-<p>A column mapping preserves row order and repeated pids without silently
-overwriting scores. Diagnostic prefixes avoid collisions between traits
-such as "height" and "height_se". Multi-trait suffixes are retained.
-Quadrature results also get <code>quadrature_error_&lt;name&gt;</code> and
-<code>quadrature_nodes_&lt;name&gt;</code> columns.</p>
+        <p>Return copied columns, including requested numerical diagnostics.</p>
 
 
     </div>
@@ -4282,21 +4215,12 @@ Quadrature results also get <code>quadrature_error_&lt;name&gt;</code> and
 
     <div class="doc doc-contents ">
 
-        <p>Array-level Pearson-Aitken estimator — skips <code>Family</code>/<code>Member</code> objects.</p>
-<p>The production fast path for many same-structure probands: <code>roles</code> is the
-shared list of member roles (<code>o</code> and relatives; <code>g</code> is added), and <code>lower</code>
-/ <code>upper</code> are <code>(n_families, len(roles))</code> bounds aligned to <code>roles</code> (build
-them straight from your columns, e.g. with a threshold helper). The covariance
-is built once (with the <code>c2</code>/<code>m2</code> sibship and couple shared-environment
-components, <code>h2 + c2 + m2 &lt;= 1</code>). <code>h2</code> must lie in <code>(1e-8, 1]</code>
-(the samplers' strict-PD floor); <code>h2 = 1</code>
-makes <code>g</code> and <code>o</code> collinear, so the covariance is nudged with a warning.
-<code>out</code> is <code>"genetic"</code> (target <code>g</code>) or <code>"full"</code>
-(<code>E[l_o | own interval and relatives]</code>), or a length-1 sequence of either.
-<code>use_mixture</code> with <code>K_i</code>/<code>K_pop</code> (same shape, <code>NaN</code> where unused)
-enables the censored-control mixture; the per-entry rules are those of
-<code>ltpred.family.Member</code>. Returns PA sequential-moment approximations
-<code>(est, var)</code> of length <code>n_families</code>.</p>
+        <p>PA inference for same-structure bound arrays.</p>
+<p><code>lower</code> and <code>upper</code> have shape <code>(n_families, len(roles))</code>; <code>g</code> is
+added internally. Returns <code>(est, posterior_var)</code>. <code>out</code> selects
+<code>"genetic"</code> or <code>"full"</code>. C/M components and the PA-only <code>K_i</code>/
+<code>K_pop</code> mixture are optional. Float32 bounds halve input storage while
+accumulators remain float64.</p>
 
 
     </div>
@@ -4316,29 +4240,13 @@ enables the censored-control mixture; the per-entry rules are those of
 
     <div class="doc doc-contents ">
 
-        <p>Array-level Gibbs inference — skips <code>Family</code>/<code>Member</code> objects.</p>
-<p>Same array inputs as <code>estimate_liability_pa_arrays</code> (float32 <code>lower</code>/
-<code>upper</code> halve their memory); the covariance takes the same <code>c2</code>/<code>m2</code>
-shared-environment components. Returns <code>(est, se)</code> (posterior mean and
-batch-means Monte-Carlo SE) of length <code>n_families</code> for the single target
-selected by <code>out</code>, or <code>(est, se, var)</code> with <code>return_var=True</code>, where
-<code>var</code> is the Monte-Carlo estimate of the target's <strong>posterior</strong> variance —
-the comparable quantity to the <code>var</code> returned by
-<code>estimate_liability_pa_arrays</code>, and a different thing from the sampler's
-own error <code>se</code>.</p>
-<p>The sampler runs in rounds, each a fresh chain per family: <code>burn_in</code>
-(a non-negative integer) sweeps are discarded, then <code>n_sim</code> (an
-integer, at least 4) draws are kept. Rounds are pooled until the batch-means SE of every
-output is <code>&lt;= tol</code> (finite, &gt; 0) or <code>max_rounds</code> (&gt;= 1) rounds have
-run; families still above <code>tol</code> keep their pooled values and a warning
-is issued. <code>seed</code> must be a non-boolean integer in <code>[0, 2**32 - 1]</code> or
-<code>None</code>; round <code>r</code> of row <code>i</code> is seeded with
-<code>(mix(seed) + i*max_rounds + r) % 2**32</code> for an integer mixing <code>mix</code>
-of <code>seed</code> (see <code>_base_seeds</code>), so results depend on row order and
-<code>max_rounds</code> as well as <code>seed</code> (see the <code>ltpred.gibbs</code> module
-docstring for Algorithm G). <code>seed=None</code> draws fresh per-family seeds
-from OS entropy, so unseeded runs differ call to call -- also after a
-seeded call in the same process.</p>
+        <p>Gibbs inference for same-structure bound arrays.</p>
+<p>Inputs match <code>estimate_liability_pa_arrays</code>. Returns <code>(est, se)</code>, plus
+posterior variance when <code>return_var=True</code>. Fresh chains of <code>n_sim</code>
+retained draws (after <code>burn_in</code>) are pooled until the batch-means SE is
+at most <code>tol</code> or <code>max_rounds</code> is reached; exhaustion warns. Seeds are
+uint32 integers or <code>None</code> and depend on global row index, making chunking
+and thread scheduling irrelevant.</p>
 
 
     </div>
@@ -4358,54 +4266,20 @@ seeded call in the same process.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Estimate a target individual's liability from an <strong>arbitrary pedigree</strong>.</p>
-<p>The kinship-based counterpart of the array estimators: instead of the fixed role
-grammar you pass the additive relationship matrix <code>A</code>
-(<code>n×n</code>, e.g. from <code>ltpred.covariance.kinship_from_pedigree</code>) shared by a
-batch of families, and the per-individual truncation bounds. <code>lower</code>/<code>upper</code>
-are <code>(n_families, n)</code> (one column per pedigree member, in <code>A</code> order; a
-1-D <code>(n,)</code> pair is one family); the genetic-liability row for <code>target</code>
-(an index into <code>A</code>) is added internally and left unbounded. <code>h2</code> must
-lie in <code>(1e-8, 1]</code>.
-Inbred members are standardised to unit marginal full-liability variance, and
-the target's genetic contribution is scaled by its raw liability SD. Thus the
-supplied standard-normal bounds retain their prevalence interpretation when
-diagonal entries of <code>A</code> exceed one.</p>
-<p>Optional <code>c2</code>/<code>m2</code> proportions require caller-supplied
-<code>c_kernel</code>/<code>m_kernel</code> relationship matrices (<code>n x n</code>, symmetric,
-positive semi-definite, unit diagonal). These bring the role estimator's
-shared-environment model to arbitrary pedigrees without pretending that
-sibships or couples can be recovered from additive relatedness <code>A</code> alone.</p>
-<p><code>out</code> selects <code>"genetic"</code> (the target's genetic liability — the usual
-family-history GWAS phenotype) or <code>"full"</code> (<code>E[l_o | own interval and
-relatives]</code> on both engines). <code>method=None</code> uses the
-deterministic Pearson-Aitken engine, matching the main single-trait default;
-pass <code>method="gibbs"</code> for reference sampling (method names as in
-<code>estimate_liability</code>; <code>"quadrature"</code> raises <code>NotImplementedError</code>).
-<code>tol</code>, <code>n_sim</code>, <code>burn_in</code>, <code>seed</code> and <code>max_rounds</code> are the Gibbs
-controls of <code>estimate_liability_gibbs_arrays</code>; PA ignores them and warns
-on non-default values. Returns <code>(est, se, var)</code>:
-<code>se</code> is the Monte-Carlo SE of <code>est</code> (exactly zero under PA, which is
-deterministic — that means <em>no sampling error</em>, not no approximation error),
-and <code>var</code> is the posterior (conditional) variance of the target liability
-on both engines.
-<code>use_mixture=True</code> with per-member <code>K_i</code>/<code>K_pop</code> (same shape as
-<code>lower</code>, <code>NaN</code> where unused; rules as in <code>ltpred.family.Member</code>) runs
-the PA-FGRS censored-control mixture; Gibbs does not implement it and
-raises. Each array has length <code>n_families</code>. The covariance is built by
-<code>ltpred.covariance.construct_covmat_from_kinship</code>, so results match the
-role-based estimator whenever the pedigree encodes the same relationships
-(under PA, whose fold follows <code>A</code>'s row order, only with the target first
-and the relatives in sorted-role order) — but this also handles half-sibs
-of any degree, cousins, and inbred pedigrees.</p>
-<p><code>_certified_psd</code> is internal; do not pass it. Package callers whose <code>A</code>
-was just built by a pedigree constructor (symmetric and PSD by
-construction) use it to skip re-validating <code>A</code>; the assembled covariance
-still passes through <code>ltpred.covariance.correct_positive_definite</code>. A
-family-free non-inbred proband under PA (<code>A = [[1]]</code>, no pins, no
-mixture or shared environment) uses the scalar ADuLT moments, as the role
-estimator does for <code>roles == ["o"]</code>; this shortcut is bit-identical to
-the matrix path (the role one agrees to rounding).</p>
+        <p>Estimate a target's liability from an arbitrary relationship matrix.</p>
+<p><code>A</code> is an <code>n × n</code> additive relationship matrix shared by all rows of
+<code>lower</code>/<code>upper</code>, whose shapes are <code>(n_families, n)</code> (one family for
+1-D input). <code>target</code> selects the proband; their genetic coordinate is
+added internally. Inbred liabilities are standardised to unit marginal
+variance. Returns <code>(est, se, posterior_var)</code>.</p>
+<p>PA is the default; Gibbs is optional. <code>out</code> selects genetic or full
+liability. The PA-only censoring mixture uses aligned <code>K_i</code>/<code>K_pop</code>.
+C/M proportions require aligned PSD, unit-diagonal <code>c_kernel</code>/
+<code>m_kernel</code> matrices because relatedness alone cannot identify those
+environmental relationships.</p>
+<p><code>_certified_psd</code> is internal: pipeline callers use its private sentinels
+to skip redundant matrix validation only when construction guarantees the
+required PSD/PD properties.</p>
 
 
     </div>
@@ -4425,68 +4299,24 @@ the matrix path (the role one agrees to rounding).</p>
 
     <div class="doc doc-contents ">
 
-        <p>Estimate conditional liabilities, dispatching on method and trait count.</p>
-<p><code>families</code> is a list of <code>ltpred.family.Family</code>; an empty list or a family
-without members raises. Bounds and relative rows distinguish LT-FH, LT-FH++
-and ADuLT. PA-FGRS also requires <code>K_i</code>/<code>K_pop</code> (see <code>ltpred.family.Member</code>
-for which rows may carry them) and <code>use_mixture=True</code> and is implemented
-only by the Pearson-Aitken engine.</p>
-<p><code>method="quadrature"</code> computes additive nuclear-family moments using at
-most two parental factors (roles o/m/f/s1/s2/..., scalar 0 &lt;= h2 &lt; 1,
-no C/M or mixture). <code>quadrature_atol</code> (default 1e-8) controls successive
-changes in both moments; <code>quadrature_max_nodes</code> (64..512, default 128)
-limits nodes per dimension. Nonconvergence raises <code>RuntimeError</code>; the
-family index in its message counts within the failing family's role-set
-group, not within <code>families</code>. Diagnostics are retained
-in <code>quadrature_error</code> and <code>quadrature_nodes</code>; zero <code>se</code> means no
-Monte-Carlo error.</p>
-<p><code>method</code> selects the inference engine; the <strong>default</strong> (<code>None</code>) picks the
-deterministic <strong>Pearson-Aitken (PA)</strong> estimator for a single trait. On the
-benchmarked no-mixture structures PA and Gibbs posterior means agree
-closely and PA is orders of magnitude faster, and both engines are locked
-against the public R packages (LTFHPlus Gibbs, LTFGRS PA); the measured
-figures are in <code>benchmarks/RESULTS.md</code> (sections 1, 2 and 30). The
-dispatcher falls back to the <strong>Gibbs</strong>
-sampler for the multi-trait model, which PA does not support.
-That path collapses untruncated genetic coordinates out of the
-sweep and Rao--Blackwellises their posterior means. Pass <code>method</code>
-explicitly to override (names are case-insensitive): <code>"pearson-aitken"</code>
-(alias <code>"pa"</code>; single trait only,
-<code>use_mixture</code> enables the age-censored-control correction) or
-<code>"gibbs"</code> (the truncated-MVN sampler; needed for multiple traits or a
-Monte-Carlo SE), or <code>"quadrature"</code> under the nuclear-family restrictions
-above. The result contains posterior-mean estimates and method-specific uncertainty fields,
-not retained draws; call <code>ltpred.gibbs.rtmvnorm_gibbs</code> directly when
-draws are required. An explicit <code>method="pearson-aitken"</code>
-with a multi-trait request raises.</p>
-<p><code>out</code> is <code>"genetic"</code>, <code>"full"</code> or a non-empty sequence of them.
-Single-trait columns are named <code>"genetic"</code>/<code>"full"</code>; multi-trait columns
-<code>"&lt;out&gt;_&lt;phen&gt;"</code>, with <code>phen_names</code> naming the traits (default
-<code>phenotype1</code>, <code>phenotype2</code>, ...; names must be distinct).</p>
-<p><code>h2</code>: Liability-scale additive heritability for this disease, in
-<code>(1e-8, 1]</code> for PA and Gibbs (each entry, for multi-trait; the
-lower bound is the samplers' strict positive-definiteness floor).
-Required: there is no
-disease-independent default, for the same reason the threshold builders
-take no default prevalence. See
-the data-preparation guide, "Getting heritability on the liability scale", for choosing between pedigree/twin and
-SNP estimates and for the sensitivity analysis.</p>
-<p>Scalar <code>h2</code> -&gt; single trait; a vector <code>h2</code> with <code>genetic_corrmat</code> and
-<code>full_corrmat</code> -&gt; multi-trait. For single-trait estimation, <code>c2</code>/<code>m2</code>
-wire sibship (<code>C</code>) and couple (<code>M</code>) shared-environment components into
-the family covariance (see
-<code>ltpred.covariance.construct_covmat_single</code>; <code>h2 + c2 + m2 &lt;= 1</code>
-required). Nonzero <code>c2</code>/<code>m2</code> are not supported for multi-trait
-estimation: component proportions alone do not specify cross-trait
-environmental covariance, so they raise rather than being discarded.
-<code>dtype=np.float32</code> stores the per-family
-liability bounds in single precision (half the memory) — useful at biobank
-scale. <code>tol</code>, <code>n_sim</code>, <code>burn_in</code>, <code>seed</code> and <code>max_rounds</code> steer
-the Gibbs sampler as in <code>estimate_liability_gibbs_arrays</code>, with family
-<code>i</code> of <code>families</code> in place of row <code>i</code>; set <code>seed</code> for reproducible
-Gibbs runs. Deterministic engines ignore these controls and warn on
-non-default values; explicitly passing a default value is
-indistinguishable from omission.</p>
+        <p>Estimate conditional genetic or full liabilities for <code>Family</code> objects.</p>
+<p><code>h2</code> is required liability-scale heritability. A scalar selects the
+single-trait model and deterministic PA by default; a vector with
+<code>genetic_corrmat</code> and <code>full_corrmat</code> selects multi-trait Gibbs.
+<code>method</code> can force <code>"pa"</code>, <code>"gibbs"</code> or nuclear-family
+<code>"quadrature"</code>. The PA-only censoring mixture needs <code>use_mixture=True</code>
+and member <code>K_i</code>/<code>K_pop</code> values.</p>
+<p><code>out</code> accepts <code>"genetic"</code>, <code>"full"</code> or both; multi-trait columns are
+suffixed by <code>phen_names</code>. Single-trait C/M components use <code>c2</code>/<code>m2</code>
+with <code>h2 + c2 + m2 &lt;= 1</code>. Float32 bounds halve storage without reducing
+accumulator precision.</p>
+<p>Gibbs controls are <code>tol</code>, <code>n_sim</code>, <code>burn_in</code>, <code>seed</code> and
+<code>max_rounds</code>. Deterministic engines warn if those controls are changed.
+Quadrature supports only additive, noninbred nuclear families with
+<code>0 &lt;= h2 &lt; 1</code> and no C/M or mixture; its two controls limit refinement
+change and nodes per dimension. Results contain summaries, not draws; use
+<code>ltpred.gibbs.rtmvnorm_gibbs</code> for draws. See <code>docs/estimation.md</code> for
+observation models, examples and uncertainty semantics.</p>
 
 
     </div>
@@ -4521,46 +4351,16 @@ its zero <code>se</code> means no Monte-Carlo noise. See the
 
     <div class="doc doc-contents first">
 
-        <p>Numerical posterior moments for additive, noninbred nuclear families.</p>
-<p>Algorithm Q, derived in the methods report section "Nuclear families have at
-most two parental factors". Model: one trait, additive genetics plus independent
-residuals (no C/M), unrelated noninbred parents, roles <code>o</code>, <code>m</code>, <code>f</code>,
-<code>s1</code>, <code>s2</code>, ..., <code>0 &lt;= h2 &lt; 1</code>, no censoring mixture. The target is the
-proband's genetic (<code>out="genetic"</code>) or full (<code>"full"</code>) liability. With
-parental breeding values <code>z = (a_m, a_f) ~ N(0, h2 I)</code>, the observed
-liabilities are independent given <code>z</code>: <code>l_j | z ~ N(b_j' z, d_j)</code> with
-<code>b_j = (1, 0)</code>, <code>(0, 1)</code>, <code>(1/2, 1/2)</code> and <code>d_j = 1 - h2</code> for parents,
-<code>1 - h2/2</code> for offspring. Siblings add likelihood factors, not integration
-dimensions. Each family is solved as follows:</p>
-<ol>
-<li>Analytic shortcuts: <code>out="full"</code> with a pinned proband; <code>h2 = 0</code>; no
-   informative offspring (independent parental liabilities).</li>
-<li>Condition <code>z</code> on every pin exactly (sequential Gaussian updates); a
-   pinned proband also enters the target's law given <code>z</code>. Absent rows drop.
-   With zero or one interval left, return the exact Gaussian or
-   single-selection answer.</li>
-<li>Otherwise whiten <code>z</code> and project onto the span (rank 1 or 2) of the
-   interval rows' loadings; orthogonal directions add only analytic variance.</li>
-<li>Mode: Newton's method on the convex negative log posterior with
-   its exact gradient and Hessian and Armijo backtracking. It stops on a
-   negligible step, a failed line search, or an accepted decrease at
-   floating-point resolution (stationary objective); else 80 iterations raise.</li>
-<li>Integrate on a tensor Gauss-Hermite grid centred at the mode and
-   scaled by the inverse-Hessian Cholesky factor, importance-reweighted in
-   log space by prior times interval likelihoods over the proposal. Per node,
-   the target's conditional moments <code>mu(z)</code>, <code>V(z)</code> include its own
-   observation; <code>est = E[mu]</code> and <code>var = E[V] + Var[mu]</code>.</li>
-<li>Refine <code>n = 16, 32, 64, ...</code> nodes per dimension, doubling up to
-   <code>max_nodes</code>, recording each change <code>max(|d est|, |d var|)</code>. Accept
-   when both of the last two changes are <code>&lt;= atol</code> (at least three
-   resolutions), reporting that maximum and the final <code>n</code>.</li>
-</ol>
-<p>Nonconvergence at <code>max_nodes</code>, non-finite log weights and mode failure
-raise <code>RuntimeError</code>. Analytic answers report <code>error = 0</code>,
-<code>n_nodes = 0</code>. <code>estimate_liability_quadrature_arrays</code> solves each distinct
-<code>(lower, upper)</code> row once and names the first matching family in errors.
-<code>estimate_liability</code> exposes the diagnostics as <code>quadrature_error</code> and
-<code>quadrature_nodes</code>.</p>
+        <p>Posterior quadrature for additive, noninbred nuclear families.</p>
+<p>Conditional on the two parental breeding values, observed liabilities are
+independent, so siblings add likelihood factors rather than dimensions. Exact
+pins are conditioned first; zero/one remaining intervals use analytic moments.
+Otherwise a rank-1/2 factor projection, Newton mode search and mode-centred
+Gauss--Hermite integration compute the posterior mean and variance.</p>
+<p>Grid sizes double from 16 to <code>max_nodes</code>. Acceptance requires the last two
+mean/variance changes to meet <code>atol</code>; failure raises. Identical bound rows
+are solved once. The model excludes C/M, mixtures, other pedigrees and
+<code>h2 = 1</code>. See Algorithm Q in <code>docs/algorithm.md</code>.</p>
 
 
 
@@ -4695,23 +4495,14 @@ dimension (zero for analytic answers), not the total tensor-grid size.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Compute additive nuclear-family posterior moments by factor quadrature.</p>
-<p><code>roles</code> contains unique <code>o</code>, <code>m</code>, <code>f</code> and/or <code>s1</code>, <code>s2</code>, ...;
-<code>lower</code> and <code>upper</code> have shape <code>(n_families, len(roles))</code>. The target
-is always the proband, even when <code>o</code> is absent (then own status is omitted).
-Parents are unrelated and noninbred. Only <code>0 &lt;= h2 &lt; 1</code> is supported:
-<code>h2=1</code> gives zero parent residual variance and needs a different integrator.
-Shared environment, other pedigree roles and censoring mixtures are outside
-this model. Point pins are exact observations, not narrow intervals.</p>
-<p><code>out</code> selects <code>"genetic"</code> or <code>"full"</code> (or a length-1 sequence of
-either, as in the other single-column array APIs). <code>atol</code> bounds successive
-changes in both posterior moments, not their unknown true numerical error.
-Two successive refinements must meet it; <code>max_nodes</code> (64 through 512)
-limits nodes per active factor dimension. The upper limit bounds the
-largest tensor grid to 262144 points. Failure raises <code>RuntimeError</code> with the
-family index, rather than returning an unchecked estimate. Analytic zero- or
-one-interval cases and families with only parental observations require no
-nodes. Rows with identical bounds are solved once.</p>
+        <p>Compute posterior moments for aligned nuclear-family bound arrays.</p>
+<p><code>roles</code> contains unique <code>o</code>, <code>m</code>, <code>f</code> and/or numbered full sibs;
+bounds have shape <code>(n_families, len(roles))</code>. The target is the proband's
+genetic or full liability selected by <code>out</code>. Parents are unrelated and
+noninbred, with <code>0 &lt;= h2 &lt; 1</code>; C/M and mixtures are unsupported.</p>
+<p><code>atol</code> applies to the last two refinement changes, not a certified error
+bound. <code>max_nodes</code> is 64–512 per active dimension. Nonconvergence raises
+<code>RuntimeError</code> with the family index. Identical rows share one solve.</p>
 
 
     </div>
@@ -4739,21 +4530,12 @@ nodes. Rows with identical bounds are solved once.</p>
 
     <div class="doc doc-contents first">
 
-        <p>Chunked and streaming drivers over the array liability kernels.</p>
-<p>The <code>*_chunked</code> entry points take in-memory <code>(F, k)</code> bound arrays,
-validate them once and run the array kernel on row slices, bounding the
-kernel's working set. The <code>*_batches</code> entry points consume an iterator of
-bound blocks, so the caller never holds every family's bounds at once; outputs
-are concatenated in input order. All take one role set per call and keep the
-<code>O(F)</code> summary-memory contract of the array APIs (no draw arrays).</p>
-<p>How results are preserved. PA is deterministic and per family, so chunking
-changes its values by floating-point rounding at most. For Gibbs, each slice
-or batch derives the seeds of its rows from their global row offset, the
-same seeds <code>ltpred.estimate.estimate_liability_gibbs_arrays</code> gives those rows,
-without building an <code>O(F)</code> seed array. A family's draws depend only on its
-own bounds, seed block and the sampler settings (step G2 collapses each
-family's own unbounded coordinates; methods report, Algorithm G), so the
-estimates are bit-identical to the unchunked call for any chunk size.</p>
+        <p>Chunked and streaming wrappers for the array liability kernels.</p>
+<p><code>*_chunked</code> slices in-memory bound arrays; <code>*_batches</code> consumes iterators
+of <code>(lower, upper)</code> or <code>(lower, upper, K_i, K_pop)</code> blocks (mappings also
+work). Outputs concatenate in input order and retain only O(F) summaries.
+PA is unchanged up to rounding. Gibbs seeds by global row offset, so results
+are bit-identical to the unchunked call for any partition.</p>
 
 
 
@@ -4788,13 +4570,10 @@ estimates are bit-identical to the unchunked call for any chunk size.</p>
 
     <div class="doc doc-contents ">
 
-        <p>PA over row-chunks of one role-set. Returns <code>(est, var)</code> of length <code>F</code>.</p>
-<p>Arguments and return values are those of
-<code>ltpred.estimate.estimate_liability_pa_arrays</code>; only the chunking differs.
-Validates the full bound arrays (and, with <code>use_mixture</code>, the <code>K_i</code>/
-<code>K_pop</code> pairs) once, then calls the array kernel on slices of
-<code>chunk_size</code> (default 65536). An in-memory array still holds every
-bound; stream with <code>estimate_liability_pa_batches</code> to avoid that.</p>
+        <p>PA over slices of one role set; returns <code>(est, var)</code>.</p>
+<p>Inputs match <code>estimate_liability_pa_arrays</code>. Full-array validation runs
+once before evaluating chunks of <code>chunk_size</code>. Use the batch API to
+avoid holding all bounds in memory.</p>
 
 
     </div>
@@ -4814,12 +4593,7 @@ bound; stream with <code>estimate_liability_pa_batches</code> to avoid that.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Gibbs over row-chunks of one role-set.</p>
-<p>Arguments and return values are those of
-<code>ltpred.estimate.estimate_liability_gibbs_arrays</code>; only the chunking
-differs. Each chunk's seeds come from its global row offset, so results
-are bit-identical to that function at the same <code>seed</code> for any
-<code>chunk_size</code> (default 4096; see the module docstring).</p>
+        <p>Gibbs over slices with global-row seeds and unchunked bit identity.</p>
 
 
     </div>
@@ -4839,14 +4613,9 @@ are bit-identical to that function at the same <code>seed</code> for any
 
     <div class="doc doc-contents ">
 
-        <p>PA from an iterator of bound batches, concatenated in order.</p>
-<p>Other arguments and return values are those of
-<code>ltpred.estimate.estimate_liability_pa_arrays</code>. Each item is
-<code>(lower, upper)</code>, <code>(lower, upper, K_i, K_pop)</code>, or a mapping with those
-keys (<code>K_i</code>/<code>K_pop</code> optional). An empty iterator returns empty arrays.
-Mixture inputs are checked per batch, so with <code>use_mixture=True</code> a batch
-with no valid <code>K</code> pair raises; the chunked API gates that once on the
-whole cohort instead.</p>
+        <p>PA over an iterator of bound batches, concatenated in input order.</p>
+<p>Items are 2-/4-tuples or mappings with the same keys. Unlike the chunked
+API, mixture validation requires an active K pair in every batch.</p>
 
 
     </div>
@@ -4866,14 +4635,10 @@ whole cohort instead.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Gibbs from consecutive bound batches of one virtual cohort.</p>
-<p>Other arguments and return values are those of
-<code>ltpred.estimate.estimate_liability_gibbs_arrays</code>. Each item is
-<code>(lower, upper)</code> or a mapping with those keys; a batch carrying
-<code>K_i</code>/<code>K_pop</code> raises (Gibbs has no censoring mixture). Rows are seeded
-by their position in the concatenated stream, so the result is
-bit-identical to one array call on the concatenated bounds at the same
-<code>seed</code>, however the stream is split.</p>
+        <p>Gibbs over consecutive bound batches with global-row seeds.</p>
+<p>Items are 2-tuples or mappings; K columns are rejected because Gibbs has
+no censoring mixture. Any partition is bit-identical to one array call at
+the same seed.</p>
 
 
     </div>
@@ -4901,33 +4666,14 @@ bit-identical to one array call on the concatenated bounds at the same
 
     <div class="doc doc-contents first">
 
-        <p>Liability-scale transformations: heritability and probit-scale SNP variance.</p>
-<p><strong>The probit model IS the liability-threshold model</strong>: the probit latent
-variable with unit residual variance is the liability, with the threshold set
-by the prevalence. Everything in this module follows from that identity.</p>
-<p><strong>Two probit scales must not be conflated.</strong> A probit coefficient fixes the
-residual variance to one. For a SNP with minor-allele frequency <code>f</code> and effect
-<code>beta</code>, <code>q = 2 f (1-f) beta^2</code> is genetic variance in those residual-variance
-units. It is not yet a fraction of total latent variance; for a single predictor
-that fraction is <code>q / (1 + q)</code>. <code>probit_liability_r2</code> returns <code>q</code> by
-default despite its name; <code>fraction=True</code> gives <code>q / (1 + q)</code>.</p>
-<p>A squared GWAS z-statistic contains one unit of expected null sampling noise.
-<code>liability_r2_from_z</code> subtracts that null contribution by default,
-<code>((z^2 - 1) / N) * c</code> with <code>c</code> the Lee factor below; set
-<code>subtract_null=False</code> only when the raw second moment is deliberately wanted.</p>
-<p><strong>The Lee transformation is a bridge to the observed scale.</strong> When
-heritability is estimated on the observed case-control scale (OLS on
-the 0/1 outcome, e.g. GREML/LDSC output), the factor of Lee et al. (2011,
-<em>AJHG</em>) converts between that scale and the liability
-scale, using the population prevalence <code>K</code> (and, for ascertained
-case/control studies, the sample case proportion <code>P</code>) with
-<code>z = phi(Phi^-1(1 - K))</code>:</p>
-<ul>
-<li><code>h²_liab  = h²_obs  * [K(1-K)/z²] * [K(1-K)/(P(1-P))]</code>   (Lee et al. 2011;
-  the second factor applies only to ascertained studies)</li>
-</ul>
-<p><code>observed_to_liability_h2</code> is the forward h² bridge and
-<code>liability_to_observed_h2</code> its inverse.</p>
+        <p>Observed/liability heritability and probit variance transformations.</p>
+<p>The Lee factor converts observed case/control heritability to liability scale
+using population prevalence <code>K</code> and, for ascertained studies, sample case
+fraction <code>P</code>. The inverse transformation divides by the same factor.</p>
+<p>For SNP effect <code>beta</code> and allele frequency <code>f</code>, probit residual-scale
+variance is <code>q = 2 f (1-f) beta^2</code>; its single-predictor fraction of total
+latent variance is <code>q/(1+q)</code>. GWAS z-based variance subtracts one unit of
+null noise by default.</p>
 
 
 
@@ -5011,17 +4757,10 @@ under the same rules.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Residual-scale probit genetic variance: <code>2 f (1-f) beta²</code>.</p>
-<p>Despite the compatibility name, the default is <strong>not a total-liability
-R²</strong>. It is <code>q = Var(x * beta)</code> in units where probit residual variance
-is one. <code>beta</code> is the
-per-allele effect on the probit scale and <code>maf</code> the minor-allele
-frequency (variance-standardised genotype <code>x</code> is NOT required -- the
-formula uses the allele-count variance <code>2 f (1-f)</code>). With
-<code>fraction=True</code> returns the single-predictor McKelvey-Zavoina fraction
-<code>q / (1 + q)</code> (Lee et al. 2012, <em>Genet Epidemiol</em>, eq. 9). Do not sum
-those elementwise fractions across SNPs: sum the default <code>q</code> values first,
-then transform the total once. Vectorised.</p>
+        <p>Return probit residual-scale variance <code>2 f (1-f) beta²</code>.</p>
+<p>With <code>fraction=True</code>, return the single-predictor fraction <code>q/(1+q)</code>.
+Sum residual-scale variances across independent SNPs before applying that
+nonlinear transformation, not the fractions themselves.</p>
 
 
     </div>
@@ -5041,25 +4780,12 @@ then transform the total once. Vectorised.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Residual-scale liability-variance signal from a GWAS z-statistic.</p>
-<p>For a marginal case-control GWAS statistic <code>z_j</code>, the liability-scale
-variance explained is, in the small-effect limit,</p>
-<div class="highlight"><pre><span></span><code>q_liab,j ~ ((z_j² - 1) / N) * c,
-</code></pre></div>
-<p>with <code>K</code> the population prevalence, <code>P</code> the sample case proportion
-(ascertained studies), and <code>z_K = phi(Phi^-1(1-K))</code>. This is Lee &amp; Wray
-(2013, <em>PLoS ONE</em> 8:e71494, eq. 2-3; their non-centrality
-<code>E[chi²] - 1 ~ N * q_liab * z_K² P(1-P) / (K(1-K))²</code>), and the factor
-<code>c</code> is exactly the Lee et al. (2011) master factor used by
-<code>observed_to_liability_h2</code>. Without <code>prop_cases</code> the
-ascertainment factor drops out (population samples). <code>n</code> is the per-SNP
-sample size (scalar or per-SNP array). Null subtraction is unbiased in
-expectation but permits negative per-SNP estimates; aggregate before
-interpreting; it assumes a calibrated null (<code>E[z²] = 1</code>, no residual
-inflation). Marginal per-SNP signals may be summed only across independent
-or suitably LD-pruned variants; otherwise use an LD-aware aggregation to
-avoid counting tagged signal repeatedly. Set <code>subtract_null=False</code> for
-the raw second-moment calculation <code>(z² / N) * c</code>.</p>
+        <p>Estimate small-effect liability variance from GWAS z statistics.</p>
+<p>Returns <code>((z² - 1) / n) * c</code> by default, where <code>c</code> is the same Lee
+factor used by <code>observed_to_liability_h2</code>; <code>subtract_null=False</code> omits
+the unit null term. Estimates can be negative per SNP and assume a
+calibrated null. Sum only independent or LD-pruned signals, or use an
+LD-aware aggregate.</p>
 
 
     </div>
@@ -5088,33 +4814,12 @@ the raw second-moment calculation <code>(z² / N) * c</code>.</p>
 
     <div class="doc doc-contents first">
 
-        <p>Tetrachoric correlation: latent liability correlation from binary pairs.</p>
-<p>Under the liability-threshold model, two binary observations (two traits, or
-the case/control statuses of two relatives) are read as a 2x2 table of a
-latent <strong>bivariate normal</strong> cut at two thresholds. The tetrachoric correlation
-is the latent Pearson correlation implied by that table -- the pairwise face
-of the family model used throughout this package: for relatives with additive
-relationship <code>A</code> and liability-scale heritability <code>h2</code> the expected
-tetrachoric correlation under an A+E model is <code>h2 * A</code> (Falconer's route:
-parent-offspring pairs give <code>h2 / 2</code>, so <code>h2 ~ 2 * tetrachoric</code>; full sibs
-also share any sibship <code>c2</code>).</p>
-<p>The estimator is the maximum-likelihood tetrachoric (Kirk 1973; Tallis 1962):
-thresholds <code>t = Phi^-1(1 - p)</code> from the marginal case proportions. The 2x2
-model is saturated, so with plug-in thresholds matching both margins the MLE
-is the unique root of <code>p_both(rho) = a / n</code> (<code>dp_both/drho</code> is the
-bivariate density, hence positive), found by Brent's method on
-<code>(-1 + 1e-9, 1 - 1e-9)</code> with cell probabilities from Plackett integration
-(<code>ltpred.pairwise_multi._bivariate_probabilities</code>, the same engine the
-pairwise fitters use). The standard error is a Wald SE from the closed-form
-observed information for <code>rho</code> alone,
-<code>-ll'' = -sum n (p''/p - (p'/p)^2)</code>, conditional on the thresholds. The
-quick cosine approximation
-(<code>cos(pi / (1 + sqrt(a*d / (b*c))))</code>-style estimators) is not used -- the
-MLE is cheap enough.</p>
-<p>Use it as a diagnostic and cross-check: estimate liability correlations
-directly from relative pairs' statuses and compare with the model's
-<code>h2 * A</code> expectation, or sanity-check a fitted <code>h2</code> against the pairwise
-tetrachorics in the same data (<code>benchmarks/bench_tetrachoric.py</code>).</p>
+        <p>Tetrachoric maximum-likelihood correlation for binary pairs.</p>
+<p>Marginal case proportions set the thresholds. With those margins fixed, the
+saturated 2x2 model gives a unique root <code>p_both(rho) = a/n</code>, solved by
+Brent's method using the pairwise fitters' Plackett probabilities. The
+reported Wald SE comes from observed information conditional on the
+thresholds. Pairwise estimates need not form a PSD matrix.</p>
 
 
 
@@ -5260,17 +4965,9 @@ monomorphic array.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Pairwise tetrachoric correlations among the columns of <code>X</code>.</p>
-<p><code>X</code> is an <code>(n, m)</code> boolean or 0/1 array, one row per unit (e.g. family)
-and one column per variable; returns the symmetric <code>(m, m)</code> matrix of
-pairwise estimates with unit diagonal. Each pair of
-columns is fitted by <code>tetrachoric_table</code>, so <code>continuity_correction</code> and
-the monomorphic-column error behave as there. Because the off-diagonal
-entries are fitted independently, the result is <strong>not guaranteed to be a
-positive-semidefinite correlation matrix</strong>. With <code>check_psd=True</code> (the
-default), a materially negative eigenvalue emits a warning; do not pass such
-a result to a covariance model without a scientifically justified joint fit
-or projection.</p>
+        <p>Return pairwise tetrachoric correlations among columns of binary <code>X</code>.</p>
+<p>Each pair uses <code>tetrachoric_table</code>. Independent estimates need not be PSD;
+<code>check_psd=True</code> warns on a materially negative eigenvalue.</p>
 
 
     </div>
@@ -5316,47 +5013,17 @@ landmark, with a warning on prevalent cases).</p>
 
     <div class="doc doc-contents first">
 
-        <p>Supported population-register scoring from trio records and empirical CIPs.</p>
-<p>The low-level pieces live in <code>ltpred.pedigree</code>, <code>ltpred.thresholds</code> and
-<code>ltpred.estimate</code>; this module is the glue between them (methods report,
-"Implementation"). The driver is intentionally narrow: additive-only,
-pinned-onset LT-FH++ bounds and deterministic Pearson--Aitken (PA). Interval
-cases, C/M kernels and the PA-FGRS mixture use the lower-level APIs.</p>
-<p>Algorithm R (<code>estimate_liabilities</code>), in code order:</p>
-<ul>
-<li>R1. Validate inputs and each (stratum) CIP curve, once per call.</li>
-<li>R2. Build the parent graph and rank it topologically (a whole-graph cycle
-  check). Count unresolved parent references: raise if none resolves, warn
-  above 50% of records. Under <code>"prediction"</code> classify each proband at
-  <code>index_time</code> (<code>proband_state</code>) and warn on prevalent cases.</li>
-<li>R3. Per proband, extract the <code>max_degree</code> pedigree with its ancestral
-  closure (<code>ltpred.pedigree.extract_pedigree</code>); <code>m</code> members.</li>
-<li>R4. Observation set. <code>"gwas"</code>: every member's record as given.
-  <code>"prediction"</code>: member <code>j</code> is censored at their own attained age
-  <code>c_j = index_time - birth_time[j]</code>; <code>c_j &lt;= 0</code> is uninformative, a
-  record ending after the landmark becomes a control at <code>c_j</code>, and the
-  proband's row is uninformative. Closure-only rows are uninformative
-  unless <code>condition_closure</code>.</li>
-<li>R5. Pinned-onset bounds from each member's (stratum) CIP; computed once
-  for the whole population under <code>"gwas"</code>, per proband otherwise.</li>
-<li>R6. Relationships. If no PD repair can occur (a conservative check on
-  <code>h2</code> and <code>m</code>), keep only the target and the informative
-  rows, in pedigree order; their <code>A</code> block comes from a dense fill when
-  <code>m &lt;= 1500</code> and they request more than <code>0.03 m**2</code> pairs, else from
-  selected-pair recursion (Algorithm K). Otherwise use the full dense <code>A</code>
-  and all rows.</li>
-<li>R7. Score by <code>ltpred.estimate.estimate_liability_from_kinship</code> (PA,
-  target 0, <code>A</code> certified PSD so it is not re-validated): standardized
-  covariance, one <code>ltpred.covariance.correct_positive_definite</code> check, PA.
-  A target with no informative relatives, <code>A_tt = 1</code>, unpinned bounds and
-  <code>h2</code> inside (0, 1) takes the bit-identical scalar ADuLT moments instead.</li>
-<li>R8. Record <code>n_relatives</code>, <code>n_conditioned</code>, <code>n_closure_only</code> and
-  <code>degree_max</code>.</li>
-</ul>
-<p>Dropping unbounded rows in R6 is exact: Gaussian marginalization selects a
-principal block and PA skips such rows. Cost per proband is linear in the
-extracted pedigree plus the <code>A</code> route: O(m**2) dense, or one evaluation per
-uncached ancestor pair.</p>
+        <p>Population-register scoring from trio records and empirical CIPs.</p>
+<p>For each proband the driver extracts relatives plus ancestral closure, forms
+the GWAS or calendar-censored prediction observation set, converts records to
+pinned-onset CIP bounds and scores with deterministic PA. Closure-only rows
+are structural and uninformative unless explicitly requested.</p>
+<p>When a conservative eigenvalue bound proves that no PD repair is needed,
+unbounded rows are marginalised and the repair check is skipped. Required
+relationships come from a dense tabular fill or bounded selected-pair
+recursion; both are exact. Boundary cases retain the full pedigree and legacy
+repair. Outputs include observation counts and unresolved-parent diagnostics.
+See Algorithm R in <code>docs/algorithm.md</code>.</p>
 
 
 
@@ -5398,23 +5065,12 @@ uncached ancestor pair.</p>
 
 
 
-        <p>Per-proband register-pipeline output, aligned to <code>probands</code>.</p>
-<p><code>est</code> is the Pearson--Aitken approximation to the posterior mean genetic
-liability and <code>var</code> its posterior-variance approximation. <code>n_relatives</code>
-counts structural non-proband members reached within <code>max_degree</code>;
-<code>n_conditioned</code> counts informative diagnosis bounds that actually enter
-the observation set (including the proband under <code>use="gwas"</code>);
-<code>n_closure_only</code> counts ancestors added solely to preserve exact kinship;
-and <code>degree_max</code> is the largest non-closure degree present.</p>
-<p><code>frac_records_with_unresolved_parents</code> is the fraction of population records with at
-least one non-null parent reference that matched no id; a high value means
-a register boundary (parents born before registration started) or a broken
-id join. <code>proband_state</code> is set under <code>use="prediction"</code> only (<code>None</code>
-under <code>use="gwas"</code>) and classifies each proband at their landmark:
-<code>"prevalent_case"</code> (diagnosed at or before the landmark),
-<code>"exited_before_index"</code> (follow-up ended strictly before it), or
-<code>"disease_free_and_followed"</code>. Only the last belongs in a prospective
-incident-risk evaluation.</p>
+        <p>Aligned register scores, posterior variances and cohort diagnostics.</p>
+<p>Counts distinguish structural relatives, conditioned observations and
+closure-only ancestors. <code>proband_state</code> is prediction-only and identifies
+prevalent cases and follow-up exits at the landmark.
+<code>frac_records_with_unresolved_parents</code> helps distinguish a register
+boundary from a broken parent-id join.</p>
 
 
 
@@ -5503,58 +5159,22 @@ incident-risk evaluation.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Estimate genetic liabilities from population trio and diagnosis records.</p>
-<p><code>ids</code>/<code>father</code>/<code>mother</code> are one population parent-pointer table.
-<code>status</code> and <code>age</code> are aligned to <code>ids</code>: <code>age</code> is attained age at
-diagnosis for a case and attained age at last follow-up/exit for a control,
-finite and non-negative. <code>probands</code> are unique ids present in <code>ids</code>.
-<code>max_degree</code> (default 3, at least 1; <code>ltpred.pedigree.extract_pedigree</code>
-defaults to 2) sets how far relatives are discovered.
-Supply either one empirical population CIP (<code>cip_ages</code>, <code>cip_values</code>,
-optional <code>k_pop</code>) or per-person <code>strata</code> plus <code>cip_by_stratum</code>, a mapping from each label
-to <code>(cip_ages, cip_values, k_pop)</code>.</p>
-<p><code>use</code> is required because it changes the observation set. <code>"gwas"</code>
-includes the proband's own diagnosis. <code>"prediction"</code> leaves it
-uninformative and requires <code>birth_time</code> (one value per <code>id</code>) plus
-<code>index_time</code> (one value per proband) on a common numeric calendar scale
-whose unit matches <code>age</code>. For member <code>j</code> at proband index time <code>t</code>,
-the censoring age is <code>t - birth_time[j]</code>. A diagnosis or exit after <code>t</code>
-becomes a control censored at that member-specific age; a member not yet
-born is uninformative. Thus relatives from different generations are never
-assigned the proband's attained age.</p>
-<p>Pedigree ancestors added only for exact kinship are uninformative by
-default, so <code>max_degree</code> bounds the diagnosis observations even though
-relationships retain their full ancestral contribution. Set
-<code>condition_closure=True</code> only to deliberately condition on those extra
-diagnoses. Inference is pinned-onset LT-FH++ with deterministic
-Pearson--Aitken; use the lower-level APIs for interval/mixture models.</p>
-<p><code>h2</code>: Liability-scale additive heritability for this disease, in
-<code>(0, 1]</code>. Required: there is no disease-independent default, for the
-same reason the threshold builders take no default prevalence. See
-the data-preparation guide, "Getting heritability on the liability scale", for choosing between pedigree/twin and
-SNP estimates and for the sensitivity analysis.</p>
-<p>Only target and informative observation relationships are used. They
-come from a dense matrix over the extracted pedigree when it has at most
-1,500 members and more than about a quarter of them are selected,
-otherwise from selected pair recursion, where <code>kinship_cache_size</code>
-bounds the number of ancestor-pair results reused across probands (zero
-disables memoization entirely — it saves no meaningful memory, since a
-full default cache holds about 30 MB, and makes deep pedigrees orders of
-magnitude slower, so it warns). The parent graph is checked for cycles
-once. Near covariance singularities the full extracted matrix
-is retained to preserve the existing positive-definite correction.</p>
-<p>Two table/proband boundary conditions are reported rather than silently
-absorbed. A non-null parent reference that matches no id becomes a founder
-(a register boundary: parents born before registration started), and the
-fraction of records with at least one such reference is returned as
-<code>PopulationScores.frac_records_with_unresolved_parents</code>; when <strong>no</strong> non-null
-reference resolves the table cannot be a boundary effect -- an id-format
-or join mismatch is the likely cause -- and the call raises, while an
-unresolved share above 50% warns. Under <code>use="prediction"</code> each proband
-is classified at their landmark into
-<code>PopulationScores.proband_state</code> and any <code>"prevalent_case"</code> warns;
-neither diagnostic alters the scores, and neither is a substitute for
-constructing an eligible incident-risk cohort.</p>
+        <p>Score probands from population parent pointers and diagnosis records.</p>
+<p><code>status</code> and <code>age</code> align to <code>ids</code>; age is onset for cases and last
+follow-up for controls. Supply liability-scale <code>h2</code>, unique <code>probands</code>,
+<code>max_degree</code> and either one <code>(cip_ages, cip_values, k_pop)</code> curve or
+<code>strata</code> with <code>cip_by_stratum</code>.</p>
+<p><code>use="gwas"</code> includes the proband's diagnosis. <code>use="prediction"</code>
+leaves it uninformative and requires aligned <code>birth_time</code> plus one
+<code>index_time</code> per proband. Every relative is censored at their own age
+<code>index_time - birth_time</code>; future records become controls and people not
+yet born are uninformative. Ancestral closure is also uninformative unless
+<code>condition_closure=True</code>.</p>
+<p><code>kinship_cache_size</code> bounds selected-pair reuse. Zero disables caching,
+warns and is usually much slower without meaningful memory savings.
+Unresolved-parent and prevalent-proband diagnostics are returned/warned;
+they do not replace cohort eligibility checks. Inference is pinned-onset
+LT-FH++ with PA; use lower-level APIs for other observation models.</p>
 
 
     </div>
@@ -5582,50 +5202,16 @@ constructing an eligible incident-risk cohort.</p>
 
     <div class="doc doc-contents first">
 
-        <p>Cumulative-incidence (CIP) estimation from registry-style health data.</p>
-<p>The personalised thresholds of LT-FH++ / ADuLT / PA-FGRS consume a
-cumulative-incidence curve per stratum (sex x birth cohort) through
-<code>ltpred.thresholds.thresholds_from_cip</code>. This module estimates that curve
-from individual follow-up records: per person an entry age (start of
-follow-up), an exit age, and what happened at exit.</p>
-<p>Two estimators, both handling <strong>left truncation</strong> (delayed entry: register
-starts mid-life, immigration) and <strong>right censoring</strong> (emigration, end of
-follow-up). Delayed entry must be independent of the event process conditional
-on the modelled strata, with overlapping risk-set support; right censoring
-must likewise be conditionally non-informative:</p>
-<ul>
-<li><code>kaplan_meier_cip</code> -- the product-limit estimator <code>CIP = 1 - S</code> for
-  the single-event setting. Under independent censoring it estimates net risk:
-  incidence in a hypothetical world without the censoring process. Death must
-  not be treated as censoring when the target is the crude diagnosed
-  proportion, even if death and diagnosis are independent. Greenwood standard
-  errors.</li>
-<li><code>aalen_johansen_cip</code> -- the Aalen--Johansen estimator of the
-  cause-specific cumulative incidence with competing risks (diagnosis vs
-  death without diagnosis). This is the estimator LT-FH++ used for its CIPs
-  (Pedersen et al. 2022: Aalen-Johansen with death and emigration as
-  competing events, one curve per sex x birth-year stratum) and the standard
-  counting-process practice of the Danish register literature (Andersen,
-  Borgan, Gill &amp; Keiding 1993; e.g. Beck et al. 2024, <em>Acta Psychiatr
-  Scand</em>). Pointwise SEs use the finite-risk-set, tie-correct Aalen (1978)
-  variance (the <code>cmprsk::cuminc</code> convention).</li>
-</ul>
-<p>Risk-set convention (counting processes; Andersen, Borgan, Gill &amp; Keiding,
-<em>Statistical Models Based on Counting Processes</em>, 1993): person <code>i</code> is at
-risk at age <code>t</code> when <code>age_entry_i &lt; t &lt;= age_exit_i</code>. Events and censorings
-occur at <code>age_exit</code>; zero-length follow-ups (<code>exit == entry</code>) never enter a
-risk set. Ages may be continuous; ties are handled by grouping on unique exit
-ages. Stratification (e.g. by sex x birth-year bands) is done by calling an
-estimator once per stratum -- see "Stratification" in <code>docs/cip-estimation.md</code>.</p>
-<p>The returned <code>CipCurve</code> carries ascending <code>ages</code>, non-decreasing
-<code>values</code> in <code>[0, 1]</code>, pointwise standard errors and event counts.
-<code>ltpred.thresholds.thresholds_from_cip</code> consumes a non-degenerate curve
-only (all values below one). If a terminal event exhausts the empirical risk
-set, a Kaplan-Meier estimate is exactly one but cannot define a finite probit
-threshold; choose a scientifically justified earlier/lifetime horizon rather
-than silently clipping it. <code>thresholds_from_cip</code> takes <code>k_pop</code>
-separately: pass the curve's value at the intended lifetime horizon, or a
-separately justified estimate.</p>
+        <p>Cumulative incidence from follow-up records with delayed entry.</p>
+<p><code>kaplan_meier_cip</code> estimates net incidence with Greenwood SEs;
+<code>aalen_johansen_cip</code> estimates cause-specific crude incidence with competing
+risks and finite-risk-set, tie-correct Aalen SEs. A person is at risk at <code>t</code>
+when <code>age_entry &lt; t &lt;= age_exit</code>; zero-length follow-up cannot carry an
+event. Both estimators handle right censoring and tied event ages.</p>
+<p>The returned <code>CipCurve</code> feeds <code>thresholds_from_cip</code> per population stratum.
+Curves reaching one cannot define a finite probit threshold; choose a justified
+lifetime horizon and <code>k_pop</code>. See <code>docs/cip-estimation.md</code> for estimand
+choice and examples.</p>
 
 
 
@@ -5665,15 +5251,7 @@ separately justified estimate.</p>
 
 
 
-        <p>An estimated cumulative-incidence curve.</p>
-<p><code>ages</code> are ascending and <code>values</code> non-decreasing in <code>[0, 1]</code>.
-Values strictly below one feed
-<code>ltpred.thresholds.thresholds_from_cip</code>; an exact terminal one is a
-valid estimate but has no finite probit threshold. <code>se</code> is the
-pointwise standard error (Greenwood for Kaplan-Meier, the finite-risk-set,
-tie-correct Aalen (1978) variance for Aalen-Johansen); <code>n_events</code> counts
-events of interest; <code>n_entered</code> the number of persons contributing any
-follow-up; <code>estimator</code> records which estimator produced the curve.</p>
+        <p>Ascending event ages, cumulative incidence, pointwise SEs and counts.</p>
 
 
 
@@ -5718,70 +5296,14 @@ follow-up; <code>estimator</code> records which estimator produced the curve.</p
 
     <div class="doc doc-contents ">
 
-        <p>Kaplan-Meier cumulative incidence <code>1 - S(t)</code> with left truncation.</p>
+        <p>Estimate net cumulative incidence <code>1 - S(t)</code> by Kaplan--Meier.</p>
+<p><code>age_entry</code> and <code>age_exit</code> are aligned follow-up ages;
+<code>is_event</code> is boolean or exact 0/1. Delayed entry and right censoring
+use the risk convention <code>entry &lt; t &lt;= exit</code>. Returns event ages,
+cumulative incidence and Greenwood pointwise SEs in a <code>CipCurve</code>.</p>
+<p>For the proportion actually diagnosed before death, death is a competing
+event rather than censoring: use <code>aalen_johansen_cip</code> instead.</p>
 
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>age_entry</code></b>
-              (<code><span title="numpy.typing.ArrayLike">ArrayLike</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-person ages at start and end of follow-up (1-D, equal length,
-<code>exit &gt;= entry</code>).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>age_exit</code></b>
-              (<code><span title="numpy.typing.ArrayLike">ArrayLike</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-person ages at start and end of follow-up (1-D, equal length,
-<code>exit &gt;= entry</code>).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>is_event</code></b>
-              (<code><span title="numpy.typing.ArrayLike">ArrayLike</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Boolean (or 0/1) per person: True if follow-up ended with the event of
-interest (diagnosis), False if censored (emigration, administrative
-end, death -- but see the note).</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><a class="autorefs autorefs-internal" title="CipCurve
-
-
-  
-      dataclass
-   (ltpred.cip.CipCurve)" href="#ltpred.cip.CipCurve">CipCurve</a></code>
-          –
-          <div class="doc-md-description">
-            <p><code>CIP = 1 - S</code> at each unique event age, with Greenwood pointwise
-standard errors.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<details class="note" open>
-  <summary>Notes</summary>
-  <p>Under independent censoring this estimates net risk: incidence in a
-hypothetical world without the censoring process. When the target is the
-proportion actually diagnosed, death before diagnosis is a competing
-event rather than censoring, irrespective of whether its time is
-statistically independent of diagnosis. Use <code>aalen_johansen_cip</code>
-with death as the competing event; the two estimands are compared in
-<code>benchmarks/bench_cip_estimation.py</code>.</p>
-</details>
 
     </div>
 
@@ -5800,82 +5322,14 @@ with death as the competing event; the two estimands are compared in
 
     <div class="doc doc-contents ">
 
-        <p>Aalen-Johansen cumulative incidence with competing risks.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-            <b><code>age_entry</code></b>
-              (<code><span title="numpy.typing.ArrayLike">ArrayLike</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-person follow-up ages (as in <code>kaplan_meier_cip</code>).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>age_exit</code></b>
-              (<code><span title="numpy.typing.ArrayLike">ArrayLike</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Per-person follow-up ages (as in <code>kaplan_meier_cip</code>).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>event_type</code></b>
-              (<code><span title="numpy.typing.ArrayLike">ArrayLike</span></code>)
-          –
-          <div class="doc-md-description">
-            <p>Integer code per person: 0 = censored, <code>cause</code> = event of interest
-(default 1, diagnosis), any other positive code = competing event
-(e.g. 2 = death without diagnosis).</p>
-          </div>
-        </li>
-        <li class="doc-section-item field-body">
-            <b><code>cause</code></b>
-              (<code><span title="int">int</span></code>, default:
-                  <code>1</code>
-)
-          –
-          <div class="doc-md-description">
-            <p>The event code to estimate the cumulative incidence for.</p>
-          </div>
-        </li>
-    </ul>
-
-
-<p><span class="doc-section-title">Returns:</span></p>
-    <ul>
-        <li class="doc-section-item field-body">
-              <code><a class="autorefs autorefs-internal" title="CipCurve
-
-
-  
-      dataclass
-   (ltpred.cip.CipCurve)" href="#ltpred.cip.CipCurve">CipCurve</a></code>
-          –
-          <div class="doc-md-description">
-            <p>Cause-specific cumulative incidence at each unique event age (any
-cause), with pointwise standard errors from the finite-risk-set,
-tie-correct <strong>Aalen (1978) variance</strong> (the estimator reported by
-<code>cmprsk::cuminc</code>; Andersen, Borgan, Gill &amp; Keiding 1993, sec. IV.4).</p>
-          </div>
-        </li>
-    </ul>
-
-
-<details class="note" open>
-  <summary>Notes</summary>
-  <p>The estimator is <code>F_cause(t) = sum S(t_i-) * d_cause(t_i) / Y(t_i)</code>,
-where <code>S</code> is the overall survival (any event). The competing events are
-not censorable in the Kaplan-Meier sense; comparing against
-<code>kaplan_meier_cip</code> (which treats them as censoring) quantifies the
-estimand difference. The variance includes the finite-risk-set and
-tied-event corrections from Aalen (1978) and ABGK (1993, sec. IV.4),
-evaluated in the algebraically equivalent recurrence used by
-<code>cmprsk::cuminc</code> so it remains finite when the final risk set is
+        <p>Estimate cause-specific cumulative incidence by Aalen--Johansen.</p>
+<p><code>event_type</code> uses 0 for censoring, <code>cause</code> for the event of interest
+and other positive codes for competing events. Follow-up arrays match
+<code>kaplan_meier_cip</code>. Returns every event age with
+<code>sum S(t-) * d_cause / Y</code> and finite-risk-set, tie-correct Aalen SEs.
+The variance recurrence remains defined when the final risk set is
 exhausted.</p>
-</details>
+
 
     </div>
 
@@ -5902,53 +5356,15 @@ exhausted.</p>
 
     <div class="doc doc-contents first">
 
-        <p>Discovering relatives from parent-offspring (trio) records.</p>
-<p>The role grammar and <code>ltpred.covariance.kinship_from_pedigree</code> start
-from a <strong>specified</strong> pedigree. Register data instead arrive as population-scale
-parent-offspring records (<code>id, father, mother</code> per person), and the pedigree
-must be <em>discovered</em>: which people are this proband's relatives, and how are
-they connected? This module builds the parent-child graph once
-(<code>build_parent_graph</code>) and then extracts each proband's pedigree by
-breadth-first traversal (<code>extract_pedigree</code>) — the graph-based relative
-extraction of Pedersen
-et al. (2025, <em>Front Genet</em>): a relative is anyone within <code>max_degree</code>
-relationship degrees of the proband.</p>
-<p>Degree conventions follow the standard relationship-degree scale (and
-Pedersen et al. 2025): <strong>first-degree</strong> relatives (parents, children, full
-siblings) are graph distance 1; <strong>second-degree</strong> (grandparents,
-grandchildren, half-siblings, aunts/uncles, nieces/nephews) distance 2;
-<strong>third-degree</strong> (first cousins, great-grandparents) distance 3. This is
-achieved by adding explicit edges between full siblings (two shared parents)
-to the parent-child graph, so traversal distance equals the standard degree
-rather than the raw meiotic count. Mates enter through shared children: the
-proband's own mate is graph distance 2 (proband -&gt; child -&gt; mate), while a
-first-degree relative's mate is distance 3 via that relative's child (a
-parent's other mate via a half-sibling); mates are genetically
-unrelated to the proband but belong to the pedigree (and to the
-spousal-environment component of <code>fit_variance_components</code>).</p>
-<p>Graph construction (<code>build_parent_graph</code>, O(n + sum of squared sibship
-sizes)): parent values are resolved against <code>ids</code>; declared-missing
-markers and unlisted values both become <code>-1</code> (an unknown founder), and
-unlisted non-null values are counted as unresolved. Full-sibling edges join
-people whose recorded father <strong>and</strong> mother coincide, so a person with an
-unknown parent has no sib edges (a half-sib is reached through the shared
-parent).</p>
-<p>Extraction (<code>extract_pedigree</code>) in two phases:</p>
-<ol>
-<li>Breadth-first search from the proband over parent, child and full-sib
-   edges for <code>max_degree</code> steps; <code>degree</code> is the BFS distance.</li>
-<li>Ancestral closure: repeatedly add every member's recorded parents,
-   relaxing <code>degree[parent] = min(degree[parent], degree[child] + 1)</code>.
-   Added people are <code>closure_only</code> (their degree exceeds <code>max_degree</code>).</li>
-</ol>
-<p>Because every recorded ancestor of every member is present, the tabular
-kinship of the extracted pedigree equals the full-population kinship
-restricted to it, inbreeding included; the degree limit truncates which
-<em>relatives</em> are included, never the kinship among them. Cost is linear in
-the size of the extracted set plus its edges, and a sort. Members are
-ordered proband first, then by <code>(degree, str(id))</code>, independent of record
-order; this is not a topological order, which
-<code>ltpred.covariance.kinship_from_pedigree</code> computes itself.</p>
+        <p>Discover pedigrees from population parent-offspring records.</p>
+<p><code>build_parent_graph</code> indexes parents, children and full-sibling edges;
+<code>extract_pedigree</code> performs a breadth-first search to <code>max_degree</code> and then
+adds every recorded ancestor needed for exact kinship. Full-sib edges make
+parents, children and full siblings distance one; grandparents, half-sibs and
+avuncular relatives distance two; first cousins distance three.</p>
+<p>Closure-only ancestors retain their shortest degree and are marked so their
+diagnoses need not enter the observation set. Output order is proband first,
+then <code>(degree, str(id))</code>, independent of record order.</p>
 
 
 
@@ -6139,20 +5555,11 @@ own ancestor) are not checked here;
 
     <div class="doc doc-contents ">
 
-        <p>One proband's pedigree by breadth-first traversal of <code>graph</code>.</p>
-<p>Visits every person within <code>max_degree</code> relationship-degrees of
-<code>proband</code> (see the module docstring for the degree conventions), then
-closes on <strong>all recorded ancestors</strong> of the extracted set. Kinship flows
-through common ancestors, so with every ancestor present the extracted
-pedigree's kinship is <strong>exact</strong>: it equals the full-population kinship
-restricted to the extracted members, inbreeding included. The degree
-limit truncates only <em>which</em> relatives are included (lateral and
-descendant links beyond <code>max_degree</code>), never the kinship among those
-included. <code>closure_only</code> marks ancestors added after the traversal, so a
-downstream scorer can retain them for kinship without automatically using
-their diagnoses. A parent not present in the records at all is an unknown
-founder, as <code>ltpred.covariance.kinship_from_pedigree</code> expects. Raises on
-a non-integer or sub-1 <code>max_degree</code> and on a proband not in <code>graph</code>.</p>
+        <p>Extract one proband's relatives and complete ancestral closure.</p>
+<p>BFS visits relatives through <code>max_degree</code>; closure then adds every
+recorded ancestor, making extracted kinship exact even with inbreeding.
+<code>closure_only</code> identifies added ancestors. <code>max_degree</code> must be a
+positive integer and <code>proband</code> must be present.</p>
 
 
     </div>
@@ -6180,24 +5587,12 @@ a non-integer or sub-1 <code>max_degree</code> and on a proband not in <code>gra
 
     <div class="doc doc-contents first">
 
-        <p>Turning case/control status, age and prevalence into liability thresholds.</p>
-<p>Under the liability-threshold model a person is a case when their full liability
-exceeds a threshold <code>T</code>. With a single population prevalence <code>K</code> that
-threshold is <code>T = Phi^-1(1 - K)</code>. Personalised models instead derive a person's
-threshold from cumulative incidence at their age, birth year and sex. A case can
-be pinned at the threshold matching their age of onset; a control's liability is
-bounded above by the threshold at their current age.</p>
-<p>Those bounds do not, by themselves, name the model. They form <strong>LT-FH++</strong> when
-the proband and relatives are conditioned on together, and <strong>ADuLT</strong> when only
-the proband is used (no family history). This module ports LTFHPlus's <code>convert_*</code>
-helpers and provides convenience builders that produce the <code>(lower, upper)</code>
-bounds consumed by either inference engine.</p>
-<p>Each row is one of three encodings: a <strong>pin</strong> <code>lower == upper</code> (finite; an
-exact liability, e.g. a case at its onset threshold), an <strong>interval</strong> with at
-least one finite end (a control <code>(-inf, T)</code> or a case <code>(T, inf)</code>), or
-<strong>absent</strong> <code>(-inf, inf)</code>. <code>K_i</code>/<code>K_pop</code> accompany censored controls
-for the PA mixture and are NaN elsewhere. Thresholds are <code>T = -Phi^-1(K)</code>
-for a prevalence or cumulative incidence <code>K</code>, avoiding <code>1 - K</code>.</p>
+        <p>Convert status, age and cumulative incidence into liability bounds.</p>
+<p>Thresholds are computed tail-safely as <code>T = -Phi^-1(K)</code>. Cases can be pinned
+at their onset threshold or bounded below by it; controls lie below their
+follow-up-age threshold. Uninformative rows use <code>(-inf, inf)</code>. With
+relatives these bounds support LT-FH/LT-FH++; without relatives, ADuLT.
+Optional <code>K_i</code>/<code>K_pop</code> arrays feed the PA censoring mixture.</p>
 <p>Every public helper whose result depends on <code>pop_prev</code> requires that value
 explicitly. There is no disease-independent prevalence default: the <code>0.05</code> and
 <code>0.10</code> values in examples are properties of those examples, not package
@@ -6356,19 +5751,10 @@ information, the special case <code>LT-FH</code> before <code>++</code>.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Age-dependent, onset-pinned bounds from status and age.</p>
-<p>A case is pinned at its onset threshold (<code>lower = upper = thresh(age_of_onset)</code>,
-a point mass); a control lies below the threshold for its current age
-(<code>lower = -inf</code>, <code>upper = thresh(current_age)</code>). <code>age</code> is the age of
-onset for cases and the current/censoring age for controls. <code>status</code> must
-be a one-dimensional Boolean or exact numeric 0/1 array; <code>pop_prev</code> may be
-a scalar or per-person array. Returns <code>(lower, upper)</code> arrays ready for
-<code>ltpred.family.families_from_columns</code> (then
-<code>ltpred.estimate.estimate_liability</code>) or the array estimators.</p>
-<p>This helper uses one logistic CIP curve and is mainly for simulation and
-tutorials. For full LT-FH++, use <code>thresholds_from_cip</code> with age-, birth-
-year- and sex-specific curves and include relatives. The same personalised
-construction with proband rows only is ADuLT.</p>
+        <p>Return onset-pinned case bounds and age-censored control bounds.</p>
+<p><code>age</code> is onset for cases and last follow-up for controls. This logistic
+demonstration is mainly for simulation; production register analyses use
+<code>thresholds_from_cip</code> with appropriate stratum-specific curves.</p>
 
 
     </div>
@@ -6388,48 +5774,15 @@ construction with proband rows only is ADuLT.</p>
 
     <div class="doc doc-contents ">
 
-        <p>LT-FH++ interval case encoding plus PA-FGRS mixture inputs — <strong>not</strong> base PA-FGRS.</p>
-<p>This helper gives cases <strong>age-specific onset intervals</strong>
-<code>(thresh(age_of_onset), inf)</code> -- the LT-FH++ case encoding that
-LTFHPlus's <code>prepare_LTFHPlus_input</code> emits by default
-(<code>use_fixed_case_thr = FALSE</code>). Dybdahl Krebs et al. (2024) instead give
-observed cases the lifetime interval <code>(Phi^-1(1 - K_pop), inf)</code> and use
-age-specific incidence only in the censored-control mixture, so feeding
-this helper's output to the mixture is an age-dependent PA-FGRS-style
-variant, not the base model.</p>
-<p>For <strong>base PA-FGRS</strong>, obtain lifetime case/control intervals with
-<code>prevalence_thresholds</code>, supply <code>K_i</code>/<code>K_pop</code> for controls, and use
-the Pearson-Aitken estimator with <code>use_mixture=True</code>. To infer onset-pinned
-LT-FH++ or ADuLT with Pearson-Aitken, use <code>age_thresholds</code> or
-<code>thresholds_from_cip</code> with <code>case_mode="pin"</code> and pass the resulting
-families to the default estimator.</p>
-<p><code>status</code> must be a one-dimensional Boolean or exact numeric 0/1 array. A
-case gets <code>(thresh(age_of_onset), inf)</code> and no mixture (<code>K_i = K_pop =
-nan</code>). An age-censored control gets <code>(-inf, thresh(current_age))</code>
-together with its cumulative incidence <code>K_i = cir(current_age)</code> and the
-lifetime prevalence <code>K_pop = pop_prev</code>, which must be a scalar in (0, 1)
-here. Build families with <code>ltpred.family.families_from_columns</code> (passing
-<code>K_i</code>/<code>K_pop</code>) and estimate with <code>ltpred.estimate.estimate_liability</code>
-and <code>method="pearson-aitken"</code>, or use
-<code>ltpred.estimate.estimate_liability_pa_arrays</code>.</p>
-<p>The control <code>upper</code> is the <em>age-specific</em> threshold <code>Phi^-1(1 - K_i)</code>, and
-how the estimator reads it depends on <code>use_mixture</code>:</p>
-<ul>
-<li><code>use_mixture=False</code> -- the supplied intervals are used directly. Controls
-  have the same age-specific upper bound as <code>age_thresholds</code>, but cases
-  remain intervals rather than the point pins of <code>age_thresholds</code>; the
-  encodings are not equivalent.</li>
-<li><code>use_mixture=True</code> -- the PA-FGRS censored-control correction switches on. It
-  does the age adjustment itself, from <code>K_i</code>/<code>K_pop</code>, by splitting the
-  control's liability at the <em>lifetime</em> threshold <code>Phi^-1(1 - K_pop)</code> into a
-  genuine-control and a not-yet-onset-case component (Dybdahl Krebs et al.
-  2024, eqs. S3-S5). The age-specific <code>upper</code> is then only a
-  censored-vs-observed flag -- its value does not re-enter. Age therefore
-  enters through <code>K_i</code> only and is not applied twice.</li>
-</ul>
-<p>These two settings encode different observation models; neither their
-equivalence nor calibration should be assumed without a generative validation
-matching the intended study design.</p>
+        <p>Return age-specific interval bounds and PA mixture inputs.</p>
+<p>Cases use <code>[T(onset), inf)</code> with NaN mixture values; controls use
+<code>(-inf, T(follow-up))</code> plus their current and lifetime incidence. With
+<code>use_mixture=True</code>, the control's age-specific upper only flags
+censoring: PA splits at the lifetime threshold and does not apply age
+twice. Without the mixture, all supplied bounds apply directly.</p>
+<p>This is an age-dependent PA-FGRS-style variant, not base PA-FGRS. For the
+latter, use lifetime bounds from <code>prevalence_thresholds</code> and add control
+<code>K_i</code>/<code>K_pop</code> values.</p>
 
 
     </div>
@@ -6449,38 +5802,16 @@ matching the intended study design.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Liability bounds (+ <code>K_i</code>, <code>K_pop</code>) from an <em>empirical</em> CIP curve.</p>
-<p>The production alternative to the logistic <code>age_thresholds</code> /
-<code>pa_thresholds</code>: instead of the built-in logistic incidence, pass a
-population-representative cumulative-incidence curve as <code>cip_ages</code> (ascending)
-and <code>cip_values</code> (CIP at each age). Call once <strong>per stratum</strong> (sex, birth
-year, ancestry, ...) with that stratum's curve. Each person's CIP is linearly
-interpolated at their <code>age</code> and clipped to <code>[min_cip, k_pop]</code> before being
-turned into a threshold <code>Phi^-1(1 - CIP)</code>. <code>numpy.interp</code> holds the first
-or last CIP constant outside the supplied age grid; it does not extrapolate
-incidence, so the grid should cover all analysed onset/follow-up ages.</p>
-<p><code>k_pop</code> is the lifetime prevalence for the stratum. It defaults to
-<code>max(cip_values)</code>, which is appropriate only when the curve reaches the
-intended lifetime horizon; otherwise pass a separately justified value.
-<code>case_mode</code> sets the case encoding. Both are LT-FH++ encodings (with
-family history) and ADuLT encodings (without), and both are emitted by
-LTFHPlus's <code>prepare_LTFHPlus_input</code>: <code>"pin"</code> (ltpred's default) fixes
-a case at <code>thresh(age_of_onset)</code> -- exact under threshold-crossing onset,
-LTFHPlus's opt-in <code>use_fixed_case_thr = TRUE</code> -- while <code>"interval"</code>
-uses <code>(thresh(age_of_onset), inf)</code>, LTFHPlus's default
-(<code>use_fixed_case_thr = FALSE</code>). Neither is base PA-FGRS, whose observed
-cases use the lifetime threshold. The two agree closely on ranking and
-differ in calibration scale; see algorithm.md, "Thresholds and observation
-models", and <code>benchmarks/RESULTS.md</code> section 16.
-<code>status</code> must be a one-dimensional Boolean or exact numeric 0/1 array.
-Controls are always <code>(-inf, thresh(current_age))</code> and carry <code>K_i</code> /
-<code>K_pop</code> for the PA censored-control mixture. Returns
-<code>(lower, upper, K_i, K_pop)</code>: the scalar argument <code>k_pop</code> becomes the
-per-row <code>K_pop</code> array (NaN for cases, like <code>K_i</code>).</p>
-<p>Raises <code>ValueError</code> when <code>k_pop &lt; max(cip_values)</code>, when
-<code>min_cip &gt; k_pop</code>, or for a <code>case_mode</code> other than <code>"pin"</code> or
-<code>"interval"</code>, as well as for a malformed curve (non-finite, unsorted ages,
-decreasing values or values outside <code>[0, 1)</code>).</p>
+        <p>Build liability bounds and mixture inputs from an empirical CIP.</p>
+<p>CIP is linearly interpolated at each age, clipped to <code>[min_cip, k_pop]</code>
+and converted tail-safely to a threshold. Endpoint values are held constant
+outside the age grid. <code>k_pop</code> defaults to the curve maximum and should
+represent the intended lifetime horizon.</p>
+<p><code>case_mode="pin"</code> fixes cases at their onset threshold;
+<code>"interval"</code> bounds them below by it. Controls always use an upper bound
+at their follow-up age and receive <code>K_i</code>/<code>K_pop</code> (NaN for cases).
+Call once per population stratum. These encodings are not base PA-FGRS,
+whose cases use the lifetime threshold.</p>
 
 
     </div>
@@ -6508,32 +5839,13 @@ decreasing values or values outside <code>[0, 1)</code>).</p>
 
     <div class="doc doc-contents first">
 
-        <p>Family covariance matrices on the liability scale.</p>
-<p>Under the liability-threshold model a person's liability splits into a genetic
-part <code>l_g ~ N(0, h2)</code> and an environmental part, summing to a full liability
-<code>l_o ~ N(0, 1)</code>. Two relatives' genetic parts correlate by the fraction of DNA
-they share, so every covariance entry is <code>shared_DNA * h2</code> (methods report,
-"Covariance"). Two routes build the matrix that <code>ltpred.gibbs</code> and
-<code>ltpred.estimate</code> consume; with <code>add_ind=True</code> (the default) row 0 is the
-target's genetic <code>g</code>.</p>
-<ul>
-<li><strong>Role grammar</strong> (ports of LTFHPlus <code>get_relatedness</code> /
-  <code>construct_covmat*</code>). <code>get_relatedness</code> looks up a fixed shared-DNA table
-  by role kind and side; <code>construct_covmat_single</code> fills <code>(g, o,
-  relatives)</code> entry by entry and optionally adds sibship <code>C</code> and couple
-  <code>M</code> off-diagonals; <code>construct_covmat_multi</code> extends it to correlated
-  traits. The grammar cannot express every pedigree (see the same-side
-  half-sib convention in <code>get_relatedness</code>).</li>
-<li><strong>Arbitrary pedigrees</strong>. <code>kinship_from_pedigree</code> computes <code>A = 2 *
-  kinship</code> exactly by the tabular method, in O(n + edges) ordering plus an
-  O(n**2) dense fill; <code>construct_covmat_from_kinship</code> forms <code>V = h2 A +
-  c2 C + m2 M + e2 I</code>, standardizes every full liability to unit variance
-  and prepends the target's genetic row on the same scale.</li>
-</ul>
-<p><code>correct_positive_definite</code> is the LTFHPlus repair (shrink off-diagonals
-until strictly PD) that the covariance-based estimators in <code>ltpred.estimate</code>
-apply to the assembled matrix. Internal callers whose <code>A</code> comes from
-pedigree construction may skip re-validating it; the repair still runs.</p>
+        <p>Liability-scale covariance from roles or arbitrary pedigrees.</p>
+<p>Role constructors use the LTFHPlus relationship grammar and optional sibship
+(C) and couple (M) kernels. The pedigree route computes <code>A = 2 * kinship</code>
+and constructs <code>V = h2 A + c2 C + m2 M + e2 I</code>, standardising full
+liabilities to unit variance before prepending the target genetic coordinate.
+<code>correct_positive_definite</code> shrinks off-diagonals when numerical repair is
+needed. See <code>docs/algorithm.md</code> for equations and model restrictions.</p>
 
 
 
@@ -6622,26 +5934,13 @@ list repeats the per-trait roles once per phenotype.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Shared-DNA fraction between two family roles, times <code>h2</code>.</p>
-<p><code>s1</code>/<code>s2</code> are role strings (<code>g</code> genetic liability, <code>o</code> full liability,
-<code>m</code>/<code>f</code> parents, <code>s</code> siblings, <code>mgm</code>/<code>pgf</code> grandparents, <code>mhs</code>/<code>phs</code>
-half-sibs, <code>mau</code>/<code>pau</code> aunts/uncles, <code>c&lt;group&gt;.&lt;idx&gt;</code> children, e.g.
-<code>c1.1</code>; children in one partner group are full sibs). Role strings are
-matched case-insensitively. Returns e.g.
-<code>0.5*h2</code> for parent/offspring or full sibs, <code>0.25*h2</code> for grandparents and
-half-sibs. Pass <code>h2=1</code> to get the bare shared-DNA fraction.</p>
-<p>Lookup: a role with itself returns its variance (<code>h2</code> for <code>g</code>, else 1);
-roles on opposite sides (maternal <code>m</code>/<code>mg*</code>/<code>mhs</code>/<code>mau</code> versus
-paternal <code>f</code>/<code>pg*</code>/<code>phs</code>/<code>pau</code>) return 0; two children share 0.5
-within a partner group <code>c&lt;group&gt;.*</code> and 0.25 across groups; any other
-pair reads a fixed shared-DNA table by role kind (mates such as <code>m</code>/<code>f</code> or
-<code>mgm</code>/<code>mgf</code> are unrelated).</p>
-<p>Two <strong>same-side</strong> half-sibs (<code>mhs1</code>/<code>mhs2</code> or <code>phs1</code>/<code>phs2</code>) are
-related <code>0.5*h2</code> <em>to each other</em> — the role grammar cannot name their second
-parents, so it implies a shared one (they are treated as full sibs of each
-other). A pedigree in which same-side half-sibs have distinct other parents is
-not expressible in this grammar; use <code>construct_covmat_from_kinship</code>
-for those.</p>
+        <p>Return shared-DNA fraction times <code>h2</code> for two role labels.</p>
+<p>Roles cover the proband (<code>o</code>), genetic target (<code>g</code>), parents,
+siblings, grandparents, half-sibs, avuncular relatives and children
+(<code>c&lt;group&gt;.&lt;idx&gt;</code>). Use <code>h2=1</code> for the bare fraction. Opposite-side
+relatives and mates are unrelated; children in one partner group are full
+sibs. Same-side half-sib sets use the role grammar's shared-other-parent
+convention; more complex pedigrees need <code>construct_covmat_from_kinship</code>.</p>
 
 
     </div>
@@ -6661,22 +5960,11 @@ for those.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Covariance matrix for one trait: proband <code>g</code>/<code>o</code> plus relatives.</p>
-<p>Entry <code>(i, j)</code> is <code>get_relatedness(role_i, role_j, h2)</code>, with <code>h2</code> in
-<code>(1e-8, 1]</code> (below the floor the smallest eigenvalue, about <code>h2</code>, is
-under the strict positive-definiteness threshold and no correction can
-recover it; at <code>h2 = 1</code> <code>g</code> and <code>o</code> coincide and the matrix is
-singular). Relatives come from <code>fam_vec</code>, a list of role strings
-(number repeated relatives <code>s1, s2, ...</code>). <code>g</code>/<code>o</code> in the input are
-dropped and, when <code>add_ind</code>, put first; duplicate
-roles raise. With the defaults the matrix covers a proband and both
-parents, a sibling and all four grandparents. Returns a <code>Covmat</code>; <code>.roles</code> gives the row ordering the
-Gibbs sampler expects (<code>g</code>, <code>o</code> first when <code>add_ind</code>). <code>c2</code>/<code>m2</code> add
-the sibship (<code>C</code>) and couple (<code>M</code>) shared-environment components of
-<code>docs/algorithm.md</code> to the relatives' covariance (off-diagonals only; the
-residual environmental variance absorbs them, so full liabilities keep unit
-variance and the genetic target stays coupled through <code>h2 * A</code> only).
-Requires <code>h2 + c2 + m2 &lt;= 1</code>.</p>
+        <p>Construct a single-trait role covariance.</p>
+<p>Rows are <code>g</code>, <code>o</code> and the supplied relative roles when <code>add_ind</code>.
+<code>h2</code> must exceed <code>1e-8</code> and be at most one. Optional C/M components
+alter full-liability off-diagonals only and require
+<code>h2 + c2 + m2 &lt;= 1</code>. Returns a <code>Covmat</code> containing its row labels.</p>
 
 
     </div>
@@ -6696,23 +5984,12 @@ Requires <code>h2 + c2 + m2 &lt;= 1</code>.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Covariance matrix for several correlated traits.</p>
-<p><code>fam_vec</code>/<code>add_ind</code> are as in <code>construct_covmat_single</code>,
-except that a family with no relatives always gives roles <code>g</code>, <code>o</code>.
-<code>h2_vec</code> holds one heritability per trait, each in <code>(1e-8, 1]</code>;
-<code>genetic_corrmat</code> and <code>full_corrmat</code> are <code>n_pheno x n_pheno</code>, finite,
-symmetric, unit-diagonal and positive semi-definite. <code>phen_names</code>
-(default <code>phenotype1</code>, <code>phenotype2</code>, ...) must have one name per trait.</p>
-<p>Same-trait blocks use <code>get_relatedness(., ., h2_p)</code>. Cross-trait blocks
-scale relatedness by the genetic covariance
-<code>rho_g[p, q] * sqrt(h2_p h2_q)</code>; on the diagonal, the same individual's
-genetic liabilities across traits correlate by that genetic covariance while
-their full liabilities correlate by <code>full_corrmat[p, q]</code>. The three inputs
-must describe one coherent decomposition: with <code>D = diag(sqrt(h2_vec))</code>,
-both <code>G = D @ genetic_corrmat @ D</code> and
-<code>E = full_corrmat - G</code> must be positive semi-definite. Rows are
-phenotype-major (all roles of trait 1, then trait 2, ...). Port of
-LTFHPlus::construct_covmat_multi.</p>
+        <p>Construct a phenotype-major multi-trait role covariance.</p>
+<p>Supply one heritability per trait and symmetric, unit-diagonal genetic and
+full-liability correlation matrices. With <code>D = diag(sqrt(h2_vec))</code>, both
+<code>G = D @ genetic_corrmat @ D</code> and <code>full_corrmat - G</code> must be PSD.
+Same-person cross-trait entries use genetic covariance for <code>g</code> and full
+correlation otherwise.</p>
 
 
     </div>
@@ -6732,27 +6009,12 @@ LTFHPlus::construct_covmat_multi.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Additive relationship matrix <code>A</code> (= 2×kinship) from a pedigree.</p>
-<p>Generalises the fixed role grammar (<code>get_relatedness</code>) to <strong>arbitrary
-pedigrees</strong>: instead of naming relatives <code>m</code>/<code>f</code>/<code>s1</code>/<code>mgm</code>… you give the
-parent of each individual and the relatedness is computed from the pedigree.</p>
-<p><code>ids</code> is a sequence of unique individual ids; <code>father</code> and <code>mother</code> are the
-same-length sequences giving each individual's parents. A parent that is not
-itself one of <code>ids</code> (<code>None</code>, <code>0</code>, <code>""</code>, <code>nan</code>, or any unlisted value)
-is treated as an unknown <strong>founder</strong>. Missing-id strings and pandas NA/NaT
-are also unknown; zero/<code>"0"</code> remains a valid parent when listed in <code>ids</code>. Returns <code>(ids, A)</code> with <code>A</code> an
-<code>(n, n)</code> matrix in the given <code>ids</code> order: <code>A[i,i] = 1 + F_i</code> (<code>F_i</code> the
-inbreeding coefficient) and <code>A[i,j] = 2 × kinship(i, j)</code> — e.g. 0.5 for
-parent–offspring and full sibs, 0.25 for grandparent/half-sib, 0.125 for first
-cousins. Computed by the recursive tabular method (Henderson 1976) over a
-topological order: <code>A_ii = 1 + A_sd / 2</code> and <code>A_ij =
-(A_sj + A_dj) / 2</code> for <code>i</code> after <code>j</code>, which handles inbreeding and any
-pedigree depth. Raises <code>ValueError</code> when the three sequences differ in
-length, when <code>ids</code> contains a missing value (<code>None</code>, NaN, pandas
-NA/NaT or a missing-marker string), on duplicate ids, a self-parent, or a
-cycle.</p>
-<p>Feed <code>A</code> to <code>construct_covmat_from_kinship</code> to build the liability
-covariance for these individuals.</p>
+        <p>Return <code>(ids, A)</code> where <code>A = 2 * kinship</code> in input-id order.</p>
+<p><code>father</code> and <code>mother</code> align to unique <code>ids</code>. Missing or unlisted
+parents are founders; a zero id is a parent only when explicitly listed.
+The tabular recursion handles inbreeding and arbitrary depth, returning
+<code>A[i,i] = 1 + F_i</code>. Missing/duplicate ids, self-parenting and cycles
+raise. Feed <code>A</code> to <code>construct_covmat_from_kinship</code>.</p>
 
 
     </div>
@@ -6772,43 +6034,16 @@ covariance for these individuals.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Liability-scale covariance from an additive relationship matrix <code>A</code>.</p>
-<p>The kinship-based counterpart of <code>construct_covmat_single</code>: given <code>A</code>
-(<code>n×n</code>, e.g. from <code>kinship_from_pedigree</code>) it first builds the raw
-covariance <code>V = h2 * A + c2 * C + m2 * M + e2 * I</code>, where
-<code>e2 = 1 - h2 - c2 - m2</code>, and then divides row/column <code>i</code> by
-<code>sqrt(V[i, i])</code>. <code>C</code> and <code>M</code> are optional caller-supplied
-<code>c_kernel</code>/<code>m_kernel</code> matrices with unit diagonal. They may encode, for
-example, sibship and couple shared environments, but are deliberately not
-inferred from <code>A</code>: additive relatedness alone cannot distinguish full sibs
-from parent--offspring pairs or mates from unrelated people. A nonzero
-component requires its kernel, <code>h2</code> must lie in <code>(1e-8, 1]</code> and
-<code>h2 + c2 + m2 &lt;= 1</code>.</p>
-<p>With no environmental kernels this reduces to
-<code>V = h2 * A + (1 - h2) * I</code>. Standardisation keeps every <strong>full liability</strong>
-<code>o</code> on the unit-variance threshold scale when inbreeding gives
-<code>A[i, i] = 1 + F_i</code>; it is a no-op for non-inbred pedigrees. When
-<code>add_ind</code>, the target's genetic liability divided
-by that <strong>same full-liability SD</strong> is prepended as <code>g</code>, so its variance is
-<code>h2 * A[t, t] / V[t, t]</code> — equal to <code>h2</code> for a non-inbred target
-(<code>A[t, t] = 1</code>) but strictly below the unstandardized <code>Var(g) = h2 * A[t, t]</code>
-under inbreeding. The kinship route's "genetic" estimates are therefore on the
-<code>sd(o_target)</code> scale when the target is inbred, not the unstandardized <code>g</code>
-scale; rescale by <code>sqrt(V[t, t])</code> before comparing the two routes. Row order
-is <code>[g, o_0, …, o_{n-1}]</code>; the <code>target</code>'s own full-liability row is labelled
-<code>o</code> and the rest <code>rel&lt;i&gt;</code>. Returns a <code>Covmat</code>.</p>
-<p><code>A</code> is checked to be finite, symmetric (then symmetrized) and PSD by an
-<code>eigvalsh</code>; the standardized block's diagonal is set to exactly 1.
-<code>_certified_psd</code> is an internal fast path that skips that check for
-pedigree-built <code>A</code>; do not pass it.</p>
-<p>This is exactly the matrix the Gibbs / PA samplers consume, so a kinship-derived
-covariance is a drop-in for the role-based one; for a standard pedigree the two
-agree entry for entry. One qualification: the role grammar's inherited
-convention takes two same-side half-sibs (<code>mhs1</code>, <code>mhs2</code>) to share a second
-parent (<code>get_relatedness</code>), so the entry-for-entry agreement holds only
-for pedigrees whose same-side half-sib sets satisfy that convention — a
-pedigree giving them distinct other parents legitimately disagrees with the
-role-based matrix there.</p>
+        <p>Construct a standardised liability covariance from additive kinship <code>A</code>.</p>
+<p>Forms <code>V = h2 A + c2 C + m2 M + e2 I</code> and scales full liabilities to
+unit variance. With <code>add_ind</code>, prepends the target genetic coordinate on
+the same scale; rows are <code>g, o_0, ..., o_{n-1}</code>. Environmental kernels
+must be supplied explicitly, symmetric PSD with unit diagonal, because
+they cannot be inferred from <code>A</code>. Requires <code>h2 + c2 + m2 &lt;= 1</code>.</p>
+<p><code>A</code> is validated as finite, symmetric and PSD unless an internal
+certificate is supplied. The role grammar's same-side half-sib convention
+is the only standard-pedigree case where role and pedigree covariances can
+legitimately differ.</p>
 
 
     </div>
@@ -6828,20 +6063,11 @@ role-based matrix there.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Nudge a not-quite-positive-definite covariance matrix back to PD.</p>
-<p>Relatedness rounding can leave the assembled matrix with a tiny (or negative)
-eigenvalue, which breaks the Gibbs conditional variances and the <code>solve</code> in
-<code>ltpred.gibbs.gibbs_params</code>. Following LTFHPlus's
-<code>correct_positive_definite_simplified</code> (not its same-named function),
-this repeatedly shrinks the off-diagonal (multiply the whole matrix by
-<code>correction_val</code>, then restore the diagonal) until the smallest
-eigenvalue exceeds <code>eps</code> (strictly PD, not merely PSD) or
-<code>correction_limit</code> is hit. After <code>n</code> iterations every
-off-diagonal equals <code>correction_val**n</code> times its input value, i.e. all
-correlations are attenuated uniformly, which changes the model rather than
-only the numerics. Each check is an O(d**3) <code>eigvalsh</code>. Returns
-<code>(corrected, n_iter)</code> and leaves already-PD matrices untouched (a copy,
-<code>n_iter = 0</code>); raises <code>ValueError</code> if it cannot reach strict PD.</p>
+        <p>Shrink off-diagonals until the covariance is strictly positive definite.</p>
+<p>Each iteration multiplies off-diagonals by <code>correction_val</code> and preserves
+the diagonal. Returns <code>(corrected_copy, n_iterations)</code>; already-PD input
+needs zero iterations. Raises after <code>correction_limit</code> unsuccessful
+steps. This changes the model and callers warn when it was necessary.</p>
 
 
     </div>
@@ -6869,52 +6095,16 @@ only the numerics. Each check is an O(d**3) <code>eigvalsh</code>. Returns
 
     <div class="doc doc-contents first">
 
-        <p>Fit liability-scale variance components from family data (stochastic moment fixed point).</p>
-<p>The liability estimators take the family covariance as <em>given</em>; here it is
-fitted (<code>ltpred.pairwise</code> fits the same model by composite likelihood).
-<code>fit_heritability</code> fits the additive proportion <code>h2</code>; <code>fit_variance_components</code>
-fits proportions <code>theta_c</code> for a subset of the kernels <code>A</code> (additive
-relationship, <code>2 * kinship</code>), <code>C</code> (full-sib indicator) and <code>M</code> (mate-pair
-indicator), with <code>Sigma = sum_c theta_c K_c + (1 - sum_c theta_c) I</code> on the
-unit-variance liability scale. The latent liabilities
-are missing data; see the methods report, "Fitting h² is a different problem".</p>
-<p><strong>Algorithm H</strong> (both fitters).</p>
-<ul>
-<li><strong>H1. Screen.</strong> Families are assumed independent and must not share a
-  <code>pid</code>; each trait must have one common one-sided threshold <code>t</code> -- no pins,
-  intervals or person-specific thresholds -- and each role's (weighted) case
-  rate must be consistent with <code>K = 1 - Phi(t)</code>.</li>
-<li><strong>H2. Design.</strong> Group families by role set. Every within-family pair <code>i &lt; j</code>
-  with a nonzero kernel row <code>x_ij = (K_c[i, j])_c</code> enters
-  <code>X'WX = sum_f w_f sum_(i,j) x_ij x_ij'</code> (<code>w_f = 1</code> without IPW). Raise
-  unless <code>X'WX</code> and the rows of jointly observed pairs have full rank.</li>
-<li><strong>H3. Initialise.</strong> <code>theta = h2_init</code> (or <code>0.5 / n_components</code> each); each
-  family's chain starts at its members' marginal truncated medians.</li>
-<li><strong>H4. Augment.</strong> Advance every family's persistent truncated-MVN chain
-  <code>l_f | bounds, Sigma(theta)</code> by <code>inner_sweeps</code> Gibbs sweeps
-  (<code>ltpred.gibbs._gibbs_advance_chain</code>).</li>
-<li><strong>H5. Regress.</strong> <code>theta_hat = (X'WX)^-1 sum_f w_f sum_(i,j) x_ij l_fi l_fj</code>:
-  the Haseman-Elston moment equation <code>E[l_i l_j] = x_ij' theta</code>. One component
-  is exact division; several add a <code>1e-10</code> ridge.</li>
-<li><strong>H6. Clamp and damp.</strong> Clip each <code>theta_hat_c</code> to <code>[eps, 1 - eps]</code>, scale
-  the vector down to sum <code>1 - eps</code> if it exceeds that, then
-  <code>theta &lt;- (1 - damp) theta + damp theta_hat</code>. The residual is positive
-  after the first update, so <code>Sigma</code> stays positive definite.</li>
-<li><strong>H7. Summarise.</strong> Repeat H4-H6 <code>n_iter</code> times and drop <code>burn_in</code> iterates.
-  The estimate is the mean of the retained trace; its SE is the batch-means
-  Monte-Carlo SE of that mean (<code>ltpred.estimate._batch_means</code>).</li>
-</ul>
-<p>At the true parameters, total expectation recovers <code>x_ij' theta</code> from
-correctly specified conditional draws and the population family mix, even
-with known person-specific thresholds. Common binary thresholds are this
-implementation's validated scope, not a requirement of that identity.
-IPW with <code>w_f = 1 / P(family sampled)</code>
-(in both <code>X'WX</code> and the products) restores the mix, but not a stratum that
-had zero inclusion probability. The SE measures only this run's
-Monte-Carlo noise on this dataset, not sampling uncertainty; <code>bootstrap_fit</code>
-resamples whole families and refits for that. Traces are fixed-point iterates,
-not posterior draws. Likelihood-based and multi-trait fits built on this core
-live in <code>research/advanced_fitting.py</code> as unsupported research code.</p>
+        <p>Stochastic moment fits of liability variance components.</p>
+<p><code>fit_heritability</code> fits additive <code>h2</code>; <code>fit_variance_components</code> fits A/C/M
+proportions in <code>Sigma = sum_c theta_c K_c + (1 - sum_c theta_c) I</code>. Persistent
+truncated-normal chains augment liabilities, then a damped Haseman--Elston
+regression updates the proportions. Retained fixed-point traces provide the
+estimate and a batch-means Monte-Carlo diagnostic, not a sampling SE.</p>
+<p>Families must be independent, non-overlapping and have common case/control
+thresholds. Population sampling or known positive family-level IPW is required.
+<code>bootstrap_fit</code> resamples whole families for sampling uncertainty. See
+<code>docs/inference.md</code> and Algorithm H in <code>docs/algorithm.md</code>.</p>
 
 
 
@@ -6954,19 +6144,10 @@ live in <code>research/advanced_fitting.py</code> as unsupported research code.<
 
 
 
-        <p>Result of <code>fit_heritability</code>.</p>
-<p><code>h2</code> is the liability-scale heritability — the post-burn-in average of the
-fixed-point <code>h2</code> trace (a stochastic-approximation estimate, <strong>not</strong> a
-posterior mean). <code>h2_se</code> is its batch-means Monte-Carlo variability.</p>
-<p><strong>Caveat:</strong> <code>h2_se</code> is a <em>within-dataset</em> Monte-Carlo <strong>diagnostic</strong> of the
-fixed point, not an inferential standard error and not the sampling variability
-of <code>h2</code> across datasets; it can substantially understate that variability.
-Do <strong>not</strong> use it as a confidence interval. A family-cluster bootstrap is one
-sampling-uncertainty option when its assumptions hold. <code>samples</code> is the
-post-burn-in <code>h2</code> trace and <code>trace</code> the full one
-(for convergence diagnostics; despite the name they are fixed-point iterates,
-not posterior draws). <code>n_iter</code> and <code>burn_in</code> are the controls the fit
-ran with.</p>
+        <p>Heritability estimate and its fixed-point traces.</p>
+<p><code>h2_se</code> is batch-means Monte-Carlo error in this fit, not a sampling SE
+or a confidence interval. <code>samples</code> is post-burn-in and <code>trace</code> full;
+neither is a posterior chain. Use <code>bootstrap_fit</code> for sampling uncertainty.</p>
 
 
 
@@ -7125,75 +6306,21 @@ array of per-resample estimates. Shapes follow whatever the estimator returns
 
     <div class="doc doc-contents ">
 
-        <p>Estimate liability-scale <code>h2</code> from common-threshold family case/control statuses.</p>
-<p><strong>Sampling contract:</strong> this moment fitter assumes independent,
-non-overlapping families under one of two designs. <code>sampling="population"</code>
-is the unascertained case; <code>sampling="ipw"</code> with per-family <code>weights</code>
-covers selection on observed status with a known, strictly positive
-inclusion probability (below). Omitting <code>sampling</code> emits a compatibility
-warning; anything else raises. <code>weights</code> are accepted only with
-<code>sampling="ipw"</code>, which requires them: one finite, strictly positive value
-per family. There is no ascertainment <em>likelihood</em> here,
-so a design that reweighting cannot reach -- because family-level selection
-probabilities are unknown or misspecified, or any joint stratum has
-probability zero -- still produces severe boundary bias.</p>
-<p>That acknowledgement is <strong>checked against the data</strong>: the supplied
-thresholds assert a prevalence, and each role's (weighted) case rate is
-compared against it with a binomial z-test. A gross
-mismatch raises, because the failure it guards is severe and silent -- on
-ascertained families with a true <code>h2</code> of 0, this fitter returns
-<code>h2 = 1.0</code>. The check is deliberately conservative, so it catches the
-catastrophic designs rather than certifying population sampling.
-When members carry <code>pid</code>, a person who appears in more than one family
-(distinct <code>fam_id</code>) is rejected; prediction on overlapping register
-pedigrees is <code>ltpred.estimate.estimate_liability</code>.</p>
-<p><strong>Selected samples:</strong> <code>sampling="ipw"</code> with per-family <code>weights</code> handles
-selection on observed status when the inclusion probability is known and
-strictly positive for every stratum -- the standard case/control cohort and
-biobank case-enrichment designs. Pass <code>weights = 1 / P(family sampled)</code>.
-The per-family moment contributions are then re-mixed to population
-proportions, which is the right shape of remedy here: the augmentation for a
-<em>given</em> family with <em>given</em> statuses is already correct, and it is the
-<strong>mix</strong> of families that selection breaks. In the repository benchmark
-(<code>benchmarks/RESULTS.md</code> section 29) this takes a 50/50 case/control
-cohort from an unweighted fit pinned at <code>h2 = 1</code> back close to the true
-0.5.</p>
-<p>Two limits, both real. <strong>Positivity:</strong> a design that samples no families from
-some joint status stratum has inclusion probability zero there, and no
-weighting can reconstruct what was never observed. The marginal case-rate
-check can falsify many such designs, but passing it does not prove joint
-positivity or weight validity. <strong>Efficiency:</strong> weights reach 19x at K = 0.05
-with a 50/50 cohort, so the effective sample size is far below the nominal
-one; the benchmark reports the inflated across-replicate SD alongside the
-bias.</p>
-<p>The case-rate check has a stated blind spot: the enrichment it can detect is
-<code>max(1.15, 1 + 6*sqrt((1-K)/(K*n)))</code>, which at K = 0.05 is ~1.67x at n = 1,500 and
-~1.26x at n = 10,000. Milder enrichment passes, and the benchmark's
-dose-response shows that is not harmless.</p>
-<p><code>families</code> is a list of <code>ltpred.family.Family</code> whose members carry
-liability bounds (from a threshold builder). The fit is Algorithm H of the
-module docstring with the single kernel <code>A</code>: Gibbs augmentation of the
-latent liabilities alternating with a damped Haseman–Elston update
-<code>h2_hat = sum w_f A_ij l_i l_j / sum w_f A_ij^2</code> -- a
-<strong>stochastic-approximation fixed point</strong>, not posterior sampling of <code>h2</code>.
-<code>inner_sweeps</code> truncated-MVN sweeps are taken per outer iteration; <code>damp</code>
-in <code>(0, 1]</code> is the update step and <code>eps</code> in <code>[1e-8, 0.5)</code> clamps each
-update to <code>[eps, 1 - eps]</code>. Returns a <code>FitResult</code>; its <code>h2_se</code> is the
-batch-means Monte-Carlo SE of the post-burn-in trace mean.</p>
-<p>Needs relatives (at least one related pair); a set of lone probands carries no
-information about <code>h2</code> and raises. <code>seed</code> must be a non-boolean integer in
-<code>[0, 2**32 - 1]</code> or <code>None</code> and <code>h2_init</code> must lie in [0, 1].
-<code>n_iter</code> counts outer fixed-point iterations, of which the first
-<code>burn_in</code> are dropped (a different unit from the estimators' Gibbs
-<code>burn_in</code> sweeps); <code>burn_in</code> must be non-negative and
-<code>n_iter - burn_in &gt;= 4</code>, since the batch-means SE needs two batches.
-Invalid controls raise before any sampling.</p>
-<p><strong>Requires a common case/control threshold per trait</strong> (the validated
-scope, not a necessity of the moment identity): personalised
-(age-/CIP-specific) or onset-pinned LT-FH++ bounds are <strong>rejected</strong>, not
-silently fitted. The prediction path (<code>ltpred.estimate.estimate_liability</code>)
-is unaffected, since it conditions on <code>h2</code>. Standard NaN and
-interval-order validation still applies.</p>
+        <p>Fit liability-scale heritability from common-threshold family data.</p>
+<p>The stochastic fixed point alternates truncated-MVN augmentation with a
+damped Haseman--Elston update. <code>n_iter</code> and <code>burn_in</code> count outer
+iterations, <code>inner_sweeps</code> sets Gibbs work per iteration, and <code>damp</code>
+controls the update. <code>h2_init</code> lies in [0, 1]; at least four retained
+iterates are required. Related pairs are necessary for identification.</p>
+<p>Families must be independent and non-overlapping. Use
+<code>sampling="population"</code> for an unascertained sample, or
+<code>sampling="ipw"</code> with one reciprocal inclusion probability per family
+for a known, strictly positive selection design. Omitting <code>sampling</code>
+warns and assumes population sampling. Personalised bounds, onset pins and
+two-sided intervals are outside this fitter's scope. The marginal case-rate
+screen catches gross inconsistency but does not certify the design.</p>
+<p>Returns a <code>FitResult</code>. <code>h2_se</code> measures Monte-Carlo noise in this fit,
+not sampling uncertainty; use <code>bootstrap_fit</code> for the latter.</p>
 
 
     </div>
@@ -7213,63 +6340,14 @@ interval-order validation still applies.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Fit liability-scale variance components by a multiple Haseman-Elston regression.</p>
-<p><strong>Sampling contract:</strong> like <code>fit_heritability</code>, this supports
-independent, non-overlapping families sampled either directly from the
-population or with known, strictly positive family-level selection
-probabilities. Pass <code>sampling="population"</code> for the former, or
-<code>sampling="ipw"</code> with reciprocal-probability <code>weights</code> for the latter (see
-<code>fit_heritability</code> for both, including the marginal-check, positivity,
-pid-overlap, and efficiency limits). Without one of those, this fitter does not correct
-case/control or family-history ascertainment; under it the components
-saturate, exhausting the residual variance rather than sitting at the
-elementwise clamp.</p>
-<p>Generalises <code>fit_heritability</code> from one component to several (Algorithm H
-of the module docstring). Each outer iteration it (1) advances the latent
-liabilities by <code>inner_sweeps</code> Gibbs sweeps under the <strong>full family
-truncated-MVN</strong> <code>N(0, sum_c h2_c K_c + e2 I)</code>, then (2) updates all
-proportions at once by regressing the sampled cross-products on the
-component relationship matrices over every related pair,</p>
-<div class="highlight"><pre><span></span><code>[h2_c] = (X'WX)^-1 X'Wy ,   X[p, c] = K_c[i, j] ,   y[p] = l_i l_j ,
-</code></pre></div>
-<p>clamped and damped across iterations (<code>W</code> holds the IPW family weights). Unlike a single-<code>h2</code> fit this separates
-relative <em>kinds</em> when the supplied pedigrees yield linearly independent
-relationship contrasts: <code>A</code> by the parent-offspring /
-grandparent / avuncular relatednesses, <code>C</code> by the full-sib excess, <code>M</code> by
-the resemblance between genetically-unrelated mates. The thresholds stay fixed
-(total liability variance 1); components are returned as <strong>proportions</strong>, with
-<code>residual = 1 - sum</code>.</p>
-<p><code>components</code> is any subset of the <strong>variance-component bank</strong>:</p>
-<ul>
-<li><code>"A"</code> — additive genetic (its proportion is the narrow-sense heritability);</li>
-<li><code>"C"</code> — sibship common environment, identified only from <strong>full-sib pairs</strong>;</li>
-<li><code>"M"</code> — couple/spousal shared environment, identified only from <strong>mate
-  pairs</strong> (the proband's parents, and grandparent couples). Because mates are
-  genetically unrelated, <code>M</code> captures spousal resemblance from <em>any</em> source —
-  shared adult environment or assortative mating, which parent data alone cannot
-  separate. Note that, unlike <code>C</code>, leaving <code>M</code> unmodelled biases <code>A</code>
-  <strong>much less</strong>: mates have <code>A_ab = 0</code> so they carry no direct weight in
-  the additive regression; <code>M</code> matters when the spousal resemblance is itself
-  of interest, or to test/report it.</li>
-</ul>
-<p>A component whose identifying pairs are absent (<code>C</code> with no full-sib pairs,
-<code>M</code> with no mate pairs, or no related pairs at all) leaves the design singular
-and this raises. (Dominance <code>"D"</code> is intentionally unsupported: it needs an
-explicit dominance kernel and an independently informative relationship
-design.)</p>
-<p>It starts every proportion at <code>0.5 / len(components)</code>; <code>damp</code> must lie
-in <code>(0, 1]</code> and <code>eps</code> in <code>[1e-8, 0.5)</code> keeps a positive residual floor. <code>n_iter</code> and <code>burn_in</code> follow
-<code>fit_heritability</code> (outer iterations; <code>n_iter - burn_in &gt;= 4</code>). Returns a
-<code>VarCompResult</code>. Simulation benchmarks recover <code>A</code> and <code>A+C</code> with
-small bias relative to their across-dataset SD. <code>se</code> is only a within-fit
-Monte-Carlo diagnostic. Use family resampling for a sampling interval when
-clusters are independent and representative. <code>seed</code> must be a non-boolean
-integer in <code>[0, 2**32 - 1]</code> or <code>None</code>.</p>
-<p><strong>Requires a common case/control threshold per trait</strong>, exactly as
-<code>fit_heritability</code> does and for the same reason: personalised or
-onset-pinned LT-FH++ bounds fall outside the supported pooled-moment
-estimating contract, so they are <strong>rejected</strong> rather than silently fitted.
-Standard NaN and interval-order validation still applies.</p>
+        <p>Fit A/C/M liability-variance proportions by stochastic moment regression.</p>
+<p><code>components</code> selects additive genetic (A), full-sibship environment (C)
+and/or couple environment (M). Identifying relationship contrasts must be
+observed; dominance is unsupported. The algorithm, controls and sampling
+contract match <code>fit_heritability</code>. Component proportions sum to at most
+one and <code>residual</code> is the remainder.</p>
+<p>Returns a <code>VarCompResult</code>. Its <code>se</code> values are within-fit Monte-Carlo
+diagnostics, not sampling SEs; use family resampling for uncertainty.</p>
 
 
     </div>
@@ -7289,47 +6367,14 @@ Standard NaN and interval-order validation still applies.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Approximate percentile uncertainty by <strong>resampling family clusters</strong>.</p>
-<p>The HE <code>se</code> reported by <code>fit_heritability</code> and
-<code>fit_variance_components</code> is a
-<em>within-dataset</em> Monte-Carlo diagnostic and can substantially understate
-sampling variability. This helper resamples families with replacement
-<code>n_boot</code> times (whole <code>ltpred.family.Family</code> objects, so a duplicate keeps
-its <code>fam_id</code> and passes the fitters' <code>pid</code> overlap check) and reports the
-refit SD and percentile interval around the full-data estimate. Its sampling
-interpretation assumes independent, non-overlapping family clusters and
-either representative sampling or valid aligned IPW; it is not
-bias-corrected, studentized, or automatically calibrated at boundaries.</p>
-<p><code>estimator</code> is a callable <code>families -&gt; value</code> returning the quantity of
-interest as a float or array, e.g.:</p>
-<div class="highlight"><pre><span></span><code>bootstrap_fit(
-    fams,
-    lambda f: fit_heritability(
-        f, seed=1, sampling="population").h2)
-bootstrap_fit(fams, lambda f: fit_variance_components(f, ("A", "C"),
-                                  seed=1, sampling="population"
-                              ).components["C"])
-</code></pre></div>
-<p>For an IPW analysis, pass the original per-family <code>weights</code> and accept a
-second argument in the estimator. The helper resamples the two arrays with
-the same indices, preventing weights from becoming detached from their
-families:</p>
-<div class="highlight"><pre><span></span><code>bootstrap_fit(
-    fams,
-    lambda f, w: fit_heritability(
-        f, sampling="ipw", weights=w, seed=1).h2,
-    weights=weights)
-</code></pre></div>
-<p>Fix the estimator's internal <code>seed</code> so each refit is deterministic given its
-resample — then the bootstrap spread reflects family sampling, not the sampler's
-own Monte-Carlo noise. Returns a <code>BootstrapResult</code>. Cost is <code>n_boot + 1</code>
-fits, so this is deliberately expensive; lower <code>n_boot</code> for a quick check.</p>
-<p><code>estimator</code> must return a stable scalar/array shape. <code>n_boot</code> is an integer
-at least 2; substantially more than the default 100 may be needed for stable
-interval endpoints. <code>seed</code> follows NumPy <code>default_rng</code> semantics and seeds
-only the resampling; <code>ci_level</code> sets the percentile interval. When
-<code>weights</code> is supplied, <code>estimator</code> is called as
-<code>estimator(families, weights)</code> for both the point fit and every refit.</p>
+        <p>Estimate percentile uncertainty by resampling whole families.</p>
+<p><code>estimator</code> receives the family list and returns a scalar or array of
+stable shape. With <code>weights</code>, it instead receives <code>(families, weights)</code>
+and both are resampled by the same indices. Fix the estimator's own seed
+so bootstrap spread reflects family resampling rather than sampler noise.
+Returns the full-data estimate, refit SD, percentile interval and samples.
+Independent, non-overlapping clusters and a valid sampling design remain
+necessary; boundary intervals are not automatically calibrated.</p>
 
 
     </div>
@@ -7362,44 +6407,15 @@ for the sampling contract and distinction from the existing stochastic fitters.<
 
     <div class="doc doc-contents first">
 
-        <p>Deterministic variance components from binary relative-pair likelihoods.</p>
-<p><code>fit_pairwise</code> estimates the proportions <code>theta_c</code> of <code>ltpred.fit</code> -- same
-<code>A</code>/<code>C</code>/<code>M</code> kernels, same input and sampling contract -- by maximising a
-composite likelihood instead of augmenting liabilities (see the methods
-report, "Fit covariance parameters by pairwise likelihood"). A pair
-of relatives has liability correlation <code>rho_ij = x_ij' theta</code> with
-<code>x_ij = (K_c[i, j])_c</code>, and at the common threshold <code>t</code> its binary
-outcome has one of four bivariate-normal cell probabilities <code>p_ab(t, rho)</code>.</p>
-<p><strong>Algorithm L.</strong></p>
-<ul>
-<li><strong>L1. Screen.</strong> As Algorithm H1 (<code>ltpred.fit</code>). IPW weights are rescaled to
-  mean one; the case-rate screen uses the rescaled weights.</li>
-<li><strong>L2. Tabulate.</strong> In each role-set group, every within-family pair <code>i &lt; j</code>
-  with a nonzero row <code>x_ij</code> contributes the families in which both members are
-  observed (a finite bound). Pairs sharing <code>x_ij</code> share one weighted 2x2 table
-  <code>n_ab = sum w_f</code> (cells: both cases, first only, second only, neither).
-  Raise unless the distinct observed rows have full rank.</li>
-<li><strong>L3. Criterion.</strong> <code>-ell_c(theta) = -sum_x sum_ab n_ab log p_ab(t, x' theta)</code>
-  with analytic gradient and exact Hessian.</li>
-<li><strong>L4. Optimise.</strong> SLSQP on <code>-ell_c / n_families</code> from
-  <code>theta_c = (1 - eps) / (2 p)</code> with <code>theta_c &gt;= 0</code> and
-  <code>sum theta &lt;= 1 - eps</code>. Raise on solver failure, infeasibility, or a KKT
-  violation (reduced gradient with the sum-constraint multiplier) above
-  <code>max(1e-5, 10 sqrt(tol))</code>.</li>
-<li><strong>L5. Covariance.</strong> <code>V = H^-1 J H^-1</code>: <code>H</code> is the
-  Hessian of <code>-ell_c</code> (observed sensitivity), <code>J = n/(n-1) sum_f (s_f -
-  s_bar)(s_f - s_bar)'</code> over all <code>n</code> input families, <code>s_f</code> the weighted sum
-  of family <code>f</code>'s pair scores. <code>V</code> and the SEs are NaN when some <code>theta_c</code>
-  or <code>1 - eps - sum theta</code> is within <code>max(1e-7, 10 tol)</code> of zero, when
-  <code>n &lt;= p</code>, or when <code>H</code> is not positive definite or <code>H</code>/<code>J</code> lack full rank.</li>
-</ul>
-<p>Pair tables compress the composite objective only; they are not sufficient for
-the full family likelihood. Pairs within a family share members, so the inverse
-Hessian alone understates sampling variance; the sandwich treats families as
-the independent units. Thresholds and weights are held fixed, so <code>V</code> is an
-asymptotic covariance conditional on them -- not a finite-sample calibration
-claim, an ascertainment likelihood, or a basis for ordinary likelihood-ratio
-tests.</p>
+        <p>Single-trait A/C/M fitting by binary-pair composite likelihood.</p>
+<p>Jointly observed relative pairs are aggregated into weighted 2x2 tables keyed
+by their covariance-kernel row. SLSQP maximises the bivariate-normal composite
+likelihood with analytic derivatives and non-negativity/residual constraints.
+A family-cluster sandwich estimates sampling covariance at identifiable
+interior optima; it is withheld at boundaries or with insufficient information.</p>
+<p>The input and sampling contracts match <code>ltpred.fit</code>. Thresholds and weights
+are fixed; the composite likelihood is not a full-family likelihood or a basis
+for ordinary likelihood-ratio tests. See Algorithm L in <code>docs/algorithm.md</code>.</p>
 
 
 
@@ -7439,23 +6455,11 @@ tests.</p>
 
 
 
-        <p>A constrained composite-likelihood fit on independent family clusters.</p>
-<p><code>components</code> and <code>residual</code> are liability-variance fractions.
-<code>covariance</code> follows <code>component_order</code>; <code>se</code> is its square-root
-diagonal. At a constraint boundary, or with insufficient observed
-information, both are NaN and <code>inference_status</code> explains why: it is
-<code>"interior_cluster_sandwich"</code> when they are available, otherwise
-<code>"unavailable_boundary"</code>, <code>"unavailable_clusters"</code> (no more families
-than components) or <code>"unavailable_information"</code>. <code>at_boundary</code> is true
-when some fraction, or the residual margin <code>1 - eps - sum</code>, lies within
-the boundary tolerance (module docstring, L5). Normal
-intervals at such boundaries are inappropriate; a design-appropriate
-bootstrap or profile analysis needs its own boundary calibration.</p>
-<p><code>composite_loglik</code> uses IPW weights normalized to mean one. Its magnitude
-is not a full-data log likelihood and must not be used for ordinary
-likelihood-ratio tests. <code>n_pairs</code> counts informative observed pairs;
-<code>n_families</code> counts input clusters, including those contributing no pairs.
-<code>n_iter</code> is the SLSQP iteration count.</p>
+        <p>Component fractions, optimizer diagnostics and optional sandwich SEs.</p>
+<p><code>covariance</code> follows <code>component_order</code> and <code>se</code> is its diagonal SD.
+Both are NaN at a boundary or with insufficient clusters/information;
+<code>inference_status</code> records why. <code>composite_loglik</code> is not a full-data
+likelihood and must not be used for ordinary likelihood-ratio tests.</p>
 
 
 
@@ -7500,32 +6504,15 @@ likelihood-ratio tests. <code>n_pairs</code> counts informative observed pairs;
 
     <div class="doc doc-contents ">
 
-        <p>Fit A, C and/or M by deterministic binary-pair composite likelihood.</p>
-<p>This opt-in estimator keeps the current fitting input contract: independent,
-non-overlapping families, a common single-trait case/control threshold, and
-population sampling or valid strictly positive family-level IPW weights.
-It rejects personalized thresholds, onset pins and two-sided intervals.
-Uninformative members contribute no pairs. The known threshold and weights
-are treated as fixed: estimating either from these families introduces
-uncertainty that the returned sandwich does not include.</p>
-<p><code>components</code> selects the existing valid A/C/M covariance kernels. Fractions
-are nonnegative and their sum is at most <code>1 - eps</code>. Independent identifying
-relationship contrasts must be observed. <code>sampling=None</code> uses the existing
-compatibility warning; explicitly pass <code>"population"</code> or <code>"ipw"</code>.
-The marginal case-rate screen can reject an inconsistent design but cannot
-establish joint positivity, independent clusters, or correct weights.</p>
-<p><code>families</code> is a list of <code>ltpred.family.Family</code>; <code>weights</code> (with
-<code>sampling="ipw"</code> only) holds one reciprocal inclusion probability per
-family and is rescaled to mean one. <code>eps</code> must lie in <code>[1e-8, 0.5)</code>.</p>
-<p>The fit is Algorithm L of the module docstring: SLSQP with analytic scores
-and a deterministic probability calculation. <code>maxiter</code> (a positive
-integer) caps the SLSQP iterations and <code>tol</code> in <code>(0, 1)</code> is its
-<code>ftol</code> -- not the Monte-Carlo <code>tol</code> of the estimators; it also scales
-the KKT and boundary tolerances of L4-L5. Failed, infeasible or
-non-stationary optimizer results raise <code>RuntimeError</code> instead of being
-returned; withheld SEs emit a <code>RuntimeWarning</code>.
-Interior sampling SEs use the observed sensitivity and centered, weighted
-family score outer products (finite-cluster factor n/(n-1)).</p>
+        <p>Fit A/C/M fractions by deterministic binary-pair composite likelihood.</p>
+<p>Requires independent, non-overlapping families with common case/control
+thresholds and identifying relationship contrasts. <code>sampling</code> follows
+<code>fit_heritability</code>; IPW weights are normalised to mean one. Personalised
+bounds, pins and two-sided intervals are rejected.</p>
+<p>Fractions are nonnegative and sum to at most <code>1 - eps</code>. <code>maxiter</code> and
+<code>tol</code> control SLSQP and its stationarity check; failures raise. Interior
+fits return family-cluster sandwich SEs; boundaries and insufficient
+information withhold them with a warning.</p>
 
 
     </div>
@@ -7553,20 +6540,12 @@ family score outer products (finite-cluster factor n/(n-1)).</p>
 
     <div class="doc doc-contents first">
 
-        <p>Input containers: a proband, their relatives, and each one's liability bounds.</p>
-<p>The family-history models condition on a proband plus zero or more relatives,
-each with a <code>role</code> (<code>o</code> = the proband's own status, <code>m</code>/<code>f</code>/<code>s1</code>/... =
-relatives) and a liability interval <code>(lower, upper)</code>. A <code>Member</code> holds
-one such observed-person record; a <code>Family</code> groups records for one proband. The
-genetic-liability row <code>g</code> is added automatically by the estimator.</p>
-<p>Model identity depends on both the bounds and the rows supplied: personalised
-age/sex/cohort bounds with relatives are LT-FH++; the same bounds with only role
-<code>o</code> are family-free ADuLT. Classic single-prevalence bounds with relatives are
-LT-FH.</p>
-<p>For a single trait <code>lower</code>/<code>upper</code> are scalars. For the multi-trait model they
-are length-<code>n_pheno</code> sequences (one interval per phenotype, in <code>phen_names</code>
-order). <code>families_from_columns</code> builds the list from flat, tibble-style
-columns -- the shape the R package's <code>.tbl</code> input uses.</p>
+        <p>Family input records and flat-column conversion.</p>
+<p>A <code>Member</code> stores one person's role and liability bounds; a <code>Family</code> groups
+members for one proband. Role <code>o</code> is the proband's own observation and <code>g</code>
+is added by the estimator. Bounds are scalar for one trait or one sequence per
+trait. Personalised bounds with relatives define LT-FH++; the proband-only
+construction defines ADuLT.</p>
 
 
 
@@ -7606,22 +6585,11 @@ columns -- the shape the R package's <code>.tbl</code> input uses.</p>
 
 
 
-        <p>One family member's role and liability truncation bounds.</p>
-<p><code>lower</code>/<code>upper</code> are scalars for a single trait or length-<code>n_pheno</code>
-sequences for the multi-trait model. They may encode one-sided case/control
-truncation, an onset-pinned case (<code>lower == upper</code>), or an uninformative
-interval. <code>pid</code> is an optional personal identifier.</p>
-<p><code>K_i</code>/<code>K_pop</code> are only used by the Pearson-Aitken estimator's censored
--control mixture: <code>K_i</code> is the individual's (age/sex-stratified) cumulative
-incidence and <code>K_pop</code> the lifetime population prevalence. Supply them only
-for age-censored controls (finite <code>upper</code>, not a pin), with
-<code>0 &lt;= K_i &lt;= K_pop &lt; 1</code>, <code>K_pop &gt; 0</code> and <code>lower &lt; Phi^-1(1 - K_pop)</code>;
-leave them <code>None</code> (NaN in array inputs) on cases, pins and unbounded rows.
-With <code>use_mixture=True</code> a pair on such a row raises and at least one valid
-pair is required; otherwise they are ignored.</p>
-<p><code>aod</code> is the member's age at diagnosis (cases) or age at last follow-up
-(controls) -- only used by the onset-age-structured genetic-correlation fit
-(<code>research.advanced_fitting.fit_genetic_correlation_decay</code>).</p>
+        <p>One member's role, liability bounds and optional identifiers.</p>
+<p>Bounds may describe cases, controls, finite onset pins or uninformative
+intervals. <code>K_i</code>/<code>K_pop</code> belong only on age-censored controls for the
+PA mixture, with <code>0 &lt;= K_i &lt;= K_pop &lt; 1</code> and <code>K_pop &gt; 0</code>; use <code>None</code>
+(NaN in arrays) elsewhere. <code>aod</code> is used only by research onset-age fits.</p>
 
 
 
@@ -7719,21 +6687,12 @@ with uninformative <code>(-inf, inf)</code> bounds.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Group flat, column-oriented threshold data into a list of families.</p>
-<p>Mirrors the R <code>.tbl</code> input (columns <code>fam_id</code>, <code>role</code>, <code>lower</code>,
-<code>upper</code> and optionally <code>pid</code>). Records sharing a <code>fam_id</code> become one
-<code>Family</code>; family order follows first appearance. For the multi-trait
-model pass <code>lower</code>/<code>upper</code> as 2-D (rows x phenotypes). <code>K_i</code>/<code>K_pop</code> are
-optional per-row columns for the Pearson-Aitken censored-control mixture
-(<code>NaN</code> on rows without a pair; see <code>Member</code> for the rules).
-<code>pid</code> supplies personal join keys and overlap checks; retain the proband
-as role <code>o</code> with its pid even when its bounds are uninformative. <code>aod</code>
-records diagnosis/last-follow-up age for the research age-decay fitter.
-Missing <code>fam_id</code> values are rejected: non-finite numbers, <code>None</code> and
-textual markers such as <code>""</code>, <code>"NA"</code> or <code>"null"</code> (case-insensitive)
-cannot group records and would otherwise fragment or merge families
-silently. A sequence mixing string and non-string ids (<code>1</code> and <code>"1"</code>)
-also raises.</p>
+        <p>Group aligned flat columns into families in first-appearance order.</p>
+<p>Required columns are <code>fam_id</code>, <code>role</code>, <code>lower</code> and <code>upper</code>;
+optional <code>pid</code>, <code>K_i</code>, <code>K_pop</code> and <code>aod</code> align by row. Multi-trait
+bounds have one row per member and one column per trait. Missing family ids
+and mixed string/non-string ids raise. Retain role <code>o</code> and its pid even
+when its bounds are uninformative.</p>
 
 
     </div>
@@ -7761,66 +6720,17 @@ also raises.</p>
 
     <div class="doc doc-contents first">
 
-        <p>Gibbs sampler for the truncated multivariate normal (TMVN).</p>
-<p>Port of LTFHPlus's <code>rtmvnorm.gibbs</code> and its Rcpp inner loop. With
-<code>Q = Sigma^-1</code>, <code>gibbs_params</code> forms <code>P[i, j] = -Q[i, j] / Q[j, j]</code>
-(<code>P[j, j] = 0</code>) and <code>sd[j] = sqrt(1 / Q[j, j])</code>; the full conditional of
-coordinate <code>j</code> is <code>N(P[:, j] . x, sd[j]^2)</code> restricted to
-<code>(lower[j], upper[j])</code>. <code>Sigma</code> must be finite, symmetric and strictly
-positive definite. A coordinate whose interval spans less than <code>1e-8</code> is
-<em>fixed</em> (a pinned point mass, e.g. an onset-pinned case) and never resampled.</p>
-<p>Algorithm G (methods report, "Computing the truncated mean"), as implemented.</p>
-<ol>
-<li><strong>G1 group.</strong> Families with one role set share <code>Sigma</code>;
-   <code>ltpred.estimate._group_by_structure</code> buckets them and
-   <code>ltpred.estimate._estimate_group</code> forms <code>(P, sd)</code> once per group.</li>
-<li><strong>G2 collapse.</strong> <code>_gibbs_round</code> integrates out each family's
-   own <code>(-inf, inf)</code> coordinates (always the genetic rows on the public
-   path; also <code>o</code> or a relative left unobserved), running families that
-   share an unbounded set together (<code>_unbounded_patterns</code>). A family's draws
-   therefore depend only on its bounds and seed, never on the other families
-   in a call, a round or a chunk. The chain runs on the kept block <code>y</code> with
-   <code>(P, sd)</code> of its marginal covariance, recomputed per unbounded set. A collapsed
-   output streams <code>E[z | y] = W y</code> and adds the constant <code>Var(z | y)</code> to
-   its sum of squares (<code>_blup_from_keep</code>), so the reported variance is
-   <code>Var(E[z | y]) + Var(z | y)</code> (Rao--Blackwell). With nothing kept the
-   prior (mean 0, variance <code>Sigma[j, j]</code>, SE 0) is returned unsampled.
-   <code>rtmvnorm_gibbs</code> never collapses.</li>
-<li><strong>G3 initialise.</strong> <code>_init_chain</code> starts each coordinate at the median of
-   its <em>marginal</em> truncated normal (SD <code>sqrt(Sigma[j, j])</code>): a feasible
-   point of the rectangle. Fixed coordinates stay there.</li>
-<li><strong>G4 sweep.</strong> Free coordinates are redrawn in covariance order by
-   <code>_gibbs_conditional_draw</code>, <code>x_j = mu_j + sd_j * Phi^-1(U(Phi(a), Phi(b)))</code>
-   (Kotecha &amp; Djuric 1999), one uniform each, on the survival scale when
-   <code>a &gt;= 0</code>. Where too few survival values remain representable (<code>|z|</code>
-   beyond about 38) <code>_far_right_std_tnorm_quantile</code> inverts the leading-order
-   Gaussian tail ratio on the log scale (a Rayleigh construction). Strongly
-   coupled free coordinates also receive joint Gaussian conditional moves
-   along whitened eigenvectors of their precision block
-   (<code>_mixing_directions</code>). These moves preserve the same truncated law and
-   keep pins fixed. They activate when any conditional-on-pins variance
-   exceeds its coordinate-conditional variance by a factor of 16; ordinary
-   blocks, and the <code>_gibbs_advance_chain</code> chains, keep coordinate sweeps.</li>
-<li><strong>G5 stream.</strong> After <code>burn_in</code> sweeps, each of <code>n_sim</code> sweeps adds the
-   outputs to running sums and sums of squares; the first
-   <code>n_batch * batch_size</code> of them also form batch means, of which only the
-   sum and sum of squares are kept. No draw array; strongly coupled blocks
-   additionally store <code>O(d**2)</code> direction coefficients per active family.</li>
-<li><strong>G6 stop.</strong> <code>ltpred.estimate._estimate_group</code> reruns the unconverged
-   families in rounds, pooling those sums, until every requested batch-means
-   SE is <code>&lt;= tol</code> or <code>max_rounds</code> is reached; converged families leave
-   the active set.
-   This estimates Monte Carlo precision, not convergence to stationarity;
-   batch means can miss slow modes. Difficult bounds still need independent
-   seeds, longer burn-in/chains and, where available, a quadrature reference.</li>
-</ol>
-<p>Seeding. The batched kernels reseed the kernel RNG with <code>seeds[f]</code> at the
-top of family <code>f</code>'s <code>prange</code> iteration (<code>-1</code>: unseeded), so a family's
-draws do not depend on thread scheduling; seed derivation is in
-<code>ltpred.estimate._base_seeds</code>. <code>_gibbs_advance_chain</code> (persistent chains for
-<code>ltpred.fit</code>) instead draws every uniform from a thread-local
-<code>numpy.random.Generator</code> before entering <code>prange</code>. <code>rtmvnorm_gibbs</code>
-reseeds the serial sweep's RNG (see its <code>seed</code>).</p>
+        <p>Truncated multivariate-normal Gibbs sampling.</p>
+<p>For <code>Q = Sigma^-1</code>, <code>gibbs_params</code> forms conditional means
+<code>P[i,j] = -Q[i,j]/Q[j,j]</code> and standard deviations <code>sqrt(1/Q[j,j])</code>.
+Each free coordinate is sampled from its truncated normal conditional;
+coordinates spanning less than <code>1e-8</code> are fixed. Strongly coupled blocks
+also receive joint Gaussian updates along whitened directions.</p>
+<p>Batched estimation integrates out each family's unbounded coordinates and
+streams Rao--Blackwellised sums and batch means without retaining draws.
+Per-family seeds make results independent of scheduling and chunking.
+Persistent chains used by the fitters draw uniforms from a thread-local
+NumPy generator. See Algorithm G in <code>docs/algorithm.md</code>.</p>
 
 
 
@@ -7855,7 +6765,7 @@ reseeds the serial sweep's RNG (see its <code>seed</code>).</p>
 
     <div class="doc doc-contents ">
 
-        <p>Draw truncated-MVN samples of the coordinates listed in <code>out</code>.</p>
+        <p>Draw truncated-MVN samples of the coordinates in <code>out</code>.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -7865,9 +6775,7 @@ reseeds the serial sweep's RNG (see its <code>seed</code>).</p>
               (<code>(d, d) array</code>)
           –
           <div class="doc-md-description">
-            <p>Finite, symmetric, strictly positive-definite covariance of the
-(untruncated) multivariate normal; singular or indefinite input raises
-<code>ValueError</code> (see <code>correct_positive_definite</code>).</p>
+            <p>Finite, symmetric, strictly positive-definite covariance.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -7877,9 +6785,7 @@ reseeds the serial sweep's RNG (see its <code>seed</code>).</p>
 )
           –
           <div class="doc-md-description">
-            <p>Per-coordinate truncation bounds; scalars are broadcast. Every <code>upper</code>
-must be greater than or equal to its corresponding <code>lower</code>; reversed
-bounds raise <code>ValueError</code>.</p>
+            <p>Truncation bounds; scalars broadcast. Bounds must be ordered and not NaN.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -7889,9 +6795,7 @@ bounds raise <code>ValueError</code>.</p>
 )
           –
           <div class="doc-md-description">
-            <p>Per-coordinate truncation bounds; scalars are broadcast. Every <code>upper</code>
-must be greater than or equal to its corresponding <code>lower</code>; reversed
-bounds raise <code>ValueError</code>.</p>
+            <p>Truncation bounds; scalars broadcast. Bounds must be ordered and not NaN.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -7901,10 +6805,8 @@ bounds raise <code>ValueError</code>.</p>
 )
           –
           <div class="doc-md-description">
-            <p>Coordinates to hold constant instead of resampling. Defaults to
-<code>upper - lower &lt; 1e-8</code> (a pinned point mass, e.g. an age-of-onset case).
-If a caller explicitly fixes a non-point interval, that coordinate starts
-at its marginal truncated median and remains there.</p>
+            <p>Coordinates to hold at their marginal truncated medians. Defaults to
+intervals narrower than <code>1e-8</code>.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -7914,9 +6816,7 @@ at its marginal truncated median and remains there.</p>
 )
           –
           <div class="doc-md-description">
-            <p>Zero-based coordinate indices to return (0 = genetic, 1 = proband full
-liability in the family-model ordering). Indices must be integers in
-<code>[0, d)</code>. Duplicates are dropped and the returned order is sorted.</p>
+            <p>Coordinate indices; duplicates are removed and columns sorted.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -7926,9 +6826,7 @@ liability in the family-model ordering). Indices must be integers in
 )
           –
           <div class="doc-md-description">
-            <p>Post-burn-in draws to keep (a positive integer; it is not validated)
-and sweeps to discard first. <code>burn_in</code> must be a non-boolean
-non-negative integer.</p>
+            <p>Retained draws and initial sweeps to discard.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -7938,9 +6836,7 @@ non-negative integer.</p>
 )
           –
           <div class="doc-md-description">
-            <p>Post-burn-in draws to keep (a positive integer; it is not validated)
-and sweeps to discard first. <code>burn_in</code> must be a non-boolean
-non-negative integer.</p>
+            <p>Retained draws and initial sweeps to discard.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -7950,18 +6846,10 @@ non-negative integer.</p>
 )
           –
           <div class="doc-md-description">
-            <p>Non-boolean integer in <code>[0, 2**32 - 1]</code> for reproducibility, or <code>None</code>.
-Every call reseeds the RNG the serial sweep draws from: the calling
-thread's Numba RNG when Numba is installed, otherwise NumPy's legacy
-global RNG, so in the pure-Python fallback concurrent seeded calls from
-different threads can interfere. <code>seed=None</code> draws fresh entropy for
-that reseed -- without it, an unseeded call following a seeded one
-would replay the stream the seeded call left behind, making
-<code>seed=None</code> results deterministic after any seeded call. The reseed
-also resets the calling thread's persistent-chain stream used by
-<code>_gibbs_advance_chain</code>. With Numba, the high-level estimators seed each family
-inside the parallel kernel and are safe for concurrent seeded use;
-without it they share the global-RNG caveat.</p>
+            <p>Uint32 seed or <code>None</code> for fresh entropy. Each call reseeds this
+thread's serial sampler and persistent-chain stream. The pure-Python
+fallback shares NumPy's global RNG and is not safe for concurrent
+seeded calls.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -7971,12 +6859,7 @@ without it they share the global-RNG caveat.</p>
 )
           –
           <div class="doc-md-description">
-            <p>Precomputed <code>gibbs_params</code> output; recomputed from <code>covmat</code> when
-omitted. The supplied <code>covmat</code> is still validated because it defines
-the marginal initialisation; <code>params</code> must have been computed from
-that same matrix -- a pair whose shapes do not match <code>covmat</code> raises
-<code>ValueError</code> (the jitted sweep would otherwise index past the bounds
-and crash the process).</p>
+            <p>Precomputed <code>gibbs_params</code> for this same covariance; shapes are checked.</p>
           </div>
         </li>
     </ul>
@@ -7988,7 +6871,7 @@ and crash the process).</p>
               <code>(n_sim, len(set(out))) ndarray</code>
           –
           <div class="doc-md-description">
-            <p>Samples, columns in the sorted order of <code>out</code>.</p>
+            <p>Retained draws. The high-level estimators return summaries instead.</p>
           </div>
         </li>
     </ul>
@@ -8011,21 +6894,11 @@ and crash the process).</p>
 
     <div class="doc doc-contents ">
 
-        <p>Precompute the sweep's conditional-regression matrix <code>P</code> and SDs <code>sd</code>.</p>
-<p>The Gibbs conditionals come from the <strong>precision</strong> matrix <code>Q = Sigma^-1</code>:
-<code>sd[j] = sqrt(1 / Q[j,j])</code> (conditional SD) and <code>P[i,j] = -Q[i,j] / Q[j,j]</code>
-(0 on the diagonal), so <code>mu_j = sum_i P[i,j] x_i</code> is the conditional mean.
-This is one <code>O(d^3)</code> inverse instead of <code>d</code> size-<code>(d-1)</code> solves
-(<code>O(d^4)</code>) -- a few-fold speed-up that matters for multi-trait / large
-pedigrees. Computed once and reused across the convergence loop in
-<code>ltpred.estimate</code>. Mathematically identical to the conditional-regression
-form; <code>Sigma</code> is strictly PD (see <code>correct_positive_definite</code>).</p>
-<p><code>covmat</code> must be finite, symmetric to <code>1e-10</code> relative to its largest
-absolute entry, and
-strictly positive-definite (smallest eigenvalue greater than <code>1e-12</code>
-times the covariance's spectral scale);
-a merely invertible but indefinite covariance would otherwise silently
-yield NaN conditional SDs and garbage draws, so it raises <code>ValueError</code>.</p>
+        <p>Precompute conditional-regression coefficients and standard deviations.</p>
+<p>For precision <code>Q = Sigma^-1</code>, returns <code>P[i,j] = -Q[i,j]/Q[j,j]</code> with
+zero diagonal and <code>sd[j] = sqrt(1/Q[j,j])</code>. <code>covmat</code> must be finite,
+symmetric and strictly positive definite. One matrix inverse is reused
+across all coordinates and convergence rounds.</p>
 
 
     </div>
@@ -8053,64 +6926,17 @@ yield NaN conditional SDs and garbage draws, so it raises <code>ValueError</code
 
     <div class="doc doc-contents first">
 
-        <p>Pearson-Aitken (PA) selection -- deterministic liability inference.</p>
-<p>The analytical alternative to the Gibbs sampler. The supplied bounds and
-relatives, not the engine, name the model (classic LT-FH, onset-pinned
-LT-FH++, ADuLT, base PA-FGRS or an age-dependent PA-FGRS-style interval
-variant). Reference: methods report, "Computing the truncated mean"
-(Algorithms P and M) and "Reducing the inference problem"; Dybdahl Krebs et
-al. 2024 (<em>Am. J. Hum. Genet.</em>). If coordinate <code>i</code> of a Gaussian vector is
-selected from <code>N(m_i, v_i)</code> to moments <code>(m*, v*)</code>, all others update in
-closed form (<code>_pa_update</code>, applied to the leading block <code>0..i-1</code> only):</p>
-<div class="highlight"><pre><span></span><code>m_j      &lt;- m_j      + (Sigma_ji / v_i) (m* - m_i)
-Sigma_jk &lt;- Sigma_jk + (Sigma_ji Sigma_ik / v_i^2) (v* - v_i)
-</code></pre></div>
-<p><strong>Algorithm P</strong> (no <code>K_i</code>/<code>K_pop</code>; <code>pa_algorithm</code>, <code>pa_estimate_batched</code>):</p>
-<ul>
-<li>P1. Permute the target to row 0; other rows keep the caller's order
-  (<code>ltpred.estimate</code> sorts roles by name, so fold order is a property of
-  the role set).</li>
-<li>P2. <code>_pa_reduced_nomix</code>: marginalise absent non-target rows <code>(-inf, inf)</code>
-  (take the principal sub-block), condition all pins jointly
-  (<code>_condition_pins</code>: <code>m_X = Sigma_XP Sigma_PP^-1 p</code>,
-  <code>V_X = Sigma_XX - Sigma_XP Sigma_PP^-1 Sigma_PX</code>) and centre the remaining
-  bounds by <code>m_X</code>. Families are grouped by the byte string of row states
-  (0 absent, 1 interval, 2 pin), so <code>V_X</code> is formed once per observation
-  mask. A singular pin block is reduced to independent pins after a support
-  check; a zero conditional variance marks a deterministic row whose bound
-  must contain its value. Incompatible observations raise <code>ValueError</code>.</li>
-<li>P3. <code>_pa_family_nomix</code>: fold the remaining intervals last-to-first (row
-  <code>d-1</code> down to 1, original relative order), replacing each marginal by its
-  truncated-normal moments and applying the update.</li>
-<li>P4. Apply the target's own interval last: a no-op for an unbounded <code>g</code>;
-  <code>out="full"</code> conditions on the proband's own status.</li>
-<li>P5. Return the target's updated mean and variance <code>(est, var)</code>.</li>
-</ul>
-<p>Pins followed by at most one interval (the target's own included) give exact
-posterior moments. With several intervals, each selected law is replaced by
-the Gaussian with its two moments: a sequential two-moment approximation that
-depends on fold order. Zero Monte-Carlo error is not zero approximation error.</p>
-<p><strong>Algorithm M</strong> (censored-control mixture, <code>_pa_family</code> via <code>_tnorm_mixture</code>,
-PA-only): a control observed to its current age is a lifetime control on
-<code>(lower, T_pop)</code> or a not-yet-onset case on <code>(T_pop, inf)</code>, split at the
-lifetime threshold <code>T_pop = -Phi^-1(K_pop)</code>. Its selected moments are the
-two-component moments with weight
-<code>pi = Phi_below / (Phi_below + (1 - Phi_below) (K_pop - K_i) / K_pop)</code>,
-<code>Phi_below</code> the current conditional mass below <code>T_pop</code> among values above
-<code>lower</code>; this replaces P3's moments. <code>(K_pop - K_i)/K_pop</code> assumes onset
-timing independent of liability among eventual cases. Age enters only through
-<code>K_i</code>; the finite <code>upper</code> merely flags censoring. P2's reduction is
-skipped: pins, absent rows (no-op updates) and intervals are all folded
-sequentially, last to first as in P3, and a row whose conditional variance
-has collapsed is skipped as known. P2's compatibility checks still apply
-(<code>_check_pin_support</code>), so both paths accept and reject the same exact
-observations.</p>
-<p>Truncated moments never form <code>1 - Phi</code>: <code>_std_tnorm_moments</code> reflects
-positive intervals into the lower tail and differences log CDFs with
-<code>expm1</code> (<code>_log_norm_cdf</code> uses an asymptotic series below -37). Intervals
-wholly beyond +-16 standard deviations, and finite ones narrower than
-<code>1e-3</code>, use Gauss-Legendre quadrature in a local coordinate, so a small
-variance is never recovered by cancelling order-<code>a**2</code> terms.</p>
+        <p>Deterministic Pearson--Aitken truncated-Gaussian moments.</p>
+<p>Conditioning coordinate <code>i</code> updates the remaining means by
+<code>Sigma_ji (m* - m_i) / v_i</code> and covariances by a rank-one update. The
+no-mixture path marginalises absent rows, conditions pins jointly by
+observation mask, then folds intervals last-to-first and the target last.
+Pins plus at most one interval are exact; multiple intervals use a sequential
+two-moment approximation and can depend on fold order.</p>
+<p>The PA-only censoring mixture splits each eligible control at its lifetime
+threshold, with weights from <code>K_i</code>/<code>K_pop</code>. Stable truncated moments use
+log-CDF differences and local Gauss--Legendre quadrature for narrow or extreme
+intervals. See Algorithms P and M in <code>docs/algorithm.md</code>.</p>
 
 
 
@@ -8145,19 +6971,12 @@ variance is never recovered by cancelling order-<code>a**2</code> terms.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Pearson-Aitken estimate of the target liability for a single family.</p>
-<p><code>covmat</code> is the <code>(d, d)</code> liability covariance; <code>lower</code>/<code>upper</code> are the
-per-row truncation bounds. An unbounded target row (<code>(-inf, inf)</code>, the
-usual <code>g</code>) is a no-op after the relative fold; a target interval
-(<code>out="full"</code>) is folded last. Without a mixture, all pins are conditioned
-jointly before intervals and unobserved non-target rows are marginalized. <code>target</code>
-is the row to estimate (0 = the genetic liability <code>g</code> in the usual ordering).
-<code>K_i</code>/<code>K_pop</code> (per row, <code>nan</code> where unused) switch on the censored-control
-mixture (Algorithm M, which skips the pin reduction). Returns <code>(est, var)</code> -- sequential-moment approximations to the
-target's posterior mean and conditional variance. Without a mixture the
-result is exact after pins when at most one interval remains. Singular
-covariance is supported only when the remaining non-deterministic interval
-coordinates are linearly independent; otherwise raise <code>ValueError</code>.</p>
+        <p>Return PA posterior mean and variance for one family.</p>
+<p><code>target</code> selects the covariance row to estimate. Without a mixture, pins
+are conditioned jointly and absent non-target rows marginalised; with
+<code>K_i</code>/<code>K_pop</code>, eligible controls use the censoring mixture. The result
+is exact after pins with at most one remaining interval. Singular support
+with dependent interval observations is rejected.</p>
 
 
     </div>
@@ -8211,39 +7030,14 @@ Returns the PA sequential-moment approximations <code>(est, var)</code> of lengt
 
     <div class="doc doc-contents first">
 
-        <p>Simulate families under the liability-threshold model.</p>
-<p>Every simulator keeps the generating values so estimates can be scored
-against the truth. Multivariate normal draws use <code>z @ L.T</code> with the
-Cholesky factor <code>L</code> of the covariance (its spectrum lifted by a negligible
-amount when singular, e.g. at <code>h2 = 1</code>), so a seed gives the same draws,
-up to rounding, on any LAPACK build.</p>
-<p><code>simulate_under_LTM_single</code> (after LTFHPlus::simulate_under_LTM_single, with
-its own age model) draws <code>(g, o, relatives)</code> from the role-grammar
-covariance, thresholds the full liabilities and packages bounds as
-<code>ltpred.family.Family</code> objects:</p>
-<ul>
-<li><code>use_age=False</code> -- classic LT-FH: a single prevalence threshold <code>T</code>, cases
-  <code>(T, inf)</code> and controls <code>(-inf, T)</code>. Self-consistent, handy for validating
-  the estimator against the simulated truth.</li>
-<li><code>use_age=True</code> -- age-aware simulation with generation-consistent current
-  ages. Status is <code>onset &lt;= current age</code> (a young person with high liability
-  is a censored control, not a case). <code>onset_model</code> chooses how onset is
-  generated; <code>case_encoding</code> chooses the bound written for
-  observed cases.</li>
-</ul>
-<p>Register simulation: <code>simulate_pedigree</code> builds trio columns,
-<code>pedigree_birth_times</code> assigns generation birth years, and
-<code>simulate_register_liabilities</code> draws <strong>one</strong> population field. Raw genetic
-values have covariance <code>h2 A</code> for the whole pedigree, either from a dense
-<code>A</code> and its factor or by an exact Mendelian recursion (linear storage).
-The pedigree and the Mendelian recursion come from <code>phensim.pedigree</code> (the
-<code>[sim]</code> extra). Both genetic and full liabilities are divided by
-<code>sqrt(h2 A_ii + 1 - h2)</code>, keeping inbred people on the unit-variance
-threshold scale, and onset is the threshold crossing of the supplied CIP.</p>
-<p><code>simulate_followup_records</code> draws entry/exit/event records from a logistic
-CIP with optional Gompertz competing death; <code>simulate_under_LTM_multi</code> draws
-two traits from <code>kron(G, A) + kron(S, C) + kron(T, M) + kron(E, I)</code>, with
-trait-by-trait genetic, sibship, couple and residual matrices <code>G, S, T, E</code>.</p>
+        <p>Liability-threshold simulations with retained generating truth.</p>
+<p>Role-family draws use a canonical Cholesky factor for reproducibility across
+LAPACK builds. Age-aware simulations distinguish threshold-crossing,
+stochastic and liability-dependent onset from the bounds written for cases.
+Register simulation draws one coherent population liability field, using
+either dense kinship or phensim's linear-storage Mendelian recursion, and
+standardises inbred liabilities. Follow-up simulation supports delayed entry
+and competing Gompertz death; the two-trait simulator uses A/C/M/E kernels.</p>
 
 
 
@@ -8557,44 +7351,19 @@ generating variance parameters, so a fit can be scored against them.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Simulate <code>n_sim</code> families for a single trait.</p>
-<p>Builds the covariance from <code>fam_vec</code> as
-<code>ltpred.covariance.construct_covmat_single</code> does (<code>add_ind=False</code>
-raises, since the simulation needs <code>g</code>/<code>o</code>), draws liabilities, and
-returns a <code>Simulation</code>. <code>n_sim</code> counts families, not sampler draws.
-<code>h2</code> (in <code>(0, 1]</code>) and <code>pop_prev</code> are the generating heritability and
-lifetime prevalence; <code>pop_prev=0.1</code> is an illustrative default, not a
-recommendation. <code>mid_point</code>/<code>slope</code> (years, per year) parametrise the
-logistic CIP of <code>ltpred.thresholds.convert_age_to_cir</code> used when
-<code>use_age=True</code>. <code>seed</code> is passed to <code>numpy.random.default_rng</code>.</p>
-<p>With <code>use_age=False</code> (default) the bounds are classic LT-FH: one lifetime
-threshold, status <code>l &gt; T</code>.</p>
-<p>With <code>use_age=True</code> current ages are generation-consistent, and a person
-is an observed case only if their onset age is at most their current age.
-<code>onset_model</code> is <code>"threshold_crossing"</code> (default: onset is the CIP
-inverse of true liability — the LT-FH++ convention), <code>"stochastic"</code>
-(lifetime status at <code>T</code>, onset drawn from the CIP independently of
-<code>l</code> given being a lifetime case), or <code>"liability_dependent"</code> (same
-lifetime status, but onset is coupled to <code>l</code> by a Gaussian copula of
-strength <code>onset_rho</code>, default 0.6: higher liability tends to earlier
-onset, with residual noise). <code>rho = 0</code> recovers <code>stochastic</code>;
-<code>rho = 1</code> recovers <code>threshold_crossing</code> among lifetime cases.
-<code>case_encoding</code> is <code>"pin"</code> (default for threshold-crossing),
-<code>"interval"</code> (age-specific <code>[T(onset), inf)</code>), or <code>"lifetime"</code>
-(default for stochastic and liability-dependent: <code>[T, inf)</code>). This
-helper has one logistic CIP and does not simulate the full
-sex/birth-cohort personalisation of LT-FH++.</p>
-<p><code>onset_resolution</code> is the grid a register is taken to <strong>record</strong> onset on,
-in years (default <code>1.0</code>, whole years; <code>None</code> records the exact simulated
-onset). Under <code>threshold_crossing</code>, a finite recording grid is represented
-by its full age bin. A <code>"pin"</code> therefore becomes the corresponding
-two-sided liability interval, while <code>"interval"</code> keeps its one-sided
-meaning but uses the bin's conservative lower edge. Both contain the
-generating liability. On a grid the age-0 bin is upper-open, because
-arbitrarily high liabilities map to onset age zero. With
-<code>onset_resolution=None</code>, <code>"pin"</code> is a point and <code>"interval"</code> starts
-at that point; a <code>"pin"</code> at the age-0 clamp is then <code>T(0)</code>, below the
-true liability.</p>
+        <p>Simulate single-trait role families and their observed bounds.</p>
+<p><code>n_sim</code> counts families. <code>h2</code> and <code>pop_prev</code> are the generating
+values; <code>seed</code> follows NumPy's <code>default_rng</code>. Without ages, all members
+use classic LT-FH bounds. With <code>use_age=True</code>, current ages are
+generation-consistent and onset can be threshold-crossing, stochastic or
+liability-dependent (Gaussian copula strength <code>onset_rho</code>).</p>
+<p><code>case_encoding</code> selects onset pins, age-specific intervals or lifetime
+intervals. <code>onset_resolution</code> is the register's recording grid (one year
+by default, or exact onset with <code>None</code>). Under threshold crossing, a
+finite grid maps the age bin to a two-sided liability interval even for
+<code>"pin"</code>; one-sided interval cases retain their conservative lower edge.
+The age-zero bin is upper-open. The returned <code>Simulation</code> retains true
+liabilities, onset, status and families for validation.</p>
 
 
     </div>
@@ -8614,23 +7383,10 @@ true liability.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Simulate a multi-generation pedigree as trio columns.</p>
-<p>Returns <code>(ids, father, mother)</code> — the three columns
-<code>ltpred.pipeline.estimate_liabilities</code>,
-<code>ltpred.pedigree.build_parent_graph</code> and
-<code>ltpred.covariance.kinship_from_pedigree</code> all take directly.
-Founders have <code>None</code> parents. <code>gens</code> generations of descendants are
-built below <code>n_founder_pairs</code> unrelated founder couples (<code>gens + 1</code>
-generations in all). Each couple has 2–4 children, and with probability
-<code>remarry</code> the father has one further child with a new founder partner,
-which is what produces half-siblings. People sharing any recorded parent
-are never paired.</p>
-<p><code>rng</code> is a <code>numpy.random.Generator</code> (or anything
-<code>numpy.random.default_rng</code> accepts, such as an integer seed); pass
-<code>np.random.default_rng(seed)</code> for a reproducible pedigree. The draw is
-<code>phensim.simulate_pedigree</code> with <code>seed=rng</code> (the <code>[sim]</code> extra).</p>
-<p>Raises <code>ValueError</code> unless <code>n_founder_pairs</code> is an integer &gt;= 1,
-<code>gens</code> an integer &gt;= 0 and <code>remarry</code> in [0, 1].</p>
+        <p>Simulate trio columns <code>(ids, father, mother)</code> with phensim.</p>
+<p>Builds <code>gens</code> descendant generations below unrelated founder couples,
+with optional remarriage and no mating between recorded relatives. The
+<code>[sim]</code> extra is required; <code>rng</code> follows NumPy's seed contract.</p>
 
 
     </div>
@@ -8683,38 +7439,16 @@ for a given pedigree.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Simulate one <strong>consistent</strong> population liability field, then records.</p>
-<p>Draws raw genetic liabilities <code>G ~ N(0, h2 * A_full)</code> once for the whole
-pedigree plus independent residuals <code>E</code>, then divides both the full
-liability <code>G + E</code> and its genetic coordinate <code>G</code> by each person's raw
-full-liability SD <code>sqrt(h2 * A_ii + (1 - h2))</code>. That division is a no-op
-for non-inbred people and is what keeps an inbred person (<code>A_ii &gt; 1</code>) on
-the unit-variance liability scale the public kinship path assumes.</p>
-<p>Drawing the population once — rather than each proband's pedigree separately
-— is the point: a person shared between two probands' pedigrees then has one
-status and one genetic value, so status and <code>g</code> stay correlated as they are
-in reality. Independent per-proband draws would fix the shared person's
-status from one draw and the proband's <code>g</code> from another, silently
-decorrelating them.</p>
-<p>Onset follows the threshold-crossing model against <code>cip_values</code>: a person
-is a lifetime case when <code>1 - Phi(liability)</code> is at most the curve's horizon
-value, with onset the age at which the curve reaches that probability.
-Everyone is observed through <code>eval_age</code> unless diagnosed earlier, so
-<code>status</code> is <em>observed</em> case at <code>eval_age</code> and <code>age</code> is onset for cases
-and <code>eval_age</code> otherwise.</p>
-<p><code>method="dense"</code> (default) factors the dense <code>A</code>. For large pedigrees,
-<code>method="mendelian"</code> draws the same Gaussian model using independent
-parent-to-child innovations and exact inbreeding variances, without a dense
-relationship matrix or factor (<code>phensim.mendelian_draw</code>, the <code>[sim]</code>
-extra). Storage is linear in person count plus a
-bounded relationship cache; runtime depends on pedigree structure. The two
-methods have the same distribution but different draws for the same seed.</p>
-<p><code>cip_ages</code>/<code>cip_values</code> are a cumulative-incidence curve (see
-<code>ltpred.cip.kaplan_meier_cip</code>) of equal shape; <code>cip_values</code> must have at
-least two strictly increasing entries, while <code>cip_ages</code> is assumed
-increasing and not checked. <code>rng</code> is a <code>numpy.random.Generator</code>; the
-pedigree usually comes from <code>simulate_pedigree</code>. <code>birth_time</code> is
-<code>pedigree_birth_times</code> with its defaults (1920, 30-year generations).</p>
+        <p>Simulate one coherent pedigree liability field and register records.</p>
+<p>Draws <code>G ~ N(0, h2 A)</code> once for the population plus independent
+residuals, then standardises genetic and full liabilities by each person's
+raw full-liability SD. Shared relatives therefore have one status and one
+genetic value across all probands.</p>
+<p>Onset is the supplied CIP's threshold crossing; observed status is onset
+by <code>eval_age</code> and age is onset for cases, <code>eval_age</code> otherwise.
+<code>method="dense"</code> factors dense A; <code>"mendelian"</code> uses phensim's exact
+linear-storage recursion. They agree in distribution, not draw-for-draw.
+Returns register columns, true genetic values and residual variances.</p>
 
 
     </div>
@@ -8734,28 +7468,12 @@ pedigree usually comes from <code>simulate_pedigree</code>. <code>birth_time</co
 
     <div class="doc doc-contents ">
 
-        <p>Simulate registry follow-up records with a known incidence curve.</p>
-<p>Draws <code>n</code> people from the <code>numpy.random.Generator</code> <code>rng</code>. Each person
-gets a birth year uniform on <code>birth_year_range</code>, a lifetime case
-indicator with probability <code>pop_prev</code>, and — if a case — an onset age
-from the inverse CDF of the logistic cumulative-incidence curve with
-<code>mid_point</code>/<code>slope</code> (the curve of
-<code>ltpred.thresholds.convert_age_to_cir</code>, as used by <code>age_thresholds</code>/
-<code>pa_thresholds</code>), clamped at age 0 (a point mass there when
-<code>mid_point</code> is small relative to <code>1/slope</code>). With
-<code>register_start_year</code> given, follow-up is left-truncated: nobody is
-observed before that calendar year, which is what a register opened mid-life
-looks like. Everyone is administratively censored at <code>admin_end</code>.</p>
-<p>With <code>mortality=True</code> a competing Gompertz death time is drawn with hazard
-<code>exp(gompertz_log_a + gompertz_b * age)</code> and coded <code>event = 2</code> when it
-precedes onset. This is the case that makes the difference between the two
-estimators visible: <code>ltpred.cip.kaplan_meier_cip</code> treats death as
-censoring and so estimates the net curve (here the generating one), while
-<code>ltpred.cip.aalen_johansen_cip</code> estimates the lower crude cumulative
-incidence, the share diagnosed before death.</p>
-<p>Records with <code>age_exit &lt;= age_entry</code> are dropped and counted in
-<code>n_dropped</code>; they had their event at or before entry (e.g. an onset
-clamped to age 0) or no time in the window.</p>
+        <p>Simulate follow-up records from a logistic incidence curve.</p>
+<p>Birth years, delayed register entry and administrative censoring use the
+supplied calendar arguments. Lifetime cases draw onset from the curve.
+<code>mortality=True</code> adds independent Gompertz death as a competing event.
+Events use 0=censored, 1=diagnosis, 2=death. Records without positive
+follow-up are dropped and counted in <code>n_dropped</code>.</p>
 
 
     </div>
@@ -8775,29 +7493,11 @@ clamped to age 0) or no time in the window.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Simulate <code>n_families</code> independent families with two observed traits.</p>
-<p>Builds the <code>d * n_traits</code> covariance as a sum of Kronecker products, one
-per variance component —
-<code>kron(G, A) + kron(S, C) + kron(T, M) + kron(E, I)</code> — where <code>A</code> is
-the additive relationship from
-<code>ltpred.covariance.kinship_from_pedigree</code> and <code>C</code>/<code>M</code> are the
-shared-sibship and shared-couple indicators from the same component matrices
-<code>ltpred.fit.fit_variance_components</code> uses. Liabilities are drawn once
-per family, thresholded per trait at <code>pop_prev</code>, and packaged as
-<code>ltpred.family.Family</code> objects with one interval per trait.</p>
-<p><code>h2</code> is the per-trait additive variance, <code>rg</code> the genetic correlation,
-<code>sib_shared</code>/<code>couple_shared</code> the per-trait shared-sibship and
-shared-couple covariance matrices, and <code>residual_re</code> the residual
-environmental correlation. The defaults are the tutorial's step-5 design, so
-<code>simulate_under_LTM_multi(n_families=3000, seed=1)</code> reproduces that
-cohort.</p>
-<p>Each trait's liability has unit variance (the four component diagonals sum
-to 1), so the implied full-liability correlation between traits is
-<code>G12 + S12 + T12 + E12</code> — 0.1511 for the defaults, echoed in
-<code>truth["target_trait_corr"]</code>. The correlation of the <em>binary</em> statuses is
-much smaller, because thresholding at 0.10 and 0.20 discards most of it.
-Pass <code>roles</code> together with matching <code>father</code>/<code>mother</code> to use a
-different family structure.</p>
+        <p>Simulate independent two-trait families under A/C/M/E components.</p>
+<p>The trait-major covariance is <code>kron(G,A) + kron(S,C) + kron(T,M) +
+kron(E,I)</code> from the supplied genetic, sibship, couple and residual
+parameters. Liabilities are thresholded per trait and returned with the
+generating truth. <code>roles</code> must align to <code>father</code> and <code>mother</code>.</p>
 
 
     </div>
@@ -8826,13 +7526,10 @@ different family structure.</p>
 
     <div class="doc doc-contents first">
 
-        <p>Set the active thread count for Numba-parallel kernels launched later from the calling thread (Numba's setting is thread-local).</p>
-<p><code>ncores</code> must be a positive, non-boolean integer. With Numba installed,
-this masks its existing thread pool to the requested number of active
-workers and cannot exceed the maximum configured when Numba initialized.
-Setting <code>NUMBA_NUM_THREADS</code> before import establishes that maximum; it is
-therefore not equivalent to this runtime setter. Without Numba, the value
-is still validated but otherwise has no effect.</p>
+        <p>Set this thread's active Numba worker count to a positive integer.</p>
+<p>The count cannot exceed the pool maximum fixed at Numba initialisation
+(configure that with <code>NUMBA_NUM_THREADS</code> before import). Without Numba,
+validation still runs but the setting has no effect.</p>
 
 
     </div>
@@ -8852,44 +7549,15 @@ is still validated but otherwise has no effect.</p>
 
     <div class="doc doc-contents first">
 
-        <p>Joint liability covariance for <code>P &gt;= 2</code> binary traits from observed pairs.</p>
-<p><code>fit_pairwise_multi</code> extends Algorithm L (<code>ltpred.pairwise</code>) to the model
-<code>Sigma = G (x) A + S (x) C + T (x) M + E (x) I</code> in trait-major coordinates,
-omitting <code>S</code> (full sibship) and/or <code>T</code> (couple) when not requested; see the
-methods report, "Joint genetic and environmental covariance".</p>
-<p><strong>Parametrisation.</strong> The free vector <code>x</code> holds the
-upper-triangular entries, diagonal included, of each requested component matrix
-and the off-diagonal entries of <code>E</code>; <code>E_aa = 1 - sum_c Comp_c[a, a]</code>, so every
-trait has unit liability variance and every matrix is affine in <code>x</code>. Trait
-<code>a</code> of member <code>i</code> and trait <code>b</code> of member <code>j</code> then have correlation
-<code>rho = sum_c K_c[i, j] Comp_c[a, b]</code> (<code>K_E = I</code>), linear in <code>x</code> -- the
-design row; a same-person cross-trait pair loads on <code>G + S + T + E</code>. <code>h2</code> is
-<code>diag(G)</code>; <code>rg</code>, <code>re</code> and <code>correlations</code> standardise <code>G</code>, <code>E</code> or any
-component.</p>
-<p><strong>Algorithm L, multi-trait.</strong></p>
-<ul>
-<li><strong>L1.</strong> Screen as Algorithm H1, per trait: length-<code>P</code> bounds on every member,
-  one common threshold <code>t_a</code> per trait (traits may differ), <code>(-inf, inf)</code> for
-  a missing phenotype, and the case-rate screen per role and trait.</li>
-<li><strong>L2.</strong> Tabulate every jointly observed coordinate pair with a nonzero row,
-  keyed by trait pair and row; raise unless the rows have full rank. Missing
-  phenotypes contribute no pairs.</li>
-<li><strong>L3.</strong> Criterion as in Algorithm L at unequal thresholds. Trial points
-  beyond a precomputed safe <code>rho</code> range get a C1 quadratic extension; the
-  returned fit is re-evaluated unextended.</li>
-<li><strong>L4.</strong> SLSQP from diagonals <code>0.5 / n_components</code> and zero off-diagonals,
-  subject to: every component PSD, <code>eig(E) &gt;= eps</code>, <code>|rho| &lt;= 1 - eps</code> for
-  every row, and box bounds. Stationarity is certified by projecting
-  <code>x - grad / n</code> onto the feasible set; it must return within
-  <code>max(1e-5, 10 sqrt(tol))</code> of <code>x</code>.</li>
-<li><strong>L5.</strong> Sandwich covariance of <code>x</code> as in Algorithm L5, withheld when any
-  component eigenvalue (for <code>E</code>, eigenvalue minus <code>eps</code>) is at most
-  <code>max(1e-7, 10 sqrt(tol))</code>. SEs of <code>h2</code>, <code>rg</code>, <code>re</code> and <code>rp</code> follow by
-  the delta method.</li>
-</ul>
-<p>Missingness must preserve the modelled pair distributions (e.g. MCAR). Only pair
-counts enter the optimizer; Boolean observations are kept for family scores.
-Thresholds and weights are held fixed, as in <code>ltpred.pairwise</code>.</p>
+        <p>Joint binary-trait covariance fitting by pairwise composite likelihood.</p>
+<p>The trait-major model is <code>Sigma = G ⊗ A + S ⊗ C + T ⊗ M + E ⊗ I</code> with PSD
+components and unit total variance per trait. Jointly observed coordinate pairs
+are tabulated by trait pair and kernel row, then fitted with analytic scores
+under component and correlation constraints. A projected-score check certifies
+stationarity.</p>
+<p>Family-cluster sandwiches and delta methods provide h2/rg/re/rp SEs at
+identifiable interior fits; all are withheld at a covariance boundary.
+Missingness must preserve pair distributions. Thresholds and weights are fixed.</p>
 
 
 
@@ -8929,26 +7597,11 @@ Thresholds and weights are held fixed, as in <code>ltpred.pairwise</code>.</p>
 
 
 
-        <p>Joint A[/C/M]/E fit, conditional on thresholds and sampling weights.</p>
-<p><code>components</code> includes residual <code>E</code>. <code>re</code> is its within-person
-cross-trait correlation; shared sibship/couple correlations are separately
-available in <code>correlations['C']</code>/<code>['M']</code>. <code>rp</code> sums <em>all</em> components.
-<code>se</code> contains sampling SEs for <code>h2</code>, <code>rg</code>, <code>re</code> and <code>rp</code> (delta
-method, family-cluster sandwich).
-All SEs are withheld at any covariance constraint boundary.</p>
-<p><code>parameter_covariance</code> follows <code>parameter_order</code>: (component, trait,
-trait) triples for the free symmetric entries. Residual diagonals are
-determined by unit total variance and are not free parameters.</p>
-<p><code>phen_names</code> labels the traits. <code>at_boundary</code> is true when a component
-eigenvalue (for <code>E</code>, eigenvalue minus <code>eps</code>) is at most
-<code>boundary_tolerance</code>, <code>max(1e-7, 10 sqrt(tol))</code>; the same value is the
-variance below which <code>correlations</code>, <code>rg</code> and <code>re</code> report NaN.
-<code>inference_status</code> takes the values of
-<code>ltpred.pairwise.PairwiseFitResult</code>. <code>composite_loglik</code> uses IPW weights
-normalised to mean one and is not a full-data log likelihood. <code>n_families</code>
-counts input clusters, <code>n_pairs</code> the informative observed coordinate pairs
-(including same-person cross-trait pairs), and <code>n_iter</code> the SLSQP
-iterations.</p>
+        <p>Joint A/C/M/E matrices and sampling diagnostics.</p>
+<p><code>parameter_covariance</code> follows <code>parameter_order</code>; <code>se</code> contains
+delta-method h2/rg/re/rp SEs, withheld at any boundary. <code>re</code> standardises
+residual E only, while <code>rp</code> sums all components. Zero-variance component
+correlations are NaN. <code>composite_loglik</code> is not a full-data likelihood.</p>
 
 
 
@@ -9161,34 +7814,15 @@ iterations.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Fit joint h², genetic and residual environmental correlations.</p>
-<p>Each member supplies explicit length-P bounds, P &gt;= 2. A common threshold
-per trait is required; different traits may have different prevalences.
-Missing phenotypes use (-inf, inf) and contribute no pairs. Missingness must
-not select the pair's statuses, unless valid family IPW corrects that design.
-Families must be independent and non-overlapping. <code>sampling='ipw'</code> needs
-known, positive family inclusion probabilities; this is not an ascertainment
-likelihood or a method for overlapping register pedigrees.</p>
-<p><code>components</code> contains A and optionally C (full sibship) and M (couple).
-Every component is a PSD trait covariance; residual E has eigenvalues at
-least eps. The marginal variance of every trait is one. C and M consume
-liability variance and have their own cross-trait covariances; <code>re</code> refers
-specifically to E. M describes spousal resemblance, not a generative model
-of assortative mating. Relationship kernels follow the single-trait fitter.</p>
-<p><code>families</code> is a list of <code>ltpred.family.Family</code>; <code>weights</code> (with
-<code>sampling="ipw"</code> only) holds one reciprocal inclusion probability per
-family and is rescaled to mean one. <code>phen_names</code> (default <code>phenotype1</code>,
-<code>phenotype2</code>, ...) must have one name per trait.</p>
-<p>The fit is the multi-trait Algorithm L of the module docstring: aggregated
-pair counts, analytic scores and sensitivity. <code>eps</code> must lie in
-<code>[1e-8, 0.5)</code>. <code>maxiter</code> (a positive integer) caps the SLSQP iterations
-and <code>tol</code> in <code>(0, 1)</code> is its <code>ftol</code>, which also scales the
-stationarity and boundary tolerances of L4-L5 (<code>10 sqrt(tol)</code>).
-Failed, infeasible or nonstationary solutions raise <code>RuntimeError</code>;
-withheld SEs emit a <code>RuntimeWarning</code>. Interior sampling SEs
-use family-cluster score variation and a delta method for correlations;
-any PSD/residual boundary withholds all normal SEs. A composite likelihood
-does not support ordinary likelihood-ratio tests.</p>
+        <p>Fit joint heritabilities and genetic/residual trait correlations.</p>
+<p>Each member needs one bound per trait and a common threshold per trait;
+uninformative traits contribute no pairs. <code>components</code> contains A and
+optional C/M. Component matrices are PSD with unit total variance and
+residual eigenvalues at least <code>eps</code>. <code>phen_names</code> labels the traits.</p>
+<p>The independent-family and population/IPW contracts match <code>fit_pairwise</code>.
+<code>maxiter</code> and <code>tol</code> control SLSQP and stationarity checks. Interior fits
+return family-cluster/delta-method SEs; any covariance boundary withholds
+them. Composite likelihood does not support ordinary likelihood-ratio tests.</p>
 
 
     </div>
