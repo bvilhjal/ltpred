@@ -1297,8 +1297,9 @@ refinement diagnostics.
 independent, non-overlapping families with common case/control thresholds and
 identifying observed relationships. Supported sampling is population sampling or
 inverse-probability weighting with known, strictly positive family inclusion
-probabilities. A marginal case-rate guard can reject gross inconsistencies;
-passing it does not certify the sampling design.</p>
+probabilities. A marginal case-rate guard can reject gross inconsistencies
+under population sampling; under IPW it only warns, using an uncalibrated
+heuristic. Passing either screen does not certify the sampling design.</p>
 <p><code>fit_heritability</code> and <code>fit_variance_components</code> use a stochastic moment fixed
 point, not posterior sampling of the parameters. <code>fit_pairwise</code> and
 <code>fit_pairwise_multi</code> maximise a composite likelihood from observed binary pair
@@ -1363,9 +1364,12 @@ threshold <span class="arithmatex">\(T=\Phi^{-1}(1-K_{pop})\)</span>, with weigh
 <span class="arithmatex">\(\pi=\Phi_{\rm below}/\{\Phi_{\rm below}+(1-\Phi_{\rm below})(K_{pop}-K_i)/K_{pop}\}\)</span>,
 where <span class="arithmatex">\(\Phi_{\rm below}\)</span> is the current conditional mass below <span class="arithmatex">\(T\)</span>.
 The factor <span class="arithmatex">\((K_{pop}-K_i)/K_{pop}\)</span> assumes onset timing independent of liability
-among eventual cases. A call containing a mixture row skips P2's reduction: pins,
+among eventual cases. For finite lower bounds, the control mass is restricted
+to the interval from that bound to <span class="arithmatex">\(T\)</span>; tail-safe probabilities determine the
+weights. A family containing an active mixture row skips P2's reduction: pins,
 absent rows and intervals are folded sequentially, but P2's compatibility checks
-still apply, so both paths accept and reject the same exact observations.</p>
+still apply. Families without active mixture rows retain Algorithm P even in
+a mixed batch.</p>
 <p><strong>Algorithm Q (nuclear-family quadrature; <code>ltpred.quadrature</code>).</strong> For an
 additive, non-inbred nuclear family with unrelated parents and <span class="arithmatex">\(h^2&lt;1\)</span>, the
 parental genetic values <span class="arithmatex">\(z=(a_m,a_f)\sim N(0,h^2I)\)</span> make all observed liabilities
@@ -1419,7 +1423,7 @@ with PSD components and unit total variance per trait, and derives <span class="
 <span class="arithmatex">\(r_e\)</span> and their SEs by the delta method.</p>
 <h2 id="methods-report">Methods report<a class="headerlink" href="#methods-report" title="Permanent link">&para;</a></h2>
 <p>The <a href="https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf">methods PDF</a>
-is the portable, detailed derivation for v0.8.0 (3 November 2026), retaining the
+is the portable, detailed derivation for v0.8.1 (4 November 2026), retaining the
 historical v0.7.4 benchmark evidence. It is not an additional onboarding guide or a timing
 report for today's checkout. <a href="https://github.com/bvilhjal/ltpred/blob/main/report/README.md">Report sources and rebuild instructions</a>
 live with the PDF; <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">the benchmark ledger</a>

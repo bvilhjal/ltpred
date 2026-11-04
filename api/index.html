@@ -6973,10 +6973,11 @@ intervals. See Algorithms P and M in <code>docs/algorithm.md</code>.</p>
 
         <p>Return PA posterior mean and variance for one family.</p>
 <p><code>target</code> selects the covariance row to estimate. Without a mixture, pins
-are conditioned jointly and absent non-target rows marginalised; with
-<code>K_i</code>/<code>K_pop</code>, eligible controls use the censoring mixture. The result
-is exact after pins with at most one remaining interval. Singular support
-with dependent interval observations is rejected.</p>
+are conditioned jointly and absent non-target rows marginalised; active
+<code>K_i</code>/<code>K_pop</code> pairs select the censoring mixture. All-NaN pairs leave
+the plain path unchanged. Without a mixture, the result is exact after
+pins with at most one remaining interval. Singular support with dependent
+interval observations is rejected.</p>
 
 
     </div>
@@ -7000,7 +7001,8 @@ with dependent interval observations is rejected.</p>
 <p><code>lowers</code>/<code>uppers</code> are <code>(F, d)</code> per-family bounds; <code>covmat</code> is shared.
 Reorders once so the target is row 0. Without <code>K_is</code>/<code>K_pops</code> it runs
 Algorithm P, sharing the pin reduction by observation mask and never
-allocating the <code>(F, d)</code> mixture arrays; otherwise the Algorithm M kernel.
+allocating the <code>(F, d)</code> mixture arrays. With arrays, only families with
+active pairs use Algorithm M; all-NaN families still use Algorithm P.
 Returns the PA sequential-moment approximations <code>(est, var)</code> of length
 <code>F</code>.</p>
 
@@ -7417,8 +7419,9 @@ needs for <code>use="prediction"</code> calendar-time censoring when the pedigre
 itself carries no dates. (<code>phensim.pedigree_birth_times</code> gives the same
 years on simulated pedigrees but refuses generation-skipping matings, so
 this permissive placement for real pedigrees stays here.)</p>
-<p>Raises <code>ValueError</code> on a generational cycle. Unlike
-<code>simulate_pedigree</code> this consumes no randomness, so it is deterministic
+<p>Raises <code>ValueError</code> on invalid parent records or a generational cycle,
+including a parent and child constrained to the same co-parent generation.
+Unlike <code>simulate_pedigree</code>, this consumes no randomness and is deterministic
 for a given pedigree.</p>
 
 
@@ -7445,7 +7448,9 @@ residuals, then standardises genetic and full liabilities by each person's
 raw full-liability SD. Shared relatives therefore have one status and one
 genetic value across all probands.</p>
 <p>Onset is the supplied CIP's threshold crossing; observed status is onset
-by <code>eval_age</code> and age is onset for cases, <code>eval_age</code> otherwise.
+by finite, nonnegative <code>eval_age</code> and age is onset for cases, <code>eval_age</code>
+otherwise. CIP ages must be finite, nonnegative and strictly increasing;
+probabilities must lie in [0, 1) and strictly increase to a positive value.
 <code>method="dense"</code> factors dense A; <code>"mendelian"</code> uses phensim's exact
 linear-storage recursion. They agree in distribution, not draw-for-draw.
 Returns register columns, true genetic values and residual variances.</p>
