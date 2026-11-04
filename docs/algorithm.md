@@ -184,8 +184,9 @@ Scoring conditions on covariance parameters. Fitting estimates them from
 independent, non-overlapping families with common case/control thresholds and
 identifying observed relationships. Supported sampling is population sampling or
 inverse-probability weighting with known, strictly positive family inclusion
-probabilities. A marginal case-rate guard can reject gross inconsistencies;
-passing it does not certify the sampling design.
+probabilities. A marginal case-rate guard can reject gross inconsistencies
+under population sampling; under IPW it only warns, using an uncalibrated
+heuristic. Passing either screen does not certify the sampling design.
 
 `fit_heritability` and `fit_variance_components` use a stochastic moment fixed
 point, not posterior sampling of the parameters. `fit_pairwise` and
@@ -258,9 +259,12 @@ threshold $T=\Phi^{-1}(1-K_{pop})$, with weight
 $\pi=\Phi_{\rm below}/\{\Phi_{\rm below}+(1-\Phi_{\rm below})(K_{pop}-K_i)/K_{pop}\}$,
 where $\Phi_{\rm below}$ is the current conditional mass below $T$.
 The factor $(K_{pop}-K_i)/K_{pop}$ assumes onset timing independent of liability
-among eventual cases. A call containing a mixture row skips P2's reduction: pins,
+among eventual cases. For finite lower bounds, the control mass is restricted
+to the interval from that bound to $T$; tail-safe probabilities determine the
+weights. A family containing an active mixture row skips P2's reduction: pins,
 absent rows and intervals are folded sequentially, but P2's compatibility checks
-still apply, so both paths accept and reject the same exact observations.
+still apply. Families without active mixture rows retain Algorithm P even in
+a mixed batch.
 
 **Algorithm Q (nuclear-family quadrature; `ltpred.quadrature`).** For an
 additive, non-inbred nuclear family with unrelated parents and $h^2<1$, the
@@ -321,7 +325,7 @@ $r_e$ and their SEs by the delta method.
 ## Methods report
 
 The [methods PDF](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf)
-is the portable, detailed derivation for v0.8.0 (3 November 2026), retaining the
+is the portable, detailed derivation for v0.8.1 (4 November 2026), retaining the
 historical v0.7.4 benchmark evidence. It is not an additional onboarding guide or a timing
 report for today's checkout. [Report sources and rebuild instructions](https://github.com/bvilhjal/ltpred/blob/main/report/README.md)
 live with the PDF; [the benchmark ledger](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)

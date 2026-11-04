@@ -233,11 +233,12 @@ def tetrachoric_matrix(X: ArrayLike, *, continuity_correction: bool = True,
             r = tetrachoric_table(n_a[i, j], n_b[i, j], n_c[i, j], n_d[i, j],
                                   continuity_correction=continuity_correction)
             R[i, j] = R[j, i] = r.rho
-    min_eig = float(np.linalg.eigvalsh(R).min()) if m else 0.0
-    if check_psd and min_eig < -1e-8:
-        warnings.warn(
-            "pairwise tetrachoric estimates are not positive-semidefinite "
-            f"(minimum eigenvalue {min_eig:.3g}); do not use this matrix as a "
-            "covariance without a justified joint fit or projection",
-            RuntimeWarning, stacklevel=2)
+    if check_psd and m:
+        min_eig = float(np.linalg.eigvalsh(R).min())
+        if min_eig < -1e-8:
+            warnings.warn(
+                "pairwise tetrachoric estimates are not positive-semidefinite "
+                f"(minimum eigenvalue {min_eig:.3g}); do not use this matrix as a "
+                "covariance without a justified joint fit or projection",
+                RuntimeWarning, stacklevel=2)
     return R

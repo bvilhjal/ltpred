@@ -24,7 +24,7 @@ from .fit import _component_matrix
 from ._mathfun import norm_cdf, norm_ppf
 from .thresholds import (liability_threshold, convert_liability_to_aoo,
                          convert_age_to_thresh, prevalence_thresholds,
-                         _convert_cir_to_age)
+                         _convert_cir_to_age, _validate_cip_curve)
 
 __all__ = ["Simulation", "simulate_under_LTM_single",
            "pedigree_birth_times", "simulate_pedigree",
@@ -136,7 +136,9 @@ def _threshold_crossing_case_bounds(aoo, current_age, onset_resolution,
     if onset_resolution is None:
         thr = float(convert_age_to_thresh(
             aoo, pop_prev=pop_prev, mid_point=mid_point, slope=slope))
-        return (thr, np.inf) if case_encoding == "interval" else (thr, thr)
+        # The inverse CIP clamps every earlier crossing to birth; even an
+        # exactly recorded zero therefore identifies a tail, not a point.
+        return (thr, np.inf) if case_encoding == "interval" or aoo <= 0.0 else (thr, thr)
 
     recorded = _record_onset(aoo, onset_resolution)
     half_width = onset_resolution / 2.0
@@ -435,11 +437,12 @@ def pedigree_birth_times(ids: Sequence, father: Sequence, mother: Sequence, *,
     years on simulated pedigrees but refuses generation-skipping matings, so
     this permissive placement for real pedigrees stays here.)
 
-    Raises ``ValueError`` on a generational cycle. Unlike
-    `simulate_pedigree` this consumes no randomness, so it is deterministic
+    Raises ``ValueError`` on invalid parent records or a generational cycle,
+    including a parent and child constrained to the same co-parent generation.
+    Unlike `simulate_pedigree`, this consumes no randomness and is deterministic
     for a given pedigree."""
+    ids, _, sire, dam, _, _ = _parent_links(ids, father, mother)
     n = len(ids)
-    pos = {pid: i for i, pid in enumerate(ids)}
     representative = list(range(n))
 
     def find(i):
@@ -455,9 +458,9 @@ def pedigree_birth_times(ids: Sequence, father: Sequence, mother: Sequence, *,
         if left != right:
             representative[right] = left
 
-    for fa, mo in zip(father, mother):
-        if fa in pos and mo in pos:
-            union(pos[fa], pos[mo])
+    for fa, mo in zip(sire, dam):
+        if fa != -1 and mo != -1:
+            union(fa, mo)
 
     component = np.array([find(i) for i in range(n)], dtype=np.intp)
     members = {root: [] for root in set(component.tolist())}
@@ -465,13 +468,16 @@ def pedigree_birth_times(ids: Sequence, father: Sequence, mother: Sequence, *,
         members[root].append(i)
     children = {root: set() for root in members}
     indegree = {root: 0 for root in members}
-    for child, (fa, mo) in enumerate(zip(father, mother)):
+    for child, (fa, mo) in enumerate(zip(sire, dam)):
         child_root = int(component[child])
-        for parent_id in (fa, mo):
-            if parent_id not in pos:
+        for parent in (fa, mo):
+            if parent == -1:
                 continue
-            parent_root = int(component[pos[parent_id]])
-            if child_root != parent_root and child_root not in children[parent_root]:
+            parent_root = int(component[parent])
+            if child_root == parent_root:
+                raise ValueError("pedigree contains a generational cycle: a parent "
+                                 "and child cannot share a co-parent generation")
+            if child_root not in children[parent_root]:
                 children[parent_root].add(child_root)
                 indegree[child_root] += 1
 
@@ -530,22 +536,29 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
     genetic value across all probands.
 
     Onset is the supplied CIP's threshold crossing; observed status is onset
-    by ``eval_age`` and age is onset for cases, ``eval_age`` otherwise.
+    by finite, nonnegative ``eval_age`` and age is onset for cases, ``eval_age``
+    otherwise. CIP ages must be finite, nonnegative and strictly increasing;
+    probabilities must lie in [0, 1) and strictly increase to a positive value.
     ``method="dense"`` factors dense A; ``"mendelian"`` uses phensim's exact
     linear-storage recursion. They agree in distribution, not draw-for-draw.
     Returns register columns, true genetic values and residual variances.
     """
-    cip_ages = np.asarray(cip_ages, dtype=float)
-    cip_values = np.asarray(cip_values, dtype=float)
-    if cip_ages.shape != cip_values.shape:
-        raise ValueError(
-            f"cip_ages and cip_values must have the same shape; got "
-            f"{cip_ages.shape} and {cip_values.shape}")
+    # Reuse scoring's curve checks without imposing a simulation clipping floor.
+    cip_ages, cip_values, _ = _validate_cip_curve(
+        cip_ages, cip_values, min_cip=np.nextafter(0.0, 1.0))
+    if np.any(cip_ages < 0.0):
+        raise ValueError("cip_ages must be nonnegative")
     if cip_values.size < 2 or np.any(np.diff(cip_values) <= 0.0):
         raise ValueError("cip_values must have at least two strictly increasing "
                          "entries to be invertible by interpolation")
+    eval_age = float(eval_age)
+    if not np.isfinite(eval_age) or eval_age < 0.0:
+        raise ValueError("eval_age must be finite and nonnegative")
     if not (0.0 < h2 <= 1.0):
         raise ValueError("h2 must be in (0, 1]")
+    if method not in ("dense", "mendelian"):
+        raise ValueError("method must be 'dense' or 'mendelian'")
+    birth_time = pedigree_birth_times(ids, father, mother)
     n = len(ids)
     if method == "dense":
         _, A_full = kinship_from_pedigree(ids, father, mother)
@@ -560,8 +573,6 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
             people, [people[s] if s != -1 else None for s in sire],
             [people[d] if d != -1 else None for d in dam], innovations=innovations)
         raw_genetic *= np.sqrt(h2)
-    else:
-        raise ValueError("method must be 'dense' or 'mendelian'")
     residual = rng.standard_normal(n) * np.sqrt(1.0 - h2)
     scale = np.sqrt(h2 * diagonal + (1.0 - h2))
     genetic = raw_genetic / scale
@@ -577,7 +588,6 @@ def simulate_register_liabilities(rng: np.random.Generator, ids: Sequence,
         np.interp(need[event], cip_values, cip_ages), 1e-9)
     status = onset <= eval_age
     age = np.where(status, onset, float(eval_age))
-    birth_time = pedigree_birth_times(ids, father, mother)
     return RegisterSimulation(
         ids=list(ids), father=list(father), mother=list(mother), status=status,
         age=age, onset=onset, birth_time=birth_time, genetic=genetic,

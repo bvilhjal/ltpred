@@ -90,8 +90,8 @@ enrichment); see [Inference](inference.md#ascertained-samples).
 Overlapping pedigrees invalidate the iid-family moments, and bootstrap does not
 correct selection bias. Selection on family history can be reweighted only when
 the inclusion probability of every complete observed family pattern is known
-and strictly positive. A design that samples *no* families from some stratum
-cannot be corrected — ascertainment through an affected proband is the standard
+and strictly positive. A design assigning *zero inclusion probability* to some
+stratum cannot be corrected — ascertainment through an affected proband is the standard
 example, where inclusion probability is zero for unaffected probands.
 
 ## Real-data checklist

@@ -913,6 +913,118 @@ def test_mixture_weight_respects_finite_lower_bound():
     assert m > thr + 0.5
 
 
+def _finite_lower_mixture_oracle(mu, var, lower, K_i, K_pop, split=None):
+    """Integrate shifted moments, scaling out the negligible tail density."""
+    from scipy.integrate import quad
+    split = float(stats.norm.isf(K_pop)) if split is None else split
+    width = split - lower
+    future = (K_pop - K_i) / K_pop
+
+    def integrand(y, power):
+        return y**power * np.exp(-((lower - mu) * y + 0.5 * y*y) / var)
+
+    moments = [quad(integrand, 0., width, args=(power,), epsabs=1e-13)[0]
+               + future * quad(integrand, width, np.inf, args=(power,),
+                               epsabs=1e-13)[0]
+               for power in range(3)]
+    shift = moments[1] / moments[0]
+    return lower + shift, moments[2] / moments[0] - shift**2
+
+
+@pytest.mark.parametrize("underflow", [False, True])
+def test_mixture_tail_weights_match_scaled_integration(underflow):
+    split = float(stats.norm.isf(.05))
+    if underflow:
+        # Both component probabilities underflow, but their ratio is ordinary.
+        mu, var, lower = split - 40., 1., split - .01
+    else:
+        # Both ordinary CDFs round to one; the control component dominates.
+        mu, var, lower = -1.9, .0975, 1.
+    expected = _finite_lower_mixture_oracle(mu, var, lower, .025, .05)
+    actual = _tnorm_mixture(mu, var, lower, stats.norm.isf(.025), .025, .05)
+    np.testing.assert_allclose(actual, expected, rtol=2e-9, atol=2e-11)
+
+
+@pytest.mark.parametrize("width", [None, 1e-14])
+@pytest.mark.parametrize("a", [0., 40.])
+def test_narrow_mixture_mass_uses_physical_interval_width(width, a):
+    from ltpred._mathfun import _norm_ppf
+    K_pop = .05
+    K_i = np.nextafter(K_pop, 0.)
+    # Fix the exact split used by the kernel: a one-ulp quantile difference
+    # would itself change these deliberately one-ulp intervals.
+    split = -_norm_ppf(K_pop)
+    lower = np.nextafter(split, -np.inf) if width is None else split - width
+    mu = 0. if a == 0. else split - a
+    expected = _finite_lower_mixture_oracle(mu, 1., lower, K_i, K_pop, split=split)
+    actual = _tnorm_mixture(mu, 1., lower, 2., K_i, K_pop)
+    np.testing.assert_allclose(actual, expected, rtol=2e-9, atol=2e-11)
+
+
+def test_narrow_mixture_with_no_future_cases_keeps_physical_variance():
+    from ltpred._mathfun import _norm_ppf
+    split = -_norm_ppf(.05)
+    lower = np.nextafter(split, -np.inf)
+    mean, variance = _tnorm_mixture(-40., 1., lower, 2., .05, .05)
+    assert lower <= mean <= split
+    assert variance == pytest.approx((split - lower)**2 / 12., rel=1e-12, abs=0.)
+
+
+def test_kinship_mixture_tail_weights_match_independent_integration():
+    from ltpred import estimate_liability_from_kinship
+    # Identical genomes, independent residual environments. Conditioning on
+    # the second full liability gives N(-1.9, .0975) for the first.
+    result = estimate_liability_from_kinship(
+        np.ones((2, 2)), lower=[1., -2.],
+        upper=[stats.norm.isf(.025), -2.], h2=.95, out="full",
+        use_mixture=True, K_i=[[.025, np.nan]], K_pop=[[.05, np.nan]])
+    expected = _finite_lower_mixture_oracle(-1.9, .0975, 1., .025, .05)
+    np.testing.assert_allclose([result[0][0], result[2][0]], expected,
+                               rtol=2e-9, atol=2e-11)
+
+
+def test_no_incidence_mixture_retains_small_variance_at_large_mean():
+    # With Ki=0 and no lower bound, the mixture is the original Gaussian.
+    # E[X^2] - E[X]^2 would erase its unit variance at this location.
+    mean, var = _tnorm_mixture(1e8, 1., -np.inf, 2., 0., .1)
+    assert mean == 1e8
+    assert var == pytest.approx(1., abs=1e-12)
+
+
+@pytest.mark.parametrize("target", [0, 2])
+def test_unused_mixture_arrays_preserve_joint_pin_conditioning(target):
+    cov = np.array([[1., .7, .7], [.7, 1., .8], [.7, .8, 1.]])
+    lo, hi = np.array([-np.inf, -2., 2.]), np.array([np.inf, -2., np.inf])
+    no_k = np.full(3, np.nan)
+    expected = pa_algorithm(cov, lo, hi, target=target)
+    assert pa_algorithm(cov, lo, hi, target=target,
+                        K_i=no_k, K_pop=no_k) == expected
+    batched = pa_estimate_batched(cov, lo[None], hi[None], target=target,
+                                  K_is=no_k[None], K_pops=no_k[None])
+    assert (batched[0][0], batched[1][0]) == expected
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_mixed_cohort_preserves_inactive_family_pa_result(dtype):
+    # The first family has a pin and one interval, hence an exact PA answer.
+    # Another family's censoring mixture must not change its conditioning.
+    families = [Family("plain", [Member("o", -2., -2.), Member("s1", 2., np.inf)]),
+                Family("mixture", [Member("o", -np.inf, 1.645, K_i=.02, K_pop=.05),
+                                    Member("s1", -np.inf, np.inf)])]
+    expected = estimate_liability(families[:1], h2=.5, c2=.5, dtype=dtype)
+    actual = estimate_liability(families, h2=.5, c2=.5, dtype=dtype, use_mixture=True)
+    assert actual.genetic[0] == expected.genetic[0]
+    assert actual.var["genetic"][0] == expected.var["genetic"][0]
+    lo = np.array([[-2., 2.], [-np.inf, -np.inf]], dtype=dtype)
+    hi = np.array([[-2., np.inf], [1.645, np.inf]], dtype=dtype)
+    ki = np.array([[np.nan, np.nan], [.02, np.nan]], dtype=dtype)
+    kp = np.array([[np.nan, np.nan], [.05, np.nan]], dtype=dtype)
+    array = estimate_liability_pa_arrays(
+        ["o", "s1"], lo, hi, .5, c2=.5, K_i=ki, K_pop=kp, use_mixture=True)
+    assert array[0][0] == expected.genetic[0]
+    assert array[1][0] == expected.var["genetic"][0]
+
+
 @pytest.mark.parametrize("batched", [False, True])
 @pytest.mark.parametrize("mixture", [False, True])
 @pytest.mark.parametrize("sign", [1., -1.])

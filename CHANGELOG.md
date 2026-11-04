@@ -13,10 +13,32 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 ## Unreleased
 
-Second cleanup pass on top of 0.8.0. No public API changes and no changed
-numbers: PA, seeded Gibbs, kinship and register-pipeline outputs are
-bit-identical to 0.8.0 (verified against the 0.8.0 tree, with and without
-Numba).
+## 0.8.1 — 2026-11-04
+
+Correctness fixes following the 4 November review:
+
+- IPW marginal case-rate discrepancies warn rather than reject a fit. The
+  Kish-scaled trigger is an uncalibrated diagnostic, not a valid binomial
+  test under outcome-dependent weights. Population-sampling checks still
+  reject gross inconsistencies.
+- PA mixtures use stable tail masses and weights. Families with no active
+  mixture observations retain joint pin conditioning even in mixed batches;
+  their scores now agree with ordinary PA.
+- Gibbs groups missingness patterns with one stable sort instead of scanning
+  the whole cohort once per pattern. Group membership and seeded draws are
+  unchanged. Disabling the tetrachoric PSD check skips its eigendecomposition.
+- Exact recorded onset at the age-zero clamp retains an unbounded upper
+  liability interval. Register simulation rejects invalid CIP curves and
+  nonfinite or negative follow-up ages before drawing. Calendar placement
+  rejects parent-child constraints collapsed by co-parent grouping.
+- Moment fitters accept the one-column bounds produced by
+  `families_from_columns` on current NumPy. Population score exports preserve
+  tuple-valued person IDs as scalar join keys. Scientific comments and the
+  methods report follow the corrected contracts.
+
+The preceding cleanup pass preserved PA, seeded Gibbs, kinship and
+register-pipeline outputs bit for bit against 0.8.0, with and without Numba;
+the corrections above intentionally change the affected cases.
 
 - Docstrings and the estimation/inference/CIP/data-preparation guides are
   cut to contract and equations; repeated derivations now live only in

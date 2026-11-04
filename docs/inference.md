@@ -18,12 +18,19 @@ available, go to [Scoring](estimation.md). Unsupported prototypes stay in
     assumes population sampling. No weight can reconstruct a stratum with zero
     inclusion probability, and `bootstrap_fit` does not repair selection bias.
 
-    Thresholds assert a prevalence, so each role's case rate is screened for
-    gross inconsistency. A mismatch can mean ascertainment **or the wrong
-    prevalence**. The screen is not a certificate: at K = 0.05 its detectable
+    Under population sampling, each role's case rate is screened for gross
+    inconsistency with the threshold's prevalence. A mismatch can mean
+    ascertainment **or the wrong prevalence**. The screen is not a certificate:
+    at K = 0.05 its detectable
     enrichment is about 1.67× at N = 1,500 and 1.26× at N = 10,000, with a
     1.15× floor binding at large N. The benchmark shows 1.51× enrichment
     already inflates h² by +0.48.
+
+    Under IPW, a large weighted mismatch only warns. Its trigger uses Kish
+    effective sample size as an uncalibrated heuristic, not a binomial test:
+    outcome-dependent weights change the sampling variance. Sampled weights
+    alone cannot establish that a design is invalid or a stratum has zero
+    inclusion probability.
 
 The meaning of `se` differs by method. Haseman–Elston (HE) fits report a
 within-dataset Monte-Carlo diagnostic, not sampling uncertainty. Pairwise fits
@@ -202,10 +209,10 @@ benchmark this returns case-enriched fits from the boundary to near the true
 
 Two limits remain:
 
-- **Positivity.** No finite weight reconstructs an unobserved stratum.
+- **Positivity.** No finite weight reconstructs a stratum with zero inclusion probability.
   Ascertainment through an affected proband is the standard failure. Weighted
-  marginal case rates can falsify bad weights but cannot establish joint
-  positivity.
+  marginal case rates provide a diagnostic warning; they cannot establish
+  invalid weights or joint positivity.
 - **Efficiency.** At K = 0.05 a 50/50 cohort needs weights up to 19×, greatly
   reducing effective sample size. IPW buys accuracy with precision.
 

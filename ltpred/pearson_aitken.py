@@ -30,6 +30,7 @@ from ._validation import validate_bounds, validate_mixture_inputs
 __all__ = ["pa_algorithm", "pa_estimate_batched"]
 
 _LOG_SQRT_2PI = 0.9189385332046727
+_MIN_NORMAL = float(np.finfo(np.float64).tiny)
 _FAR_TAIL_START = 16.0
 _FAR_TAIL_QUAD_LIMIT = 40.0
 _GL8_NODES = np.array([
@@ -210,6 +211,27 @@ def _tnorm_moments_loc(mu, sd, lower, upper):
 
 
 @_jit
+def _narrow_mixture_component(mu, sd, lower, width):
+    """Log mass and moments of a short control interval, in physical units.
+
+    Integrate on [0, 1] using its supplied width, which survives even when
+    subtracting a remote mean makes the standardised endpoints coincide.
+    Called only when the log density varies by at most about one unit.
+    """
+    a, step = (lower - mu) / sd, width / sd
+    mass, first, second = 0.0, 0.0, 0.0
+    for i in range(8):
+        y = 0.5 * (1.0 + _GL8_NODES[i])
+        weight = _GL8_WEIGHTS[i] * math.exp(-a * step * y - 0.5 * (step * y)**2)
+        mass += weight
+        first += weight * y
+        second += weight * y * y
+    mean_y = first / mass
+    log_mass = math.log(step) - 0.5 * a*a - _LOG_SQRT_2PI + math.log(0.5 * mass)
+    return log_mass, lower + width * mean_y, width*width * (second / mass - mean_y**2)
+
+
+@_jit
 def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
     """Return truncated moments, optionally mixing censored controls.
 
@@ -228,41 +250,56 @@ def _tnorm_mixture(mu, var, lower, upper, K_i, K_pop):
         # (upper, inf) only to multiply it by zero.
         return _tnorm_moments_loc(mu, sd, lower, upper)
     split = -_norm_ppf(K_pop)               # lifetime threshold thr_pop
-    cdf_pop = _norm_cdf((split - mu) / sd)
-    # Weights are the masses that survive the lower bound: the control mass
-    # on (lower, split) and the future-case mass on (split, inf). With
-    # lower == -inf this is cdf_pop vs (1 - cdf_pop) (K_pop - K_i) / K_pop.
-    # A point mass (lower == upper) keeps the unbounded control weight.
-    cdf_lo = 0.0
-    if lower != -math.inf and lower != upper:
-        cdf_lo = _norm_cdf((lower - mu) / sd)
-    control = max(cdf_pop - cdf_lo, 0.0)
-    future = _norm_cdf(-(split - mu) / sd) * (K_pop - K_i) / K_pop
-    # denom == 0 needs no control mass left and K_i == K_pop (no future cases);
-    # with no future cases a censored control is certainly a lifetime control,
-    # so pin the weight to 1 instead of NaN. A lower bound at or above the
-    # split leaves only the future-case component (weight 0, below).
-    denom = control + future
-    mixture_prob = control / denom if denom > 0.0 else 1.0
     if lower != upper and lower >= split:
-        mixture_prob = 0.0
-
-    if mixture_prob == 0.0 and lower != upper:
-        # Only the not-yet-onset case component survives, on (max(lower, split), inf).
-        m0, v0 = 0.0, 0.0
-        m1, v1 = _tnorm_moments_loc(mu, sd, max(lower, split), math.inf)
+        return _tnorm_moments_loc(mu, sd, lower, math.inf)
+    # Use survival differences for a finite lower bound in the right tail:
+    # subtracting ordinary CDFs there can erase the entire control component.
+    # The ordinary unbounded-control path retains its original arithmetic.
+    a = -math.inf if lower == upper else (lower - mu) / sd
+    b = (split - mu) / sd
+    width = split - lower
+    narrow = (lower != upper and math.isfinite(lower)
+              and width / sd <= 1e-3 and abs(a * (width / sd)) <= 1.0)
+    log_control, m0, v0 = 0.0, 0.0, 0.0
+    if narrow:
+        log_control, m0, v0 = _narrow_mixture_component(mu, sd, lower, width)
+    if K_i == K_pop:
+        return (m0, v0) if narrow else _tnorm_moments_loc(mu, sd, lower, split)
+    if narrow:
+        control = math.exp(log_control)
+    elif a > 0.0:
+        control = _norm_cdf(-a) - _norm_cdf(-b)
     else:
+        control = _norm_cdf(b) - _norm_cdf(a)
+    remaining = (K_pop - K_i) / K_pop
+    future = _norm_cdf(-b) * remaining
+    denom = control + future
+    if denom < _MIN_NORMAL:
+        # Both masses may underflow while their ratio remains ordinary.
+        # Reflect before taking a log-CDF difference, then normalise relative
+        # to the larger log mass instead of exponentiating either raw mass.
+        if not narrow:
+            if a > 0.0:
+                log_hi, log_lo = _log_norm_cdf(-a), _log_norm_cdf(-b)
+            else:
+                log_hi, log_lo = _log_norm_cdf(b), _log_norm_cdf(a)
+            log_control = log_hi + math.log(-math.expm1(log_lo - log_hi))
+        log_future = _log_norm_cdf(-b) + math.log(remaining)
+        scale = max(log_control, log_future)
+        control, future = math.exp(log_control - scale), math.exp(log_future - scale)
+        denom = control + future
+    p, q = control / denom, future / denom
+    if p == 0.0:
+        return _tnorm_moments_loc(mu, sd, split, math.inf)
+    if q == 0.0:
+        return (m0, v0) if narrow else _tnorm_moments_loc(mu, sd, lower, split)
+    if not narrow:
         m0, v0 = _tnorm_moments_loc(mu, sd, lower, split)
-        # ``lower == split``: zero-width lower component, nothing to mix.
-        if lower == split:
-            m1 = 0.0
-            v1 = 0.0
-        else:
-            m1, v1 = _tnorm_moments_loc(mu, sd, split, math.inf)
-
-    new_mean = mixture_prob * m0 + (1.0 - mixture_prob) * m1
-    new_var = mixture_prob * (m0 * m0 + v0) + (1.0 - mixture_prob) * (m1 * m1 + v1) \
-        - new_mean * new_mean
+    m1, v1 = _tnorm_moments_loc(mu, sd, split, math.inf)
+    new_mean = p * m0 + q * m1
+    # Total variance in centred form; E[X^2] - E[X]^2 loses small posterior
+    # variances when either component has a large conditional mean.
+    new_var = p * v0 + q * v1 + p * q * (m0 - m1) ** 2
     return new_mean, new_var
 
 
@@ -295,8 +332,8 @@ def _pa_family(cov, lower, upper, K_i, K_pop):
     for i in range(d - 1, 0, -1):
         if lower[i] == -math.inf and upper[i] == math.inf:
             # An absent row carries no bound and no mixture pair, so its
-            # update is the identity (mixture_prob is plain-mode 1 on an
-            # infinite interval); folding it would only add rounding noise.
+            # infinite interval has unchanged moments; folding it would only
+            # add rounding noise.
             continue
         if cov[i, i] <= floor[i]:
             continue
@@ -722,10 +759,11 @@ def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
     """Return PA posterior mean and variance for one family.
 
     ``target`` selects the covariance row to estimate. Without a mixture, pins
-    are conditioned jointly and absent non-target rows marginalised; with
-    ``K_i``/``K_pop``, eligible controls use the censoring mixture. The result
-    is exact after pins with at most one remaining interval. Singular support
-    with dependent interval observations is rejected.
+    are conditioned jointly and absent non-target rows marginalised; active
+    ``K_i``/``K_pop`` pairs select the censoring mixture. All-NaN pairs leave
+    the plain path unchanged. Without a mixture, the result is exact after
+    pins with at most one remaining interval. Singular support with dependent
+    interval observations is rejected.
     """
     cov = _validate_pa_covmat(covmat)
     d = cov.shape[0]
@@ -751,6 +789,9 @@ def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
     K_i, K_pop = validate_mixture_inputs(
         K_i, K_pop, expected_shape=(d,), lower=lower, upper=upper,
         context="pa_algorithm mixture inputs")
+    if np.all(np.isnan(K_i)):
+        est, var = _pa_reduced_nomix(cov, lo[None, :], hi[None, :])
+        return float(est[0]), float(var[0])
     K_i = _as_bounds(K_i)
     K_pop = _as_bounds(K_pop)
     _check_pin_support(cov, lo[None, :], hi[None, :], K_i[order][None, :])
@@ -767,7 +808,8 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
     ``lowers``/``uppers`` are ``(F, d)`` per-family bounds; ``covmat`` is shared.
     Reorders once so the target is row 0. Without ``K_is``/``K_pops`` it runs
     Algorithm P, sharing the pin reduction by observation mask and never
-    allocating the ``(F, d)`` mixture arrays; otherwise the Algorithm M kernel.
+    allocating the ``(F, d)`` mixture arrays. With arrays, only families with
+    active pairs use Algorithm M; all-NaN families still use Algorithm P.
     Returns the PA sequential-moment approximations ``(est, var)`` of length
     ``F``."""
     cov = _validate_pa_covmat(covmat, _psd_certified=_psd_certified)
@@ -798,15 +840,28 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
         _check_interval_rank(cov, lo, hi)
     if K_is is None and K_pops is None:        # no-mixture fast path (no K arrays)
         return _pa_reduced_nomix(cov, lo, hi)
-    est = np.empty(F)
-    var = np.empty(F)
     K_is, K_pops = validate_mixture_inputs(
         K_is, K_pops, expected_shape=(F, d), lower=lowers, upper=uppers,
         context="batched PA mixture inputs")
+    active = np.any(~np.isnan(K_is), axis=1)
+    if not np.any(active):
+        return _pa_reduced_nomix(cov, lo, hi)
     K_is = _as_bounds(K_is)
     K_pops = _as_bounds(K_pops)
     ki = K_is if target == 0 else np.ascontiguousarray(K_is[:, order])
     kp = K_pops if target == 0 else np.ascontiguousarray(K_pops[:, order])
-    _check_pin_support(cov, lo, hi, ki)
-    _pa_kernel_mixture(cov, lo, hi, ki, kp, est, var)
+    if np.all(active):
+        est, var = np.empty(F), np.empty(F)
+        _check_pin_support(cov, lo, hi, ki)
+        _pa_kernel_mixture(cov, lo, hi, ki, kp, est, var)
+        return est, var
+    # Mixture participation belongs to each family, not the enclosing cohort.
+    # Inactive rows retain joint pin conditioning and its exact special cases.
+    est, var = np.empty(F), np.empty(F)
+    est[~active], var[~active] = _pa_reduced_nomix(cov, lo[~active], hi[~active])
+    mix_lo, mix_hi, mix_ki = lo[active], hi[active], ki[active]
+    mix_est, mix_var = np.empty(np.count_nonzero(active)), np.empty(np.count_nonzero(active))
+    _check_pin_support(cov, mix_lo, mix_hi, mix_ki)
+    _pa_kernel_mixture(cov, mix_lo, mix_hi, mix_ki, kp[active], mix_est, mix_var)
+    est[active], var[active] = mix_est, mix_var
     return est, var

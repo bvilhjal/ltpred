@@ -166,10 +166,9 @@ def _proband_case_pins(sim):
 
 def test_onset_resolution_controls_pin_fidelity():
     # Under threshold_crossing the onset age is the CIP inverse of the true
-    # liability, so a pin rebuilt from an *exactly* recorded onset returns that
-    # liability. The default one-year recording grid is a deliberate register
-    # approximation and must NOT be mistaken for exact recovery: it shifts the
-    # pin by ~1e-2, which is a floor under any oracle comparison built on it.
+    # liability at positive ages. A finite recording grid instead supplies an
+    # interval containing that liability; its lower edge approaches the exact
+    # pin as the grid narrows. Age-zero crossings are tested separately below.
     def run(resolution):
         sim = simulate_under_LTM_single(
             fam_vec=["m", "f"], h2=0.5, n_sim=1500, pop_prev=0.1,
@@ -230,6 +229,23 @@ def test_exact_threshold_crossing_case_encoding_is_preserved():
         assert pin.upper == pytest.approx(true_liability, abs=1e-9)
         assert one_sided.lower == pytest.approx(true_liability, abs=1e-9)
         assert one_sided.upper == np.inf
+
+
+def test_exact_birth_onsets_retain_the_generating_liability_tail():
+    from ltpred.thresholds import liability_threshold
+
+    # At midpoint zero, CIP(0) = K/2. All liabilities above T(0) map to the
+    # same recorded birth onset, so even exact recording cannot pin them.
+    sim = simulate_under_LTM_single(
+        fam_vec=[], n_sim=200, h2=0.5, pop_prev=0.1, use_age=True,
+        mid_point=0.0, onset_resolution=None, seed=1)
+    birth_cases = np.flatnonzero(sim.onset["o"] == 0.0)
+    assert birth_cases.size > 0
+    for i in birth_cases:
+        member = sim.families[i].members[0]
+        assert member.lower == pytest.approx(liability_threshold(0.05))
+        assert member.upper == np.inf
+        assert member.lower < sim.full[i] < member.upper
 
 
 @pytest.mark.parametrize("bad", [0.0, -1.0, np.nan, True])
@@ -403,6 +419,44 @@ def test_pedigree_birth_times_honours_the_calendar_arguments():
     np.testing.assert_array_equal(birth, [1900.0, 1900.0, 1925.0])
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_pedigree_birth_times_preserves_valid_uncle_niece_placement(reverse):
+    ids = ["gm", "gf", "p", "u", "other", "n", "c"]
+    father = [None, None, "gf", "gf", None, "other", "u"]
+    mother = [None, None, "gm", "gm", None, "p", "n"]
+    expected = [1920.0, 1920.0, 1950.0, 1980.0, 1950.0, 1980.0, 2010.0]
+    if reverse:
+        ids, father, mother, expected = (
+            ids[::-1], father[::-1], mother[::-1], expected[::-1])
+    birth = pedigree_birth_times(ids, father, mother)
+    np.testing.assert_array_equal(birth, expected)
+    pos = {pid: i for i, pid in enumerate(ids)}
+    for child, parents in enumerate(zip(father, mother)):
+        for parent in parents:
+            if parent is not None:
+                assert birth[child] > birth[pos[parent]]
+
+
+@pytest.mark.parametrize("ids,father,mother,match", [
+    (["a", "b", "c", "d"], [None, None, "a", "a"],
+     [None, None, "b", "c"], "generational cycle"),
+    (["a", "b"], ["b", "a"], [None, None], "generational cycle"),
+    (["a"], ["a"], [None], "own parent"),
+    (["a", "a"], [None, None], [None, None], "unique"),
+    (["a", None], [None, None], [None, None], "missing"),
+    (["a", "b"], [None], [None, None], "share length"),
+])
+def test_pedigree_birth_times_rejects_invalid_constraints(ids, father, mother, match):
+    with pytest.raises(ValueError, match=match):
+        pedigree_birth_times(ids, father, mother)
+
+
+def test_pedigree_birth_times_uses_the_shared_missing_parent_contract():
+    birth = pedigree_birth_times(
+        [0, 1, 2, 3], [None, np.nan, "NA", 0], [None, None, None, 1])
+    np.testing.assert_array_equal(birth, [1920.0, 1920.0, 1920.0, 1950.0])
+
+
 def test_simulate_register_liabilities_recovers_the_generating_parameters():
     ids, father, mother = simulate_pedigree(np.random.default_rng(11),
                                             n_founder_pairs=60, gens=2)
@@ -539,10 +593,46 @@ def test_register_liabilities_rejects_a_non_invertible_cip():
         simulate_register_liabilities(np.random.default_rng(0), ids, father,
                                       mother, h2=0.5, cip_ages=[0.0, 1.0],
                                       cip_values=[0.1, 0.1], eval_age=70.0)
-    with pytest.raises(ValueError, match="same shape"):
+    with pytest.raises(ValueError, match="equal length"):
         simulate_register_liabilities(np.random.default_rng(0), ids, father,
                                       mother, h2=0.5, cip_ages=[0.0, 1.0],
                                       cip_values=[0.1], eval_age=70.0)
+
+
+@pytest.mark.parametrize("override,match", [
+    ({"cip_ages": [100.0, 0.0]}, "strictly increasing"),
+    ({"cip_ages": [-1.0, 100.0]}, "nonnegative"),
+    ({"cip_ages": [0.0, np.nan]}, "finite"),
+    ({"cip_values": [0.01, np.nan]}, "finite"),
+    ({"cip_values": [-0.01, 0.2]}, r"\[0, 1\)"),
+    ({"cip_values": [0.01, 1.0]}, r"\[0, 1\)"),
+    ({"cip_values": [0.01, 1.1]}, r"\[0, 1\)"),
+    ({"eval_age": np.nan}, "finite and nonnegative"),
+    ({"eval_age": np.inf}, "finite and nonnegative"),
+    ({"eval_age": -1.0}, "finite and nonnegative"),
+])
+@pytest.mark.parametrize("method", ["dense", "mendelian"])
+def test_register_simulation_rejects_invalid_curve_and_horizon_before_drawing(
+        override, match, method):
+    kwargs = dict(ids=["a", "b"], father=[None, "a"], mother=[None, None],
+                  h2=0.5, cip_ages=[0.0, 100.0], cip_values=[0.01, 0.2],
+                  eval_age=70.0, method=method)
+    kwargs.update(override)
+    rng = np.random.default_rng(7)
+    untouched = np.random.default_rng(7)
+    with pytest.raises(ValueError, match=match):
+        simulate_register_liabilities(rng, **kwargs)
+    np.testing.assert_array_equal(rng.random(4), untouched.random(4))
+
+
+def test_register_simulation_accepts_rare_cip_and_birth_evaluation():
+    # The shared scoring validator must not impose its default 1e-5 clipping
+    # floor on a simulator that only inverts the supplied curve.
+    sim = simulate_register_liabilities(
+        np.random.default_rng(1), ["a", "b"], [None, "a"], [None, None],
+        h2=0.5, cip_ages=[0.0, 100.0], cip_values=[0.0, 1e-8], eval_age=0.0)
+    assert not np.any(sim.status)
+    np.testing.assert_array_equal(sim.age, [0.0, 0.0])
 
 
 @pytest.mark.parametrize("reverse", [False, True])

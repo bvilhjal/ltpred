@@ -101,12 +101,16 @@ class TestMatrix:
         with pytest.raises(TypeError, match="check_psd"):
             tetrachoric_matrix(np.zeros((5, 2)), check_psd="yes")
 
-    def test_pairwise_matrix_warns_when_not_psd(self):
+    def test_pairwise_matrix_warns_when_not_psd(self, monkeypatch):
         rng = np.random.default_rng(10)
         x = rng.binomial(1, rng.uniform(0.15, 0.85, 5), size=(20, 5))
         with pytest.warns(RuntimeWarning, match="not positive-semidefinite"):
             correlation = tetrachoric_matrix(x)
         assert np.linalg.eigvalsh(correlation).min() < -1e-3
+        def unexpected_eigendecomposition(*args, **kwargs):
+            raise AssertionError("check_psd=False must skip the eigendecomposition")
+        monkeypatch.setattr(np.linalg, "eigvalsh", unexpected_eigendecomposition)
         with warnings.catch_warnings():
             warnings.simplefilter("error")
-            tetrachoric_matrix(x, check_psd=False)
+            unchecked = tetrachoric_matrix(x, check_psd=False)
+        np.testing.assert_array_equal(unchecked, correlation)

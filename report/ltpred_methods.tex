@@ -35,14 +35,15 @@
   {\large Model, efficient inference, and evidence in \texttt{ltpred}}}
 \author{Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
   {\small Aarhus University and SMARTbiomed}\\[0.35em]
-  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.8.0}}
-\date{3 November 2026}
+  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.8.1}}
+\date{4 November 2026}
 
 \begin{document}
 \maketitle
 \thispagestyle{plain}
 \begin{center}\small
-Benchmark tables retain the historical v0.7.4 evidence snapshot.
+Benchmark tables retain the historical v0.7.4 evidence snapshot.\\
+Implementation corrections reviewed 4 November 2026.
 \end{center}
 
 \begin{abstract}
@@ -549,7 +550,9 @@ A person unaffected only up to current follow-up is a mixture of a
 lifetime control and a not-yet-onset future case \cite{krebs2024}.
 Algorithm~P folds that person by replacing the ordinary truncated
 moments in P3 with the two-component moments below, retaining the original
-sequential treatment of pins for this mixture path.
+sequential treatment of pins for families containing an active mixture row.
+Families without active mixture rows retain Algorithm~P, including joint pin
+conditioning, even when other families in the batch require a mixture.
 With current CIP $K_i$ and lifetime $K_{\mathrm{pop}}$,
 \begin{equation}
   \pi
@@ -564,6 +567,10 @@ $\Phi_{\mathrm{below}}$ is the current conditional mass below it.
 The selected moments are the corresponding two-component mean and
 variance.
 Age enters only through $K_i$.
+With a finite lower bound, the control mass is restricted to the interval
+from that bound to the lifetime threshold. Tail-safe interval probabilities
+and log-space weights prevent cancellation and underflow in extreme
+conditional distributions.
 
 The factor $(K_{\mathrm{pop}}-K_i)/K_{\mathrm{pop}}$ is the CIP
 probability that a future case has not yet onset.
@@ -834,11 +841,14 @@ The claim is therefore screened for marginal inconsistency rather
 than taken entirely on trust: the supplied
 $T$ implies $K=1-\Phi(T)$, under population sampling each role's
 case count among the $n_r$ families in which that role is observed
-is $\mathrm{Binomial}(n_r,K)$ (Kish effective $n_r$ under IPW), and a
+is $\mathrm{Binomial}(n_r,K)$, and a
 cell with $n_r\ge 30$ is refused when $|z|\ge 6$ and the
 observed/expected case ratio lies outside $[1/1.15,\,1.15]$.
 Passing this role-wise screen does not certify
-the joint family-pattern distribution.
+the joint family-pattern distribution. Under IPW, the same trigger with
+Kish effective sample size is only an uncalibrated diagnostic and produces
+a warning, not rejection. Outcome-dependent weights do not give the
+binomial variance used by that heuristic.
 The same remarks apply to the multiple HE fit of $(\h,c^{2},m^{2})$,
 where saturation shows up as an exhausted residual rather than a
 component at the clamp.
@@ -860,15 +870,16 @@ contribution by $w_f=1/\pi_f$ in both the numerator and the
 denominator of \eqref{eq:he} re-mixes the sample to population
 proportions and restores the estimator.
 Two conditions bind.
-\emph{Positivity}: a design that samples no family from some stratum
-has $\pi=0$ there, and no weight reconstructs what was never
-observed---proband ascertainment is exactly this case. Selection on
+\emph{Positivity}: a stratum assigned $\pi=0$ by the sampling design
+cannot be reconstructed by weighting---ascertainment restricted to affected
+probands is exactly this case. Selection on
 family history is IPW-correctable only if every complete observed
 family pattern has a known, strictly positive inclusion probability.
 No ascertainment likelihood for clinic samples with zero-probability
 family strata is implemented; the marginal screen cannot replace one.
-The weighted role-marginal screen can falsify some wrong weight sets;
-it is not a general positivity test.
+The weighted role-marginal screen flags discrepancies for investigation;
+sampled weights alone cannot establish invalid weights or a positivity
+failure, even when no cases were observed in a role.
 \emph{Efficiency}: at $K=0.05$ a $50/50$ case/control cohort needs
 weights up to $19$, so the effective sample size falls well below
 the nominal one.

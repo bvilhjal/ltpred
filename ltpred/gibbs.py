@@ -245,7 +245,11 @@ def _unbounded_patterns(lowers, uppers):
                  np.arange(unbounded.shape[0]))]
     keys = unbounded.view(np.dtype((np.void, unbounded.shape[1]))).ravel()
     _, first, inverse = np.unique(keys, return_index=True, return_inverse=True)
-    return [(unbounded[row], np.flatnonzero(inverse == k))
+    # Sort once instead of rescanning all families for every distinct mask.
+    # Stable slices preserve the input row order within each group.
+    order = np.argsort(inverse, kind="stable")
+    boundaries = np.r_[0, np.cumsum(np.bincount(inverse))]
+    return [(unbounded[row], order[boundaries[k]:boundaries[k + 1]])
             for k, row in sorted(enumerate(first), key=lambda item: item[1])]
 
 

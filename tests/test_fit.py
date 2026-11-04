@@ -622,9 +622,9 @@ def _coherent_varying_bounds(n_fam=30, seed=1, *, mixed_geometry=False):
 
 
 def test_moment_fitters_reject_coherent_person_specific_rectangles():
-    # Even perfectly coherent personalised/pinned LT-FH++ bounds bias the pooled
-    # HE fixed point to h2~1 (and invent a spurious C), so they are refused
-    # rather than silently fitted -- the geometry alone triggers the guard.
+    # Personalised/pinned bounds are outside this implementation's validated
+    # fitting scope. Their geometry alone triggers the guard; this test does
+    # not establish bias or invalidate the total-expectation moment identity.
     fams = _coherent_varying_bounds(mixed_geometry=True)
     assert any(m.lower == m.upper for f in fams for m in f.members)
     assert any(np.isfinite(m.lower) and np.isfinite(m.upper) and m.lower < m.upper
@@ -796,19 +796,67 @@ def test_ipw_recovers_h2_under_case_control_ascertainment():
     assert ipw < naive - 0.3
 
 
-def test_ipw_marginal_check_rejects_gross_weighted_mismatch():
+def test_ipw_marginal_check_warns_on_gross_weighted_mismatch():
     # Ascertainment through an affected proband makes even the proband marginal
-    # impossible to recalibrate with these weights. This falsifies the weighting
-    # design, although a passing marginal check would not prove joint positivity.
+    # impossible to recalibrate in this constructed design. The fitter sees
+    # only sampled families, so its diagnostic cannot establish that design.
     from ltpred.thresholds import liability_threshold
     t = float(liability_threshold(0.05))
     roles = ["o", "m", "f", "s1"]
     rng = np.random.default_rng(6)
     fams = [_cc_family(i, roles, [True] + list(rng.random(3) < 0.05), t)
             for i in range(800)]
-    with pytest.raises(ValueError, match="positivity failure"):
+    with pytest.warns(RuntimeWarning, match="descriptive IPW case-rate discrepancy"):
         fit_heritability(fams, n_iter=50, burn_in=10, sampling="ipw",
                          weights=np.ones(len(fams)))
+
+
+@pytest.mark.parametrize("fitter", [fit_heritability, fit_variance_components])
+def test_valid_ipw_design_can_have_no_sampled_cases(fitter):
+    from scipy.stats import binom
+    from ltpred.thresholds import liability_threshold
+
+    # Cases are included with probability .01, controls with probability 1.
+    # Independent selected families have this exact case probability; observing
+    # zero cases is common, although population prevalence and positivity hold.
+    n, prevalence, case_inclusion = 2000, .05, .01
+    selected_prevalence = prevalence * case_inclusion / (
+        1 - prevalence + prevalence * case_inclusion)
+    assert binom.pmf(0, n, selected_prevalence) > .3
+    threshold = float(liability_threshold(prevalence))
+    families = [_cc_family(i, ["o", "m"], [False, i < 100], threshold)
+                for i in range(n)]
+    # Every sampled proband is a control, so every correct reciprocal
+    # inclusion probability is 1. Unseen cases would have weight 100.
+    kwargs = {"components": ("A",)} if fitter is fit_variance_components else {}
+    with pytest.warns(RuntimeWarning, match="descriptive IPW") as caught:
+        result = fitter(families, sampling="ipw", weights=np.ones(n),
+                        n_iter=10, burn_in=4, inner_sweeps=1, seed=1, **kwargs)
+    assert any("uncalibrated" in str(w.message) for w in caught)
+    value = result.h2 if fitter is fit_heritability else result.components["A"]
+    assert np.isfinite(value)
+
+
+@pytest.mark.parametrize("fitter", [fit_heritability, fit_variance_components])
+def test_moment_fitters_accept_single_column_bounds(fitter):
+    from ltpred import families_from_columns
+
+    # The public column converter preserves an explicit one-trait axis.
+    # Both accepted representations must feed the same latent chain.
+    states = np.array([[bool(i & (1 << j)) for j in range(3)] for i in range(40)])
+    lower = np.where(states, 0., -np.inf).ravel()
+    upper = np.where(states, np.inf, 0.).ravel()
+    columns = dict(fam_id=np.repeat(np.arange(40), 3),
+                   role=np.tile(["o", "m", "s1"], 40))
+    scalar = families_from_columns(**columns, lower=lower, upper=upper)
+    column = families_from_columns(**columns, lower=lower[:, None], upper=upper[:, None])
+    kwargs = dict(n_iter=10, burn_in=4, inner_sweeps=1, seed=1, sampling="population")
+    expected, actual = fitter(scalar, **kwargs), fitter(column, **kwargs)
+    if fitter is fit_heritability:
+        np.testing.assert_array_equal(actual.trace, expected.trace)
+    else:
+        for component in expected.traces:
+            np.testing.assert_array_equal(actual.traces[component], expected.traces[component])
 
 
 def test_ipw_marginal_check_does_not_claim_joint_positivity():

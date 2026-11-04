@@ -31,7 +31,7 @@ from .gibbs import (gibbs_params, _gibbs_advance_chain,
                     _init_chain, _FIXED_TOL, _seed_rng)
 from .family import _member_pid_key
 from .estimate import (_assert_nonempty_families, _check_unique_roles,
-                       _group_by_structure, _batch_means)
+                       _group_by_structure, _batch_means, _scalar_member_bounds)
 
 __all__ = ["FitResult", "fit_heritability", "VarCompResult",
            "fit_variance_components", "BootstrapResult", "bootstrap_fit"]
@@ -95,9 +95,9 @@ def _validate_weights(weights, n_families, context):
         raise ValueError(f"{context}: weights must be finite")
     if np.any(w <= 0.0):
         raise ValueError(
-            f"{context}: weights must be strictly positive -- a zero weight is a "
-            "family that could not have been sampled, which is a positivity "
-            "failure rather than something to down-weight")
+            f"{context}: weights must be strictly positive -- reciprocal "
+            "inclusion probabilities cannot assign zero contribution to a "
+            "sampled family")
     return w
 
 
@@ -145,10 +145,10 @@ def _assert_nonoverlapping_pids(families, context):
 #: since a false positive refuses a legitimate analysis: the check runs once
 #: per role, and `bootstrap_fit` resamples centre on the cohort's rate rather
 #: than on K. A legitimate 1,500-family cohort produced a resample at z = 4.4,
-#: hence a bar of 6 (per-test null probability ~1e-9). The detectable
-#: enrichment this implies, stated in the `fit_heritability` docstring, makes
-#: it a guard against the catastrophic case, not a certificate of population
-#: sampling.
+#: hence a bar of 6 (normal-reference null tail ~1e-9 under population sampling).
+#: Under IPW the same trigger is only a descriptive heuristic: Kish effective
+#: n does not supply a valid binomial variance when weights depend on status.
+#: A weighted discrepancy warns rather than refusing a legitimate realization.
 _CASE_RATE_RATIO_TOL = 1.15
 _CASE_RATE_Z_TOL = 6.0
 
@@ -180,12 +180,14 @@ def _member_bounds(families, n_pheno):
 
 def _assert_population_case_rate(families, n_pheno, *, context, weights=None,
                                  member_bounds=None):
-    """Reject gross marginal case-rate/prevalence inconsistencies.
+    """Screen marginal case-rate/prevalence discrepancies.
 
-    Checks each informative role/trait cell with a binomial z score, using
-    Kish effective sample size under IPW. Cells with effective n < 30 are
-    skipped; otherwise ``|z| >= 6`` and a case-rate ratio outside
-    ``[1/1.15, 1.15]`` raises. Passing does not certify joint positivity.
+    For population sampling, ``|z| >= 6`` and a case-rate ratio outside
+    ``[1/1.15, 1.15]`` raises, skipping role/trait cells with n < 30. Under IPW
+    the same trigger with Kish effective n is an uncalibrated heuristic and
+    only warns: outcome-dependent weights invalidate its binomial variance.
+    Sampled weights cannot certify joint positivity or falsify the design;
+    even a positive-probability stratum may be absent from a finite sample.
     """
     lo_all, hi_all, roles, fam_index = (member_bounds if member_bounds is not None
                                         else _member_bounds(families, n_pheno))
@@ -213,37 +215,38 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None,
     worst = None
     for (role, pheno), (sw, sw2, k, thr) in sorted(per_role.items()):
         n = sw * sw / sw2 if sw2 > 0 else 0.0        # Kish effective sample size
-        if n < 30:                       # binomial normal approx not trustworthy
+        if n < 30:                       # too little information for this screen
             continue
         expected = float(norm_cdf(-thr))     # = 1 - Phi(thr), exact by symmetry
         if not 0.0 < expected < 1.0:
             continue
         observed = k / sw
         se = math.sqrt(expected * (1.0 - expected) / n)
-        z = (observed - expected) / se if se > 0 else 0.0
+        # A binomial z only for population sampling; under IPW this scale is
+        # a warning trigger, not an estimated sampling SD.
+        screen_score = (observed - expected) / se if se > 0 else 0.0
         ratio = observed / expected
-        if abs(z) >= _CASE_RATE_Z_TOL and not (
+        if abs(screen_score) >= _CASE_RATE_Z_TOL and not (
                 1.0 / _CASE_RATE_RATIO_TOL <= ratio <= _CASE_RATE_RATIO_TOL):
-            if worst is None or abs(z) > abs(worst[3]):
-                worst = (role, pheno, ratio, z, observed, expected, int(round(n)))
+            if worst is None or abs(screen_score) > abs(worst[3]):
+                worst = (role, pheno, ratio, screen_score, observed, expected, int(round(n)))
 
     if worst is None:
         return
     role, pheno, ratio, z, observed, expected, n = worst
     trait = "" if n_pheno == 1 else f" (trait {pheno})"
     if weights is not None:
-        raise ValueError(
-            f"{context}: the weighted marginal case rates are not consistent "
-            f"with the supplied thresholds. Role {role!r}{trait} has a weighted "
-            "affected "
-            f"rate of {observed:.4f} (effective n {n}) against an asserted "
-            f"population prevalence of {expected:.4f} -- a factor of {ratio:.2f} "
-            f"({z:+.1f} SD). This falsifies the supplied weighting design: the "
-            "weights may be wrong, the asserted prevalence may be wrong, or a "
-            "joint stratum may be missing (a positivity failure). Passing this "
-            "marginal check would not prove joint positivity or weight validity. "
-            "A design with a zero-probability stratum needs an estimator that "
-            "models selection, not a reweighting of the observed families.")
+        warnings.warn(
+            f"{context}: descriptive IPW case-rate discrepancy. Role {role!r}{trait} "
+            f"has weighted affected rate {observed:.4f} against population "
+            f"prevalence {expected:.4f} (ratio {ratio:.2f}, Kish effective n {n}). "
+            "This warning is uncalibrated: outcome-dependent weights invalidate "
+            "the binomial variance used by the trigger. Check the prevalence "
+            "and sampling design; this discrepancy does not establish invalid "
+            "weights or a positivity failure. A positive-probability stratum "
+            "can be absent from a finite sample. Fitting continues.",
+            RuntimeWarning, stacklevel=3)
+        return
     raise ValueError(
         f"{context}: the supplied families are not consistent with "
         f"sampling='population'. Role {role!r}{trait} is affected in "
@@ -325,7 +328,7 @@ def _validate_moment_families(families, *, weights, context):
 
 
 def _validate_eps(eps):
-    """Validate the convergence tolerance shared by all fitters."""
+    """Validate the numerical variance floor shared by all fitters."""
     if isinstance(eps, (bool, np.bool_)):
         raise TypeError("eps must be a real number, not bool")
     try:
@@ -605,8 +608,7 @@ def _prepare_component_group(families, idx, comps, weights=None, *,
     for slot, f in enumerate(idx):
         members = sorted(families[f].members, key=lambda member: member.role)
         for c, m in enumerate(members):
-            lowers[slot, c] = float(m.lower)
-            uppers[slot, c] = float(m.upper)
+            lowers[slot, c], uppers[slot, c] = _scalar_member_bounds(m, families[f].fam_id)
     validate_bounds(lowers, uppers, context=context)
     fixed = np.ascontiguousarray((uppers - lowers) < _FIXED_TOL)
     ones = np.ones(k)                # unit marginal SD: bounds are pre-standardised

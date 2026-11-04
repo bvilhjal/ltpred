@@ -77,8 +77,9 @@ class PopulationScores(_TableExport):
 
     def to_dict(self):
         """Copy aligned columns, including pid, est, se, var and cohort diagnostics."""
-        columns = {"pid": np.asarray(self.probands, dtype=object).copy(),
-                   "se": self.se}
+        pids = np.empty(len(self.probands), dtype=object)
+        pids[:] = self.probands       # tuple-valued ids are scalar join keys
+        columns = {"pid": pids, "se": self.se}
         for name in ("est", "var", "n_relatives", "n_conditioned", "n_closure_only",
                      "degree_max", "proband_state"):
             value = getattr(self, name)

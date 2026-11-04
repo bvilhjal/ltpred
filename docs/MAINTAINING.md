@@ -109,7 +109,7 @@ fitting, and factor models remain under `research/`
 
 | # | Item | What is needed |
 |---|---|---|
-| 1 | Selected family studies | An ascertainment likelihood for designs with unknown inclusion probabilities or zero-probability family-status strata. IPW is valid only when every relevant family pattern has a known, strictly positive inclusion probability; the marginal case-rate screen can falsify a design but not certify it. |
+| 1 | Selected family studies | An ascertainment likelihood for designs with unknown inclusion probabilities or zero-probability family-status strata. IPW is valid only when every relevant family pattern has a known, strictly positive inclusion probability; its marginal case-rate diagnostic cannot establish invalid weights or certify positivity. |
 | 2 | Joint sampling diagnostics | Optional stratum labels or design probabilities; report joint-pattern support, extreme weights and effective sample size, without inferring positivity from marginals. |
 | 3 | A single giant pedigree | Sparse relationship operators and solves for pedigrees with thousands of informative relatives; selected-pair recursion does not remove the dense matrix for one large family. |
 | 4 | Relatives'-events contrast | RESULTS §§20–21 leave it unresolved at R = 5; rerun at larger R before quoting a payoff. |

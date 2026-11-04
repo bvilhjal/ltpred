@@ -521,3 +521,18 @@ def test_score_table_exports_copy_arrays_and_retain_repeated_pids():
         assert list(table.columns) == list(exported)
         for key, array in exported.items():
             np.testing.assert_array_equal(table[key], array)
+
+
+def test_population_export_preserves_tuple_person_ids():
+    ids = [("cohort", 2), ("cohort", 1)]
+    result = estimate_liabilities(
+        ids, [None, None], [None, None], probands=ids[::-1],
+        status=[0, 1], age=[50., 40.], use="gwas", h2=.5,
+        cip_ages=[0., 100.], cip_values=[0., .1])
+    columns = result.to_dict()
+    assert columns["pid"].shape == (2,)
+    assert columns["pid"].tolist() == ids[::-1]
+    columns["pid"][0] = ("changed", 0)
+    assert result.probands == ids[::-1]
+    pytest.importorskip("pandas")
+    assert result.to_frame()["pid"].tolist() == ids[::-1]
