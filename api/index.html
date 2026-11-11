@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/logo.svg">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -5782,7 +5782,8 @@ censoring: PA splits at the lifetime threshold and does not apply age
 twice. Without the mixture, all supplied bounds apply directly.</p>
 <p>This is an age-dependent PA-FGRS-style variant, not base PA-FGRS. For the
 latter, use lifetime bounds from <code>prevalence_thresholds</code> and add control
-<code>K_i</code>/<code>K_pop</code> values.</p>
+<code>K_i</code>/<code>K_pop</code> values. <code>pop_prev</code> may be a scalar or a per-person
+array, broadcasting with <code>age</code> and <code>status</code>.</p>
 
 
     </div>
@@ -6372,6 +6373,8 @@ diagnostics, not sampling SEs; use family resampling for uncertainty.</p>
 stable shape. With <code>weights</code>, it instead receives <code>(families, weights)</code>
 and both are resampled by the same indices. Fix the estimator's own seed
 so bootstrap spread reflects family resampling rather than sampler noise.
+The resampling <code>seed</code> is passed to <code>numpy.random.default_rng</code>; unlike
+sampler seeds, it is not restricted to uint32.
 Returns the full-data estimate, refit SD, percentile interval and samples.
 Independent, non-overlapping clusters and a valid sampling design remain
 necessary; boundary intervals are not automatically calibrated.</p>
@@ -6826,17 +6829,17 @@ intervals narrower than <code>1e-8</code>.</p>
 )
           –
           <div class="doc-md-description">
-            <p>Retained draws and initial sweeps to discard.</p>
+            <p>Positive number of retained draws; Boolean and non-integer values raise.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
             <b><code>burn_in</code></b>
               (<code><span title="int">int</span></code>, default:
-                  <code>100000</code>
+                  <code>1000</code>
 )
           –
           <div class="doc-md-description">
-            <p>Retained draws and initial sweeps to discard.</p>
+            <p>Non-negative number of initial sweeps to discard.</p>
           </div>
         </li>
         <li class="doc-section-item field-body">
@@ -7920,7 +7923,7 @@ them. Composite likelihood does not support ordinary likelihood-ratio tests.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
       

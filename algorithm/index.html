@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/logo.svg">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -1369,7 +1369,8 @@ to the interval from that bound to <span class="arithmatex">\(T\)</span>; tail-s
 weights. A family containing an active mixture row skips P2's reduction: pins,
 absent rows and intervals are folded sequentially, but P2's compatibility checks
 still apply. Families without active mixture rows retain Algorithm P even in
-a mixed batch.</p>
+a mixed batch. Small positive conditional variances remain positive: they do
+not justify skipping an observation or returning a point mass.</p>
 <p><strong>Algorithm Q (nuclear-family quadrature; <code>ltpred.quadrature</code>).</strong> For an
 additive, non-inbred nuclear family with unrelated parents and <span class="arithmatex">\(h^2&lt;1\)</span>, the
 parental genetic values <span class="arithmatex">\(z=(a_m,a_f)\sim N(0,h^2I)\)</span> make all observed liabilities
@@ -1423,7 +1424,7 @@ with PSD components and unit total variance per trait, and derives <span class="
 <span class="arithmatex">\(r_e\)</span> and their SEs by the delta method.</p>
 <h2 id="methods-report">Methods report<a class="headerlink" href="#methods-report" title="Permanent link">&para;</a></h2>
 <p>The <a href="https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf">methods PDF</a>
-is the portable, detailed derivation for v0.8.1 (4 November 2026), retaining the
+is the portable, detailed derivation for v0.8.2 (11 November 2026), retaining the
 historical v0.7.4 benchmark evidence. It is not an additional onboarding guide or a timing
 report for today's checkout. <a href="https://github.com/bvilhjal/ltpred/blob/main/report/README.md">Report sources and rebuild instructions</a>
 live with the PDF; <a href="https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md">the benchmark ledger</a>
@@ -1510,7 +1511,7 @@ report. <a href="../assumptions/">Assumptions</a> provides the real-data checkli
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "navigation.tracking", "content.code.copy", "toc.follow"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
       
