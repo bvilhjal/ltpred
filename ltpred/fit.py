@@ -803,6 +803,8 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *,
     stable shape. With ``weights``, it instead receives ``(families, weights)``
     and both are resampled by the same indices. Fix the estimator's own seed
     so bootstrap spread reflects family resampling rather than sampler noise.
+    The resampling ``seed`` is passed to ``numpy.random.default_rng``; unlike
+    sampler seeds, it is not restricted to uint32.
     Returns the full-data estimate, refit SD, percentile interval and samples.
     Independent, non-overlapping clusters and a valid sampling design remain
     necessary; boundary intervals are not automatically calibrated.

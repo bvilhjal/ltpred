@@ -415,6 +415,21 @@ def test_rtmvnorm_gibbs_accepts_zero_burn_in():
     assert np.isfinite(s).all()
 
 
+@pytest.mark.parametrize("n_sim,error", [
+    (0, ValueError), (-1, ValueError), (np.int64(-2), ValueError),
+    (True, TypeError), (np.bool_(False), TypeError), (1.5, TypeError),
+    (np.float64(10), TypeError), ("10", TypeError),
+])
+def test_rtmvnorm_gibbs_rejects_invalid_draw_counts(n_sim, error):
+    with pytest.raises(error, match="n_sim must be a positive integer"):
+        rtmvnorm_gibbs(np.eye(1), n_sim=n_sim, burn_in=0)
+
+
+def test_rtmvnorm_gibbs_accepts_one_numpy_integer_draw():
+    draws = rtmvnorm_gibbs(np.eye(1), n_sim=np.int64(1), burn_in=0, seed=1)
+    assert draws.shape == (1, 1) and np.isfinite(draws).all()
+
+
 def test_rtmvnorm_gibbs_rejects_coincident_infinite_bounds():
     # a pin at ±inf is not an observation (review 2026-08, F5)
     import numpy as _np

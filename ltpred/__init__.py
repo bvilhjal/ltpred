@@ -11,7 +11,7 @@ import sys
 import types
 from typing import TYPE_CHECKING
 
-__version__ = "0.8.1"
+__version__ = "0.8.2"
 
 if TYPE_CHECKING:
     # Static re-exports. At runtime ``__getattr__`` below imports these lazily,

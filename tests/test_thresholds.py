@@ -54,6 +54,15 @@ def test_prevalence_thresholds():
     assert np.array_equal(upper, np.where(status, np.inf, t))
 
 
+def test_pa_thresholds_per_person_prevalence_matches_separate_strata():
+    status, ages, prevalences = [0, 1, 0], [40., 50., 70.], [.05, .1, .2]
+    combined = pa_thresholds(status, ages, pop_prev=prevalences)
+    separate = [pa_thresholds([s], [a], pop_prev=k)
+                for s, a, k in zip(status, ages, prevalences)]
+    for column, expected in zip(combined, zip(*separate)):
+        np.testing.assert_array_equal(column, np.concatenate(expected))
+
+
 @pytest.mark.parametrize(
     "helper,args",
     [

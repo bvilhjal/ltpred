@@ -809,8 +809,10 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
         intervals narrower than ``1e-8``.
     out : sequence of int
         Coordinate indices; duplicates are removed and columns sorted.
-    n_sim, burn_in : int
-        Retained draws and initial sweeps to discard.
+    n_sim : int
+        Positive number of retained draws; Boolean and non-integer values raise.
+    burn_in : int
+        Non-negative number of initial sweeps to discard.
     seed : int, optional
         Uint32 seed or ``None`` for fresh entropy. Each call reseeds this
         thread's serial sampler and persistent-chain stream. The pure-Python
@@ -824,6 +826,14 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
     (n_sim, len(set(out))) ndarray
         Retained draws. The high-level estimators return summaries instead.
     """
+    if isinstance(n_sim, (bool, np.bool_)):
+        raise TypeError("n_sim must be a positive integer, not bool")
+    try:
+        n_sim = operator.index(n_sim)
+    except TypeError:
+        raise TypeError("n_sim must be a positive integer") from None
+    if n_sim <= 0:
+        raise ValueError("n_sim must be a positive integer")
     cov = (np.ascontiguousarray(covmat, dtype=np.float64)
            if params is None else _validate_covmat(covmat))
     if params is None:
@@ -875,7 +885,7 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
     # Unconditional: seed=None reseeds from entropy (see _seed_rng), so an
     # unseeded call never replays a previous seeded call's leftover stream.
     _seed_rng(seed)
-    res = np.empty((int(n_sim), len(out)), dtype=np.float64)
-    _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, int(n_sim),
+    res = np.empty((n_sim, len(out)), dtype=np.float64)
+    _gibbs_sweep(P, sd, lower, upper, fixed, to_return, x, n_sim,
                  burn_in, res, directions, dual)
     return res

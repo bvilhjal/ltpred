@@ -322,24 +322,20 @@ def _pa_family(cov, lower, upper, K_i, K_pop):
     """Run the sequential mixture fold for one family, target first."""
     d = cov.shape[0]
     mu = np.zeros(d)
-    # A row whose conditional variance has collapsed (for instance a second pin
-    # on a coordinate the earlier pins determine) is known: folding it would
-    # divide by ~0 and it carries no further information. Its compatibility
-    # with the bounds is checked before the kernel (`_check_pin_support`).
-    floor = np.empty(d)
-    for i in range(d):
-        floor[i] = _COLLAPSED_VARIANCE * cov[i, i]
+    # Pins can determine a row exactly; their support is checked before this
+    # kernel (`_check_pin_support`). A small positive variance still carries
+    # information and must not suppress the row's observation.
     for i in range(d - 1, 0, -1):
         if lower[i] == -math.inf and upper[i] == math.inf:
             # An absent row carries no bound and no mixture pair, so its
             # infinite interval has unchanged moments; folding it would only
             # add rounding noise.
             continue
-        if cov[i, i] <= floor[i]:
+        if cov[i, i] <= 0.0:
             continue
         nm, nv = _tnorm_mixture(mu[i], cov[i, i], lower[i], upper[i], K_i[i], K_pop[i])
         _pa_update(cov, mu, i, nm, nv)
-    if cov[0, 0] <= floor[0]:
+    if cov[0, 0] <= 0.0:
         return mu[0], 0.0
     return _tnorm_mixture(mu[0], cov[0, 0], lower[0], upper[0], K_i[0], K_pop[0])
 
@@ -441,11 +437,6 @@ def _pa_kernel_mixture(cov, lowers, uppers, K_is, K_pops, est, var):
         _pa_batched_serial(cov, lowers, uppers, K_is, K_pops, est, var)
     else:
         _pa_batched(cov, lowers, uppers, K_is, K_pops, est, var)
-
-
-#: Relative conditional variance below which the mixture kernel treats a row as
-#: known (its standard deviation is below 1e-6 of the prior one).
-_COLLAPSED_VARIANCE = 1e-12
 
 
 def _pin_tolerance(lowers, values, n):

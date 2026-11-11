@@ -13,6 +13,16 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 ## Unreleased
 
+## 0.8.2 — 2026-11-11
+
+- PA mixtures retain small positive conditional variances instead of treating
+  them as deterministic. The previous relative cutoff could skip an informative
+  relative or return a target mean outside its supplied bounds.
+- `rtmvnorm_gibbs` requires a positive integer `n_sim`, rejecting Boolean and
+  non-integer values before sampling. A single retained draw remains valid.
+- `pa_thresholds` accepts per-person prevalence arrays. Bootstrap seed semantics
+  are documented, and Gibbs array bounds are coerced only by the shared gate.
+
 ## 0.8.1 — 2026-11-04
 
 Correctness fixes following the 4 November review:

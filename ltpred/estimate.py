@@ -948,8 +948,7 @@ def estimate_liability_gibbs_arrays(roles: Sequence[str], lower: ArrayLike,
     and thread scheduling irrelevant.
     """
     coord = _single_out(out)
-    lower = _as_bounds(lower)
-    seeds = _base_seeds(seed, np.asarray(lower).shape[0], max_rounds)
+    seeds = _base_seeds(seed, len(lower), max_rounds)
     est, se, var = _gibbs_from_role_arrays(
         roles, lower, upper, h2, [coord], seeds, tol, n_sim, burn_in,
         max_rounds, c2=c2, m2=m2)

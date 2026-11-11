@@ -264,7 +264,8 @@ to the interval from that bound to $T$; tail-safe probabilities determine the
 weights. A family containing an active mixture row skips P2's reduction: pins,
 absent rows and intervals are folded sequentially, but P2's compatibility checks
 still apply. Families without active mixture rows retain Algorithm P even in
-a mixed batch.
+a mixed batch. Small positive conditional variances remain positive: they do
+not justify skipping an observation or returning a point mass.
 
 **Algorithm Q (nuclear-family quadrature; `ltpred.quadrature`).** For an
 additive, non-inbred nuclear family with unrelated parents and $h^2<1$, the
@@ -325,7 +326,7 @@ $r_e$ and their SEs by the delta method.
 ## Methods report
 
 The [methods PDF](https://github.com/bvilhjal/ltpred/blob/main/report/ltpred_methods.pdf)
-is the portable, detailed derivation for v0.8.1 (4 November 2026), retaining the
+is the portable, detailed derivation for v0.8.2 (11 November 2026), retaining the
 historical v0.7.4 benchmark evidence. It is not an additional onboarding guide or a timing
 report for today's checkout. [Report sources and rebuild instructions](https://github.com/bvilhjal/ltpred/blob/main/report/README.md)
 live with the PDF; [the benchmark ledger](https://github.com/bvilhjal/ltpred/blob/main/benchmarks/RESULTS.md)

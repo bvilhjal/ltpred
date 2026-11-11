@@ -755,6 +755,47 @@ def test_small_positive_conditional_variance_is_not_rounded_to_determinism(epsil
     assert variance == pytest.approx(cov[0, 0] - 1., rel=.25)
 
 
+@pytest.mark.parametrize("n_families", [None, 1, 129])
+@pytest.mark.parametrize("epsilon", [1e-10, 1e-14])
+def test_mixture_preserves_small_positive_target_variance(n_families, epsilon):
+    # The independent control activates Algorithm M. Conditioning on the pin
+    # leaves positive target variance, so its own lower bound must still apply.
+    rho = 1. - epsilon
+    cov = np.array([[1., rho, 0.], [rho, 1., 0.], [0., 0., 1.]])
+    lower, upper = np.array([2.5, 2., -np.inf]), np.array([np.inf, 2., .8])
+    ki, kp = np.array([np.nan, np.nan, .03]), np.array([np.nan, np.nan, .1])
+    expected = pa_algorithm(cov, lower, upper)
+    if n_families is None:
+        mean, variance = pa_algorithm(cov, lower, upper, K_i=ki, K_pop=kp)
+    else:
+        rows = lambda x: np.tile(x, (n_families, 1))
+        mean, variance = pa_estimate_batched(
+            cov, rows(lower), rows(upper), K_is=rows(ki), K_pops=rows(kp))
+    assert np.all(mean >= lower[0]) and np.all(variance > 0.)
+    np.testing.assert_allclose(mean, expected[0], rtol=1e-13)
+    np.testing.assert_allclose(variance, expected[1], rtol=1e-12, atol=0.)
+
+
+def test_mixture_folds_small_positive_relative_variance():
+    # The relative's residual correlates r with the target. Truncating it two
+    # conditional SDs above its mean gives closed-form regression moments.
+    rho = 1. - 1e-14
+    v = 1. - rho * rho
+    r = .5
+    cov = np.array([[1., r * np.sqrt(v), 0., 0.],
+                    [r * np.sqrt(v), 1., rho, 0.],
+                    [0., rho, 1., 0.], [0., 0., 0., 1.]])
+    lower = np.array([-np.inf, 2. * rho + 2. * np.sqrt(v), 2., -np.inf])
+    upper = np.array([np.inf, np.inf, 2., .8])
+    ki = np.array([np.nan, np.nan, np.nan, .03])
+    kp = np.array([np.nan, np.nan, np.nan, .1])
+    mean, variance = pa_algorithm(cov, lower, upper, K_i=ki, K_pop=kp)
+    cutoff = (lower[1] - 2. * rho) / np.sqrt(v)
+    m, var = stats.truncnorm.stats(cutoff, np.inf, moments="mv")
+    expected = (r * m, 1. + r * r * (var - 1.))
+    assert (mean, variance) == pytest.approx(expected, rel=1e-8)
+
+
 def test_singular_pin_block_does_not_discard_independent_small_variance():
     cov = np.array([[1e-20, 0., 0.], [0., 1., 1.], [0., 1., 1.]])
     assert pa_algorithm(cov, [-np.inf, 2., 2.], [np.inf, 2., 2.]) == pytest.approx(

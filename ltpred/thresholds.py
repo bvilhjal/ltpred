@@ -170,7 +170,8 @@ def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
 
     This is an age-dependent PA-FGRS-style variant, not base PA-FGRS. For the
     latter, use lifetime bounds from `prevalence_thresholds` and add control
-    ``K_i``/``K_pop`` values.
+    ``K_i``/``K_pop`` values. ``pop_prev`` may be a scalar or a per-person
+    array, broadcasting with ``age`` and ``status``.
     """
     status = _validate_status(status)
     age = np.asarray(age, dtype=float)
@@ -182,7 +183,7 @@ def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
     lower = np.where(status, thr, -np.inf)
     upper = np.where(status, np.inf, thr)
     K_i = np.where(status, np.nan, cir)
-    K_pop = np.where(status, np.nan, float(pop_prev))
+    K_pop = np.where(status, np.nan, np.asarray(pop_prev, dtype=float))
     return lower, upper, K_i, K_pop
 
 

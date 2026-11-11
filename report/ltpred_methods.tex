@@ -35,15 +35,15 @@
   {\large Model, efficient inference, and evidence in \texttt{ltpred}}}
 \author{Bjarni J\'ohann Vilhj\'almsson\\[0.35em]
   {\small Aarhus University and SMARTbiomed}\\[0.35em]
-  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.8.1}}
-\date{4 November 2026}
+  {\small\texttt{https://github.com/bvilhjal/ltpred}\quad$\cdot$\quad v0.8.2}}
+\date{11 November 2026}
 
 \begin{document}
 \maketitle
 \thispagestyle{plain}
 \begin{center}\small
 Benchmark tables retain the historical v0.7.4 evidence snapshot.\\
-Implementation corrections reviewed 4 November 2026.
+Implementation corrections through 11 November 2026.
 \end{center}
 
 \begin{abstract}
@@ -553,6 +553,7 @@ moments in P3 with the two-component moments below, retaining the original
 sequential treatment of pins for families containing an active mixture row.
 Families without active mixture rows retain Algorithm~P, including joint pin
 conditioning, even when other families in the batch require a mixture.
+Small positive variances do not justify skipping observations.
 With current CIP $K_i$ and lifetime $K_{\mathrm{pop}}$,
 \begin{equation}
   \pi
