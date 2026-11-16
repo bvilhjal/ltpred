@@ -1137,11 +1137,14 @@ def test_dependent_contradictory_pins_are_rejected_when_cholesky_succeeds():
     assert pa_algorithm(cov, lo, hi)[0] == pytest.approx(.35, abs=1e-9)
 
 
-@pytest.mark.parametrize("s", [.70, .71, .72])
+@pytest.mark.parametrize("s", [.25, .5625, 1.])
 def test_pinned_copy_of_a_lifetime_control_is_rejected_on_the_mixture_path(s):
     # Row 1 copies pinned row 2 (liability 2.0) but, with K_i == K_pop, must
     # lie below the lifetime threshold 1.28. The plain bound raised; the
-    # mixture path accepted it, with a result that depended on rounding.
+    # mixture path accepted it. These s have exact square roots, so the
+    # copy's conditional variance is exactly zero under every LAPACK; for
+    # other s it is rounding noise near 1e-16, which the mixture keeps as
+    # informative wherever LAPACK's Cholesky certifies the matrix (0.8.2).
     cov = np.array([[.5, .3, .3], [.3, s, s], [.3, s, s]])
     threshold = float(-stats.norm.ppf(.1))
     lo = np.array([-np.inf, -np.inf, 2.0])
