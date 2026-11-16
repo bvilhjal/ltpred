@@ -4785,7 +4785,8 @@ nonlinear transformation, not the fractions themselves.</p>
 factor used by <code>observed_to_liability_h2</code>; <code>subtract_null=False</code> omits
 the unit null term. Estimates can be negative per SNP and assume a
 calibrated null. Sum only independent or LD-pruned signals, or use an
-LD-aware aggregate.</p>
+LD-aware aggregate. <code>n</code> must be finite and positive; a NaN <code>z</code> returns
+NaN for that SNP.</p>
 
 
     </div>
@@ -5532,8 +5533,9 @@ them inevitable, but the count is what lets a caller distinguish that
 boundary from an id-format mismatch or a failed join. Raises
 <code>ValueError</code> when <code>ids</code>/<code>father</code>/<code>mother</code> differ in length, when
 <code>ids</code> contains a missing value (<code>None</code>, NaN, pandas NA/NaT or a
-missing-marker string such as <code>""</code>/<code>"NA"</code>), on duplicate ids and on a
-person recorded as their own parent. Longer cycles (a person being their
+missing-marker string such as <code>""</code>/<code>"NA"</code>), on duplicate ids, on a
+person recorded as their own parent and on one person recorded as both
+parents. Longer cycles (a person being their
 own ancestor) are not checked here;
 <code>ltpred.covariance.kinship_from_pedigree</code> raises on them.</p>
 
@@ -5938,7 +5940,9 @@ list repeats the per-trait roles once per phenotype.</p>
         <p>Return shared-DNA fraction times <code>h2</code> for two role labels.</p>
 <p>Roles cover the proband (<code>o</code>), genetic target (<code>g</code>), parents,
 siblings, grandparents, half-sibs, avuncular relatives and children
-(<code>c&lt;group&gt;.&lt;idx&gt;</code>). Use <code>h2=1</code> for the bare fraction. Opposite-side
+(<code>c&lt;group&gt;.&lt;idx&gt;</code>). Use <code>h2=1</code> for the bare fraction; <code>h2</code> only
+scales it, so a cross-trait genetic covariance (possibly negative) gives
+the cross-trait entry. Opposite-side
 relatives and mates are unrelated; children in one partner group are full
 sibs. Same-side half-sib sets use the role grammar's shared-other-parent
 convention; more complex pedigrees need <code>construct_covmat_from_kinship</code>.</p>
@@ -6068,7 +6072,8 @@ legitimately differ.</p>
 <p>Each iteration multiplies off-diagonals by <code>correction_val</code> and preserves
 the diagonal. Returns <code>(corrected_copy, n_iterations)</code>; already-PD input
 needs zero iterations. Raises after <code>correction_limit</code> unsuccessful
-steps. This changes the model and callers warn when it was necessary.</p>
+steps, and for non-finite, non-square or asymmetric input. This changes
+the model and callers warn when it was necessary.</p>
 
 
     </div>
@@ -6376,6 +6381,8 @@ so bootstrap spread reflects family resampling rather than sampler noise.
 The resampling <code>seed</code> is passed to <code>numpy.random.default_rng</code>; unlike
 sampler seeds, it is not restricted to uint32.
 Returns the full-data estimate, refit SD, percentile interval and samples.
+The fitters' population case-rate screen runs on the full data only: a
+resample redraws the same cohort, so a resample crossing it is noise.
 Independent, non-overlapping clusters and a valid sampling design remain
 necessary; boundary intervals are not automatically calibrated.</p>
 
@@ -6857,7 +6864,7 @@ seeded calls.</p>
         </li>
         <li class="doc-section-item field-body">
             <b><code>params</code></b>
-              (<code>(<span title="P">P</span>, <span title="sd">sd</span>)</code>, default:
+              (<code>(P, sd)</code>, default:
                   <code>None</code>
 )
           –
@@ -7366,8 +7373,10 @@ liability-dependent (Gaussian copula strength <code>onset_rho</code>).</p>
 intervals. <code>onset_resolution</code> is the register's recording grid (one year
 by default, or exact onset with <code>None</code>). Under threshold crossing, a
 finite grid maps the age bin to a two-sided liability interval even for
-<code>"pin"</code>; one-sided interval cases retain their conservative lower edge.
-The age-zero bin is upper-open. The returned <code>Simulation</code> retains true
+<code>"pin"</code>; one-sided interval cases retain their conservative lower edge,
+the end of the recorded bin, under every onset model. The age-zero bin is
+upper-open. <code>use_age</code> requires a finite <code>mid_point</code> and a finite,
+positive <code>slope</code>. The returned <code>Simulation</code> retains true
 liabilities, onset, status and families for validation.</p>
 
 
@@ -7505,7 +7514,10 @@ follow-up are dropped and counted in <code>n_dropped</code>.</p>
 <p>The trait-major covariance is <code>kron(G,A) + kron(S,C) + kron(T,M) +
 kron(E,I)</code> from the supplied genetic, sibship, couple and residual
 parameters. Liabilities are thresholded per trait and returned with the
-generating truth. <code>roles</code> must align to <code>father</code> and <code>mother</code>.</p>
+generating truth. <code>roles</code> must align to <code>father</code> and <code>mother</code>.
+<code>h2</code> lies in (0, 1], <code>rg</code> and <code>residual_re</code> in [-1, 1], the shared
+matrices are symmetric PSD, and <code>h2 + diag(sib_shared + couple_shared)</code>
+may not exceed one, so every residual variance is non-negative.</p>
 
 
     </div>

@@ -1150,8 +1150,10 @@ seed so spread reflects family resampling rather than sampler noise. For IPW,
 pass <code>weights=weights</code> and use a two-argument callback such as
 <code>lambda f, w: fit_heritability(f, sampling="ipw", weights=w, seed=1).h2</code>;
 families and weights are resampled by the same indices.</p>
-<p>Cost is <code>n_boot + 1</code> fits. The interval assumes independent clusters and a
-valid sampling design; zero-probability strata, overlapping pedigrees and
+<p>Cost is <code>n_boot + 1</code> fits. The case-rate screen runs on the full-data fit
+only; a resample redraws the same cohort, so its rates scatter around the
+cohort's own and are not screened again. The interval assumes independent
+clusters and a valid sampling design; zero-probability strata, overlapping pedigrees and
 boundary parameters need separate treatment. Increase <code>n_boot</code> until the SE
 and percentile endpoints are stable and report the value used.</p>
 <h2 id="deterministic-pairwise-fitting">Deterministic pairwise fitting<a class="headerlink" href="#deterministic-pairwise-fitting" title="Permanent link">&para;</a></h2>
