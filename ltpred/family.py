@@ -122,6 +122,20 @@ def _proband_pid(family):
     return family.fam_id
 
 
+def _key_column(values, dtype=None):
+    """A 1-D id column. NumPy would turn a sequence of tuple ids (composite
+    keys such as ``(cohort, person)``) into a 2-D array of their fields; keep
+    one tuple per row instead."""
+    if not isinstance(values, np.ndarray):
+        values = list(values)
+        if any(isinstance(v, tuple) for v in values):
+            column = np.empty(len(values), dtype=object)
+            for i, v in enumerate(values):
+                column[i] = v
+            return column
+    return np.asarray(values, dtype=dtype)
+
+
 def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
                           upper: ArrayLike, pid: ArrayLike | None = None,
                           K_i: ArrayLike | None = None,
@@ -136,7 +150,7 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
     when its bounds are uninformative.
     """
     raw_fam_id = fam_id
-    fam_id = np.asarray(fam_id)
+    fam_id = _key_column(fam_id)
     if fam_id.dtype.kind in "US" and not (
             isinstance(raw_fam_id, np.ndarray) and raw_fam_id.dtype.kind in "US"):
         # NumPy stringifies a mixed sequence, so 1 and "1" would silently
@@ -149,9 +163,11 @@ def families_from_columns(fam_id: ArrayLike, role: ArrayLike, lower: ArrayLike,
                 "which would merge distinct families; convert every fam_id "
                 "to one type first")
     role = np.asarray(role, dtype=object)
+    from ._validation import reject_non_real
+    reject_non_real(lower, upper, context="families_from_columns lower/upper")
     lower = np.asarray(lower, dtype=float)
     upper = np.asarray(upper, dtype=float)
-    pid = np.asarray(pid, dtype=object) if pid is not None else None
+    pid = _key_column(pid, dtype=object) if pid is not None else None
     K_i = np.asarray(K_i, dtype=float) if K_i is not None else None
     K_pop = np.asarray(K_pop, dtype=float) if K_pop is not None else None
     aod = np.asarray(aod, dtype=float) if aod is not None else None

@@ -6,6 +6,8 @@ import warnings
 import numpy as np
 import pytest
 
+from _helpers import requires_phensim
+
 from ltpred.covariance import construct_covmat_single
 from ltpred.simulate import simulate_under_LTM_single, _stable_factor
 from ltpred.estimate import estimate_liability
@@ -366,6 +368,7 @@ _CIP_K, _CIP_MID, _CIP_SLOPE = 0.10, 60.0, 1.0 / 8.0
 _CIP_VALUES = _CIP_K / (1.0 + np.exp((_CIP_MID - _CIP_AGES) * _CIP_SLOPE))
 
 
+@requires_phensim
 def test_simulate_pedigree_is_a_valid_trio_table():
     ids, father, mother = simulate_pedigree(np.random.default_rng(3),
                                             n_founder_pairs=12, gens=3)
@@ -379,6 +382,7 @@ def test_simulate_pedigree_is_a_valid_trio_table():
     assert any(p is not None for p in father), "and so must their descendants"
 
 
+@requires_phensim
 def test_register_draws_are_frozen_across_the_phensim_move():
     # Digests of the original in-module code's draws: a phensim change to the
     # pedigree RNG order or the Mendelian visiting order must fail here.
@@ -397,6 +401,7 @@ def test_register_draws_are_frozen_across_the_phensim_move():
     assert digest[:16] == "0572ce1d57f42ca9"
 
 
+@requires_phensim
 def test_pedigree_birth_times_put_coparents_together_and_children_later():
     ids, father, mother = simulate_pedigree(np.random.default_rng(3),
                                             n_founder_pairs=8, gens=3)
@@ -457,6 +462,7 @@ def test_pedigree_birth_times_uses_the_shared_missing_parent_contract():
     np.testing.assert_array_equal(birth, [1920.0, 1920.0, 1920.0, 1950.0])
 
 
+@requires_phensim
 def test_simulate_register_liabilities_recovers_the_generating_parameters():
     ids, father, mother = simulate_pedigree(np.random.default_rng(11),
                                             n_founder_pairs=60, gens=2)
@@ -482,6 +488,7 @@ def test_simulate_register_liabilities_recovers_the_generating_parameters():
     assert np.all(sim.residual_var > 0.0)
 
 
+@requires_phensim
 def test_register_simulation_feeds_the_public_register_driver():
     """The point of promoting it: a tutorial can reach estimate_liabilities."""
     from ltpred.pipeline import estimate_liabilities
@@ -635,6 +642,7 @@ def test_register_simulation_accepts_rare_cip_and_birth_evaluation():
     np.testing.assert_array_equal(sim.age, [0.0, 0.0])
 
 
+@requires_phensim
 @pytest.mark.parametrize("reverse", [False, True])
 def test_kinship_core_matches_phensim_with_inbreeding_and_unknown_parents(reverse):
     from ltpred.covariance import _kinship_A, _parent_links
@@ -653,6 +661,7 @@ def test_kinship_core_matches_phensim_with_inbreeding_and_unknown_parents(revers
     assert expected[ids.index('x'), ids.index('x')] == 1.25
 
 
+@requires_phensim
 def test_mendelian_covariance_is_exact_with_inbreeding_missing_parents_and_shuffled_rows():
     # Two siblings mate; their inbred child then has a child with one unknown parent.
     ids = ['x', 'a', 'grandchild', 'b', 'gm', 'gf']
@@ -675,3 +684,55 @@ def test_mendelian_covariance_is_exact_with_inbreeding_missing_parents_and_shuff
     np.testing.assert_allclose(result.residual_var, .5 / (.5 * diagonal + .5))
     with pytest.raises(ValueError, match='method must be'):
         simulate_register_liabilities(np.random.default_rng(12), method='invalid', **kwargs)
+
+
+@pytest.mark.parametrize("kwargs", [
+    dict(h2=(.5, .8)),            # with the default C and M: 0.8 + .15 + .10 > 1
+    dict(h2=(.5, 1.)), dict(h2=(-.1, .4)), dict(rg=1.5), dict(residual_re=-2.),
+    dict(pop_prev=(.1, 1.2)), dict(sib_shared=((.15, .3), (.3, .15))),
+])
+def test_multi_trait_simulator_refuses_impossible_variance_parameters(kwargs):
+    # A negative residual variance made trait 2 all NaN, with no cases and
+    # all-control bounds, while the returned truth still reported h2.
+    from ltpred.simulate import simulate_under_LTM_multi
+    with pytest.raises(ValueError):
+        simulate_under_LTM_multi(20, seed=1, **kwargs)
+
+
+def test_interval_case_bounds_cover_the_recorded_bin_for_liability_dependent_onset():
+    # onset_rho=1 is threshold crossing; its interval lower edge must sit at the
+    # end of the recorded age bin, as the crossing branch already did.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        sim = simulate_under_LTM_single(
+            ["m", "f", "s1"], h2=0.8, n_sim=2000, pop_prev=0.3, use_age=True,
+            mid_point=40, slope=0.25, seed=3, onset_model="liability_dependent",
+            onset_rho=1.0, case_encoding="interval", onset_resolution=1.0)
+    cases = 0
+    for i, family in enumerate(sim.families):
+        for member in family.members:
+            if sim.status[member.role][i]:
+                cases += 1
+                liability = sim.liabilities[i, sim.roles.index(member.role)]
+                assert member.lower - 1e-9 <= liability <= member.upper
+    assert cases > 500
+
+
+@pytest.mark.parametrize("bad", [dict(slope=float("nan")), dict(slope=0.0),
+                                 dict(slope=-.1), dict(mid_point=float("inf"))])
+def test_simulators_refuse_an_invalid_incidence_curve(bad):
+    from ltpred.simulate import simulate_followup_records
+    with pytest.raises(ValueError):
+        simulate_under_LTM_single(["m"], n_sim=10, use_age=True, seed=1, **bad)
+    curve = dict(pop_prev=.1, mid_point=60., slope=.1)
+    curve.update(bad)
+    with pytest.raises(ValueError):
+        simulate_followup_records(np.random.default_rng(0), 10, **curve)
+
+
+@pytest.mark.parametrize("pop_prev", [1.5, -.1, 0.])
+def test_followup_records_refuse_an_invalid_prevalence(pop_prev):
+    from ltpred.simulate import simulate_followup_records
+    with pytest.raises(ValueError, match="pop_prev"):
+        simulate_followup_records(np.random.default_rng(0), 10, pop_prev=pop_prev,
+                                  mid_point=60., slope=.1)

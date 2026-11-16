@@ -382,6 +382,20 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
     names = [f"phenotype{i+1}" for i in range(p)] if phen_names is None else list(phen_names)
     if len(names) != p:
         raise ValueError("phen_names length must match number of traits")
+    # After the common-threshold check a finite lower bound marks a case and a
+    # finite upper bound a control. A trait with only one of the two has no
+    # discordant pairs: its correlations run to the boundary, where the pair
+    # probabilities underflow, instead of being estimated.
+    lo_all, hi_all = member_bounds[0], member_bounds[1]
+    for i, name in enumerate(names):
+        n_case = int(np.count_nonzero(np.isfinite(lo_all[:, i])))
+        n_control = int(np.count_nonzero(np.isfinite(hi_all[:, i]) & ~np.isfinite(lo_all[:, i])))
+        if n_case == 0 or n_control == 0:
+            raise ValueError(
+                f"fit_pairwise_multi: trait {name!r} is not identified: it has "
+                f"{n_case} affected and {n_control} unaffected informative "
+                "members, and both are needed to estimate its heritability and "
+                "correlations")
     weights = _validate_weights(weights, len(families), "fit_pairwise_multi")
     _validate_population_sampling(sampling, "fit_pairwise_multi", weights=weights)
     w = _normalized_weights(weights)
@@ -423,11 +437,30 @@ def fit_pairwise_multi(families: Sequence, *, components: Sequence[str] = ("A",)
     fit = minimize(objective, initial, jac=True, method="SLSQP", constraints=constraints, bounds=bounds,
                    options=dict(maxiter=maxiter, ftol=tol))
     x = np.asarray(fit.x)
+    # SLSQP meets constraints only to about its tolerance: at tol=1e-6 a
+    # boundary fit ends near -1.7e-7, so an unscaled gate rejected valid fits.
+    cone_slack = max(1e-8, 10*tol)
     if (not fit.success or x.shape != (d,) or not np.all(np.isfinite(x))
-            or not np.isfinite(fit.fun) or np.min(cone(x)) < -1e-8
+            or not np.isfinite(fit.fun) or np.min(cone(x)) < -cone_slack
             or np.max(np.abs(design@x)) > 1-eps+1e-8):
         raise RuntimeError(f"joint pairwise optimization failed or returned an invalid result: {fit.message}")
-    value, gradient, hessian, cell_scores = _multi_criterion(x, thresholds, design, counts)
+    if np.min(cone(x)[:-p]) < 0.0:
+        # Clip the requested components' negative eigenvalues so the returned
+        # matrices are PSD as documented. E's diagonal follows the components'
+        # (unit total variance); the change is within ``cone_slack``.
+        mats = matrices(x)
+        for ci in range(len(components)):
+            values, vectors = np.linalg.eigh(mats[ci])
+            mats[ci] = (vectors * np.maximum(values, 0.0)) @ vectors.T
+        x = np.array([mats[len(components) if c == "E" else components.index(c), i, j]
+                      for c, i, j in order])
+    try:
+        value, gradient, hessian, cell_scores = _multi_criterion(x, thresholds, design, counts)
+    except (FloatingPointError, ZeroDivisionError) as exc:
+        raise RuntimeError(
+            "joint pairwise optimization ended at a correlation whose pair "
+            f"probabilities underflow ({exc}); too few informative families "
+            "for this model") from None
     # Projected score check for the PSD cone, including repeated zero eigenvalues.
     target = x - gradient/n
     def projection(z):

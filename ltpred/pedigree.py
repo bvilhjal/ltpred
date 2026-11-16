@@ -88,8 +88,9 @@ def build_parent_graph(ids: Sequence, father: Sequence,
     boundary from an id-format mismatch or a failed join. Raises
     ``ValueError`` when ``ids``/``father``/``mother`` differ in length, when
     ``ids`` contains a missing value (``None``, NaN, pandas NA/NaT or a
-    missing-marker string such as ``""``/``"NA"``), on duplicate ids and on a
-    person recorded as their own parent. Longer cycles (a person being their
+    missing-marker string such as ``""``/``"NA"``), on duplicate ids, on a
+    person recorded as their own parent and on one person recorded as both
+    parents. Longer cycles (a person being their
     own ancestor) are not checked here;
     `ltpred.covariance.kinship_from_pedigree` raises on them.
     """

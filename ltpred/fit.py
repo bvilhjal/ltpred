@@ -14,6 +14,7 @@ thresholds. Population sampling or known positive family-level IPW is required.
 
 from __future__ import annotations
 
+import contextvars
 import math
 import operator
 import warnings
@@ -25,7 +26,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from ._mathfun import norm_cdf
-from ._validation import validate_bounds
+from ._validation import reject_non_real, validate_bounds
 from .covariance import get_relatedness, _is_full_sib, _is_mates
 from .gibbs import (gibbs_params, _gibbs_advance_chain,
                     _init_chain, _FIXED_TOL, _seed_rng)
@@ -152,6 +153,13 @@ def _assert_nonoverlapping_pids(families, context):
 _CASE_RATE_RATIO_TOL = 1.15
 _CASE_RATE_Z_TOL = 6.0
 
+#: Set by `bootstrap_fit` while it refits resamples. The full data already
+#: passed the case-rate screen; a resample redraws that same cohort, so its
+#: rate scatters around the cohort's own rate and crossing the bar there is
+#: resampling noise (about 1-4% of population cohorts aborted), not evidence
+#: about the design.
+_SKIP_CASE_RATE_SCREEN = contextvars.ContextVar("_SKIP_CASE_RATE_SCREEN", default=False)
+
 
 def _member_bounds(families, n_pheno):
     """Every member's bounds as ``(M, n_pheno)`` arrays, plus roles and family index.
@@ -164,16 +172,21 @@ def _member_bounds(families, n_pheno):
     members = [(f, m) for f, family in enumerate(families)
                for m in sorted(family.members, key=lambda m: m.role)]
     shape = (len(members), n_pheno)
+    raw_lo = [m.lower for _, m in members]
+    raw_hi = [m.upper for _, m in members]
+    reject_non_real(raw_lo, raw_hi, context="member bounds")
     try:
-        lo = np.asarray([m.lower for _, m in members], dtype=float)
-        hi = np.asarray([m.upper for _, m in members], dtype=float)
+        lo = np.asarray(raw_lo, dtype=float)
+        hi = np.asarray(raw_hi, dtype=float)
         lo = np.broadcast_to(lo.reshape(len(members), -1), shape)
         hi = np.broadcast_to(hi.reshape(len(members), -1), shape)
     except ValueError:
-        lo = np.array([np.broadcast_to(np.asarray(m.lower, dtype=float), (n_pheno,))
-                       for _, m in members]).reshape(shape)
-        hi = np.array([np.broadcast_to(np.asarray(m.upper, dtype=float), (n_pheno,))
-                       for _, m in members]).reshape(shape)
+        # Ragged shapes (scalars beside (1,) or (1, 1) arrays): flatten each
+        # member's bound before broadcasting it across the traits.
+        lo = np.array([np.broadcast_to(np.asarray(v, dtype=float).reshape(-1), (n_pheno,))
+                       for v in raw_lo]).reshape(shape)
+        hi = np.array([np.broadcast_to(np.asarray(v, dtype=float).reshape(-1), (n_pheno,))
+                       for v in raw_hi]).reshape(shape)
     return (lo, hi, [m.role for _, m in members],
             np.fromiter((f for f, _ in members), dtype=np.intp, count=len(members)))
 
@@ -186,9 +199,15 @@ def _assert_population_case_rate(families, n_pheno, *, context, weights=None,
     ``[1/1.15, 1.15]`` raises, skipping role/trait cells with n < 30. Under IPW
     the same trigger with Kish effective n is an uncalibrated heuristic and
     only warns: outcome-dependent weights invalidate its binomial variance.
+    Equal sampled weights do not certify equal inclusion either: a stratum
+    with a different weight may be absent from the sample. `bootstrap_fit`
+    skips the screen inside resamples (``_SKIP_CASE_RATE_SCREEN``); the full
+    data was screened.
     Sampled weights cannot certify joint positivity or falsify the design;
     even a positive-probability stratum may be absent from a finite sample.
     """
+    if _SKIP_CASE_RATE_SCREEN.get():
+        return
     lo_all, hi_all, roles, fam_index = (member_bounds if member_bounds is not None
                                         else _member_bounds(families, n_pheno))
     w = (np.ones(len(roles)) if weights is None
@@ -806,6 +825,8 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *,
     The resampling ``seed`` is passed to ``numpy.random.default_rng``; unlike
     sampler seeds, it is not restricted to uint32.
     Returns the full-data estimate, refit SD, percentile interval and samples.
+    The fitters' population case-rate screen runs on the full data only: a
+    resample redraws the same cohort, so a resample crossing it is noise.
     Independent, non-overlapping clusters and a valid sampling design remain
     necessary; boundary intervals are not automatically calibrated.
     """
@@ -829,17 +850,21 @@ def bootstrap_fit(families: Sequence, estimator: Callable, *,
                    else estimator(families, weights))
     point = np.asarray(point_value, dtype=float)
     samples = np.empty((n_boot,) + point.shape, dtype=float)
-    for b in range(n_boot):
-        idx = rng.integers(0, n, size=n)
-        sampled_families = [families[i] for i in idx]
-        sample_value = (estimator(sampled_families) if weights is None
-                        else estimator(sampled_families, weights[idx]))
-        sample = np.asarray(sample_value, dtype=float)
-        if sample.shape != point.shape:
-            raise ValueError(
-                f"estimator returned shape {sample.shape} for bootstrap resample "
-                f"{b}; expected stable shape {point.shape}")
-        samples[b] = sample
+    token = _SKIP_CASE_RATE_SCREEN.set(True)
+    try:
+        for b in range(n_boot):
+            idx = rng.integers(0, n, size=n)
+            sampled_families = [families[i] for i in idx]
+            sample_value = (estimator(sampled_families) if weights is None
+                            else estimator(sampled_families, weights[idx]))
+            sample = np.asarray(sample_value, dtype=float)
+            if sample.shape != point.shape:
+                raise ValueError(
+                    f"estimator returned shape {sample.shape} for bootstrap resample "
+                    f"{b}; expected stable shape {point.shape}")
+            samples[b] = sample
+    finally:
+        _SKIP_CASE_RATE_SCREEN.reset(token)
     alpha = (1.0 - ci_level) / 2.0
     return BootstrapResult(
         estimate=point,

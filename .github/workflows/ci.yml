@@ -65,10 +65,18 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Install (with the JIT + test extras)
-        run: pip install "$PHENSIM" -e ".[fast,test]"
+      - name: Install (with the JIT + test extras, and pandas for to_frame)
+        run: pip install "$PHENSIM" -e ".[fast,test]" pandas
       - name: Slow-tier tests
         run: pytest -q -m "slow" tests
+      # pandas is optional, so these skip on every other leg: the DataFrame
+      # export and the pd.NA/pd.NaT missing-id handling run here only.
+      - name: pandas-dependent tests
+        run: |
+          pytest -q \
+            tests/test_pipeline.py::test_pandas_missing_ids_across_entry_points \
+            tests/test_pipeline.py::test_score_table_exports_copy_arrays_and_retain_repeated_pids \
+            tests/test_pipeline.py::test_population_export_preserves_tuple_person_ids
 
   research-tests:
     # research/ is unsupported, checkout-only code, but five benchmark scripts
@@ -159,6 +167,17 @@ jobs:
       - name: Kernel tests on the pure-Python fallback
         run: |
           pytest -q -m "not jit_required" $KERNEL_TESTS
+      # The same public-workflow smokes as test-no-numba, so the fitter,
+      # simulation and estimator entry points also run at the floors.
+      - name: Public workflow smokes at the floor
+        run: |
+          pytest -q \
+            tests/test_estimate.py::test_adult_public_scalar_dispatch_matches_analytic_posterior \
+            tests/test_estimate.py::test_high_level_gibbs_handles_nine_sigma_case_bound \
+            tests/test_fit.py::test_fit_preparers_align_bounds_by_role \
+            tests/test_fit.py::test_overlapping_pids_raise_and_unique_or_missing_pids_pass \
+            tests/test_simulate.py::test_simulation_family_structure \
+            tests/test_r_lock.py::test_pa_matches_locked_ltfgrs_scores
 
   examples:
     # examples/validation.py (a few seconds) reproduces docs/validation.md;

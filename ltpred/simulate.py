@@ -24,7 +24,8 @@ from .fit import _component_matrix
 from ._mathfun import norm_cdf, norm_ppf
 from .thresholds import (liability_threshold, convert_liability_to_aoo,
                          convert_age_to_thresh, prevalence_thresholds,
-                         _convert_cir_to_age, _validate_cip_curve)
+                         _convert_cir_to_age, _validate_cip_curve,
+                         _validate_pop_prev)
 
 __all__ = ["Simulation", "simulate_under_LTM_single",
            "pedigree_birth_times", "simulate_pedigree",
@@ -294,6 +295,16 @@ def _stable_factor(cov):
         "covariance could not be factored even after lifting its spectrum")
 
 
+def _validate_age_curve(mid_point, slope):
+    """The logistic incidence curve needs a finite midpoint and a finite,
+    positive slope: otherwise onsets and thresholds are NaN or run backwards."""
+    for name, value in (("mid_point", mid_point), ("slope", slope)):
+        if isinstance(value, (bool, np.bool_)) or not np.isfinite(float(value)):
+            raise ValueError(f"{name} must be a finite number; got {value!r}")
+    if float(slope) <= 0.0:
+        raise ValueError(f"slope must be positive (incidence rises with age); got {slope!r}")
+
+
 def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm",
                                                               "mgf", "pgm", "pgf"),
                               add_ind: bool = True, h2: float = 0.5,
@@ -316,13 +327,17 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
     intervals. ``onset_resolution`` is the register's recording grid (one year
     by default, or exact onset with ``None``). Under threshold crossing, a
     finite grid maps the age bin to a two-sided liability interval even for
-    ``"pin"``; one-sided interval cases retain their conservative lower edge.
-    The age-zero bin is upper-open. The returned `Simulation` retains true
+    ``"pin"``; one-sided interval cases retain their conservative lower edge,
+    the end of the recorded bin, under every onset model. The age-zero bin is
+    upper-open. ``use_age`` requires a finite ``mid_point`` and a finite,
+    positive ``slope``. The returned `Simulation` retains true
     liabilities, onset, status and families for validation.
     """
     onset_resolution = _validate_onset_resolution(onset_resolution)
     onset_model, case_encoding, onset_rho = _resolve_age_options(
         use_age, onset_model, case_encoding, onset_rho)
+    if use_age:
+        _validate_age_curve(mid_point, slope)
     cov_obj = construct_covmat_single(fam_vec=fam_vec,
                                       add_ind=add_ind, h2=h2)
     roles = cov_obj.roles
@@ -367,21 +382,25 @@ def simulate_under_LTM_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "
                 aoo = float(onset[r][i])
                 if case_encoding == "lifetime":
                     lower, upper = t, np.inf
-                elif onset_model == "threshold_crossing":
-                    lower, upper = _threshold_crossing_case_bounds(
-                        aoo, ages[r][i], onset_resolution, case_encoding,
-                        pop_prev, mid_point, slope)
-                else:
-                    # An observed case has a finite onset at or before their
-                    # current age; the guard covers only a direct call with a
+                elif onset_model == "threshold_crossing" or case_encoding == "interval":
+                    # The interval's lower edge is the end of the recorded age
+                    # bin under every onset model: onset is recorded on the
+                    # same grid. An observed case has a finite onset at or
+                    # before their current age; the guard covers only a
                     # hand-built onset array.
+                    lower, upper = _threshold_crossing_case_bounds(
+                        aoo if np.isfinite(aoo) else 0.0, ages[r][i],
+                        onset_resolution, case_encoding, pop_prev, mid_point,
+                        slope)
+                else:
+                    # A pin under a non-crossing onset model is the deliberate
+                    # misspecification these models exist to measure.
                     aoo_r = (0.0 if not np.isfinite(aoo)
                              else _record_onset(aoo, onset_resolution))
                     thr = float(convert_age_to_thresh(
                         aoo_r, pop_prev=pop_prev, mid_point=mid_point,
                         slope=slope))
-                    lower, upper = (thr, np.inf) if case_encoding == "interval" \
-                        else (thr, thr)
+                    lower, upper = thr, thr
             else:
                 lower, upper = -np.inf, float(control_thr[r][i])
             members.append(Member(role=r, lower=lower, upper=upper,
@@ -635,6 +654,8 @@ def simulate_followup_records(rng: np.random.Generator, n: int, *,
     Events use 0=censored, 1=diagnosis, 2=death. Records without positive
     follow-up are dropped and counted in ``n_dropped``.
     """
+    pop_prev = float(_validate_pop_prev(pop_prev))
+    _validate_age_curve(mid_point, slope)
     birth_year = rng.uniform(birth_year_range[0], birth_year_range[1], n)
     entry_age = np.zeros(n)
     if register_start_year is not None:
@@ -717,6 +738,9 @@ def simulate_under_LTM_multi(n_families: int = 1000, *,
     kron(E,I)`` from the supplied genetic, sibship, couple and residual
     parameters. Liabilities are thresholded per trait and returned with the
     generating truth. ``roles`` must align to ``father`` and ``mother``.
+    ``h2`` lies in (0, 1], ``rg`` and ``residual_re`` in [-1, 1], the shared
+    matrices are symmetric PSD, and ``h2 + diag(sib_shared + couple_shared)``
+    may not exceed one, so every residual variance is non-negative.
     """
     roles = list(roles)
     d = len(roles)
@@ -730,6 +754,13 @@ def simulate_under_LTM_multi(n_families: int = 1000, *,
         raise ValueError(
             f"pop_prev must have one prevalence per trait ({n_traits}); got "
             f"{pop_prev.size}")
+    if not np.all(np.isfinite(h2) & (h2 > 0.0) & (h2 <= 1.0)):
+        raise ValueError(f"h2 must lie in (0, 1] for every trait; got {h2.tolist()}")
+    if not np.all(np.isfinite(pop_prev) & (pop_prev > 0.0) & (pop_prev < 1.0)):
+        raise ValueError(f"pop_prev must lie in (0, 1); got {pop_prev.tolist()}")
+    for name, value in (("rg", rg), ("residual_re", residual_re)):
+        if isinstance(value, (bool, np.bool_)) or not -1.0 <= float(value) <= 1.0:
+            raise ValueError(f"{name} is a correlation and must lie in [-1, 1]; got {value!r}")
     _, a = kinship_from_pedigree(roles, father, mother)
     c = np.asarray(_component_matrix(roles, "C"), dtype=float)
     m = np.asarray(_component_matrix(roles, "M"), dtype=float)
@@ -742,7 +773,18 @@ def simulate_under_LTM_multi(n_families: int = 1000, *,
         if mat.shape != (n_traits, n_traits):
             raise ValueError(
                 f"{name} must be ({n_traits}, {n_traits}); got {mat.shape}")
-    e = np.diag(1.0 - np.diag(g + s + t))
+        if not np.all(np.isfinite(mat)) or not np.allclose(mat, mat.T, rtol=0.0, atol=1e-12):
+            raise ValueError(f"{name} must be a finite symmetric matrix")
+        if np.min(np.linalg.eigvalsh(mat)) < -1e-12:
+            raise ValueError(f"{name} must be positive semi-definite")
+    residual = 1.0 - np.diag(g + s + t)
+    if np.any(residual < -1e-12):
+        # A negative residual variance makes the covariance NaN: the trait's
+        # liabilities, statuses and bounds would all be silently invalid.
+        raise ValueError(
+            "h2 + sib_shared + couple_shared must not exceed 1 for any trait; "
+            f"residual variances {residual.tolist()}")
+    e = np.diag(np.maximum(residual, 0.0))
     e[0, 1] = e[1, 0] = residual_re * np.sqrt(e[0, 0] * e[1, 1])
     sigma = (np.kron(g, a) + np.kron(s, c) + np.kron(t, m)
              + np.kron(e, np.eye(d)))

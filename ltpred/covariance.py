@@ -133,11 +133,15 @@ def get_relatedness(s1: str, s2: str, h2: float) -> float:
 
     Roles cover the proband (``o``), genetic target (``g``), parents,
     siblings, grandparents, half-sibs, avuncular relatives and children
-    (``c<group>.<idx>``). Use ``h2=1`` for the bare fraction. Opposite-side
+    (``c<group>.<idx>``). Use ``h2=1`` for the bare fraction; ``h2`` only
+    scales it, so a cross-trait genetic covariance (possibly negative) gives
+    the cross-trait entry. Opposite-side
     relatives and mates are unrelated; children in one partner group are full
     sibs. Same-side half-sib sets use the role grammar's shared-other-parent
     convention; more complex pedigrees need `construct_covmat_from_kinship`.
     """
+    if isinstance(h2, (bool, np.bool_)) or not np.isfinite(h2):
+        raise ValueError(f"h2 must be a finite number; got {h2!r}")
     s1, s2 = s1.lower(), s2.lower()
     _validate_relative(s1)
     _validate_relative(s2)
@@ -183,6 +187,13 @@ def _expand_family(fam_vec, add_ind):
     relatives ``s1, s2, ...``). ``g`` and ``o`` are stripped from the input
     and, when ``add_ind``, re-inserted first so the proband's genetic and
     full liabilities lead the ordering."""
+    if not isinstance(add_ind, (bool, np.bool_)):
+        # 0.8.0 removed the `n_fam` argument that used to sit in this position;
+        # a count mapping passed positionally must not read as add_ind=True.
+        raise TypeError(
+            f"add_ind must be bool; got {type(add_ind).__name__}. The n_fam "
+            "count mapping was removed in 0.8.0: list the roles in fam_vec, "
+            'e.g. ["m", "s1", "s2"]')
     if fam_vec is None:
         return ["g", "o"] if add_ind else []
 
@@ -266,7 +277,7 @@ def _apply_env_components(cov, fam_roles, c2, m2, h2):
     m2 = 0.0 if m2 is None else float(m2)
     if c2 < 0 or m2 < 0:
         raise ValueError("c2 and m2 must be nonnegative")
-    if h2 + c2 + m2 > 1.0:
+    if h2 + c2 + m2 > 1.0 + _SUM_TOL:
         raise ValueError(
             "h2 + c2 + m2 must not exceed 1 (the residual environmental "
             f"variance would be negative: {h2} + {c2} + {m2})")
@@ -291,9 +302,15 @@ def _apply_env_components(cov, fam_roles, c2, m2, h2):
 #: downstream failure.
 _H2_FLOOR = 1e-8
 
+#: Rounding allowance for ``h2 + c2 + m2 <= 1``: decimal proportions that sum
+#: to exactly one, such as 0.33 + 0.56 + 0.11, can round a few ulp above it.
+_SUM_TOL = 1e-12
+
 
 def _validate_h2(h2):
     """Require heritability above the covariance repair's numerical floor."""
+    if isinstance(h2, (bool, np.bool_)):
+        raise TypeError("h2 must be a number in (0, 1], not bool")
     if h2 is None or not (0.0 < h2 <= 1.0):
         raise ValueError(
             "h2 must be in (0, 1] -- a zero h2 makes the genetic liability "
@@ -320,9 +337,9 @@ def construct_covmat_single(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mg
     alter full-liability off-diagonals only and require
     ``h2 + c2 + m2 <= 1``. Returns a `Covmat` containing its row labels.
     """
-    _validate_h2(h2)
     roles = _expand_family(list(fam_vec) if fam_vec is not None else None,
                            add_ind)
+    _validate_h2(h2)
     if not roles:
         return Covmat(np.empty((0, 0)), [])
     d = len(roles)
@@ -378,6 +395,10 @@ def construct_covmat_multi(fam_vec: Sequence[str] | None = ("m", "f", "s1", "mgm
             raise ValueError(
                 f"{name} must be positive semi-definite (minimum eigenvalue "
                 f"{min_eig:.3g})")
+    # Accepted within 1e-8; symmetrise so the covariance passes the samplers'
+    # stricter 1e-10 symmetry check (as the kinship constructor does for A).
+    genetic_corrmat = 0.5 * (genetic_corrmat + genetic_corrmat.T)
+    full_corrmat = 0.5 * (full_corrmat + full_corrmat.T)
 
     genetic_cov = genetic_corrmat * np.sqrt(np.outer(h2_vec, h2_vec))
     env_cov = full_corrmat - genetic_cov
@@ -442,8 +463,8 @@ def _parent_links(ids, father, mother):
 
     Missing-id markers map to -1, as does any value not
     among ``ids``; the latter are counted in ``n_unresolved``. Raises on a
-    length mismatch, a missing or duplicate id, and a person recorded as their
-    own parent.
+    length mismatch, a missing or duplicate id, a person recorded as their
+    own parent, and one person recorded as both parents.
     """
     ids, father, mother = list(ids), list(father), list(mother)
     n = len(ids)
@@ -472,6 +493,13 @@ def _parent_links(ids, father, mother):
     for i in range(n):
         if sire[i] == i or dam[i] == i:
             raise ValueError(f"individual {ids[i]!r} is its own parent")
+        if sire[i] != -1 and sire[i] == dam[i]:
+            # Selfing is not a human pedigree; a register join that copied the
+            # father column into the mother column would otherwise give the
+            # child inbreeding 1/2 and change every relative's score.
+            raise ValueError(
+                f"individual {ids[i]!r} has {ids[sire[i]]!r} recorded as both "
+                "father and mother")
         if sire[i] != -1:
             children[sire[i]].append(i)
         if dam[i] != -1:
@@ -644,7 +672,7 @@ def construct_covmat_from_kinship(A: ArrayLike, h2: float, target: int = 0,
 
     c2, C = _validate_kinship_component(c2, c_kernel, "c", n)
     m2, M = _validate_kinship_component(m2, m_kernel, "m", n)
-    if h2 + c2 + m2 > 1.0:
+    if h2 + c2 + m2 > 1.0 + _SUM_TOL:
         raise ValueError(
             "h2 + c2 + m2 must not exceed 1 (the residual environmental "
             f"variance would be negative: {h2} + {c2} + {m2})")
@@ -686,9 +714,20 @@ def correct_positive_definite(covmat: ArrayLike, correction_val: float = 0.99,
     Each iteration multiplies off-diagonals by ``correction_val`` and preserves
     the diagonal. Returns ``(corrected_copy, n_iterations)``; already-PD input
     needs zero iterations. Raises after ``correction_limit`` unsuccessful
-    steps. This changes the model and callers warn when it was necessary.
+    steps, and for non-finite, non-square or asymmetric input. This changes
+    the model and callers warn when it was necessary.
     """
     cov = np.array(covmat, dtype=np.float64, copy=True)
+    if cov.ndim != 2 or cov.shape[0] != cov.shape[1]:
+        raise ValueError(f"covmat must be a square matrix; got shape {cov.shape}")
+    if not np.all(np.isfinite(cov)):
+        raise ValueError("covmat must contain only finite values")
+    # eigvalsh reads one triangle, so an asymmetric input would be certified
+    # from half of its entries.
+    asymmetry = float(np.max(np.abs(cov - cov.T))) if cov.size else 0.0
+    if asymmetry > 1e-10 * max(1.0, float(np.max(np.abs(cov), initial=0.0))):
+        raise ValueError(
+            f"covmat must be symmetric (maximum asymmetry {asymmetry:.3g})")
     # Cache the smallest eigenvalue: exactly one eigvalsh per shrink step
     # (the loop condition and the final check reuse the same value).
     min_eig = np.min(np.linalg.eigvalsh(cov))

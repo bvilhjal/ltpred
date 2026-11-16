@@ -86,10 +86,12 @@ def probit_liability_r2(beta: ArrayLike, maf: ArrayLike, *,
     Sum residual-scale variances across independent SNPs before applying that
     nonlinear transformation, not the fractions themselves.
     """
+    if not isinstance(fraction, (bool, np.bool_)):
+        raise TypeError("fraction must be bool")
     beta = np.asarray(beta, dtype=float)
     maf = np.asarray(maf, dtype=float)
-    if np.any((maf < 0.0) | (maf > 1.0)):
-        raise ValueError("maf must lie in [0, 1] (allele frequency; 2f(1-f) is symmetric)")
+    if np.any(~np.isfinite(maf) | (maf < 0.0) | (maf > 1.0)):
+        raise ValueError("maf must be finite and lie in [0, 1] (allele frequency; 2f(1-f) is symmetric)")
     r2 = 2.0 * maf * (1.0 - maf) * beta * beta
     if fraction:
         r2 = r2 / (1.0 + r2)
@@ -105,12 +107,15 @@ def liability_r2_from_z(z: ArrayLike, n: ArrayLike, pop_prev: ArrayLike,
     factor used by `observed_to_liability_h2`; ``subtract_null=False`` omits
     the unit null term. Estimates can be negative per SNP and assume a
     calibrated null. Sum only independent or LD-pruned signals, or use an
-    LD-aware aggregate.
+    LD-aware aggregate. ``n`` must be finite and positive; a NaN ``z`` returns
+    NaN for that SNP.
     """
     z = np.asarray(z, dtype=float)
     n = np.asarray(n, dtype=float)
-    if np.any(n <= 0):
-        raise ValueError("n must be positive")
+    if np.any(np.isinf(z)):
+        raise ValueError("z must be finite (NaN marks a missing SNP and propagates)")
+    if np.any(~np.isfinite(n) | (n <= 0)):
+        raise ValueError("n must be finite and positive")
     if not isinstance(subtract_null, (bool, np.bool_)):
         raise TypeError("subtract_null must be bool")
     signal = z * z - (1.0 if subtract_null else 0.0)

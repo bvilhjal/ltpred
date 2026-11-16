@@ -114,3 +114,15 @@ class TestMatrix:
             warnings.simplefilter("error")
             unchecked = tetrachoric_matrix(x, check_psd=False)
         np.testing.assert_array_equal(unchecked, correlation)
+
+
+@pytest.mark.parametrize("table, rho", [((10000, 10001, 10000, 200_000_000), .943485),
+                                        ((1, 0, 2447891, 1), None),
+                                        ((2, 0, 347674941, 2), None)])
+def test_plackett_division_by_zero_falls_back_to_genz(table, rho):
+    # sin(theta) rounds to +/-1 next to +/-pi/2, and the Plackett integrand's
+    # Python-float division raised ZeroDivisionError instead of falling back.
+    result = tetrachoric_table(*table)
+    assert np.isfinite(result.rho)
+    if rho is not None:
+        assert result.rho == pytest.approx(rho, abs=2e-6)

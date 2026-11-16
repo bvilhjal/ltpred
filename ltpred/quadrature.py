@@ -24,7 +24,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 from scipy.special import log_ndtr, logsumexp, roots_hermitenorm, roots_legendre
 
-from ._validation import validate_bounds
+from ._validation import reject_non_real, validate_bounds
 from .estimate import _OUT_NAMES, _single_out
 from .pearson_aitken import _tnorm_moments_loc
 from ._numba import _jit
@@ -354,6 +354,7 @@ def estimate_liability_quadrature_arrays(roles: Sequence[str], lower: ArrayLike,
         raise ValueError("atol must be finite and strictly positive")
     if isinstance(max_nodes, (bool, np.bool_)) or not isinstance(max_nodes, (int, np.integer)) or not 64 <= max_nodes <= 512:
         raise ValueError("max_nodes must be an integer from 64 through 512")
+    reject_non_real(lower, upper, context="quadrature bounds")
     lower, upper = np.asarray(lower, dtype=float), np.asarray(upper, dtype=float)
     if lower.ndim != 2 or upper.ndim != 2 or lower.shape[1] != len(roles):
         raise ValueError("lower and upper must have shape (n_families, len(roles))")

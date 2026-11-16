@@ -119,7 +119,9 @@ def _covariance_reduction_is_safe(h2, n_members):
     smallest eigenvalue above ``1e-6``. The bound uses pedigree diagonals in
     [1,2], genetic variance at least ``h2`` and residual variance at least
     ``(1-h2)/(1+h2)``. Near the heritability boundaries it fails closed, so
-    callers retain the full matrix and legacy repair.
+    callers retain the full matrix and legacy repair. The proof is in the
+    methods report ("Marginalisation without repair"); the pipeline test
+    `test_certified_reduction_matches_the_repair_path_bit_for_bit` checks it.
     """
     # The bound cannot exceed h2; reject tiny values before reciprocation.
     if not 1e-6 < h2 < 1.0:

@@ -15,7 +15,6 @@ fold-order details.
 from __future__ import annotations
 
 import math
-import operator
 import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -26,11 +25,11 @@ from numpy.typing import ArrayLike
 from .covariance import (construct_covmat_single, construct_covmat_multi,
                          construct_covmat_from_kinship, correct_positive_definite,
                          _PSD_CERTIFIED, _PD_CERTIFIED)
-from .gibbs import (gibbs_params, _gibbs_round, _as_bounds, _MAX_SEED,
+from .gibbs import (gibbs_params, _gibbs_round, _as_bounds, _as_index, _MAX_SEED,
                     _validate_seed, _validate_burn_in)
 from .pearson_aitken import pa_estimate_batched, _tnorm_moments_loc
 from ._numba import _jit
-from ._validation import validate_bounds, validate_mixture_inputs
+from ._validation import reject_non_real, validate_bounds, validate_mixture_inputs
 from .family import _member_pid_key, _proband_pid
 from ._results import _TableExport
 
@@ -172,12 +171,7 @@ def _single_out(out):
 
 def _validate_mc_se_n_sim(n_sim):
     """Return an integer draw count large enough for the Gibbs MC-SE rule."""
-    if isinstance(n_sim, (bool, np.bool_)):
-        raise TypeError("n_sim must be an integer >= 4, not bool")
-    try:
-        n_sim = operator.index(n_sim)
-    except TypeError:
-        raise TypeError("n_sim must be an integer >= 4") from None
+    n_sim = _as_index(n_sim, "n_sim must be an integer >= 4")
     if n_sim < 4:
         raise ValueError(
             "n_sim must be at least 4 to form two batches for the Monte-Carlo SE")
@@ -204,12 +198,7 @@ def _validate_tol(tol):
 def _validate_max_rounds(max_rounds):
     """Return ``max_rounds`` as a positive int: with none, the convergence loop
     never runs and every family keeps its all-zero initial estimates."""
-    if isinstance(max_rounds, (bool, np.bool_)):
-        raise TypeError("max_rounds must be a positive integer, not bool")
-    try:
-        max_rounds = operator.index(max_rounds)
-    except TypeError:
-        raise TypeError("max_rounds must be a positive integer") from None
+    max_rounds = _as_index(max_rounds, "max_rounds must be a positive integer")
     if max_rounds < 1:
         raise ValueError("max_rounds must be at least 1")
     return max_rounds
@@ -265,6 +254,8 @@ def _ordered_thresholds(family, cov_roles):
         m = by_role.get(role)
         if m is None:  # g always missing; o missing when no proband status given
             return np.full(n_pheno, -np.inf), np.full(n_pheno, np.inf)
+        reject_non_real(m.lower, m.upper,
+                        context=f"family {family.fam_id!r} bounds")
         lo = np.broadcast_to(np.asarray(m.lower, dtype=float), (n_pheno,))
         hi = np.broadcast_to(np.asarray(m.upper, dtype=float), (n_pheno,))
         return lo, hi
@@ -442,14 +433,15 @@ def _validate_multitrait_bounds(families, n_pheno):
 
 
 def _warn_unconverged(se, names, tol, max_rounds, n):
-    """Warn (once) if any family's batch-means SE is still above ``tol``."""
+    """Warn (once) if any family's batch-means SE is above ``tol`` or NaN."""
     unconverged = np.zeros(n, dtype=bool)
     for name in names:
-        unconverged |= se[name] > tol
+        unconverged |= ~(se[name] <= tol)       # NaN never converged
     if unconverged.any():
         warnings.warn(
             f"{int(unconverged.sum())} of {n} families did not reach tol={tol} "
-            f"within max_rounds={max_rounds}; their reported se exceed tol — "
+            f"within max_rounds={max_rounds}; their reported se exceed tol or "
+            "are not finite — "
             "increase max_rounds or n_sim, or inspect res.se.", stacklevel=3)
 
 
@@ -656,6 +648,10 @@ def _estimate_liability_multi(families, h2_vec, genetic_corrmat, full_corrmat,
     n_pheno = len(h2_vec)
     if phen_names is None:
         phen_names = [f"phenotype{p + 1}" for p in range(n_pheno)]
+    elif len(phen_names) != n_pheno:
+        raise ValueError(
+            f"phen_names has {len(phen_names)} names for {n_pheno} traits; "
+            "give one name per heritability")
     elif len(set(phen_names)) != len(phen_names):
         # result dicts are keyed by (output, phenotype) name — a duplicate name
         # would silently collapse two traits' columns onto one key
@@ -846,6 +842,7 @@ def _gibbs_from_role_arrays(roles, lower, upper, h2, out_coords, seeds,
 def _scalar_member_bounds(member, fam_id):
     """Return one member's single-trait bounds with the public shape error."""
     lo, hi = member.lower, member.upper
+    reject_non_real(lo, hi, context=f"family {fam_id!r} bounds")
     if isinstance(lo, (float, int, np.floating, np.integer)) and isinstance(
             hi, (float, int, np.floating, np.integer)):
         return float(lo), float(hi)      # fast path: already scalars
@@ -887,7 +884,8 @@ def _stack_object_members(families, idx, roles, dtype, use_mixture=False):
         for member in fam.members:
             j = column[member.role]
             lo, hi = member.lower, member.upper
-            if isinstance(lo, scalar) and isinstance(hi, scalar):
+            if (isinstance(lo, scalar) and isinstance(hi, scalar)
+                    and lo.__class__ is not bool and hi.__class__ is not bool):
                 lo_row[j], hi_row[j] = float(lo), float(hi)
             else:
                 lo_row[j], hi_row[j] = _scalar_member_bounds(member, fam.fam_id)
@@ -1068,6 +1066,11 @@ def estimate_liability_from_kinship(A: ArrayLike, lower: ArrayLike, upper: Array
             est, var = pa_estimate_batched(cov, lo, hi, target=tgt,
                                            _psd_certified=pa_gate)
         else:
+            if F == 1:
+                # One family's 1-D bounds were promoted to (1, n) above;
+                # promote its 1-D K arrays the same way.
+                K_i = np.atleast_2d(K_i) if K_i is not None and np.ndim(K_i) == 1 else K_i
+                K_pop = np.atleast_2d(K_pop) if K_pop is not None and np.ndim(K_pop) == 1 else K_pop
             K_i, K_pop = validate_mixture_inputs(
                 K_i, K_pop, expected_shape=lower.shape, require_pair=True,
                 lower=lower, upper=upper,

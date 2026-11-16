@@ -56,7 +56,9 @@ def _plackett(t1, t2, rho):
         warnings.simplefilter("always")
         try:
             result = _bivariate_probabilities(float(t1), float(t2), float(rho))
-        except FloatingPointError:
+        except (FloatingPointError, ZeroDivisionError):
+            # ZeroDivisionError: the Plackett integrand divides by 1 -/+ sin(theta),
+            # which rounds to zero when the quadrature samples next to +/-pi/2.
             return None
     if any(w.category.__name__ == "IntegrationWarning" for w in caught):
         return None

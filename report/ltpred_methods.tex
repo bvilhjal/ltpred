@@ -652,6 +652,28 @@ The output counts distinguish the observation neighbourhood
 (\texttt{n\_conditioned}), and structural additions
 (\texttt{n\_closure\_only}).
 
+\paragraph{Marginalisation without repair.}
+Dropping uninformative rows is exact, but the positive-definiteness repair
+acts on the whole matrix, so the driver drops them only when a bound shows
+that the repair is a no-op. Write $q=h^2$, $s_j^2=qA_{jj}+1-q$ with
+$A_{jj}\in[1,2]$, the target's genetic coordinate $g=\sqrt q\,a_t/s_t$, and
+each relative's liability $o_j=G_j+R_j$ with $G_j=\sqrt q\,a_j/s_j$ and an
+independent residual of variance $r_j=(1-q)/s_j^2\ge r=(1-q)/(1+q)$.
+Regressing $G_j=\beta_jg+U_j$ with $U$ independent of $g$ gives
+$\Sigma\succeq T=\mathrm{Cov}(g,\beta g+R)$, and
+$\operatorname{tr}T^{-1}=1/a+\sum_j(1+\beta_j^2)/r_j$ with
+$a=qA_{tt}/s_t^2\ge q$. Cauchy--Schwarz on $A$ gives
+$\beta_j^2=A_{jt}^2s_t^2/(A_{tt}^2s_j^2)\le A_{jj}/s_j^2\le 2/(1+q)$, so for
+$n$ relatives
+\[
+\lambda_{\min}(\Sigma)\ \ge\ 1/\operatorname{tr}T^{-1}\ \ge\
+\Bigl(\frac1q+\frac{3n}{r}\Bigr)^{-1}.
+\]
+Every principal block containing $g$ has the same form with fewer
+relatives. When this bound exceeds $10^{-6}$, a hundred times the repair
+threshold, the full matrix and every such block need no repair. Near
+$h^2=0$ or $1$ the bound fails, and the full matrix is kept and repaired.
+
 \paragraph{Prediction uses calendar time.}
 The required \texttt{use} argument selects the observation model.
 With \texttt{use="gwas"}, own diagnosis is included.

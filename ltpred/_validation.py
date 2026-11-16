@@ -21,6 +21,35 @@ def validate_binary(values, *, name="values", ndim=None):
     return array.astype(bool)
 
 
+#: Values ``float()`` accepts that are not liabilities: a Boolean case-status
+#: column passed as bounds would become pins at 0 and 1, strings would be
+#: parsed, and complex numbers would lose their imaginary part.
+_NON_REAL_KINDS = "bUSc"
+_NON_REAL_SCALARS = (bool, np.bool_, str, bytes, complex, np.complexfloating)
+
+
+def is_non_real(value):
+    """True for a Boolean, string or complex scalar, or an array of them."""
+    if isinstance(value, _NON_REAL_SCALARS):
+        return True
+    if isinstance(value, np.ndarray):
+        if value.dtype.kind in _NON_REAL_KINDS:
+            return True
+        return value.dtype == object and any(is_non_real(v) for v in value.flat)
+    # NumPy would promote ``[1.5, True]`` to float, so inspect list elements.
+    return isinstance(value, (list, tuple)) and any(is_non_real(v) for v in value)
+
+
+def reject_non_real(*values, context="bounds"):
+    """Raise `TypeError` when a value is Boolean, string or complex."""
+    for value in values:
+        if is_non_real(value):
+            raise TypeError(
+                f"{context} must be real-valued liability bounds; got a Boolean, "
+                "string or complex value. Convert case status to thresholds "
+                "first (age_thresholds, prevalence_thresholds)")
+
+
 def validate_bounds(lower, upper, *, context="bounds"):
     """Validate liability truncation bounds without rejecting valid infinities.
 

@@ -1224,3 +1224,89 @@ def test_estimator_rejects_h2_below_the_strict_pd_floor():
                                         h2=1e-9, n_sim=100, burn_in=5)
     with pytest.raises(ValueError, match="must exceed 1e-08"):
         estimate_liability_pa_arrays(roles=["o"], lower=lo, upper=hi, h2=1e-9)
+
+
+def test_boolean_string_and_complex_bounds_are_refused():
+    # A case-status column passed as bounds became liability pins at 1 and 0;
+    # strings were parsed and complex values lost their imaginary part.
+    from ltpred import (estimate_liability_pa_arrays, estimate_liability_gibbs_arrays,
+                        rtmvnorm_gibbs)
+    status = np.array([[True, False], [False, False]])
+    calls = [
+        lambda: estimate_liability_pa_arrays(["o", "m"], status, status, h2=.5),
+        lambda: estimate_liability_gibbs_arrays(["o", "m"], status, status, h2=.5,
+                                                n_sim=100, seed=1),
+        lambda: estimate_liability([Family("f", [Member("o", True, True)])], h2=.5),
+        lambda: estimate_liability_pa_arrays(["o"], np.array([["1.645"]]),
+                                             np.array([["inf"]]), h2=.5),
+        lambda: estimate_liability_pa_arrays(["o"], np.array([[1 + 5j]]),
+                                             np.array([[np.inf]]), h2=.5),
+        lambda: rtmvnorm_gibbs(np.eye(2), [True, False], [True, True], n_sim=10, seed=1),
+        lambda: families_from_columns(fam_id=[1, 1], role=["o", "m"],
+                                      lower=[True, False], upper=[True, True]),
+        lambda: fit_heritability([Family(i, [Member("o", True, True)]) for i in range(40)],
+                                 sampling="population"),
+    ]
+    for call in calls:
+        with pytest.raises(TypeError, match="real-valued"):
+            call()
+    est = estimate_liability_pa_arrays(["o"], np.array([[1]]), np.array([[np.inf]]), h2=.5)[0]
+    assert np.all(np.isfinite(est))      # integer bounds remain valid
+
+
+def test_unconverged_warning_also_reports_nonfinite_standard_errors():
+    from ltpred import estimate_liability_gibbs_arrays
+    # Squared draws near 1e160 overflow, so the batch-means SE is NaN.
+    with pytest.warns(UserWarning, match="not finite"), np.errstate(over="ignore", invalid="ignore"):
+        estimate_liability_gibbs_arrays(["o"], np.array([[1e160]]), np.array([[np.inf]]),
+                                        h2=.5, max_rounds=3, n_sim=200, seed=1)
+
+
+def test_zero_dimensional_integer_controls_are_accepted_alike():
+    from ltpred import estimate_liability_gibbs_arrays
+    lo, hi = np.array([[1.5, -np.inf]]), np.array([[np.inf, 1.2]])
+    common = dict(h2=.5, out="genetic")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        arrays = estimate_liability_gibbs_arrays(
+            ["o", "m"], lo, hi, n_sim=np.array(200), burn_in=np.array(8),
+            seed=np.array(8), max_rounds=np.array(1), **common)
+        ints = estimate_liability_gibbs_arrays(["o", "m"], lo, hi, n_sim=200, burn_in=8,
+                                               seed=8, max_rounds=1, **common)
+    np.testing.assert_array_equal(arrays[0], ints[0])
+    with pytest.raises(TypeError):
+        estimate_liability_gibbs_arrays(["o", "m"], lo, hi, burn_in=np.array(True), **common)
+
+
+def test_short_phen_names_raise_a_value_error():
+    families = [Family("f", [Member("o", [1.5, -np.inf], [np.inf, 1.2]),
+                             Member("m", [-np.inf, -np.inf], [1.4, 1.3])])]
+    with pytest.raises(ValueError, match="phen_names has 1 names for 2 traits"):
+        estimate_liability(families, h2=[.5, .4], genetic_corrmat=np.eye(2),
+                           full_corrmat=np.eye(2), phen_names=["A"], method="gibbs",
+                           n_sim=500, seed=1, max_rounds=1)
+
+
+def test_kinship_mixture_accepts_one_family_as_one_dimensional_arrays():
+    from ltpred import estimate_liability_from_kinship
+    A = np.array([[1., .5], [.5, 1.]])
+    lo, hi = np.array([-np.inf, -np.inf]), np.array([1.2, 1.6])
+    k_i, k_pop = np.array([.02, .03]), np.array([.1, .1])
+    one_d = estimate_liability_from_kinship(A, lo, hi, h2=.5, K_i=k_i, K_pop=k_pop,
+                                            use_mixture=True)
+    two_d = estimate_liability_from_kinship(A, lo[None], hi[None], h2=.5, K_i=k_i[None],
+                                            K_pop=k_pop[None], use_mixture=True)
+    np.testing.assert_array_equal(np.ravel(one_d[0]), np.ravel(two_d[0]))
+
+
+def test_families_from_columns_keeps_tuple_ids_as_single_keys():
+    # NumPy turned a list of tuples into a 2-D array: member pids became
+    # array rows and tuple family ids raised a misleading mixed-type error.
+    t = 1.645
+    families = families_from_columns(
+        fam_id=[(1, "x"), (1, "x"), (2, "y"), (2, "y")],
+        pid=[("a", 1), ("a", 2), ("b", 1), ("b", 2)], role=["o", "m", "o", "m"],
+        lower=[t, -np.inf, -np.inf, t], upper=[np.inf, t, t, np.inf])
+    assert [f.fam_id for f in families] == [(1, "x"), (2, "y")]
+    assert families[0].members[0].pid == ("a", 1)
+    assert list(estimate_liability(families, h2=.5).pids) == [("a", 1), ("b", 1)]

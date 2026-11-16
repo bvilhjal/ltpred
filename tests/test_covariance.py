@@ -501,6 +501,9 @@ def test_kinship_a_from_indices_matches_kinship_from_pedigree():
               for i in range(90)]
     mother = [None if i < 8 or rng.random() < .25 else ids[int(rng.integers(0, i))]
               for i in range(90)]
+    # Independent draws can name one person as both parents, which the
+    # pedigree parser rejects; leave that mother unknown (same RNG stream).
+    mother = [None if m is not None and m == f else m for f, m in zip(father, mother)]
     graph = build_parent_graph(ids, father, mother)
     for proband in ("p50", "p89"):
         ped = extract_pedigree(graph, proband, max_degree=2)
@@ -605,3 +608,60 @@ def test_same_side_half_sib_environment_matches_explicit_pedigree(side):
     assert mean[0] == pytest.approx(.4 / 1.5)
     np.testing.assert_allclose(mean, kin_mean, atol=1e-15)
     np.testing.assert_allclose(var, kin_var, atol=1e-15)
+
+
+def test_parent_recorded_as_both_father_and_mother_is_rejected():
+    # A join that copied the father id into the mother column made b a
+    # product of selfing (inbreeding 1/2) and moved o's register score.
+    from ltpred.pedigree import build_parent_graph
+    ids, father, mother = ["a", "b", "o"], [None, "a", "b"], [None, "a", None]
+    for parse in (kinship_from_pedigree, build_parent_graph):
+        with pytest.raises(ValueError, match="both father and mother"):
+            parse(ids, father, mother)
+
+
+def test_removed_n_fam_mapping_passed_positionally_is_refused():
+    # 0.7.x order was (fam_vec, n_fam, add_ind, h2): the mapping landed in
+    # add_ind and h2=True read as 1.0, silently dropping the siblings.
+    from ltpred.simulate import simulate_under_LTM_single
+    with pytest.raises(TypeError, match="n_fam"):
+        construct_covmat_single(None, {"s": 2}, h2=.3)
+    with pytest.raises(TypeError, match="n_fam"):
+        simulate_under_LTM_single(["m"], {"s": 2}, True, n_sim=3)
+    with pytest.raises(TypeError, match="not bool"):
+        construct_covmat_single(["m"], h2=True)
+    with pytest.raises(ValueError, match="finite"):
+        get_relatedness("o", "m", h2=float("nan"))
+
+
+@pytest.mark.parametrize("bad, match", [
+    (np.array([[1., np.nan], [np.nan, 1.]]), "finite"),
+    (np.full((3, 3), np.inf), "finite"),
+    (np.array([[1., .9], [-.9, 1.]]), "symmetric"),
+    (np.ones((2, 3)), "square"),
+])
+def test_correct_positive_definite_refuses_invalid_input(bad, match):
+    # eigvalsh reads one triangle and passes NaN through, so these were
+    # certified positive definite with zero corrections.
+    from ltpred.covariance import correct_positive_definite
+    with pytest.raises(ValueError, match=match):
+        correct_positive_definite(bad)
+
+
+def test_covmat_multi_symmetrises_accepted_correlation_rounding():
+    # Accepted at 1e-8 but kept asymmetric, the covariance then failed the
+    # samplers' 1e-10 symmetry check inside estimate_liability.
+    genetic = np.array([[1., .3], [.3 + 5e-9, 1.]])
+    full = np.array([[1., .2], [.2, 1.]])
+    cov = construct_covmat_multi(["m"], genetic_corrmat=genetic, full_corrmat=full,
+                                 h2_vec=[.5, .4]).matrix
+    np.testing.assert_array_equal(cov, cov.T)
+
+
+@pytest.mark.parametrize("h2, c2, m2", [(.33, .56, .11), (.34, .55, .11), (.7, .2, .1)])
+def test_components_summing_to_one_in_decimals_are_accepted(h2, c2, m2):
+    construct_covmat_single(["m", "f", "s1"], h2=h2, c2=c2, m2=m2)
+    construct_covmat_from_kinship(np.eye(2), h2=h2, c2=c2, c_kernel=np.eye(2),
+                                  m2=m2, m_kernel=np.eye(2))
+    with pytest.raises(ValueError, match="must not exceed 1"):
+        construct_covmat_single(["m", "f", "s1"], h2=h2, c2=c2 + 1e-9, m2=m2)

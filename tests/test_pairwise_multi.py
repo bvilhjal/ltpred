@@ -176,10 +176,36 @@ def test_overlap_and_disabled_optimization_are_rejected():
 def test_boundary_withholds_uncertainty_and_zero_variance_correlations():
     components = {"A": np.zeros((2, 2)), "E": np.array([[1., .2], [.2, 1.]])}
     families, weights = exact_pair_tables(components)
+    # SLSQP in SciPy <= 1.15 needs about 430 iterations at tol=1e-14 here
+    # (1.18 needs 23), so the default maxiter=300 failed on older stacks.
     with pytest.warns(RuntimeWarning, match="unavailable_boundary"):
-        result = fit_pairwise_multi(families, sampling="ipw", weights=weights, tol=1e-14)
+        result = fit_pairwise_multi(families, sampling="ipw", weights=weights,
+                                    tol=1e-14, maxiter=2000)
     assert result.at_boundary
     assert result.h2 == pytest.approx([0., 0.], abs=result.boundary_tolerance)
     assert np.isnan(result.rg).all()
     assert np.isnan(result.se["rg"]).all()
     assert np.isnan(result.parameter_covariance).all()
+
+
+@pytest.mark.parametrize("tol", [1e-6, 1e-7, 1e-8])
+def test_loose_tolerance_boundary_fit_is_accepted_and_psd(tol):
+    # SLSQP meets the cone only to about tol: the unscaled -1e-8 gate rejected
+    # these fits, and at tol=1e-8 returned an eigenvalue of -8.6e-9.
+    import warnings
+    components = {"A": np.zeros((2, 2)), "E": np.array([[1., .2], [.2, 1.]])}
+    families, weights = exact_pair_tables(components)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        result = fit_pairwise_multi(families, sampling="ipw", weights=weights, tol=tol)
+    for name, matrix in result.components.items():
+        assert np.linalg.eigvalsh(matrix).min() >= -1e-15, name
+
+
+def test_trait_without_affected_members_is_rejected_before_fitting():
+    # Three families where trait 1 has no cases: the fit ran to the
+    # correlation boundary and raised FloatingPointError there.
+    from ltpred.simulate import simulate_under_LTM_multi
+    sim = simulate_under_LTM_multi(3, seed=7, pop_prev=(0.3, 0.4))
+    with pytest.raises(ValueError, match="not identified: it has 0 affected"):
+        fit_pairwise_multi(sim.families, sampling="population")

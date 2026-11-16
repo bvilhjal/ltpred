@@ -251,3 +251,17 @@ def test_age_thresholds_finite_for_young_ages_at_legal_parameters():
                                   pop_prev=0.1, slope=1.0)
     assert np.all(np.isfinite(lower[:1]))    # the case pin
     assert np.isfinite(upper[0]) and np.isfinite(upper[1])
+
+
+@pytest.mark.parametrize("status, age, prev", [
+    ([1], [30, 40, 50], .1),                    # broadcast into three people
+    ([1, 0, 1], [30, 40], .1),
+    ([1, 0, 1], [[30], [40], [50]], .1),        # (n, 1) column -> (n, n) output
+    ([1, 0, 1], [30, 40, 50], [.1, .2]),
+    ([1, 0, 1], [30, np.nan, 50], .1),
+])
+def test_age_threshold_helpers_refuse_misaligned_inputs(status, age, prev):
+    from ltpred.thresholds import age_thresholds, pa_thresholds
+    for helper in (age_thresholds, pa_thresholds):
+        with pytest.raises(ValueError):
+            helper(status, age, prev)

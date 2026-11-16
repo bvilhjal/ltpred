@@ -296,9 +296,11 @@ report unresolved parents. **R3.** For each proband, extract relatives within
 `condition_closure`; under `use="prediction"` so is the proband's row, and each
 relative is censored at their own age at the proband's `index_time`. **R5.**
 Convert records to pinned-onset bounds.
-**R6.** When the positive-definiteness bound allows, keep only the target and
-informative rows (exact marginalisation) and compute their kinship by the dense
-or selected route of Algorithm K; otherwise use the full matrix. **R7.** Score
+**R6.** When the positive-definiteness bound allows (smallest eigenvalue at
+least $(1/h^2+3n(1+h^2)/(1-h^2))^{-1}>10^{-6}$ for $n$ relatives, proved in the
+methods report), keep only the target and informative rows (exact
+marginalisation) and compute their kinship by the dense or selected route of
+Algorithm K; no repair is needed. Otherwise use and repair the full matrix. **R7.** Score
 by PA (a family-free, non-inbred, unpinned proband uses the exact scalar ADuLT
 moments instead). **R8.** Report
 the per-proband observation counts and call-level diagnostics.

@@ -979,3 +979,33 @@ def test_unseeded_fit_reseeds_the_persistent_chain_stream():
     assert fresh is not seeded
     assert (fresh.bit_generator.state["state"]
             != seeded.bit_generator.state["state"])
+
+
+def test_bootstrap_resamples_skip_the_population_case_rate_screen():
+    # The full cohort passes the screen, but resample seed 0 draws a role rate
+    # past |z| >= 6: resampling noise, which used to abort the bootstrap.
+    from ltpred import bootstrap_fit, fit_pairwise
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
+                                    n_sim=1500, pop_prev=0.15, seed=516)
+    estimator = lambda fams: fit_pairwise(fams, sampling="population").components["A"]
+    result = bootstrap_fit(sim.families, estimator, n_boot=20, seed=0)
+    assert np.all(np.isfinite(result.samples))
+    # The full data is still screened.
+    wrong = [Family(f.fam_id, [Member(m.role, .2 if np.isfinite(m.lower) else -np.inf,
+                                      np.inf if np.isfinite(m.lower) else .2)
+                               for m in f.members]) for f in sim.families]
+    with pytest.raises(ValueError, match="not consistent"):
+        bootstrap_fit(wrong, estimator, n_boot=2, seed=0)
+
+
+def test_fitters_accept_scalar_bounds_beside_one_by_one_arrays():
+    from ltpred import fit_pairwise
+    sim = simulate_under_LTM_single(fam_vec=["m", "f", "s1", "s2"], h2=0.5,
+                                    n_sim=300, pop_prev=0.2, seed=2)
+    mixed = [Family(f.fam_id, [Member(m.role,
+                                      np.array([[m.lower]]) if j % 2 else m.lower,
+                                      np.array([[m.upper]]) if j % 2 else m.upper)
+                               for j, m in enumerate(f.members)])
+             for f in sim.families]
+    assert (fit_pairwise(mixed, sampling="population").components["A"]
+            == fit_pairwise(sim.families, sampling="population").components["A"])

@@ -16,6 +16,8 @@ import re
 
 import pytest
 
+from _helpers import requires_phensim
+
 REPO = pathlib.Path(__file__).resolve().parents[1]
 TUTORIAL = REPO / "docs" / "tutorial.md"
 
@@ -40,6 +42,7 @@ def test_tutorial_exists_and_has_executable_steps():
         "the first step should be self-contained"
 
 
+@requires_phensim
 def test_tutorial_blocks_run_in_order_and_print_the_documented_output():
     """Each python block runs against the namespace the earlier blocks built.
 

@@ -9,9 +9,16 @@ import importlib.util
 import pathlib
 import sys
 
+import pytest
 from scipy import stats
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
+
+#: Pedigree and Mendelian draws need phensim, the optional ``[sim]`` extra;
+#: without it these tests skip rather than fail.
+requires_phensim = pytest.mark.skipif(
+    importlib.util.find_spec("phensim") is None,
+    reason="needs the [sim] extra (phensim)")
 
 
 def imr(t):

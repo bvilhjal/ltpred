@@ -124,3 +124,17 @@ class TestRecoverySimulation:
         r2_z = liability_r2_from_z(b / se, n, P, P)
         r2_id = probit_liability_r2(b, f)
         assert r2_z == pytest.approx(r2_id, rel=0.3)
+
+
+def test_liability_scale_refuses_nonfinite_counts_and_nonbool_fraction():
+    from ltpred.liability_scale import probit_liability_r2
+    for n in (np.inf, np.nan, 0.):
+        with pytest.raises(ValueError, match="n must be finite"):
+            liability_r2_from_z(3.0, n=n, pop_prev=.1)
+    with pytest.raises(ValueError, match="z must be finite"):
+        liability_r2_from_z(np.inf, n=1000, pop_prev=.1)
+    assert np.isnan(liability_r2_from_z(np.array([np.nan, 3.]), n=1000, pop_prev=.1)[0])
+    with pytest.raises(TypeError, match="fraction"):
+        probit_liability_r2(.1, .2, fraction="no")
+    with pytest.raises(ValueError, match="maf"):
+        probit_liability_r2(.1, np.nan)

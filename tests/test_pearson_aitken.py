@@ -1116,3 +1116,56 @@ def test_singular_interval_rank_uses_tolerance_not_cholesky(batched):
             pa_estimate_batched(cov, lo[None], hi[None])
         else:
             pa_algorithm(cov, lo, hi)
+
+
+def test_dependent_contradictory_pins_are_rejected_when_cholesky_succeeds():
+    # X2 = X0 + X1, so pins 1, 1, 5 are impossible; the block's Cholesky
+    # succeeds by rounding and used to skip the support check.
+    base = np.array([[1., 0., 1.], [0., 6., 6.], [1., 6., 7.]])
+    cov = np.zeros((4, 4))
+    cov[1:, 1:] = base
+    cov[0, 0] = 1.
+    cov[0, 1:] = cov[1:, 0] = [.3, .3, .6]
+    lo = np.array([-np.inf, 1., 1., 5.])
+    hi = lo.copy()
+    hi[0] = np.inf
+    with pytest.raises(ValueError, match="incompatible"):
+        pa_algorithm(cov, lo, hi)
+    with pytest.raises(ValueError, match="incompatible"):
+        pa_estimate_batched(cov, lo[None], hi[None])
+    lo[3] = hi[3] = 2.0
+    assert pa_algorithm(cov, lo, hi)[0] == pytest.approx(.35, abs=1e-9)
+
+
+@pytest.mark.parametrize("s", [.70, .71, .72])
+def test_pinned_copy_of_a_lifetime_control_is_rejected_on_the_mixture_path(s):
+    # Row 1 copies pinned row 2 (liability 2.0) but, with K_i == K_pop, must
+    # lie below the lifetime threshold 1.28. The plain bound raised; the
+    # mixture path accepted it, with a result that depended on rounding.
+    cov = np.array([[.5, .3, .3], [.3, s, s], [.3, s, s]])
+    threshold = float(-stats.norm.ppf(.1))
+    lo = np.array([-np.inf, -np.inf, 2.0])
+    hi = np.array([np.inf, threshold, 2.0])
+    k_i = np.array([np.nan, .1, np.nan])
+    k_pop = k_i.copy()
+    with pytest.raises(ValueError, match="deterministic liability"):
+        pa_algorithm(cov, lo, hi, K_i=k_i, K_pop=k_pop)
+    # With incidence remaining the row may be a future case: still accepted.
+    k_i[1] = .05
+    assert np.isfinite(pa_algorithm(cov, lo, hi, K_i=k_i, K_pop=k_pop)[0])
+
+
+@pytest.mark.parametrize("K_pop, sd", [(1e-9, 1e-6), (1e-9, 1e-7), (1e-12, 1e-7)])
+def test_mixture_variance_keeps_its_digits_at_a_large_mean(K_pop, sd):
+    # E[X^2] - E[X]^2 at a mean near 6 and sd 1e-7 lost the variance (0.71 or
+    # 2.1 times the truth); the centred form keeps it.
+    from ltpred.pearson_aitken import _tnorm_mixture
+    split = float(-stats.norm.ppf(K_pop))
+    mean, var = _tnorm_mixture(split - .3 * sd, sd * sd, -np.inf, split + 5 * sd,
+                               K_pop / 2, K_pop)
+    control, future = stats.norm.cdf(.3), stats.norm.sf(.3) * .5
+    p, q = control / (control + future), future / (control + future)
+    m0, v0 = truncnorm.stats(-np.inf, .3, moments="mv")
+    m1, v1 = truncnorm.stats(.3, np.inf, moments="mv")
+    expected = p * v0 + q * v1 + p * q * (m0 - m1) ** 2
+    assert var / sd ** 2 == pytest.approx(float(expected), rel=1e-6)

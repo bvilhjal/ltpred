@@ -95,8 +95,10 @@ pass `weights=weights` and use a two-argument callback such as
 `lambda f, w: fit_heritability(f, sampling="ipw", weights=w, seed=1).h2`;
 families and weights are resampled by the same indices.
 
-Cost is `n_boot + 1` fits. The interval assumes independent clusters and a
-valid sampling design; zero-probability strata, overlapping pedigrees and
+Cost is `n_boot + 1` fits. The case-rate screen runs on the full-data fit
+only; a resample redraws the same cohort, so its rates scatter around the
+cohort's own and are not screened again. The interval assumes independent
+clusters and a valid sampling design; zero-probability strata, overlapping pedigrees and
 boundary parameters need separate treatment. Increase `n_boot` until the SE
 and percentile endpoints are stable and report the value used.
 

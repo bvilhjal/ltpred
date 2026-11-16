@@ -24,7 +24,7 @@ from numpy.typing import ArrayLike
 
 from ._numba import _jit, _jit_parallel, prange
 from ._mathfun import _norm_cdf, _norm_ppf
-from ._validation import validate_bounds
+from ._validation import reject_non_real, validate_bounds
 
 __all__ = ["rtmvnorm_gibbs", "gibbs_params"]
 
@@ -534,8 +534,10 @@ def _as_bounds(a):
     of large per-family bound arrays), otherwise coerce to float64. The kernels'
     internal state and accumulators stay float64 regardless, so only the big
     ``(F, d)`` inputs shrink; the covariance / conditional-regression factors are
-    unaffected."""
+    unaffected. Boolean, string and complex input is refused."""
     a = np.ascontiguousarray(a)
+    if a.dtype.kind not in "fiu":
+        reject_non_real(a)
     return a if a.dtype == np.float32 else np.ascontiguousarray(a, dtype=np.float64)
 
 
@@ -682,6 +684,18 @@ def _seed_numba_rng(seed):
     np.random.seed(seed)
 
 
+def _as_index(value, message):
+    """``operator.index(value)`` as a plain int; ``TypeError(message)`` for a
+    Boolean or a non-integer. The one integer gate for the sampler controls,
+    so a 0-d integer array is accepted (or refused) alike everywhere."""
+    if isinstance(value, (bool, np.bool_)):
+        raise TypeError(message)
+    try:
+        return int(operator.index(value))
+    except TypeError:
+        raise TypeError(message) from None
+
+
 def _validate_seed(seed):
     """Return a user-supplied ``seed`` as a plain in-range int, or raise.
 
@@ -689,9 +703,7 @@ def _validate_seed(seed):
     the estimator and the fitters accept exactly the same values. ``bool`` is a
     subclass of ``int`` and is rejected on purpose: ``seed=True`` is a mistake, not
     a request for stream 1."""
-    if isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer)):
-        raise TypeError(f"seed must be an integer in [0, {_MAX_SEED}]")
-    seed = int(seed)
+    seed = _as_index(seed, f"seed must be an integer in [0, {_MAX_SEED}]")
     if seed < 0 or seed > _MAX_SEED:
         raise ValueError(f"seed must be in [0, {_MAX_SEED}]")
     return seed
@@ -704,10 +716,7 @@ def _validate_burn_in(burn_in):
     silently drops initial output rows while ``n_sim`` draws are still credited.
     As for `_validate_seed`, ``bool`` and non-integers are rejected rather
     than truncated."""
-    if isinstance(burn_in, (bool, np.bool_)) \
-            or not isinstance(burn_in, (int, np.integer)):
-        raise TypeError("burn_in must be a non-negative integer")
-    burn_in = int(burn_in)
+    burn_in = _as_index(burn_in, "burn_in must be a non-negative integer")
     if burn_in < 0:
         raise ValueError("burn_in must be a non-negative integer")
     return burn_in
@@ -826,12 +835,7 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
     (n_sim, len(set(out))) ndarray
         Retained draws. The high-level estimators return summaries instead.
     """
-    if isinstance(n_sim, (bool, np.bool_)):
-        raise TypeError("n_sim must be a positive integer, not bool")
-    try:
-        n_sim = operator.index(n_sim)
-    except TypeError:
-        raise TypeError("n_sim must be a positive integer") from None
+    n_sim = _as_index(n_sim, "n_sim must be a positive integer")
     if n_sim <= 0:
         raise ValueError("n_sim must be a positive integer")
     cov = (np.ascontiguousarray(covmat, dtype=np.float64)
@@ -844,6 +848,7 @@ def rtmvnorm_gibbs(covmat: ArrayLike, lower: ArrayLike = -np.inf,
     d = cov.shape[0]
     burn_in = _validate_burn_in(burn_in)
 
+    reject_non_real(lower, upper, context="rtmvnorm_gibbs bounds")
     lower = np.broadcast_to(np.asarray(lower, dtype=np.float64), (d,)).copy()
     upper = np.broadcast_to(np.asarray(upper, dtype=np.float64), (d,)).copy()
     validate_bounds(lower, upper, context="rtmvnorm_gibbs bounds")

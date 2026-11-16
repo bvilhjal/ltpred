@@ -22,10 +22,10 @@ from numpy.typing import ArrayLike
 from scipy.linalg import qr
 
 from ._numba import _jit, _jit_parallel, prange
-from ._mathfun import _norm_cdf, _norm_ppf
+from ._mathfun import _norm_cdf, _norm_ppf, norm_ppf
 from .covariance import _PSD_CERTIFIED
 from .gibbs import _as_bounds
-from ._validation import validate_bounds, validate_mixture_inputs
+from ._validation import reject_non_real, validate_bounds, validate_mixture_inputs
 
 __all__ = ["pa_algorithm", "pa_estimate_batched"]
 
@@ -453,7 +453,7 @@ def _pin_tolerance(lowers, values, n):
     return 128 * eps * n * np.maximum(1.0, np.abs(values))
 
 
-def _check_pin_support(cov, lowers, uppers, K_is):
+def _check_pin_support(cov, lowers, uppers, K_is, K_pops):
     """Apply Algorithm P's step-P2 compatibility checks on the mixture path.
 
     Algorithm M folds pins sequentially instead of conditioning on them
@@ -461,15 +461,24 @@ def _check_pin_support(cov, lowers, uppers, K_is):
     the bounds of a row they determine. Group families by pin mask, condition
     on the pins with `_condition_pins` (which rejects pins outside the
     covariance support) and require every row the pins determine to lie within
-    its bounds. A censored-control mixture row may exceed its ``upper`` (a
-    future case), so only its ``lower`` bound is checked. The bounds are
+    its bounds. A censored-control mixture row with remaining incidence
+    (``K_i < K_pop``) may exceed its ``upper`` (a future case), so only its
+    ``lower`` bound is checked; with ``K_i == K_pop`` no future case remains
+    and the lifetime split ``-Phi^-1(K_pop)`` binds as its upper. The bounds are
     compared at their stored precision (`_pin_tolerance`): storage rounding at
     float32 is absorbed, not read as a contradiction."""
     pins = lowers == uppers
     if not np.any(pins):
         return
-    mixture = ~np.isnan(np.asarray(K_is, dtype=np.float64)) & (uppers != np.inf)
-    effective_upper = np.where(mixture, np.inf, uppers)
+    K_is = np.asarray(K_is, dtype=np.float64)
+    K_pops = np.asarray(K_pops, dtype=np.float64)
+    mixture = ~np.isnan(K_is) & (uppers != np.inf)
+    future = mixture & (K_is < K_pops)
+    effective_upper = np.array(uppers, dtype=np.float64)
+    effective_upper[future] = np.inf
+    # Without remaining incidence the kernel truncates at the lifetime split.
+    lifetime_control = mixture & ~future
+    effective_upper[lifetime_control] = -norm_ppf(K_pops[lifetime_control])
     keys = pins.view(np.dtype((np.void, pins.shape[1]))).ravel()
     _, first, inverse = np.unique(keys, return_index=True, return_inverse=True)
     for k, row in enumerate(first):
@@ -508,7 +517,16 @@ def _condition_pins(cov, retained, pinned, values):
         # the weights below never read it, so factor only multi-pin batches.
         try:
             chol = np.linalg.cholesky(block)
+            # Cholesky can succeed by rounding on a numerically singular block
+            # (X2 = X0 + X1 pinned at 1, 1, 5 factors fine). A pivot below the
+            # spectral tolerance (which bounds the largest eigenvalue of a
+            # correlation block by its size) means dependent pins, whose
+            # compatibility only the support check below establishes.
+            singular = (np.min(np.diag(chol)) ** 2
+                        <= 64 * np.finfo(float).eps * len(pinned) ** 2)
         except np.linalg.LinAlgError:
+            singular = True
+        if singular:
             eigenvalues, vectors = np.linalg.eigh(block)
             tolerance = 64 * np.finfo(float).eps * len(pinned) * max(1.0, np.max(eigenvalues))
             active = eigenvalues > tolerance
@@ -758,6 +776,7 @@ def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
     """
     cov = _validate_pa_covmat(covmat)
     d = cov.shape[0]
+    reject_non_real(lower, upper, context="pa_algorithm bounds")
     lower = np.asarray(lower, dtype=np.float64)
     upper = np.asarray(upper, dtype=np.float64)
     # `lower[order]` below is a fancy index by a length-d permutation: a longer
@@ -785,7 +804,8 @@ def pa_algorithm(covmat: ArrayLike, lower: ArrayLike, upper: ArrayLike,
         return float(est[0]), float(var[0])
     K_i = _as_bounds(K_i)
     K_pop = _as_bounds(K_pop)
-    _check_pin_support(cov, lo[None, :], hi[None, :], K_i[order][None, :])
+    _check_pin_support(cov, lo[None, :], hi[None, :], K_i[order][None, :],
+                       K_pop[order][None, :])
     return _pa_family(cov, lo, hi, K_i[order], K_pop[order])
 
 
@@ -843,7 +863,7 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
     kp = K_pops if target == 0 else np.ascontiguousarray(K_pops[:, order])
     if np.all(active):
         est, var = np.empty(F), np.empty(F)
-        _check_pin_support(cov, lo, hi, ki)
+        _check_pin_support(cov, lo, hi, ki, kp)
         _pa_kernel_mixture(cov, lo, hi, ki, kp, est, var)
         return est, var
     # Mixture participation belongs to each family, not the enclosing cohort.
@@ -852,7 +872,7 @@ def pa_estimate_batched(covmat: ArrayLike, lowers: ArrayLike, uppers: ArrayLike,
     est[~active], var[~active] = _pa_reduced_nomix(cov, lo[~active], hi[~active])
     mix_lo, mix_hi, mix_ki = lo[active], hi[active], ki[active]
     mix_est, mix_var = np.empty(np.count_nonzero(active)), np.empty(np.count_nonzero(active))
-    _check_pin_support(cov, mix_lo, mix_hi, mix_ki)
+    _check_pin_support(cov, mix_lo, mix_hi, mix_ki, kp[active])
     _pa_kernel_mixture(cov, mix_lo, mix_hi, mix_ki, kp[active], mix_est, mix_var)
     est[active], var[active] = mix_est, mix_var
     return est, var

@@ -152,8 +152,10 @@ Then, before running a production analysis:
     with `weights = 1 / P(family sampled)` when selection was on observed status
     with a known positive probability for every stratum. Check that your
     observed case rates plausibly match the prevalence behind your thresholds.
-    The fitter raises only on gross mismatch (about 1.67× at K = 0.05 with
-    1,500 families), and a match does not prove joint-pattern positivity. A
+    Under population sampling the fitter raises only on gross mismatch (about
+    1.67× at K = 0.05 with 1,500 families); under IPW it only warns, because
+    outcome-dependent weights invalidate that check. A match does not prove
+    joint-pattern positivity. A
     mismatch may equally mean the prevalence is wrong rather than the sample
     selected. Neither contract covers proband-ascertained families; those need
     an estimator that models the selection.

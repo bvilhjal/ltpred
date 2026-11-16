@@ -138,6 +138,27 @@ def prevalence_thresholds(status: ArrayLike, pop_prev: ArrayLike
     return lower, upper
 
 
+def _status_age_prevalence(status, age, pop_prev):
+    """Aligned 1-D ``status`` and finite ``age`` (a scalar age applies to
+    everyone); a scalar or per-person ``pop_prev``. Broadcasting would
+    otherwise turn a length mismatch or an ``(n, 1)`` column into a silently
+    reshaped cohort."""
+    status = _validate_status(status)
+    age = np.asarray(age, dtype=float)
+    if age.shape not in ((), status.shape):
+        raise ValueError(
+            f"age must be a scalar or match status in length; got shapes "
+            f"{status.shape} and {age.shape}")
+    if not np.all(np.isfinite(age)):
+        raise ValueError("age must contain only finite values")
+    prev_shape = np.shape(pop_prev)
+    if prev_shape not in ((), status.shape):
+        raise ValueError(
+            f"pop_prev must be a scalar or have one value per person; got shape "
+            f"{prev_shape} for {status.shape[0]} people")
+    return status, age
+
+
 def age_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
                    mid_point: float = 60.0, slope: float = 1.0 / 8.0
                    ) -> tuple[np.ndarray, np.ndarray]:
@@ -147,7 +168,7 @@ def age_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
     demonstration is mainly for simulation; production register analyses use
     `thresholds_from_cip` with appropriate stratum-specific curves.
     """
-    status = _validate_status(status)
+    status, age = _status_age_prevalence(status, age, pop_prev)
     thr = convert_age_to_thresh(age, pop_prev=pop_prev,
                                 mid_point=mid_point, slope=slope)
     thr = np.asarray(thr, dtype=float)
@@ -173,8 +194,7 @@ def pa_thresholds(status: ArrayLike, age: ArrayLike, pop_prev: ArrayLike,
     ``K_i``/``K_pop`` values. ``pop_prev`` may be a scalar or a per-person
     array, broadcasting with ``age`` and ``status``.
     """
-    status = _validate_status(status)
-    age = np.asarray(age, dtype=float)
+    status, age = _status_age_prevalence(status, age, pop_prev)
     # One logistic evaluation: thr is -Phi^-1(cir) by definition
     # (convert_age_to_thresh), so derive it from cir directly.
     cir = np.asarray(convert_age_to_cir(age, pop_prev=pop_prev, mid_point=mid_point,

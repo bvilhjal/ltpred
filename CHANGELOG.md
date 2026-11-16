@@ -13,6 +13,55 @@ itemised; the full per-release notes up to v0.7.4 are in git history
 
 ## Unreleased
 
+Fixes from the 16 November review; each has a test that fails without it.
+Apart from the changes listed, valid inputs reproduce 0.8.2 bit for bit (PA,
+seeded Gibbs, register scores, fitters, bootstrap samples, kinship and
+simulators checked).
+
+- `bootstrap_fit` no longer aborts on valid population cohorts. The case-rate
+  screen runs on the full data only; a resample redraws the same cohort, and
+  1–4% of cohorts that pass the screen crossed it in some resample.
+- `tetrachoric_table` falls back to the Genz CDF where the Plackett integrand
+  divides by zero, instead of raising `ZeroDivisionError` on extreme tables
+  (a regression in 0.8.0).
+- A person recorded as both father and mother is rejected. It was scored as
+  selfing, giving the child inbreeding 1/2.
+- `simulate_under_LTM_multi` validates `h2`, `rg`, `residual_re` and the
+  shared matrices. With the default shared components, an `h2` above 0.75
+  made a trait all NaN, with no cases and all-control bounds.
+- Pearson–Aitken rejects contradictory pins on a rank-deficient covariance
+  even when Cholesky succeeds by rounding. On the mixture path, a control
+  with no remaining incidence (`K_i == K_pop`) is bounded by the lifetime
+  threshold, so a pin that forces it above that threshold is rejected.
+- `fit_pairwise_multi` accepts boundary fits at a loose `tol` (the cone check
+  scales with `tol`), returns PSD component matrices, and rejects a trait
+  with no affected or no unaffected members before fitting.
+- Boolean, string and complex bounds raise `TypeError` in the estimators,
+  fitters and `families_from_columns`; a status column passed as bounds
+  became pins at 1 and 0.
+- `simulate_under_LTM_single` puts an interval case's lower edge at the end
+  of the recorded age bin under every onset model; with `liability_dependent`
+  onset, half the case liabilities fell below their bound.
+- Input checks: misaligned status/age/prevalence and non-finite ages in
+  `age_thresholds`/`pa_thresholds`; non-finite, non-square or asymmetric
+  input to `correct_positive_definite`; a non-bool `add_ind` (where 0.7.x
+  took `n_fam`) and a bool `h2`; non-finite `n` or infinite `z` in
+  `liability_r2_from_z`; a non-bool `fraction` or NaN `maf` in
+  `probit_liability_r2`; an invalid incidence curve or prevalence in the
+  simulators; a `phen_names` list of the wrong length. `h2 + c2 + m2` may
+  exceed one by 1e-12 of rounding, and `construct_covmat_multi` symmetrises
+  the correlation matrices it accepts.
+- Smaller: a NaN Monte-Carlo SE triggers the unconverged warning; 0-d integer
+  arrays work for every Gibbs integer control; `families_from_columns` keeps
+  tuple ids as one key per row; the kinship mixture accepts one family's 1-D
+  `K_i`/`K_pop`; the moment fitters accept scalar bounds beside (1, 1) arrays.
+- The methods report now proves the bound behind the register driver's
+  skipped covariance repair, and a test compares the skip with the repair.
+  Four deleted `run_benchmark.py` provenance tests are restored. Tests that
+  need phensim skip without the `[sim]` extra. The boundary test that failed
+  on SciPy ≤ 1.15 hit SLSQP's iteration limit and now sets `maxiter`. CI runs
+  the pandas tests and the public-workflow smokes at the dependency floors.
+
 ## 0.8.2 — 2026-11-11
 
 - PA mixtures retain small positive conditional variances instead of treating
@@ -96,7 +145,7 @@ the deterministic PA and R-lock scores are unchanged.
 - Tetrachoric estimation solves the saturated-model root
   `p_both(rho) = a/n` by Brent's method on Plackett cell probabilities (the
   pairwise fitters' engine), with a closed-form observed-information SE.
-  Estimates move by up to ~1e-8 (the old bounded optimizer was the loose
+  Estimates move by up to ~2e-7 (the old bounded optimizer was the loose
   side) and each evaluation is about 3× faster than the Genz CDF it
   replaces (kept only as an extreme-corner fallback). This closes review
   09f F8.

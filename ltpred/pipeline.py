@@ -43,8 +43,9 @@ _UNRESOLVED_PARENT_WARN_FRACTION = 0.5
 # members is 18 MB). The crossover is quadratic: dense costs ~c1*m + c2*m^2
 # (parent links plus the O(m^2) fill) while warm selected-pair recursion costs
 # ~0.6 us per requested pair, so the measured switch point is
-# pairs ~ 0.02*m^2; 0.03 stays clear of it. The two routes are bit-identical,
-# so a mis-select costs only time.
+# pairs ~ 0.02*m^2; 0.03 stays clear of it. The two routes agree exactly at
+# realistic depths (a 60-generation inbred pedigree differs by 4e-16), so a
+# mis-select costs only time.
 _DENSE_KINSHIP_MAX_MEMBERS = 1500
 _DENSE_KINSHIP_MIN_PAIR_FRACTION = 0.03
 

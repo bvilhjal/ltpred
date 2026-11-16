@@ -536,3 +536,25 @@ def test_population_export_preserves_tuple_person_ids():
     assert result.probands == ids[::-1]
     pytest.importorskip("pandas")
     assert result.to_frame()["pid"].tolist() == ids[::-1]
+
+
+@pytest.mark.parametrize("h2", [.05, .5, .95])
+def test_certified_reduction_matches_the_repair_path_bit_for_bit(h2, monkeypatch):
+    # The pipeline skips correct_positive_definite when the inverse-trace bound
+    # (methods report, "Marginalisation without repair") certifies the reduced
+    # covariance; forcing the repair back on must change nothing.
+    import ltpred.pipeline as pipeline
+    ids = ["gm", "gf", "a", "b", "mate", "inbred", "half", "c1", "c2"]
+    father = [None, None, "gf", "gf", None, "a", "a", "inbred", "inbred"]
+    mother = [None, None, "gm", "gm", None, "b", "mate", "half", "half"]
+    ages = np.arange(0., 101.)
+    kwargs = dict(probands=ids[2:], status=[1, 0, 1, 0, 0, 1, 0, 1, 0],
+                  age=[80., 82., 55., 52., 50., 30., 28., 10., 8.], use="gwas",
+                  cip_ages=ages, cip_values=.1 / (1 + np.exp((60 - ages) / 8)),
+                  h2=h2, max_degree=3)
+    assert pipeline._covariance_reduction_is_safe(h2, len(ids))
+    skipped = estimate_liabilities(ids, father, mother, **kwargs)
+    monkeypatch.setattr(pipeline, "_PD_CERTIFIED", object())
+    repaired = estimate_liabilities(ids, father, mother, **kwargs)
+    np.testing.assert_array_equal(skipped.est, repaired.est)
+    np.testing.assert_array_equal(skipped.var, repaired.var)
